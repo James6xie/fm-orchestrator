@@ -10,6 +10,6 @@ CREATE TABLE IF NOT EXISTS builds (
 	package   TEXT NOT NULL,    -- bar-42-1, SRPM NVR
 	type      TEXT NOT NULL,    -- rpm
 	task      INTEGER NOT NULL, -- koji task id
-	state     TEXT NOT NULL,    -- koji build states
+	state     TEXT NOT NULL,    -- koji build states - open, closed, failed
 	FOREIGN KEY(module_id) REFERENCES modules(id)
 );
