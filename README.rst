@@ -18,7 +18,7 @@ Client-side API
 ===============
 
 The orchestrator implements a RESTful interface for module build submission and
-state querying.
+state querying.  Not all REST methods are supported.  See below for details.
 
 Module build submission
 -----------------------
@@ -57,8 +57,8 @@ build task's URL.  Querying the BPO service might be preferred, however.
 
     GET /rida/module-builds/42
 
-The response, if the tasks exists, would include various pieces of information
-about the build task.
+The response, if the task exists, would include various pieces of information
+about the referenced build task.
 
 ::
 
@@ -75,10 +75,11 @@ about the build task.
         }
     }
 
-"id" is the ID of the task.  "state" refers to the module build state and might
-be one of "init", "building", "done", "failed" or "locked".  "tasks" is a
-dictionary of component names in the format of "type/NVR" and related koji
-tasks and their states.
+"id" is the ID of the task.  "state" refers to the orchestrator module
+build state and might be one of "init", "building", "done", "failed" or
+"locked".  "tasks" is a dictionary of component names in the format of
+"type/NVR" and related koji or other supported buildsystem tasks and
+their states.
 
 Listing all module builds
 -------------------------
