@@ -27,3 +27,11 @@
 
 This is the implementation of the orchestrator's public RESTful API.
 """
+
+# TODO: Load configuration.
+# TODO: Handle GET and POST requests.
+# TODO; Validate the input modulemd & spec inputs.
+# TODO: Update the PDC dependency graph.
+# TODO: Emit messages about module submission.
+# TODO: Set the build state to init once the module NVR is known.
+# TODO: Set the build state to wait once we're done.
