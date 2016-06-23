@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS modules (
     name      TEXT NOT NULL, -- e.g. foo, module name
     version   TEXT NOT NULL, -- e.g. 1.23, module version
     release   TEXT NOT NULL, -- e.g. 4, module release
-    state     TEXT NOT NULL, -- init, wait, build, done, failed, locked
+    state     TEXT NOT NULL, -- init, wait, build, done, failed, ready
     modulemd  TEXT NOT NULL  -- the entire modulemd file
 );
 
