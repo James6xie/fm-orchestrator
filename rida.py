@@ -35,3 +35,33 @@ This is the implementation of the orchestrator's public RESTful API.
 # TODO: Emit messages about module submission.
 # TODO: Set the build state to init once the module NVR is known.
 # TODO: Set the build state to wait once we're done.
+
+from flask import Flask
+from rida import config
+
+app = Flask(__name__)
+app.config.from_envvar("RIDA_SETTINGS", silent=True)
+
+conf = config.from_file()
+
+@app.teardown_appcontext
+def close_db(error):
+    """Closes the database connection at the end of the request."""
+
+@app.route("/rida/module-builds/", methods=["POST"])
+def submit_build():
+    """Handles new module build submissions."""
+    return "submit_build()", 501
+
+@app.route("/rida/module-builds/", methods=["GET"])
+def query_builds():
+    """Lists all tracked module builds."""
+    return "query_builds()", 501
+
+@app.route("/rida/module-builds/<int:id>")
+def query_build(id):
+    """Lists details for the specified module builds."""
+    return "query_build(id)", 501
+
+if __name__ == "__main__":
+    app.run()

@@ -24,3 +24,59 @@
 # Written by Petr Šabata <contyk@redhat.com>
 
 """Database handler functions."""
+
+from sqlalchemy import Column, Integer, String
+from sqlalchemy.ext.declarative import declarative_base
+
+Base = declarative_base()
+
+class Database(object):
+    """Class for handling database connections."""
+
+    def __init__(self, conf):
+        """..."""
+        if not isinstance(conf, rida.config.Config):
+            raise TypeError("Database requires a configuration object.")
+        self._conf = conf
+
+    def connect_db():
+        # TODO: implement this
+
+    def disconnect_db():
+        # TODO: implement this
+
+    def get_db():
+        # TODO: Implement this
+
+    @property
+    def conf():
+        """Database configuration."""
+        return self._conf
+
+    @conf.setter
+    def conf(o):
+        if not isinstance(conf, rida.config.Config):
+            raise TypeError("Invalid data passed for conf")
+        self._conf = o
+
+class Module(Base):
+    __tablename__ = "modules"
+    id = Column(Integer, primary_key=True)
+    name = Column(String)
+    version = Column(String)
+    release = Column(String)
+    # XXX: Consider making this a proper ENUM
+    state = Column(String)
+    modulemd = Column(String)
+
+class Build(Base):
+    __tablename__ = "builds"
+    id = Column(Integer, primary_key=True)
+    # XXX: Consider making this a proper foreign key
+    module_id = Column(Integer)
+    package = Column(String)
+    # XXX: Consider making this a proper ENUM
+    format = Column(String)
+    task = Column(Integer)
+    # XXX: Consider making this a proper ENUM
+    state = Column(String)
