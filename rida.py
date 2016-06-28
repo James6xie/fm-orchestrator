@@ -28,7 +28,6 @@
 This is the implementation of the orchestrator's public RESTful API.
 """
 
-# TODO: Load configuration.
 # TODO: Handle GET and POST requests.
 # TODO; Validate the input modulemd & spec inputs.
 # TODO: Update the PDC dependency graph.
@@ -37,16 +36,15 @@ This is the implementation of the orchestrator's public RESTful API.
 # TODO: Set the build state to wait once we're done.
 
 from flask import Flask
-from rida import config
+from rida import config, database
+import json
 
 app = Flask(__name__)
 app.config.from_envvar("RIDA_SETTINGS", silent=True)
 
-conf = config.from_file()
-
-@app.teardown_appcontext
-def close_db(error):
-    """Closes the database connection at the end of the request."""
+# TODO: Load the config file from environment
+conf = config.from_file("rida.conf")
+db = database.Session()
 
 @app.route("/rida/module-builds/", methods=["POST"])
 def submit_build():
@@ -56,12 +54,26 @@ def submit_build():
 @app.route("/rida/module-builds/", methods=["GET"])
 def query_builds():
     """Lists all tracked module builds."""
-    return "query_builds()", 501
+    return json.dumps([{"id": x.id, "state": x.state}
+        for x in db.session.query(database.Module).all()]), 200
 
-@app.route("/rida/module-builds/<int:id>")
+@app.route("/rida/module-builds/<int:id>", methods=["GET"])
 def query_build(id):
     """Lists details for the specified module builds."""
-    return "query_build(id)", 501
+    module = db.session.query(database.Module).filter_by(id=id).first()
+    if module:
+        tasks = dict()
+        if module.state != "init":
+            for build in db.session.query(database.Build).filter_by(module_id=id).all():
+                tasks[build.format + "/" + build.package] = \
+                    str(build.task) + "/" + build.state
+        return json.dumps({
+            "id": module.id,
+            "state": module.state,
+            "tasks": tasks
+            }), 200
+    else:
+        return "", 404
 
 if __name__ == "__main__":
     app.run()
