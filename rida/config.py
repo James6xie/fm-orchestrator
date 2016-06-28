@@ -25,8 +25,9 @@
 
 """Configuration handler functions."""
 
-# TODO: Pick the configuration format
-# TODO: Add properties for all the required options.
+import os.path
+import configparser
+import json
 
 def from_file(filename=None):
     """Create the configuration instance from a file.
@@ -39,8 +40,17 @@ def from_file(filename=None):
         filename = "/etc/rida/rida.conf"
     if not isinstance(filename, str):
         raise TypeError("The configuration filename must be a string.")
+    if not os.path.isfile(filename):
+        raise IOError("The configuration file doesn't exist.")
+    cp = configparser.ConfigParser(allow_no_value=True)
+    cp.read(filename)
+    default = cp["DEFAULT"]
     conf = Config()
-    # TODO: Parse the file and set the properties
+    conf.db = default.get("db")
+    conf.system = default.get("system")
+    conf.pdc = default.get("pdc")
+    conf.koji = default.get("koji")
+    conf.scmurls = json.loads(default.get("scmurls"))
     return conf
 
 class Config(object):
@@ -48,48 +58,57 @@ class Config(object):
 
     def __init__(self):
         """Initialize the Config object."""
-        # Buildsystem to use; koji, copr, mock
         self._system = ""
-        # SQLAlchemy RDB URL
         self._db = ""
-        # PDC URL
         self._pdc = ""
-        # Koji URL
         self._koji = ""
 
     @property
-    def system():
-        """Buildsystem to use by the orchestrator."""
+    def system(self):
+        """The buildsystem to use."""
         return self._system
 
     @system.setter
-    def system(s):
-        # XXX: Check if it's one of the supported values
-        self._system = str(s)
+    def system(self, s):
+        s = str(s)
+        if s not in ("koji"):
+            raise ValueError("Unsupported buildsystem.")
+        self._system = s
 
     @property
-    def db():
-        """RDB URL for the orchestrator."""
+    def db(self):
+        """RDB URL."""
         return self._db
 
     @db.setter
-    def db(s):
+    def db(self, s):
         self._db = str(s)
 
     @property
-    def pdc():
-        """PDC URL for the orchestrator."""
+    def pdc(self):
+        """PDC URL."""
         return self._pdc
 
     @pdc.setter
-    def pdc(s):
+    def pdc(self, s):
         self._pdc = str(s)
 
     @property
-    def koji():
-        """Koji URL for the orchestrator."""
+    def koji(self):
+        """Koji URL."""
         return self._koji
 
     @koji.setter
-    def koji(s):
+    def koji(self, s):
         self._koji = str(s)
+
+    @property
+    def scmurls(self):
+        """Allowed SCM URLs."""
+        return self._scmurls
+
+    @scmurls.setter
+    def scmurls(self, l):
+        if not isinstance(l, list):
+            raise TypeError("scmurls needs to be a list.")
+        self._scmurls = [str(x) for x in l]
