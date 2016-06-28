@@ -48,6 +48,7 @@ def from_file(filename=None):
     conf = Config()
     conf.db = default.get("db")
     conf.system = default.get("system")
+    conf.messaging = default.get("messaging")
     conf.pdc = default.get("pdc")
     conf.koji = default.get("koji")
     conf.scmurls = json.loads(default.get("scmurls"))
@@ -59,6 +60,7 @@ class Config(object):
     def __init__(self):
         """Initialize the Config object."""
         self._system = ""
+        self._messaging = ""
         self._db = ""
         self._pdc = ""
         self._koji = ""
@@ -74,6 +76,18 @@ class Config(object):
         if s not in ("koji"):
             raise ValueError("Unsupported buildsystem.")
         self._system = s
+
+    @property
+    def messaging(self):
+        """The messaging system to use."""
+        return self._messaging
+
+    @messaging.setter
+    def messaging(self, s):
+        s = str(s)
+        if s not in ("fedmsg"):
+            raise ValueError("Unsupported messaging system.")
+        self._messaging = s
 
     @property
     def db(self):
