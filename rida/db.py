@@ -25,39 +25,27 @@
 
 """Database handler functions."""
 
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, create_engine
+from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
 
-class Database(object):
+class Session(object):
     """Class for handling database connections."""
 
-    def __init__(self, conf):
-        """..."""
-        if not isinstance(conf, rida.config.Config):
-            raise TypeError("Database requires a configuration object.")
-        self._conf = conf
-
-    def connect_db():
-        # TODO: implement this
-
-    def disconnect_db():
-        # TODO: implement this
-
-    def get_db():
-        # TODO: Implement this
+    def __init__(self, rdburl=None):
+        """Initialize the database object."""
+        if not isinstance(rdburl, str):
+            rdburl = "sqlite:///rida.db"
+        engine = create_engine(rdburl)
+        Session = sessionmaker(bind=engine)
+        self._session = Session()
 
     @property
-    def conf():
-        """Database configuration."""
-        return self._conf
-
-    @conf.setter
-    def conf(o):
-        if not isinstance(conf, rida.config.Config):
-            raise TypeError("Invalid data passed for conf")
-        self._conf = o
+    def session(self):
+        """Database session object."""
+        return self._session
 
 class Module(Base):
     __tablename__ = "modules"
