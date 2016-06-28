@@ -32,7 +32,7 @@ Module submission is done via posting the modulemd SCM URL.
 ::
 
     {
-        "scmurl": "git://pkgs.fedoraproject.org/modules/foo.git/foo.yaml#f1d2d2f924e986ac86fdf7b36c94bcdf32beec15
+        "scmurl": "git://pkgs.fedoraproject.org/modules/foo.git/foo.yaml?#f1d2d2f924e986ac86fdf7b36c94bcdf32beec15
     }
 
 The response, in case of a successful submission, would include the task ID.
@@ -68,16 +68,16 @@ about the referenced build task.
 
     {
         "id": 42,
-        "state": "building",
+        "state": "build",
         "tasks": {
-            "rpms/foo-1.23" : "6378/closed",
-            "rpms/bar-5.0" : "6379/open"
+            "rpms/foo" : "6378/closed",
+            "rpms/bar : "6379/open"
         }
     }
 
 "id" is the ID of the task.  "state" refers to the orchestrator module
-build state and might be one of "init", "building", "done", "failed" or
-"locked".  "tasks" is a dictionary of component names in the format of
+build state and might be one of "init", "wait", "build", "done", "failed" or
+"ready".  "tasks" is a dictionary of component names in the format of
 "type/NVR" and related koji or other supported buildsystem tasks and
 their states.
 
@@ -104,7 +104,7 @@ The list of all tracked builds and their states can be obtained by querying the
         },
         {
             "id": 42,
-            "state": "building"
+            "state": "build"
         },
         {
             "id": 43,
@@ -122,7 +122,8 @@ Possible response codes are for various requests include:
 - HTTP 201 Created - The module build task was successfully created.
 - HTTP 400 Bad Request - The client's input isn't a valid request.
 - HTTP 403 Forbidden - The SCM URL is not pointing to a whitelisted SCM server.
-- HTTP 404 Not Found - The requested URL has no handler associated with it.
+- HTTP 404 Not Found - The requested URL has no handler associated with it or
+  the requested resource doesn't exist.
 - HTTP 500 Internal Server Error - An unknown error occured.
 - HTTP 501 Not Implemented - The requested URL is valid but the handler isn't
   implemented yet.
