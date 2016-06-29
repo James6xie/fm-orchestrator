@@ -35,7 +35,7 @@ This is the implementation of the orchestrator's public RESTful API.
 # TODO: Set the build state to init once the module NVR is known.
 # TODO: Set the build state to wait once we're done.
 
-from flask import Flask
+from flask import Flask, request
 from rida import config, database
 import json
 
@@ -49,7 +49,24 @@ db = database.Session()
 @app.route("/rida/module-builds/", methods=["POST"])
 def submit_build():
     """Handles new module build submissions."""
-    return "submit_build()", 501
+    try:
+        r = json.dumps(request.data)
+    except:
+        # Invalid JSON submitted
+        return "", 400
+    if "scmurl" not in r:
+        # Missing scmurl
+        return "", 400
+    url = r["scmurl"]
+    urlallowed = False
+    for prefix in conf.scmurls:
+        if url.startswith(prefix):
+            urlallowed = True
+            break
+    if not urlallowed:
+        # The submitted scmurl isn't allowed
+        return "", 403
+    return "Not implemented yet.", 501
 
 @app.route("/rida/module-builds/", methods=["GET"])
 def query_builds():
