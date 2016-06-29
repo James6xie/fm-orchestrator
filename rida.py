@@ -39,6 +39,7 @@ This is the implementation of the orchestrator's public RESTful API.
 from flask import Flask, request
 from rida import config, database
 import json
+import modulemd
 
 app = Flask(__name__)
 app.config.from_envvar("RIDA_SETTINGS", silent=True)
@@ -67,6 +68,29 @@ def submit_build():
     if not urlallowed:
         # The submitted scmurl isn't allowed
         return "", 403
+    # FIXME: Use the scm class to obtain modulemd
+    # for the next step we're pretending "yaml" contains
+    # the contents of the modulemd yaml file
+    yaml = str()
+    mmd = modulemd.ModuleMetadata()
+    try:
+        mmd.loads(yaml)
+    except:
+        # Invalid modulemd
+        return "", 422
+    module = database.Module(name=mmd.name, version=mmd.version,
+            release=mmd.release, state="init", modulemd=yaml)
+    db.session.add(module)
+    db.session.commit()
+    # FIXME: Use the validation class to determine whether
+    # all the components are available and we're allowed to
+    # process them.  We will assume it all passed for now.
+    for rpm in mmd.components.rpms.packages.keys():
+        build = database.Build(module_id=module.id, package=rpm, format="rpms")
+        db.session.add(build)
+    module.state = "wait"
+    db.session.add(module)
+    db.session.commit()
     return "Not implemented yet.", 501
 
 @app.route("/rida/module-builds/", methods=["GET"])
