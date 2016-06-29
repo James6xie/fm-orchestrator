@@ -52,6 +52,10 @@ def from_file(filename=None):
     conf.pdc = default.get("pdc")
     conf.koji = default.get("koji")
     conf.scmurls = json.loads(default.get("scmurls"))
+    conf.rpms_default_repository = default.get("rpms_default_repository")
+    conf.rpms_allow_repository = default.getboolean("rpms_allow_repository")
+    conf.rpms_default_cache = default.get("rpms_default_cache")
+    conf.rpms_allow_cache = default.getboolean("rpms_allow_cache")
     return conf
 
 class Config(object):
@@ -64,6 +68,10 @@ class Config(object):
         self._db = ""
         self._pdc = ""
         self._koji = ""
+        self._rpms_default_repository = ""
+        self._rpms_allow_repository = False
+        self._rpms_default_cache = ""
+        self._rpms_allow_cache = False
 
     @property
     def system(self):
@@ -126,3 +134,39 @@ class Config(object):
         if not isinstance(l, list):
             raise TypeError("scmurls needs to be a list.")
         self._scmurls = [str(x) for x in l]
+
+    @property
+    def rpms_default_repository(self):
+        return self._rpms_default_repository
+
+    @rpms_default_repository.setter
+    def rpms_default_repository(self, s):
+        self._rpms_default_repository = str(s)
+
+    @property
+    def rpms_allow_repository(self):
+        return self._rpms_allow_repository
+
+    @rpms_allow_repository.setter
+    def rpms_allow_repository(self, b):
+        if not isinstance(b, bool):
+            raise TypeError("rpms_allow_repository must be a bool.")
+        self._rpms_allow_repository = b
+
+    @property
+    def rpms_default_cache(self):
+        return self._rpms_default_cache
+
+    @rpms_default_cache.setter
+    def rpms_default_cache(self, s):
+        self._rpms_default_cache = str(s)
+
+    @property
+    def rpms_allow_cache(self):
+        return self._rpms_allow_cache
+
+    @rpms_allow_cache.setter
+    def rpms_allow_cache(self, b):
+        if not isinstance(b, bool):
+            raise TypeError("rpms_allow_cache must be a bool.")
+        self._rpms_allow_cache = b
