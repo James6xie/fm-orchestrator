@@ -31,7 +31,7 @@ from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
 
-class Session(object):
+class Database(object):
     """Class for handling database connections."""
 
     def __init__(self, rdburl=None):

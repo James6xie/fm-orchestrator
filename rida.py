@@ -46,7 +46,7 @@ app.config.from_envvar("RIDA_SETTINGS", silent=True)
 
 # TODO: Load the config file from environment
 conf = config.from_file("rida.conf")
-db = database.Session()
+db = database.Database()
 
 @app.route("/rida/module-builds/", methods=["POST"])
 def submit_build():
