@@ -51,7 +51,7 @@ db = database.Database()
 def submit_build():
     """Handles new module build submissions."""
     try:
-        r = json.dumps(request.data)
+        r = json.loads(request.data.decode('utf-8'))
     except:
         # Invalid JSON submitted
         return "", 400
