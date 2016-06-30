@@ -25,11 +25,26 @@
 
 
 def publish(topic, msg, backend, modname='rida'):
+    """ Publish a single message to a given backend, and return. """
     try:
         handler = _messaging_backends[backend]['publish']
     except KeyError:
         raise KeyError("No messaging backend found for %r" % backend)
     return handler(topic, msg, modname=modname)
+
+def listen(backend, **kwargs):
+    """ Yield messages from a given messaging backend.
+
+    The ``**kwargs`` arguments will be passed on to the backend to do some
+    backend-specific connection handling, throttling, or filtering.
+    """
+    try:
+        handler = _messaging_backends[backend]['listen']
+    except KeyError:
+        raise KeyError("No messaging backend found for %r" % backend)
+
+    for event in handler(**kwargs):
+        yield event
 
 
 def _fedmsg_publish(topic, msg, modname):
@@ -37,9 +52,14 @@ def _fedmsg_publish(topic, msg, modname):
     return fedmsg.publish(topic=topic, msg=msg, modname=modname)
 
 
+def _fedmsg_listen(**kwargs):
+    import fedmsg
+    for name, endpoint, topic, msg in fedmsg.tail_messages(**kwargs):
+        yield msg
+
 _messaging_backends = {
     'fedmsg': {
         'publish': _fedmsg_publish,
-        #'listen': _fedmsg_listen,  # For later...
+        'listen': _fedmsg_listen,
     },
 }
