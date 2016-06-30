@@ -29,12 +29,11 @@
 This is the implementation of the orchestrator's public RESTful API.
 """
 
-# TODO: Handle GET and POST requests.
 # TODO; Validate the input modulemd & spec inputs.
+#       This requires SCM classes to be ready.
 # TODO: Update the PDC dependency graph.
+#       This is done via messaging and is closely related to the next point.
 # TODO: Emit messages about module submission.
-# TODO: Set the build state to init once the module NVR is known.
-# TODO: Set the build state to wait once we're done.
 
 from flask import Flask, request
 from rida import config, database
@@ -91,7 +90,8 @@ def submit_build():
     module.state = "wait"
     db.session.add(module)
     db.session.commit()
-    return "Not implemented yet.", 501
+    # XXX: Okay, we're pretending here...
+    return json.dumps({"id": module.id}), 201
 
 @app.route("/rida/module-builds/", methods=["GET"])
 def query_builds():
