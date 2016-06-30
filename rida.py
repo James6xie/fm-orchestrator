@@ -36,7 +36,7 @@ This is the implementation of the orchestrator's public RESTful API.
 # TODO: Emit messages about module submission.
 
 from flask import Flask, request
-from rida import config, database
+from rida import config, database, messaging
 import json
 import modulemd
 
@@ -90,14 +90,26 @@ def submit_build():
     module.state = "wait"
     db.session.add(module)
     db.session.commit()
+
+    # Publish to whatever bus we're configured to connect to.
+    # This should notify ridad to start doing the work we just scheduled.
+    messaging.publish(
+        modname='rida',
+        topic='module.state.change',
+        msg=module.json(),
+        backend=conf.messaging,
+    )
+
     # XXX: Okay, we're pretending here...
-    return json.dumps({"id": module.id}), 201
+    return json.dumps(module.json()), 201
+
 
 @app.route("/rida/module-builds/", methods=["GET"])
 def query_builds():
     """Lists all tracked module builds."""
     return json.dumps([{"id": x.id, "state": x.state}
         for x in db.session.query(database.Module).all()]), 200
+
 
 @app.route("/rida/module-builds/<int:id>", methods=["GET"])
 def query_build(id):

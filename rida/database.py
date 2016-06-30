@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-
-
 # Copyright (c) 2016  Red Hat, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -22,14 +20,23 @@
 # SOFTWARE.
 #
 # Written by Petr Šabata <contyk@redhat.com>
+#            Ralph Bean <rbean@redhat.com>
 
 """Database handler functions."""
 
-from sqlalchemy import Column, Integer, String, create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import Column, Integer, String, ForeignKey, create_engine
+from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.ext.declarative import declarative_base
 
-Base = declarative_base()
+
+class RidaBase(object):
+    # TODO -- we can implement functionality here common to all our model
+    # classes.
+    pass
+
+
+Base = declarative_base(cls=RidaBase)
+
 
 class Database(object):
     """Class for handling database connections."""
@@ -50,21 +57,48 @@ class Database(object):
 class Module(Base):
     __tablename__ = "modules"
     id = Column(Integer, primary_key=True)
-    name = Column(String)
-    version = Column(String)
-    release = Column(String)
+    name = Column(String, nullable=False)
+    version = Column(String, nullable=False)
+    release = Column(String, nullable=False)
     # XXX: Consider making this a proper ENUM
-    state = Column(String)
-    modulemd = Column(String)
+    state = Column(String, nullable=False)
+    modulemd = Column(String, nullable=False)
+
+    def json(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'version': self.version,
+            'release': self.release,
+            'state': self.state,
+
+            # This is too spammy..
+            #'modulemd': self.modulemd,
+
+            # TODO, show their entire .json() ?
+            'builds': [build.id for build in self.builds],
+        }
+
 
 class Build(Base):
     __tablename__ = "builds"
     id = Column(Integer, primary_key=True)
-    # XXX: Consider making this a proper foreign key
-    module_id = Column(Integer)
-    package = Column(String)
+    package = Column(String, nullable=False)
     # XXX: Consider making this a proper ENUM
-    format = Column(String)
+    format = Column(String, nullable=False)
     task = Column(Integer)
-    # XXX: Consider making this a proper ENUM
+    # XXX: Consider making this a proper ENUM (or an int)
     state = Column(String)
+
+    module_id = Column(Integer, ForeignKey('modules.id'), nullable=False)
+    module = relationship('Module', backref='builds', lazy=False)
+
+    def json(self):
+        return {
+            'id': self.id,
+            'package': self.package,
+            'format': self.format,
+            'task': self.task,
+            'state': self.state,
+            'module': self.module.id,
+        }
