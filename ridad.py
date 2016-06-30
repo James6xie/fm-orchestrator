@@ -23,6 +23,7 @@
 # SOFTWARE.
 #
 # Written by Petr Šabata <contyk@redhat.com>
+#            Ralph Bean <rbean@redhat.com>
 
 """The module build orchestrator for Modularity, the builder.
 
@@ -30,10 +31,25 @@ This is the main component of the orchestrator and is responsible for
 proper scheduling component builds in the supported build systems.
 """
 
-# TODO: Load configuration.
+import rida.config
+import rida.messaging
+
+# TODO: Load the config file from environment
+config = rida.config.from_file("rida.conf")
+
 # TODO: Listen for bus messages from build systems about builds being done.
+for msg in rida.messaging.listen(backend=config.messaging):
+    print("Saw %r with %r" % (msg['topic'], msg))
+    if '.buildsys.build.state.change' in msg['topic']:
+        print("A build changed state in koji!!")
+    elif '.rida.module.state.change' in msg['topic']:
+        print("Our frontend says that a module changed state!!")
+    else:
+        pass
+
 # TODO: Periodically check the state of the build systems' tasks, in case some
 #       messages got lost.
+#       XXX - should we just do this with a cronjob external to this process?
 # TODO: Emit messages about the module build being done.
 # TODO; Watch the database and process modules in the wait state.
 # TODO: Construct the name of the tag/target according to the policy and record
