@@ -53,11 +53,9 @@ def submit_build():
     try:
         r = json.dumps(request.data)
     except:
-        # Invalid JSON submitted
-        return "", 400
+        return "Invalid JSON submitted", 400
     if "scmurl" not in r:
-        # Missing scmurl
-        return "", 400
+        return "Missing scmurl", 400
     url = r["scmurl"]
     urlallowed = False
     for prefix in conf.scmurls:
@@ -65,8 +63,7 @@ def submit_build():
             urlallowed = True
             break
     if not urlallowed:
-        # The submitted scmurl isn't allowed
-        return "", 403
+        return "The submitted scmurl isn't allowed", 403
     # FIXME: Use the scm class to obtain modulemd
     # for the next step we're pretending "yaml" contains
     # the contents of the modulemd yaml file
@@ -75,8 +72,7 @@ def submit_build():
     try:
         mmd.loads(yaml)
     except:
-        # Invalid modulemd
-        return "", 422
+        return "Invalid modulemd", 422
     module = database.Module(name=mmd.name, version=mmd.version,
             release=mmd.release, state="init", modulemd=yaml)
     db.session.add(module)
@@ -115,7 +111,7 @@ def query_build(id):
             "tasks": tasks
             }), 200
     else:
-        return "", 404
+        return "No such module found.", 404
 
 if __name__ == "__main__":
     app.run()
