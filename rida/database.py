@@ -41,11 +41,11 @@ Base = declarative_base(cls=RidaBase)
 class Database(object):
     """Class for handling database connections."""
 
-    def __init__(self, rdburl=None):
+    def __init__(self, rdburl=None, debug=False):
         """Initialize the database object."""
         if not isinstance(rdburl, str):
             rdburl = "sqlite:///rida.db"
-        engine = create_engine(rdburl)
+        engine = create_engine(rdburl, echo=debug)
         Session = sessionmaker(bind=engine)
         self._session = Session()
 
@@ -53,6 +53,23 @@ class Database(object):
     def session(self):
         """Database session object."""
         return self._session
+
+    @classmethod
+    def create_tables(cls, db_url, debug=False):
+        """ Creates our tables in the database.
+
+        :arg db_url, URL used to connect to the database. The URL contains
+        information with regards to the database engine, the host to connect
+        to, the user and password and the database name.
+        ie: <engine>://<user>:<password>@<host>/<dbname>
+        :kwarg debug, a boolean specifying wether we should have the verbose
+        output of sqlalchemy or not.
+        :return a Database connection that can be used to query to db.
+        """
+        engine = create_engine(db_url, echo=debug)
+        Base.metadata.create_all(engine)
+        return cls(db_url, debug=debug)
+
 
 class Module(Base):
     __tablename__ = "modules"
