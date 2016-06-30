@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-
-
 # Copyright (c) 2016  Red Hat, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -21,6 +19,27 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 #
-# Written by Petr Šabata <contyk@redhat.com>
+# Written by Ralph Bean <rbean@redhat.com>
 
 """Generic messaging functions."""
+
+
+def publish(topic, msg, backend, modname='rida'):
+    try:
+        handler = _messaging_backends[backend]['publish']
+    except KeyError:
+        raise KeyError("No messaging backend found for %r" % backend)
+    return handler(topic, msg, modname=modname)
+
+
+def _fedmsg_publish(topic, msg, modname):
+    import fedmsg
+    return fedmsg.publish(topic=topic, msg=msg, modname=modname)
+
+
+_messaging_backends = {
+    'fedmsg': {
+        'publish': _fedmsg_publish,
+        #'listen': _fedmsg_listen,  # For later...
+    },
+}
