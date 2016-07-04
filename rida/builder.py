@@ -24,3 +24,11 @@
 # Written by Petr Šabata <contyk@redhat.com>
 
 """Generic component build functions."""
+
+# TODO: Create the relevant koji tags and targets.
+# TODO: Query the PDC to find what modules satisfy the build dependencies and
+#       their tag names.
+# TODO: Set tag inheritance for the created tag, using the build dependencies'
+#       tags.
+# TODO: Ensure the RPM %dist tag is set according to the policy.
+# TODO: Build the module components in the prepared tag.

@@ -31,36 +31,54 @@ This is the main component of the orchestrator and is responsible for
 proper scheduling component builds in the supported build systems.
 """
 
+import os
+import threading
 import rida.config
 import rida.messaging
 
 # TODO: Load the config file from environment
 config = rida.config.from_file("rida.conf")
 
-# TODO: Listen for bus messages from build systems about builds being done.
-for msg in rida.messaging.listen(backend=config.messaging):
-    print("Saw %r with %r" % (msg['topic'], msg))
-    if '.buildsys.build.state.change' in msg['topic']:
-        print("A build changed state in koji!!")
-    elif '.rida.module.state.change' in msg['topic']:
-        print("Our frontend says that a module changed state!!")
-    else:
-        pass
-
-# TODO: Periodically check the state of the build systems' tasks, in case some
-#       messages got lost.
-#       XXX - should we just do this with a cronjob external to this process?
-# TODO: Emit messages about the module build being done.
-# TODO; Watch the database and process modules in the wait state.
-# TODO: Construct the name of the tag/target according to the policy and record
-#       it in PDC.
-# TODO: Create the relevant koji tags and targets.
-# TODO: Query the PDC to find what modules satisfy the build dependencies and
-#       their tag names.
-# TODO: Set tag inheritance for the created tag, using the build dependencies'
-#       tags.
-# TODO: Ensure the RPM %dist tag is set according to the policy.
-# TODO: Build the module components in the prepared tag.
+# TODO: Utilized rida.builder to prepare the buildroots and build components.
 # TODO: Set the build state to build once the module build is started.
 # TODO: Set the build state to done once the module build is done.
 # TODO: Set the build state to failed if the module build fails.
+
+class Messaging(threading.Thread):
+    def run(self):
+        while True:
+            # TODO: Listen for bus messages from rida about module builds
+            #       entering the wait state
+            # TODO: Listen for bus messages from the buildsystem about
+            #       component builds changing state
+            # TODO: Check for modules that can be set to done/failed
+            # TODO: Act on these things somehow
+            # TODO: Emit messages about doing so
+            for msg in rida.messaging.listen(backend=config.messaging):
+                print("Saw %r with %r" % (msg['topic'], msg))
+                if '.buildsys.build.state.change' in msg['topic']:
+                    print("A build changed state in koji!!")
+                elif '.rida.module.state.change' in msg['topic']:
+                    print("Our frontend says that a module changed state!!")
+                else:
+                    pass
+
+class Polling(threading.Thread):
+    def run(self):
+        while True:
+            # TODO: Check for module builds in the wait state
+            # TODO: Check component builds in the open state
+            # TODO: Check for modules that can be set to done/failed
+            # TODO: Act on these things somehow
+            # TODO: Emit messages about doing so
+            # TODO: Sleep for a configuration-determined interval
+            pass
+
+try:
+    messaging_thread = Messaging()
+    polling_thread = Polling()
+    messaging_thread.start()
+    polling_thread.start()
+except KeyboardInterrupt:
+    # FIXME: Make this less brutal
+    os._exit()
