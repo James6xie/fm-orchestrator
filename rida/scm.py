@@ -134,7 +134,7 @@ class SCM(object):
             commonrepo = os.path.dirname(gitrepo[:-4]) + '/common.git'
 
         sourcedir = '%s/%s' % (scmdir, checkout_path)
-        module_checkout_cmd = ['git', 'clone', '-n', gitrepo, sourcedir]
+        module_checkout_cmd = ['git', 'clone', gitrepo, sourcedir]
 
         # perform checkouts
         self._run(module_checkout_cmd, chdir=scmdir)
