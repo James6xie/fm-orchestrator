@@ -27,6 +27,7 @@ import os
 import sys
 import time
 import traceback
+import subprocess
 import rida
 
 class SCM(object):
@@ -67,10 +68,10 @@ class SCM(object):
             if url.startswith(allowed):
                 break
             else:
-                raise RuntimeError, '%s is not in the list of allowed SCMs' % (url)
+                raise RuntimeError('%s is not in the list of allowed SCMs' % url)
 
         if not SCM.is_scm_url(url):
-            raise RuntimeError, 'Invalid SCM URL: %s' % url
+            raise RuntimeError('Invalid SCM URL: %s' % url)
 
         self.url = url
         self.allowed_scm = allowed_scm
@@ -81,7 +82,7 @@ class SCM(object):
                 break
         else:
             # should never happen
-            raise RuntimeError, 'Invalid SCM URL: %s' % url
+            raise RuntimeError('Invalid SCM URL: %s' % url)
 
     def _run(self, cmd, chdir=None, _count=[0]):
         append = (_count[0] > 0)
@@ -93,12 +94,11 @@ class SCM(object):
             try:
                 if chdir:
                     os.chdir(chdir)
-                flags = os.O_CREAT | os.O_WRONLY
                 environ = os.environ.copy()
                 os.execvpe(path, args, environ)
             except:
                 msg = ''.join(traceback.format_exception(*sys.exc_info()))
-                print msg
+                print(msg)
                 os._exit(1)
         else:
             while True:
@@ -142,4 +142,54 @@ class SCM(object):
 
         return sourcedir
 
+    def get_git_master_head_giturl(self):
+        """
+        Return the git hash of this git object's master HEAD
+        """
+        # drop git hash if url contains it:
+        gitrepo = self.url.split('?')[0]
+        (status , output) = subprocess.getstatusoutput('git ls-remote %s' % gitrepo)
+        if status != 0:
+            raise RuntimeError('can\'t get git hash of master HEAD in %s' % self.url)
+        b = output.split(os.linesep)
+        ret = ''
+        for line in b:
+            if 'refs/heads/master' in line:
+                ret = gitrepo + '?#' + line.split('\t')[0]
+                break
+        return ret
+        
+def get_fedpkg_url_git_master_head_pkgname(pkgname=None):
+    """
+    Return the complete git URL to master HEAD of the given package.
+    Accepts the following parameters:
+    - pkgname: the package name
+    """
+    pkghash = get_hash_of_git_master_head_pkgname(pkgname)
+    if pkghash is not '':
+        return 'git://pkgs.fedoraproject.org/rpms/' + pkgname + '?#' + pkghash
+    else:
+        return ''
+
+def get_hash_of_git_master_head_pkgname(pkgname=None):
+    """
+    Return the git hash of master HEAD
+    Accepts the following parameters:
+         - pkgname: the package name
+    """
+    if not isinstance(pkgname, str):
+        raise RuntimeError('pkgname needs to be a string')
+    gitrepo = 'git://pkgs.fedoraproject.org/rpms/' + pkgname
+    (status , output) = subprocess.getstatusoutput('git ls-remote %s' % gitrepo)
+    if status != 0:
+        raise RuntimeError('can\'t get git hash of master HEAD in %s' % gitrepo)
+    b = output.split(os.linesep)
+    ret = ''
+    for line in b:
+        if 'refs/heads/master' in line:
+            #ret = gitrepo + '?#' + line.split('\t')[0]
+            ret = line.split('\t')[0]
+            break
+    return ret
+        
 
