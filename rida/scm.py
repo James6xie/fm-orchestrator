@@ -191,4 +191,21 @@ def get_hash_of_git_master_head_pkgname(pkgname=None):
             break
     return ret
         
-
+def convert_giturl_to_cgiturl(giturl=None):
+    """
+    dist-pkg giturls are of the form 
+    git://pkgs.fedoraproject.org/rpms/ed?#abc0235d4923930745ef05d873646f361a365457
+    cgit urls look like this:
+     http://pkgs.fedoraproject.org/cgit/rpms/ed.git/commit/?id=abc0235d4923930745ef05d873646f361a365457
+    This function takes a string with a dist-git url as parameter and returns a cgit url
+    """
+    if not isinstance(giturl, str):
+        return ''
+    try:
+        url = giturl[giturl.index('://')+3:]
+    except:
+        raise RuntimeError('%s is not a dist-git URL' % giturl)
+    url = url.replace('/rpms/','/cgit/rpms/')
+    url = url.replace('?#','.git/commit/?id=')
+    return 'http://' + url
+    
