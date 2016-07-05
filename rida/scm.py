@@ -186,11 +186,26 @@ def get_hash_of_git_master_head_pkgname(pkgname=None):
     ret = ''
     for line in b:
         if 'refs/heads/master' in line:
-            #ret = gitrepo + '?#' + line.split('\t')[0]
             ret = line.split('\t')[0]
             break
     return ret
-        
+
+def check_giturl_syntax(giturl=None):
+    """
+    dist-pkg giturls are of the form 
+    git://pkgs.fedoraproject.org/rpms/ed?#abc0235d4923930745ef05d873646f361a365457
+    Returns True if giturl has this format, False otherwise.
+    """
+    if not isinstance(giturl, str):
+        return False
+    if giturl[:6] != 'git://':
+        return False
+    if giturl[6:34] != 'pkgs.fedoraproject.org/rpms/' and giturl[6:38] != 'pkgs.stg.fedoraproject.org/rpms/':
+        return False
+    if not '?#' in giturl.split('/')[-1]:
+        return False
+    return True
+
 def convert_giturl_to_cgiturl(giturl=None):
     """
     dist-pkg giturls are of the form 
@@ -198,9 +213,9 @@ def convert_giturl_to_cgiturl(giturl=None):
     cgit urls look like this:
      http://pkgs.fedoraproject.org/cgit/rpms/ed.git/commit/?id=abc0235d4923930745ef05d873646f361a365457
     This function takes a string with a dist-git url as parameter and returns a cgit url
+    Accepts the following parameters:
+         - giturl - dist-git url ('fedpkg giturl')
     """
-    if not isinstance(giturl, str):
-        return ''
     try:
         url = giturl[giturl.index('://')+3:]
     except:
@@ -209,3 +224,26 @@ def convert_giturl_to_cgiturl(giturl=None):
     url = url.replace('?#','.git/commit/?id=')
     return 'http://' + url
     
+def check_if_remote_gitcommit_exists(giturl=None):
+    """
+    Instead of checking out a git repo and then looking through all the 
+    git hashes, this function uses http to connect to cgit and checks
+    for availability of p.e. 
+    http://pkgs.fedoraproject.org/cgit/rpms/ed.git/commit/?id=abc0235d4923930745ef05d873646f361a365457
+    Accepts the following parameters:
+         - giturl - dist-git url ('fedpkg giturl')
+    """
+    if not check_giturl_syntax(giturl):
+        return False
+    import http.client
+    import os
+    cgiturl = convert_giturl_to_cgiturl(giturl)
+    urlpath = cgiturl[cgiturl.index('://')+3:]
+    urlpath = urlpath[urlpath.index('/'):]
+    http_obj = http.client.HTTPConnection('pkgs.fedoraproject.org')
+    http_obj.request('HEAD',urlpath)
+    res = http_obj.getresponse()
+    if res.status == 200:
+        return True
+    else:
+        return False
