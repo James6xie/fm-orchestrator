@@ -94,8 +94,7 @@ class SCM(object):
             try:
                 if chdir:
                     os.chdir(chdir)
-                environ = os.environ.copy()
-                os.execvpe(path, args, environ)
+                os.execvp(path, args)
             except:
                 msg = ''.join(traceback.format_exception(*sys.exc_info()))
                 print(msg)
