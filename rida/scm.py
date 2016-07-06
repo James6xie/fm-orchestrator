@@ -84,21 +84,25 @@ class SCM(object):
             # should never happen
             raise RuntimeError('Invalid SCM URL: %s' % url)
 
-    def _run(self, cmd, chdir=None, _count=[0]):
-        append = (_count[0] > 0)
-        _count[0] += 1
+    def _run(self, cmd, chdir=None):
+        numretry = 0
         path = cmd[0]
         args = cmd
         pid = os.fork()
         if not pid:
-            try:
-                if chdir:
-                    os.chdir(chdir)
-                os.execvp(path, args)
-            except:
-                msg = ''.join(traceback.format_exception(*sys.exc_info()))
-                print(msg)
-                os._exit(1)
+            while numretry <= 3:
+                numretry += 1
+                try:
+                    if chdir:
+                        os.chdir(chdir)
+                    os.execvp(path, args)
+                except:   # XXX maybe switch to subprocess (python-3.5) where 
+                          # we can check for return codes and timeouts
+                    msg = ''.join(traceback.format_exception(*sys.exc_info()))
+                    print(msg)
+                    if numretry == 3:
+                        os._exit(1)
+                    time.sleep(10)
         else:
             while True:
                 status = os.waitpid(pid, os.WNOHANG)
@@ -106,7 +110,6 @@ class SCM(object):
 
                 if status[0] != 0:
                     return status[1]
-
 
     def checkout(self, scmdir):
         """
@@ -134,7 +137,6 @@ class SCM(object):
 
         sourcedir = '%s/%s' % (scmdir, checkout_path)
         module_checkout_cmd = ['git', 'clone', gitrepo, sourcedir]
-        module_checkout_cmd = ['git', 'clone', '-n', gitrepo, sourcedir]
 
         # perform checkouts
         self._run(module_checkout_cmd, chdir=scmdir)
