@@ -139,4 +139,4 @@ if __name__ == "__main__":
     ssl_ctx.verify_mode = ssl.CERT_OPTIONAL
     ssl_ctx.load_verify_locations(cafile=conf.ssl_ca_certificate_file)
 
-    app.run(request_handler=auth.ClientCertRequestHander, ssl_context=ssl_ctx)
+    app.run(request_handler=auth.ClientCertRequestHandler, ssl_context=ssl_ctx)

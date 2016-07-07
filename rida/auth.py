@@ -28,7 +28,7 @@ from werkzeug.serving import WSGIRequestHandler
 import requests
 import json
 
-class ClientCertRequestHander(WSGIRequestHandler):
+class ClientCertRequestHandler(WSGIRequestHandler):
     """
     WSGIRequestHandler subclass adding SSL_CLIENT_CERT_* variables
     to `request.environ` dict when the client certificate is set and
