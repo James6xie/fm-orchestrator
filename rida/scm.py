@@ -1,4 +1,4 @@
-# Code kindly copied and then heavily modified from the koji sources: koji/daemon.py
+# some functions kindly copied and then heavily modified from the koji sources: koji/daemon.py
 #
 # Copyright (c) 2010-2016 Red Hat, Inc.
 #
