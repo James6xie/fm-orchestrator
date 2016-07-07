@@ -2,3 +2,4 @@ flask
 sqlalchemy
 fedmsg
 modulemd
+pyOpenSSL
