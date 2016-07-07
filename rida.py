@@ -36,9 +36,10 @@ This is the implementation of the orchestrator's public RESTful API.
 # TODO: Emit messages about module submission.
 
 from flask import Flask, request
-from rida import config, database, messaging
+from rida import config, database, messaging, auth
 import json
 import modulemd
+import ssl
 
 app = Flask(__name__)
 app.config.from_envvar("RIDA_SETTINGS", silent=True)
@@ -50,6 +51,12 @@ db = database.Database()
 @app.route("/rida/module-builds/", methods=["POST"])
 def submit_build():
     """Handles new module build submissions."""
+
+    username = auth.is_packager(conf.pkgdb_api_url)
+    if not username:
+        return ("You must use your Fedora certificate when submitting"
+               " new build", 403)
+
     try:
         r = json.loads(request.data.decode('utf-8'))
     except:
@@ -126,4 +133,10 @@ def query_build(id):
         return "No such module found.", 404
 
 if __name__ == "__main__":
-    app.run()
+    ssl_ctx = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
+    ssl_ctx.load_cert_chain(conf.ssl_certificate_file,
+                            conf.ssl_certificate_key_file)
+    ssl_ctx.verify_mode = ssl.CERT_OPTIONAL
+    ssl_ctx.load_verify_locations(cafile=conf.ssl_ca_certificate_file)
+
+    app.run(request_handler=auth.ClientCertRequestHander, ssl_context=ssl_ctx)

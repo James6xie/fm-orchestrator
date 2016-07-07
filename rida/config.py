@@ -56,6 +56,12 @@ def from_file(filename=None):
     conf.rpms_allow_repository = default.getboolean("rpms_allow_repository")
     conf.rpms_default_cache = default.get("rpms_default_cache")
     conf.rpms_allow_cache = default.getboolean("rpms_allow_cache")
+
+    conf.ssl_certificate_file = default.get("ssl_certificate_file")
+    conf.ssl_certificate_key_file = default.get("ssl_certificate_key_file")
+    conf.ssl_ca_certificate_file = default.get("ssl_ca_certificate_file")
+
+    conf.pkgdb_api_url = default.get("pkgdb_api_url")
     return conf
 
 class Config(object):
@@ -72,6 +78,10 @@ class Config(object):
         self._rpms_allow_repository = False
         self._rpms_default_cache = ""
         self._rpms_allow_cache = False
+        self._ssl_certificate_file = ""
+        self._ssl_certificate_key_file = ""
+        self._ssl_ca_certificate_file = ""
+        self._pkgdb_api_url = ""
 
     @property
     def system(self):
@@ -170,3 +180,35 @@ class Config(object):
         if not isinstance(b, bool):
             raise TypeError("rpms_allow_cache must be a bool.")
         self._rpms_allow_cache = b
+
+    @property
+    def ssl_certificate_file(self):
+        return self._ssl_certificate_file
+
+    @ssl_certificate_file.setter
+    def ssl_certificate_file(self, s):
+        self._ssl_certificate_file = str(s)
+
+    @property
+    def ssl_ca_certificate_file(self):
+        return self._ssl_ca_certificate_file
+
+    @ssl_ca_certificate_file.setter
+    def ssl_ca_certificate_file(self, s):
+        self._ssl_ca_certificate_file = str(s)
+
+    @property
+    def ssl_certificate_key_file(self):
+        return self._ssl_certificate_key_file
+
+    @ssl_certificate_key_file.setter
+    def ssl_certificate_key_file(self, s):
+        self._ssl_certificate_key_file = str(s)
+
+    @property
+    def pkgdb_api_url(self):
+        return self._pkgdb_api_url
+
+    @pkgdb_api_url.setter
+    def pkgdb_api_url(self, s):
+        self._pkgdb_api_url = str(s)
