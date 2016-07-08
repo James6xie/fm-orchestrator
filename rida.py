@@ -36,12 +36,15 @@ from flask import Flask, request
 import json
 import logging
 import modulemd
+import os.path
 import rida.auth
 import rida.config
 import rida.database
 import rida.logger
 import rida.messaging
+import rida.scm
 import ssl
+import tempfile
 
 app = Flask(__name__)
 app.config.from_envvar("RIDA_SETTINGS", silent=True)
@@ -75,10 +78,22 @@ def submit_build():
             break
     if not urlallowed:
         return "The submitted scmurl isn't allowed", 403
-    # FIXME: Use the scm class to obtain modulemd
-    # for the next step we're pretending "yaml" contains
-    # the contents of the modulemd yaml file
     yaml = str()
+    try:
+        scm = rida.scm.SCM(url, conf.scmurls)
+        td = tempfile.TemporaryDirectory()
+        cod = scm.checkout(td.name)
+        cofn = os.path.join(cod, (scm.name + ".yaml"))
+        with open(cofn, "r") as mmdfile:
+            yaml = mmdfile.read()
+    except Exception as e:
+        if "is not in the list of allowed SCMs" in str(e):
+            rc = 403
+        elif "Invalid SCM URL" in str(e):
+            rc = 400
+        else:
+            rc = 500
+        return str(e), rc
     mmd = modulemd.ModuleMetadata()
     try:
         mmd.loads(yaml)
