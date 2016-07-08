@@ -130,8 +130,8 @@ class SCM(object):
         """
         # TODO: sanity check arguments
         sourcedir = '%s/%s' % (scmdir, self.name)
-        module_clone_cmd = ['git', 'clone', self.repository, sourcedir]
-        module_checkout_cmd = ['git', 'checkout', self.commit]
+        module_clone_cmd = ['git', 'clone', '-q', self.repository, sourcedir]
+        module_checkout_cmd = ['git', 'checkout', '-q', self.commit]
 
         # perform checkouts
         self._run(module_clone_cmd, chdir=scmdir)
