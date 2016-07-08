@@ -36,7 +36,8 @@ This is the implementation of the orchestrator's public RESTful API.
 # TODO: Emit messages about module submission.
 
 from flask import Flask, request
-from rida import config, database, messaging, auth
+from rida import config, database, messaging, auth, logger
+import logging
 import json
 import modulemd
 import ssl
@@ -46,6 +47,8 @@ app.config.from_envvar("RIDA_SETTINGS", silent=True)
 
 # TODO: Load the config file from environment
 conf = config.from_file("rida.conf")
+logger.init_logging(conf)
+
 db = database.Database()
 
 @app.route("/rida/module-builds/", methods=["POST"])
@@ -103,6 +106,8 @@ def submit_build():
         backend=conf.messaging,
     )
 
+    logging.info("%s submitted build of %s", username, mmd.name)
+
     # XXX: Okay, we're pretending here...
     return json.dumps(module.json()), 201
 
@@ -133,6 +138,7 @@ def query_build(id):
         return "No such module found.", 404
 
 if __name__ == "__main__":
+    logging.info("Starting Rida")
     ssl_ctx = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
     ssl_ctx.load_cert_chain(conf.ssl_certificate_file,
                             conf.ssl_certificate_key_file)

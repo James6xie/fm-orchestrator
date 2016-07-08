@@ -28,6 +28,7 @@
 import os.path
 import configparser
 import json
+from rida import logger
 
 def from_file(filename=None):
     """Create the configuration instance from a file.
@@ -62,6 +63,9 @@ def from_file(filename=None):
     conf.ssl_ca_certificate_file = default.get("ssl_ca_certificate_file")
 
     conf.pkgdb_api_url = default.get("pkgdb_api_url")
+
+    conf.log_file = default.get("log_file")
+    conf.log_level = default.get("log_level")
     return conf
 
 class Config(object):
@@ -82,6 +86,8 @@ class Config(object):
         self._ssl_certificate_key_file = ""
         self._ssl_ca_certificate_file = ""
         self._pkgdb_api_url = ""
+        self._log_file = ""
+        self._log_level = 0
 
     @property
     def system(self):
@@ -212,3 +218,24 @@ class Config(object):
     @pkgdb_api_url.setter
     def pkgdb_api_url(self, s):
         self._pkgdb_api_url = str(s)
+
+    @property
+    def log_file(self):
+        return self._log_file
+
+    @log_file.setter
+    def log_file(self, s):
+        if s == None:
+            self.log_file = ""
+        else:
+            self._log_file = str(s)
+
+    @property
+    def log_level(self):
+        return self._log_level
+
+    @log_level.setter
+    def log_level(self, s):
+        level = str(s).lower()
+        self._log_level = logger.str_to_log_level(level)
+
