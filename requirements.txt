@@ -3,3 +3,5 @@ sqlalchemy
 fedmsg
 modulemd
 pyOpenSSL
+kobo
+koji
