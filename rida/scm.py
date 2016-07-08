@@ -154,32 +154,41 @@ class SCM(object):
         Returns the directory that the module was checked-out into (a subdirectory of scmdir)
         """
         # TODO: sanity check arguments
-        sourcedir = '%s/%s' % (scmdir, self.name)
-        module_clone_cmd = ['git', 'clone', '-q', self.repository, sourcedir]
-        module_checkout_cmd = ['git', 'checkout', '-q', self.commit]
+        if self.scheme.startswith("GIT"):
+            sourcedir = '%s/%s' % (scmdir, self.name)
 
-        # perform checkouts
-        self._run(module_clone_cmd, chdir=scmdir)
-        self._run(module_checkout_cmd, chdir=sourcedir)
+            module_clone_cmd = ['git', 'clone', '-q']
+            if self.commit:
+                module_checkout_cmd = ['git', 'checkout', '-q', self.commit]
+            else:
+                module_clone_cmd.extend(['--depth', '1'])
+            module_clone_cmd.extend([self.repository, sourcedir])
 
+            # perform checkouts
+            self._run(module_clone_cmd, chdir=scmdir)
+            if self.commit:
+                self._run(module_checkout_cmd, chdir=sourcedir)
+        else:
+            raise RuntimeError("checkout: Unhandled SCM scheme.")
         return sourcedir
 
-    def get_git_master_head_giturl(self):
-        """
-        Return the git hash of this git object's master HEAD
-        """
-        # drop git hash if url contains it:
-        gitrepo = self.url.split('?')[0]
-        (status , output) = subprocess.getstatusoutput('git ls-remote %s' % gitrepo)
-        if status != 0:
-            raise RuntimeError('can\'t get git hash of master HEAD in %s' % self.url)
-        b = output.split(os.linesep)
-        ret = ''
-        for line in b:
-            if 'refs/heads/master' in line:
-                ret = gitrepo + '?#' + line.split('\t')[0]
-                break
-        return ret
+    def get_latest(self):
+        """Returns the latest commit ID, for example the git master HEAD."""
+        if self.scheme.startswith("GIT"):
+            (status , output) = subprocess.getstatusoutput("git ls-remote %s"
+                % self.repository)
+            if status != 0:
+                raise RuntimeError("Cannot get git hash of master HEAD in %s"
+                    % self.repository)
+            for line in output.split(os.linesep):
+                # FIXME: Be more precise here, we don't want
+                # refs/heads/masterfoo, for example...
+                if 'refs/heads/master' in line:
+                    return line.split("\t")[0]
+            raise RuntimeError("Couldn't determine the git master HEAD hash in %s"
+                % self.repository)
+        else:
+            raise RuntimeError("get_latest: Unhandled SCM scheme.")
 
     @property
     def url(self):
