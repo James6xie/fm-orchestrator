@@ -99,6 +99,9 @@ def submit_build():
         mmd.loads(yaml)
     except:
         return "Invalid modulemd", 422
+    if db.session.query(rida.database.Module).filter_by(name=mmd.name,
+        version=mmd.version, release=mmd.release).first():
+        return "Module already exists", 409
     module = rida.database.Module(name=mmd.name, version=mmd.version,
             release=mmd.release, state="init", modulemd=yaml)
     db.session.add(module)

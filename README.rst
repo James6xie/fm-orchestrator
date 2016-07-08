@@ -124,6 +124,7 @@ Possible response codes are for various requests include:
 - HTTP 403 Forbidden - The SCM URL is not pointing to a whitelisted SCM server.
 - HTTP 404 Not Found - The requested URL has no handler associated with it or
   the requested resource doesn't exist.
+- HTTP 409 Conflict - The submitted module's NVR already exists.
 - HTTP 422 Unprocessable Entity - The submitted modulemd file is not valid or
   the module components cannot be retrieved
 - HTTP 500 Internal Server Error - An unknown error occured.
