@@ -62,7 +62,7 @@ def submit_build():
                " new build", 403)
 
     try:
-        r = json.loads(request.data.decode('utf-8'))
+        r = json.loads(request.get_data().decode("utf-8"))
     except:
         return "Invalid JSON submitted", 400
     if "scmurl" not in r:
