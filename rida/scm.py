@@ -28,7 +28,7 @@ import sys
 import time
 import traceback
 import subprocess
-import rida
+import re
 
 class SCM(object):
     "SCM abstraction class"
@@ -36,6 +36,7 @@ class SCM(object):
     types = {'GIT': ('git://', 'git+http://', 'git+https://', 'git+rsync://'),
              'GIT+SSH': ('git+ssh://',)}
 
+    @staticmethod
     def is_scm_url(url):
         """
         Return True if the url appears to be a valid, accessible source location, False otherwise
@@ -46,9 +47,8 @@ class SCM(object):
                     return True
         else:
             return False
-    is_scm_url = staticmethod(is_scm_url)
 
-    def __init__(self, url, allowed_scm):
+    def __init__(self, url, allowed_scm=None):
         """
         Initialize the SCM object using the specified url.
         If url is not in the list of allowed_scm, an error will be raised.
@@ -61,28 +61,38 @@ class SCM(object):
 
         The initialized SCM object will have the following attributes:
         - url (the unmodified url)
-        - allowed_scm (the list of allowed scm)
+        - allowed_scm (the list of allowed scm, optional)
         """
 
-        for allowed in allowed_scm:
-            if url.startswith(allowed):
-                break
-            else:
-                raise RuntimeError('%s is not in the list of allowed SCMs' % url)
+        if allowed_scm:
+            for allowed in allowed_scm:
+                if url.startswith(allowed):
+                    break
+                else:
+                    raise RuntimeError('%s is not in the list of allowed SCMs' % url)
 
         if not SCM.is_scm_url(url):
             raise RuntimeError('Invalid SCM URL: %s' % url)
 
         self.url = url
-        self.allowed_scm = allowed_scm
 
         for scmtype, schemes in SCM.types.items():
             if self.url.startswith(schemes):
-                self.scmtype = scmtype
+                self.scheme = scmtype
                 break
         else:
             # should never happen
             raise RuntimeError('Invalid SCM URL: %s' % url)
+
+        if self.scheme.startswith("GIT"):
+            match = re.search(r"^(?P<repository>.*/(?P<name>[^?]*))(\?#(?P<commit>.*))?", url)
+            self.repository = match.group("repository")
+            self.name = match.group("name")
+            if self.name.endswith(".git"):
+                self.name = self.name[:-4]
+            self.commit = match.group("commit")
+        else:
+            raise RuntimeError("Unhandled SCM scheme: %s" % self.scheme)
 
     def _run(self, cmd, chdir=None):
         numretry = 0
@@ -119,27 +129,13 @@ class SCM(object):
         Returns the directory that the module was checked-out into (a subdirectory of scmdir)
         """
         # TODO: sanity check arguments
-        sourcedir = scmdir
-
-        gitrepo = self.url
-        commonrepo = os.path.dirname(gitrepo) + '/common'
-        checkout_path = os.path.basename(gitrepo)
-        if gitrepo.endswith('/.git'):
-            # If we're referring to the .git subdirectory of the main module,
-            # assume we need to do the same for the common module
-            checkout_path = os.path.basename(gitrepo[:-5])
-            commonrepo = os.path.dirname(gitrepo[:-5]) + '/common/.git'
-        elif gitrepo.endswith('.git'):
-            # If we're referring to a bare repository for the main module,
-            # assume we need to do the same for the common module
-            checkout_path = os.path.basename(gitrepo[:-4])
-            commonrepo = os.path.dirname(gitrepo[:-4]) + '/common.git'
-
-        sourcedir = '%s/%s' % (scmdir, checkout_path)
-        module_checkout_cmd = ['git', 'clone', gitrepo, sourcedir]
+        sourcedir = '%s/%s' % (scmdir, self.name)
+        module_clone_cmd = ['git', 'clone', self.repository, sourcedir]
+        module_checkout_cmd = ['git', 'checkout', self.commit]
 
         # perform checkouts
-        self._run(module_checkout_cmd, chdir=scmdir)
+        self._run(module_clone_cmd, chdir=scmdir)
+        self._run(module_checkout_cmd, chdir=sourcedir)
 
         return sourcedir
 
@@ -159,6 +155,51 @@ class SCM(object):
                 ret = gitrepo + '?#' + line.split('\t')[0]
                 break
         return ret
+
+    @property
+    def url(self):
+        """The original scmurl."""
+        return self._url
+
+    @url.setter
+    def url(self, s):
+        self._url = str(s)
+
+    @property
+    def scheme(self):
+        """The SCM scheme."""
+        return self._scheme
+
+    @scheme.setter
+    def scheme(self, s):
+        self._scheme = str(s)
+
+    @property
+    def repository(self):
+        """The repository part of the scmurl."""
+        return self._repository
+
+    @repository.setter
+    def repository(self, s):
+        self._repository = str(s)
+
+    @property
+    def commit(self):
+        """The commit ID, for example the git hash, or None."""
+        return self._commit
+
+    @commit.setter
+    def commit(self, s):
+        self._commit = str(s) if s else None
+
+    @property
+    def name(self):
+        """The module name."""
+        return self._name
+
+    @name.setter
+    def name(self, s):
+        self._name = str(s)
         
 def get_fedpkg_url_git_master_head_pkgname(pkgname=None):
     """
