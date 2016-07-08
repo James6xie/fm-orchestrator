@@ -51,7 +51,8 @@ def from_file(filename=None):
     conf.system = default.get("system")
     conf.messaging = default.get("messaging")
     conf.pdc = default.get("pdc")
-    conf.koji = default.get("koji")
+    conf.koji_config = default.get("koji_config")
+    conf.koji_profile = default.get("koji_profile")
     conf.scmurls = json.loads(default.get("scmurls"))
     conf.rpms_default_repository = default.get("rpms_default_repository")
     conf.rpms_allow_repository = default.getboolean("rpms_allow_repository")
@@ -77,7 +78,9 @@ class Config(object):
         self._messaging = ""
         self._db = ""
         self._pdc = ""
-        self._koji = ""
+        self._koji_config = None
+        self._koji_profile = None 
+        self._koji_arches = None
         self._rpms_default_repository = ""
         self._rpms_allow_repository = False
         self._rpms_default_cache = ""
@@ -132,13 +135,32 @@ class Config(object):
         self._pdc = str(s)
 
     @property
-    def koji(self):
+    def koji_config(self):
         """Koji URL."""
-        return self._koji
+        return self._koji_config
 
-    @koji.setter
-    def koji(self, s):
-        self._koji = str(s)
+    @koji_config.setter
+    def koji_config(self, s):
+        self._koji_config = str(s)
+
+
+    @property
+    def koji_profile(self):
+        """Koji URL."""
+        return self._koji_profile
+
+    @koji_profile.setter
+    def koji_profile(self, s):
+        self._koji_profile = str(s)
+    
+    @property
+    def koji_arches(self):
+        """Koji architectures."""
+        return self._koji_arches
+
+    @koji_arches.setter
+    def koji_arches(self, s):
+        self._koji_arches = list(s)
 
     @property
     def scmurls(self):
