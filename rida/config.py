@@ -64,6 +64,7 @@ def from_file(filename=None):
 
     conf.pkgdb_api_url = default.get("pkgdb_api_url")
 
+    conf.log_backend = default.get("log_backend")
     conf.log_file = default.get("log_file")
     conf.log_level = default.get("log_level")
     return conf
@@ -86,6 +87,7 @@ class Config(object):
         self._ssl_certificate_key_file = ""
         self._ssl_ca_certificate_file = ""
         self._pkgdb_api_url = ""
+        self._log_backend = ""
         self._log_file = ""
         self._log_level = 0
 
@@ -220,13 +222,26 @@ class Config(object):
         self._pkgdb_api_url = str(s)
 
     @property
+    def log_backend(self):
+        return self._log_backend
+
+    @log_backend.setter
+    def log_backend(self, s):
+        if s == None:
+            self._log_backend = "console"
+        elif not s in logger.supported_log_backends():
+            raise ValueError("Unsupported log backend")
+
+        self._log_backend = str(s)
+
+    @property
     def log_file(self):
         return self._log_file
 
     @log_file.setter
     def log_file(self, s):
         if s == None:
-            self.log_file = ""
+            self._log_file = ""
         else:
             self._log_file = str(s)
 

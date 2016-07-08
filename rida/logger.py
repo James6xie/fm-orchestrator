@@ -21,7 +21,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 #
-# Written by Petr Šabata <contyk@redhat.com>
+# Written by Jan Kaluza <jkaluza@redhat.com>
 
 """
 Logging functions.
@@ -62,18 +62,21 @@ def str_to_log_level(level):
 
     return levels[level]
 
+def supported_log_backends():
+    return ("console", "journal", "file")
+
 def init_logging(conf):
     """
     Initializes logging according to configuration file.
     """
     log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    log_backend = conf.log_backend
 
-    log_file = conf.log_file
-    if not log_file or len(log_file) == 0 or log_file == "console":
+    if not log_backend or len(log_backend) == 0 or log_backend == "console":
         logging.basicConfig(level = conf.log_level, format = log_format)
         log = logging.getLogger()
         log.setLevel(conf.log_level)
-    elif log_file == "journal":
+    elif log_backend == "journal":
         logging.basicConfig(level = conf.log_level, format = log_format)
         try:
             from systemd import journal
