@@ -86,6 +86,7 @@ def submit_build():
         cofn = os.path.join(cod, (scm.name + ".yaml"))
         with open(cofn, "r") as mmdfile:
             yaml = mmdfile.read()
+        td.cleanup()
     except Exception as e:
         if "is not in the list of allowed SCMs" in str(e):
             rc = 403
@@ -106,12 +107,24 @@ def submit_build():
             release=mmd.release, state="init", modulemd=yaml)
     db.session.add(module)
     db.session.commit()
-    # FIXME: Use the validation class to determine whether
-    # all the components are available and we're allowed to
-    # process them.  We will assume it all passed for now.
-    for rpm in mmd.components.rpms.packages.keys():
-        build = rida.database.Build(module_id=module.id, package=rpm, format="rpms")
+    for pkgname, pkg in mmd.components.rpms.packages.items():
+        if pkg.get("repository") and not conf.rpms_allow_repository:
+            return "Custom component repositories aren't allowed", 403
+        if pkg.get("cache") and not conf.rpms_allow_cache:
+            return "Custom component caches aren't allowed", 403
+        if not pkg.get("repository"):
+            pkg["repository"] = conf.rpms_default_repository + pkgname
+        if not pkg.get("cache"):
+            pkg["cache"] = conf.rpms_default_cache + pkgname
+        if not pkg.get("commit"):
+            try:
+                pkg["commit"] = rida.scm.SCM(pkg["repository"]).get_latest()
+            except Exception as e:
+                return "Failed to get the latest commit: %s" % pkgname, 422
+        # TODO: Check if the scmurl is checkout-able
+        build = rida.database.Build(module_id=module.id, package=pkgname, format="rpms")
         db.session.add(build)
+    module.modulemd = mmd.dumps()
     module.state = "wait"
     db.session.add(module)
     db.session.commit()
