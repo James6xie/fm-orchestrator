@@ -1,1 +1,4 @@
 *.pyc
+rida.db
+server.crt
+server.key
