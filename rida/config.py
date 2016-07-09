@@ -79,8 +79,9 @@ class Config(object):
         self._messaging = ""
         self._db = ""
         self._pdc = ""
+        self._polling_interval = 0
         self._koji_config = None
-        self._koji_profile = None 
+        self._koji_profile = None
         self._koji_arches = None
         self._rpms_default_repository = ""
         self._rpms_allow_repository = False
@@ -137,6 +138,19 @@ class Config(object):
         self._pdc = str(s)
 
     @property
+    def polling_interval(self):
+        """Polling interval, in seconds."""
+        return self._polling_interval
+
+    @polling_interval.setter
+    def polling_interval(self, i):
+        if not isinstance(i, int):
+            raise TypeError("polling_interval needs to be an int")
+        if i < 0:
+            raise ValueError("polling_interval must be >= 0")
+        self._polling_interval = i
+
+    @property
     def koji_config(self):
         """Koji URL."""
         return self._koji_config
@@ -154,7 +168,7 @@ class Config(object):
     @koji_profile.setter
     def koji_profile(self, s):
         self._koji_profile = str(s)
-    
+
     @property
     def koji_arches(self):
         """Koji architectures."""
