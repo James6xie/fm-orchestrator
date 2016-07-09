@@ -121,7 +121,8 @@ def submit_build():
                 pkg["commit"] = rida.scm.SCM(pkg["repository"]).get_latest()
             except Exception as e:
                 return "Failed to get the latest commit: %s" % pkgname, 422
-        # TODO: Check if the scmurl is checkout-able
+        if not rida.scm.SCM(pkg["repository"] + "?#" + pkg["commit"]).is_available():
+            return "Cannot checkout %s" % pkgname, 422
         build = rida.database.Build(module_id=module.id, package=pkgname, format="rpms")
         db.session.add(build)
     module.modulemd = mmd.dumps()
