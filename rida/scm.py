@@ -48,12 +48,14 @@
 
 """SCM handler functions."""
 
+import http.client
 import os
 import sys
 import time
 import traceback
 import subprocess
 import re
+import tempfile
 
 class SCM(object):
     "SCM abstraction class"
@@ -119,7 +121,8 @@ class SCM(object):
         else:
             raise RuntimeError("Unhandled SCM scheme: %s" % self.scheme)
 
-    def _run(self, cmd, chdir=None):
+    @staticmethod
+    def _run(cmd, chdir=None):
         numretry = 0
         path = cmd[0]
         args = cmd
@@ -165,9 +168,12 @@ class SCM(object):
             module_clone_cmd.extend([self.repository, sourcedir])
 
             # perform checkouts
-            self._run(module_clone_cmd, chdir=scmdir)
+            if not SCM._run(module_clone_cmd, chdir=scmdir) == 0:
+                raise RuntimeError("Git clone failed: %s" % self.repository)
             if self.commit:
-                self._run(module_checkout_cmd, chdir=sourcedir)
+                if not SCM._run(module_checkout_cmd, chdir=sourcedir) == 0:
+                    raise RuntimeError("Git checkout failed: %s?#%s" %
+                            (self.repository, self.commit))
         else:
             raise RuntimeError("checkout: Unhandled SCM scheme.")
         return sourcedir
@@ -189,6 +195,27 @@ class SCM(object):
                 % self.repository)
         else:
             raise RuntimeError("get_latest: Unhandled SCM scheme.")
+
+    def is_available(self):
+        """Returns whether the scmurl is available for checkout."""
+        # XXX: For pagure.io/github.com hacks we need to map http/https repos
+        # to the git scheme.  Also, the request path needs to be constructed
+        # from self.repository to work for forks.
+        if self.repository.startswith("-git://pkgs.fedoraproject.org/"):
+            hc = http.client.HTTPConnection("pkgs.fedoraproject.org")
+            hc.request("HEAD",
+                "/cgit/rpms/" + self.name + ".git/commit/?id=" + self.commit)
+            rc = hc.getresponse().code
+            hc.close()
+            return True if rc == 200 else False
+        else:
+            try:
+                td = tempfile.TemporaryDirectory()
+                self.checkout(td.name)
+                td.cleanup()
+                return True
+            except:
+                return False
 
     @property
     def url(self):
