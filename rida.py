@@ -29,9 +29,6 @@
 This is the implementation of the orchestrator's public RESTful API.
 """
 
-# TODO; Validate the input modulemd & spec inputs.
-#       This requires SCM classes to be ready.
-
 from flask import Flask, request
 import json
 import logging
@@ -129,7 +126,6 @@ def submit_build():
     module.state = "wait"
     db.session.add(module)
     db.session.commit()
-
     # Publish to whatever bus we're configured to connect to.
     # This should notify ridad to start doing the work we just scheduled.
     rida.messaging.publish(
@@ -138,10 +134,8 @@ def submit_build():
         msg=module.json(),
         backend=conf.messaging,
     )
-
-    logging.info("%s submitted build of %s", username, mmd.name)
-
-    # XXX: Okay, we're pretending here...
+    logging.info("%s submitted build of %s-%s-%s", username, mmd.name,
+            mmd.version, mmd.release)
     return json.dumps(module.json()), 201
 
 
