@@ -5,3 +5,4 @@ modulemd
 pyOpenSSL
 kobo
 koji
+python3-fedmsg-core
