@@ -164,12 +164,30 @@ def query_build(id):
     else:
         return "No such module found.", 404
 
-if __name__ == "__main__":
-    logging.info("Starting Rida")
+def _establish_ssl_context(conf):
+    # First, do some validation of the configuration
+    attributes = (
+        'ssl_certificate_file',
+        'ssl_certificate_key_file',
+        'ssl_ca_ceritifcate_file',
+    )
+    for attribute in attributes:
+        value = getattr(conf, attribute, None)
+        if not value:
+            raise ValueError("%r could not be found" % attribute)
+        if not os.path.exists(value):
+            raise OSError("%s: %s file not found." % (attribute, value))
+
+    # Then, establish the ssl context and return it
     ssl_ctx = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
     ssl_ctx.load_cert_chain(conf.ssl_certificate_file,
                             conf.ssl_certificate_key_file)
     ssl_ctx.verify_mode = ssl.CERT_OPTIONAL
     ssl_ctx.load_verify_locations(cafile=conf.ssl_ca_certificate_file)
+    return ssl_ctx
 
+
+if __name__ == "__main__":
+    logging.info("Starting Rida")
+    ssl_ctx = _establish_ssl_context(conf)
     app.run(request_handler = rida.auth.ClientCertRequestHandler, ssl_context=ssl_ctx)
