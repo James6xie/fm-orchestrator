@@ -285,7 +285,7 @@ class KojiModuleBuild(GenericBuilder):
         for group, packages in groups.iteritems():
             group_id = groups.get(group, None)
             if group_id is not None:
-                print "Group %s already exists for tag %s" % (group, dest_tag)
+                print("Group %s already exists for tag %s" % (group, dest_tag))
                 return 1
             self.koji_session.groupListAdd(dest_tag, group)
             for pkg in packages:
