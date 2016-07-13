@@ -24,9 +24,30 @@
 
 """Database handler functions."""
 
-from sqlalchemy import Column, Integer, String, ForeignKey, create_engine
-from sqlalchemy.orm import sessionmaker, relationship
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    ForeignKey,
+    create_engine,
+)
+from sqlalchemy.orm import (
+    sessionmaker,
+    relationship,
+    validates,
+)
 from sqlalchemy.ext.declarative import declarative_base
+
+
+# Just like koji.BUILD_STATES, except our own codes for modules.
+BUILD_STATES = {
+    "init": 0,
+    "wait": 1,
+    "build": 2,
+    "done": 3,
+    "failed": 4,
+    "ready": 5,
+}
 
 
 class RidaBase(object):
@@ -77,9 +98,16 @@ class Module(Base):
     name = Column(String, nullable=False)
     version = Column(String, nullable=False)
     release = Column(String, nullable=False)
-    # XXX: Consider making this a proper ENUM
-    state = Column(String, nullable=False)
+    state = Column(Integer, nullable=False)
     modulemd = Column(String, nullable=False)
+
+    @validates('state')
+    def validate_state(self, key, field):
+        if field in BUILD_STATES.values():
+            return field
+        if field in BUILD_STATES:
+            return BUILD_STATES[field]
+        raise ValueError("%s: %s, not in %r" % (key, field, BUILD_STATES))
 
     def json(self):
         return {

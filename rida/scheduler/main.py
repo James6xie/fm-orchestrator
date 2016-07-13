@@ -58,12 +58,11 @@ class Messaging(threading.Thread):
         for msg in rida.messaging.listen(backend=config.messaging):
             log.debug("Saw %r, %r" % (msg['msg_id'], msg['topic']))
             if '.buildsys.build.state.change' in msg['topic']:
-                log.info("A build changed state in koji!!")
+                self.handle_build_change(msg)
             elif '.rida.module.state.change' in msg['topic']:
-                log.info("Our frontend says that a module changed state!!")
+                self.handle_module_change(msg)
             else:
                 pass
-
 
 class Polling(threading.Thread):
     def run(self):
@@ -77,7 +76,7 @@ class Polling(threading.Thread):
             pass
 
 
-if __name__ == '__main__':
+def main():
     logging.basicConfig(level=logging.DEBUG)  # For now
     logging.info("Starting ridad.")
     try:

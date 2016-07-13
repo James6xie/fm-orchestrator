@@ -123,7 +123,7 @@ def submit_build():
         build = rida.database.Build(module_id=module.id, package=pkgname, format="rpms")
         db.session.add(build)
     module.modulemd = mmd.dumps()
-    module.state = "wait"
+    module.state = rida.database.BUILD_STATES["init"]
     db.session.add(module)
     db.session.commit()
     # Publish to whatever bus we're configured to connect to.
