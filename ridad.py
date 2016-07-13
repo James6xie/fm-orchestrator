@@ -1,7 +1,5 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
-
-
 # Copyright (c) 2016  Red Hat, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -31,10 +29,14 @@ This is the main component of the orchestrator and is responsible for
 proper scheduling component builds in the supported build systems.
 """
 
+import logging
 import os
 import threading
+
 import rida.config
 import rida.messaging
+
+log = logging.getLogger()
 
 # TODO: Load the config file from environment
 config = rida.config.from_file("rida.conf")
@@ -74,11 +76,15 @@ class Polling(threading.Thread):
             # TODO: Sleep for a configuration-determined interval
             pass
 
-try:
-    messaging_thread = Messaging()
-    polling_thread = Polling()
-    messaging_thread.start()
-    polling_thread.start()
-except KeyboardInterrupt:
-    # FIXME: Make this less brutal
-    os._exit()
+
+if __name__ == '__main__':
+    logging.basicConfig(level=logging.DEBUG)  # For now
+    logging.info("Starting ridad.")
+    try:
+        messaging_thread = Messaging()
+        polling_thread = Polling()
+        messaging_thread.start()
+        polling_thread.start()
+    except KeyboardInterrupt:
+        # FIXME: Make this less brutal
+        os._exit()
