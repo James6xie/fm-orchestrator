@@ -75,6 +75,9 @@ def from_file(filename=None):
     conf.rpms_default_cache = default.get("rpms_default_cache")
     conf.rpms_allow_cache = asbool(default.get("rpms_allow_cache"))
 
+    conf.port = default.get("port")
+    conf.host = default.get("host")
+
     conf.ssl_certificate_file = default.get("ssl_certificate_file")
     conf.ssl_certificate_key_file = default.get("ssl_certificate_key_file")
     conf.ssl_ca_certificate_file = default.get("ssl_ca_certificate_file")
