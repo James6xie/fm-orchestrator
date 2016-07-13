@@ -121,6 +121,12 @@ class ModuleBuild(Base):
             return BUILD_STATES[field]
         raise ValueError("%s: %s, not in %r" % (key, field, BUILD_STATES))
 
+    @classmethod
+    def from_fedmsg(cls, session, msg):
+        if '.module.' not in msg['topic']:
+            raise ValueError("%r is not a module message." % msg['topic'])
+        return session.query(cls).filter_by(cls.id==msg['msg']['id'])
+
     def json(self):
         return {
             'id': self.id,
