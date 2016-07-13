@@ -26,9 +26,23 @@
 """Configuration handler functions."""
 
 import os.path
-import configparser
 import json
+
+try:
+    import configparser # py3
+except ImportError:
+    import ConfigParser as configparser  # py2
+
+import six
+
 from rida import logger
+
+def asbool(value):
+    """ Cast config values to boolean. """
+    return six.text_type(value).lower() in [
+        'y', 'yes', 't', 'true', '1', 'on'
+    ]
+
 
 def from_file(filename=None):
     """Create the configuration instance from a file.
@@ -45,7 +59,7 @@ def from_file(filename=None):
         raise IOError("The configuration file doesn't exist.")
     cp = configparser.ConfigParser(allow_no_value=True)
     cp.read(filename)
-    default = cp["DEFAULT"]
+    default = cp.defaults()
     conf = Config()
     conf.db = default.get("db")
     conf.system = default.get("system")
@@ -57,9 +71,9 @@ def from_file(filename=None):
     conf.koji_profile = default.get("koji_profile")
     conf.scmurls = json.loads(default.get("scmurls"))
     conf.rpms_default_repository = default.get("rpms_default_repository")
-    conf.rpms_allow_repository = default.getboolean("rpms_allow_repository")
+    conf.rpms_allow_repository = asbool(default.get("rpms_allow_repository"))
     conf.rpms_default_cache = default.get("rpms_default_cache")
-    conf.rpms_allow_cache = default.getboolean("rpms_allow_cache")
+    conf.rpms_allow_cache = asbool(default.get("rpms_allow_cache"))
 
     conf.ssl_certificate_file = default.get("ssl_certificate_file")
     conf.ssl_certificate_key_file = default.get("ssl_certificate_key_file")

@@ -27,7 +27,8 @@
 
 """SCM handler functions."""
 
-import http.client
+from six.moves import http_client
+
 import os
 import sys
 import time
@@ -101,7 +102,7 @@ class SCM(object):
                     if chdir:
                         os.chdir(chdir)
                     os.execvp(path, args)
-                except:   # XXX maybe switch to subprocess (python-3.5) where 
+                except:   # XXX maybe switch to subprocess (python-3.5) where
                           # we can check for return codes and timeouts
                     msg = ''.join(traceback.format_exception(*sys.exc_info()))
                     print(msg)
@@ -173,7 +174,7 @@ class SCM(object):
         # XXX: If implementing special hacks for pagure.io or github.com, don't
         # forget about possible forks -- start with self.repository.
         if self.repository.startswith("-git://pkgs.fedoraproject.org/"):
-            hc = http.client.HTTPConnection("pkgs.fedoraproject.org")
+            hc = http_client.HTTPConnection("pkgs.fedoraproject.org")
             hc.request("HEAD",
                 "/cgit/rpms/" + self.name + ".git/commit/?id=" + self.commit)
             rc = hc.getresponse().code
