@@ -62,17 +62,24 @@ Base = declarative_base(cls=RidaBase)
 class Database(object):
     """Class for handling database connections."""
 
-    def __init__(self, rdburl=None, debug=False):
+    def __init__(self, config, debug=False):
         """Initialize the database object."""
-        if not isinstance(rdburl, str):
-            rdburl = "sqlite:///rida.db"
-        engine = create_engine(rdburl, echo=debug)
-        Session = sessionmaker(bind=engine)
-        self._session = Session()
+        self.engine = create_engine(config.db, echo=debug)
+        self._session = None  # Lazilly created..
+
+    def __enter__(self):
+        return self.session()
+
+    def __exit__(self, *args, **kwargs):
+        self._session.close()
+        self._session = None
 
     @property
     def session(self):
         """Database session object."""
+        if not self._session:
+            Session = sessionmaker(bind=self.engine)
+            self._session = Session()
         return self._session
 
     @classmethod

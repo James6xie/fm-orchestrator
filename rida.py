@@ -50,7 +50,7 @@ app.config.from_envvar("RIDA_SETTINGS", silent=True)
 conf = rida.config.from_file("rida.conf")
 rida.logger.init_logging(conf)
 
-db = rida.database.Database()
+db = rida.database.Database(conf)
 
 @app.route("/rida/module-builds/", methods=["POST"])
 def submit_build():
