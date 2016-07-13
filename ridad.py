@@ -48,22 +48,22 @@ config = rida.config.from_file("rida.conf")
 
 class Messaging(threading.Thread):
     def run(self):
-        while True:
-            # TODO: Listen for bus messages from rida about module builds
-            #       entering the wait state
-            # TODO: Listen for bus messages from the buildsystem about
-            #       component builds changing state
-            # TODO: Check for modules that can be set to done/failed
-            # TODO: Act on these things somehow
-            # TODO: Emit messages about doing so
-            for msg in rida.messaging.listen(backend=config.messaging):
-                print("Saw %r with %r" % (msg['topic'], msg))
-                if '.buildsys.build.state.change' in msg['topic']:
-                    print("A build changed state in koji!!")
-                elif '.rida.module.state.change' in msg['topic']:
-                    print("Our frontend says that a module changed state!!")
-                else:
-                    pass
+        # TODO: Listen for bus messages from rida about module builds
+        #       entering the wait state
+        # TODO: Listen for bus messages from the buildsystem about
+        #       component builds changing state
+        # TODO: Check for modules that can be set to done/failed
+        # TODO: Act on these things somehow
+        # TODO: Emit messages about doing so
+        for msg in rida.messaging.listen(backend=config.messaging):
+            log.debug("Saw %r, %r" % (msg['msg_id'], msg['topic']))
+            if '.buildsys.build.state.change' in msg['topic']:
+                log.info("A build changed state in koji!!")
+            elif '.rida.module.state.change' in msg['topic']:
+                log.info("Our frontend says that a module changed state!!")
+            else:
+                pass
+
 
 class Polling(threading.Thread):
     def run(self):
