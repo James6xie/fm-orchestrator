@@ -10,10 +10,10 @@ cfg.koji_profile = "koji"
 cfg.koji_config = "/etc/rida/koji.conf"
 cfg.koji_arches = ["x86_64", "i686"]
 
-#mb = KojiModuleBuild(module="testmodule-1.0", config=cfg) # or By using Builder
-mb = Builder(module="testmodule-1.0", backend="koji", config=cfg)
+mb = KojiModuleBuild(module="testmodule-1.0", config=cfg) # or By using Builder
+#mb = Builder(module="testmodule-1.0", backend="koji", config=cfg)
 
-resume = True
+resume = False
 
 if not resume:
     mb.buildroot_prep()
