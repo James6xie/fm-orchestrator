@@ -37,6 +37,8 @@ import threading
 
 import rida.config
 import rida.messaging
+import rida.scheduler.handlers.modules
+#import rida.scheduler.handlers.builds
 
 import koji
 
@@ -51,12 +53,16 @@ config = rida.config.from_file("rida.conf")
 # TODO: Set the build state to failed if the module build fails.
 
 class Messaging(threading.Thread):
+
+    # These are our main lookup tables for figuring out what to run in response
+    # to what messaging events.
     on_build_change = {
         koji.BUILD_STATES["BUILDING"]: lambda x: x
     }
     on_module_change = {
         rida.BUILD_STATES["new"]: rida.scheduler.handlers.modules.new,
     }
+
     def sanity_check(self):
         """ On startup, make sure our implementation is sane. """
         # Ensure we have every state covered

@@ -83,30 +83,35 @@ class Database(object):
         return self._session
 
     @classmethod
-    def create_tables(cls, db_url, debug=False):
+    def create_tables(cls, config, debug=False):
         """ Creates our tables in the database.
 
-        :arg db_url, URL used to connect to the database. The URL contains
-        information with regards to the database engine, the host to connect
-        to, the user and password and the database name.
+        :arg config, config object with a 'db' URL attached to it.
         ie: <engine>://<user>:<password>@<host>/<dbname>
         :kwarg debug, a boolean specifying wether we should have the verbose
         output of sqlalchemy or not.
         :return a Database connection that can be used to query to db.
         """
-        engine = create_engine(db_url, echo=debug)
+        engine = create_engine(config.db, echo=debug)
         Base.metadata.create_all(engine)
-        return cls(db_url, debug=debug)
+        return cls(config, debug=debug)
 
 
 class Module(Base):
     __tablename__ = "modules"
+    name = Column(String, primary_key=True)
+
+
+class ModuleBuild(Base):
+    __tablename__ = "module_builds"
     id = Column(Integer, primary_key=True)
-    name = Column(String, nullable=False)
+    name = Column(String, ForeignKey('modules.name'), nullable=False)
     version = Column(String, nullable=False)
     release = Column(String, nullable=False)
     state = Column(Integer, nullable=False)
     modulemd = Column(String, nullable=False)
+
+    module = relationship('Module', backref='module_builds', lazy=False)
 
     @validates('state')
     def validate_state(self, key, field):
@@ -128,12 +133,12 @@ class Module(Base):
             #'modulemd': self.modulemd,
 
             # TODO, show their entire .json() ?
-            'builds': [build.id for build in self.builds],
+            'component_builds': [build.id for build in self.component_builds],
         }
 
 
-class Build(Base):
-    __tablename__ = "builds"
+class ComponentBuild(Base):
+    __tablename__ = "component_builds"
     id = Column(Integer, primary_key=True)
     package = Column(String, nullable=False)
     # XXX: Consider making this a proper ENUM
@@ -142,8 +147,8 @@ class Build(Base):
     # XXX: Consider making this a proper ENUM (or an int)
     state = Column(String)
 
-    module_id = Column(Integer, ForeignKey('modules.id'), nullable=False)
-    module = relationship('Module', backref='builds', lazy=False)
+    module_id = Column(Integer, ForeignKey('module_builds.id'), nullable=False)
+    module_build = relationship('ModuleBuild', backref='component_builds', lazy=False)
 
     def json(self):
         return {
@@ -152,5 +157,5 @@ class Build(Base):
             'format': self.format,
             'task': self.task,
             'state': self.state,
-            'module': self.module.id,
+            'module_build': self.module_build.id,
         }
