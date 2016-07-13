@@ -165,6 +165,8 @@ def query_build(id):
         return "No such module found.", 404
 
 def _establish_ssl_context(conf):
+    if conf.ssl_enabled == False:
+        return None
     # First, do some validation of the configuration
     attributes = (
         'ssl_certificate_file',

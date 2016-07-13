@@ -78,6 +78,7 @@ def from_file(filename=None):
     conf.port = default.get("port")
     conf.host = default.get("host")
 
+    conf.ssl_enabled = asbool(default.get("ssl_enabled"))
     conf.ssl_certificate_file = default.get("ssl_certificate_file")
     conf.ssl_certificate_key_file = default.get("ssl_certificate_key_file")
     conf.ssl_ca_certificate_file = default.get("ssl_ca_certificate_file")
