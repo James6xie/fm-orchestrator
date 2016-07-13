@@ -50,7 +50,9 @@ def from_file(filename=None):
     conf.db = default.get("db")
     conf.system = default.get("system")
     conf.messaging = default.get("messaging")
-    conf.pdc = default.get("pdc")
+    conf.pdc_url = default.get("pdc_url")
+    conf.pdc_insecure = default.get("pdc_insecure")
+    conf.pdc_develop = default.get("pdc_develop")
     conf.koji_config = default.get("koji_config")
     conf.koji_profile = default.get("koji_profile")
     conf.scmurls = json.loads(default.get("scmurls"))
@@ -78,8 +80,10 @@ class Config(object):
         self._system = ""
         self._messaging = ""
         self._db = ""
-        self._pdc = ""
         self._polling_interval = 0
+        self._pdc_url = ""
+        self._pdc_insecure = False
+        self._pdc_develop = False
         self._koji_config = None
         self._koji_profile = None
         self._koji_arches = None
@@ -129,13 +133,31 @@ class Config(object):
         self._db = str(s)
 
     @property
-    def pdc(self):
+    def pdc_url(self):
         """PDC URL."""
-        return self._pdc
+        return self._pdc_url
 
-    @pdc.setter
-    def pdc(self, s):
-        self._pdc = str(s)
+    @pdc_url.setter
+    def pdc_url(self, s):
+        self._pdc_url = str(s)
+
+    @property
+    def pdc_insecure(self):
+        """Allow insecure connection to PDC."""
+        return self._pdc_insecure
+
+    @pdc_insecure.setter
+    def pdc_insecure(self, b):
+        self._pdc_insecure = bool(b)
+
+    @property
+    def pdc_develop(self):
+        """PDC Development mode, basically noauth."""
+        return self._pdc_develop
+
+    @pdc_develop.setter
+    def pdc_develop(self, b):
+        self._pdc_develop = bool(b)
 
     @property
     def polling_interval(self):
