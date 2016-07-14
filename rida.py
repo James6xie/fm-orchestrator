@@ -165,6 +165,8 @@ def query_build(id):
         return "No such module found.", 404
 
 def _establish_ssl_context(conf):
+    if conf.ssl_enabled == False:
+        return None
     # First, do some validation of the configuration
     attributes = (
         'ssl_certificate_file',
@@ -190,4 +192,9 @@ def _establish_ssl_context(conf):
 if __name__ == "__main__":
     logging.info("Starting Rida")
     ssl_ctx = _establish_ssl_context(conf)
-    app.run(request_handler = rida.auth.ClientCertRequestHandler, ssl_context=ssl_ctx)
+    app.run(
+        host=conf.host,
+        port=conf.port,
+        request_handler=rida.auth.ClientCertRequestHandler,
+        ssl_context=ssl_ctx,
+    )
