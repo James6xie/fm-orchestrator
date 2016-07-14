@@ -171,7 +171,7 @@ def _establish_ssl_context(conf):
     attributes = (
         'ssl_certificate_file',
         'ssl_certificate_key_file',
-        'ssl_ca_ceritifcate_file',
+        'ssl_ca_certificate_file',
     )
     for attribute in attributes:
         value = getattr(conf, attribute, None)
