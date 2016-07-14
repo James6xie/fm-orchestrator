@@ -160,8 +160,9 @@ def get_module_dependencies(session, module_info):
 
     deps = []
     module_info = get_module(session, module_info)
-    if 'deps' in module_info and module_info['deps']:
-        deps = module_depsolving_wrapper(session, module_info['deps'])
+    if module_info.get('runtime_deps'):
+        deps = [x['dependency'] for x in module_info['runtime_deps']]
+        deps = module_depsolving_wrapper(session, deps)
 
     return deps
 
@@ -177,9 +178,8 @@ def get_module_build_dependencies(session, module_info):
 
     deps = []
     module_info = get_module(session, module_info)
-    if 'build_deps' in module_info and module_info['build_deps']:
-        deps = module_depsolving_wrapper(session, module_info['build_deps'])
+    if module_info.get('build_deps'):
+        deps = [x['dependency'] for x in module_info['build_deps']]
+        deps = module_depsolving_wrapper(session, deps)
 
     return deps
-
-
