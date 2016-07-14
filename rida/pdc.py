@@ -120,7 +120,7 @@ def get_module(session, module_info):
 
     module_info = get_variant_dict(module_info) 
 
-    module_info = session['unreleasedvariant'](page_size=-1, **module_info)
+    module_info = session['unreleasedvariants'](page_size=-1, **module_info)
     assert len(module_info) <= 1
 
     if not module_info:
