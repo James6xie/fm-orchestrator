@@ -56,7 +56,7 @@ def from_file(filename=None):
     if not isinstance(filename, str):
         raise TypeError("The configuration filename must be a string.")
     if not os.path.isfile(filename):
-        raise IOError("The configuration file doesn't exist.")
+        raise IOError("The configuration file '%s' doesn't exist." % filename)
     cp = configparser.ConfigParser(allow_no_value=True)
     cp.read(filename)
     default = cp.defaults()

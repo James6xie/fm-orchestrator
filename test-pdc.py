@@ -6,12 +6,12 @@ from rida.config import Config
 
 
 cfg = Config()
-cfg.pdc_url = "http://fed-mod.org:8000/rest_api/v1"
+cfg.pdc_url = "http://localhost:8000/rest_api/v1"
 cfg.pdc_insecure = True
 cfg.pdc_develop = True
 
 pdc_session = get_pdc_client_session(cfg)
-module = get_module(pdc_session, {'name': 'testmodule', 'version': '1.0'})
+module = get_module(pdc_session, {'name': 'testmodule', 'version': '4.3.42', 'release': '0'})
 
 if module:
     print ("pdc_data=%s" % str(module))

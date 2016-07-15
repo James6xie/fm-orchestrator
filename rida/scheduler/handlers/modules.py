@@ -26,6 +26,9 @@
 import rida.builder
 import rida.database
 import rida.pdc
+import time
+import logging
+import koji
 
 import logging
 log = logging.getLogger(__name__)
@@ -40,13 +43,27 @@ def init(config, session, msg):
     """
     build = rida.database.ModuleBuild.from_fedmsg(session, msg)
     pdc = rida.pdc.get_pdc_client_session(config)
-    module_info = build.to_pdc_module_info()
+    # TODO do some periodical polling of variant_info since it's being created based on the same message
+    #log.warn("HACK: waiting 10s for pdc")
+    #time.sleep(10)
+    log.debug("Getting module from pdc with following input_data=%s" % build.json())
+    module_info = pdc.get_module(build.json())
+
+    log.debug("Received module_info=%s from pdc" % module_info)
+
     tag = rida.pdc.get_module_tag(pdc, module_info)
+    log.info("Found tag=%s for module %s-%s-%s" % (tag, build['name'], build['version'], build['release']))
+
     dependencies = rida.pdc.get_module_dependencies(pdc, module_info)
     builder = rida.builder.KojiModuleBuilder(build.name, config)
     builder.buildroot_add_dependency(dependencies)
     build.buildroot_task_id = builder.buildroot_prep()
+    # TODO: build srpm with dist_tag macros
+    # TODO submit build from srpm to koji
+    # TODO: buildroot.add_artifact(build_with_dist_tags)
+    # TODO: buildroot.ready(artifact=$artifact)
     build.state = "wait"  # Wait for the buildroot to be ready.
+    log.debug("Done with init")
 
 
 def build(config, session, msg):

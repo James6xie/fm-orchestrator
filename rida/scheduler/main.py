@@ -40,18 +40,33 @@ import rida.logging
 import rida.messaging
 import rida.scheduler.handlers.modules
 #import rida.scheduler.handlers.builds
+import sys
 
 import koji
 
 log = logging.getLogger(__name__)
 
-# TODO: Load the config file from environment
-config = rida.config.from_file("rida.conf")
+# Load config from git checkout or the default location
+config = None
+here = sys.path[0]
+if here not in ('/usr/bin', '/bin', '/usr/local/bin'):
+    # git checkout
+    config = rida.config.from_file("rida.conf")
+else:
+    # production
+    config = rida.config.from_file()
 
 # TODO: Utilized rida.builder to prepare the buildroots and build components.
 # TODO: Set the build state to build once the module build is started.
 # TODO: Set the build state to done once the module build is done.
 # TODO: Set the build state to failed if the module build fails.
+
+def module_build_state_from_msg(msg):
+
+    state = int(msg['msg']['state'])
+    # TODO better handling
+    assert state in rida.BUILD_STATES.values(), "state=%s(%s) is not in %s" % (state, type(state), rida.BUILD_STATES.values())
+    return state
 
 class Messaging(threading.Thread):
 
@@ -61,7 +76,7 @@ class Messaging(threading.Thread):
         koji.BUILD_STATES["BUILDING"]: lambda x: x
     }
     on_module_change = {
-        rida.BUILD_STATES["new"]: rida.scheduler.handlers.modules.new,
+        rida.BUILD_STATES["init"]: rida.scheduler.handlers.modules.init,
     }
 
     def sanity_check(self):
@@ -83,24 +98,25 @@ class Messaging(threading.Thread):
                     callback, key, argspec, expected))
 
     def run(self):
-        self.sanity_check()
+        #self.sanity_check()
         # TODO: Check for modules that can be set to done/failed
         # TODO: Act on these things somehow
         # TODO: Emit messages about doing so
         for msg in rida.messaging.listen(backend=config.messaging):
             log.debug("Saw %r, %r" % (msg['msg_id'], msg['topic']))
+            log.debug(msg)
 
             # Choose a handler for this message
             if '.buildsys.build.state.change' in msg['topic']:
-                handler = self.on_build_change[msg['msg']['new']]
+                handler = self.on_build_change[msg['msg']['init']]
             elif '.rida.module.state.change' in msg['topic']:
-                handler = self.on_module_change[msg['msg']['state']]
+                handler = self.on_module_change[module_build_state_from_msg(msg)]
             else:
                 log.debug("Unhandled message...")
                 continue
 
             # Execute our chosen handler
-            with rida.Database(config) as session:
+            with rida.database.Database(config) as session:
                 handler(config, session, msg)
 
 class Polling(threading.Thread):

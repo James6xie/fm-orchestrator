@@ -40,7 +40,7 @@ class ClientCertRequestHandler(WSGIRequestHandler):
 
         try:
             cert = self.request.getpeercert(False)
-        except:
+        except AttributeError:
             cert = None
 
         if cert and "subject" in cert:
