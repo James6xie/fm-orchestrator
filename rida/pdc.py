@@ -96,7 +96,6 @@ def get_variant_dict(data):
     return result
 
 
-
 def variant_dict_from_str(module_str):
     """
     :param module_str: a string to match in PDC

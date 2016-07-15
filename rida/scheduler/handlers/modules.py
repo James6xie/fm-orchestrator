@@ -42,14 +42,10 @@ def init(config, session, msg):
     build = rida.database.ModuleBuild.from_fedmsg(session, msg)
     pdc_session = rida.pdc.get_pdc_client_session(config)
 
-    build_data = build.json()
-    log.debug("Getting module from pdc with input_data=%s" % build_data)
-    module_info = rida.pdc.get_module(pdc_session, build_data)
-
+    module_info = build.json()
     log.debug("Received module_info=%s from pdc" % module_info)
-
     tag = rida.pdc.get_module_tag(pdc_session, module_info)
-    log.info("Found tag=%s for module %s-%s-%s" % (tag, build['name'], build['version'], build['release']))
+    log.info("Found tag=%s for module %r" % (tag, build))
 
     dependencies = rida.pdc.get_module_dependencies(pdc_session, module_info)
     builder = rida.builder.KojiModuleBuilder(build.name, config)
