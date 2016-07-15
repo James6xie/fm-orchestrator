@@ -27,6 +27,9 @@ import rida.builder
 import rida.database
 import rida.pdc
 
+import logging
+log = logging.getLogger(__name__)
+
 
 def init(config, session, msg):
     """ Called whenever a module enters the 'init' state.

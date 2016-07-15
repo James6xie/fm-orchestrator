@@ -36,13 +36,14 @@ import os
 import threading
 
 import rida.config
+import rida.logging
 import rida.messaging
 import rida.scheduler.handlers.modules
 #import rida.scheduler.handlers.builds
 
 import koji
 
-log = logging.getLogger()
+log = logging.getLogger(__name__)
 
 # TODO: Load the config file from environment
 config = rida.config.from_file("rida.conf")
@@ -115,8 +116,8 @@ class Polling(threading.Thread):
 
 
 def main():
-    logging.basicConfig(level=logging.DEBUG)  # For now
-    logging.info("Starting ridad.")
+    rida.logging.init_logging(config)
+    log.info("Starting ridad.")
     try:
         messaging_thread = Messaging()
         polling_thread = Polling()
