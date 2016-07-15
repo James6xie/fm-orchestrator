@@ -32,12 +32,14 @@ import koji
 log = logging.getLogger(__name__)
 
 
-def init(config, session, msg):
-    """ Called whenever a module enters the 'init' state.
+def wait(config, session, msg):
+    """ Called whenever a module enters the 'wait' state.
 
-    We usually transition to this state when the modulebuild is first requested.
+    We transition to this state shortly after a modulebuild is first requested.
 
     All we do here is request preparation of the buildroot.
+    The kicking off of individual component builds is handled elsewhere,
+    in rida.schedulers.handlers.repos.
     """
     build = rida.database.ModuleBuild.from_fedmsg(session, msg)
     pdc_session = rida.pdc.get_pdc_client_session(config)

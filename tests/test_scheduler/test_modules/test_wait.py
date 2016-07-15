@@ -26,12 +26,12 @@ import mock
 import rida.scheduler.handlers.modules
 
 
-class TestInit(unittest.TestCase):
+class TestWait(unittest.TestCase):
 
     def setUp(self):
         self.config = mock.Mock()
         self.session = mock.Mock()
-        self.fn = rida.scheduler.handlers.modules.init
+        self.fn = rida.scheduler.handlers.modules.wait
 
     @mock.patch('rida.builder.KojiModuleBuilder')
     @mock.patch('rida.database.ModuleBuild.from_fedmsg')
