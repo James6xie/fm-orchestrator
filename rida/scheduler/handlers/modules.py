@@ -26,6 +26,7 @@
 import rida.builder
 import rida.database
 import rida.pdc
+import time
 
 
 def init(config, session, msg):
@@ -37,6 +38,8 @@ def init(config, session, msg):
     """
     build = rida.database.ModuleBuild.from_fedmsg(session, msg)
     pdc = rida.pdc.get_pdc_client_session(config)
+    # TODO do some periodical polling of variant_info since it's being created based on the same message
+    time.sleep(10)
     module_info = build.to_pdc_module_info()
     tag = rida.pdc.get_module_tag(pdc, module_info)
     dependencies = rida.pdc.get_module_dependencies(pdc, module_info)
