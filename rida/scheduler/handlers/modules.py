@@ -55,8 +55,8 @@ def init(config, session, msg):
     # TODO submit build from srpm to koji
     # TODO: buildroot.add_artifact(build_with_dist_tags)
     # TODO: buildroot.ready(artifact=$artifact)
-    build.state = "wait"  # Wait for the buildroot to be ready.
-    log.debug("Done with init")
+    build.transition(state="build")  # Wait for the buildroot to be ready.
+    session.commit()
 
 
 def build(config, session, msg):
@@ -80,4 +80,5 @@ def build(config, session, msg):
         component_build.task = builder.build(artifact_name, scmurl)
         component_build.state = koji.BUILD_STATES['BUILDING']
 
-    build.state = "build"  # Now wait for all of those to finish.
+    build.transition(state="build")  # Now wait for all of those to finish.
+    session.commit()

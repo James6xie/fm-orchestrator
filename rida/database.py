@@ -38,6 +38,9 @@ from sqlalchemy.orm import (
 )
 from sqlalchemy.ext.declarative import declarative_base
 
+import logging
+log = logging.getLogger(__name__)
+
 
 # Just like koji.BUILD_STATES, except our own codes for modules.
 BUILD_STATES = {
@@ -142,6 +145,12 @@ class ModuleBuild(Base):
         if '.module.' not in msg['topic']:
             raise ValueError("%r is not a module message." % msg['topic'])
         return session.query(cls).filter(cls.id==msg['msg']['id']).one()
+
+    def transition(self, state):
+        """ Record that a build has transitioned state. """
+        old_state = self.state
+        self.state = state
+        log.debug("%r, state %r->%r" % (old_state, self.state))
 
     def json(self):
         return {

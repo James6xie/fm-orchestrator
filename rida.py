@@ -113,7 +113,7 @@ def submit_build():
 
     def failure(message, code):
         # TODO, we should make some note of why it failed in a log...
-        module.state = rida.database.BUILD_STATES["failed"]
+        module.transition(rida.database.BUILD_STATES["failed"])
         db.session.add(module)
         db.session.commit()
         return message, code
@@ -137,7 +137,7 @@ def submit_build():
         build = rida.database.ComponentBuild(module_id=module.id, package=pkgname, format="rpms")
         db.session.add(build)
     module.modulemd = mmd.dumps()
-    module.state = rida.database.BUILD_STATES["wait"]
+    module.transition(rida.database.BUILD_STATES["wait"])
     db.session.add(module)
     db.session.commit()
     # Publish to whatever bus we're configured to connect to.
