@@ -41,11 +41,10 @@ def init(config, session, msg):
     """
     build = rida.database.ModuleBuild.from_fedmsg(session, msg)
     pdc = rida.pdc.get_pdc_client_session(config)
-    # TODO do some periodical polling of variant_info since it's being created based on the same message
-    #log.warn("HACK: waiting 10s for pdc")
-    #time.sleep(10)
-    log.debug("Getting module from pdc with following input_data=%s" % build.json())
-    module_info = pdc.get_module(build.json())
+
+    build_data = build.json()
+    log.debug("Getting module from pdc with input_data=%s" % build_data)
+    module_info = pdc.get_module(build_data)
 
     log.debug("Received module_info=%s from pdc" % module_info)
 
