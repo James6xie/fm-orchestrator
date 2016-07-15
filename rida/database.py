@@ -158,6 +158,10 @@ class ModuleBuild(Base):
             'component_builds': [build.id for build in self.component_builds],
         }
 
+    def __repr__(self):
+        return "<ModuleBuild %s-%s-%s>" % (
+            self.name, self.version, self.release)
+
 
 class ComponentBuild(Base):
     __tablename__ = "component_builds"
@@ -179,5 +183,8 @@ class ComponentBuild(Base):
             'format': self.format,
             'task': self.task,
             'state': self.state,
-            'module_build': self.module_build.id,
+            'module_build': self.module_id,
         }
+
+    def __repr__(self):
+        return "<ComponentBuild %s of %r>" % (self.package, self.module_id)
