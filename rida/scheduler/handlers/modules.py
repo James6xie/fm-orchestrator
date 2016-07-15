@@ -57,6 +57,10 @@ def init(config, session, msg):
     builder = rida.builder.KojiModuleBuilder(build.name, config)
     builder.buildroot_add_dependency(dependencies)
     build.buildroot_task_id = builder.buildroot_prep()
+    # TODO: build srpm with dist_tag macros
+    # TODO submit build from srpm to koji
+    # TODO: buildroot.add_artifact(build_with_dist_tags)
+    # TODO: buildroot.ready(artifact=$artifact)
     build.state = "wait"  # Wait for the buildroot to be ready.
     log.debug("Done with init")
 
