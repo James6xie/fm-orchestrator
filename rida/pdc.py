@@ -72,10 +72,10 @@ def get_variant_dict(data):
 
     result = None
 
-    if is_module_str(data): 
+    if is_module_str(data):
         result = variant_dict_from_str(data)
 
-    elif is_modulemd(data): 
+    elif is_modulemd(data):
         result = {'variant_name': data.name, 'variant_version': data.version, 'variant_release': data.release }
 
     elif is_variant_dict(data):
@@ -95,7 +95,7 @@ def get_variant_dict(data):
 
     return result
 
-        
+
 
 def variant_dict_from_str(module_str):
     """
@@ -121,9 +121,9 @@ def get_module(session, module_info):
     :return final list of module_info which pass repoclosure
     """
 
-    module_info = get_variant_dict(module_info) 
+    module_info = get_variant_dict(module_info)
 
-    module_info = session['unreleasedvariant'](page_size=-1, **module_info)
+    module_info = session['unreleasedvariants'](page_size=-1, **module_info)
     assert len(module_info) <= 1
 
     if not module_info:
