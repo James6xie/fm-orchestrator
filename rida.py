@@ -50,7 +50,7 @@ app.config.from_envvar("RIDA_SETTINGS", silent=True)
 conf = rida.config.from_file("rida.conf")
 rida.logger.init_logging(conf)
 
-db = rida.database.Database()
+db = rida.database.Database(conf)
 
 @app.route("/rida/module-builds/", methods=["POST"])
 def submit_build():
@@ -97,10 +97,10 @@ def submit_build():
         mmd.loads(yaml)
     except:
         return "Invalid modulemd", 422
-    if db.session.query(rida.database.Module).filter_by(name=mmd.name,
+    if db.session.query(rida.database.ModuleBuild).filter_by(name=mmd.name,
         version=mmd.version, release=mmd.release).first():
         return "Module already exists", 409
-    module = rida.database.Module(name=mmd.name, version=mmd.version,
+    module = rida.database.ModuleBuild(name=mmd.name, version=mmd.version,
             release=mmd.release, state="init", modulemd=yaml)
     db.session.add(module)
     db.session.commit()
@@ -120,10 +120,10 @@ def submit_build():
                 return "Failed to get the latest commit: %s" % pkgname, 422
         if not rida.scm.SCM(pkg["repository"] + "?#" + pkg["commit"]).is_available():
             return "Cannot checkout %s" % pkgname, 422
-        build = rida.database.Build(module_id=module.id, package=pkgname, format="rpms")
+        build = rida.database.ComponentBuild(module_id=module.id, package=pkgname, format="rpms")
         db.session.add(build)
     module.modulemd = mmd.dumps()
-    module.state = "wait"
+    module.state = rida.database.BUILD_STATES["wait"]
     db.session.add(module)
     db.session.commit()
     # Publish to whatever bus we're configured to connect to.
@@ -143,17 +143,17 @@ def submit_build():
 def query_builds():
     """Lists all tracked module builds."""
     return json.dumps([{"id": x.id, "state": x.state}
-        for x in db.session.query(rida.database.Module).all()]), 200
+        for x in db.session.query(rida.database.ModuleBuild).all()]), 200
 
 
 @app.route("/rida/module-builds/<int:id>", methods=["GET"])
 def query_build(id):
     """Lists details for the specified module builds."""
-    module = db.session.query(rida.database.Module).filter_by(id=id).first()
+    module = db.session.query(rida.database.ModuleBuild).filter_by(id=id).first()
     if module:
         tasks = dict()
         if module.state != "init":
-            for build in db.session.query(rida.database.Build).filter_by(module_id=id).all():
+            for build in db.session.query(rida.database.ComponentBuild).filter_by(module_id=id).all():
                 tasks[build.format + "/" + build.package] = \
                     str(build.task) + "/" + build.state
         return json.dumps({

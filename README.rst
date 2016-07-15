@@ -131,3 +131,54 @@ Possible response codes are for various requests include:
 - HTTP 501 Not Implemented - The requested URL is valid but the handler isn't
   implemented yet.
 - HTTP 503 Service Unavailable - The service is down, possibly for maintanance.
+
+Module Build States
+-------------------
+
+You can see the list of possible states with::
+
+    import rida
+    print(rida.BUILD_STATES)
+
+Here's a description of what each of them means:
+
+init
+~~~~
+
+This is (obviously) the first state a module build enters.
+
+When a user first submits a module build, it enters this state.  We parse the
+modulemd file, learn the NVR, and create a record for the module build.
+
+Then, we validate that the components are available, and that we can fetch
+them.  If this is all good, then we set the build to the 'wait' state.  If
+anything goes wrong, we jump immediately to the 'failed' state.
+
+wait
+~~~~
+
+Here, the scheduler picks up tasks in wait and switches to build immediately.
+Eventually, we'll add throttling logic here so we don't submit too many builds for the build system to handle.
+
+build
+~~~~~
+
+The scheduler works on builds in this state.  We prepare the buildroot, submit
+builds for all the components, and wait for the results to come back.
+
+done
+~~~~
+
+Once all components have succeeded, we set the top-level module build to 'done'.
+
+failed
+~~~~~~
+
+If any of the component builds fail, then we set the top-level module build to 'failed' also.
+
+ready
+~~~~~
+
+This is a state to be set when a module is ready to be part of a
+larger compose.  perhaps it is set by an external service that knows
+about the Grand Plan.

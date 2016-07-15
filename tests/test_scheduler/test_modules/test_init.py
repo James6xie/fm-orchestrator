@@ -1,5 +1,3 @@
-#!/usr/bin/python3
-# -*- coding: utf-8 -*-
 # Copyright (c) 2016  Red Hat, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -20,11 +18,38 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 #
-# Written by Petr Šabata <contyk@redhat.com>
-#            Ralph Bean <rbean@redhat.com>
-"""The module build orchestrator for Modularity, the builder. """
+# Written by Ralph Bean <rbean@redhat.com>
 
-import rida.scheduler.main
+import unittest
+import mock
 
-if __name__ == '__main__':
-    rida.scheduler.main.main()
+import rida.scheduler.handlers.modules
+
+
+class TestInit(unittest.TestCase):
+
+    def setUp(self):
+        self.config = mock.Mock()
+        self.session = mock.Mock()
+        self.fn = rida.scheduler.handlers.modules.init
+
+    @mock.patch('rida.builder.KojiModuleBuilder')
+    @mock.patch('rida.database.ModuleBuild.from_fedmsg')
+    @mock.patch('rida.pdc.get_pdc_client_session')
+    def test_init_basic(self, pdc, from_fedmsg, KojiModuleBuilder):
+        builder = mock.Mock()
+        KojiModuleBuilder.return_value = builder
+        mocked_module_build = mock.Mock()
+        mocked_module_build.to_pdc_module_info.return_value = {
+            'name': 'foo',
+            'version': 1,
+        }
+        from_fedmsg.return_value = mocked_module_build
+
+        msg = {
+            'topic': 'org.fedoraproject.prod.rida.module.state.change',
+            'msg': {
+                'id': 1,
+            },
+        }
+        self.fn(config=self.config, session=self.session, msg=msg)

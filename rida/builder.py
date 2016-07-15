@@ -136,11 +136,11 @@ class Builder:
         """
 
         if backend == "koji":
-            return KojiModuleBuild(module=module, config=config)
+            return KojiModuleBuilder(module=module, config=config)
         else:
             raise ValueError("Builder backend='%s' not recognized" % backend)
 
-class KojiModuleBuild(GenericBuilder):
+class KojiModuleBuilder(GenericBuilder):
     """ Koji specific builder class """
 
     backend = "koji"
