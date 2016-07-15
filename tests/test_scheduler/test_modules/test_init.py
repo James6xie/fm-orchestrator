@@ -40,9 +40,10 @@ class TestInit(unittest.TestCase):
         builder = mock.Mock()
         KojiModuleBuilder.return_value = builder
         mocked_module_build = mock.Mock()
-        mocked_module_build.to_pdc_module_info.return_value = {
+        mocked_module_build.json.return_value = {
             'name': 'foo',
             'version': 1,
+            'release': 1,
         }
         from_fedmsg.return_value = mocked_module_build
 
