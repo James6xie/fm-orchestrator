@@ -67,6 +67,9 @@ def build(config, session, msg):
     All we do here is kick off builds of all our components.
     """
     module_build = rida.database.ModuleBuild.from_fedmsg(session, msg)
+    builder = rida.builder.KojiModuleBuilder(build.name, config)
+    builder.buildroot_resume()
+
     for component_build in module_build.component_builds:
         scmurl = "{dist_git}/rpms/{package}?#{gitref}".format(
             dist_git=config.dist_git_url,
