@@ -125,7 +125,7 @@ class ModuleBuild(Base):
     def from_fedmsg(cls, session, msg):
         if '.module.' not in msg['topic']:
             raise ValueError("%r is not a module message." % msg['topic'])
-        return session.query(cls).filter(cls.id==msg['msg']['id'])
+        return session.query(cls).filter(cls.id==msg['msg']['id']).one()
 
     def json(self):
         return {
