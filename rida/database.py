@@ -41,11 +41,27 @@ from sqlalchemy.ext.declarative import declarative_base
 
 # Just like koji.BUILD_STATES, except our own codes for modules.
 BUILD_STATES = {
+    # When you parse the modulemd file and know the nvr and you create a
+    # record in the db, and that's it.
+    # publish the message
+    # validate that components are available
+    #   and that you can fetch them.
+    # if all is good, go to wait: telling ridad to take over.
+    # if something is bad, go straight to failed.
     "init": 0,
+    # Here, the scheduler picks up tasks in wait.
+    # switch to build immediately.
+    # throttling logic (when we write it) goes here.
     "wait": 1,
+    # Actively working on it.
     "build": 2,
+    # All is good
     "done": 3,
+    # Something failed
     "failed": 4,
+    # This is a state to be set when a module is ready to be part of a
+    # larger compose.  perhaps it is set by an external service that knows
+    # about the Grand Plan.
     "ready": 5,
 }
 
