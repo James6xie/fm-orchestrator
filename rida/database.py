@@ -68,7 +68,7 @@ class Database(object):
         self._session = None  # Lazilly created..
 
     def __enter__(self):
-        return self.session()
+        return self.session
 
     def __exit__(self, *args, **kwargs):
         self._session.close()
@@ -125,7 +125,7 @@ class ModuleBuild(Base):
     def from_fedmsg(cls, session, msg):
         if '.module.' not in msg['topic']:
             raise ValueError("%r is not a module message." % msg['topic'])
-        return session.query(cls).filter_by(cls.id==msg['msg']['id'])
+        return session.query(cls).filter(cls.id==msg['msg']['id'])
 
     def json(self):
         return {
