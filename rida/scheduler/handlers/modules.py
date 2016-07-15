@@ -26,11 +26,9 @@
 import rida.builder
 import rida.database
 import rida.pdc
-import time
 import logging
 import koji
 
-import logging
 log = logging.getLogger(__name__)
 
 
