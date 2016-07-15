@@ -104,11 +104,25 @@ def submit_build():
             release=mmd.release, state="init", modulemd=yaml)
     db.session.add(module)
     db.session.commit()
+    rida.messaging.publish(
+        modname='rida',
+        topic='module.state.change',
+        msg=module.json(),  # Note the state is "init" here...
+        backend=conf.messaging,
+    )
+
+    def failure(message, code):
+        # TODO, we should make some note of why it failed in a log...
+        module.state = rida.database.BUILD_STATES["failed"]
+        db.session.add(module)
+        db.session.commit()
+        return message, code
+
     for pkgname, pkg in mmd.components.rpms.packages.items():
         if pkg.get("repository") and not conf.rpms_allow_repository:
-            return "Custom component repositories aren't allowed", 403
+            return failure("Custom component repositories aren't allowed", 403)
         if pkg.get("cache") and not conf.rpms_allow_cache:
-            return "Custom component caches aren't allowed", 403
+            return failure("Custom component caches aren't allowed", 403)
         if not pkg.get("repository"):
             pkg["repository"] = conf.rpms_default_repository + pkgname
         if not pkg.get("cache"):
@@ -117,9 +131,9 @@ def submit_build():
             try:
                 pkg["commit"] = rida.scm.SCM(pkg["repository"]).get_latest()
             except Exception as e:
-                return "Failed to get the latest commit: %s" % pkgname, 422
+                return failure("Failed to get the latest commit: %s" % pkgname, 422)
         if not rida.scm.SCM(pkg["repository"] + "?#" + pkg["commit"]).is_available():
-            return "Cannot checkout %s" % pkgname, 422
+            return failure("Cannot checkout %s" % pkgname, 422)
         build = rida.database.ComponentBuild(module_id=module.id, package=pkgname, format="rpms")
         db.session.add(build)
     module.modulemd = mmd.dumps()
@@ -131,7 +145,7 @@ def submit_build():
     rida.messaging.publish(
         modname='rida',
         topic='module.state.change',
-        msg=module.json(),
+        msg=module.json(),  # Note the state is "wait" here...
         backend=conf.messaging,
     )
     logging.info("%s submitted build of %s-%s-%s", username, mmd.name,
