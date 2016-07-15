@@ -100,8 +100,13 @@ def submit_build():
     if db.session.query(rida.database.ModuleBuild).filter_by(name=mmd.name,
         version=mmd.version, release=mmd.release).first():
         return "Module already exists", 409
-    module = rida.database.ModuleBuild(name=mmd.name, version=mmd.version,
-            release=mmd.release, state="init", modulemd=yaml)
+    module = rida.database.ModuleBuild(
+        name=mmd.name,
+        version=mmd.version,
+        release=mmd.release,
+        state="init",
+        modulemd=yaml,
+    )
     db.session.add(module)
     db.session.commit()
     rida.messaging.publish(
