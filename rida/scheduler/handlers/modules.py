@@ -40,18 +40,18 @@ def init(config, session, msg):
     All we do here is request preparation of the buildroot.
     """
     build = rida.database.ModuleBuild.from_fedmsg(session, msg)
-    pdc = rida.pdc.get_pdc_client_session(config)
+    pdc_session = rida.pdc.get_pdc_client_session(config)
 
     build_data = build.json()
     log.debug("Getting module from pdc with input_data=%s" % build_data)
-    module_info = pdc.get_module(build_data)
+    module_info = rida.pdc.get_module(pdc_session, build_data)
 
     log.debug("Received module_info=%s from pdc" % module_info)
 
-    tag = rida.pdc.get_module_tag(pdc, module_info)
+    tag = rida.pdc.get_module_tag(pdc_session, module_info)
     log.info("Found tag=%s for module %s-%s-%s" % (tag, build['name'], build['version'], build['release']))
 
-    dependencies = rida.pdc.get_module_dependencies(pdc, module_info)
+    dependencies = rida.pdc.get_module_dependencies(pdc_session, module_info)
     builder = rida.builder.KojiModuleBuilder(build.name, config)
     builder.buildroot_add_dependency(dependencies)
     build.buildroot_task_id = builder.buildroot_prep()
