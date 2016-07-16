@@ -64,6 +64,7 @@ def from_file(filename=None):
     conf.db = default.get("db")
     conf.system = default.get("system")
     conf.messaging = default.get("messaging")
+    conf.polling_interval = int(default.get("polling_interval"))
     conf.pdc_url = default.get("pdc_url")
     conf.pdc_insecure = default.get("pdc_insecure")
     conf.pdc_develop = default.get("pdc_develop")
@@ -329,4 +330,3 @@ class Config(object):
     def log_level(self, s):
         level = str(s).lower()
         self._log_level = logger.str_to_log_level(level)
-
