@@ -181,6 +181,11 @@ class ModuleBuild(Base):
         )
 
     @classmethod
+    def by_state(cls, session, state):
+        return session.query(rida.database.ModuleBuild)\
+            .filter_by(state=BUILD_STATES[state]).all()
+
+    @classmethod
     def get_active_by_koji_tag(cls, session, koji_tag):
         """ Find the ModuleBuilds in our database that should be in-flight...
         ... for a given koji tag.
@@ -189,7 +194,7 @@ class ModuleBuild(Base):
         """
         query = session.query(rida.database.ModuleBuild)\
             .filter_by(koji_tag=koji_tag)\
-            .filter_by(state="build")
+            .filter_by(state=BUILD_STATES["build"])
 
         count = query.count()
         if count > 1:
