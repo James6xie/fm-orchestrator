@@ -38,6 +38,8 @@ from sqlalchemy.orm import (
 )
 from sqlalchemy.ext.declarative import declarative_base
 
+import rida.messaging
+
 import logging
 log = logging.getLogger(__name__)
 
@@ -129,6 +131,7 @@ class ModuleBuild(Base):
     release = Column(String, nullable=False)
     state = Column(Integer, nullable=False)
     modulemd = Column(String, nullable=False)
+    koji_tag = Column(String)  # This gets set after 'wait'
 
     module = relationship('Module', backref='module_builds', lazy=False)
 
@@ -146,11 +149,57 @@ class ModuleBuild(Base):
             raise ValueError("%r is not a module message." % msg['topic'])
         return session.query(cls).filter(cls.id==msg['msg']['id']).one()
 
-    def transition(self, state):
+    @classmethod
+    def create(cls, session, conf, name, version, release, modulemd):
+        module = cls(
+            name=name,
+            version=version,
+            release=release,
+            state="init",
+            modulemd=modulemd,
+        )
+        session.add(module)
+        session.commit()
+        rida.messaging.publish(
+            modname='rida',
+            topic='module.state.change',
+            msg=module.json(),  # Note the state is "init" here...
+            backend=conf.messaging,
+        )
+        return module
+
+    def transition(self, conf, state):
         """ Record that a build has transitioned state. """
         old_state = self.state
         self.state = state
-        log.debug("%r, state %r->%r" % (old_state, self.state))
+        log.debug("%r, state %r->%r" % (self, old_state, self.state))
+        rida.messaging.publish(
+            modname='rida',
+            topic='module.state.change',
+            msg=self.json(),  # Note the state is "init" here...
+            backend=conf.messaging,
+        )
+
+    @classmethod
+    def get_active_by_koji_tag(cls, session, koji_tag):
+        """ Find the ModuleBuilds in our database that should be in-flight...
+        ... for a given koji tag.
+
+        There should be at most one.
+        """
+        query = session.query(rida.database.ModuleBuild)\
+            .filter_by(koji_tag=koji_tag)\
+            .filter_by(state="build")
+
+        count = query.count()
+        if count > 1:
+            raise RuntimeError("%r module builds in flight for %r" % (count, koji_tag))
+        elif count == 0:
+            # No builds in flight scheduled by us.  Just ignore this.
+            return None
+
+        # Otherwise, there is exactly one module build - it must be ours.
+        return query.one()
 
     def json(self):
         return {

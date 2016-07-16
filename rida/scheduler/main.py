@@ -76,8 +76,10 @@ class Messaging(threading.Thread):
         koji.BUILD_STATES["BUILDING"]: lambda x: x
     }
     on_module_change = {
-        rida.BUILD_STATES["init"]: rida.scheduler.handlers.modules.init,
+        rida.BUILD_STATES["wait"]: rida.scheduler.handlers.modules.wait,
     }
+    # Only one kind of repo change event...
+    on_repo_change = rida.scheduler.handlers.repos.done,
 
     def sanity_check(self):
         """ On startup, make sure our implementation is sane. """
@@ -107,8 +109,10 @@ class Messaging(threading.Thread):
             log.debug(msg)
 
             # Choose a handler for this message
-            if '.buildsys.build.state.change' in msg['topic']:
-                handler = self.on_build_change[msg['msg']['init']]
+            if '.buildsys.repo.done' in msg['topic']:
+                handler = self.on_repo_change
+            elif '.buildsys.build.state.change' in msg['topic']:
+                handler = self.on_build_change[msg['msg']['new']]
             elif '.rida.module.state.change' in msg['topic']:
                 handler = self.on_module_change[module_build_state_from_msg(msg)]
             else:
