@@ -113,7 +113,7 @@ def variant_dict_from_str(module_str):
 
     return module_info
 
-def get_module(session, module_info):
+def get_module(session, module_info, strict=False):
     """
     :param session : PDCClient instance
     :param module_info: pdc variant_dict, str, mmd or module dict
@@ -122,23 +122,27 @@ def get_module(session, module_info):
 
     module_info = get_variant_dict(module_info)
 
-    module_info = session['unreleasedvariants'](page_size=-1, **module_info)
-    assert len(module_info) <= 1
+    retval = session['unreleasedvariants'](page_size=-1, **module_info)
+    assert len(retval) <= 1
 
-    if not module_info:
-        return None
+    # Error handling
+    if not retval:
+        if strict:
+            raise ValueError("Failed to find module in PDC %r" % module_info)
+        else:
+            return None
 
-    return module_info[0]
+    return retval[0]
 
-def get_module_tag(session, module_info):
+def get_module_tag(session, module_info, strict=False):
     """
     :param session : PDCClient instance
     :param module_info: list of module_info dicts
     :return: koji tag string
     """
-    return get_module(session, module_info)['koji_tag']
+    return get_module(session, module_info, strict=strict)['koji_tag']
 
-def module_depsolving_wrapper(session, module_list):
+def module_depsolving_wrapper(session, module_list, strict=False):
     """
     :param session : PDCClient instance
     :param module_list: list of module_info dicts
@@ -147,11 +151,11 @@ def module_depsolving_wrapper(session, module_list):
     # TODO: implement this
 
     # Make sure that these are dicts from PDC ... ensures all values
-    module_infos = [get_module(session, module) for module in module_list]
+    module_infos = [get_module(session, module, strict=strict) for module in module_list]
 
     return module_infos
 
-def get_module_dependencies(session, module_info):
+def get_module_dependencies(session, module_info, strict=False):
     """
     :param session : PDCClient instance
     :param module_infos : a dict containing filters for pdc
@@ -161,14 +165,14 @@ def get_module_dependencies(session, module_info):
     # XXX get definitive list of modules
 
     deps = []
-    module_info = get_module(session, module_info)
-    if module_info.get('runtime_deps'):
+    module_info = get_module(session, module_info, strict=strict)
+    if module_info and module_info.get('runtime_deps'):
         deps = [x['dependency'] for x in module_info['runtime_deps']]
-        deps = module_depsolving_wrapper(session, deps)
+        deps = module_depsolving_wrapper(session, deps, strict=strict)
 
     return deps
 
-def get_module_build_dependencies(session, module_info):
+def get_module_build_dependencies(session, module_info, strict=False):
     """
     :param session : PDCClient instance
     :param module_info : a dict containing filters for pdc
@@ -179,9 +183,9 @@ def get_module_build_dependencies(session, module_info):
     # XXX get definitive list of modules
 
     deps = []
-    module_info = get_module(session, module_info)
-    if module_info.get('build_deps'):
+    module_info = get_module(session, module_info, strict=strict)
+    if module_info and module_info.get('build_deps'):
         deps = [x['dependency'] for x in module_info['build_deps']]
-        deps = module_depsolving_wrapper(session, deps)
+        deps = module_depsolving_wrapper(session, deps, strict=strict)
 
     return deps

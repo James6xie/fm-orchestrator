@@ -42,11 +42,11 @@ def wait(config, session, msg):
     in rida.schedulers.handlers.repos.
     """
     build = rida.database.ModuleBuild.from_fedmsg(session, msg)
-    pdc_session = rida.pdc.get_pdc_client_session(config)
-
     module_info = build.json()
-    log.debug("Received module_info=%s from pdc" % module_info)
-    tag = rida.pdc.get_module_tag(pdc_session, module_info)
+    log.info("Found module_info=%s from message" % module_info)
+
+    pdc_session = rida.pdc.get_pdc_client_session(config)
+    tag = rida.pdc.get_module_tag(pdc_session, module_info, strict=True)
     log.debug("Found tag=%s for module %r" % (tag, build))
 
     # Hang on to this information for later.  We need to know which build is
