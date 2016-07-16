@@ -33,6 +33,7 @@ proper scheduling component builds in the supported build systems.
 import inspect
 import logging
 import os
+import pprint
 import threading
 import time
 
@@ -117,6 +118,7 @@ class Messaging(threading.Thread):
                 self.process_message(msg)
             except Exception:
                 log.exception("Failed while handling %r" % msg['msg_id'])
+                log.info(pprint.pformat(msg))
 
     def process_message(self, msg):
         log.debug("received %r, %r" % (msg['msg_id'], msg['topic']))
