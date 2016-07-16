@@ -27,7 +27,6 @@ import rida.builder
 import rida.database
 import rida.pdc
 import logging
-import koji
 
 log = logging.getLogger(__name__)
 
