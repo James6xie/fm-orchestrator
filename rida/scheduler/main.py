@@ -142,14 +142,14 @@ class Messaging(threading.Thread):
 class Polling(threading.Thread):
     def run(self):
         while True:
-            log.info("Polling thread sleeping, %rs" % config.polling_interval)
-            time.sleep(config.polling_interval)
             with rida.database.Database(config) as session:
                 self.process_waiting_module_builds(session)
             with rida.database.Database(config) as session:
                 self.process_open_component_builds(session)
             with rida.database.Database(config) as session:
                 self.process_lingering_module_builds(session)
+            log.info("Polling thread sleeping, %rs" % config.polling_interval)
+            time.sleep(config.polling_interval)
 
     def process_waiting_module_builds(self, session):
         log.info("Looking for module builds stuck in the wait state.")
