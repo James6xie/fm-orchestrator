@@ -59,5 +59,5 @@ def done(config, session, msg):
         )
         artifact_name = 'TODO'
         component_build.state = koji.BUILD_STATES['BUILDING']
-        component_build.task = builder.build(artifact_name, scmurl)
+        component_build.build_id = builder.build(artifact_name, scmurl)
     session.commit()

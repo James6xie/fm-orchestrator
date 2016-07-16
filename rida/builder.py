@@ -231,7 +231,7 @@ class KojiModuleBuilder(GenericBuilder):
     def build(self, artifact_name, source):
         """
         :param source : scmurl to spec repository
-        :return koji taskid
+        :return koji build id
         """
         if not self.__prep:
             raise RuntimeError("Buildroot is not prep-ed")
@@ -239,9 +239,9 @@ class KojiModuleBuilder(GenericBuilder):
         if '://' not in source:
             raise NotImplementedError("Only scm url is currently supported, got source='%s'" % source)
         self._koji_whitelist_packages([artifact_name,])
-        task_id = self.koji_session.build(source, self.module_target['name'])
-        print("Building %s (taskid=%s)." % (source, task_id))
-        return task_id
+        build_id = self.koji_session.build(source, self.module_target['name'])
+        print("Building %s (build_id=%s)." % (source, build_id))
+        return build_id
 
     def _get_tag(self, tag, strict=True):
         if isinstance(tag, dict):

@@ -232,19 +232,25 @@ class ComponentBuild(Base):
     package = Column(String, nullable=False)
     # XXX: Consider making this a proper ENUM
     format = Column(String, nullable=False)
-    task = Column(Integer)
+    build_id = Column(Integer)  # This is the id of the build in koji
     # XXX: Consider making this a proper ENUM (or an int)
     state = Column(String)
 
     module_id = Column(Integer, ForeignKey('module_builds.id'), nullable=False)
     module_build = relationship('ModuleBuild', backref='component_builds', lazy=False)
 
+    @classmethod
+    def from_fedmsg(cls, session, msg):
+        if '.buildsys.build.state.change' not in msg['topic']:
+            raise ValueError("%r is not a koji message." % msg['topic'])
+        return session.query(cls).filter(cls.build_id==msg['msg']['id']).one()
+
     def json(self):
         return {
             'id': self.id,
             'package': self.package,
             'format': self.format,
-            'task': self.task,
+            'build_id': self.build_id,
             'state': self.state,
             'module_build': self.module_id,
         }
