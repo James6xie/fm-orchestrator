@@ -128,7 +128,7 @@ class GenericBuilder:
 class Builder:
     """Wrapper class"""
 
-    def __new__(cls, module, backend, config):
+    def __new__(cls, module, backend, config, **extra):
         """
         :param module : a module string e.g. 'testmodule-1.0'
         :param backend: a string representing backend e.g. 'koji'
@@ -136,7 +136,7 @@ class Builder:
         """
 
         if backend == "koji":
-            return KojiModuleBuilder(module=module, config=config)
+            return KojiModuleBuilder(module=module, config=config, **extra)
         else:
             raise ValueError("Builder backend='%s' not recognized" % backend)
 
@@ -145,7 +145,7 @@ class KojiModuleBuilder(GenericBuilder):
 
     backend = "koji"
 
-    def __init__(self, module, config):
+    def __init__(self, module, config, tag_name):
         """
         :param koji_profile: koji profile to be used
         """
@@ -174,23 +174,23 @@ class KojiModuleBuilder(GenericBuilder):
 
         self.arches = config.koji_arches
 
-        self.module_tag = self._get_module_tag_name()
-        self.module_build_tag = self._get_module_build_tag_name()
-        self.module_target = self._get_module_target_name()
+        self.module_tag = tag_name
+        self.module_build_tag = "%s-build" % tag_name
+        self.module_target = tag_name
 
     def buildroot_resume(self): # XXX: experimental
         """
         Resume existing buildroot. Sets __prep=True
         """
-        chktag = self.koji_session.getTag(self._get_module_tag_name())
+        chktag = self.koji_session.getTag(self.module_tag)
         if not chktag:
-            raise SystemError("Tag %s doesn't exist" % self._get_module_tag_name())
-        chkbuildtag = self.koji_session.getTag(self._get_module_build_tag_name())
+            raise SystemError("Tag %s doesn't exist" % self.module_tag)
+        chkbuildtag = self.koji_session.getTag(self.module_build_tag)
         if not chkbuildtag:
-            raise SystemError("Build Tag %s doesn't exist" % self._get_module_build_tag_name())
-        chktarget = self.koji_session.getBuildTarget(self._get_module_target_name())
+            raise SystemError("Build Tag %s doesn't exist" % self.module_build_tag)
+        chktarget = self.koji_session.getBuildTarget(self.module_build_tag)
         if not chktarget:
-            raise SystemError("Target %s doesn't exist" % self._get_module_target_name())
+            raise SystemError("Target %s doesn't exist" % self.module_target)
         self.module_tag = chktag
         self.module_build_tag = chkbuildtag
         self.module_target = chktarget
@@ -201,14 +201,14 @@ class KojiModuleBuilder(GenericBuilder):
         :param module_deps_tags: a tag names of our build requires
         :param module_deps_tags: a tag names of our build requires
         """
-        self.module_tag = self._koji_create_tag(self._get_module_tag_name(), perm="admin") # returns tag obj
-        self.module_build_tag = self._koji_create_tag(self._get_module_build_tag_name(), self.arches, perm="admin")
+        self.module_tag = self._koji_create_tag(self.module_tag, perm="admin") # returns tag obj
+        self.module_build_tag = self._koji_create_tag(self.module_build_tag, self.arches, perm="admin")
 
         groups = KOJI_DEFAULT_GROUPS # TODO: read from config
         if groups:
             self._koji_add_groups_to_tag(self.module_build_tag, groups)
 
-        self.module_target = self._koji_add_target(self._get_module_target_name(), self.module_build_tag, self.module_tag)
+        self.module_target = self._koji_add_target(self.module_target, self.module_build_tag, self.module_tag)
         self.__prep = True
 
     def buildroot_add_dependency(self, dependencies):
@@ -311,15 +311,6 @@ class KojiModuleBuilder(GenericBuilder):
             if perm:
                 self._lock_tag(tag_name, perm)
             return self._get_tag(tag_name)
-
-    def _get_module_target_name(self):
-        return self.module_str
-
-    def _get_module_tag_name(self):
-        return self.module_str
-
-    def _get_module_build_tag_name(self):
-        return "%s-build" % self._get_module_tag_name()
 
     def _get_component_owner(self, package):
         user = self.koji_session.getLoggedInUser()['name']

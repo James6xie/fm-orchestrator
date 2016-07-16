@@ -55,7 +55,7 @@ def wait(config, session, msg):
     build.tag = tag
 
     dependencies = rida.pdc.get_module_dependencies(pdc_session, module_info)
-    builder = rida.builder.KojiModuleBuilder(build.name, config)
+    builder = rida.builder.KojiModuleBuilder(build.name, config, tag_name=tag)
     builder.buildroot_add_dependency(dependencies)
     build.buildroot_task_id = builder.buildroot_prep()
     # TODO: build srpm with dist_tag macros

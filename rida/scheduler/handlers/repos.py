@@ -48,7 +48,7 @@ def done(config, session, msg):
         if component_build.state is None
     )
 
-    builder = rida.builder.KojiModuleBuilder(module_build.name, config)
+    builder = rida.builder.KojiModuleBuilder(module_build.name, config, tag_name=tag)
     builder.buildroot_resume()
 
     for component_build in unbuilt_components:
