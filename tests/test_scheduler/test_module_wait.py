@@ -26,7 +26,7 @@ import mock
 import rida.scheduler.handlers.modules
 
 
-class TestWait(unittest.TestCase):
+class TestModuleWait(unittest.TestCase):
 
     def setUp(self):
         self.config = mock.Mock()
@@ -36,7 +36,7 @@ class TestWait(unittest.TestCase):
     @mock.patch('rida.builder.KojiModuleBuilder')
     @mock.patch('rida.database.ModuleBuild.from_fedmsg')
     @mock.patch('rida.pdc.get_pdc_client_session')
-    def test_init_basic(self, pdc, from_fedmsg, KojiModuleBuilder):
+    def test_wait_basic(self, pdc, from_fedmsg, KojiModuleBuilder):
         builder = mock.Mock()
         KojiModuleBuilder.return_value = builder
         mocked_module_build = mock.Mock()
