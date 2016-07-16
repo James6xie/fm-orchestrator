@@ -113,23 +113,29 @@ class Messaging(threading.Thread):
         self.sanity_check()
 
         for msg in rida.messaging.listen(backend=config.messaging):
-            log.debug("received %r, %r" % (msg['msg_id'], msg['topic']))
+            try:
+                self.process_message(msg)
+            except Exception:
+                log.exception("Failed while handling %r" % msg['msg_id'])
 
-            # Choose a handler for this message
-            if '.buildsys.repo.done' in msg['topic']:
-                handler = self.on_repo_change
-            elif '.buildsys.build.state.change' in msg['topic']:
-                handler = self.on_build_change[msg['msg']['new']]
-            elif '.rida.module.state.change' in msg['topic']:
-                handler = self.on_module_change[module_build_state_from_msg(msg)]
-            else:
-                log.debug("Unhandled message...")
-                continue
+    def process_message(self, msg):
+        log.debug("received %r, %r" % (msg['msg_id'], msg['topic']))
 
-            # Execute our chosen handler
-            with rida.database.Database(config) as session:
-                log.info(" %r: %s, %s" % (handler, msg['topic'], msg['msg_id']))
-                handler(config, session, msg)
+        # Choose a handler for this message
+        if '.buildsys.repo.done' in msg['topic']:
+            handler = self.on_repo_change
+        elif '.buildsys.build.state.change' in msg['topic']:
+            handler = self.on_build_change[msg['msg']['new']]
+        elif '.rida.module.state.change' in msg['topic']:
+            handler = self.on_module_change[module_build_state_from_msg(msg)]
+        else:
+            log.debug("Unhandled message...")
+            return
+
+        # Execute our chosen handler
+        with rida.database.Database(config) as session:
+            log.info(" %r: %s, %s" % (handler, msg['topic'], msg['msg_id']))
+            handler(config, session, msg)
 
 class Polling(threading.Thread):
     def run(self):
