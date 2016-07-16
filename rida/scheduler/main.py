@@ -72,11 +72,21 @@ class Messaging(threading.Thread):
 
         # These are our main lookup tables for figuring out what to run in response
         # to what messaging events.
+        NO_OP = lambda config, session, msg: True
         self.on_build_change = {
-            koji.BUILD_STATES["BUILDING"]: lambda x: x,
+            koji.BUILD_STATES["BUILDING"]: NO_OP,
+            koji.BUILD_STATES["COMPLETE"]: rida.scheduler.handlers.components.complete,
+            koji.BUILD_STATES["FAILED"]: rida.scheduler.handlers.components.failed,
+            koji.BUILD_STATES["CANCELED"]: rida.scheduler.handlers.components.canceled,
+            koji.BUILD_STATES["DELETED"]: NO_OP,
         }
         self.on_module_change = {
+            rida.BUILD_STATES["init"]: NO_OP,
             rida.BUILD_STATES["wait"]: rida.scheduler.handlers.modules.wait,
+            rida.BUILD_STATES["build"]: NO_OP,
+            rida.BUILD_STATES["failed"]: NO_OP,
+            rida.BUILD_STATES["done"]: NO_OP,
+            rida.BUILD_STATES["ready"]: NO_OP,
         }
         # Only one kind of repo change event, though...
         self.on_repo_change = rida.scheduler.handlers.repos.done
@@ -85,25 +95,23 @@ class Messaging(threading.Thread):
         """ On startup, make sure our implementation is sane. """
         # Ensure we have every state covered
         for state in rida.BUILD_STATES:
-            if state not in self.on_module_change:
+            if rida.BUILD_STATES[state] not in self.on_module_change:
                 raise KeyError("Module build states %r not handled." % state)
         for state in koji.BUILD_STATES:
-            if state not in self.on_build_change:
+            if koji.BUILD_STATES[state] not in self.on_build_change:
                 raise KeyError("Koji build states %r not handled." % state)
 
         all_fns = self.on_build_change.items() + self.on_module_change.items()
         for key, callback in all_fns:
-            expected = ['conf', 'db', 'msg']
-            argspec = inspect.getargspec(callback)
+            expected = ['config', 'session', 'msg']
+            argspec = inspect.getargspec(callback)[0]
             if argspec != expected:
                 raise ValueError("Callback %r, state %r has argspec %r!=%r" % (
                     callback, key, argspec, expected))
 
     def run(self):
-        #self.sanity_check()
-        # TODO: Check for modules that can be set to done/failed
-        # TODO: Act on these things somehow
-        # TODO: Emit messages about doing so
+        self.sanity_check()
+
         for msg in rida.messaging.listen(backend=config.messaging):
             log.debug("received %r, %r" % (msg['msg_id'], msg['topic']))
 
@@ -120,7 +128,7 @@ class Messaging(threading.Thread):
 
             # Execute our chosen handler
             with rida.database.Database(config) as session:
-                log.info("Executing handler %r" % handler)
+                log.info(" %r: %s, %s" % (handler, msg['topic'], msg['msg_id']))
                 handler(config, session, msg)
 
 class Polling(threading.Thread):

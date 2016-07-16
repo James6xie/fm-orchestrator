@@ -23,17 +23,18 @@
 
 """ Handlers for koji component build events on the message bus. """
 
+import logging
+
 import rida.builder
 import rida.database
 import rida.pdc
-import logging
+
 import koji
 
 log = logging.getLogger(__name__)
 
-
-def complete(config, session, msg):
-    """ Called whenever a koji build completes. """
+def _finalize(config, session, msg, state):
+    """ Called whenever a koji build completes or fails. """
 
     # First, find our ModuleBuild associated with this repo, if any.
     component_build = rida.database.ComponentBuild.from_fedmsg(session, msg)
@@ -43,7 +44,7 @@ def complete(config, session, msg):
         return
 
     # Mark the state in the db.
-    component_build.state = koji.BUILD_STATES['COMPLETE']
+    component_build.state = state
     session.commit()
 
     # Find all of the sibling builds of this particular build.
@@ -64,3 +65,13 @@ def complete(config, session, msg):
 
     # Otherwise.. if all of the builds succeeded, then mark the module as good.
     parent.transition(config, rida.BUILD_STATES['done'])
+
+
+def complete(config, session, msg):
+    return _finalize(config, session, msg, state=koji.BUILD_STATES['COMPLETE'])
+
+def failed(config, session, msg):
+    return _finalize(config, session, msg, state=koji.BUILD_STATES['FAILED'])
+
+def canceled(config, session, msg):
+    return _finalize(config, session, msg, state=koji.BUILD_STATES['CANCELED'])
