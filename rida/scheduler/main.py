@@ -58,10 +58,6 @@ else:
     # production
     config = rida.config.from_file()
 
-# TODO: Utilized rida.builder to prepare the buildroots and build components.
-# TODO: Set the build state to build once the module build is started.
-# TODO: Set the build state to done once the module build is done.
-# TODO: Set the build state to failed if the module build fails.
 
 def module_build_state_from_msg(msg):
     state = int(msg['msg']['state'])
