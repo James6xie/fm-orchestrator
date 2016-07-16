@@ -63,7 +63,5 @@ def wait(config, session, msg):
     # TODO submit build from srpm to koji
     # TODO: buildroot.add_artifact(build_with_dist_tags)
     # TODO: buildroot.ready(artifact=$artifact)
-    build.transition(conf, state="build")  # Wait for the buildroot to be ready.
+    build.transition(config, state="build")  # Wait for the buildroot to be ready.
     session.commit()
-
-
