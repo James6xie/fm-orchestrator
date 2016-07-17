@@ -209,7 +209,7 @@ class KojiModuleBuilder(GenericBuilder):
         chkbuildtag = self.koji_session.getTag(self.module_build_tag)
         if not chkbuildtag:
             raise SystemError("Build Tag %s doesn't exist" % self.module_build_tag)
-        chktarget = self.koji_session.getBuildTarget(self.module_build_tag)
+        chktarget = self.koji_session.getBuildTarget(self.module_target)
         if not chktarget:
             raise SystemError("Target %s doesn't exist" % self.module_target)
         self.module_tag = chktag
