@@ -52,7 +52,7 @@ def wait(config, session, msg):
     # associated with which koji tag, so that when their repos are regenerated
     # in koji we can figure out which for which module build that event is
     # relevant.
-    build.tag = tag
+    build.koji_tag = tag
 
     dependencies = rida.pdc.get_module_dependencies(pdc_session, module_info)
     builder = rida.builder.KojiModuleBuilder(build.name, config, tag_name=tag)
