@@ -199,12 +199,8 @@ class ModuleBuild(Base):
         count = query.count()
         if count > 1:
             raise RuntimeError("%r module builds in flight for %r" % (count, koji_tag))
-        elif count == 0:
-            # No builds in flight scheduled by us.  Just ignore this.
-            return None
 
-        # Otherwise, there is exactly one module build - it must be ours.
-        return query.one()
+        return query.first()
 
     def json(self):
         return {
