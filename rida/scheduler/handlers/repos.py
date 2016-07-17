@@ -53,7 +53,7 @@ def done(config, session, msg):
 
     for component_build in unbuilt_components:
         scmurl = "{dist_git}/rpms/{package}?#{gitref}".format(
-            dist_git=config.dist_git_url,
+            dist_git=config.rpms_default_repository,
             package=component_build.package,
             gitref=component_build.gitref,  # This is the update stream
         )
