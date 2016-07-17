@@ -118,6 +118,10 @@ class Messaging(threading.Thread):
                 self.process_message(msg)
             except Exception:
                 log.exception("Failed while handling %r" % msg['msg_id'])
+                # Log the body of the message too, but clear out some spammy
+                # fields that are of no use to a human reader.
+                msg.pop('certificate', None)
+                msg.pop('signature', None)
                 log.info(pprint.pformat(msg))
 
     def process_message(self, msg):
