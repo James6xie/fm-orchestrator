@@ -192,6 +192,8 @@ class KojiModuleBuilder(GenericBuilder):
             raise ValueError("Unrecognized koji authtype %r" % authtype)
 
         self.arches = config.koji_arches
+        if not self.arches:
+            raise ValueError("No koji_arches specified in the config.")
 
         self.module_tag = tag_name
         self.module_build_tag = "%s-build" % tag_name
