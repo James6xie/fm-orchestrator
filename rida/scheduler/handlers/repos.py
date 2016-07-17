@@ -36,7 +36,7 @@ def done(config, session, msg):
     """ Called whenever koji rebuilds a repo, any repo. """
 
     # First, find our ModuleBuild associated with this repo, if any.
-    tag = msg['msg']['tag']
+    tag = msg['msg']['tag'].strip('-build')
     module_build = rida.database.ModuleBuild.get_active_by_koji_tag(
         session, koji_tag=tag)
     if not module_build:
