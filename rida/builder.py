@@ -216,6 +216,7 @@ class KojiModuleBuilder(GenericBuilder):
         self.module_build_tag = chkbuildtag
         self.module_target = chktarget
         self.__prep = True
+        log.info("%r buildroot resumed." % self)
 
     def buildroot_prep(self):
         """
@@ -231,13 +232,16 @@ class KojiModuleBuilder(GenericBuilder):
 
         self.module_target = self._koji_add_target(self.module_target, self.module_build_tag, self.module_tag)
         self.__prep = True
+        log.info("%r buildroot prepared." % self)
 
     def buildroot_add_dependency(self, dependencies):
         tags = [self._get_tag(d)['name'] for d in dependencies]
+        log.info("%r adding deps for %r" % (self, tags))
         self._koji_add_many_tag_inheritance(self.module_build_tag, tags)
 
     def buildroot_add_artifacts(self, artifacts):
         # TODO: import /usr/bin/koji's TaskWatcher()
+        log.info("%r adding artifacts %r" % (self, artifacts))
         for nvr in artifacts:
             self.koji_session.tagBuild(self.module_build_tag, nvr, force=True)
 
@@ -246,7 +250,7 @@ class KojiModuleBuilder(GenericBuilder):
         cmd = "koji -p %s wait-repo %s " % (self._koji_profile_name, self.module_build_tag['name'])
         if artifact:
             cmd += " --build %s" % artifact
-        print ("Waiting for buildroot(%s) to be ready" % (self.module_build_tag['name']))
+        log.info("Waiting for buildroot(%s) to be ready" % (self.module_build_tag['name']))
         run(cmd) # wait till repo is current
 
     def build(self, artifact_name, source):
@@ -261,7 +265,8 @@ class KojiModuleBuilder(GenericBuilder):
             raise NotImplementedError("Only scm url is currently supported, got source='%s'" % source)
         self._koji_whitelist_packages([artifact_name,])
         build_id = self.koji_session.build(source, self.module_target['name'])
-        print("Building %s (build_id=%s)." % (source, build_id))
+        log.info("%r submitted build of %s (build_id=%s)" % (
+            self, source, build_id))
         return build_id
 
     def _get_tag(self, tag, strict=True):
@@ -302,12 +307,15 @@ class KojiModuleBuilder(GenericBuilder):
             raise ValueError("Expected dict {'group' : [str(package1), ...]")
 
         dest_tag = self._get_tag(dest_tag)['name']
-        groups = dict([(p['name'], p['group_id']) for p in self.koji_session.getTagGroups(dest_tag, inherit=False)])
+        groups = dict([
+            (p['name'], p['group_id'])
+            for p in self.koji_session.getTagGroups(dest_tag, inherit=False)
+        ])
         for group, packages in groups.iteritems():
             group_id = groups.get(group, None)
             if group_id is not None:
-                print("Group %s already exists for tag %s" % (group, dest_tag))
-                return 1
+                log.warning("Group %s already exists for tag %s" % (group, dest_tag))
+                continue
             self.koji_session.groupListAdd(dest_tag, group)
             for pkg in packages:
                 self.koji_session.groupPackageListAdd(dest_tag, group, pkg)
@@ -344,7 +352,7 @@ class KojiModuleBuilder(GenericBuilder):
         for package in packages:
             package_id = pkglist.get(package, None)
             if not package_id is None:
-                print ("Package %s already exists in tag %s" % (package, self.module_tag['name']))
+                log.warn("Package %s already exists in tag %s" % (package, self.module_tag['name']))
                 continue
             to_add.append(package)
 
