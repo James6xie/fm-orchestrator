@@ -30,7 +30,8 @@ class TestRepoDone(unittest.TestCase):
 
     def setUp(self):
         self.config = mock.Mock()
-        self.config.dist_git_url = 'dist_git_url'
+        self.config.rpms_default_repository = 'dist_git_url'
+        self.config.koji_profile = 'staging'  # TODO - point at a fake test config
 
         self.session = mock.Mock()
         self.fn = rida.scheduler.handlers.repos.done
