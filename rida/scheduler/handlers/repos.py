@@ -40,7 +40,7 @@ def done(config, session, msg):
     module_build = rida.database.ModuleBuild.get_active_by_koji_tag(
         session, koji_tag=tag)
     if not module_build:
-        log.debug("No module build found associated with koji tag %r" % tag)
+        log.info("No module build found associated with koji tag %r" % tag)
         return
 
     unbuilt_components = (
