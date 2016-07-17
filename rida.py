@@ -135,7 +135,12 @@ def submit_build():
                 return failure("Failed to get the latest commit: %s" % pkgname, 422)
         if not rida.scm.SCM(pkg["repository"] + "?#" + pkg["commit"]).is_available():
             return failure("Cannot checkout %s" % pkgname, 422)
-        build = rida.database.ComponentBuild(module_id=module.id, package=pkgname, format="rpms")
+        build = rida.database.ComponentBuild(
+            module_id=module.id,
+            package=pkgname,
+            format="rpms",
+            gitref=pkg["commit"],  # TODO - re-evaluate this w.r.t. supported branches
+        )
         db.session.add(build)
     module.modulemd = mmd.dumps()
     module.transition(conf, rida.database.BUILD_STATES["wait"])

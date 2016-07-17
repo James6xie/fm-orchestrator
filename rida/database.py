@@ -226,6 +226,7 @@ class ComponentBuild(Base):
     __tablename__ = "component_builds"
     id = Column(Integer, primary_key=True)
     package = Column(String, nullable=False)
+    gitref = Column(String, nullable=False)
     # XXX: Consider making this a proper ENUM
     format = Column(String, nullable=False)
     build_id = Column(Integer)  # This is the id of the build in koji
