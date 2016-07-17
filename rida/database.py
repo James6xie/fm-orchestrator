@@ -70,6 +70,8 @@ BUILD_STATES = {
     "ready": 5,
 }
 
+INVERSE_BUILD_STATES = {v: k for k, v in BUILD_STATES.items()}
+
 
 class RidaBase(object):
     # TODO -- we can implement functionality here common to all our model
@@ -218,8 +220,9 @@ class ModuleBuild(Base):
         }
 
     def __repr__(self):
-        return "<ModuleBuild %s-%s-%s>" % (
-            self.name, self.version, self.release)
+        return "<ModuleBuild %s-%s-%s, state %r>" % (
+            self.name, self.version, self.release,
+            INVERSE_BUILD_STATES[self.state])
 
 
 class ComponentBuild(Base):
@@ -253,4 +256,5 @@ class ComponentBuild(Base):
         }
 
     def __repr__(self):
-        return "<ComponentBuild %s of %r>" % (self.package, self.module_id)
+        return "<ComponentBuild %s of %r, state: %r>" % (
+            self.package, self.module_id, self.state)

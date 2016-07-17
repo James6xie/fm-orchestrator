@@ -32,6 +32,7 @@ proper scheduling component builds in the supported build systems.
 
 import inspect
 import logging
+import operator
 import os
 import pprint
 import threading
@@ -147,6 +148,8 @@ class Polling(threading.Thread):
     def run(self):
         while True:
             with rida.database.Database(config) as session:
+                self.log_summary(session)
+            with rida.database.Database(config) as session:
                 self.process_waiting_module_builds(session)
             with rida.database.Database(config) as session:
                 self.process_open_component_builds(session)
@@ -154,6 +157,21 @@ class Polling(threading.Thread):
                 self.process_lingering_module_builds(session)
             log.info("Polling thread sleeping, %rs" % config.polling_interval)
             time.sleep(config.polling_interval)
+
+    def log_summary(self, session):
+        log.info("Current status:")
+        states = sorted(rida.BUILD_STATES.items(), key=operator.itemgetter(1))
+        for name, code in states:
+            query = session.query(rida.database.ModuleBuild)
+            count = query.filter_by(state=code).count()
+            if count:
+                log.info("  * %i module builds in the %s state." % (count, name))
+            if name == 'build':
+                for module_build in query.all():
+                    log.info("    * %r" % module_build)
+                    for component_build in module_build.component_builds:
+                        log.info("      * %r" % component_build)
+
 
     def process_waiting_module_builds(self, session):
         log.info("Looking for module builds stuck in the wait state.")

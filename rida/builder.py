@@ -199,6 +199,10 @@ class KojiModuleBuilder(GenericBuilder):
         self.module_build_tag = "%s-build" % tag_name
         self.module_target = tag_name
 
+    def __repr__(self):
+        return "<KojiModuleBuilder module: %s, tag: %s>" % (
+            self.module_str, self.module_tag)
+
     def buildroot_resume(self): # XXX: experimental
         """
         Resume existing buildroot. Sets __prep=True
