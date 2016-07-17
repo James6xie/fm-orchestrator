@@ -234,7 +234,7 @@ class ComponentBuild(Base):
     format = Column(String, nullable=False)
     build_id = Column(Integer)  # This is the id of the build in koji
     # XXX: Consider making this a proper ENUM (or an int)
-    state = Column(String)
+    state = Column(Integer)
 
     module_id = Column(Integer, ForeignKey('module_builds.id'), nullable=False)
     module_build = relationship('ModuleBuild', backref='component_builds', lazy=False)
