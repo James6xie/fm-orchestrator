@@ -147,7 +147,7 @@ class ModuleBuild(Base):
     def from_fedmsg(cls, session, msg):
         if '.module.' not in msg['topic']:
             raise ValueError("%r is not a module message." % msg['topic'])
-        return session.query(cls).filter(cls.id==msg['msg']['id']).one()
+        return session.query(cls).filter(cls.id==msg['msg']['id']).first()
 
     @classmethod
     def create(cls, session, conf, name, version, release, modulemd):
@@ -243,7 +243,7 @@ class ComponentBuild(Base):
     def from_fedmsg(cls, session, msg):
         if '.buildsys.build.state.change' not in msg['topic']:
             raise ValueError("%r is not a koji message." % msg['topic'])
-        return session.query(cls).filter(cls.build_id==msg['msg']['build_id']).one()
+        return session.query(cls).filter(cls.build_id==msg['msg']['build_id']).first()
 
     def json(self):
         return {
