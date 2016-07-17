@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-
-
 # Copyright (c) 2016  Red Hat, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -30,9 +28,14 @@
 #       their tag names.
 # TODO: Ensure the RPM %dist tag is set according to the policy.
 
-import koji
 from abc import ABCMeta, abstractmethod
+import logging
+import os
+
 from kobo.shortcuts import run
+import koji
+
+log = logging.getLogger(__name__)
 
 # TODO: read defaults from rida's config
 KOJI_DEFAULT_GROUPS = {
@@ -152,25 +155,41 @@ class KojiModuleBuilder(GenericBuilder):
         self.module_str = module
         self.__prep = False
         self._koji_profile_name = config.koji_profile
+        log.debug("Using koji profile %r" % self._koji_profile_name)
         self.koji_module = koji.get_profile_module(self._koji_profile_name)
         opts = {}
 
-        krbservice = getattr(self.koji_module.config, "krbservice", None)
+        koji_config = self.koji_module.config
+
+        krbservice = getattr(koji_config, "krbservice", None)
         if krbservice:
             opts["krbservice"] = krbservice
 
-        self.koji_session = koji.ClientSession(self.koji_module.config.server, opts=opts)
+        address = koji_config.server
+        log.info("Connecting to koji %r, %r" % (address, opts))
+        self.koji_session = koji.ClientSession(address, opts=opts)
 
-        if self.koji_module.config.authtype == "kerberos":
-            keytab = getattr(self.koji_module.config, "keytab", None)
-            principal = getattr(self.koji_module.config, "principal", None)
+        authtype = koji_config.authtype
+        if authtype == "kerberos":
+            keytab = getattr(koji_config, "keytab", None)
+            principal = getattr(koji_config, "principal", None)
             if keytab and principal:
-                self.koji_session.krb_login(principal=principal, keytab=keytab, proxyuser=None)
+                self.koji_session.krb_login(
+                    principal=principal,
+                    keytab=keytab,
+                    proxyuser=None,
+                )
             else:
                 self.koji_session.krb_login()
-
-        elif self.koji_module.config.authtype == "ssl":
-            self.koji_session.ssl_login(self.koji_module.config.cert, None, self.koji_module.serverca, proxyuser=None)
+        elif authtype == "ssl":
+            self.koji_session.ssl_login(
+                os.path.expanduser(koji_config.cert),
+                None,
+                os.path.expanduser(koji_config.serverca),
+                proxyuser=None,
+            )
+        else:
+            raise ValueError("Unrecognized koji authtype %r" % authtype)
 
         self.arches = config.koji_arches
 
