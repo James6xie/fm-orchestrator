@@ -70,6 +70,7 @@ def from_file(filename=None):
     conf.pdc_develop = default.get("pdc_develop")
     conf.koji_config = default.get("koji_config")
     conf.koji_profile = default.get("koji_profile")
+    conf.koji_arches = json.loads(default.get("koji_arches"))
     conf.scmurls = json.loads(default.get("scmurls"))
     conf.rpms_default_repository = default.get("rpms_default_repository")
     conf.rpms_allow_repository = asbool(default.get("rpms_allow_repository"))
