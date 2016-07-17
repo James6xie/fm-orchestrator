@@ -156,10 +156,10 @@ class KojiModuleBuilder(GenericBuilder):
         self.__prep = False
         self._koji_profile_name = config.koji_profile
         log.debug("Using koji profile %r" % self._koji_profile_name)
-        self.koji_module = koji.get_profile_module(self._koji_profile_name)
+        self.koji_profile = koji.get_profile_module(self._koji_profile_name)
         opts = {}
 
-        koji_config = self.koji_module.config
+        koji_config = self.koji_profile.config
 
         krbservice = getattr(koji_config, "krbservice", None)
         if krbservice:
