@@ -32,6 +32,7 @@ from abc import ABCMeta, abstractmethod
 import logging
 import os
 
+from optparse import OptionParser
 from kobo.shortcuts import run
 import koji
 
@@ -143,6 +144,14 @@ class Builder:
         else:
             raise ValueError("Builder backend='%s' not recognized" % backend)
 
+def _get_opts_from_dict(data):
+    """koji requires config in optparse opts style"""
+    config = OptionParser()
+    opts, _ = config.parse_args()
+    for key, value in data.iteritems():
+        setattr(opts, key, value)
+    return opts
+
 class KojiModuleBuilder(GenericBuilder):
     """ Koji specific builder class """
 
@@ -156,18 +165,18 @@ class KojiModuleBuilder(GenericBuilder):
         self.__prep = False
         self._koji_profile_name = config.koji_profile
         log.debug("Using koji profile %r" % self._koji_profile_name)
-        self.koji_profile = koji.get_profile_module(self._koji_profile_name)
-        opts = {}
+        log.debug ("Using koji_config: %s" % config.koji_config)
 
-        koji_config = self.koji_profile.config
+        koji_config = _get_opts_from_dict(koji.read_config(profile_name=config.koji_profile, user_config=config.koji_config))
+        self.koji_profile = koji.get_profile_module(self._koji_profile_name, config=koji_config)
 
         krbservice = getattr(koji_config, "krbservice", None)
         if krbservice:
-            opts["krbservice"] = krbservice
+            koji_config.krbservice = krbservice
 
         address = koji_config.server
-        log.info("Connecting to koji %r, %r" % (address, opts))
-        self.koji_session = koji.ClientSession(address, opts=opts)
+        log.info("Connecting to koji %r, %r" % (address, koji_config))
+        self.koji_session = koji.ClientSession(address, opts=vars(koji_config))
 
         authtype = koji_config.authtype
         if authtype == "kerberos":
@@ -326,6 +335,7 @@ class KojiModuleBuilder(GenericBuilder):
 
 
     def _koji_create_tag(self, tag_name, arches=None, fail_if_exists=True, perm=None):
+        print ("Creating tag %s" % tag_name)
         chktag = self.koji_session.getTag(tag_name)
         if chktag and fail_if_exists:
             raise SystemError("Tag %s already exist" % tag_name)
