@@ -133,6 +133,8 @@ class Messaging(threading.Thread):
             handler = self.on_repo_change
         elif '.buildsys.build.state.change' in msg['topic']:
             handler = self.on_build_change[msg['msg']['new']]
+        elif 'rida.component.state.change' in msg['topic']:
+            handler = self.on_build_change[msg['msg']['new']]
         elif '.rida.module.state.change' in msg['topic']:
             handler = self.on_module_change[module_build_state_from_msg(msg)]
         else:
@@ -149,14 +151,62 @@ class Polling(threading.Thread):
         while True:
             with rida.database.Database(config) as session:
                 self.log_summary(session)
-            with rida.database.Database(config) as session:
-                self.process_waiting_module_builds(session)
+            # XXX: detect whether it's really stucked first
+            #with rida.database.Database(config) as session:
+            #    self.process_waiting_module_builds(session)
             with rida.database.Database(config) as session:
                 self.process_open_component_builds(session)
             with rida.database.Database(config) as session:
                 self.process_lingering_module_builds(session)
+            with rida.database.Database(config) as session:
+                self.fail_lost_builds(session)
+
             log.info("Polling thread sleeping, %rs" % config.polling_interval)
             time.sleep(config.polling_interval)
+
+    def fail_lost_builds(self, session):
+        # This function is supposed to be handling only
+        # the part which can't be updated trough messaging (srpm-build failures).
+        # Please keep it fit `n` slim. We do want rest to be processed elsewhere
+
+        # TODO re-use
+
+        if config.system == "koji":
+            def send_fail_task_msg(component_build, task_info):
+                log.debug("Failing task=%r" % task_info)
+
+                rida.messaging.publish(
+                    modname='rida',
+                    topic='component.state.change',
+                    msg={
+                        "method": "build",
+                        "attribute": "state",
+                        "new": koji.BUILD_STATES['FAILED'],
+                        "task_id": component_build.task_id},
+
+                    backend=config.messaging,
+             )
+
+            koji_session, _ = rida.builder.KojiModuleBuilder.get_session_from_config(config)
+            state = koji.BUILD_STATES['BUILDING'] # Check tasks that we track as BUILDING
+            log.info("Querying tasks for statuses:")
+            query = session.query(rida.database.ComponentBuild)
+            res = query.filter(state==koji.BUILD_STATES['BUILDING']).all()
+
+            log.info("Checking status for %d tasks." % len(res))
+            for component_build in res:
+                log.debug(component_build.json())
+                if not component_build.task_id: # Don't check tasks which has not been triggered yet
+                    continue
+
+                log.info("Checking status of task_id=%s" % component_build.task_id)
+                task_info = koji_session.getTaskInfo(component_build.task_id)
+
+                if task_info['state'] in (koji.TASK_STATES['CANCELED'], koji.TASK_STATES['FAILED']):
+                    send_fail_task_msg(component_build, task_info)
+
+        else:
+            raise NotImplementedError("Buildsystem %r is not supported." % config.system)
 
     def log_summary(self, session):
         log.info("Current status:")
