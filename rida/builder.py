@@ -114,14 +114,6 @@ class GenericBuilder:
         raise NotImplementedError()
 
     @abstractmethod
-    def buildroot_ready(self, artifact=None):
-        """
-        :param artifact=None: wait for specific artifact to be present
-        waits for buildroot to be ready and contain given artifact
-        """
-        raise NotImplementedError()
-
-    @abstractmethod
     def build(self, artifact_name, source):
         """
         :param artifact_name : name of what are we building (used for whitelists)
@@ -159,47 +151,16 @@ class KojiModuleBuilder(GenericBuilder):
 
     def __init__(self, module, config, tag_name):
         """
-        :param koji_profile: koji profile to be used
+        :param module: string representing module
+        :param config: rida.config.Config instance
+        :param tag_name: name of tag for given module
         """
         self.module_str = module
         self.__prep = False
-        self._koji_profile_name = config.koji_profile
-        log.debug("Using koji profile %r" % self._koji_profile_name)
+        log.debug("Using koji profile %r" % config.koji_profile)
         log.debug ("Using koji_config: %s" % config.koji_config)
 
-        koji_config = _get_opts_from_dict(koji.read_config(profile_name=config.koji_profile, user_config=config.koji_config))
-        self.koji_profile = koji.get_profile_module(self._koji_profile_name, config=koji_config)
-
-        krbservice = getattr(koji_config, "krbservice", None)
-        if krbservice:
-            koji_config.krbservice = krbservice
-
-        address = koji_config.server
-        log.info("Connecting to koji %r, %r" % (address, koji_config))
-        self.koji_session = koji.ClientSession(address, opts=vars(koji_config))
-
-        authtype = koji_config.authtype
-        if authtype == "kerberos":
-            keytab = getattr(koji_config, "keytab", None)
-            principal = getattr(koji_config, "principal", None)
-            if keytab and principal:
-                self.koji_session.krb_login(
-                    principal=principal,
-                    keytab=keytab,
-                    proxyuser=None,
-                )
-            else:
-                self.koji_session.krb_login()
-        elif authtype == "ssl":
-            self.koji_session.ssl_login(
-                os.path.expanduser(koji_config.cert),
-                None,
-                os.path.expanduser(koji_config.serverca),
-                proxyuser=None,
-            )
-        else:
-            raise ValueError("Unrecognized koji authtype %r" % authtype)
-
+        self.koji_session, self.koji_module = self.get_session_from_config(config)
         self.arches = config.koji_arches
         if not self.arches:
             raise ValueError("No koji_arches specified in the config.")
@@ -211,6 +172,43 @@ class KojiModuleBuilder(GenericBuilder):
     def __repr__(self):
         return "<KojiModuleBuilder module: %s, tag: %s>" % (
             self.module_str, self.module_tag)
+
+
+    @staticmethod
+    def get_session_from_config(config):
+        koji_config = _get_opts_from_dict(koji.read_config(profile_name=config.koji_profile, user_config=config.koji_config))
+        koji_module = koji.get_profile_module(config.koji_profile, config=koji_config)
+
+        krbservice = getattr(koji_config, "krbservice", None)
+        if krbservice:
+            koji_config.krbservice = krbservice
+
+        address = koji_config.server
+        log.info("Connecting to koji %r, %r" % (address, koji_config))
+        koji_session = koji.ClientSession(address, opts=vars(koji_config))
+
+        authtype = koji_config.authtype
+        if authtype == "kerberos":
+            keytab = getattr(koji_config, "keytab", None)
+            principal = getattr(koji_config, "principal", None)
+            if keytab and principal:
+                koji_session.krb_login(
+                    principal=principal,
+                    keytab=keytab,
+                    proxyuser=None,
+                )
+            else:
+                koji_session.krb_login()
+        elif authtype == "ssl":
+            koji_session.ssl_login(
+                os.path.expanduser(koji_config.cert),
+                None,
+                os.path.expanduser(koji_config.serverca),
+                proxyuser=None,
+            )
+        else:
+            raise ValueError("Unrecognized koji authtype %r" % authtype)
+        return (koji_session, koji_module)
 
     def buildroot_resume(self): # XXX: experimental
         """
@@ -257,14 +255,6 @@ class KojiModuleBuilder(GenericBuilder):
         log.info("%r adding artifacts %r" % (self, artifacts))
         for nvr in artifacts:
             self.koji_session.tagBuild(self.module_build_tag, nvr, force=True)
-
-    def buildroot_ready(self, artifact=None):
-        # XXX: steal code from /usr/bin/koji
-        cmd = "koji -p %s wait-repo %s " % (self._koji_profile_name, self.module_build_tag['name'])
-        if artifact:
-            cmd += " --build %s" % artifact
-        log.info("Waiting for buildroot(%s) to be ready" % (self.module_build_tag['name']))
-        run(cmd) # wait till repo is current
 
     def build(self, artifact_name, source):
         """
