@@ -232,7 +232,7 @@ class ComponentBuild(Base):
     gitref = Column(String, nullable=False)
     # XXX: Consider making this a proper ENUM
     format = Column(String, nullable=False)
-    build_id = Column(Integer)  # This is the id of the build in koji
+    task_id = Column(Integer)  # This is the id of the build in koji
     # XXX: Consider making this a proper ENUM (or an int)
     state = Column(Integer)
 
@@ -243,14 +243,14 @@ class ComponentBuild(Base):
     def from_fedmsg(cls, session, msg):
         if '.buildsys.build.state.change' not in msg['topic']:
             raise ValueError("%r is not a koji message." % msg['topic'])
-        return session.query(cls).filter(cls.build_id==msg['msg']['build_id']).first()
+        return session.query(cls).filter(cls.task_id==msg['msg']['task_id']).first()
 
     def json(self):
         return {
             'id': self.id,
             'package': self.package,
             'format': self.format,
-            'build_id': self.build_id,
+            'task_id': self.task_id,
             'state': self.state,
             'module_build': self.module_id,
         }
