@@ -140,7 +140,11 @@ def get_module_tag(session, module_info, strict=False):
     :param module_info: list of module_info dicts
     :return: koji tag string
     """
-    return get_module(session, module_info, strict=strict)['koji_tag']
+    # TODO -- get this from PDC some day... for now, we're just going to
+    # construct the module tag name from the module attrs we already know
+    # about.
+    #return get_module(session, module_info, strict=strict)['koji_tag']
+    return "{name}-{version}-{release}".format(**module_info)
 
 def module_depsolving_wrapper(session, module_list, strict=False):
     """
