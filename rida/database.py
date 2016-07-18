@@ -241,7 +241,7 @@ class ComponentBuild(Base):
 
     @classmethod
     def from_fedmsg(cls, session, msg):
-        if '.buildsys.build.state.change' not in msg['topic']:
+        if 'component.state.change' not in msg['topic'] and '.buildsys.build.state.change' not in msg['topic']:
             raise ValueError("%r is not a koji message." % msg['topic'])
         return session.query(cls).filter(cls.task_id==msg['msg']['task_id']).first()
 
