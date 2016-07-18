@@ -42,6 +42,11 @@ def wait(config, session, msg):
     """
     build = rida.database.ModuleBuild.from_fedmsg(session, msg)
     module_info = build.json()
+    if module_info['state'] != rida.BUILD_STATES["wait"]:
+        # XXX: not sure why did we get here from state == 2 (building) FIXTHIS
+        print("Invalid state %s for wait()" % module_info['state'])
+        log.error("Invalid state %s for wait(). Msg=%s" % (module_info['state'], msg))
+        return
     log.info("Found module_info=%s from message" % module_info)
 
     pdc_session = rida.pdc.get_pdc_client_session(config)
