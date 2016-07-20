@@ -42,6 +42,8 @@ import time
 import random
 import string
 
+import munch
+
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
 
@@ -153,13 +155,6 @@ class Builder:
         else:
             raise ValueError("Builder backend='%s' not recognized" % backend)
 
-def _get_opts_from_dict(data):
-    """koji requires config in optparse opts style"""
-    config = OptionParser()
-    opts, _ = config.parse_args()
-    for key, value in data.iteritems():
-        setattr(opts, key, value)
-    return opts
 
 class KojiModuleBuilder(GenericBuilder):
     """ Koji specific builder class """
@@ -278,8 +273,14 @@ chmod 644 %buildroot/%_rpmconfigdir/macro.modules
 
     @staticmethod
     def get_session_from_config(config):
-        koji_config = _get_opts_from_dict(koji.read_config(profile_name=config.koji_profile, user_config=config.koji_config))
-        koji_module = koji.get_profile_module(config.koji_profile, config=koji_config)
+        koji_config = munch.Munch(koji.read_config(
+            profile_name=config.koji_profile,
+            user_config=config.koji_config,
+        ))
+        koji_module = koji.get_profile_module(
+            config.koji_profile,
+            config=koji_config,
+        )
 
         krbservice = getattr(koji_config, "krbservice", None)
         if krbservice:
