@@ -29,6 +29,7 @@ import rida.pdc
 import logging
 import koji
 
+logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
 
 

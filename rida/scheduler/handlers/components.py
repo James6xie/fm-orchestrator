@@ -31,6 +31,7 @@ import rida.pdc
 
 import koji
 
+logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
 
 def _finalize(config, session, msg, state):
