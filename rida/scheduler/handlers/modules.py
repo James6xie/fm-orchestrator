@@ -48,7 +48,7 @@ def wait(config, session, msg):
     The kicking off of individual component builds is handled elsewhere,
     in rida.schedulers.handlers.repos.
     """
-    build = rida.database.ModuleBuild.from_fedmsg(session, msg)
+    build = rida.database.ModuleBuild.from_module_event(session, msg)
     module_info = build.json()
     if module_info['state'] != rida.BUILD_STATES["wait"]:
         # XXX: not sure why did we get here from state == 2 (building) FIXTHIS

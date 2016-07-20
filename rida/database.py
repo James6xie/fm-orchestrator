@@ -146,10 +146,10 @@ class ModuleBuild(Base):
         raise ValueError("%s: %s, not in %r" % (key, field, BUILD_STATES))
 
     @classmethod
-    def from_fedmsg(cls, session, msg):
-        if '.module.' not in msg['topic']:
-            raise ValueError("%r is not a module message." % msg['topic'])
-        return session.query(cls).filter(cls.id==msg['msg']['id']).first()
+    def from_module_event(cls, session, event):
+        if '.module.' not in event['topic']:
+            raise ValueError("%r is not a module message." % event['topic'])
+        return session.query(cls).filter(cls.id==event['msg']['id']).first()
 
     @classmethod
     def create(cls, session, conf, name, version, release, modulemd):
@@ -188,19 +188,20 @@ class ModuleBuild(Base):
             .filter_by(state=BUILD_STATES[state]).all()
 
     @classmethod
-    def get_active_by_koji_tag(cls, session, koji_tag):
+    def from_repo_done_event(cls, session, event):
         """ Find the ModuleBuilds in our database that should be in-flight...
         ... for a given koji tag.
 
         There should be at most one.
         """
-        query = session.query(rida.database.ModuleBuild)\
-            .filter_by(koji_tag=koji_tag)\
-            .filter_by(state=BUILD_STATES["build"])
+        tag = event['msg']['tag'].strip('-build')
+        query = session.query(cls)\
+            .filter(cls.koji_tag==tag)\
+            .filter(cls.state==BUILD_STATES["build"])
 
         count = query.count()
         if count > 1:
-            raise RuntimeError("%r module builds in flight for %r" % (count, koji_tag))
+            raise RuntimeError("%r module builds in flight for %r" % (count, tag))
 
         return query.first()
 
@@ -240,10 +241,10 @@ class ComponentBuild(Base):
     module_build = relationship('ModuleBuild', backref='component_builds', lazy=False)
 
     @classmethod
-    def from_fedmsg(cls, session, msg):
-        if 'component.state.change' not in msg['topic'] and '.buildsys.build.state.change' not in msg['topic']:
-            raise ValueError("%r is not a koji message." % msg['topic'])
-        return session.query(cls).filter(cls.task_id==msg['msg']['task_id']).first()
+    def from_component_event(cls, session, event):
+        if 'component.state.change' not in event['topic'] and '.buildsys.build.state.change' not in event['topic']:
+            raise ValueError("%r is not a koji message." % event['topic'])
+        return session.query(cls).filter(cls.task_id==event['msg']['task_id']).first()
 
     def json(self):
         return {

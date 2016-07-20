@@ -34,9 +34,9 @@ class TestModuleWait(unittest.TestCase):
         self.fn = rida.scheduler.handlers.modules.wait
 
     @mock.patch('rida.builder.KojiModuleBuilder')
-    @mock.patch('rida.database.ModuleBuild.from_fedmsg')
+    @mock.patch('rida.database.ModuleBuild.from_module_event')
     @mock.patch('rida.pdc.get_pdc_client_session')
-    def test_wait_basic(self, pdc, from_fedmsg, KojiModuleBuilder):
+    def test_wait_basic(self, pdc, from_module_event, KojiModuleBuilder):
         builder = mock.Mock()
         KojiModuleBuilder.return_value = builder
         mocked_module_build = mock.Mock()
@@ -45,7 +45,7 @@ class TestModuleWait(unittest.TestCase):
             'version': 1,
             'release': 1,
         }
-        from_fedmsg.return_value = mocked_module_build
+        from_module_event.return_value = mocked_module_build
 
         msg = {
             'topic': 'org.fedoraproject.prod.rida.module.state.change',

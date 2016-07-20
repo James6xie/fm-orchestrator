@@ -38,7 +38,7 @@ def _finalize(config, session, msg, state):
     """ Called whenever a koji build completes or fails. """
 
     # First, find our ModuleBuild associated with this repo, if any.
-    component_build = rida.database.ComponentBuild.from_fedmsg(session, msg)
+    component_build = rida.database.ComponentBuild.from_component_event(session, msg)
     if not component_build:
         template = "We have no record of {name}-{version}-{release}"
         log.debug(template.format(**msg['msg']))

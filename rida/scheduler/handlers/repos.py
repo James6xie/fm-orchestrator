@@ -38,8 +38,7 @@ def done(config, session, msg):
 
     # First, find our ModuleBuild associated with this repo, if any.
     tag = msg['msg']['tag'].strip('-build')
-    module_build = rida.database.ModuleBuild.get_active_by_koji_tag(
-        session, koji_tag=tag)
+    module_build = rida.database.ModuleBuild.from_repo_done_event(session, msg)
     if not module_build:
         log.info("No module build found associated with koji tag %r" % tag)
         return
