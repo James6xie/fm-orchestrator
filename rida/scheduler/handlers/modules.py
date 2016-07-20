@@ -31,6 +31,12 @@ import logging
 log = logging.getLogger(__name__)
 
 
+def get_rpm_release_from_tag(tag):
+    return tag.replace("-", "_")
+
+def get_artifact_from_srpm(srpm_path):
+    return os.path.basename(srpm_path).replace(".src.rpm", "")
+
 def wait(config, session, msg):
     """ Called whenever a module enters the 'wait' state.
 
@@ -62,10 +68,12 @@ def wait(config, session, msg):
     dependencies = rida.pdc.get_module_dependencies(pdc_session, module_info)
     builder = rida.builder.KojiModuleBuilder(build.name, config, tag_name=tag)
     build.buildroot_task_id = builder.buildroot_prep()
+    buildroot_add_dependency(["f24-build",]) # XXX: hack remove once we have dependencies
     builder.buildroot_add_dependency(dependencies)
-    # TODO: build srpm with dist_tag macros
-    # TODO submit build from srpm to koji
-    # TODO: buildroot.add_artifact(build_with_dist_tags)
-    # TODO: buildroot.ready(artifact=$artifact)
+    srpm = builder.get_disttag_srpm(disttag="%s" % get_rpm_release_from_tag(tag))
+    builder.build(srpm)
+    artifact = get_artifact_from_srpm(srpm)
+    bulder.add_artifact(artifact)
+    builder.buildroot_ready(artifacts=[artifact,])
     build.transition(config, state="build")  # Wait for the buildroot to be ready.
     session.commit()
