@@ -121,6 +121,9 @@ def get_module(session, module_info, strict=False):
     """
     :param session : PDCClient instance
     :param module_info: pdc variant_dict, str, mmd or module dict
+    :param strict: Normally this function returns None if no module can be
+           found.  If strict=True, then a ValueError is raised.
+
     :return final list of module_info which pass repoclosure
     """
 
@@ -144,6 +147,8 @@ def get_module_tag(session, module_info, strict=False):
     """
     :param session : PDCClient instance
     :param module_info: list of module_info dicts
+    :param strict: Normally this function returns None if no module can be
+           found.  If strict=True, then a ValueError is raised.
     :return: koji tag string
     """
     # TODO -- get this from PDC some day... for now, we're just going to
@@ -184,7 +189,8 @@ def get_module_runtime_dependencies(session, module_info, strict=False):
     """
     :param session : PDCClient instance
     :param module_infos : a dict containing filters for pdc
-    :param strict=False : don't raise exception if None is returned
+    :param strict: Normally this function returns None if no module can be
+           found.  If strict=True, then a ValueError is raised.
 
     Example minimal module_info {'variant_name': module_name, 'variant_version': module_version, 'variant_type': 'module'}
     """
@@ -202,6 +208,8 @@ def get_module_build_dependencies(session, module_info, strict=False):
     """
     :param session : PDCClient instance
     :param module_info : a dict containing filters for pdc
+    :param strict: Normally this function returns None if no module can be
+           found.  If strict=True, then a ValueError is raised.
     :return final list of module_infos which pass repoclosure
 
     Example minimal module_info {'variant_name': module_name, 'variant_version': module_version, 'variant_type': 'module'}
