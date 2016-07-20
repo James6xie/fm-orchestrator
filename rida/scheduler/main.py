@@ -227,6 +227,7 @@ class Poller(threading.Thread):
                     koji.TASK_STATES['CANCELED'],
                     koji.TASK_STATES['FAILED'],
                 )
+                log.info("  task %r is in state %r" % (component_build.task_id, task_info['state']))
                 if task_info['state'] in dead_states:
                     # Fake a fedmsg message on our internal queue
                     self.outgoing_work_queue.put({
