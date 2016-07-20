@@ -148,6 +148,9 @@ class Builder:
         :param module : a module string e.g. 'testmodule-1.0'
         :param backend: a string representing backend e.g. 'koji'
         :param config: instance of rida.config.Config
+
+        Any additional arguments are optional extras which can be passed along
+        and are implementation-dependent.
         """
 
         if backend == "koji":
