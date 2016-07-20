@@ -256,5 +256,5 @@ class ComponentBuild(Base):
         }
 
     def __repr__(self):
-        return "<ComponentBuild %s of %r, state: %r>" % (
-            self.package, self.module_id, self.state)
+        return "<ComponentBuild %s of %r, state: %r, task_id: %r>" % (
+            self.package, self.module_id, self.state, self.task_id)
