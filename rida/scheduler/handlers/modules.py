@@ -27,6 +27,7 @@ import rida.builder
 import rida.database
 import rida.pdc
 import logging
+import os
 
 log = logging.getLogger(__name__)
 
@@ -68,12 +69,14 @@ def wait(config, session, msg):
     dependencies = rida.pdc.get_module_dependencies(pdc_session, module_info)
     builder = rida.builder.KojiModuleBuilder(build.name, config, tag_name=tag)
     build.buildroot_task_id = builder.buildroot_prep()
-    buildroot_add_dependency(["f24-build",]) # XXX: hack remove once we have dependencies
+    log.debug("Adding dependencies %s into buildroot for module %s" % (dependencies, module_info))
     builder.buildroot_add_dependency(dependencies)
     srpm = builder.get_disttag_srpm(disttag="%s" % get_rpm_release_from_tag(tag))
-    builder.build(srpm)
+    task_id = builder.build(srpm)
+    builder.wait_task(task_id)
+
     artifact = get_artifact_from_srpm(srpm)
-    bulder.add_artifact(artifact)
+    builder.buildroot_add_artifacts([artifact,])
     builder.buildroot_ready(artifacts=[artifact,])
     build.transition(config, state="build")  # Wait for the buildroot to be ready.
     session.commit()
