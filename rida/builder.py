@@ -291,7 +291,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macro.modules
             koji_config.krbservice = krbservice
 
         address = koji_config.server
-        log.info("Connecting to koji %r, %r" % (address, koji_config))
+        log.info("Connecting to koji %r" % address)
         koji_session = koji.ClientSession(address, opts=vars(koji_config))
 
         authtype = koji_config.authtype

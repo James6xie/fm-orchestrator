@@ -175,8 +175,9 @@ class MessageWorker(threading.Thread):
 
         # Execute our chosen handler
         with rida.database.Database(config) as session:
-            log.info(" %r: %s, %s" % (handler, msg['topic'], msg['msg_id']))
+            log.info(" %s: %s, %s" % (handler.__name__, msg['topic'], msg['msg_id']))
             handler(config, session, msg)
+
 
 class Poller(threading.Thread):
     def __init__(self, outgoing_work_queue, *args, **kwargs):
