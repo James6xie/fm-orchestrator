@@ -130,7 +130,9 @@ class GenericBuilder:
     @abstractmethod
     def build(self, artifact_name, source):
         """
-        :param artifact_name : name of what are we building (used for whitelists)
+        :param artifact_name : a crucial, since we can't guess a valid srpm name
+                               without having the exact buildroot (collections/macros)
+                               used e.g. for whitelisting packages
         :param source : a scmurl to repository with receipt (e.g. spec)
         """
         raise NotImplementedError()
@@ -353,7 +355,16 @@ chmod 644 %buildroot/%_rpmconfigdir/macro.modules
         # TODO: import /usr/bin/koji's TaskWatcher()
         log.info("%r adding artifacts %r" % (self, artifacts))
         for nvr in artifacts:
-            self.koji_session.tagBuild(self.module_build_tag, nvr, force=True)
+            # we do need taginfo dict not the string _get_tag()
+            self.koji_session.tagBuild(self._get_tag(self.module_build_tag), nvr, force=True)
+
+    def wait_task(self, task_id):
+        """
+        :param task_id
+        :return - task result object
+        """
+        log.info("Waiting for task_id=%s" % task_id)
+        return self.koji_session.getTaskResult(task_id)
 
     def build(self, artifact_name, source):
         """
