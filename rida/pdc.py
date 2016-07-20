@@ -121,8 +121,10 @@ def get_module(session, module_info, strict=False):
     """
 
     module_info = get_variant_dict(module_info)
-
-    retval = session['unreleasedvariants'](page_size=-1, **module_info)
+    retval = session['unreleasedvariants'](page_size=-1,
+                variant_name=module_info['variant_name'],
+                variant_version=module_info['variant_version'],
+                variant_release=module_info['variant_release'])
     assert len(retval) <= 1
 
     # Error handling
