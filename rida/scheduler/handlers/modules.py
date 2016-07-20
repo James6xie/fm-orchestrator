@@ -77,6 +77,9 @@ def wait(config, session, msg):
     # inject dist-tag into buildroot
     srpm = builder.get_disttag_srpm(disttag="%s" % get_rpm_release_from_tag(tag))
     task_id = builder.build(artifact_name="module-build-macros", source=srpm)
+
+    # TODO -- this has to go eventually.. otherwise, we can only build one
+    # module at a time and that just won't scale.
     builder.wait_task(task_id)
 
     artifact = get_artifact_from_srpm(srpm)
