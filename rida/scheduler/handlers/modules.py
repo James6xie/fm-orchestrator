@@ -29,6 +29,7 @@ import rida.pdc
 import logging
 import os
 
+logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
 
 
@@ -64,19 +65,23 @@ def wait(config, session, msg):
     # associated with which koji tag, so that when their repos are regenerated
     # in koji we can figure out which for which module build that event is
     # relevant.
+    log.debug("Assigning koji tag=%s to module build" % tag)
     build.koji_tag = tag
 
-    dependencies = rida.pdc.get_module_dependencies(pdc_session, module_info)
+
+    dependencies = rida.pdc.get_module_build_dependencies(pdc_session, module_info)
     builder = rida.builder.KojiModuleBuilder(build.name, config, tag_name=tag)
     build.buildroot_task_id = builder.buildroot_prep()
     log.debug("Adding dependencies %s into buildroot for module %s" % (dependencies, module_info))
     builder.buildroot_add_dependency(dependencies)
+    # inject dist-tag into buildroot
     srpm = builder.get_disttag_srpm(disttag="%s" % get_rpm_release_from_tag(tag))
-    task_id = builder.build(srpm)
+    task_id = builder.build(artifact_name="module-build-macros", source=srpm)
     builder.wait_task(task_id)
 
     artifact = get_artifact_from_srpm(srpm)
-    builder.buildroot_add_artifacts([artifact,])
+    builder.buildroot_add_artifacts([artifact,]) # pretty much srpm filename
     builder.buildroot_ready(artifacts=[artifact,])
+
     build.transition(config, state="build")  # Wait for the buildroot to be ready.
     session.commit()
