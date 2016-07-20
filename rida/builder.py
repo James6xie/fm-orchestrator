@@ -42,6 +42,7 @@ import time
 import random
 import string
 
+logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
 
 # TODO: read defaults from rida's config
@@ -363,8 +364,19 @@ chmod 644 %buildroot/%_rpmconfigdir/macro.modules
         :param task_id
         :return - task result object
         """
-        log.info("Waiting for task_id=%s" % task_id)
-        return self.koji_session.getTaskResult(task_id)
+        start = time.time()
+        timeout = 60 # minutes
+
+        while True:
+            if (time.time() - start) >= (timeout * 60.0):
+                break
+            try:
+                log.debug("Waiting for task_id=%s to finish" % task_id)
+                return self.koji_session.getTaskResult(task_id)
+
+            except koji.GenericError:
+                time.sleep(30)
+        return 1
 
     def build(self, artifact_name, source):
         """
