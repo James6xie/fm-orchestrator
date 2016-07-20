@@ -88,7 +88,7 @@ def get_variant_dict(data):
             result['variant_release'] = '0'
 
     elif is_module_dict(data):
-        result = {'variant_name': data['name'], 'variant_version': data['version']}
+        result = {'variant_name': data['name'], 'variant_version': data['version'], 'variant_release': data['release']}
 
     if not result:
         raise ValueError("Couldn't get variant_dict from %s" % data)
@@ -107,8 +107,12 @@ def variant_dict_from_str(module_str):
 
     module_info = {}
 
-    module_info['variant_name'] = module_str[:module_str.find('-')]
-    module_info['variant_version'] = module_str[module_str.find('-')+1:]
+
+    release_start = module_str.rfind('-')
+    version_start = module_str.rfind('-', 0, release_start)
+    module_info['variant_release'] = module_str[release_start+1:]
+    module_info['variant_version'] = module_str[version_start+1:release_start]
+    module_info['variant_name'] = module_str[:version_start]
     module_info['variant_type'] = 'module'
 
     return module_info
@@ -146,9 +150,10 @@ def get_module_tag(session, module_info, strict=False):
     # construct the module tag name from the module attrs we already know
     # about.
     #return get_module(session, module_info, strict=strict)['koji_tag']
-    return "{name}-{version}-{release}".format(**module_info)
+    variant_data = get_variant_dict(module_info)
+    return "{variant_name}-{variant_version}-{variant_release}".format(**variant_data)
 
-def module_depsolving_wrapper(session, module_list, strict=False):
+def module_depsolving_wrapper(session, module_list, strict=True):
     """
     :param session : PDCClient instance
     :param module_list: list of module_info dicts
@@ -157,14 +162,29 @@ def module_depsolving_wrapper(session, module_list, strict=False):
     # TODO: implement this
 
     # Make sure that these are dicts from PDC ... ensures all values
-    module_infos = [get_module(session, module, strict=strict) for module in module_list]
+    module_list = set([get_module_tag(session, x, strict) for x in module_list])
+    seen = set() # don't query pdc for the same items all over again
 
-    return module_infos
+    while True:
+        if seen == module_list:
+                break
 
-def get_module_dependencies(session, module_info, strict=False):
+        for module in module_list:
+            if module in seen:
+                continue
+            info = get_module(session, module, strict)
+            assert info, "Module '%s' not found in PDC" % module
+            module_list.update([x['dependency'] for x in info['build_deps']])
+            seen.add(module)
+            module_list.update(info['build_deps'])
+
+    return list(module_list)
+
+def get_module_runtime_dependencies(session, module_info, strict=False):
     """
     :param session : PDCClient instance
     :param module_infos : a dict containing filters for pdc
+    :param strict=False : don't raise exception if None is returned
 
     Example minimal module_info {'variant_name': module_name, 'variant_version': module_version, 'variant_type': 'module'}
     """
@@ -172,7 +192,7 @@ def get_module_dependencies(session, module_info, strict=False):
 
     deps = []
     module_info = get_module(session, module_info, strict=strict)
-    if module_info and module_info.get('runtime_deps'):
+    if module_info and module_info.get('runtime_deps', None):
         deps = [x['dependency'] for x in module_info['runtime_deps']]
         deps = module_depsolving_wrapper(session, deps, strict=strict)
 
@@ -190,7 +210,7 @@ def get_module_build_dependencies(session, module_info, strict=False):
 
     deps = []
     module_info = get_module(session, module_info, strict=strict)
-    if module_info and module_info.get('build_deps'):
+    if module_info and module_info.get('build_deps', None):
         deps = [x['dependency'] for x in module_info['build_deps']]
         deps = module_depsolving_wrapper(session, deps, strict=strict)
 
