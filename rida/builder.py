@@ -170,6 +170,7 @@ class KojiModuleBuilder(GenericBuilder):
         :param tag_name: name of tag for given module
         """
         self.module_str = module
+        self.tag_name = tag_name
         self.__prep = False
         log.debug("Using koji profile %r" % config.koji_profile)
         log.debug ("Using koji_config: %s" % config.koji_config)
@@ -179,13 +180,14 @@ class KojiModuleBuilder(GenericBuilder):
         if not self.arches:
             raise ValueError("No koji_arches specified in the config.")
 
-        self.module_tag = tag_name
-        self.module_build_tag = "%s-build" % tag_name
-        self.module_target = tag_name
+        # These eventually get populated when buildroot_{prep,resume} is called
+        self.module_tag = None
+        self.module_build_tag = None
+        self.module_target = None
 
     def __repr__(self):
         return "<KojiModuleBuilder module: %s, tag: %s>" % (
-            self.module_str, self.module_tag)
+            self.module_str, self.tag_name)
 
     def buildroot_ready(self, artifacts=None):
         target_info = self.koji_session.getBuildTarget(self.module_target)
@@ -319,15 +321,15 @@ chmod 644 %buildroot/%_rpmconfigdir/macro.modules
         """
         Resume existing buildroot. Sets __prep=True
         """
-        chktag = self.koji_session.getTag(self.module_tag)
+        chktag = self.koji_session.getTag(self.tag_name)
         if not chktag:
-            raise SystemError("Tag %s doesn't exist" % self.module_tag)
-        chkbuildtag = self.koji_session.getTag(self.module_build_tag)
+            raise SystemError("Tag %s doesn't exist" % self.tag_name)
+        chkbuildtag = self.koji_session.getTag(self.tag_name + "-build")
         if not chkbuildtag:
-            raise SystemError("Build Tag %s doesn't exist" % self.module_build_tag)
-        chktarget = self.koji_session.getBuildTarget(self.module_target)
+            raise SystemError("Build Tag %s doesn't exist" % self.tag_name + "-build")
+        chktarget = self.koji_session.getBuildTarget(self.tag_name)
         if not chktarget:
-            raise SystemError("Target %s doesn't exist" % self.module_target)
+            raise SystemError("Target %s doesn't exist" % self.tag_name)
         self.module_tag = chktag
         self.module_build_tag = chkbuildtag
         self.module_target = chktarget
@@ -339,14 +341,16 @@ chmod 644 %buildroot/%_rpmconfigdir/macro.modules
         :param module_deps_tags: a tag names of our build requires
         :param module_deps_tags: a tag names of our build requires
         """
-        self.module_tag = self._koji_create_tag(self.module_tag, perm="admin") # returns tag obj
-        self.module_build_tag = self._koji_create_tag(self.module_build_tag, self.arches, perm="admin")
+        self.module_tag = self._koji_create_tag(
+            self.tag_name, perm="admin") # returns tag obj
+        self.module_build_tag = self._koji_create_tag(
+            self.tag_name + "-build", self.arches, perm="admin")
 
         groups = KOJI_DEFAULT_GROUPS # TODO: read from config
         if groups:
             self._koji_add_groups_to_tag(self.module_build_tag, groups)
 
-        self.module_target = self._koji_add_target(self.module_target, self.module_build_tag, self.module_tag)
+        self.module_target = self._koji_add_target(self.tag_name, self.module_build_tag, self.module_tag)
         self.__prep = True
         log.info("%r buildroot prepared." % self)
 
