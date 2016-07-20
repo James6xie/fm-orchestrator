@@ -58,7 +58,7 @@ class TestRepoDone(unittest.TestCase):
         """
         component_build = mock.Mock()
         component_build.package = 'foo'
-        component_build.gitref = 'beef'
+        component_build.scmurl = 'full_scm_url'
         component_build.state = None
         module_build = mock.Mock()
         module_build.component_builds = [component_build]
@@ -69,4 +69,4 @@ class TestRepoDone(unittest.TestCase):
             'msg': {'tag': 'no matches for this...'},
         }
         self.fn(config=self.config, session=self.session, msg=msg)
-        build_fn.assert_called_once_with('TODO', 'dist_git_url/rpms/foo?#beef')
+        build_fn.assert_called_once_with('TODO', 'full_scm_url')

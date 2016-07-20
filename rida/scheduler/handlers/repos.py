@@ -53,12 +53,13 @@ def done(config, session, msg):
     builder.buildroot_resume()
 
     for component_build in unbuilt_components:
-        scmurl = "{dist_git}/{package}?#{gitref}".format(
-            dist_git=config.rpms_default_repository,
-            package=component_build.package,
-            gitref=component_build.gitref,  # This is the update stream
-        )
         component_build.state = koji.BUILD_STATES['BUILDING']
-        log.debug("Using scmurl=%s for package=%s" % (scmurl, component_build.package))
-        component_build.task_id = builder.build(artifact=component_build.package, source=scmurl)
+        log.debug("Using scmurl=%s for package=%s" % (
+            component_build.scmurl,
+            component_build.package,
+        ))
+        component_build.task_id = builder.build(
+            artifact=component_build.package,
+            source=component_build.scmurl,
+        )
     session.commit()
