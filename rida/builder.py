@@ -32,7 +32,6 @@ from abc import ABCMeta, abstractmethod
 import logging
 import os
 
-from optparse import OptionParser
 from kobo.shortcuts import run
 import koji
 import tempfile
