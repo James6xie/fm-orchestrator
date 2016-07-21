@@ -374,6 +374,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macro.modules
         start = time.time()
         timeout = 60 # minutes
 
+        log.info("Waiting for task_id=%s to finish" % task_id)
         while True:
             if (time.time() - start) >= (timeout * 60.0):
                 break
@@ -383,6 +384,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macro.modules
 
             except koji.GenericError:
                 time.sleep(30)
+        log.info("Done waiting for task_id=%s to finish" % task_id)
         return 1
 
     def build(self, artifact_name, source):
