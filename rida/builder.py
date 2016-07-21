@@ -416,8 +416,8 @@ chmod 644 %buildroot/%_rpmconfigdir/macro.modules
             source = "%s/%s" % (serverdir, os.path.basename(source))
 
         task_id = self.koji_session.build(source, self.module_target['name'])
-        log.info("%r submitted build of %s (task_id=%s)" % (
-            self, source, task_id))
+        log.info("submitted build of %s (task_id=%s), via %s" % (
+            source, task_id, self))
         return task_id
 
     def _get_tag(self, tag, strict=True):
