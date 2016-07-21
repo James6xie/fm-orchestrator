@@ -212,6 +212,7 @@ class ModuleBuild(Base):
             'version': self.version,
             'release': self.release,
             'state': self.state,
+            'state_name': INVERSE_BUILD_STATES[self.state],
 
             # This is too spammy..
             #'modulemd': self.modulemd,
@@ -247,7 +248,7 @@ class ComponentBuild(Base):
         return session.query(cls).filter(cls.task_id==event['msg']['task_id']).first()
 
     def json(self):
-        return {
+        retval = {
             'id': self.id,
             'package': self.package,
             'format': self.format,
@@ -255,6 +256,18 @@ class ComponentBuild(Base):
             'state': self.state,
             'module_build': self.module_id,
         }
+
+        try:
+            # Koji is py2 only, so this fails if the main web process is
+            # running on py3.
+            import koji
+            retval['state_name'] = koji.BUILD_STATES[self.state]
+        except ImportError:
+            pass
+
+        return retval
+
+
 
     def __repr__(self):
         return "<ComponentBuild %s of %r, state: %r, task_id: %r>" % (
