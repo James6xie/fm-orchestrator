@@ -132,8 +132,8 @@ Possible response codes are for various requests include:
   implemented yet.
 - HTTP 503 Service Unavailable - The service is down, possibly for maintanance.
 
-Module Build States
--------------------
+_`Module Build States`
+----------------------
 
 You can see the list of possible states with::
 
@@ -182,3 +182,47 @@ ready
 This is a state to be set when a module is ready to be part of a
 larger compose.  perhaps it is set by an external service that knows
 about the Grand Plan.
+
+Bus messages
+============
+
+Message Topic
+-------------
+
+The suffix for message topics concerning changes in module state is
+``module.state.change``. Currently, it is expected that these messages are sent
+from koji or ridad, i.e. the topic is prefixed with ``*.buildsys.`` or
+``*.ridad.``, respectively.
+
+Message Body
+------------
+
+The message body (``msg['msg']``) is a dictionary with these fields:
+
+``state``
+~~~~~~~~~
+
+This is the current state of the module, corresponding with the states
+described above in `Module Build States`_.
+
+``variant_type``
+~~~~~~~~~~~~~~~~
+
+Modules are a type of 'Variant' in PDC, this should be set to ``module``.
+
+``variant_name``, ``variant_version``, ``variant_release``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Name, version and release of the module.
+
+``scmurl``
+~~~~~~~~~~
+
+Specifies the exact repository state from which a module is built.
+
+E.g. ``"scmurl": "git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#020ea37251df5019fde9e7899d2f7d7a987dfbf5"``
+
+``koji_tag``
+~~~~~~~~~~~~
+
+Specifies against which branch a module is built.
