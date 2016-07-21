@@ -261,7 +261,7 @@ class ComponentBuild(Base):
             # Koji is py2 only, so this fails if the main web process is
             # running on py3.
             import koji
-            retval['state_name'] = koji.BUILD_STATES[self.state]
+            retval['state_name'] = koji.BUILD_STATES.get(self.state)
         except ImportError:
             pass
 
