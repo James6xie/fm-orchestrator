@@ -46,8 +46,9 @@ import tempfile
 app = Flask(__name__)
 app.config.from_envvar("RIDA_SETTINGS", silent=True)
 
-if os.environ.get('RIDA_CONFIG') and os.path.isfile(os.environ.get('RIDA_CONFIG')):
-    conf = rida.config.from_file(os.environ.get('RIDA_CONFIG'))
+ridaconfig=os.environ.get('RIDA_CONFIG')
+if ridaconfig:
+    conf = rida.config.from_file(ridaconfig)
 else:
     conf = rida.config.from_file("rida.conf")
 rida.logger.init_logging(conf)
