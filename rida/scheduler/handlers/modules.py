@@ -52,7 +52,6 @@ def wait(config, session, msg):
     module_info = build.json()
     if module_info['state'] != rida.BUILD_STATES["wait"]:
         # XXX: not sure why did we get here from state == 2 (building) FIXTHIS
-        print("Invalid state %s for wait()" % module_info['state'])
         log.error("Invalid state %s for wait(). Msg=%s" % (module_info['state'], msg))
         return
     log.info("Found module_info=%s from message" % module_info)
@@ -81,9 +80,10 @@ def wait(config, session, msg):
     # TODO -- this has to go eventually.. otherwise, we can only build one
     # module at a time and that just won't scale.
     builder.wait_task(task_id)
+    # TODO -- do cleanup if this fails
 
     artifact = get_artifact_from_srpm(srpm)
-    builder.buildroot_add_artifacts([artifact,]) # pretty much srpm filename
+    builder.buildroot_add_artifacts([artifact,], install=True) # tag && add to srpm-build group
     builder.buildroot_ready(artifacts=[artifact,])
 
     build.transition(config, state="build")  # Wait for the buildroot to be ready.
