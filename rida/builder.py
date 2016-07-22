@@ -135,6 +135,7 @@ class GenericBuilder:
         :param artifact_name : a crucial, since we can't guess a valid srpm name
                                without having the exact buildroot (collections/macros)
                                used e.g. for whitelisting packages
+                               artifact_name is used to distinguish from artifact (e.g. package x nvr)
         :param source : a scmurl to repository with receipt (e.g. spec)
         """
         raise NotImplementedError()
@@ -181,27 +182,27 @@ class KojiModuleBuilder(GenericBuilder):
             raise ValueError("No koji_arches specified in the config.")
 
         # These eventually get populated when buildroot_{prep,resume} is called
-        self.module_tag = None
-        self.module_build_tag = None
-        self.module_target = None
+        self.module_tag = None # string
+        self.module_build_tag = None # string
+        self.module_target = None # A koji target dict
 
     def __repr__(self):
         return "<KojiModuleBuilder module: %s, tag: %s>" % (
             self.module_str, self.tag_name)
 
     def buildroot_ready(self, artifacts=None):
-        target_info = self.koji_session.getBuildTarget(self.module_target)
-        assert target_info, "Invalid build target"
+        assert self.module_target, "Invalid build target"
 
         timeout = 120 # minutes see * 60
-        tag_id = target_info['build_tag']
+        tag_id = self.module_target['build_tag']
         start = time.time()
         last_repo = None
         repo = self.koji_session.getRepo(tag_id)
+        builds = [ self.koji_session.getBuild(a) for a in artifacts or []]
 
         while True:
-            if artifacts and repo and repo != last_repo:
-                if koji.util.checkForBuilds(self.koji_session, tag_id, artifacts, repo['create_event'], latest=True):
+            if builds and repo and repo != last_repo:
+                if koji.util.checkForBuilds(self.koji_session, tag_id, builds, repo['create_event'], latest=True):
                     return
 
             if (time.time() - start) >= (timeout * 60.0):
@@ -211,7 +212,7 @@ class KojiModuleBuilder(GenericBuilder):
             last_repo = repo
             repo = self.koji_session.getRepo(tag_id)
 
-            if not artifacts:
+            if not builds:
                 if repo != last_repo:
                     return
 
@@ -389,6 +390,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macro.modules
     def build(self, artifact_name, source):
         """
         :param source : scmurl to spec repository
+        : param artifact_name: name of artifact (which we couldn't get from spec due involved macros)
         :return koji build task id
         """
         # Taken from /usr/bin/koji
@@ -472,7 +474,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macro.modules
 
 
     def _koji_create_tag(self, tag_name, arches=None, fail_if_exists=True, perm=None):
-        print ("Creating tag %s" % tag_name)
+        log.debug("Creating tag %s" % tag_name)
         chktag = self.koji_session.getTag(tag_name)
         if chktag and fail_if_exists:
             raise SystemError("Tag %s already exist" % tag_name)
