@@ -33,7 +33,7 @@ from flask import Flask, request
 import json
 import logging
 import modulemd
-import os.path
+import os
 import rida.auth
 import rida.config
 import rida.database
@@ -46,8 +46,10 @@ import tempfile
 app = Flask(__name__)
 app.config.from_envvar("RIDA_SETTINGS", silent=True)
 
-# TODO: Load the config file from environment
-conf = rida.config.from_file("rida.conf")
+if os.environ.get('RIDA_CONFIG') and os.path.isfile(os.environ.get('RIDA_CONFIG')):
+    conf = rida.config.from_file(os.environ.get('RIDA_CONFIG'))
+else:
+    conf = rida.config.from_file("rida.conf")
 rida.logger.init_logging(conf)
 
 db = rida.database.Database(conf)
