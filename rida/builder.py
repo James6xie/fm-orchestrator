@@ -363,8 +363,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macro.modules
         # TODO: import /usr/bin/koji's TaskWatcher()
         log.info("%r adding artifacts %r" % (self, artifacts))
         for nvr in artifacts:
-            # we do need taginfo dict not the string _get_tag()
-            self.koji_session.tagBuild(self._get_tag(self.module_build_tag), nvr, force=True)
+            self.koji_session.tagBuild(self._get_tag(self.module_build_tag)['id'], nvr, force=True)
 
     def wait_task(self, task_id):
         """
