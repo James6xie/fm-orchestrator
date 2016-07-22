@@ -75,7 +75,7 @@ def wait(config, session, msg):
     log.debug("Adding dependencies %s into buildroot for module %s" % (dependencies, module_info))
     builder.buildroot_add_dependency(dependencies)
     # inject dist-tag into buildroot
-    srpm = builder.get_disttag_srpm(disttag="%s" % get_rpm_release_from_tag(tag))
+    srpm = builder.get_disttag_srpm(disttag=".%s" % get_rpm_release_from_tag(tag))
     task_id = builder.build(artifact_name="module-build-macros", source=srpm)
 
     # TODO -- this has to go eventually.. otherwise, we can only build one
