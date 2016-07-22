@@ -454,21 +454,24 @@ chmod 644 %buildroot/%_rpmconfigdir/macro.modules
         :param build_tag_name
         :param groups: A dict {'group' : [package, ...]}
         """
+        log.debug("Adding groups=%s to tag=%s" % (groups.keys(), dest_tag))
 
         if groups and not isinstance(groups, dict):
             raise ValueError("Expected dict {'group' : [str(package1), ...]")
 
         dest_tag = self._get_tag(dest_tag)['name']
-        groups = dict([
+        existing_groups = dict([
             (p['name'], p['group_id'])
             for p in self.koji_session.getTagGroups(dest_tag, inherit=False)
         ])
+
         for group, packages in groups.iteritems():
-            group_id = groups.get(group, None)
+            group_id = existing_groups.get(group, None)
             if group_id is not None:
                 log.warning("Group %s already exists for tag %s" % (group, dest_tag))
                 continue
             self.koji_session.groupListAdd(dest_tag, group)
+            log.debug("Adding %d packages into group=%s tag=%s" % (len(packages), group, dest_tag))
             for pkg in packages:
                 self.koji_session.groupPackageListAdd(dest_tag, group, pkg)
 
