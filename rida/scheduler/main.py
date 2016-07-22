@@ -234,6 +234,7 @@ class Poller(threading.Thread):
                     self.outgoing_work_queue.put({
                         'topic': 'org.fedoraproject.prod.buildsys.build.state.change',
                         'msg': {
+                            'msg_id': 'a faked internal message',
                             'task_id': component_build.task_id,
                             'new': koji.BUILD_STATES['FAILED'],
                         },
