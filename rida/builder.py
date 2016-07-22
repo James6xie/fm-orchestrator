@@ -42,6 +42,7 @@ import random
 import string
 
 import munch
+from OpenSSL.SSL import SysCallError
 
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
@@ -158,6 +159,15 @@ class Builder:
         else:
             raise ValueError("Builder backend='%s' not recognized" % backend)
 
+def retry(callback, **kwargs):
+    attempt = 0
+    while True:
+        try:
+            callback(**kwargs)
+            break
+        except SysCallError:
+            attempt += 1
+            log.debug("Retry(): attempt=%d retrying callback." % attempt)
 
 class KojiModuleBuilder(GenericBuilder):
     """ Koji specific builder class """
@@ -349,7 +359,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macro.modules
 
         groups = KOJI_DEFAULT_GROUPS # TODO: read from config
         if groups:
-            self._koji_add_groups_to_tag(self.module_build_tag, groups)
+            retry(self._koji_add_groups_to_tag, dest_tag=self.module_build_tag, groups=groups)
 
         self.module_target = self._koji_add_target(self.tag_name, self.module_build_tag, self.module_tag)
         self.__prep = True
