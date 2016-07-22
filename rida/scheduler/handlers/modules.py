@@ -52,7 +52,7 @@ def init(config, session, msg):
     log.debug("Received module_info=%s from pdc" % module_info)
 
     tag = rida.pdc.get_module_tag(pdc, module_info)
-    log.info("Found tag=%s for module %s-%s-%s" % (tag, build['name'], build['version'], build['release']))
+    log.info("Found tag=%s for module %s-%s-%s" % (tag, build.name, build.version, build.release))
 
     dependencies = rida.pdc.get_module_dependencies(pdc, module_info)
     builder = rida.builder.KojiModuleBuilder(build.name, config)

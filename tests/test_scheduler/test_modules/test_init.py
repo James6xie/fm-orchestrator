@@ -35,7 +35,7 @@ class TestInit(unittest.TestCase):
 
     @mock.patch('rida.builder.KojiModuleBuilder')
     @mock.patch('rida.database.ModuleBuild.from_fedmsg')
-    @mock.patch('rida.pdc.get_pdc_client_session')
+    @mock.patch('rida.pdc')
     def test_init_basic(self, pdc, from_fedmsg, KojiModuleBuilder):
         builder = mock.Mock()
         KojiModuleBuilder.return_value = builder
@@ -45,6 +45,11 @@ class TestInit(unittest.TestCase):
             'version': 1,
         }
         from_fedmsg.return_value = mocked_module_build
+        pdc.get_module.return_value = {
+            'name': 'foo',
+            'version': 1,
+            'release': 1,
+        }
 
         msg = {
             'topic': 'org.fedoraproject.prod.rida.module.state.change',
