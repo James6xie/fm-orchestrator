@@ -57,7 +57,7 @@ def done(config, session, msg):
             component_build.scmurl,
             component_build.package,
         ))
-        log.info("Building artifact_name=%s from source=%s" % (component_build.package. component_build.scmurl))
+        log.info("Building artifact_name=%s from source=%s" % (component_build.package, component_build.scmurl))
         component_build.task_id = builder.build(
             artifact_name=component_build.package,
             source=component_build.scmurl,
