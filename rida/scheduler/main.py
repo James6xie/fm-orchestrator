@@ -165,8 +165,6 @@ class MessageWorker(threading.Thread):
             handler = self.on_repo_change
         elif '.buildsys.build.state.change' in msg['topic']:
             handler = self.on_build_change[msg['msg']['new']]
-        elif 'rida.component.state.change' in msg['topic']:
-            handler = self.on_build_change[msg['msg']['new']]
         elif '.rida.module.state.change' in msg['topic']:
             handler = self.on_module_change[module_build_state_from_msg(msg)]
         else:
