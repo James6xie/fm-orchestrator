@@ -70,8 +70,7 @@ def wait(config, session, msg):
     log.debug("Assigning koji tag=%s to module build" % tag)
     build.koji_tag = tag
 
-
-    dependencies = rida.pdc.get_module_build_dependencies(pdc_session, module_info)
+    dependencies = rida.pdc.get_module_build_dependencies(pdc_session, module_info, strict=True)
     builder = rida.builder.KojiModuleBuilder(build.name, config, tag_name=tag)
     build.buildroot_task_id = builder.buildroot_prep()
     log.debug("Adding dependencies %s into buildroot for module %s" % (dependencies, module_info))
