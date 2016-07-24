@@ -40,6 +40,7 @@ import datetime
 import time
 import random
 import string
+import kobo.rpmlib
 
 import munch
 from OpenSSL.SSL import SysCallError
@@ -123,9 +124,10 @@ class GenericBuilder:
         raise NotImplementedError()
 
     @abstractmethod
-    def buildroot_add_artifacts(self, artifacts):
+    def buildroot_add_artifacts(self, artifacts, install=False):
         """
         :param artifacts: list of artifacts to be available in buildroot
+        :param install=False: pre-install artifact in buildroot (otherwise "make it available for install")
         add artifacts into buildroot, can be used to override buildroot macros
         """
         raise NotImplementedError()
@@ -161,13 +163,14 @@ class Builder:
 
 def retry(callback, **kwargs):
     attempt = 0
+    log.debug("retry() calling %r(kwargs=%r)" % (callback, kwargs))
     while True:
         try:
             callback(**kwargs)
             break
         except SysCallError:
             attempt += 1
-            log.debug("Retry(): attempt=%d retrying callback." % attempt)
+            log.warn("retry(attempt=%d) calling %r(kwargs=%r)" % (attempt, callback, kwargs))
 
 class KojiModuleBuilder(GenericBuilder):
     """ Koji specific builder class """
@@ -259,9 +262,9 @@ It should NEVER be installed on any system as it will really mess up
 %build
 
 %install
-mkdir -p %buildroot/%_rpmconfigdir/macro.d 2>/dev/null |:
-echo %%dist %dist > %buildroot/%_rpmconfigdir/macro.modules
-chmod 644 %buildroot/%_rpmconfigdir/macro.modules
+mkdir -p %buildroot/%_rpmconfigdir/macros.d 2>/dev/null |:
+echo %%dist %dist > %buildroot/%_rpmconfigdir/macros.d/macro.modules
+chmod 644 %buildroot/%_rpmconfigdir/macros.d/macro.modules
 
 
 %files
@@ -370,11 +373,23 @@ chmod 644 %buildroot/%_rpmconfigdir/macro.modules
         log.info("%r adding deps for %r" % (self, tags))
         self._koji_add_many_tag_inheritance(self.module_build_tag, tags)
 
-    def buildroot_add_artifacts(self, artifacts):
+    def buildroot_add_artifacts(self, artifacts, install=False):
+        """
+        :param artifacts - list of artifacts to add to buildroot
+        :param install=False - force install artifact (if it's not dragged in as dependency)
+        """
         # TODO: import /usr/bin/koji's TaskWatcher()
         log.info("%r adding artifacts %r" % (self, artifacts))
+        dest_tag = self._get_tag(self.module_build_tag)['id']
         for nvr in artifacts:
-            self.koji_session.tagBuild(self._get_tag(self.module_build_tag)['id'], nvr, force=True)
+            self.koji_session.tagBuild(dest_tag, nvr, force=True)
+            if install:
+                # we usually want just srpm-build
+                for group in ('srpm-build',):
+                    pkg_info = kobo.rpmlib.parse_nvr(nvr)
+                    log.info("%r adding %s to group %s" % (self, pkg_info['name'], group))
+                    self.koji_session.groupPackageListAdd(dest_tag, group, pkg_info['name'])
+
 
     def wait_task(self, task_id):
         """
