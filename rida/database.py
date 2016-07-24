@@ -38,6 +38,8 @@ from sqlalchemy.orm import (
 )
 from sqlalchemy.ext.declarative import declarative_base
 
+import modulemd as _modulemd
+
 import rida.messaging
 
 import logging
@@ -136,6 +138,14 @@ class ModuleBuild(Base):
     koji_tag = Column(String)  # This gets set after 'wait'
 
     module = relationship('Module', backref='module_builds', lazy=False)
+
+    def mmd(self):
+        mmd = _modulemd.ModuleMetadata()
+        try:
+            mmd.loads(self.modulemd)
+        except:
+            raise ValueError("Invalid modulemd")
+        return mmd
 
     @validates('state')
     def validate_state(self, key, field):
