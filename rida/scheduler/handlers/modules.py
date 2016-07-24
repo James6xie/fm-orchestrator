@@ -49,12 +49,15 @@ def wait(config, session, msg):
     in rida.schedulers.handlers.repos.
     """
     build = rida.database.ModuleBuild.from_module_event(session, msg)
+    log.info("Found build=%r from message" % build)
+
     module_info = build.json()
-    if module_info['state'] != rida.BUILD_STATES["wait"]:
-        # XXX: not sure why did we get here from state == 2 (building) FIXTHIS
-        log.error("Invalid state %s for wait(). Msg=%s" % (module_info['state'], msg))
-        return
-    log.info("Found module_info=%s from message" % module_info)
+    if module_info['state'] != msg['msg']['state']:
+        log.warn("Note that retrieved module state %r "
+                 "doesn't match message module state %r" % (
+                     module_info['state'], msg['msg']['state']))
+        # This is ok.. it's a race condition we can ignore.
+        pass
 
     pdc_session = rida.pdc.get_pdc_client_session(config)
     tag = rida.pdc.get_module_tag(pdc_session, module_info, strict=True)
