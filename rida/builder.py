@@ -268,7 +268,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macro.modules
 
 
 %files
-%_rpmconfigdir/macro.modules
+%_rpmconfigdir/macros.d/macro.modules
 
 
 
