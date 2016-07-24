@@ -232,6 +232,7 @@ class Poller(threading.Thread):
                 if task_info['state'] in dead_states:
                     # Fake a fedmsg message on our internal queue
                     self.outgoing_work_queue.put({
+                        'msg_id': 'a faked internal message',
                         'topic': 'org.fedoraproject.prod.buildsys.build.state.change',
                         'msg': {
                             'task_id': component_build.task_id,
