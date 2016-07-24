@@ -263,12 +263,12 @@ It should NEVER be installed on any system as it will really mess up
 
 %install
 mkdir -p %buildroot/%_rpmconfigdir/macros.d 2>/dev/null |:
-echo %%dist %dist > %buildroot/%_rpmconfigdir/macros.d/macro.modules
-chmod 644 %buildroot/%_rpmconfigdir/macros.d/macro.modules
+echo %%dist %dist > %buildroot/%_rpmconfigdir/macros.d/macros.modules
+chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
 
 
 %files
-%_rpmconfigdir/macros.d/macro.modules
+%_rpmconfigdir/macros.d/macros.modules
 
 
 
