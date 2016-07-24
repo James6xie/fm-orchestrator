@@ -384,8 +384,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
         for nvr in artifacts:
             self.koji_session.tagBuild(dest_tag, nvr, force=True)
             if install:
-                # we usually want just srpm-build
-                for group in ('srpm-build',):
+                for group in ('srpm-build', 'build'):
                     pkg_info = kobo.rpmlib.parse_nvr(nvr)
                     log.info("%r adding %s to group %s" % (self, pkg_info['name'], group))
                     self.koji_session.groupPackageListAdd(dest_tag, group, pkg_info['name'])
