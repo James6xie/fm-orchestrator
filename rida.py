@@ -168,7 +168,7 @@ def query_build(id):
         if module.state != "init":
             for build in db.session.query(rida.database.ComponentBuild).filter_by(module_id=id).all():
                 tasks[build.format + "/" + build.package] = \
-                    str(build.task) + "/" + build.state
+                    str(build.task_id) + "/" + build.state
         return flask.jsonify({
             "id": module.id,
             "state": module.state,
