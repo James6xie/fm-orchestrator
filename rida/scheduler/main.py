@@ -36,7 +36,7 @@ import os
 import threading
 
 import rida.config
-import rida.logging
+import rida.logger
 import rida.messaging
 import rida.scheduler.handlers.modules
 #import rida.scheduler.handlers.builds
@@ -132,7 +132,7 @@ class Polling(threading.Thread):
 
 
 def main():
-    rida.logging.init_logging(config)
+    rida.logger.init_logging(config)
     log.info("Starting ridad.")
     try:
         messaging_thread = Messaging()
