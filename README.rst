@@ -137,8 +137,8 @@ _`Module Build States`
 
 You can see the list of possible states with::
 
-    import rida
-    print(rida.BUILD_STATES)
+    from rida.models import BUILD_STATES
+    print(BUILD_STATES)
 
 Here's a description of what each of them means:
 

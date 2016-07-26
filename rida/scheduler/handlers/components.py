@@ -26,20 +26,20 @@
 import logging
 
 import rida.builder
-import rida.database
 import rida.pdc
 
 import koji
 
+from rida import models, log
+
 logging.basicConfig(level=logging.DEBUG)
-log = logging.getLogger(__name__)
 
 
 def _finalize(config, session, msg, state):
     """ Called whenever a koji build completes or fails. """
 
     # First, find our ModuleBuild associated with this repo, if any.
-    component_build = rida.database.ComponentBuild.from_component_event(session, msg)
+    component_build = models.ComponentBuild.from_component_event(session, msg)
     nvr = "{name}-{version}-{release}".format(**msg['msg'])
     if not component_build:
         log.debug("We have no record of %s" % nvr)
@@ -55,7 +55,7 @@ def _finalize(config, session, msg, state):
     if component_build.package == 'module-build-macros':
         if state != koji.BUILD_STATES['COMPLETE']:
             # If the macro build failed, then the module is doomed.
-            parent.transition(config, state=rida.BUILD_STATES['failed'])
+            parent.transition(config, state=models.BUILD_STATES['failed'])
             session.commit()
             return
 
@@ -80,7 +80,7 @@ def _finalize(config, session, msg, state):
     # to a next batch.  This module build is doomed.
     if all([c.state != koji.BUILD_STATES['COMPLETE'] for c in current_batch]):
         # They didn't all succeed.. so mark this module build as a failure.
-        parent.transition(config, rida.BUILD_STATES['failed'])
+        parent.transition(config, models.BUILD_STATES['failed'])
         session.commit()
         return
 

@@ -21,29 +21,17 @@
 #
 # Written by Petr Šabata <contyk@redhat.com>
 #            Ralph Bean <rbean@redhat.com>
+#            Matt Prahl <mprahl@redhat.com>
 
-"""Database handler functions."""
+""" SQLAlchemy Database models for the Flask app
+"""
 
-from sqlalchemy import (
-    Column,
-    Integer,
-    String,
-    ForeignKey,
-    create_engine,
-)
-from sqlalchemy.orm import (
-    sessionmaker,
-    relationship,
-    validates,
-)
-from sqlalchemy.ext.declarative import declarative_base
+from rida import db, log
+from sqlalchemy.orm import validates
 
 import modulemd as _modulemd
 
 import rida.messaging
-
-import logging
-log = logging.getLogger(__name__)
 
 
 # Just like koji.BUILD_STATES, except our own codes for modules.
@@ -75,75 +63,33 @@ BUILD_STATES = {
 INVERSE_BUILD_STATES = {v: k for k, v in BUILD_STATES.items()}
 
 
-class RidaBase(object):
-    # TODO -- we can implement functionality here common to all our model
-    # classes.
-    pass
+class RidaBase(db.Model):
+    # TODO -- we can implement functionality here common to all our model classes
+    __abstract__ = True
 
 
-Base = declarative_base(cls=RidaBase)
-
-
-class Database(object):
-    """Class for handling database connections."""
-
-    def __init__(self, config, debug=False):
-        """Initialize the database object."""
-        self.engine = create_engine(config.db, echo=debug)
-        self._session = None  # Lazilly created..
-
-    def __enter__(self):
-        return self.session
-
-    def __exit__(self, *args, **kwargs):
-        self._session.close()
-        self._session = None
-
-    @property
-    def session(self):
-        """Database session object."""
-        if not self._session:
-            Session = sessionmaker(bind=self.engine)
-            self._session = Session()
-        return self._session
-
-    @classmethod
-    def create_tables(cls, config, debug=False):
-        """ Creates our tables in the database.
-
-        :arg config, config object with a 'db' URL attached to it.
-        ie: <engine>://<user>:<password>@<host>/<dbname>
-        :kwarg debug, a boolean specifying wether we should have the verbose
-        output of sqlalchemy or not.
-        :return a Database connection that can be used to query to db.
-        """
-        engine = create_engine(config.db, echo=debug)
-        Base.metadata.create_all(engine)
-        return cls(config, debug=debug)
-
-
-class Module(Base):
+class Module(RidaBase):
     __tablename__ = "modules"
-    name = Column(String, primary_key=True)
+    name = db.Column(db.String, primary_key=True)
 
 
-class ModuleBuild(Base):
+class ModuleBuild(RidaBase):
     __tablename__ = "module_builds"
-    id = Column(Integer, primary_key=True)
-    name = Column(String, ForeignKey('modules.name'), nullable=False)
-    version = Column(String, nullable=False)
-    release = Column(String, nullable=False)
-    state = Column(Integer, nullable=False)
-    modulemd = Column(String, nullable=False)
-    koji_tag = Column(String)  # This gets set after 'wait'
-    scmurl = Column(String)
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String, db.ForeignKey('modules.name'), nullable=False)
+    version = db.Column(db.String, nullable=False)
+    release = db.Column(db.String, nullable=False)
+    state = db.Column(db.Integer, nullable=False)
+    modulemd = db.Column(db.String, nullable=False)
+    koji_tag = db.Column(db.String)  # This gets set after 'wait'
+    scmurl = db.Column(db.String)
 
     # A monotonically increasing integer that represents which batch or
     # iteration this module is currently on for successive rebuilds of its
     # components.  Think like 'mockchain --recurse'
-    batch = Column(Integer, default=0)
+    batch = db.Column(db.Integer, default=0)
 
-    module = relationship('Module', backref='module_builds', lazy=False)
+    module = db.relationship('Module', backref='module_builds', lazy=False)
 
     def current_batch(self):
         """ Returns all components of this module in the current batch. """
@@ -212,8 +158,7 @@ class ModuleBuild(Base):
 
     @classmethod
     def by_state(cls, session, state):
-        return session.query(rida.database.ModuleBuild)\
-            .filter_by(state=BUILD_STATES[state]).all()
+        return session.query(ModuleBuild).filter_by(state=BUILD_STATES[state]).all()
 
     @classmethod
     def from_repo_done_event(cls, session, event):
@@ -253,27 +198,27 @@ class ModuleBuild(Base):
             INVERSE_BUILD_STATES[self.state], self.batch)
 
 
-class ComponentBuild(Base):
+class ComponentBuild(RidaBase):
     __tablename__ = "component_builds"
-    id = Column(Integer, primary_key=True)
-    package = Column(String, nullable=False)
-    scmurl = Column(String, nullable=False)
+    id = db.Column(db.Integer, primary_key=True)
+    package = db.Column(db.String, nullable=False)
+    scmurl = db.Column(db.String, nullable=False)
     # XXX: Consider making this a proper ENUM
-    format = Column(String, nullable=False)
-    task_id = Column(Integer)  # This is the id of the build in koji
+    format = db.Column(db.String, nullable=False)
+    task_id = db.Column(db.Integer)  # This is the id of the build in koji
     # XXX: Consider making this a proper ENUM (or an int)
-    state = Column(Integer)
+    state = db.Column(db.Integer)
     # This stays as None until the build completes.
-    nvr = Column(String)
+    nvr = db.Column(db.String)
 
     # A monotonically increasing integer that represents which batch or
     # iteration this *component* is currently in.  This relates to the owning
     # module's batch.  This one defaults to None, which means that this
     # component is not currently part of a batch.
-    batch = Column(Integer, default=0)
+    batch = db.Column(db.Integer, default=0)
 
-    module_id = Column(Integer, ForeignKey('module_builds.id'), nullable=False)
-    module_build = relationship('ModuleBuild', backref='component_builds', lazy=False)
+    module_id = db.Column(db.Integer, db.ForeignKey('module_builds.id'), nullable=False)
+    module_build = db.relationship('ModuleBuild', backref='component_builds', lazy=False)
 
     @classmethod
     def from_component_event(cls, session, event):
@@ -300,8 +245,6 @@ class ComponentBuild(Base):
             pass
 
         return retval
-
-
 
     def __repr__(self):
         return "<ComponentBuild %s, %r, state: %r, task_id: %r, batch: %r>" % (

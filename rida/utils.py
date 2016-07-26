@@ -22,10 +22,8 @@
 """ Utility functions for rida. """
 
 import functools
-import logging
 import time
-
-log = logging.getLogger(__name__)
+from rida import log
 
 
 def retry(timeout=120, interval=30, wait_on=Exception):

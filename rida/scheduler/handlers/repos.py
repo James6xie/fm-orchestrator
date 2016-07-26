@@ -24,13 +24,12 @@
 """ Handlers for repo change events on the message bus. """
 
 import rida.builder
-import rida.database
 import rida.pdc
 import logging
 import koji
+from rida import models, log
 
 logging.basicConfig(level=logging.DEBUG)
-log = logging.getLogger(__name__)
 
 
 def done(config, session, msg):
@@ -38,7 +37,7 @@ def done(config, session, msg):
 
     # First, find our ModuleBuild associated with this repo, if any.
     tag = msg['msg']['tag'].strip('-build')
-    module_build = rida.database.ModuleBuild.from_repo_done_event(session, msg)
+    module_build = models.ModuleBuild.from_repo_done_event(session, msg)
     if not module_build:
         log.info("No module build found associated with koji tag %r" % tag)
         return
@@ -46,7 +45,7 @@ def done(config, session, msg):
     # It is possible that we have already failed.. but our repo is just being
     # routinely regenerated.  Just ignore that.  If rida says the module is
     # dead, then the module is dead.
-    if module_build.state == rida.BUILD_STATES['failed']:
+    if module_build.state == models.BUILD_STATES['failed']:
         log.info("Ignoring repo regen for already failed %r" % module_build)
         return
 
@@ -71,7 +70,7 @@ def done(config, session, msg):
     # first before we ever get here.  This is here as a race condition safety
     # valve.
     if not good:
-        module_build.transition(config, rida.BUILD_STATES['failed'])
+        module_build.transition(config, models.BUILD_STATES['failed'])
         session.commit()
         log.warn("Odd!  All components in batch failed for %r." % module_build)
         return
@@ -103,7 +102,7 @@ def done(config, session, msg):
         rida.utils.start_next_build_batch(
             module_build, session, builder, components=leftover_components)
     else:
-        module_build.transition(config, state=rida.BUILD_STATES['done'])
+        module_build.transition(config, state=models.BUILD_STATES['done'])
         session.commit()
 
     # And that's it.  :)

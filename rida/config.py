@@ -25,9 +25,6 @@
 
 """Configuration handler functions."""
 
-import os.path
-import json
-
 try:
     import configparser # py3
 except ImportError:
@@ -35,6 +32,7 @@ except ImportError:
 
 import six
 
+from rida import app
 from rida import logger
 
 def asbool(value):
@@ -44,52 +42,38 @@ def asbool(value):
     ]
 
 
-def from_file(filename=None):
-    """Create the configuration instance from a file.
-
-    The file name is optional and defaults to /etc/rida/rida.conf.
-
-    :param str filename: The configuration file to load, optional.
+def from_app_config():
+    """ Create the configuration instance from the values in app.config
     """
-    if filename is None:
-        filename = "/etc/rida/rida.conf"
-    if not isinstance(filename, str):
-        raise TypeError("The configuration filename must be a string.")
-    if not os.path.isfile(filename):
-        raise IOError("The configuration file '%s' doesn't exist." % filename)
-    cp = configparser.ConfigParser(allow_no_value=True)
-    cp.read(filename)
-    default = cp.defaults()
     conf = Config()
-    conf.db = default.get("db")
-    conf.system = default.get("system")
-    conf.messaging = default.get("messaging")
-    conf.polling_interval = int(default.get("polling_interval"))
-    conf.pdc_url = default.get("pdc_url")
-    conf.pdc_insecure = default.get("pdc_insecure")
-    conf.pdc_develop = default.get("pdc_develop")
-    conf.koji_config = default.get("koji_config")
-    conf.koji_profile = default.get("koji_profile")
-    conf.koji_arches = json.loads(default.get("koji_arches"))
-    conf.scmurls = json.loads(default.get("scmurls"))
-    conf.rpms_default_repository = default.get("rpms_default_repository")
-    conf.rpms_allow_repository = asbool(default.get("rpms_allow_repository"))
-    conf.rpms_default_cache = default.get("rpms_default_cache")
-    conf.rpms_allow_cache = asbool(default.get("rpms_allow_cache"))
+    conf.db = app.config.get('DB')
+    conf.system = app.config.get('SYSTEM')
+    conf.messaging = app.config.get('MESSAGING')
+    conf.pdc_url = app.config.get('PDC_URL')
+    conf.pdc_insecure = app.config.get('PDC_INSECURE')
+    conf.pdc_develop = app.config.get('PDC_DEVELOP')
+    conf.koji_config = app.config.get('KOJI_CONFIG')
+    conf.koji_profile = app.config.get('KOJI_PROFILE')
+    conf.koji_arches = app.config.get('KOJI_ARCHES')
+    conf.scmurls = app.config.get('SCMURLS')
+    conf.rpms_default_repository = app.config.get('RPMS_DEFAULT_REPOSITORY')
+    conf.rpms_allow_repository = asbool(app.config.get('RPMS_ALLOW_REPOSITORY'))
+    conf.rpms_default_cache = app.config.get('RPMS_DEFAULT_CACHE')
+    conf.rpms_allow_cache = asbool(app.config.get('RPMS_ALLOW_CACHE'))
 
-    conf.port = default.get("port")
-    conf.host = default.get("host")
+    conf.port = app.config.get('PORT')
+    conf.host = app.config.get('HOST')
 
-    conf.ssl_enabled = asbool(default.get("ssl_enabled"))
-    conf.ssl_certificate_file = default.get("ssl_certificate_file")
-    conf.ssl_certificate_key_file = default.get("ssl_certificate_key_file")
-    conf.ssl_ca_certificate_file = default.get("ssl_ca_certificate_file")
+    conf.ssl_enabled = asbool(app.config.get('SSL_ENABLED'))
+    conf.ssl_certificate_file = app.config.get('SSL_CERTIFICATE_FILE')
+    conf.ssl_certificate_key_file = app.config.get('SSL_CERTIFICATE_KEY_FILE')
+    conf.ssl_ca_certificate_file = app.config.get('SSL_CA_CERTIFICATE_FILE')
 
-    conf.pkgdb_api_url = default.get("pkgdb_api_url")
+    conf.pkgdb_api_url = app.config.get('PKGDB_API_URL')
 
-    conf.log_backend = default.get("log_backend")
-    conf.log_file = default.get("log_file")
-    conf.log_level = default.get("log_level")
+    conf.log_backend = app.config.get('LOG_BACKEND')
+    conf.log_file = app.config.get('LOG_FILE')
+    conf.log_level = app.config.get('LOG_LEVEL')
     return conf
 
 class Config(object):

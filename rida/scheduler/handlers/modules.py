@@ -23,8 +23,8 @@
 
 """ Handlers for module change events on the message bus. """
 
+from rida import models, db, log
 import rida.builder
-import rida.database
 import rida.pdc
 import rida.utils
 
@@ -34,14 +34,15 @@ import logging
 import os
 
 logging.basicConfig(level=logging.DEBUG)
-log = logging.getLogger(__name__)
 
 
 def get_rpm_release_from_tag(tag):
     return tag.replace("-", "_")
 
+
 def get_artifact_from_srpm(srpm_path):
     return os.path.basename(srpm_path).replace(".src.rpm", "")
+
 
 def wait(config, session, msg):
     """ Called whenever a module enters the 'wait' state.
@@ -52,7 +53,7 @@ def wait(config, session, msg):
     The kicking off of individual component builds is handled elsewhere,
     in rida.schedulers.handlers.repos.
     """
-    build = rida.database.ModuleBuild.from_module_event(session, msg)
+    build = models.ModuleBuild.from_module_event(db.session, msg)
     log.info("Found build=%r from message" % build)
 
     module_info = build.json()
@@ -111,7 +112,7 @@ def wait(config, session, msg):
 
     artifact_name = "module-build-macros"
     task_id = builder.build(artifact_name=artifact_name, source=srpm)
-    component_build = rida.database.ComponentBuild(
+    component_build = models.ComponentBuild(
         module_id=build.id,
         package=artifact_name,
         format="rpms",

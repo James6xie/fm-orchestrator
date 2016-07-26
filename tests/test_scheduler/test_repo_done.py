@@ -37,7 +37,7 @@ class TestRepoDone(unittest.TestCase):
         self.session = mock.Mock()
         self.fn = rida.scheduler.handlers.repos.done
 
-    @mock.patch('rida.database.ModuleBuild.from_repo_done_event')
+    @mock.patch('rida.models.ModuleBuild.from_repo_done_event')
     def test_no_match(self, from_repo_done_event):
         """ Test that when a repo msg hits us and we have no match,
         that we do nothing gracefully.
@@ -52,7 +52,7 @@ class TestRepoDone(unittest.TestCase):
     @mock.patch('rida.builder.KojiModuleBuilder.get_session_from_config')
     @mock.patch('rida.builder.KojiModuleBuilder.build')
     @mock.patch('rida.builder.KojiModuleBuilder.buildroot_resume')
-    @mock.patch('rida.database.ModuleBuild.from_repo_done_event')
+    @mock.patch('rida.models.ModuleBuild.from_repo_done_event')
     def test_a_single_match(self, from_repo_done_event, resume, build_fn, config):
         """ Test that when a repo msg hits us and we have no match,
         that we do nothing gracefully.
