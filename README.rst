@@ -205,11 +205,6 @@ The message body (``msg['msg']``) is a dictionary with these fields:
 This is the current state of the module, corresponding with the states
 described above in `Module Build States`_.
 
-``variant_type``
-~~~~~~~~~~~~~~~~
-
-Modules are a type of 'Variant' in PDC, this should be set to ``module``.
-
 ``variant_name``, ``variant_version``, ``variant_release``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
