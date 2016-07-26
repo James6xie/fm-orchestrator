@@ -205,8 +205,8 @@ The message body (``msg['msg']``) is a dictionary with these fields:
 This is the current state of the module, corresponding with the states
 described above in `Module Build States`_.
 
-``variant_name``, ``variant_version``, ``variant_release``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``name``, ``version``, ``release``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Name, version and release of the module.
 
