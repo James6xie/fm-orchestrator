@@ -216,8 +216,3 @@ Name, version and release of the module.
 Specifies the exact repository state from which a module is built.
 
 E.g. ``"scmurl": "git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#020ea37251df5019fde9e7899d2f7d7a987dfbf5"``
-
-``koji_tag``
-~~~~~~~~~~~~
-
-Specifies against which branch a module is built.
