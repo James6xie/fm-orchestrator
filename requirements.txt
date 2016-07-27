@@ -5,5 +5,4 @@ fedmsg
 modulemd
 pyOpenSSL
 kobo
-koji
 munch

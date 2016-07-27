@@ -37,25 +37,27 @@ class TestRepoDone(unittest.TestCase):
         self.session = mock.Mock()
         self.fn = rida.scheduler.handlers.repos.done
 
-    @mock.patch('rida.database.ModuleBuild.get_active_by_koji_tag')
-    def test_no_match(self, get_active_by_koji_tag):
+    @mock.patch('rida.database.ModuleBuild.from_repo_done_event')
+    def test_no_match(self, from_repo_done_event):
         """ Test that when a repo msg hits us and we have no match,
         that we do nothing gracefully.
         """
-        get_active_by_koji_tag.return_value = None
+        from_repo_done_event.return_value = None
         msg = {
             'topic': 'org.fedoraproject.prod.buildsys.repo.done',
             'msg': {'tag': 'no matches for this...'},
         }
         self.fn(config=self.config, session=self.session, msg=msg)
 
+    @mock.patch('rida.builder.KojiModuleBuilder.get_session_from_config')
     @mock.patch('rida.builder.KojiModuleBuilder.build')
     @mock.patch('rida.builder.KojiModuleBuilder.buildroot_resume')
-    @mock.patch('rida.database.ModuleBuild.get_active_by_koji_tag')
-    def test_a_single_match(self, get_active_by_koji_tag, resume, build_fn):
+    @mock.patch('rida.database.ModuleBuild.from_repo_done_event')
+    def test_a_single_match(self, from_repo_done_event, resume, build_fn, config):
         """ Test that when a repo msg hits us and we have no match,
         that we do nothing gracefully.
         """
+        config.return_value = mock.Mock(), "development"
         component_build = mock.Mock()
         component_build.package = 'foo'
         component_build.scmurl = 'full_scm_url'
@@ -63,10 +65,10 @@ class TestRepoDone(unittest.TestCase):
         module_build = mock.Mock()
         module_build.component_builds = [component_build]
 
-        get_active_by_koji_tag.return_value = module_build
+        from_repo_done_event.return_value = module_build
         msg = {
             'topic': 'org.fedoraproject.prod.buildsys.repo.done',
             'msg': {'tag': 'no matches for this...'},
         }
         self.fn(config=self.config, session=self.session, msg=msg)
-        build_fn.assert_called_once_with('TODO', 'full_scm_url')
+        build_fn.assert_called_once_with(artifact_name='foo', source='full_scm_url')

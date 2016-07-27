@@ -61,7 +61,7 @@ def wait(config, session, msg):
 
     pdc_session = rida.pdc.get_pdc_client_session(config)
     tag = rida.pdc.get_module_tag(pdc_session, module_info, strict=True)
-    log.debug("Found tag=%s for module %r" % (tag, build))
+    log.info("Found tag=%s for module %r" % (tag, build))
 
     # Hang on to this information for later.  We need to know which build is
     # associated with which koji tag, so that when their repos are regenerated
