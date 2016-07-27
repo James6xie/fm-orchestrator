@@ -68,7 +68,7 @@ def get_variant_dict(data):
         return isinstance(data, modulemd.ModuleMetadata)
 
     def is_module_str(data):
-        return isinstance(data, str)
+        return isinstance(data, str) or isinstance(data, unicode)
 
     result = None
 
@@ -88,13 +88,12 @@ def get_variant_dict(data):
             result['variant_release'] = '0'
 
     elif is_module_dict(data):
-        result = {'variant_name': data['name'], 'variant_version': data['version']}
+        result = {'variant_name': data['name'], 'variant_version': data['version'], 'variant_release': data['release']}
 
     if not result:
         raise ValueError("Couldn't get variant_dict from %s" % data)
 
     return result
-
 
 
 def variant_dict_from_str(module_str):
@@ -108,38 +107,58 @@ def variant_dict_from_str(module_str):
 
     module_info = {}
 
-    module_info['variant_name'] = module_str[:module_str.find('-')]
-    module_info['variant_version'] = module_str[module_str.find('-')+1:]
+
+    release_start = module_str.rfind('-')
+    version_start = module_str.rfind('-', 0, release_start)
+    module_info['variant_release'] = module_str[release_start+1:]
+    module_info['variant_version'] = module_str[version_start+1:release_start]
+    module_info['variant_name'] = module_str[:version_start]
     module_info['variant_type'] = 'module'
 
     return module_info
 
-def get_module(session, module_info):
+def get_module(session, module_info, strict=False):
     """
     :param session : PDCClient instance
     :param module_info: pdc variant_dict, str, mmd or module dict
+    :param strict: Normally this function returns None if no module can be
+           found.  If strict=True, then a ValueError is raised.
+
     :return final list of module_info which pass repoclosure
     """
 
     module_info = get_variant_dict(module_info)
+    retval = session['unreleasedvariants'](page_size=-1,
+                variant_name=module_info['variant_name'],
+                variant_version=module_info['variant_version'],
+                variant_release=module_info['variant_release'])
+    assert len(retval) <= 1
 
-    module_info = session['unreleasedvariants'](page_size=-1, **module_info)
-    assert len(module_info) <= 1
+    # Error handling
+    if not retval:
+        if strict:
+            raise ValueError("Failed to find module in PDC %r" % module_info)
+        else:
+            return None
 
-    if not module_info:
-        return None
+    return retval[0]
 
-    return module_info[0]
-
-def get_module_tag(session, module_info):
+def get_module_tag(session, module_info, strict=False):
     """
     :param session : PDCClient instance
     :param module_info: list of module_info dicts
+    :param strict: Normally this function returns None if no module can be
+           found.  If strict=True, then a ValueError is raised.
     :return: koji tag string
     """
-    return get_module(session, module_info)['koji_tag']
+    # TODO -- get this from PDC some day... for now, we're just going to
+    # construct the module tag name from the module attrs we already know
+    # about.
+    #return get_module(session, module_info, strict=strict)['koji_tag']
+    variant_data = get_variant_dict(module_info)
+    return "{variant_name}-{variant_version}-{variant_release}".format(**variant_data)
 
-def module_depsolving_wrapper(session, module_list):
+def module_depsolving_wrapper(session, module_list, strict=True):
     """
     :param session : PDCClient instance
     :param module_list: list of module_info dicts
@@ -148,31 +167,49 @@ def module_depsolving_wrapper(session, module_list):
     # TODO: implement this
 
     # Make sure that these are dicts from PDC ... ensures all values
-    module_infos = [get_module(session, module) for module in module_list]
+    module_list = set([get_module_tag(session, x, strict) for x in module_list])
+    seen = set() # don't query pdc for the same items all over again
 
-    return module_infos
+    while True:
+        if seen == module_list:
+                break
 
-def get_module_dependencies(session, module_info):
+        for module in module_list:
+            if module in seen:
+                continue
+            info = get_module(session, module, strict)
+            assert info, "Module '%s' not found in PDC" % module
+            module_list.update([x['dependency'] for x in info['build_deps']])
+            seen.add(module)
+            module_list.update(info['build_deps'])
+
+    return list(module_list)
+
+def get_module_runtime_dependencies(session, module_info, strict=False):
     """
     :param session : PDCClient instance
     :param module_infos : a dict containing filters for pdc
+    :param strict: Normally this function returns None if no module can be
+           found.  If strict=True, then a ValueError is raised.
 
     Example minimal module_info {'variant_name': module_name, 'variant_version': module_version, 'variant_type': 'module'}
     """
     # XXX get definitive list of modules
 
     deps = []
-    module_info = get_module(session, module_info)
-    if module_info.get('runtime_deps'):
+    module_info = get_module(session, module_info, strict=strict)
+    if module_info and module_info.get('runtime_deps', None):
         deps = [x['dependency'] for x in module_info['runtime_deps']]
-        deps = module_depsolving_wrapper(session, deps)
+        deps = module_depsolving_wrapper(session, deps, strict=strict)
 
     return deps
 
-def get_module_build_dependencies(session, module_info):
+def get_module_build_dependencies(session, module_info, strict=False):
     """
     :param session : PDCClient instance
     :param module_info : a dict containing filters for pdc
+    :param strict: Normally this function returns None if no module can be
+           found.  If strict=True, then a ValueError is raised.
     :return final list of module_infos which pass repoclosure
 
     Example minimal module_info {'variant_name': module_name, 'variant_version': module_version, 'variant_type': 'module'}
@@ -180,9 +217,9 @@ def get_module_build_dependencies(session, module_info):
     # XXX get definitive list of modules
 
     deps = []
-    module_info = get_module(session, module_info)
-    if module_info.get('build_deps'):
+    module_info = get_module(session, module_info, strict=strict)
+    if module_info and module_info.get('build_deps', None):
         deps = [x['dependency'] for x in module_info['build_deps']]
-        deps = module_depsolving_wrapper(session, deps)
+        deps = module_depsolving_wrapper(session, deps, strict=strict)
 
     return deps

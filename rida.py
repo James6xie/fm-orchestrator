@@ -1,7 +1,5 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
-
-
 # Copyright (c) 2016  Red Hat, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -30,6 +28,7 @@ This is the implementation of the orchestrator's public RESTful API.
 """
 
 from flask import Flask, request
+import flask
 import json
 import logging
 import modulemd
@@ -38,9 +37,9 @@ import rida.auth
 import rida.config
 import rida.database
 import rida.logger
-import rida.messaging
 import rida.scm
 import ssl
+import shutil
 import tempfile
 
 app = Flask(__name__)
@@ -52,6 +51,8 @@ if ridaconfig:
 else:
     conf = rida.config.from_file("rida.conf")
 rida.logger.init_logging(conf)
+
+log = logging.getLogger(__name__)
 
 db = rida.database.Database(conf)
 
@@ -80,13 +81,12 @@ def submit_build():
         return "The submitted scmurl isn't allowed", 403
     yaml = str()
     try:
+        td = tempfile.mkdtemp()
         scm = rida.scm.SCM(url, conf.scmurls)
-        td = tempfile.TemporaryDirectory()
-        cod = scm.checkout(td.name)
+        cod = scm.checkout(td)
         cofn = os.path.join(cod, (scm.name + ".yaml"))
         with open(cofn, "r") as mmdfile:
             yaml = mmdfile.read()
-        td.cleanup()
     except Exception as e:
         if "is not in the list of allowed SCMs" in str(e):
             rc = 403
@@ -95,6 +95,8 @@ def submit_build():
         else:
             rc = 500
         return str(e), rc
+    finally:
+        shutil.rmtree(td)
     mmd = modulemd.ModuleMetadata()
     try:
         mmd.loads(yaml)
@@ -103,15 +105,28 @@ def submit_build():
     if db.session.query(rida.database.ModuleBuild).filter_by(name=mmd.name,
         version=mmd.version, release=mmd.release).first():
         return "Module already exists", 409
-    module = rida.database.ModuleBuild(name=mmd.name, version=mmd.version,
-            release=mmd.release, state="init", modulemd=yaml)
-    db.session.add(module)
-    db.session.commit()
+    module = rida.database.ModuleBuild.create(
+        db.session,
+        conf,
+        name=mmd.name,
+        version=mmd.version,
+        release=mmd.release,
+        modulemd=yaml,
+    )
+
+    def failure(message, code):
+        # TODO, we should make some note of why it failed in the db..
+        log.exception(message)
+        module.transition(conf, rida.database.BUILD_STATES["failed"])
+        db.session.add(module)
+        db.session.commit()
+        return message, code
+
     for pkgname, pkg in mmd.components.rpms.packages.items():
         if pkg.get("repository") and not conf.rpms_allow_repository:
-            return "Custom component repositories aren't allowed", 403
+            return failure("Custom component repositories aren't allowed", 403)
         if pkg.get("cache") and not conf.rpms_allow_cache:
-            return "Custom component caches aren't allowed", 403
+            return failure("Custom component caches aren't allowed", 403)
         if not pkg.get("repository"):
             pkg["repository"] = conf.rpms_default_repository + pkgname
         if not pkg.get("cache"):
@@ -120,32 +135,30 @@ def submit_build():
             try:
                 pkg["commit"] = rida.scm.SCM(pkg["repository"]).get_latest()
             except Exception as e:
-                return "Failed to get the latest commit: %s" % pkgname, 422
-        if not rida.scm.SCM(pkg["repository"] + "?#" + pkg["commit"]).is_available():
-            return "Cannot checkout %s" % pkgname, 422
-        build = rida.database.ComponentBuild(module_id=module.id, package=pkgname, format="rpms")
+                return failure("Failed to get the latest commit: %s" % pkgname, 422)
+        full_url = pkg["repository"] + "?#" + pkg["commit"]
+        if not rida.scm.SCM(full_url).is_available():
+            return failure("Cannot checkout %s" % pkgname, 422)
+        build = rida.database.ComponentBuild(
+            module_id=module.id,
+            package=pkgname,
+            format="rpms",
+            scmurl=full_url,
+        )
         db.session.add(build)
     module.modulemd = mmd.dumps()
-    module.state = rida.database.BUILD_STATES["wait"]
+    module.transition(conf, rida.database.BUILD_STATES["wait"])
     db.session.add(module)
     db.session.commit()
-    # Publish to whatever bus we're configured to connect to.
-    # This should notify ridad to start doing the work we just scheduled.
-    rida.messaging.publish(
-        modname='rida',
-        topic='module.state.change',
-        msg=module.json(),
-        backend=conf.messaging,
-    )
     logging.info("%s submitted build of %s-%s-%s", username, mmd.name,
             mmd.version, mmd.release)
-    return json.dumps(module.json()), 201
+    return flask.jsonify(module.json()), 201
 
 
 @app.route("/rida/module-builds/", methods=["GET"])
 def query_builds():
     """Lists all tracked module builds."""
-    return json.dumps([{"id": x.id, "state": x.state}
+    return flask.jsonify([{"id": x.id, "state": x.state}
         for x in db.session.query(rida.database.ModuleBuild).all()]), 200
 
 
@@ -158,8 +171,8 @@ def query_build(id):
         if module.state != "init":
             for build in db.session.query(rida.database.ComponentBuild).filter_by(module_id=id).all():
                 tasks[build.format + "/" + build.package] = \
-                    str(build.task) + "/" + build.state
-        return json.dumps({
+                    str(build.task_id) + "/" + build.state
+        return flask.jsonify({
             "id": module.id,
             "state": module.state,
             "tasks": tasks

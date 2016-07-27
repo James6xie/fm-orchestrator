@@ -38,6 +38,13 @@ from sqlalchemy.orm import (
 )
 from sqlalchemy.ext.declarative import declarative_base
 
+import modulemd as _modulemd
+
+import rida.messaging
+
+import logging
+log = logging.getLogger(__name__)
+
 
 # Just like koji.BUILD_STATES, except our own codes for modules.
 BUILD_STATES = {
@@ -64,6 +71,8 @@ BUILD_STATES = {
     # about the Grand Plan.
     "ready": 5,
 }
+
+INVERSE_BUILD_STATES = {v: k for k, v in BUILD_STATES.items()}
 
 
 class RidaBase(object):
@@ -126,8 +135,17 @@ class ModuleBuild(Base):
     release = Column(String, nullable=False)
     state = Column(Integer, nullable=False)
     modulemd = Column(String, nullable=False)
+    koji_tag = Column(String)  # This gets set after 'wait'
 
     module = relationship('Module', backref='module_builds', lazy=False)
+
+    def mmd(self):
+        mmd = _modulemd.ModuleMetadata()
+        try:
+            mmd.loads(self.modulemd)
+        except:
+            raise ValueError("Invalid modulemd")
+        return mmd
 
     @validates('state')
     def validate_state(self, key, field):
@@ -138,10 +156,64 @@ class ModuleBuild(Base):
         raise ValueError("%s: %s, not in %r" % (key, field, BUILD_STATES))
 
     @classmethod
-    def from_fedmsg(cls, session, msg):
-        if '.module.' not in msg['topic']:
-            raise ValueError("%r is not a module message." % msg['topic'])
-        return session.query(cls).filter(cls.id==msg['msg']['id']).one()
+    def from_module_event(cls, session, event):
+        if '.module.' not in event['topic']:
+            raise ValueError("%r is not a module message." % event['topic'])
+        return session.query(cls).filter(cls.id==event['msg']['id']).first()
+
+    @classmethod
+    def create(cls, session, conf, name, version, release, modulemd):
+        module = cls(
+            name=name,
+            version=version,
+            release=release,
+            state="init",
+            modulemd=modulemd,
+        )
+        session.add(module)
+        session.commit()
+        rida.messaging.publish(
+            modname='rida',
+            topic='module.state.change',
+            msg=module.json(),  # Note the state is "init" here...
+            backend=conf.messaging,
+        )
+        return module
+
+    def transition(self, conf, state):
+        """ Record that a build has transitioned state. """
+        old_state = self.state
+        self.state = state
+        log.debug("%r, state %r->%r" % (self, old_state, self.state))
+        rida.messaging.publish(
+            modname='rida',
+            topic='module.state.change',
+            msg=self.json(),  # Note the state is "init" here...
+            backend=conf.messaging,
+        )
+
+    @classmethod
+    def by_state(cls, session, state):
+        return session.query(rida.database.ModuleBuild)\
+            .filter_by(state=BUILD_STATES[state]).all()
+
+    @classmethod
+    def from_repo_done_event(cls, session, event):
+        """ Find the ModuleBuilds in our database that should be in-flight...
+        ... for a given koji tag.
+
+        There should be at most one.
+        """
+        tag = event['msg']['tag'].strip('-build')
+        query = session.query(cls)\
+            .filter(cls.koji_tag==tag)\
+            .filter(cls.state==BUILD_STATES["build"])
+
+        count = query.count()
+        if count > 1:
+            raise RuntimeError("%r module builds in flight for %r" % (count, tag))
+
+        return query.first()
 
     def json(self):
         return {
@@ -150,6 +222,7 @@ class ModuleBuild(Base):
             'version': self.version,
             'release': self.release,
             'state': self.state,
+            'state_name': INVERSE_BUILD_STATES[self.state],
 
             # This is too spammy..
             #'modulemd': self.modulemd,
@@ -158,26 +231,54 @@ class ModuleBuild(Base):
             'component_builds': [build.id for build in self.component_builds],
         }
 
+    def __repr__(self):
+        return "<ModuleBuild %s-%s-%s, state %r>" % (
+            self.name, self.version, self.release,
+            INVERSE_BUILD_STATES[self.state])
+
 
 class ComponentBuild(Base):
     __tablename__ = "component_builds"
     id = Column(Integer, primary_key=True)
     package = Column(String, nullable=False)
+    scmurl = Column(String, nullable=False)
     # XXX: Consider making this a proper ENUM
     format = Column(String, nullable=False)
-    task = Column(Integer)
+    task_id = Column(Integer)  # This is the id of the build in koji
     # XXX: Consider making this a proper ENUM (or an int)
-    state = Column(String)
+    state = Column(Integer)
 
     module_id = Column(Integer, ForeignKey('module_builds.id'), nullable=False)
     module_build = relationship('ModuleBuild', backref='component_builds', lazy=False)
 
+    @classmethod
+    def from_component_event(cls, session, event):
+        if 'component.state.change' not in event['topic'] and '.buildsys.build.state.change' not in event['topic']:
+            raise ValueError("%r is not a koji message." % event['topic'])
+        return session.query(cls).filter(cls.task_id==event['msg']['task_id']).first()
+
     def json(self):
-        return {
+        retval = {
             'id': self.id,
             'package': self.package,
             'format': self.format,
-            'task': self.task,
+            'task_id': self.task_id,
             'state': self.state,
-            'module_build': self.module_build.id,
+            'module_build': self.module_id,
         }
+
+        try:
+            # Koji is py2 only, so this fails if the main web process is
+            # running on py3.
+            import koji
+            retval['state_name'] = koji.BUILD_STATES.get(self.state)
+        except ImportError:
+            pass
+
+        return retval
+
+
+
+    def __repr__(self):
+        return "<ComponentBuild %s of %r, state: %r, task_id: %r>" % (
+            self.package, self.module_id, self.state, self.task_id)

@@ -26,35 +26,34 @@ import mock
 import rida.scheduler.handlers.modules
 
 
-class TestInit(unittest.TestCase):
+class TestModuleWait(unittest.TestCase):
 
     def setUp(self):
         self.config = mock.Mock()
         self.session = mock.Mock()
-        self.fn = rida.scheduler.handlers.modules.init
+        self.fn = rida.scheduler.handlers.modules.wait
 
     @mock.patch('rida.builder.KojiModuleBuilder')
-    @mock.patch('rida.database.ModuleBuild.from_fedmsg')
+    @mock.patch('rida.database.ModuleBuild.from_module_event')
     @mock.patch('rida.pdc')
-    def test_init_basic(self, pdc, from_fedmsg, KojiModuleBuilder):
+    def test_init_basic(self, pdc, from_module_event, KojiModuleBuilder):
         builder = mock.Mock()
+        builder.get_disttag_srpm.return_value = 'some srpm disttag'
         KojiModuleBuilder.return_value = builder
         mocked_module_build = mock.Mock()
-        mocked_module_build.to_pdc_module_info.return_value = {
-            'name': 'foo',
-            'version': 1,
-        }
-        from_fedmsg.return_value = mocked_module_build
-        pdc.get_module.return_value = {
+        mocked_module_build.json.return_value = {
             'name': 'foo',
             'version': 1,
             'release': 1,
+            'state': 'some state',
         }
+        from_module_event.return_value = mocked_module_build
 
         msg = {
             'topic': 'org.fedoraproject.prod.rida.module.state.change',
             'msg': {
                 'id': 1,
+                'state': 'some state',
             },
         }
         self.fn(config=self.config, session=self.session, msg=msg)

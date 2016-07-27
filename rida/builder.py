@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-
-
 # Copyright (c) 2016  Red Hat, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -30,9 +28,25 @@
 #       their tag names.
 # TODO: Ensure the RPM %dist tag is set according to the policy.
 
-import koji
 from abc import ABCMeta, abstractmethod
+import logging
+import os
+
 from kobo.shortcuts import run
+import koji
+import tempfile
+import glob
+import datetime
+import time
+import random
+import string
+import kobo.rpmlib
+
+import munch
+from OpenSSL.SSL import SysCallError
+
+logging.basicConfig(level=logging.DEBUG)
+log = logging.getLogger(__name__)
 
 # TODO: read defaults from rida's config
 KOJI_DEFAULT_GROUPS = {
@@ -94,6 +108,14 @@ class GenericBuilder:
         raise NotImplementedError()
 
     @abstractmethod
+    def buildroot_ready(self, artifacts=None):
+        """
+        :param artifacts=None : a list of artifacts supposed to be in buildroot
+        return when buildroot is ready (or contain specified artifact)
+        """
+        raise NotImplementedError()
+
+    @abstractmethod
     def buildroot_add_dependency(self, dependencies):
         """
         :param dependencies: a list off modules which we build-depend on
@@ -102,25 +124,21 @@ class GenericBuilder:
         raise NotImplementedError()
 
     @abstractmethod
-    def buildroot_add_artifacts(self, artifacts):
+    def buildroot_add_artifacts(self, artifacts, install=False):
         """
         :param artifacts: list of artifacts to be available in buildroot
+        :param install=False: pre-install artifact in buildroot (otherwise "make it available for install")
         add artifacts into buildroot, can be used to override buildroot macros
-        """
-        raise NotImplementedError()
-
-    @abstractmethod
-    def buildroot_ready(self, artifact=None):
-        """
-        :param artifact=None: wait for specific artifact to be present
-        waits for buildroot to be ready and contain given artifact
         """
         raise NotImplementedError()
 
     @abstractmethod
     def build(self, artifact_name, source):
         """
-        :param artifact_name : name of what are we building (used for whitelists)
+        :param artifact_name : a crucial, since we can't guess a valid srpm name
+                               without having the exact buildroot (collections/macros)
+                               used e.g. for whitelisting packages
+                               artifact_name is used to distinguish from artifact (e.g. package x nvr)
         :param source : a scmurl to repository with receipt (e.g. spec)
         """
         raise NotImplementedError()
@@ -128,119 +146,303 @@ class GenericBuilder:
 class Builder:
     """Wrapper class"""
 
-    def __new__(cls, module, backend, config):
+    def __new__(cls, module, backend, config, **extra):
         """
         :param module : a module string e.g. 'testmodule-1.0'
         :param backend: a string representing backend e.g. 'koji'
         :param config: instance of rida.config.Config
+
+        Any additional arguments are optional extras which can be passed along
+        and are implementation-dependent.
         """
 
         if backend == "koji":
-            return KojiModuleBuilder(module=module, config=config)
+            return KojiModuleBuilder(module=module, config=config, **extra)
         else:
             raise ValueError("Builder backend='%s' not recognized" % backend)
+
+def retry(callback, **kwargs):
+    attempt = 0
+    log.debug("retry() calling %r(kwargs=%r)" % (callback, kwargs))
+    while True:
+        try:
+            callback(**kwargs)
+            break
+        except SysCallError:
+            attempt += 1
+            log.warn("retry(attempt=%d) calling %r(kwargs=%r)" % (attempt, callback, kwargs))
 
 class KojiModuleBuilder(GenericBuilder):
     """ Koji specific builder class """
 
     backend = "koji"
 
-    def __init__(self, module, config):
+    def __init__(self, module, config, tag_name):
         """
-        :param koji_profile: koji profile to be used
+        :param module: string representing module
+        :param config: rida.config.Config instance
+        :param tag_name: name of tag for given module
         """
         self.module_str = module
+        self.tag_name = tag_name
         self.__prep = False
-        self._koji_profile_name = config.koji_profile
-        self.koji_module = koji.get_profile_module(self._koji_profile_name)
-        opts = {}
+        log.debug("Using koji profile %r" % config.koji_profile)
+        log.debug ("Using koji_config: %s" % config.koji_config)
 
-        krbservice = getattr(self.koji_module.config, "krbservice", None)
-        if krbservice:
-            opts["krbservice"] = krbservice
-
-        self.koji_session = koji.ClientSession(self.koji_module.config.server, opts=opts)
-
-        if self.koji_module.config.authtype == "kerberos":
-            keytab = getattr(self.koji_module.config, "keytab", None)
-            principal = getattr(self.koji_module.config, "principal", None)
-            if keytab and principal:
-                self.koji_session.krb_login(principal=principal, keytab=keytab, proxyuser=None)
-            else:
-                self.koji_session.krb_login()
-
-        elif self.koji_module.config.authtype == "ssl":
-            self.koji_session.ssl_login(self.koji_module.config.cert, None, self.koji_module.serverca, proxyuser=None)
-
+        self.koji_session, self.koji_module = self.get_session_from_config(config)
         self.arches = config.koji_arches
+        if not self.arches:
+            raise ValueError("No koji_arches specified in the config.")
 
-        self.module_tag = self._get_module_tag_name()
-        self.module_build_tag = self._get_module_build_tag_name()
-        self.module_target = self._get_module_target_name()
+        # These eventually get populated when buildroot_{prep,resume} is called
+        self.module_tag = None # string
+        self.module_build_tag = None # string
+        self.module_target = None # A koji target dict
+
+    def __repr__(self):
+        return "<KojiModuleBuilder module: %s, tag: %s>" % (
+            self.module_str, self.tag_name)
+
+    def buildroot_ready(self, artifacts=None):
+        assert self.module_target, "Invalid build target"
+
+        timeout = 120 # minutes see * 60
+        tag_id = self.module_target['build_tag']
+        start = time.time()
+        last_repo = None
+        repo = self.koji_session.getRepo(tag_id)
+        builds = [ self.koji_session.getBuild(a) for a in artifacts or []]
+
+        while True:
+            if builds and repo and repo != last_repo:
+                if koji.util.checkForBuilds(self.koji_session, tag_id, builds, repo['create_event'], latest=True):
+                    return
+
+            if (time.time() - start) >= (timeout * 60.0):
+                return 1
+
+            time.sleep(60)
+            last_repo = repo
+            repo = self.koji_session.getRepo(tag_id)
+
+            if not builds:
+                if repo != last_repo:
+                    return
+
+    @staticmethod
+    def get_disttag_srpm(disttag):
+
+        #Taken from Karsten's create-distmacro-pkg.sh
+        # - however removed any provides to system-release/redhat-release
+
+        name = 'module-build-macros'
+        version = "0.1"
+        release = "1"
+        today = datetime.date.today().strftime('%a %b %d %Y')
+
+        spec_content = """%global dist {disttag}
+Name:       {name}
+Version:    {version}
+Release:    {release}%dist
+Summary:    Package containing macros required to build generic module
+BuildArch:  noarch
+
+Group:      System Environment/Base
+License:    MIT
+URL:        http://fedoraproject.org
+
+%description
+This package is used for building modules with a different dist tag.
+It provides a file /usr/lib/rpm/macros.d/macro.modules and gets read
+after macro.dist, thus overwriting macros of macro.dist like %%dist
+It should NEVER be installed on any system as it will really mess up
+ updates, builds, ....
+
+
+%build
+
+%install
+mkdir -p %buildroot/%_rpmconfigdir/macros.d 2>/dev/null |:
+echo %%dist %dist > %buildroot/%_rpmconfigdir/macros.d/macros.modules
+chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
+
+
+%files
+%_rpmconfigdir/macros.d/macros.modules
+
+
+
+%changelog
+* {today} Fedora-Modularity - {version}-{release}{disttag}
+- autogenerated macro by Rida "The Orchestrator"
+""".format(disttag=disttag, today=today, name=name, version=version, release=release)
+        td = tempfile.mkdtemp(prefix="rida-build-macros")
+        fd = open(os.path.join(td, "%s.spec" % name), "w")
+        fd.write(spec_content)
+        fd.close()
+        log.debug("Building %s.spec" % name)
+        ret, out = run('rpmbuild -bs %s.spec --define "_topdir %s"' % (name, td), workdir=td)
+        sdir = os.path.join(td, "SRPMS")
+        srpm_paths = glob.glob("%s/*.src.rpm" % sdir)
+        assert len(srpm_paths) == 1, "Expected exactly 1 srpm in %s. Got %s" % (sdir, srpm_paths)
+
+        log.debug("Wrote srpm into %s" % srpm_paths[0])
+        return srpm_paths[0]
+
+    @staticmethod
+    def get_session_from_config(config):
+        koji_config = munch.Munch(koji.read_config(
+            profile_name=config.koji_profile,
+            user_config=config.koji_config,
+        ))
+        koji_module = koji.get_profile_module(
+            config.koji_profile,
+            config=koji_config,
+        )
+
+        krbservice = getattr(koji_config, "krbservice", None)
+        if krbservice:
+            koji_config.krbservice = krbservice
+
+        address = koji_config.server
+        log.info("Connecting to koji %r" % address)
+        koji_session = koji.ClientSession(address, opts=vars(koji_config))
+
+        authtype = koji_config.authtype
+        if authtype == "kerberos":
+            keytab = getattr(koji_config, "keytab", None)
+            principal = getattr(koji_config, "principal", None)
+            if keytab and principal:
+                koji_session.krb_login(
+                    principal=principal,
+                    keytab=keytab,
+                    proxyuser=None,
+                )
+            else:
+                koji_session.krb_login()
+        elif authtype == "ssl":
+            koji_session.ssl_login(
+                os.path.expanduser(koji_config.cert),
+                None,
+                os.path.expanduser(koji_config.serverca),
+                proxyuser=None,
+            )
+        else:
+            raise ValueError("Unrecognized koji authtype %r" % authtype)
+        return (koji_session, koji_module)
 
     def buildroot_resume(self): # XXX: experimental
         """
         Resume existing buildroot. Sets __prep=True
         """
-        chktag = self.koji_session.getTag(self._get_module_tag_name())
+        chktag = self.koji_session.getTag(self.tag_name)
         if not chktag:
-            raise SystemError("Tag %s doesn't exist" % self._get_module_tag_name())
-        chkbuildtag = self.koji_session.getTag(self._get_module_build_tag_name())
+            raise SystemError("Tag %s doesn't exist" % self.tag_name)
+        chkbuildtag = self.koji_session.getTag(self.tag_name + "-build")
         if not chkbuildtag:
-            raise SystemError("Build Tag %s doesn't exist" % self._get_module_build_tag_name())
-        chktarget = self.koji_session.getBuildTarget(self._get_module_target_name())
+            raise SystemError("Build Tag %s doesn't exist" % self.tag_name + "-build")
+        chktarget = self.koji_session.getBuildTarget(self.tag_name)
         if not chktarget:
-            raise SystemError("Target %s doesn't exist" % self._get_module_target_name())
+            raise SystemError("Target %s doesn't exist" % self.tag_name)
         self.module_tag = chktag
         self.module_build_tag = chkbuildtag
         self.module_target = chktarget
         self.__prep = True
+        log.info("%r buildroot resumed." % self)
 
     def buildroot_prep(self):
         """
         :param module_deps_tags: a tag names of our build requires
         :param module_deps_tags: a tag names of our build requires
         """
-        self.module_tag = self._koji_create_tag(self._get_module_tag_name(), perm="admin") # returns tag obj
-        self.module_build_tag = self._koji_create_tag(self._get_module_build_tag_name(), self.arches, perm="admin")
+        self.module_tag = self._koji_create_tag(
+            self.tag_name, perm="admin") # returns tag obj
+        self.module_build_tag = self._koji_create_tag(
+            self.tag_name + "-build", self.arches, perm="admin")
 
         groups = KOJI_DEFAULT_GROUPS # TODO: read from config
         if groups:
-            self._koji_add_groups_to_tag(self.module_build_tag, groups)
+            retry(self._koji_add_groups_to_tag, dest_tag=self.module_build_tag, groups=groups)
 
-        self.module_target = self._koji_add_target(self._get_module_target_name(), self.module_build_tag, self.module_tag)
+        self.module_target = self._koji_add_target(self.tag_name, self.module_build_tag, self.module_tag)
         self.__prep = True
+        log.info("%r buildroot prepared." % self)
 
     def buildroot_add_dependency(self, dependencies):
         tags = [self._get_tag(d)['name'] for d in dependencies]
+        log.info("%r adding deps for %r" % (self, tags))
         self._koji_add_many_tag_inheritance(self.module_build_tag, tags)
 
-    def buildroot_add_artifacts(self, artifacts):
+    def buildroot_add_artifacts(self, artifacts, install=False):
+        """
+        :param artifacts - list of artifacts to add to buildroot
+        :param install=False - force install artifact (if it's not dragged in as dependency)
+        """
         # TODO: import /usr/bin/koji's TaskWatcher()
+        log.info("%r adding artifacts %r" % (self, artifacts))
+        dest_tag = self._get_tag(self.module_build_tag)['id']
         for nvr in artifacts:
-            self.koji_session.tagBuild(self.module_build_tag, nvr, force=True)
+            self.koji_session.tagBuild(dest_tag, nvr, force=True)
+            if install:
+                for group in ('srpm-build', 'build'):
+                    pkg_info = kobo.rpmlib.parse_nvr(nvr)
+                    log.info("%r adding %s to group %s" % (self, pkg_info['name'], group))
+                    self.koji_session.groupPackageListAdd(dest_tag, group, pkg_info['name'])
 
-    def buildroot_ready(self, artifact=None):
-        # XXX: steal code from /usr/bin/koji
-        cmd = "koji -p %s wait-repo %s " % (self._koji_profile_name, self.module_build_tag['name'])
-        if artifact:
-            cmd += " --build %s" % artifact
-        print ("Waiting for buildroot(%s) to be ready" % (self.module_build_tag['name']))
-        run(cmd) # wait till repo is current
+
+    def wait_task(self, task_id):
+        """
+        :param task_id
+        :return - task result object
+        """
+        start = time.time()
+        timeout = 60 # minutes
+
+        log.info("Waiting for task_id=%s to finish" % task_id)
+        while True:
+            if (time.time() - start) >= (timeout * 60.0):
+                break
+            try:
+                log.debug("Waiting for task_id=%s to finish" % task_id)
+                return self.koji_session.getTaskResult(task_id)
+
+            except koji.GenericError:
+                time.sleep(30)
+        log.info("Done waiting for task_id=%s to finish" % task_id)
+        return 1
 
     def build(self, artifact_name, source):
         """
         :param source : scmurl to spec repository
-        :return koji taskid
+        : param artifact_name: name of artifact (which we couldn't get from spec due involved macros)
+        :return koji build task id
         """
+        # Taken from /usr/bin/koji
+        def _unique_path(prefix):
+            """Create a unique path fragment by appending a path component
+            to prefix.  The path component will consist of a string of letter and numbers
+            that is unlikely to be a duplicate, but is not guaranteed to be unique."""
+            # Use time() in the dirname to provide a little more information when
+            # browsing the filesystem.
+            # For some reason repr(time.time()) includes 4 or 5
+            # more digits of precision than str(time.time())
+            return '%s/%r.%s' % (prefix, time.time(),
+                              ''.join([random.choice(string.ascii_letters) for i in range(8)]))
+
         if not self.__prep:
             raise RuntimeError("Buildroot is not prep-ed")
 
-        if '://' not in source:
-            raise NotImplementedError("Only scm url is currently supported, got source='%s'" % source)
         self._koji_whitelist_packages([artifact_name,])
+        if '://' not in source:
+            #treat source as an srpm and upload it
+            serverdir = _unique_path('cli-build')
+            callback =None
+            self.koji_session.uploadWrapper(source, serverdir, callback=callback)
+            source = "%s/%s" % (serverdir, os.path.basename(source))
+
         task_id = self.koji_session.build(source, self.module_target['name'])
-        print("Building %s (taskid=%s)." % (source, task_id))
+        log.info("submitted build of %s (task_id=%s), via %s" % (
+            source, task_id, self))
         return task_id
 
     def _get_tag(self, tag, strict=True):
@@ -276,23 +478,30 @@ class KojiModuleBuilder(GenericBuilder):
         :param build_tag_name
         :param groups: A dict {'group' : [package, ...]}
         """
+        log.debug("Adding groups=%s to tag=%s" % (groups.keys(), dest_tag))
 
         if groups and not isinstance(groups, dict):
             raise ValueError("Expected dict {'group' : [str(package1), ...]")
 
         dest_tag = self._get_tag(dest_tag)['name']
-        groups = dict([(p['name'], p['group_id']) for p in self.koji_session.getTagGroups(dest_tag, inherit=False)])
+        existing_groups = dict([
+            (p['name'], p['group_id'])
+            for p in self.koji_session.getTagGroups(dest_tag, inherit=False)
+        ])
+
         for group, packages in groups.iteritems():
-            group_id = groups.get(group, None)
+            group_id = existing_groups.get(group, None)
             if group_id is not None:
-                print("Group %s already exists for tag %s" % (group, dest_tag))
-                return 1
+                log.warning("Group %s already exists for tag %s" % (group, dest_tag))
+                continue
             self.koji_session.groupListAdd(dest_tag, group)
+            log.debug("Adding %d packages into group=%s tag=%s" % (len(packages), group, dest_tag))
             for pkg in packages:
                 self.koji_session.groupPackageListAdd(dest_tag, group, pkg)
 
 
     def _koji_create_tag(self, tag_name, arches=None, fail_if_exists=True, perm=None):
+        log.debug("Creating tag %s" % tag_name)
         chktag = self.koji_session.getTag(tag_name)
         if chktag and fail_if_exists:
             raise SystemError("Tag %s already exist" % tag_name)
@@ -312,15 +521,6 @@ class KojiModuleBuilder(GenericBuilder):
                 self._lock_tag(tag_name, perm)
             return self._get_tag(tag_name)
 
-    def _get_module_target_name(self):
-        return self.module_str
-
-    def _get_module_tag_name(self):
-        return self.module_str
-
-    def _get_module_build_tag_name(self):
-        return "%s-build" % self._get_module_tag_name()
-
     def _get_component_owner(self, package):
         user = self.koji_session.getLoggedInUser()['name']
         return user
@@ -332,7 +532,7 @@ class KojiModuleBuilder(GenericBuilder):
         for package in packages:
             package_id = pkglist.get(package, None)
             if not package_id is None:
-                print ("Package %s already exists in tag %s" % (package, self.module_tag['name']))
+                log.warn("Package %s already exists in tag %s" % (package, self.module_tag['name']))
                 continue
             to_add.append(package)
 

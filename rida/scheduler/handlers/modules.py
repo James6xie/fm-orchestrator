@@ -26,62 +26,67 @@
 import rida.builder
 import rida.database
 import rida.pdc
-import time
 import logging
-import koji
+import os
 
-import logging
+logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
 
 
-def init(config, session, msg):
-    """ Called whenever a module enters the 'init' state.
+def get_rpm_release_from_tag(tag):
+    return tag.replace("-", "_")
 
-    We usually transition to this state when the modulebuild is first requested.
+def get_artifact_from_srpm(srpm_path):
+    return os.path.basename(srpm_path).replace(".src.rpm", "")
+
+def wait(config, session, msg):
+    """ Called whenever a module enters the 'wait' state.
+
+    We transition to this state shortly after a modulebuild is first requested.
 
     All we do here is request preparation of the buildroot.
+    The kicking off of individual component builds is handled elsewhere,
+    in rida.schedulers.handlers.repos.
     """
-    build = rida.database.ModuleBuild.from_fedmsg(session, msg)
-    pdc = rida.pdc.get_pdc_client_session(config)
-    # TODO do some periodical polling of variant_info since it's being created based on the same message
-    #log.warn("HACK: waiting 10s for pdc")
-    #time.sleep(10)
-    log.debug("Getting module from pdc with following input_data=%s" % build.json())
-    module_info = pdc.get_module(build.json())
+    build = rida.database.ModuleBuild.from_module_event(session, msg)
+    log.info("Found build=%r from message" % build)
 
-    log.debug("Received module_info=%s from pdc" % module_info)
+    module_info = build.json()
+    if module_info['state'] != msg['msg']['state']:
+        log.warn("Note that retrieved module state %r "
+                 "doesn't match message module state %r" % (
+                     module_info['state'], msg['msg']['state']))
+        # This is ok.. it's a race condition we can ignore.
+        pass
 
-    tag = rida.pdc.get_module_tag(pdc, module_info)
-    log.info("Found tag=%s for module %s-%s-%s" % (tag, build.name, build.version, build.release))
+    pdc_session = rida.pdc.get_pdc_client_session(config)
+    tag = rida.pdc.get_module_tag(pdc_session, module_info, strict=True)
+    log.info("Found tag=%s for module %r" % (tag, build))
 
-    dependencies = rida.pdc.get_module_dependencies(pdc, module_info)
-    builder = rida.builder.KojiModuleBuilder(build.name, config)
-    builder.buildroot_add_dependency(dependencies)
+    # Hang on to this information for later.  We need to know which build is
+    # associated with which koji tag, so that when their repos are regenerated
+    # in koji we can figure out which for which module build that event is
+    # relevant.
+    log.debug("Assigning koji tag=%s to module build" % tag)
+    build.koji_tag = tag
+
+    dependencies = rida.pdc.get_module_build_dependencies(pdc_session, module_info, strict=True)
+    builder = rida.builder.KojiModuleBuilder(build.name, config, tag_name=tag)
     build.buildroot_task_id = builder.buildroot_prep()
-    # TODO: build srpm with dist_tag macros
-    # TODO submit build from srpm to koji
-    # TODO: buildroot.add_artifact(build_with_dist_tags)
-    # TODO: buildroot.ready(artifact=$artifact)
-    build.state = "wait"  # Wait for the buildroot to be ready.
-    log.debug("Done with init")
+    log.debug("Adding dependencies %s into buildroot for module %s" % (dependencies, module_info))
+    builder.buildroot_add_dependency(dependencies)
+    # inject dist-tag into buildroot
+    srpm = builder.get_disttag_srpm(disttag=".%s" % get_rpm_release_from_tag(tag))
+    task_id = builder.build(artifact_name="module-build-macros", source=srpm)
 
+    # TODO -- this has to go eventually.. otherwise, we can only build one
+    # module at a time and that just won't scale.
+    builder.wait_task(task_id)
+    # TODO -- do cleanup if this fails
 
-def build(config, session, msg):
-    """ Called whenever a module enters the "build" state.
+    artifact = get_artifact_from_srpm(srpm)
+    builder.buildroot_add_artifacts([artifact,], install=True) # tag && add to srpm-build group
+    builder.buildroot_ready(artifacts=[artifact,])
 
-    We usually transition to this state once the buildroot is ready.
-
-    All we do here is kick off builds of all our components.
-    """
-    module_build = rida.database.ModuleBuild.from_fedmsg(session, msg)
-    for component_build in module_build.component_builds:
-        scmurl = "{dist_git}/rpms/{package}?#{gitref}".format(
-            dist_git=config.dist_git_url,
-            package=component_build.package,
-            gitref=component_build.gitref,  # This is the update stream
-        )
-        artifact_name = 'TODO'
-        component_build.task = builder.build(artifact_name, scmurl)
-        component_build.state = koji.BUILD_STATES['BUILDING']
-
-    build.state = "build"  # Now wait for all of those to finish.
+    build.transition(config, state="build")  # Wait for the buildroot to be ready.
+    session.commit()
