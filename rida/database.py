@@ -136,6 +136,7 @@ class ModuleBuild(Base):
     state = Column(Integer, nullable=False)
     modulemd = Column(String, nullable=False)
     koji_tag = Column(String)  # This gets set after 'wait'
+    scmurl = Column(String)
 
     module = relationship('Module', backref='module_builds', lazy=False)
 
@@ -162,13 +163,14 @@ class ModuleBuild(Base):
         return session.query(cls).filter(cls.id==event['msg']['id']).first()
 
     @classmethod
-    def create(cls, session, conf, name, version, release, modulemd):
+    def create(cls, session, conf, name, version, release, modulemd, scmurl):
         module = cls(
             name=name,
             version=version,
             release=release,
             state="init",
             modulemd=modulemd,
+            scmurl=scmurl,
         )
         session.add(module)
         session.commit()
@@ -223,9 +225,7 @@ class ModuleBuild(Base):
             'release': self.release,
             'state': self.state,
             'state_name': INVERSE_BUILD_STATES[self.state],
-
-            # This is too spammy..
-            #'modulemd': self.modulemd,
+            'scmurl': self.scmurl,
 
             # TODO, show their entire .json() ?
             'component_builds': [build.id for build in self.component_builds],

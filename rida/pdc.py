@@ -112,7 +112,7 @@ def variant_dict_from_str(module_str):
     version_start = module_str.rfind('-', 0, release_start)
     module_info['variant_release'] = module_str[release_start+1:]
     module_info['variant_version'] = module_str[version_start+1:release_start]
-    module_info['variant_name'] = module_str[:version_start]
+    module_info['variant_name'] = module_str[:version_start].replace("module-", "")
     module_info['variant_type'] = 'module'
 
     return module_info
@@ -151,12 +151,7 @@ def get_module_tag(session, module_info, strict=False):
            found.  If strict=True, then a ValueError is raised.
     :return: koji tag string
     """
-    # TODO -- get this from PDC some day... for now, we're just going to
-    # construct the module tag name from the module attrs we already know
-    # about.
-    #return get_module(session, module_info, strict=strict)['koji_tag']
-    variant_data = get_variant_dict(module_info)
-    return "{variant_name}-{variant_version}-{variant_release}".format(**variant_data)
+    return get_module(session, module_info, strict=strict)['koji_tag']
 
 def module_depsolving_wrapper(session, module_list, strict=True):
     """
