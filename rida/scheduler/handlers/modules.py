@@ -28,6 +28,7 @@ import rida.database
 import rida.pdc
 import logging
 import os
+import time
 
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
@@ -59,10 +60,30 @@ def wait(config, session, msg):
         # This is ok.. it's a race condition we can ignore.
         pass
 
+    tag = None
+    dependencies = None
     pdc_session = rida.pdc.get_pdc_client_session(config)
-    tag = rida.pdc.get_module_tag(pdc_session, module_info, strict=True)
-    log.info("Found tag=%s for module %r" % (tag, build))
+    retry_interval = 60 # seconds
+    max_attempts = 5
+    attempts = 0
+    while True:
+        if attempts >= max_attempts: # XXX: hack for pdc not sending messages about unreleased variants
+            log.error("Failed to get module info from PDC. Max retries reached.")
+            build.transition(config, state="build")  # Wait for the buildroot to be ready.a
+            break
+        try:
+            qi = {'name': module_info['name'], 'version': module_info['version'], 'release': module_info['release']}
+            attempts += 1
+            log.info("Getting %s deps from pdc" % module_info['name'])
+            dependencies = rida.pdc.get_module_build_dependencies(pdc_session, qi, strict=True)
+            log.info("Getting %s tag from pdc" % module_info['name'])
+            tag = rida.pdc.get_module_tag(pdc_session, qi, strict=True)
+        except ValueError as e:
+            log.debug(e)
+            log.warn("Waiting additional %d seconds for PDC/%s" % (retry_interval, qi))
+            time.sleep(retry_interval)
 
+    log.debug("Found tag=%s for module %r" % (tag, build))
     # Hang on to this information for later.  We need to know which build is
     # associated with which koji tag, so that when their repos are regenerated
     # in koji we can figure out which for which module build that event is
@@ -70,7 +91,6 @@ def wait(config, session, msg):
     log.debug("Assigning koji tag=%s to module build" % tag)
     build.koji_tag = tag
 
-    dependencies = rida.pdc.get_module_build_dependencies(pdc_session, module_info, strict=True)
     builder = rida.builder.KojiModuleBuilder(build.name, config, tag_name=tag)
     build.buildroot_task_id = builder.buildroot_prep()
     log.debug("Adding dependencies %s into buildroot for module %s" % (dependencies, module_info))
