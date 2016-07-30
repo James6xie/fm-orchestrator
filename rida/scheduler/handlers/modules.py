@@ -26,6 +26,9 @@
 import rida.builder
 import rida.database
 import rida.pdc
+
+import koji
+
 import logging
 import os
 import time
@@ -97,16 +100,17 @@ def wait(config, session, msg):
     builder.buildroot_add_dependency(dependencies)
     # inject dist-tag into buildroot
     srpm = builder.get_disttag_srpm(disttag=".%s" % get_rpm_release_from_tag(tag))
-    task_id = builder.build(artifact_name="module-build-macros", source=srpm)
 
-    # TODO -- this has to go eventually.. otherwise, we can only build one
-    # module at a time and that just won't scale.
-    builder.wait_task(task_id)
-    # TODO -- do cleanup if this fails
-
-    artifact = get_artifact_from_srpm(srpm)
-    builder.buildroot_add_artifacts([artifact,], install=True) # tag && add to srpm-build group
-    builder.buildroot_ready(artifacts=[artifact,])
-
-    build.transition(config, state="build")  # Wait for the buildroot to be ready.
+    artifact_name = "module-build-macros"
+    task_id = builder.build(artifact_name=artifact_name, source=srpm)
+    component_build = rida.database.ComponentBuild(
+        module_id=build.id,
+        package=artifact_name,
+        format="rpms",
+        scmurl=srpm,
+        task_id=task_id,
+        state = koji.BUILD_STATES['BUILDING'],
+    )
+    session.add(component_build)
+    build.transition(config, state="build")
     session.commit()

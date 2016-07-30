@@ -34,6 +34,7 @@ import koji
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
 
+
 def _finalize(config, session, msg, state):
     """ Called whenever a koji build completes or fails. """
 
@@ -48,12 +49,21 @@ def _finalize(config, session, msg, state):
     component_build.state = state
     session.commit()
 
+    if component_build.package == 'module-build-macros':
+        module_name = component_build.module_build.name
+        tag = component_build.module_build.koji_tag
+        builder = rida.builder.KojiModuleBuilder(module_name, config, tag_name=tag)
+        # tag && add to srpm-build group
+        builder.buildroot_add_artifacts([component_build.package,], install=True)
+        session.commit()
+
     # Find all of the sibling builds of this particular build.
     parent = component_build.module_build
     siblings = parent.component_builds
 
     # Are any of them still executing?
-    if any([c.state == koji.BUILD_STATES['BUILDING'] for c in siblings]):
+    premature = (koji.BUILD_STATES['BUILDING'], None)
+    if any([c.state in premature for c in siblings]):
         # Then they're not all done yet... continue to wait
         return
 
@@ -66,6 +76,7 @@ def _finalize(config, session, msg, state):
 
     # Otherwise.. if all of the builds succeeded, then mark the module as good.
     parent.transition(config, rida.BUILD_STATES['done'])
+    session.commit()
 
 
 def complete(config, session, msg):
