@@ -30,12 +30,15 @@
 from six.moves import http_client
 
 import os
-import sys
-import time
-import traceback
-import subprocess
+import subprocess as sp
 import re
 import tempfile
+
+import logging
+log = logging.getLogger(__name__)
+
+import rida.utils
+
 
 class SCM(object):
     "SCM abstraction class"
@@ -89,33 +92,19 @@ class SCM(object):
         else:
             raise RuntimeError("Unhandled SCM scheme: %s" % self.scheme)
 
+    @rida.utils.retry(wait_on=RuntimeError)
     @staticmethod
     def _run(cmd, chdir=None):
-        numretry = 0
-        path = cmd[0]
-        args = cmd
-        pid = os.fork()
-        if not pid:
-            while numretry <= 3:
-                numretry += 1
-                try:
-                    if chdir:
-                        os.chdir(chdir)
-                    os.execvp(path, args)
-                except:   # XXX maybe switch to subprocess (python-3.5) where
-                          # we can check for return codes and timeouts
-                    msg = ''.join(traceback.format_exception(*sys.exc_info()))
-                    print(msg)
-                    if numretry == 3:
-                        os._exit(1)
-                    time.sleep(10)
-        else:
-            while True:
-                status = os.waitpid(pid, os.WNOHANG)
-                time.sleep(1)
-
-                if status[0] != 0:
-                    return status[1]
+        proc = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE, cwd=chdir)
+        stdout, stderr = proc.communicate()
+        if stdout:
+            log.debug(stdout)
+        if stderr:
+            log.warning(stderr)
+        if proc.returncode != 0:
+            raise RuntimeError("Failed on %r, retcode %r, out %r, err %r" % (
+                cmd, proc.returncode, stdout, stderr))
+        return proc.returncode
 
     def checkout(self, scmdir):
         """Checkout the module from SCM.
@@ -136,12 +125,9 @@ class SCM(object):
             module_clone_cmd.extend([self.repository, sourcedir])
 
             # perform checkouts
-            if not SCM._run(module_clone_cmd, chdir=scmdir) == 0:
-                raise RuntimeError("Git clone failed: %s" % self.repository)
+            SCM._run(module_clone_cmd, chdir=scmdir)
             if self.commit:
-                if not SCM._run(module_checkout_cmd, chdir=sourcedir) == 0:
-                    raise RuntimeError("Git checkout failed: %s?#%s" %
-                            (self.repository, self.commit))
+                SCM._run(module_checkout_cmd, chdir=sourcedir)
         else:
             raise RuntimeError("checkout: Unhandled SCM scheme.")
         return sourcedir
@@ -153,7 +139,7 @@ class SCM(object):
         :raises: RuntimeError
         """
         if self.scheme == "git":
-            (status , output) = subprocess.getstatusoutput("git ls-remote %s"
+            (status , output) = sp.getstatusoutput("git ls-remote %s"
                 % self.repository)
             if status != 0:
                 raise RuntimeError("Cannot get git hash of master HEAD in %s"

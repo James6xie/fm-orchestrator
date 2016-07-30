@@ -26,12 +26,12 @@
 import rida.builder
 import rida.database
 import rida.pdc
+import rida.utils
 
 import koji
 
 import logging
 import os
-import time
 
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
@@ -66,25 +66,30 @@ def wait(config, session, msg):
     tag = None
     dependencies = None
     pdc_session = rida.pdc.get_pdc_client_session(config)
-    retry_interval = 60 # seconds
-    max_attempts = 5
-    attempts = 0
-    while True:
-        if attempts >= max_attempts: # XXX: hack for pdc not sending messages about unreleased variants
-            log.error("Failed to get module info from PDC. Max retries reached.")
-            build.transition(config, state="build")  # Wait for the buildroot to be ready.a
-            break
-        try:
-            qi = {'name': module_info['name'], 'version': module_info['version'], 'release': module_info['release']}
-            attempts += 1
-            log.info("Getting %s deps from pdc" % module_info['name'])
-            dependencies = rida.pdc.get_module_build_dependencies(pdc_session, qi, strict=True)
-            log.info("Getting %s tag from pdc" % module_info['name'])
-            tag = rida.pdc.get_module_tag(pdc_session, qi, strict=True)
-        except ValueError as e:
-            log.debug(e)
-            log.warn("Waiting additional %d seconds for PDC/%s" % (retry_interval, qi))
-            time.sleep(retry_interval)
+
+    pdc_query = {
+        'name': module_info['name'],
+        'version': module_info['version'],
+        'release': module_info['release'],
+    }
+
+    @rida.utils.retry(interval=60, timeout=60*6, wait_on=ValueError)
+    def _get_deps_and_tag():
+        log.info("Getting %s deps from pdc" % module_info['name'])
+        dependencies = rida.pdc.get_module_build_dependencies(
+            pdc_session, pdc_query, strict=True)
+        log.info("Getting %s tag from pdc" % module_info['name'])
+        tag = rida.pdc.get_module_tag(
+            pdc_session, pdc_query, strict=True)
+        return dependencies, tag
+
+    try:
+        dependencies, tag = _get_deps_and_tag()
+    except ValueError:
+        log.exception("Failed to get module info from PDC. Max retries reached.")
+        build.transition(config, state="build")  # Wait for the buildroot to be ready.a
+        session.commit()
+        raise
 
     log.debug("Found tag=%s for module %r" % (tag, build))
     # Hang on to this information for later.  We need to know which build is

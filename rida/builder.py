@@ -45,6 +45,8 @@ import kobo.rpmlib
 import munch
 from OpenSSL.SSL import SysCallError
 
+import rida.utils
+
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
 
@@ -161,16 +163,6 @@ class Builder:
         else:
             raise ValueError("Builder backend='%s' not recognized" % backend)
 
-def retry(callback, **kwargs):
-    attempt = 0
-    log.debug("retry() calling %r(kwargs=%r)" % (callback, kwargs))
-    while True:
-        try:
-            callback(**kwargs)
-            break
-        except SysCallError:
-            attempt += 1
-            log.warn("retry(attempt=%d) calling %r(kwargs=%r)" % (attempt, callback, kwargs))
 
 class KojiModuleBuilder(GenericBuilder):
     """ Koji specific builder class """
@@ -362,7 +354,13 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
 
         groups = KOJI_DEFAULT_GROUPS # TODO: read from config
         if groups:
-            retry(self._koji_add_groups_to_tag, dest_tag=self.module_build_tag, groups=groups)
+            @rida.utils.retry(wait_on=SysCallError, interval=5)
+            def add_groups():
+                return self._koji_add_groups_to_tag(
+                    dest_tag=self.module_build_tag,
+                    groups=groups,
+                )
+            add_groups()
 
         self.module_target = self._koji_add_target(self.tag_name, self.module_build_tag, self.module_tag)
         self.__prep = True
@@ -395,21 +393,19 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
         :param task_id
         :return - task result object
         """
-        start = time.time()
-        timeout = 60 # minutes
 
         log.info("Waiting for task_id=%s to finish" % task_id)
-        while True:
-            if (time.time() - start) >= (timeout * 60.0):
-                break
-            try:
-                log.debug("Waiting for task_id=%s to finish" % task_id)
-                return self.koji_session.getTaskResult(task_id)
 
-            except koji.GenericError:
-                time.sleep(30)
-        log.info("Done waiting for task_id=%s to finish" % task_id)
-        return 1
+        timeout = 60 * 60 # 60 minutes
+        @rida.utils.retry(timeout=timeout, wait_on=koji.GenericError)
+        def get_result():
+            log.debug("Waiting for task_id=%s to finish" % task_id)
+            task = self.koji_session.getTaskResult(task_id)
+            log.info("Done waiting for task_id=%s to finish" % task_id)
+            return task
+
+        return get_result()
+
 
     def build(self, artifact_name, source):
         """
