@@ -107,12 +107,11 @@ def variant_dict_from_str(module_str):
 
     module_info = {}
 
-
     release_start = module_str.rfind('-')
     version_start = module_str.rfind('-', 0, release_start)
     module_info['variant_release'] = module_str[release_start+1:]
     module_info['variant_version'] = module_str[version_start+1:release_start]
-    module_info['variant_name'] = module_str[:version_start].replace("module-", "")
+    module_info['variant_name'] = module_str[:version_start]
     module_info['variant_type'] = 'module'
 
     return module_info
