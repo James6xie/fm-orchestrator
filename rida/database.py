@@ -138,7 +138,23 @@ class ModuleBuild(Base):
     koji_tag = Column(String)  # This gets set after 'wait'
     scmurl = Column(String)
 
+    # A monotonically increasing integer that represents which batch or
+    # iteration this module is currently on for successive rebuilds of its
+    # components.  Think like 'mockchain --recurse'
+    batch = Column(Integer, default=0)
+
     module = relationship('Module', backref='module_builds', lazy=False)
+
+    def current_batch(self):
+        """ Returns all components of this module in the current batch. """
+
+        if not self.batch:
+            raise ValueError("No batch is in progress: %r" % self.batch)
+
+        return [
+            component for component in self.component_builds
+            if component.batch == self.batch
+        ]
 
     def mmd(self):
         mmd = _modulemd.ModuleMetadata()
@@ -232,9 +248,9 @@ class ModuleBuild(Base):
         }
 
     def __repr__(self):
-        return "<ModuleBuild %s-%s-%s, state %r>" % (
+        return "<ModuleBuild %s-%s-%s, state %r, batch %r>" % (
             self.name, self.version, self.release,
-            INVERSE_BUILD_STATES[self.state])
+            INVERSE_BUILD_STATES[self.state], self.batch)
 
 
 class ComponentBuild(Base):
@@ -247,6 +263,12 @@ class ComponentBuild(Base):
     task_id = Column(Integer)  # This is the id of the build in koji
     # XXX: Consider making this a proper ENUM (or an int)
     state = Column(Integer)
+
+    # A monotonically increasing integer that represents which batch or
+    # iteration this *component* is currently in.  This relates to the owning
+    # module's batch.  This one defaults to None, which means that this
+    # component is not currently part of a batch.
+    batch = Column(Integer, default=0)
 
     module_id = Column(Integer, ForeignKey('module_builds.id'), nullable=False)
     module_build = relationship('ModuleBuild', backref='component_builds', lazy=False)
@@ -280,5 +302,5 @@ class ComponentBuild(Base):
 
 
     def __repr__(self):
-        return "<ComponentBuild %s of %r, state: %r, task_id: %r>" % (
-            self.package, self.module_id, self.state, self.task_id)
+        return "<ComponentBuild %s, %r, state: %r, task_id: %r, batch: %r>" % (
+            self.package, self.module_id, self.state, self.task_id, self.batch)

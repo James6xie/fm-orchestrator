@@ -59,24 +59,15 @@ def _finalize(config, session, msg, state):
 
     # Find all of the sibling builds of this particular build.
     parent = component_build.module_build
-    siblings = parent.component_builds
+    current_batch = parent.current_batch()
 
-    # Are any of them still executing?
-    premature = (koji.BUILD_STATES['BUILDING'], None)
-    if any([c.state in premature for c in siblings]):
-        # Then they're not all done yet... continue to wait
-        return
-
-    # Otherwise, check to see if any failed.
-    if any([c.state != koji.BUILD_STATES['COMPLETE'] for c in siblings]):
+    # Otherwise, check to see if all failed.  If so, then we cannot continue on
+    # to a next batch.  This module build is doomed.
+    if all([c.state != koji.BUILD_STATES['COMPLETE'] for c in current_batch]):
         # They didn't all succeed.. so mark this module build as a failure.
         parent.transition(config, rida.BUILD_STATES['failed'])
         session.commit()
         return
-
-    # Otherwise.. if all of the builds succeeded, then mark the module as good.
-    parent.transition(config, rida.BUILD_STATES['done'])
-    session.commit()
 
 
 def complete(config, session, msg):

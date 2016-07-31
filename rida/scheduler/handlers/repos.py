@@ -36,6 +36,11 @@ log = logging.getLogger(__name__)
 def done(config, session, msg):
     """ Called whenever koji rebuilds a repo, any repo. """
 
+    # TODO -- working here.
+    #   finished the utilities for getting batch and starting next.
+    #   finished the simpler component-build event
+    #   need to write this stuff, the more complicated bits.
+
     # First, find our ModuleBuild associated with this repo, if any.
     tag = msg['msg']['tag'].strip('-build')
     module_build = rida.database.ModuleBuild.from_repo_done_event(session, msg)
@@ -43,23 +48,63 @@ def done(config, session, msg):
         log.info("No module build found associated with koji tag %r" % tag)
         return
 
-    unbuilt_components = (
-        component_build for component_build in module_build.component_builds
-        if component_build.state is None
-    )
+    # It is possible that we have already failed.. but our repo is just being
+    # routinely regenerated.  Just ignore that.  If rida says the module is
+    # dead, then the module is dead.
+    if module_build.state == rida.BUILD_STATES['failed']:
+        log.info("Ignoring repo regen for already failed %r" % module_build)
+        return
+
+    current_batch = module_build.current_batch()
+
+    # If any in the current batch are still running.. just wait.
+    running = [c.state == koji.BUILD_STATES['BUILDING'] for c in current_batch]
+    if any(running):
+        log.info("Module build %r has %r of %r components still building" % (
+            module_build, len(running), len(current_batch)))
+        return
+
+    # Assemble the list of all successful components in the batch.
+    good = [c for c in current_batch if c.state == koji.BUILD_STATES['COMPLETE']]
+
+    # If *none* of the components completed for this batch, then obviously the
+    # module fails.  However!  We shouldn't reach this scenario.  There is
+    # logic over in the component handler which should fail the module build
+    # first before we ever get here.  This is here as a race condition safety
+    # valve.
+    if not good:
+        module_build.transition(config, rida.BUILD_STATES['failed'])
+        session.commit()
+        log.warn("Odd!  All component builds failed for %r." % module_build)
+        return
 
     builder = rida.builder.KojiModuleBuilder(module_build.name, config, tag_name=tag)
     builder.buildroot_resume()
 
-    for component_build in unbuilt_components:
-        component_build.state = koji.BUILD_STATES['BUILDING']
-        log.debug("Using scmurl=%s for package=%s" % (
-            component_build.scmurl,
-            component_build.package,
-        ))
-        log.info("Building artifact_name=%s from source=%s" % (component_build.package, component_build.scmurl))
-        component_build.task_id = builder.build(
-            artifact_name=component_build.package,
-            source=component_build.scmurl,
-        )
-    session.commit()
+    # Ok, for the subset of builds that did complete successfully, check to
+    # see if they are in the buildroot.
+    artifacts = [component_build.package for component_build in good]
+    if not builder.buildroot_ready(artifacts):
+        log.info("Not all of %r are in the buildroot.  Waiting." % artifacts)
+        return
+
+    # If we have reached here then we know the following things:
+    #
+    # - All components in this batch have finished (failed or succeeded)
+    # - One or more succeeded.
+    # - They have been regenerated back into the buildroot.
+    #
+    # So now we can either start a new batch if there are still some to build
+    # or, if everything is built successfully, then we can bless the module as
+    # complete.
+    leftover_components = [
+        c for c in module_build.components_builds
+        if c.state != koji.BUILD_STATES['COMPLETE']
+    ]
+    if leftover_components:
+        rida.utils.start_next_build_batch(module_build, session, builder, components=leftover_components)
+    else:
+        module_build.transition(config, state=rida.BUILD_STATES['complete'])
+        session.commit()
+
+    # And that's it.  :)

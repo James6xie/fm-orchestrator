@@ -24,6 +24,8 @@
 import functools
 import time
 
+import koji
+
 
 def retry(timeout=120, interval=30, wait_on=Exception):
     """ A decorator that allows to retry a section of code...
@@ -42,3 +44,25 @@ def retry(timeout=120, interval=30, wait_on=Exception):
                     time.sleep(interval)
         return inner
     return wrapper
+
+
+def start_next_build_batch(module, session, builder, components=None):
+    """ Starts a next round of the build cycle for a module. """
+
+    if any([c.state == koji.BUILD_STATES['BUILDING']
+            for c in module.component_builds ]):
+        raise ValueError("Cannot start a batch when another is in flight.")
+
+    # The user can either pass in a list of components to 'seed' the batch, or
+    # if none are provided then we just select everything that hasn't
+    # successfully built yet.
+    unbuilt_components = components or [
+        c for c in module.component_builds
+        if c.state != koji.BUILD_STATES['COMPLETE']
+    ]
+    module.batch += 1
+    for c in unbuilt_components:
+        c.batch = module.batch
+        c.task_id = builder.build(artifact_name=c.package, source=c.scmurl)
+
+    session.commit()
