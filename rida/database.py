@@ -263,6 +263,8 @@ class ComponentBuild(Base):
     task_id = Column(Integer)  # This is the id of the build in koji
     # XXX: Consider making this a proper ENUM (or an int)
     state = Column(Integer)
+    # This stays as None until the build completes.
+    nvr = Column(String)
 
     # A monotonically increasing integer that represents which batch or
     # iteration this *component* is currently in.  This relates to the owning

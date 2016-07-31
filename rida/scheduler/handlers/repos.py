@@ -36,11 +36,6 @@ log = logging.getLogger(__name__)
 def done(config, session, msg):
     """ Called whenever koji rebuilds a repo, any repo. """
 
-    # TODO -- working here.
-    #   finished the utilities for getting batch and starting next.
-    #   finished the simpler component-build event
-    #   need to write this stuff, the more complicated bits.
-
     # First, find our ModuleBuild associated with this repo, if any.
     tag = msg['msg']['tag'].strip('-build')
     module_build = rida.database.ModuleBuild.from_repo_done_event(session, msg)
@@ -86,7 +81,7 @@ def done(config, session, msg):
 
     # Ok, for the subset of builds that did complete successfully, check to
     # see if they are in the buildroot.
-    artifacts = [component_build.package for component_build in good]
+    artifacts = [component_build.nvr for component_build in good]
     if not builder.buildroot_ready(artifacts):
         log.info("Not all of %r are in the buildroot.  Waiting." % artifacts)
         return
@@ -101,13 +96,14 @@ def done(config, session, msg):
     # or, if everything is built successfully, then we can bless the module as
     # complete.
     leftover_components = [
-        c for c in module_build.components_builds
+        c for c in module_build.component_builds
         if c.state != koji.BUILD_STATES['COMPLETE']
     ]
     if leftover_components:
-        rida.utils.start_next_build_batch(module_build, session, builder, components=leftover_components)
+        rida.utils.start_next_build_batch(
+            module_build, session, builder, components=leftover_components)
     else:
-        module_build.transition(config, state=rida.BUILD_STATES['complete'])
+        module_build.transition(config, state=rida.BUILD_STATES['done'])
         session.commit()
 
     # And that's it.  :)

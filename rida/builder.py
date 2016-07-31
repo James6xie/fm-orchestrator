@@ -200,9 +200,13 @@ class KojiModuleBuilder(GenericBuilder):
         """ Returns True or False if the given artifacts are in the build root.
         """
         assert self.module_target, "Invalid build target"
+
         tag_id = self.module_target['build_tag']
         repo = self.koji_session.getRepo(tag_id)
-        builds = [ self.koji_session.getBuild(a) for a in artifacts]
+        builds = [self.koji_session.getBuild(a) for a in artifacts]
+        log.info("%r checking buildroot readiness for "
+                 "repo: %r, tag_id: %r, artifacts: %r, builds: %r" % (
+                     self, repo, tag_id, artifacts, builds))
         return bool(koji.util.checkForBuilds(
             self.koji_session,
             tag_id,

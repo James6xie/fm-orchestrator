@@ -40,13 +40,14 @@ def _finalize(config, session, msg, state):
 
     # First, find our ModuleBuild associated with this repo, if any.
     component_build = rida.database.ComponentBuild.from_component_event(session, msg)
+    nvr = "{name}-{version}-{release}".format(**msg['msg'])
     if not component_build:
-        template = "We have no record of {name}-{version}-{release}"
-        log.debug(template.format(**msg['msg']))
+        log.debug("We have no record of %s" % nvr)
         return
 
     # Mark the state in the db.
     component_build.state = state
+    component_build.nvr = nvr
     session.commit()
 
     parent = component_build.module_build
@@ -58,14 +59,18 @@ def _finalize(config, session, msg, state):
             session.commit()
             return
 
-        # Otherwise.. if it didn't fail, then install the macros
+    # TODO -- we should just do this with a koji target that feeds -build.
+    # Otherwise.. if it didn't fail, then tag it.
+    if state == koji.BUILD_STATES['COMPLETE']:
+        # And install the macros.
         module_name = parent.name
         tag = parent.koji_tag
         builder = rida.builder.KojiModuleBuilder(module_name, config, tag_name=tag)
         builder.buildroot_resume()
         # tag && add to srpm-build group
         nvr = "{name}-{version}-{release}".format(**msg['msg'])
-        builder.buildroot_add_artifacts([nvr,], install=True)
+        install = bool(component_build.package == 'module-build-macros')
+        builder.buildroot_add_artifacts([nvr,], install=install)
         session.commit()
 
     # Find all of the sibling builds of this particular build.
