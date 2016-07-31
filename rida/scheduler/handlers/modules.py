@@ -73,7 +73,7 @@ def wait(config, session, msg):
         'release': module_info['release'],
     }
 
-    @rida.utils.retry(interval=60, timeout=60*6, wait_on=ValueError)
+    @rida.utils.retry(interval=10, timeout=30, wait_on=ValueError)
     def _get_deps_and_tag():
         log.info("Getting %s deps from pdc" % module_info['name'])
         dependencies = rida.pdc.get_module_build_dependencies(
@@ -106,6 +106,9 @@ def wait(config, session, msg):
     # inject dist-tag into buildroot
     srpm = builder.get_disttag_srpm(disttag=".%s" % get_rpm_release_from_tag(tag))
 
+    log.debug("Starting build batch 1")
+    build.batch = 1
+
     artifact_name = "module-build-macros"
     task_id = builder.build(artifact_name=artifact_name, source=srpm)
     component_build = rida.database.ComponentBuild(
@@ -114,7 +117,8 @@ def wait(config, session, msg):
         format="rpms",
         scmurl=srpm,
         task_id=task_id,
-        state = koji.BUILD_STATES['BUILDING'],
+        state=koji.BUILD_STATES['BUILDING'],
+        batch=1,
     )
     session.add(component_build)
     build.transition(config, state="build")

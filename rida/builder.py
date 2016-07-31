@@ -195,31 +195,21 @@ class KojiModuleBuilder(GenericBuilder):
         return "<KojiModuleBuilder module: %s, tag: %s>" % (
             self.module_str, self.tag_name)
 
-    def buildroot_ready(self, artifacts=None):
+    @rida.utils.retry()
+    def buildroot_ready(self, artifacts):
+        """ Returns True or False if the given artifacts are in the build root.
+        """
         assert self.module_target, "Invalid build target"
-
-        timeout = 120 # minutes see * 60
         tag_id = self.module_target['build_tag']
-        start = time.time()
-        last_repo = None
         repo = self.koji_session.getRepo(tag_id)
-        builds = [ self.koji_session.getBuild(a) for a in artifacts or []]
-
-        while True:
-            if builds and repo and repo != last_repo:
-                if koji.util.checkForBuilds(self.koji_session, tag_id, builds, repo['create_event'], latest=True):
-                    return
-
-            if (time.time() - start) >= (timeout * 60.0):
-                return 1
-
-            time.sleep(60)
-            last_repo = repo
-            repo = self.koji_session.getRepo(tag_id)
-
-            if not builds:
-                if repo != last_repo:
-                    return
+        builds = [ self.koji_session.getBuild(a) for a in artifacts]
+        return bool(koji.util.checkForBuilds(
+            self.koji_session,
+            tag_id,
+            builds,
+            repo['create_event'],
+            latest=True,
+        ))
 
     @staticmethod
     def get_disttag_srpm(disttag):
@@ -327,6 +317,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
         """
         Resume existing buildroot. Sets __prep=True
         """
+        log.info("%r resuming buildroot." % self)
         chktag = self.koji_session.getTag(self.tag_name)
         if not chktag:
             raise SystemError("Tag %s doesn't exist" % self.tag_name)
@@ -347,6 +338,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
         :param module_deps_tags: a tag names of our build requires
         :param module_deps_tags: a tag names of our build requires
         """
+        log.info("%r preparing buildroot." % self)
         self.module_tag = self._koji_create_tag(
             self.tag_name, perm="admin") # returns tag obj
         self.module_build_tag = self._koji_create_tag(
@@ -376,17 +368,20 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
         :param artifacts - list of artifacts to add to buildroot
         :param install=False - force install artifact (if it's not dragged in as dependency)
         """
-        # TODO: import /usr/bin/koji's TaskWatcher()
         log.info("%r adding artifacts %r" % (self, artifacts))
         dest_tag = self._get_tag(self.module_build_tag)['id']
-        for nvr in artifacts:
-            self.koji_session.tagBuild(dest_tag, nvr, force=True)
-            if install:
-                for group in ('srpm-build', 'build'):
-                    pkg_info = kobo.rpmlib.parse_nvr(nvr)
-                    log.info("%r adding %s to group %s" % (self, pkg_info['name'], group))
-                    self.koji_session.groupPackageListAdd(dest_tag, group, pkg_info['name'])
 
+        for nvr in artifacts:
+            log.info("%r tagging %r into %r" % (self, nvr, dest_tag))
+            self.koji_session.tagBuild(dest_tag, nvr, force=True)
+
+            if not install:
+                continue
+
+            for group in ('srpm-build', 'build'):
+                name = kobo.rpmlib.parse_nvr(nvr)['name']
+                log.info("%r adding %s to group %s" % (self, name, group))
+                self.koji_session.groupPackageListAdd(dest_tag, group, name)
 
     def wait_task(self, task_id):
         """

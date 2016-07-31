@@ -60,8 +60,11 @@ def done(config, session, msg):
     # If any in the current batch are still running.. just wait.
     running = [c.state == koji.BUILD_STATES['BUILDING'] for c in current_batch]
     if any(running):
-        log.info("Module build %r has %r of %r components still building" % (
-            module_build, len(running), len(current_batch)))
+        log.info(
+            "%r has %r of %r components still "
+            "building in this batch (%r total)" % (
+                module_build, len(running), len(current_batch),
+                len(module_build.component_builds)))
         return
 
     # Assemble the list of all successful components in the batch.
@@ -75,7 +78,7 @@ def done(config, session, msg):
     if not good:
         module_build.transition(config, rida.BUILD_STATES['failed'])
         session.commit()
-        log.warn("Odd!  All component builds failed for %r." % module_build)
+        log.warn("Odd!  All components in batch failed for %r." % module_build)
         return
 
     builder = rida.builder.KojiModuleBuilder(module_build.name, config, tag_name=tag)

@@ -100,7 +100,7 @@ class MessageWorker(threading.Thread):
 
         # These are our main lookup tables for figuring out what to run in response
         # to what messaging events.
-        NO_OP = lambda config, session, msg: True
+        self.NO_OP = NO_OP = lambda config, session, msg: True
         self.on_build_change = {
             koji.BUILD_STATES["BUILDING"]: NO_OP,
             koji.BUILD_STATES["COMPLETE"]: rida.scheduler.handlers.components.complete,
@@ -172,9 +172,14 @@ class MessageWorker(threading.Thread):
             return
 
         # Execute our chosen handler
-        with rida.database.Database(config) as session:
-            log.info(" %s: %s, %s" % (handler.__name__, msg['topic'], msg['msg_id']))
-            handler(config, session, msg)
+        idx = "%s: %s, %s" % (handler.__name__, msg['topic'], msg['msg_id'])
+        if handler is self.NO_OP:
+            log.debug("Handler is NO_OP: %s" % idx)
+        else:
+            with rida.database.Database(config) as session:
+                log.info("Calling   %s" % idx)
+                handler(config, session, msg)
+                log.info("Done with %s" % idx)
 
 
 class Poller(threading.Thread):

@@ -92,8 +92,8 @@ class SCM(object):
         else:
             raise RuntimeError("Unhandled SCM scheme: %s" % self.scheme)
 
-    @rida.utils.retry(wait_on=RuntimeError)
     @staticmethod
+    @rida.utils.retry(wait_on=RuntimeError)
     def _run(cmd, chdir=None):
         proc = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE, cwd=chdir)
         stdout, stderr = proc.communicate()

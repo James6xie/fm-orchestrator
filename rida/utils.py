@@ -22,9 +22,10 @@
 """ Utility functions for rida. """
 
 import functools
+import logging
 import time
 
-import koji
+log = logging.getLogger(__name__)
 
 
 def retry(timeout=120, interval=30, wait_on=Exception):
@@ -36,11 +37,13 @@ def retry(timeout=120, interval=30, wait_on=Exception):
         def inner(*args, **kwargs):
             start = time.time()
             while True:
-                if (time.time() - start) >= (timeout * 60.0):
+                if (time.time() - start) >= timeout:
                     raise  # This re-raises the last exception.
                 try:
                     return function(*args, **kwargs)
-                except wait_on:
+                except wait_on as e:
+                    log.warn("Exception %r raised from %r.  Retry in %rs" % (
+                        e, function, interval))
                     time.sleep(interval)
         return inner
     return wrapper
@@ -48,6 +51,8 @@ def retry(timeout=120, interval=30, wait_on=Exception):
 
 def start_next_build_batch(module, session, builder, components=None):
     """ Starts a next round of the build cycle for a module. """
+
+    import koji  # Placed here to avoid py2/py3 conflicts...
 
     if any([c.state == koji.BUILD_STATES['BUILDING']
             for c in module.component_builds ]):

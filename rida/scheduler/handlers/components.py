@@ -49,16 +49,26 @@ def _finalize(config, session, msg, state):
     component_build.state = state
     session.commit()
 
+    parent = component_build.module_build
+
     if component_build.package == 'module-build-macros':
-        module_name = component_build.module_build.name
-        tag = component_build.module_build.koji_tag
+        if state != koji.BUILD_STATES['COMPLETE']:
+            # If the macro build failed, then the module is doomed.
+            parent.transition(config, state=rida.BUILD_STATES['failed'])
+            session.commit()
+            return
+
+        # Otherwise.. if it didn't fail, then install the macros
+        module_name = parent.name
+        tag = parent.koji_tag
         builder = rida.builder.KojiModuleBuilder(module_name, config, tag_name=tag)
+        builder.buildroot_resume()
         # tag && add to srpm-build group
-        builder.buildroot_add_artifacts([component_build.package,], install=True)
+        nvr = "{name}-{version}-{release}".format(**msg['msg'])
+        builder.buildroot_add_artifacts([nvr,], install=True)
         session.commit()
 
     # Find all of the sibling builds of this particular build.
-    parent = component_build.module_build
     current_batch = parent.current_batch()
 
     # Otherwise, check to see if all failed.  If so, then we cannot continue on
