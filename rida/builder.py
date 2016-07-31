@@ -207,13 +207,19 @@ class KojiModuleBuilder(GenericBuilder):
         log.info("%r checking buildroot readiness for "
                  "repo: %r, tag_id: %r, artifacts: %r, builds: %r" % (
                      self, repo, tag_id, artifacts, builds))
-        return bool(koji.util.checkForBuilds(
+        ready = bool(koji.util.checkForBuilds(
             self.koji_session,
             tag_id,
             builds,
             repo['create_event'],
             latest=True,
         ))
+        if ready:
+            log.info("%r buildroot is ready" % self)
+        else:
+            log.info("%r buildroot is not yet ready.. wait." % self)
+        return ready
+
 
     @staticmethod
     def get_disttag_srpm(disttag):
