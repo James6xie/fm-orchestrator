@@ -350,7 +350,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
         """
         log.info("%r preparing buildroot." % self)
         self.module_tag = self._koji_create_tag(
-            self.tag_name, perm="admin") # returns tag obj
+            self.tag_name, self.arches, perm="admin") # the main tag needs arches so pungi can dump it
         self.module_build_tag = self._koji_create_tag(
             self.tag_name + "-build", self.arches, perm="admin")
 
