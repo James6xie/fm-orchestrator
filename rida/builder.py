@@ -89,59 +89,135 @@ KOJI_DEFAULT_GROUPS = {
     ]
 }
 
+
+"""
+Example workflows - helps to see the difference in implementations
+Copr workflow:
+
+1) create project (input: name, chroot deps:  e.g. epel7)
+2) optional: selects project dependencies e.g. epel-7
+3) build package a.src.rpm # package is automatically added into buildroot
+   after it's finished
+4) createrepo (package.a.src.rpm is available)
+
+Koji workflow
+
+1) create tag, and build-tag
+2) create target out of ^tag and ^build-tag
+3) run regen-repo to have initial repodata (happens automatically)
+4) build module-build-macros which provides "dist" macro
+5) tag module-build-macro into buildroot
+6) wait for module-build-macro to be available in buildroot
+7) build all components from scmurl
+8) (optional) wait for selected builds to be available in buildroot
+
+"""
 class GenericBuilder:
-    """External Api for builders"""
+    """
+    External Api for builders
+
+    Example usage:
+        config = rida.config.Config()
+        builder = Builder(module="testmodule-1.2-3", backend="koji", config)
+        builder.buildroot_connect()
+        builder.build(artifact_name="bash",
+                      source="git://pkgs.stg.fedoraproject.org/rpms/bash"
+                             "?#70fa7516b83768595a4f3280ae890a7ac957e0c7")
+
+        ...
+        # E.g. on some other worker ... just resume buildroot that was initially created
+        builder = Builder(module="testmodule-1.2-3", backend="koji", config)
+        builder.buildroot_connect()
+        builder.build(artifact_name="not-bash",
+                      source="git://pkgs.stg.fedoraproject.org/rpms/not-bash"
+                             "?#70fa7516b83768595a4f3280ae890a7ac957e0c7")
+        # wait until this particular bash is available in the buildroot
+        builder.buildroot_ready(artifacts=["bash-1.23-el6"])
+        builder.build(artifact_name="not-not-bash",
+                      source="git://pkgs.stg.fedoraproject.org/rpms/not-not-bash"
+                             "?#70fa7516b83768595a4f3280ae890a7ac957e0c7")
+
+    """
     __metaclass__ = ABCMeta
 
     backend = "generic"
 
     @abstractmethod
-    def buildroot_prep(self):
+    def buildroot_connect(self):
         """
-        preps buildroot
-        """
-        raise NotImplementedError()
+        This is an idempotent call to create or resume and validate the build
+        environment.  .build() should immediately fail if .buildroot_connect()
+        wasn't called.
 
-    @abstractmethod
-    def buildroot_resume(self):
-        """
-        resumes buildroot (alternative to prep)
+        Koji Example: create tag, targets, set build tag inheritance...
         """
         raise NotImplementedError()
 
     @abstractmethod
     def buildroot_ready(self, artifacts=None):
         """
-        :param artifacts=None : a list of artifacts supposed to be in buildroot
-        return when buildroot is ready (or contain specified artifact)
+        :param artifacts=None : a list of artifacts supposed to be in the buildroot
+                                (['bash-123-0.el6'])
+
+        returns when the buildroot is ready (or contains the specified artifact)
+
+        This function is here to ensure that the buildroot (repo) is ready and
+        contains the listed artifacts if specified.
         """
         raise NotImplementedError()
 
     @abstractmethod
-    def buildroot_add_dependency(self, dependencies):
+    def buildroot_add_repo(self, dependencies):
         """
-        :param dependencies: a list off modules which we build-depend on
-        adds dependencies 'another module(s)' into buildroot
+        :param dependencies: a list of modules represented as a list of dicts,
+                             like:
+                             [{'name': ..., 'version': ..., 'release': ...}, ...]
+
+        Make an additional repository available in the buildroot. This does not
+        necessarily have to directly install artifacts (e.g. koji), just make
+        them available.
+
+        E.g. the koji implementation of the call uses PDC to get koji_tag
+        associated with each module dep and adds the tag to $module-build tag
+        inheritance.
         """
         raise NotImplementedError()
 
     @abstractmethod
     def buildroot_add_artifacts(self, artifacts, install=False):
         """
-        :param artifacts: list of artifacts to be available in buildroot
-        :param install=False: pre-install artifact in buildroot (otherwise "make it available for install")
-        add artifacts into buildroot, can be used to override buildroot macros
+        :param artifacts: list of artifacts to be available or installed
+                          (install=False) in the buildroot (e.g  list of $NEVRAS)
+        :param install=False: pre-install artifact in the buildroot (otherwise
+                              "just make it available for install")
+
+        Example:
+
+        koji tag-build $module-build-tag bash-1.234-1.el6
+        if install:
+            koji add-group-pkg $module-build-tag build bash
+            # This forces install of bash into buildroot and srpm-buildroot
+            koji add-group-pkg $module-build-tag srpm-build bash
         """
         raise NotImplementedError()
 
     @abstractmethod
     def build(self, artifact_name, source):
         """
-        :param artifact_name : a crucial, since we can't guess a valid srpm name
-                               without having the exact buildroot (collections/macros)
-                               used e.g. for whitelisting packages
-                               artifact_name is used to distinguish from artifact (e.g. package x nvr)
-        :param source : a scmurl to repository with receipt (e.g. spec)
+        :param artifact_name : A package name. We can't guess it since macros
+                               in the buildroot could affect it, (e.g. software
+                               collections).
+        :param source : an SCM URL, clearly identifying the build artifact in a
+                        repository
+
+        The artifact_name parameter is used in koji add-pkg (and it's actually
+        the only reason why we need to pass it). We don't really limit source
+        types. The actual source is usually delivered as an SCM URL in
+        fedmsg['msg']['scmurl'] (currently only SCM URLs work).
+
+        Example
+        .build("bash", "git://someurl/bash#damn") #build from SCM URL
+        .build("bash", "/path/to/srpm.src.rpm") #build from source RPM
         """
         raise NotImplementedError()
 
