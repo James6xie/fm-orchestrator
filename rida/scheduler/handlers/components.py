@@ -40,7 +40,11 @@ def _finalize(config, session, msg, state):
 
     # First, find our ModuleBuild associated with this repo, if any.
     component_build = models.ComponentBuild.from_component_event(session, msg)
-    nvr = "{name}-{version}-{release}".format(**msg['msg'])
+    try:
+        nvr = "{name}-{version}-{release}".format(**msg['msg'])
+    except KeyError:
+        nvr = None
+
     if not component_build:
         log.debug("We have no record of %s" % nvr)
         return
