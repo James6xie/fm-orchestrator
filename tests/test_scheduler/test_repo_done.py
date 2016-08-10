@@ -49,23 +49,32 @@ class TestRepoDone(unittest.TestCase):
         }
         self.fn(config=self.config, session=self.session, msg=msg)
 
+    @mock.patch('rida.builder.KojiModuleBuilder.buildroot_ready')
     @mock.patch('rida.builder.KojiModuleBuilder.get_session_from_config')
     @mock.patch('rida.builder.KojiModuleBuilder.build')
     @mock.patch('rida.builder.KojiModuleBuilder.buildroot_resume')
     @mock.patch('rida.models.ModuleBuild.from_repo_done_event')
-    def test_a_single_match(self, from_repo_done_event, resume, build_fn, config):
-        """ Test that when a repo msg hits us and we have no match,
-        that we do nothing gracefully.
+    def test_a_single_match(self, from_repo_done_event, resume, build_fn, config, ready):
+        """ Test that when a repo msg hits us and we have a single match.
         """
         config.return_value = mock.Mock(), "development"
-        component_build = mock.Mock()
-        component_build.package = 'foo'
-        component_build.scmurl = 'full_scm_url'
-        component_build.state = None
+        unbuilt_component_build = mock.Mock()
+        unbuilt_component_build.package = 'foo'
+        unbuilt_component_build.scmurl = 'full_scm_url'
+        unbuilt_component_build.state = None
+        built_component_build = mock.Mock()
+        built_component_build.package = 'foo2'
+        built_component_build.scmurl = 'full_scm_url'
+        built_component_build.state = 1
         module_build = mock.Mock()
-        module_build.component_builds = [component_build]
+        module_build.batch = 1
+        module_build.component_builds = [unbuilt_component_build, built_component_build]
+        module_build.current_batch.return_value = [built_component_build]
 
         from_repo_done_event.return_value = module_build
+
+        ready.return_value = True
+
         msg = {
             'topic': 'org.fedoraproject.prod.buildsys.repo.done',
             'msg': {'tag': 'no matches for this...'},
