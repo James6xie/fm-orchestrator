@@ -143,7 +143,7 @@ def submit_build():
 @app.route("/rida/module-builds/", methods=["GET"])
 def query_builds():
     """Lists all tracked module builds."""
-    return jsonify([{"id": x.id, "state": x.state}
+    return jsonify(items=[{"id": x.id, "state": x.state}
         for x in models.ModuleBuild.query.all()]), 200
 
 @app.route("/rida/module-builds/<int:id>", methods=["GET"])
