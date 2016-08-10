@@ -31,7 +31,6 @@ from rida import app, conf, db
 from rida.config import Config
 from rida.pdc import get_pdc_client_session, get_module, get_module_runtime_dependencies, get_module_tag, \
     get_module_build_dependencies
-from rida.builder import KojiModuleBuilder, Builder
 import rida.auth
 
 
@@ -91,6 +90,11 @@ def testpdc():
 def testbuildroot():
     """ A helper function to test buildroot creation
     """
+
+    # Do a locally namespaced import here to avoid importing py2-only libs in a
+    # py3 runtime.
+    from rida.builder import KojiModuleBuilder, Builder
+
     cfg = Config()
     cfg.koji_profile = "koji"
     cfg.koji_config = "/etc/rida/koji.conf"
