@@ -34,7 +34,7 @@ class TestModuleWait(unittest.TestCase):
         self.fn = rida.scheduler.handlers.modules.wait
 
     @mock.patch('rida.builder.KojiModuleBuilder')
-    @mock.patch('rida.database.ModuleBuild.from_module_event')
+    @mock.patch('rida.models.ModuleBuild.from_module_event')
     @mock.patch('rida.pdc')
     def test_init_basic(self, pdc, from_module_event, KojiModuleBuilder):
         builder = mock.Mock()

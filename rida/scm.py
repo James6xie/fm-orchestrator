@@ -34,9 +34,7 @@ import subprocess as sp
 import re
 import tempfile
 
-import logging
-log = logging.getLogger(__name__)
-
+from rida import log
 import rida.utils
 
 

@@ -31,7 +31,6 @@ proper scheduling component builds in the supported build systems.
 
 
 import inspect
-import logging
 import operator
 import os
 import pprint
@@ -47,26 +46,14 @@ except ImportError:
 
 
 import rida.config
-import rida.logger
 import rida.messaging
 import rida.scheduler.handlers.components
 import rida.scheduler.handlers.modules
 import rida.scheduler.handlers.repos
-import sys
 
 import koji
 
-log = logging.getLogger(__name__)
-
-# Load config from git checkout or the default location
-config = None
-here = sys.path[0]
-if here not in ('/usr/bin', '/bin', '/usr/local/bin'):
-    # git checkout
-    config = rida.config.from_file("rida.conf")
-else:
-    # production
-    config = rida.config.from_file()
+from rida import conf, db, models, log
 
 
 class STOP_WORK(object):
@@ -77,7 +64,7 @@ class STOP_WORK(object):
 def module_build_state_from_msg(msg):
     state = int(msg['msg']['state'])
     # TODO better handling
-    assert state in rida.BUILD_STATES.values(), "state=%s(%s) is not in %s" % (state, type(state), rida.BUILD_STATES.values())
+    assert state in models.BUILD_STATES.values(), "state=%s(%s) is not in %s" % (state, type(state), models.BUILD_STATES.values())
     return state
 
 
@@ -88,7 +75,7 @@ class MessageIngest(threading.Thread):
 
 
     def run(self):
-        for msg in rida.messaging.listen(backend=config.messaging):
+        for msg in rida.messaging.listen(backend=conf.messaging):
             self.outgoing_work_queue.put(msg)
 
 
@@ -109,12 +96,12 @@ class MessageWorker(threading.Thread):
             koji.BUILD_STATES["DELETED"]: NO_OP,
         }
         self.on_module_change = {
-            rida.BUILD_STATES["init"]: NO_OP,
-            rida.BUILD_STATES["wait"]: rida.scheduler.handlers.modules.wait,
-            rida.BUILD_STATES["build"]: NO_OP,
-            rida.BUILD_STATES["failed"]: NO_OP,
-            rida.BUILD_STATES["done"]: NO_OP,
-            rida.BUILD_STATES["ready"]: NO_OP,
+            models.BUILD_STATES["init"]: NO_OP,
+            models.BUILD_STATES["wait"]: rida.scheduler.handlers.modules.wait,
+            models.BUILD_STATES["build"]: NO_OP,
+            models.BUILD_STATES["failed"]: NO_OP,
+            models.BUILD_STATES["done"]: NO_OP,
+            models.BUILD_STATES["ready"]: NO_OP,
         }
         # Only one kind of repo change event, though...
         self.on_repo_change = rida.scheduler.handlers.repos.done
@@ -122,8 +109,8 @@ class MessageWorker(threading.Thread):
     def sanity_check(self):
         """ On startup, make sure our implementation is sane. """
         # Ensure we have every state covered
-        for state in rida.BUILD_STATES:
-            if rida.BUILD_STATES[state] not in self.on_module_change:
+        for state in models.BUILD_STATES:
+            if models.BUILD_STATES[state] not in self.on_module_change:
                 raise KeyError("Module build states %r not handled." % state)
         for state in koji.BUILD_STATES:
             if koji.BUILD_STATES[state] not in self.on_build_change:
@@ -176,10 +163,9 @@ class MessageWorker(threading.Thread):
         if handler is self.NO_OP:
             log.debug("Handler is NO_OP: %s" % idx)
         else:
-            with rida.database.Database(config) as session:
-                log.info("Calling   %s" % idx)
-                handler(config, session, msg)
-                log.info("Done with %s" % idx)
+            log.info("Calling   %s" % idx)
+            handler(conf, db.session, msg)
+            log.info("Done with %s" % idx)
 
 
 class Poller(threading.Thread):
@@ -189,20 +175,15 @@ class Poller(threading.Thread):
 
     def run(self):
         while True:
-            with rida.database.Database(config) as session:
-                self.log_summary(session)
+            self.log_summary(db.session)
             # XXX: detect whether it's really stucked first
-            #with rida.database.Database(config) as session:
-            #    self.process_waiting_module_builds(session)
-            with rida.database.Database(config) as session:
-                self.process_open_component_builds(session)
-            with rida.database.Database(config) as session:
-                self.process_lingering_module_builds(session)
-            with rida.database.Database(config) as session:
-                self.fail_lost_builds(session)
+            # self.process_waiting_module_builds(db.session)
+            self.process_open_component_builds(db.session)
+            self.process_lingering_module_builds(db.session)
+            self.fail_lost_builds(db.session)
 
-            log.info("Polling thread sleeping, %rs" % config.polling_interval)
-            time.sleep(config.polling_interval)
+            log.info("Polling thread sleeping, %rs" % conf.polling_interval)
+            time.sleep(conf.polling_interval)
 
     def fail_lost_builds(self, session):
         # This function is supposed to be handling only
@@ -211,12 +192,11 @@ class Poller(threading.Thread):
 
         # TODO re-use
 
-        if config.system == "koji":
-            koji_session, _ = rida.builder.KojiModuleBuilder.get_session_from_config(config)
+        if conf.system == "koji":
+            koji_session, _ = rida.builder.KojiModuleBuilder.get_session_from_config(conf)
             state = koji.BUILD_STATES['BUILDING'] # Check tasks that we track as BUILDING
             log.info("Querying tasks for statuses:")
-            query = session.query(rida.database.ComponentBuild)
-            res = query.filter(state==koji.BUILD_STATES['BUILDING']).all()
+            res = models.ComponentBuild.query.filter_by(state=koji.BUILD_STATES['BUILDING']).all()
 
             log.info("Checking status for %d tasks." % len(res))
             for component_build in res:
@@ -245,16 +225,16 @@ class Poller(threading.Thread):
                     })
 
         else:
-            raise NotImplementedError("Buildsystem %r is not supported." % config.system)
+            raise NotImplementedError("Buildsystem %r is not supported." % conf.system)
 
     def log_summary(self, session):
         log.info("Current status:")
         backlog = self.outgoing_work_queue.qsize()
         log.info("  * internal queue backlog is %i." % backlog)
-        states = sorted(rida.BUILD_STATES.items(), key=operator.itemgetter(1))
+        states = sorted(models.BUILD_STATES.items(), key=operator.itemgetter(1))
         for name, code in states:
-            query = session.query(rida.database.ModuleBuild)
-            count = query.filter_by(state=code).count()
+            query = models.ModuleBuild.query.filter_by(state=code)
+            count = query.count()
             if count:
                 log.info("  * %i module builds in the %s state." % (count, name))
             if name == 'build':
@@ -263,10 +243,9 @@ class Poller(threading.Thread):
                     for component_build in module_build.component_builds:
                         log.info("      * %r" % component_build)
 
-
     def process_waiting_module_builds(self, session):
         log.info("Looking for module builds stuck in the wait state.")
-        builds = rida.database.ModuleBuild.by_state(session, "wait")
+        builds = models.ModuleBuild.by_state(session, "wait")
         # TODO -- do throttling calculation here...
         log.info(" %r module builds in the wait state..." % len(builds))
         for build in builds:
@@ -275,7 +254,7 @@ class Poller(threading.Thread):
                 'topic': '.module.build.state.change',
                 'msg': build.json(),
             }
-            rida.scheduler.handlers.modules.wait(config, session, msg)
+            rida.scheduler.handlers.modules.wait(conf, session, msg)
 
     def process_open_component_builds(self, session):
         log.warning("process_open_component_builds is not yet implemented...")
@@ -285,7 +264,6 @@ class Poller(threading.Thread):
 
 
 def main():
-    rida.logger.init_logging(config)
     log.info("Starting ridad.")
     try:
         work_queue = queue.Queue()

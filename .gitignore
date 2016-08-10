@@ -2,3 +2,5 @@
 rida.db
 server.crt
 server.key
+.vagrant
+.idea

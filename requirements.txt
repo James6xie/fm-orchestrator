@@ -2,7 +2,11 @@ flask
 sqlalchemy
 six
 fedmsg
+pdc-client
 modulemd
 pyOpenSSL
 kobo
 munch
+Flask-Script
+Flask-SQLAlchemy
+Flask-Migrate

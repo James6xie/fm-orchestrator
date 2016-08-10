@@ -45,10 +45,10 @@ import kobo.rpmlib
 import munch
 from OpenSSL.SSL import SysCallError
 
+from rida import log
 import rida.utils
 
 logging.basicConfig(level=logging.DEBUG)
-log = logging.getLogger(__name__)
 
 # TODO: read defaults from rida's config
 KOJI_DEFAULT_GROUPS = {

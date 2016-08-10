@@ -40,5 +40,27 @@ for a number of tasks:
 - Emitting bus messages about all state changes so that other
   infrastructure services can pick up the work.
 """
+from flask import Flask
+from flask_sqlalchemy import SQLAlchemy
+from os import sys
+import rida.logger
+from logging import getLogger
 
-from rida.database import BUILD_STATES
+app = Flask(__name__)
+app.config.from_envvar("RIDA_SETTINGS", silent=True)
+
+here = sys.path[0]
+if here not in ('/usr/bin', '/bin', '/usr/local/bin'):
+    app.config.from_object('config.DevConfiguration')
+else:
+    app.config.from_object('config.ProdConfiguration')
+
+db = SQLAlchemy(app)
+
+
+import rida.config
+conf = rida.config.from_app_config()
+rida.logger.init_logging(conf)
+log = getLogger(__name__)
+
+from rida import views

@@ -25,9 +25,6 @@
 
 """Configuration handler functions."""
 
-import os.path
-import json
-
 try:
     import configparser # py3
 except ImportError:
@@ -35,6 +32,7 @@ except ImportError:
 
 import six
 
+from rida import app
 from rida import logger
 
 def asbool(value):
@@ -44,53 +42,14 @@ def asbool(value):
     ]
 
 
-def from_file(filename=None):
-    """Create the configuration instance from a file.
-
-    The file name is optional and defaults to /etc/rida/rida.conf.
-
-    :param str filename: The configuration file to load, optional.
+def from_app_config():
+    """ Create the configuration instance from the values in app.config
     """
-    if filename is None:
-        filename = "/etc/rida/rida.conf"
-    if not isinstance(filename, str):
-        raise TypeError("The configuration filename must be a string.")
-    if not os.path.isfile(filename):
-        raise IOError("The configuration file '%s' doesn't exist." % filename)
-    cp = configparser.ConfigParser(allow_no_value=True)
-    cp.read(filename)
-    default = cp.defaults()
     conf = Config()
-    conf.db = default.get("db")
-    conf.system = default.get("system")
-    conf.messaging = default.get("messaging")
-    conf.polling_interval = int(default.get("polling_interval"))
-    conf.pdc_url = default.get("pdc_url")
-    conf.pdc_insecure = default.get("pdc_insecure")
-    conf.pdc_develop = default.get("pdc_develop")
-    conf.koji_config = default.get("koji_config")
-    conf.koji_profile = default.get("koji_profile")
-    conf.koji_arches = json.loads(default.get("koji_arches"))
-    conf.scmurls = json.loads(default.get("scmurls"))
-    conf.rpms_default_repository = default.get("rpms_default_repository")
-    conf.rpms_allow_repository = asbool(default.get("rpms_allow_repository"))
-    conf.rpms_default_cache = default.get("rpms_default_cache")
-    conf.rpms_allow_cache = asbool(default.get("rpms_allow_cache"))
-
-    conf.port = default.get("port")
-    conf.host = default.get("host")
-
-    conf.ssl_enabled = asbool(default.get("ssl_enabled"))
-    conf.ssl_certificate_file = default.get("ssl_certificate_file")
-    conf.ssl_certificate_key_file = default.get("ssl_certificate_key_file")
-    conf.ssl_ca_certificate_file = default.get("ssl_ca_certificate_file")
-
-    conf.pkgdb_api_url = default.get("pkgdb_api_url")
-
-    conf.log_backend = default.get("log_backend")
-    conf.log_file = default.get("log_file")
-    conf.log_level = default.get("log_level")
+    for key, value in app.config.items():
+        setattr(conf, key.lower(), value)
     return conf
+
 
 class Config(object):
     """Class representing the orchestrator configuration."""
@@ -200,7 +159,6 @@ class Config(object):
     @koji_config.setter
     def koji_config(self, s):
         self._koji_config = str(s)
-
 
     @property
     def koji_profile(self):
