@@ -195,7 +195,7 @@ class KojiModuleBuilder(GenericBuilder):
         return "<KojiModuleBuilder module: %s, tag: %s>" % (
             self.module_str, self.tag_name)
 
-    @rida.utils.retry()
+    @rida.utils.retry(wait_on=koji.GenericError)
     def buildroot_ready(self, artifacts):
         """ Returns True or False if the given artifacts are in the build root.
         """
