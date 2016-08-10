@@ -160,7 +160,6 @@ class Config(object):
     def koji_config(self, s):
         self._koji_config = str(s)
 
-
     @property
     def koji_profile(self):
         """Koji URL."""

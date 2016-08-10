@@ -233,7 +233,8 @@ class Poller(threading.Thread):
         log.info("  * internal queue backlog is %i." % backlog)
         states = sorted(models.BUILD_STATES.items(), key=operator.itemgetter(1))
         for name, code in states:
-            count = models.ModuleBuild.query.filter_by(state=code).count()
+            query = models.ModuleBuild.query.filter_by(state=code)
+            count = query.count()
             if count:
                 log.info("  * %i module builds in the %s state." % (count, name))
             if name == 'build':
