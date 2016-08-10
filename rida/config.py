@@ -46,35 +46,10 @@ def from_app_config():
     """ Create the configuration instance from the values in app.config
     """
     conf = Config()
-    conf.db = app.config.get('DB')
-    conf.system = app.config.get('SYSTEM')
-    conf.messaging = app.config.get('MESSAGING')
-    conf.pdc_url = app.config.get('PDC_URL')
-    conf.pdc_insecure = app.config.get('PDC_INSECURE')
-    conf.pdc_develop = app.config.get('PDC_DEVELOP')
-    conf.koji_config = app.config.get('KOJI_CONFIG')
-    conf.koji_profile = app.config.get('KOJI_PROFILE')
-    conf.koji_arches = app.config.get('KOJI_ARCHES')
-    conf.scmurls = app.config.get('SCMURLS')
-    conf.rpms_default_repository = app.config.get('RPMS_DEFAULT_REPOSITORY')
-    conf.rpms_allow_repository = asbool(app.config.get('RPMS_ALLOW_REPOSITORY'))
-    conf.rpms_default_cache = app.config.get('RPMS_DEFAULT_CACHE')
-    conf.rpms_allow_cache = asbool(app.config.get('RPMS_ALLOW_CACHE'))
-
-    conf.port = app.config.get('PORT')
-    conf.host = app.config.get('HOST')
-
-    conf.ssl_enabled = asbool(app.config.get('SSL_ENABLED'))
-    conf.ssl_certificate_file = app.config.get('SSL_CERTIFICATE_FILE')
-    conf.ssl_certificate_key_file = app.config.get('SSL_CERTIFICATE_KEY_FILE')
-    conf.ssl_ca_certificate_file = app.config.get('SSL_CA_CERTIFICATE_FILE')
-
-    conf.pkgdb_api_url = app.config.get('PKGDB_API_URL')
-
-    conf.log_backend = app.config.get('LOG_BACKEND')
-    conf.log_file = app.config.get('LOG_FILE')
-    conf.log_level = app.config.get('LOG_LEVEL')
+    for key, value in app.config.items():
+        setattr(conf, key.lower(), value)
     return conf
+
 
 class Config(object):
     """Class representing the orchestrator configuration."""
