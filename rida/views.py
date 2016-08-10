@@ -155,7 +155,7 @@ def query_build(id):
         if module.state != "init":
             for build in models.ComponentBuild.query.filter_by(module_id=id).all():
                 tasks[build.format + "/" + build.package] = \
-                    str(build.task_id) + "/" + build.state
+                    str(build.task_id) + "/" + str(build.state)
         return jsonify({
             "id": module.id,
             "state": module.state,
