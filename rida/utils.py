@@ -19,11 +19,12 @@
 # SOFTWARE.
 #
 # Written by Ralph Bean <rbean@redhat.com>
+#            Matt Prahl <mprahl@redhat.com>
 """ Utility functions for rida. """
-
+from flask import request, url_for
 import functools
 import time
-from rida import log
+from rida import log, models
 
 
 def retry(timeout=120, interval=30, wait_on=Exception):
@@ -69,3 +70,29 @@ def start_next_build_batch(module, session, builder, components=None):
         c.task_id = builder.build(artifact_name=c.package, source=c.scmurl)
 
     session.commit()
+
+
+def pagination_metadata(p_query):
+    """
+    Returns a dictionary containing metadata about the paginated query. This must be run as part of a Flask request.
+    :param p_query: flask_sqlalchemy.Pagination object
+    :return: a dictionary containing metadata about the paginated query
+    """
+
+    pagination_data = {
+        'page': p_query.page,
+        'per_page': p_query.per_page,
+        'total': p_query.total,
+        'pages': p_query.pages,
+        'first': url_for(request.endpoint, page=1, per_page=p_query.per_page, _external=True),
+        'last': url_for(request.endpoint, page=p_query.pages, per_page=p_query.per_page, _external=True)
+    }
+
+    if p_query.has_prev:
+        pagination_data['prev'] = url_for(request.endpoint, page=p_query.prev_num,
+                                          per_page=p_query.per_page, _external=True)
+    if p_query.has_next:
+        pagination_data['next'] = url_for(request.endpoint, page=p_query.next_num,
+                                          per_page=p_query.per_page, _external=True)
+
+    return pagination_data
