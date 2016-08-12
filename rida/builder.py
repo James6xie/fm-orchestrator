@@ -167,7 +167,7 @@ class GenericBuilder:
         raise NotImplementedError()
 
     @abstractmethod
-    def buildroot_add_repo(self, dependencies):
+    def buildroot_add_repos(self, dependencies):
         """
         :param dependencies: a list of modules represented as a list of dicts,
                              like:
@@ -255,14 +255,14 @@ class KojiModuleBuilder(GenericBuilder):
         self.tag_name = tag_name
         self.__prep = False
         log.debug("Using koji profile %r" % config.koji_profile)
-        log.debug ("Using koji_config: %s" % config.koji_config)
+        log.debug("Using koji_config: %s" % config.koji_config)
 
         self.koji_session, self.koji_module = self.get_session_from_config(config)
         self.arches = config.koji_arches
         if not self.arches:
             raise ValueError("No koji_arches specified in the config.")
 
-        # These eventually get populated when buildroot_{prep,resume} is called
+        # These eventually get populated by calling _connect and __prep is set to True
         self.module_tag = None # string
         self.module_build_tag = None # string
         self.module_target = None # A koji target dict
@@ -272,14 +272,17 @@ class KojiModuleBuilder(GenericBuilder):
             self.module_str, self.tag_name)
 
     @rida.utils.retry(wait_on=koji.GenericError)
-    def buildroot_ready(self, artifacts):
-        """ Returns True or False if the given artifacts are in the build root.
+    def buildroot_ready(self, artifacts=None):
+        """
+        :param artifacts=None - list of nvrs
+        Returns True or False if the given artifacts are in the build root.
+        Note: this function is not async and it's locking rida's runtime ... be careful
         """
         assert self.module_target, "Invalid build target"
 
         tag_id = self.module_target['build_tag']
         repo = self.koji_session.getRepo(tag_id)
-        builds = [self.koji_session.getBuild(a) for a in artifacts]
+        builds = [self.koji_session.getBuild(a) for a in artifacts or []]
         log.info("%r checking buildroot readiness for "
                  "repo: %r, tag_id: %r, artifacts: %r, builds: %r" % (
                      self, repo, tag_id, artifacts, builds))
@@ -399,38 +402,18 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
             raise ValueError("Unrecognized koji authtype %r" % authtype)
         return (koji_session, koji_module)
 
-    def buildroot_resume(self): # XXX: experimental
-        """
-        Resume existing buildroot. Sets __prep=True
-        """
-        log.info("%r resuming buildroot." % self)
-        chktag = self.koji_session.getTag(self.tag_name)
-        if not chktag:
-            raise SystemError("Tag %s doesn't exist" % self.tag_name)
-        chkbuildtag = self.koji_session.getTag(self.tag_name + "-build")
-        if not chkbuildtag:
-            raise SystemError("Build Tag %s doesn't exist" % self.tag_name + "-build")
-        chktarget = self.koji_session.getBuildTarget(self.tag_name)
-        if not chktarget:
-            raise SystemError("Target %s doesn't exist" % self.tag_name)
-        self.module_tag = chktag
-        self.module_build_tag = chkbuildtag
-        self.module_target = chktarget
-        self.__prep = True
-        log.info("%r buildroot resumed." % self)
+    def buildroot_connect(self):
+        log.info("%r connecting buildroot." % self)
 
-    def buildroot_prep(self):
-        """
-        :param module_deps_tags: a tag names of our build requires
-        :param module_deps_tags: a tag names of our build requires
-        """
-        log.info("%r preparing buildroot." % self)
+        # Create or update individual tags
         self.module_tag = self._koji_create_tag(
             self.tag_name, self.arches, perm="admin") # the main tag needs arches so pungi can dump it
+
         self.module_build_tag = self._koji_create_tag(
             self.tag_name + "-build", self.arches, perm="admin")
 
-        groups = KOJI_DEFAULT_GROUPS # TODO: read from config
+        # TODO: handle in buildroot_add_artifact(install=true) and track groups as module buildrequires
+        groups = KOJI_DEFAULT_GROUPS
         if groups:
             @rida.utils.retry(wait_on=SysCallError, interval=5)
             def add_groups():
@@ -442,17 +425,19 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
 
         self.module_target = self._koji_add_target(self.tag_name, self.module_build_tag, self.module_tag)
         self.__prep = True
-        log.info("%r buildroot prepared." % self)
+        log.info("%r buildroot sucessfully connected." % self)
 
-    def buildroot_add_dependency(self, dependencies):
+    def buildroot_add_repos(self, dependencies):
         tags = [self._get_tag(d)['name'] for d in dependencies]
-        log.info("%r adding deps for %r" % (self, tags))
+        log.info("%r adding deps on %r" % (self, tags))
         self._koji_add_many_tag_inheritance(self.module_build_tag, tags)
 
     def buildroot_add_artifacts(self, artifacts, install=False):
         """
         :param artifacts - list of artifacts to add to buildroot
         :param install=False - force install artifact (if it's not dragged in as dependency)
+
+        This method is safe to call multiple times.
         """
         log.info("%r adding artifacts %r" % (self, artifacts))
         dest_tag = self._get_tag(self.module_build_tag)['id']
@@ -488,12 +473,39 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
         return get_result()
 
 
+    def _build_exists(self, artifact_name):
+        """
+        :param artifact_name: e.g. bash
+
+        Searches for a tagged package inside module tag.
+
+        Returns task_id or None.
+
+        TODO: handle builds with skip_tag (not tagged at all)
+        """
+        # yaml file can hold only one reference to a package name, so
+        # I expect that we can have only one build of package within single module
+        # Rules for searching:
+        #  * latest: True so I can return only single task_id.
+        #  * we do want only build explicitly tagged in the module tag (inherit: False)
+
+        opts = {'latest': True, 'package': artifact_name, 'inherit': False}
+        tagged = self.koji_session.listTagged(self.module_tag['name'], **opts)
+
+        if tagged:
+            assert len(tagged) == 1, "Expected exactly one item in list. Got %s" % tagged
+            return tagged[0]['task_id']
+
+        return None
+
     def build(self, artifact_name, source):
         """
         :param source : scmurl to spec repository
         : param artifact_name: name of artifact (which we couldn't get from spec due involved macros)
         :return koji build task id
         """
+
+        # This code supposes that artifact_name can be built within the component
         # Taken from /usr/bin/koji
         def _unique_path(prefix):
             """Create a unique path fragment by appending a path component
@@ -504,16 +516,23 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
             # For some reason repr(time.time()) includes 4 or 5
             # more digits of precision than str(time.time())
             return '%s/%r.%s' % (prefix, time.time(),
-                              ''.join([random.choice(string.ascii_letters) for i in range(8)]))
+                                 ''.join([random.choice(string.ascii_letters) for i in range(8)]))
 
         if not self.__prep:
             raise RuntimeError("Buildroot is not prep-ed")
+
+        # Skip existing builds
+        task_id = self._build_exists(artifact_name)
+        if task_id:
+            log.info("skipping build of %s. Build already exists (task_id=%s), via %s" % (
+                source, task_id, self))
+            return task_id
 
         self._koji_whitelist_packages([artifact_name,])
         if '://' not in source:
             #treat source as an srpm and upload it
             serverdir = _unique_path('cli-build')
-            callback =None
+            callback = None
             self.koji_session.uploadWrapper(source, serverdir, callback=callback)
             source = "%s/%s" % (serverdir, os.path.basename(source))
 
@@ -533,11 +552,23 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
 
     def _koji_add_many_tag_inheritance(self, tag_name, parent_tags):
         tag = self._get_tag(tag_name)
-
-        inheritanceData = []
+        # highest priority num is at the end
+        inheritance_data = sorted(self.koji_session.getInheritanceData(tag['name']) or [], key=lambda k: k['priority'])
+        # Set initial priority to last record in inheritance data or 0
         priority = 0
+        if inheritance_data:
+            priority = inheritance_data[-1]['priority'] + 10
+        def record_exists(parent_id, data):
+            for item in data:
+                if parent_id == item['parent_id']:
+                    return True
+            return False
+
         for parent in parent_tags: # We expect that they're sorted
             parent = self._get_tag(parent)
+            if record_exists(parent['id'], inheritance_data):
+                continue
+
             parent_data = {}
             parent_data['parent_id'] = parent['id']
             parent_data['priority'] = priority
@@ -545,10 +576,11 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
             parent_data['intransitive'] = False
             parent_data['noconfig'] = False
             parent_data['pkg_filter'] = ''
-            inheritanceData.append(parent_data)
+            inheritance_data.append(parent_data)
             priority += 10
 
-        self.koji_session.setInheritanceData(tag['id'], inheritanceData)
+        if inheritance_data:
+            self.koji_session.setInheritanceData(tag['id'], inheritance_data)
 
     def _koji_add_groups_to_tag(self, dest_tag, groups=None):
         """
@@ -556,7 +588,6 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
         :param groups: A dict {'group' : [package, ...]}
         """
         log.debug("Adding groups=%s to tag=%s" % (groups.keys(), dest_tag))
-
         if groups and not isinstance(groups, dict):
             raise ValueError("Expected dict {'group' : [str(package1), ...]")
 
@@ -569,34 +600,60 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
         for group, packages in groups.iteritems():
             group_id = existing_groups.get(group, None)
             if group_id is not None:
-                log.warning("Group %s already exists for tag %s" % (group, dest_tag))
+                log.debug("Group %s already exists for tag %s. Skipping creation." % (group, dest_tag))
                 continue
+
             self.koji_session.groupListAdd(dest_tag, group)
             log.debug("Adding %d packages into group=%s tag=%s" % (len(packages), group, dest_tag))
+
+            # This doesn't fail in case that it's already present in the group. This should be safe
             for pkg in packages:
                 self.koji_session.groupPackageListAdd(dest_tag, group, pkg)
 
 
-    def _koji_create_tag(self, tag_name, arches=None, fail_if_exists=True, perm=None):
-        log.debug("Creating tag %s" % tag_name)
-        chktag = self.koji_session.getTag(tag_name)
-        if chktag and fail_if_exists:
-            raise SystemError("Tag %s already exist" % tag_name)
+    def _koji_create_tag(self, tag_name, arches=None, perm=None):
+        """
+        :param tag_name: name of koji tag
+        :param arches: list of architectures for the tag
+        :param perm: permissions for the tag (used in lock-tag)
 
-        elif chktag:
-            return self._get_tag(self.module_tag)
+        This call is safe to call multiple times.
+        """
 
-        else:
-            opts = {}
-            if arches:
-                if not isinstance(arches, list):
-                    raise ValueError("Expected list or None on input got %s" % type(arches))
+        log.debug("Ensuring existence of tag='%s'." % tag_name)
+        taginfo = self.koji_session.getTag(tag_name)
+
+        if not taginfo: # Existing tag, need to check whether settings is correct
+            self.koji_session.createTag(tag_name, {})
+            taginfo = self._get_tag(tag_name)
+
+        opts = {}
+        if arches:
+            if not isinstance(arches, list):
+                raise ValueError("Expected list or None on input got %s" % type(arches))
+
+            current_arches = []
+            if taginfo['arches']: # None if none
+                current_arches = taginfo['arches'].split() # string separated by empty spaces
+
+            if set(arches) != set(current_arches):
                 opts['arches'] = " ".join(arches)
 
-            self.koji_session.createTag(tag_name, **opts)
-            if perm:
-                self._lock_tag(tag_name, perm)
-            return self._get_tag(tag_name)
+        if perm:
+            if taginfo['locked']:
+                raise SystemError("Tag %s: master lock already set. Can't edit tag" % taginfo['name'])
+
+            perm_ids = dict([(p['name'], p['id']) for p in self.koji_session.getAllPerms()])
+            if perm not in perm_ids.keys():
+                raise ValueError("Unknown permissions %s" % perm)
+
+            perm_id = perm_ids[perm]
+            if taginfo['perm'] not in (perm_id, perm): # check either id or the string
+                opts['perm'] = perm_id
+
+        # edit tag with opts
+        self.koji_session.editTag2(tag_name, **opts)
+        return self._get_tag(tag_name) # Return up2date taginfo
 
     def _get_component_owner(self, package):
         user = self.koji_session.getLoggedInUser()['name']
@@ -609,7 +666,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
         for package in packages:
             package_id = pkglist.get(package, None)
             if not package_id is None:
-                log.warn("Package %s already exists in tag %s" % (package, self.module_tag['name']))
+                log.debug("%s Package %s is already whitelisted." % (self, package))
                 continue
             to_add.append(package)
 
@@ -621,20 +678,29 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
             self.koji_session.packageListAdd(self.module_tag['name'], package, owner)
 
     def _koji_add_target(self, name, build_tag, dest_tag):
+        """
+        :param name: target name
+        :param build-tag: build_tag name
+        :param dest_tag: dest tag name
+
+        This call is safe to call multiple times. Raises SystemError() if the existing target doesn't match params.
+        The reason not to touch existing target, is that we don't want to accidentaly alter a target
+        which was already used to build some artifacts.
+        """
         build_tag = self._get_tag(build_tag)
         dest_tag = self._get_tag(dest_tag)
+        target_info = self.koji_session.getBuildTarget(name)
 
         barches = build_tag.get("arches", None)
-        assert barches, "Build tag %s has no arches defined" % build_tag['name']
-        self.koji_session.createBuildTarget(name, build_tag['name'], dest_tag['name'])
-        return self.koji_session.getBuildTarget(name)
+        assert barches, "Build tag %s has no arches defined." % build_tag['name']
 
-    def _lock_tag(self, tag, perm="admin"):
-        taginfo = self._get_tag(tag)
-        if taginfo['locked']:
-            raise SystemError("Tag %s: master lock already set" % taginfo['name'])
-        perm_ids = dict([(p['name'], p['id']) for p in self.koji_session.getAllPerms()])
-        if perm not in perm_ids.keys():
-            raise ValueError("Unknown permissions %s" % perm)
-        perm_id = perm_ids[perm]
-        self.koji_session.editTag2(taginfo['id'], perm=perm_id)
+        if not target_info:
+            target_info = self.koji_session.createBuildTarget(name, build_tag['name'], dest_tag['name'])
+
+        else: # verify whether build and destination tag matches
+            if build_tag['name'] != target_info['build_tag_name']:
+                raise SystemError("Target references unexpected build_tag_name. Got '%s', expected '%s'. Please contact administrator." % (target_info['build_tag_name'], build_tag['name']))
+            if dest_tag['name'] != target_info['dest_tag_name']:
+                raise SystemError("Target references unexpected dest_tag_name. Got '%s', expected '%s'. Please contact administrator." % (target_info['dest_tag_name'], dest_tag['name']))
+
+        return self.koji_session.getBuildTarget(name)

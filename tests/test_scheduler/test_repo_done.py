@@ -52,9 +52,9 @@ class TestRepoDone(unittest.TestCase):
     @mock.patch('rida.builder.KojiModuleBuilder.buildroot_ready')
     @mock.patch('rida.builder.KojiModuleBuilder.get_session_from_config')
     @mock.patch('rida.builder.KojiModuleBuilder.build')
-    @mock.patch('rida.builder.KojiModuleBuilder.buildroot_resume')
+    @mock.patch('rida.builder.KojiModuleBuilder.buildroot_connect')
     @mock.patch('rida.models.ModuleBuild.from_repo_done_event')
-    def test_a_single_match(self, from_repo_done_event, resume, build_fn, config, ready):
+    def test_a_single_match(self, from_repo_done_event, build_fn, config, ready):
         """ Test that when a repo msg hits us and we have a single match.
         """
         config.return_value = mock.Mock(), "development"

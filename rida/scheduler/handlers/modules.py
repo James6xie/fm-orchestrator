@@ -101,9 +101,9 @@ def wait(config, session, msg):
     build.koji_tag = tag
 
     builder = rida.builder.KojiModuleBuilder(build.name, config, tag_name=tag)
-    build.buildroot_task_id = builder.buildroot_prep()
+    build.buildroot_task_id = builder.buildroot_connect()
     log.debug("Adding dependencies %s into buildroot for module %s" % (dependencies, module_info))
-    builder.buildroot_add_dependency(dependencies)
+    builder.buildroot_add_repos(dependencies)
     # inject dist-tag into buildroot
     srpm = builder.get_disttag_srpm(disttag=".%s" % get_rpm_release_from_tag(tag))
 
