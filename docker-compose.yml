@@ -1,0 +1,20 @@
+version: "2"
+services:
+  ridad:
+    build:
+      context: .
+    command: python2 /opt/fm-orchestrator/ridad.py
+    volumes:
+      - ./rida/:/opt/fm-orchestrator/rida/  # rida sources are bind-mounted, so you don't have to rebuild
+      - ~/.fedora.cert:/root/.fedora.cert  # koji credentials are mounted inside
+      - ~/.fedora-server-ca.cert:/root/.fedora-server-ca.cert
+      - ~/.fedora-upload-ca.cert:/root/.fedora-upload-ca.cert
+  rida:
+    build:
+      context: .
+    ports:
+      - "5000:5000"
+    links:
+      - ridad
+    volumes:
+      - ./rida/:/opt/fm-orchestrator/rida/
