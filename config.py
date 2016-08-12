@@ -15,7 +15,7 @@ class BaseConfiguration(object):
     MESSAGING = 'fedmsg'
     KOJI_CONFIG = '/etc/rida/koji.conf'
     KOJI_PROFILE = 'koji'
-    KOJI_ARCHES = ['x86_64']
+    KOJI_ARCHES = ['i686', 'armv7hl', 'x86_64']
     PDC_URL = 'http://modularity.fedorainfracloud.org:8080/rest_api/v1'
     PDC_INSECURE = True
     PDC_DEVELOP = True
