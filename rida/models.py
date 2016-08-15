@@ -192,6 +192,18 @@ class ModuleBuild(RidaBase):
             'component_builds': [build.id for build in self.component_builds],
         }
 
+    def tasks(self):
+        """
+        :return: dictionary containing the tasks associated with the build
+        """
+        tasks = dict()
+        if self.id and self.state != 'init':
+
+            for build in ComponentBuild.query.filter_by(module_id=self.id).all():
+                tasks["%s/%s" % (build.format, build.package)] = "%s/%s" % (build.task_id, build.state)
+
+        return tasks
+
     def __repr__(self):
         return "<ModuleBuild %s-%s-%s, state %r, batch %r>" % (
             self.name, self.version, self.release,

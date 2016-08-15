@@ -97,20 +97,112 @@ The list of all tracked builds and their states can be obtained by querying the
 
 ::
 
-    [
+    {
+      "items": [
         {
-            "id": 41",
-            "state": "done"
+          "id": 1,
+          "state": 3
         },
         {
-            "id": 42,
-            "state": "build"
+          "id": 2,
+          "state": 3
         },
         {
-            "id": 43,
-            "state": "init"
+          "id": 3,
+          "state": 3
+        },
+        {
+          "id": 4,
+          "state": 4
+        },
+        {
+          "id": 5,
+          "state": 4
+        },
+        {
+          "id": 6,
+          "state": 4
+        },
+        {
+          "id": 7,
+          "state": 4
+        },
+        {
+          "id": 8,
+          "state": 4
+        },
+        {
+          "id": 9,
+          "state": 4
+        },
+        {
+          "id": 10,
+          "state": 1
         }
-    ]
+      ],
+      "meta": {
+        "first": "https://rida.fedora.local:5000/rida/module-builds/?per_page=10&page=1",
+        "last": "https://rida.fedora.local:5000/rida/module-builds/?per_page=10&page=3",
+        "next": "https://rida.fedora.local:5000/rida/module-builds/?per_page=10&page=2",
+        "page": 1,
+        "pages": 3,
+        "per_page": 10,
+        "total": 30
+      }
+    }
+
+
+The API is paginated, and defaults to 10 items per page. These values are configurable with the `page` and `per_page`
+GET parameters respectively. Additionally, there is a `verbose` parameter that defaults to false, which allows you to
+query all the builds with the same amount of detail as querying them individually.
+
+::
+
+    GET /rida/module-builds/?verbose=true&per_page=3&page=1
+
+::
+
+    HTTP 200 OK
+
+::
+
+    {
+      "items": [
+        {
+          "id": 1,
+          "state": 3,
+          "tasks": {
+            "rpms/bash": "90109464/1",
+            "rpms/module-build-macros": "90109446/1"
+          }
+        },
+        {
+          "id": 2,
+          "state": 3,
+          "tasks": {
+            "rpms/bash": "90109465/1",
+            "rpms/module-build-macros": "90109450/1"
+          }
+        },
+        {
+          "id": 3,
+          "state": 3,
+          "tasks": {
+            "rpms/bash": "90109497/1",
+            "rpms/module-build-macros": "90109480/1"
+          }
+        }
+      ],
+      "meta": {
+        "first": "https://127.0.0.1:5000/rida/module-builds/?per_page=3&page=1",
+        "last": "https://127.0.0.1:5000/rida/module-builds/?per_page=3&page=10",
+        "next": "https://127.0.0.1:5000/rida/module-builds/?per_page=3&page=2",
+        "page": 1,
+        "pages": 10,
+        "per_page": 3,
+        "total": 30
+      }
+    }
 
 
 HTTP Response Codes

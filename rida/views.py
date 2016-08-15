@@ -21,6 +21,7 @@
 # SOFTWARE.
 #
 # Written by Petr Šabata <contyk@redhat.com>
+#            Matt Prahl <mprahl@redhat.com>
 
 """ The module build orchestrator for Modularity, API.
 This is the implementation of the orchestrator's public RESTful API.
@@ -38,6 +39,7 @@ import shutil
 import tempfile
 from rida import app, conf, db, log
 from rida import models
+from rida.utils import pagination_metadata
 
 
 @app.route("/rida/module-builds/", methods=["POST"])
@@ -143,23 +145,35 @@ def submit_build():
 @app.route("/rida/module-builds/", methods=["GET"])
 def query_builds():
     """Lists all tracked module builds."""
-    return jsonify(items=[{"id": x.id, "state": x.state}
-        for x in models.ModuleBuild.query.all()]), 200
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 10, type=int)
+    p_query = models.ModuleBuild.query.paginate(page, per_page, False)
+    verbose_flag = request.args.get('verbose', 'false')
+
+    json_data = {
+        'meta': pagination_metadata(p_query)
+    }
+
+    if verbose_flag.lower() == 'true' or verbose_flag == '1':
+        json_data['items'] = [{'id': item.id, 'state': item.state, 'tasks': item.tasks()}
+                              for item in p_query.items]
+    else:
+        json_data['items'] = [{'id': item.id, 'state': item.state} for item in p_query.items]
+
+    return jsonify(json_data), 200
+
 
 @app.route("/rida/module-builds/<int:id>", methods=["GET"])
 def query_build(id):
     """Lists details for the specified module builds."""
     module = models.ModuleBuild.query.filter_by(id=id).first()
+
     if module:
-        tasks = dict()
-        if module.state != "init":
-            for build in models.ComponentBuild.query.filter_by(module_id=id).all():
-                tasks[build.format + "/" + build.package] = \
-                    str(build.task_id) + "/" + str(build.state)
+
         return jsonify({
             "id": module.id,
             "state": module.state,
-            "tasks": tasks
-            }), 200
+            "tasks": module.tasks()
+        }), 200
     else:
         return "No such module found.", 404

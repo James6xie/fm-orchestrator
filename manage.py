@@ -128,22 +128,17 @@ def upgradedb():
 
 
 @manager.command
-def runssl(host=None, port=None):
+def runssl(host=conf.host, port=conf.port, debug=False):
     """ Runs the Flask app with the HTTPS settings configured in config.py
     """
-    if not host:
-        host = conf.host
-
-    if not port:
-        port = conf.port
-
     logging.info('Starting Rida')
     ssl_ctx = _establish_ssl_context()
     app.run(
         host=host,
         port=port,
         request_handler=rida.auth.ClientCertRequestHandler,
-        ssl_context=ssl_ctx
+        ssl_context=ssl_ctx,
+        debug=debug
     )
 
 if __name__ == "__main__":
