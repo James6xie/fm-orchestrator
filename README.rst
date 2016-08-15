@@ -326,3 +326,9 @@ After your docker engine is set up and running, and docker-compose installed you
 
     $ sudo docker-compose up
 
+It may happen that you will run into issues and the container won't start properly. Best thing to do in that case is to rebuild the environment from scratch::
+
+    $ sudo docker-compose down -v
+    $ sudo docker-compose build --no-cache --pull
+
+First command will stop and remove all containers and volumes and second command will pull latest base image and perform a clean build without cache.
