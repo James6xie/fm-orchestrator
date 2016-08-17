@@ -25,12 +25,11 @@
 
 """ SQLAlchemy Database models for the Flask app
 """
-
-from rida import db, log
+from datetime import datetime
 from sqlalchemy.orm import validates
-
 import modulemd as _modulemd
 
+from rida import db, log
 import rida.messaging
 
 
@@ -83,6 +82,10 @@ class ModuleBuild(RidaBase):
     modulemd = db.Column(db.String, nullable=False)
     koji_tag = db.Column(db.String)  # This gets set after 'wait'
     scmurl = db.Column(db.String)
+    owner = db.Column(db.String, nullable=False)
+    time_submitted = db.Column(db.DateTime, nullable=False)
+    time_modified = db.Column(db.DateTime)
+    time_completed = db.Column(db.DateTime)
 
     # A monotonically increasing integer that represents which batch or
     # iteration this module is currently on for successive rebuilds of its
@@ -125,7 +128,8 @@ class ModuleBuild(RidaBase):
         return session.query(cls).filter(cls.id==event['msg']['id']).first()
 
     @classmethod
-    def create(cls, session, conf, name, version, release, modulemd, scmurl):
+    def create(cls, session, conf, name, version, release, modulemd, scmurl, username):
+        now = datetime.utcnow()
         module = cls(
             name=name,
             version=version,
@@ -133,6 +137,9 @@ class ModuleBuild(RidaBase):
             state="init",
             modulemd=modulemd,
             scmurl=scmurl,
+            owner=username,
+            time_submitted=now,
+            time_modified=now
         )
         session.add(module)
         session.commit()

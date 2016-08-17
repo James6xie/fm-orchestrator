@@ -114,6 +114,7 @@ def submit_build():
         release=mmd.release,
         modulemd=yaml,
         scmurl=url,
+        username=username
     )
 
     def failure(message, code):
