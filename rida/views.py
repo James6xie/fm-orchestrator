@@ -39,13 +39,13 @@ import shutil
 import tempfile
 from rida import app, conf, db, log
 from rida import models
-from rida.utils import pagination_metadata
+from rida.utils import pagination_metadata, filter_module_builds
+from errors import ValidationError
 
 
 @app.route("/rida/module-builds/", methods=["POST"])
 def submit_build():
     """Handles new module build submissions."""
-    # Get the time from when the build was submitted
     username = rida.auth.is_packager(conf.pkgdb_api_url)
     if not username:
         return "You must use your Fedora certificate when submitting a new build", 403
@@ -165,14 +165,16 @@ def submit_build():
 @app.route("/rida/module-builds/", methods=["GET"])
 def query_builds():
     """Lists all tracked module builds."""
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 10, type=int)
-    p_query = models.ModuleBuild.query.paginate(page, per_page, False)
-    verbose_flag = request.args.get('verbose', 'false')
+    try:
+        p_query = filter_module_builds(request)
+    except ValidationError as e:
+        return e.message, 400
 
     json_data = {
         'meta': pagination_metadata(p_query)
     }
+
+    verbose_flag = request.args.get('verbose', 'false')
 
     if verbose_flag.lower() == 'true' or verbose_flag == '1':
         json_data['items'] = [item.api_json() for item in p_query.items]
