@@ -45,32 +45,38 @@ from rida.utils import pagination_metadata
 @app.route("/rida/module-builds/", methods=["POST"])
 def submit_build():
     """Handles new module build submissions."""
-
+    # Get the time from when the build was submitted
     username = rida.auth.is_packager(conf.pkgdb_api_url)
     if not username:
-        return ("You must use your Fedora certificate when submitting"
-               " new build", 403)
+        return "You must use your Fedora certificate when submitting a new build", 403
 
     try:
         r = json.loads(request.get_data().decode("utf-8"))
     except:
         return "Invalid JSON submitted", 400
+
     if "scmurl" not in r:
         return "Missing scmurl", 400
+
     url = r["scmurl"]
     urlallowed = False
+
     for prefix in conf.scmurls:
+
         if url.startswith(prefix):
             urlallowed = True
             break
+
     if not urlallowed:
         return "The submitted scmurl isn't allowed", 403
+
     yaml = str()
     try:
         td = tempfile.mkdtemp()
         scm = rida.scm.SCM(url, conf.scmurls)
         cod = scm.checkout(td)
         cofn = os.path.join(cod, (scm.name + ".yaml"))
+
         with open(cofn, "r") as mmdfile:
             yaml = mmdfile.read()
     except Exception as e:
@@ -83,11 +89,13 @@ def submit_build():
         return str(e), rc
     finally:
         shutil.rmtree(td)
+
     mmd = modulemd.ModuleMetadata()
     try:
         mmd.loads(yaml)
     except:
         return "Invalid modulemd", 422
+
     if models.ModuleBuild.query.filter_by(name=mmd.name, version=mmd.version, release=mmd.release).first():
         return "Module already exists", 409
 
@@ -123,9 +131,12 @@ def submit_build():
                 pkg["commit"] = rida.scm.SCM(pkg["repository"]).get_latest()
             except Exception as e:
                 return failure("Failed to get the latest commit: %s" % pkgname, 422)
+
         full_url = pkg["repository"] + "?#" + pkg["commit"]
+
         if not rida.scm.SCM(full_url).is_available():
             return failure("Cannot checkout %s" % pkgname, 422)
+
         build = models.ComponentBuild(
             module_id=module.id,
             package=pkgname,
@@ -133,6 +144,7 @@ def submit_build():
             scmurl=full_url,
         )
         db.session.add(build)
+
     module.modulemd = mmd.dumps()
     module.transition(conf, models.BUILD_STATES["wait"])
     db.session.add(module)
