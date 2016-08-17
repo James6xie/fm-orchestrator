@@ -137,9 +137,10 @@ class SCM(object):
         :raises: RuntimeError
         """
         if self.scheme == "git":
-            (status , output) = sp.getstatusoutput("git ls-remote %s"
-                % self.repository)
-            if status != 0:
+            cmd = ["git", "ls-remote", self.repository]
+            proc = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
+            output, stderr = proc.communicate()
+            if proc.returncode != 0:
                 raise RuntimeError("Cannot get git hash of master HEAD in %s"
                     % self.repository)
             for line in output.split(os.linesep):
