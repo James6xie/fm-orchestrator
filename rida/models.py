@@ -138,8 +138,7 @@ class ModuleBuild(RidaBase):
             modulemd=modulemd,
             scmurl=scmurl,
             owner=username,
-            time_submitted=now,
-            time_modified=now
+            time_submitted=now
         )
         session.add(module)
         session.commit()
@@ -153,8 +152,14 @@ class ModuleBuild(RidaBase):
 
     def transition(self, conf, state):
         """ Record that a build has transitioned state. """
+        now = datetime.utcnow()
         old_state = self.state
         self.state = state
+        self.time_modified = now
+
+        if self.state in ['done', 'failed']:
+            self.time_completed = now
+
         log.debug("%r, state %r->%r" % (self, old_state, self.state))
         rida.messaging.publish(
             modname='rida',
