@@ -199,9 +199,39 @@ class ModuleBuild(RidaBase):
             'state': self.state,
             'state_name': INVERSE_BUILD_STATES[self.state],
             'scmurl': self.scmurl,
+            'owner': self.owner,
+            'time_submitted': self.time_submitted,
+            'time_modified': self.time_modified,
+            'time_completed': self.time_completed,
 
             # TODO, show their entire .json() ?
             'component_builds': [build.id for build in self.component_builds],
+        }
+
+    @staticmethod
+    def _utc_datetime_to_iso(datetime_object):
+        """
+        Takes a UTC datetime object and returns an ISO formatted string
+        :param datetime_object: datetime.datetime
+        :return: string with datetime in ISO format
+        """
+        if datetime_object:
+            # Converts the datetime to ISO 8601
+            return datetime_object.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        return None
+
+    def api_json(self):
+
+        return {
+            "id": self.id,
+            "state": self.state,
+            "owner": self.owner,
+            "name": self.name,
+            "time_submitted": self._utc_datetime_to_iso(self.time_submitted),
+            "time_modified": self._utc_datetime_to_iso(self.time_modified),
+            "time_completed": self._utc_datetime_to_iso(self.time_completed),
+            "tasks": self.tasks()
         }
 
     def tasks(self):

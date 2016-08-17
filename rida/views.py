@@ -175,8 +175,7 @@ def query_builds():
     }
 
     if verbose_flag.lower() == 'true' or verbose_flag == '1':
-        json_data['items'] = [{'id': item.id, 'state': item.state, 'tasks': item.tasks()}
-                              for item in p_query.items]
+        json_data['items'] = [item.api_json() for item in p_query.items]
     else:
         json_data['items'] = [{'id': item.id, 'state': item.state} for item in p_query.items]
 
@@ -189,11 +188,6 @@ def query_build(id):
     module = models.ModuleBuild.query.filter_by(id=id).first()
 
     if module:
-
-        return jsonify({
-            "id": module.id,
-            "state": module.state,
-            "tasks": module.tasks()
-        }), 200
+        return jsonify(module.api_json()), 200
     else:
         return "No such module found.", 404
