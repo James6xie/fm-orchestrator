@@ -167,9 +167,8 @@ class SCM(object):
             return True if rc == 200 else False
         else:
             try:
-                td = tempfile.TemporaryDirectory()
-                self.checkout(td.name)
-                td.cleanup()
+                td = tempfile.mkdtemp()
+                self.checkout(td)
                 return True
             except:
                 return False
