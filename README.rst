@@ -315,3 +315,20 @@ E.g. ``"scmurl": "git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#020ea
 The toplevel directory containing the trees for each architecture of a module.
 This field is only present when a module finished building, i.e. with the
 states 'done' or 'ready'.
+
+
+Development
+===========
+
+You can use docker containers for development. Here's a guide how to setup `docker <https://developer.fedoraproject.org/tools/docker/about.html>`_ and `docker-compose <https://developer.fedoraproject.org/tools/docker/compose.html>`_.
+
+After your docker engine is set up and running, and docker-compose installed you can start whole system with a single command::
+
+    $ sudo docker-compose up
+
+It may happen that you will run into issues and the container won't start properly. Best thing to do in that case is to rebuild the environment from scratch::
+
+    $ sudo docker-compose down -v
+    $ sudo docker-compose build --no-cache --pull
+
+First command will stop and remove all containers and volumes and second command will pull latest base image and perform a clean build without cache.

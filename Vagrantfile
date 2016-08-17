@@ -6,6 +6,8 @@ $script = <<SCRIPT
     pip install -r /opt/fm-orchestrator/src/requirements.txt
     pip install -r /opt/fm-orchestrator/src/test-requirements.txt
     cd /opt/fm-orchestrator/src
+    mkdir -p /etc/rida
+    cp -av koji.conf /etc/rida/
     python manage.py upgradedb
     ./generate_localhost_cert.sh
 SCRIPT
