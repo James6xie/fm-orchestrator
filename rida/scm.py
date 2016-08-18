@@ -33,6 +33,7 @@ import os
 import subprocess as sp
 import re
 import tempfile
+import shutil
 
 from rida import log
 import rida.utils
@@ -169,6 +170,7 @@ class SCM(object):
             try:
                 td = tempfile.mkdtemp()
                 self.checkout(td)
+                shutil.rmtree(td)
                 return True
             except:
                 return False
