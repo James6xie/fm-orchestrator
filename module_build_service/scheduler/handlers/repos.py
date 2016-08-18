@@ -76,7 +76,7 @@ def done(config, session, msg):
         return
 
     builder = module_build_service.builder.Builder(module_build.owner, module_build.name,
-                                   'koji', config, tag_name=tag)
+                                   config.system, config, tag_name=tag)
     builder.buildroot_connect()
 
     # Ok, for the subset of builds that did complete successfully, check to

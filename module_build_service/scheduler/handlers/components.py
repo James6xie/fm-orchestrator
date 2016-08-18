@@ -77,7 +77,7 @@ def _finalize(config, session, msg, state):
         # And install the macros.
         module_name = parent.name
         tag = parent.koji_tag
-        builder = module_build_service.builder.Builder(parent.owner, module_name, 'koji',
+        builder = module_build_service.builder.Builder(parent.owner, module_name, config.system,
                                                        config, tag_name=tag)
         builder.buildroot_connect()
         # tag && add to srpm-build group
