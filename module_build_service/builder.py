@@ -238,6 +238,9 @@ class Builder(object):
         if backend == "koji":
             return KojiModuleBuilder(owner=owner, module=module,
                                      config=config, **extra)
+        elif backend == "copr":
+            return CoprModuleBuilder(owner=owner, module=module,
+					                 config=config, **extra)
         else:
             raise ValueError("Builder backend='%s' not recognized" % backend)
 
@@ -709,3 +712,36 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
                 raise SystemError("Target references unexpected dest_tag_name. Got '%s', expected '%s'. Please contact administrator." % (target_info['dest_tag_name'], dest_tag['name']))
 
         return self.koji_session.getBuildTarget(name)
+
+
+class CoprModuleBuilder(GenericBuilder):
+
+    backend = "copr"
+
+    def __init__(self, module, config, tag_name):
+        self.module_str = module
+        self.tag_name = tag_name
+
+    def buildroot_prep(self):
+        pass
+
+    def buildroot_resume(self):
+        pass
+
+    def buildroot_ready(self, artifacts=None):
+        return True
+
+    def buildroot_add_dependency(self, dependencies):
+        pass
+
+    def buildroot_add_artifacts(self, artifacts, install=False):
+        pass
+
+    def build(self, artifact_name, source):
+        log.info("Copr build")
+        pass
+
+    @staticmethod
+    def get_disttag_srpm(disttag):
+        # @FIXME
+        return KojiModuleBuilder.get_disttag_srpm(disttag)

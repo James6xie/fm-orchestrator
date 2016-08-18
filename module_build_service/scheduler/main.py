@@ -219,6 +219,10 @@ class Poller(threading.Thread):
                     )
                     self.outgoing_work_queue.put(msg)
 
+        elif conf.system == "copr":
+            # @TODO
+            pass
+
         else:
             raise NotImplementedError("Buildsystem %r is not supported." % conf.system)
 

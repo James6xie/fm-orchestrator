@@ -92,7 +92,7 @@ class Config(object):
     @system.setter
     def system(self, s):
         s = str(s)
-        if s not in ("koji"):
+        if s not in ("koji", "copr"):
             raise ValueError("Unsupported buildsystem.")
         self._system = s
 
