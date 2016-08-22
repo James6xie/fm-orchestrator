@@ -76,7 +76,7 @@ def done(config, session, msg):
         return
 
     builder = rida.builder.KojiModuleBuilder(module_build.name, config, tag_name=tag)
-    builder.buildroot_resume()
+    builder.buildroot_connect()
 
     # Ok, for the subset of builds that did complete successfully, check to
     # see if they are in the buildroot.
