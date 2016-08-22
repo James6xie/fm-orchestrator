@@ -276,7 +276,6 @@ class KojiModuleBuilder(GenericBuilder):
         """
         :param artifacts=None - list of nvrs
         Returns True or False if the given artifacts are in the build root.
-        Note: this function is not async and it's locking rida's runtime ... be careful
         """
         assert self.module_target, "Invalid build target"
 
@@ -473,7 +472,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
         return get_result()
 
 
-    def _build_exists(self, artifact_name):
+    def _get_task_by_artifact(self, artifact_name):
         """
         :param artifact_name: e.g. bash
 
@@ -508,13 +507,16 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
         # This code supposes that artifact_name can be built within the component
         # Taken from /usr/bin/koji
         def _unique_path(prefix):
-            """Create a unique path fragment by appending a path component
+            """
+            Create a unique path fragment by appending a path component
             to prefix.  The path component will consist of a string of letter and numbers
-            that is unlikely to be a duplicate, but is not guaranteed to be unique."""
+            that is unlikely to be a duplicate, but is not guaranteed to be unique.
+            """
             # Use time() in the dirname to provide a little more information when
             # browsing the filesystem.
             # For some reason repr(time.time()) includes 4 or 5
             # more digits of precision than str(time.time())
+            # Unnamed Engineer: Guido v. R., I am disappoint
             return '%s/%r.%s' % (prefix, time.time(),
                                  ''.join([random.choice(string.ascii_letters) for i in range(8)]))
 
@@ -522,7 +524,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
             raise RuntimeError("Buildroot is not prep-ed")
 
         # Skip existing builds
-        task_id = self._build_exists(artifact_name)
+        task_id = self._get_task_by_artifact(artifact_name)
         if task_id:
             log.info("skipping build of %s. Build already exists (task_id=%s), via %s" % (
                 source, task_id, self))
