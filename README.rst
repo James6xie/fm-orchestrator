@@ -88,10 +88,10 @@ The list of all tracked builds and their states can be obtained by querying the 
 There are a number of configurable GET parameters to change how the module builds are displayed. These parameters are:
 
 - verbose - Shows the builds with the same amount of detail as querying them individually (i.e. verbose=True). This value defaults to False.
-- page - Specifies which page should be displayed (i.e. page=3). This value defaults to 1.
-- per_page - Specifies how many items per page should be displayed (i.e. per_page=20). This value defaults to 10.
+- page - Specifies which page should be displayed (e.g. page=3). This value defaults to 1.
+- per_page - Specifies how many items per page should be displayed (e.g. per_page=20). This value defaults to 10.
 
-An example of querying the "module-builds" resource without any additional paramaters::
+An example of querying the "module-builds" resource without any additional parameters::
 
     GET /rida/module-builds/
 
@@ -225,14 +225,14 @@ Filtering module builds
 
 The module-builds can be filtered by a variety of GET parameters. These paramters are:
 
-- owner - Shows builds submitted by a particular user (i.e. owner=mprahl)
-- state - Shows builds in a particular state (can be the state name or the state ID) (i.e. state=done)
-- submitted_before - Shows builds that were submitted before a particular Zulu ISO 8601 timestamp (i.e. submitted_before=2016-08-23T09:40:07Z)
-- submitted_after - Shows builds that were submitted after a particular Zulu ISO 8601 timestamp (i.e. submitted_after=2016-08-22T09:40:07Z)
-- modified_before - Shows builds that were modified before a particular Zulu ISO 8601 timestamp (i.e. modified_before=2016-08-23T09:40:07Z)
-- modified_after - Shows builds that were modified after a particular Zulu ISO 8601 timestamp (i.e. modified_after=2016-08-22T09:40:07Z)
-- completed_before - Shows builds that were completed before a particular Zulu ISO 8601 timestamp (i.e. completed_before=2016-08-22T09:40:07Z)
-- completed_after - Shows builds that were completed after a particular Zulu ISO 8601 timestamp (i.e. completed_after=2016-08-23T09:40:07Z)
+- owner - Shows builds submitted by a particular user (e.g. owner=mprahl)
+- state - Shows builds in a particular state (can be the state name or the state ID) (e.g. state=done)
+- submitted_before - Shows builds that were submitted before a particular Zulu ISO 8601 timestamp (e.g. submitted_before=2016-08-23T09:40:07Z)
+- submitted_after - Shows builds that were submitted after a particular Zulu ISO 8601 timestamp (e.g. submitted_after=2016-08-22T09:40:07Z)
+- modified_before - Shows builds that were modified before a particular Zulu ISO 8601 timestamp (e.g. modified_before=2016-08-23T09:40:07Z)
+- modified_after - Shows builds that were modified after a particular Zulu ISO 8601 timestamp (e.g. modified_after=2016-08-22T09:40:07Z)
+- completed_before - Shows builds that were completed before a particular Zulu ISO 8601 timestamp (e.g. completed_before=2016-08-22T09:40:07Z)
+- completed_after - Shows builds that were completed after a particular Zulu ISO 8601 timestamp (e.g. completed_after=2016-08-23T09:40:07Z)
 
 An example of querying the "module-builds" resource with the "state", and the "submitted_before" parameters::
 
