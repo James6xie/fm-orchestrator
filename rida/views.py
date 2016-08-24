@@ -71,6 +71,7 @@ def submit_build():
         return "The submitted scmurl isn't allowed", 403
 
     yaml = str()
+    td = None
     try:
         td = tempfile.mkdtemp()
         scm = rida.scm.SCM(url, conf.scmurls)
@@ -88,7 +89,13 @@ def submit_build():
             rc = 500
         return str(e), rc
     finally:
-        shutil.rmtree(td)
+        try:
+            if td is not None:
+                shutil.rmtree(td)
+        except Exception as e:
+            log.warning(
+                "Failed to remove temporary directory {!r}: {}".format(
+                    td, str(e)))
 
     mmd = modulemd.ModuleMetadata()
     try:
