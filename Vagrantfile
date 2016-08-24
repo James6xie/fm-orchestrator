@@ -2,7 +2,7 @@
 # vi: set ft=ruby :
 
 $script = <<SCRIPT
-    dnf install -y python python-virtualenv python-devel libffi-devel redhat-rpm-config openssl-devel gcc gcc-c++ koji
+    dnf install -y python python-virtualenv python-devel libffi-devel redhat-rpm-config openssl-devel gcc gcc-c++ koji git
     pip install -r /opt/fm-orchestrator/src/requirements.txt
     pip install -r /opt/fm-orchestrator/src/test-requirements.txt
     cd /opt/fm-orchestrator/src

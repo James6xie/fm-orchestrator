@@ -33,6 +33,7 @@ import os
 import subprocess as sp
 import re
 import tempfile
+import shutil
 
 from rida import log
 import rida.utils
@@ -137,9 +138,10 @@ class SCM(object):
         :raises: RuntimeError
         """
         if self.scheme == "git":
-            (status , output) = sp.getstatusoutput("git ls-remote %s"
-                % self.repository)
-            if status != 0:
+            cmd = ["git", "ls-remote", self.repository]
+            proc = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
+            output, stderr = proc.communicate()
+            if proc.returncode != 0:
                 raise RuntimeError("Cannot get git hash of master HEAD in %s"
                     % self.repository)
             for line in output.split(os.linesep):
@@ -165,13 +167,21 @@ class SCM(object):
             hc.close()
             return True if rc == 200 else False
         else:
+            td = None
             try:
-                td = tempfile.TemporaryDirectory()
-                self.checkout(td.name)
-                td.cleanup()
+                td = tempfile.mkdtemp()
+                self.checkout(td)
                 return True
             except:
                 return False
+            finally:
+                try:
+                    if td is not None:
+                        shutil.rmtree(td)
+                except Exception as e:
+                    log.warning(
+                        "Failed to remove temporary directory {!r}: {}".format(
+                            td, str(e)))
 
     @property
     def url(self):
