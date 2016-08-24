@@ -1,0 +1,23 @@
+# This is what jenkins uses to check, roughly
+
+FROM fedora:24
+
+# so we don't have to compile those when fetched from PyPI
+RUN dnf install -y python-pip python2-setuptools python2-cffi python2-zmq python2-cryptography koji python2-pdc-client && \
+    dnf autoremove -y && dnf clean all && \
+    mkdir /opt/fm-orchestrator/
+WORKDIR /opt/fm-orchestrator/
+COPY ./requirements.txt /opt/fm-orchestrator/
+RUN pip install --user -r ./requirements.txt
+
+# This isn't what we do in jenkins, blah ...
+# RUN pip install --upgrade -r test-requirements.txt
+
+RUN pip install --upgrade mock
+
+# Need to force reinstall so nose gets the virtualenv modules.
+RUN pip install nose --ignore-installed
+
+COPY . /opt/fm-orchestrator/
+
+CMD ["nosetests", "."]
