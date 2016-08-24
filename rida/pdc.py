@@ -40,7 +40,7 @@ def get_pdc_client_session(config):
 def get_variant_dict(data):
     """
     :param data: one of following
-                    pdc variant_dict {'variant_name': value, 'variant_version': value, }
+                    pdc variant_dict {'variant_id': value, 'variant_version': value, }
                     module dict {'name': value, 'version': value }
                     modulemd
 
@@ -59,7 +59,7 @@ def get_variant_dict(data):
         if not isinstance(data, dict):
             return False
 
-        for attr in ('variant_name', 'variant_version', 'variant_release'):
+        for attr in ('variant_id', 'variant_version', 'variant_release'):
             if attr not in data.keys():
                 return False
         return True
@@ -76,7 +76,7 @@ def get_variant_dict(data):
         result = variant_dict_from_str(data)
 
     elif is_modulemd(data):
-        result = {'variant_name': data.name, 'variant_version': data.version, 'variant_release': data.release }
+        result = {'variant_id': data.name, 'variant_version': data.version, 'variant_release': data.release }
 
     elif is_variant_dict(data):
         result = data
@@ -88,7 +88,7 @@ def get_variant_dict(data):
             result['variant_release'] = '0'
 
     elif is_module_dict(data):
-        result = {'variant_name': data['name'], 'variant_version': data['version'], 'variant_release': data['release']}
+        result = {'variant_id': data['name'], 'variant_version': data['version'], 'variant_release': data['release']}
 
     if not result:
         raise ValueError("Couldn't get variant_dict from %s" % data)
@@ -101,7 +101,7 @@ def variant_dict_from_str(module_str):
     :param module_str: a string to match in PDC
     :return module_info dict
 
-    Example minimal module_info {'variant_name': module_name, 'variant_version': module_version, 'variant_type': 'module'}
+    Example minimal module_info {'variant_id': module_name, 'variant_version': module_version, 'variant_type': 'module'}
     """
     # best match due several filters not being provided such as variant type ...
 
@@ -111,7 +111,7 @@ def variant_dict_from_str(module_str):
     version_start = module_str.rfind('-', 0, release_start)
     module_info['variant_release'] = module_str[release_start+1:]
     module_info['variant_version'] = module_str[version_start+1:release_start]
-    module_info['variant_name'] = module_str[:version_start]
+    module_info['variant_id'] = module_str[:version_start]
     module_info['variant_type'] = 'module'
 
     return module_info
@@ -128,7 +128,7 @@ def get_module(session, module_info, strict=False):
 
     module_info = get_variant_dict(module_info)
     retval = session['unreleasedvariants'](page_size=-1,
-                variant_name=module_info['variant_name'],
+                variant_id=module_info['variant_id'],
                 variant_version=module_info['variant_version'],
                 variant_release=module_info['variant_release'])
     assert len(retval) <= 1
@@ -186,7 +186,7 @@ def get_module_runtime_dependencies(session, module_info, strict=False):
     :param strict: Normally this function returns None if no module can be
            found.  If strict=True, then a ValueError is raised.
 
-    Example minimal module_info {'variant_name': module_name, 'variant_version': module_version, 'variant_type': 'module'}
+    Example minimal module_info {'variant_id': module_name, 'variant_version': module_version, 'variant_type': 'module'}
     """
     # XXX get definitive list of modules
 
@@ -206,7 +206,7 @@ def get_module_build_dependencies(session, module_info, strict=False):
            found.  If strict=True, then a ValueError is raised.
     :return final list of module_infos which pass repoclosure
 
-    Example minimal module_info {'variant_name': module_name, 'variant_version': module_version, 'variant_type': 'module'}
+    Example minimal module_info {'variant_id': module_name, 'variant_version': module_version, 'variant_type': 'module'}
     """
     # XXX get definitive list of modules
 
