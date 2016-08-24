@@ -167,13 +167,21 @@ class SCM(object):
             hc.close()
             return True if rc == 200 else False
         else:
+            td = None
             try:
                 td = tempfile.mkdtemp()
                 self.checkout(td)
-                shutil.rmtree(td)
                 return True
             except:
                 return False
+            finally:
+                try:
+                    if td is not None:
+                        shutil.rmtree(td)
+                except Exception as e:
+                    log.warning(
+                        "Failed to remove temporary directory {!r}: {}".format(
+                            td, str(e)))
 
     @property
     def url(self):
