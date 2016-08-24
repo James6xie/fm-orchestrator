@@ -40,7 +40,8 @@ import tempfile
 from rida import app, conf, db, log
 from rida import models
 from rida.utils import pagination_metadata, filter_module_builds
-from errors import ValidationError
+from errors import (ValidationError, Unauthorized, UnprocessableEntity,
+                    Conflict, NotFound)
 
 
 @app.route("/rida/module-builds/", methods=["POST"])
@@ -48,15 +49,16 @@ def submit_build():
     """Handles new module build submissions."""
     username = rida.auth.is_packager(conf.pkgdb_api_url)
     if not username:
-        return "You must use your Fedora certificate when submitting a new build", 403
+        raise Unauthorized("You must use your Fedora certificate "
+                           "when submitting a new build")
 
     try:
         r = json.loads(request.get_data().decode("utf-8"))
     except:
-        return "Invalid JSON submitted", 400
+        raise ValidationError('Invalid JSON submitted')
 
     if "scmurl" not in r:
-        return "Missing scmurl", 400
+        raise ValidationError('Missing scmurl')
 
     url = r["scmurl"]
     urlallowed = False
@@ -68,7 +70,7 @@ def submit_build():
             break
 
     if not urlallowed:
-        return "The submitted scmurl isn't allowed", 403
+        raise Unauthorized('The submitted scmurl isn\'t allowed')
 
     yaml = str()
     td = None
@@ -80,14 +82,6 @@ def submit_build():
 
         with open(cofn, "r") as mmdfile:
             yaml = mmdfile.read()
-    except Exception as e:
-        if "is not in the list of allowed SCMs" in str(e):
-            rc = 403
-        elif "Invalid SCM URL" in str(e):
-            rc = 400
-        else:
-            rc = 500
-        return str(e), rc
     finally:
         try:
             if td is not None:
@@ -101,10 +95,10 @@ def submit_build():
     try:
         mmd.loads(yaml)
     except:
-        return "Invalid modulemd", 422
+        raise UnprocessableEntity('Invalid modulemd')
 
     if models.ModuleBuild.query.filter_by(name=mmd.name, version=mmd.version, release=mmd.release).first():
-        return "Module already exists", 409
+        raise Conflict('Module already exists')
 
     module = models.ModuleBuild.create(
         db.session,
@@ -117,33 +111,34 @@ def submit_build():
         username=username
     )
 
-    def failure(message, code):
-        # TODO, we should make some note of why it failed in the db..
-        log.exception(message)
-        module.transition(conf, models.BUILD_STATES["failed"])
-        db.session.add(module)
-        db.session.commit()
-        return message, code
-
     for pkgname, pkg in mmd.components.rpms.packages.items():
-        if pkg.get("repository") and not conf.rpms_allow_repository:
-            return failure("Custom component repositories aren't allowed", 403)
-        if pkg.get("cache") and not conf.rpms_allow_cache:
-            return failure("Custom component caches aren't allowed", 403)
-        if not pkg.get("repository"):
-            pkg["repository"] = conf.rpms_default_repository + pkgname
-        if not pkg.get("cache"):
-            pkg["cache"] = conf.rpms_default_cache + pkgname
-        if not pkg.get("commit"):
-            try:
-                pkg["commit"] = rida.scm.SCM(pkg["repository"]).get_latest()
-            except Exception as e:
-                return failure("Failed to get the latest commit: %s" % pkgname, 422)
+        try:
+            if pkg.get("repository") and not conf.rpms_allow_repository:
+                raise Unauthorized(
+                    "Custom component repositories aren't allowed")
+            if pkg.get("cache") and not conf.rpms_allow_cache:
+                raise Unauthorized("Custom component caches aren't allowed")
+            if not pkg.get("repository"):
+                pkg["repository"] = conf.rpms_default_repository + pkgname
+            if not pkg.get("cache"):
+                pkg["cache"] = conf.rpms_default_cache + pkgname
+            if not pkg.get("commit"):
+                try:
+                    pkg["commit"] = rida.scm.SCM(
+                        pkg["repository"]).get_latest()
+                except Exception as e:
+                    raise UnprocessableEntity(
+                        "Failed to get the latest commit: %s" % pkgname)
+        except Exception:
+            module.transition(conf, models.BUILD_STATES["failed"])
+            db.session.add(module)
+            db.session.commit()
+            raise
 
         full_url = pkg["repository"] + "?#" + pkg["commit"]
 
         if not rida.scm.SCM(full_url).is_available():
-            return failure("Cannot checkout %s" % pkgname, 422)
+            raise UnprocessableEntity("Cannot checkout %s" % pkgname)
 
         build = models.ComponentBuild(
             module_id=module.id,
@@ -165,10 +160,7 @@ def submit_build():
 @app.route("/rida/module-builds/", methods=["GET"])
 def query_builds():
     """Lists all tracked module builds."""
-    try:
-        p_query = filter_module_builds(request)
-    except ValidationError as e:
-        return e.message, 400
+    p_query = filter_module_builds(request)
 
     json_data = {
         'meta': pagination_metadata(p_query)
@@ -192,4 +184,4 @@ def query_build(id):
     if module:
         return jsonify(module.api_json()), 200
     else:
-        return "No such module found.", 404
+        raise NotFound('No such module found.')

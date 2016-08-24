@@ -36,6 +36,7 @@ import tempfile
 import shutil
 
 from rida import log
+from rida.errors import Unauthorized, ValidationError
 import rida.utils
 
 
@@ -62,7 +63,7 @@ class SCM(object):
 
         :param str url: The unmodified scmurl
         :param list allowed_scm: The list of allowed SCMs, optional
-        :raises: RuntimeError
+        :raises: Unauthorized or ValidationError
         """
 
         if allowed_scm:
@@ -70,7 +71,8 @@ class SCM(object):
                 if url.startswith(allowed):
                     break
                 else:
-                    raise RuntimeError('%s is not in the list of allowed SCMs' % url)
+                    raise Unauthorized(
+                        '%s is not in the list of allowed SCMs' % url)
 
         self.url = url
 
@@ -79,7 +81,7 @@ class SCM(object):
                 self.scheme = scmtype
                 break
         else:
-            raise RuntimeError('Invalid SCM URL: %s' % url)
+            raise ValidationError('Invalid SCM URL: %s' % url)
 
         if self.scheme == "git":
             match = re.search(r"^(?P<repository>.*/(?P<name>[^?]*))(\?#(?P<commit>.*))?", url)
@@ -89,7 +91,7 @@ class SCM(object):
                 self.name = self.name[:-4]
             self.commit = match.group("commit")
         else:
-            raise RuntimeError("Unhandled SCM scheme: %s" % self.scheme)
+            raise ValidationError("Unhandled SCM scheme: %s" % self.scheme)
 
     @staticmethod
     @rida.utils.retry(wait_on=RuntimeError)

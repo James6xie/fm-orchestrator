@@ -20,6 +20,37 @@
 #
 # Written by Matt Prahl <mprahl@redhat.com>
 """ Defines custom exceptions and error handling functions """
+from flask import jsonify
+
 
 class ValidationError(ValueError):
     pass
+
+
+class Unauthorized(ValueError):
+    pass
+
+
+class Forbidden(ValueError):
+    pass
+
+
+class UnprocessableEntity(ValueError):
+    pass
+
+
+class Conflict(ValueError):
+    pass
+
+
+class NotFound(ValueError):
+    pass
+
+
+def json_error(status, error, message):
+    response = jsonify(
+        {'status': status,
+         'error': error,
+         'message': message})
+    response.status_code = status
+    return response

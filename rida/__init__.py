@@ -22,6 +22,7 @@
 # SOFTWARE.
 #
 # Written by Petr Šabata <contyk@redhat.com>
+#            Matt Prahl <mprahl@redhat.com>
 
 """The module build orchestrator for Modularity.
 
@@ -45,6 +46,8 @@ from flask_sqlalchemy import SQLAlchemy
 from os import sys
 import rida.logger
 from logging import getLogger
+from rida.errors import (ValidationError, Unauthorized, UnprocessableEntity,
+                         Conflict, NotFound, Forbidden, json_error)
 
 app = Flask(__name__)
 app.config.from_envvar("RIDA_SETTINGS", silent=True)
@@ -57,6 +60,47 @@ else:
 
 db = SQLAlchemy(app)
 
+
+@app.errorhandler(ValidationError)
+def validationerror_error(e):
+    """Flask error handler for ValidationError exceptions"""
+    return json_error(400, 'Bad Request', e.args[0])
+
+
+@app.errorhandler(Unauthorized)
+def unauthorized_error(e):
+    """Flask error handler for NotAuthorized exceptions"""
+    return json_error(401, 'Unauthorized', e.args[0])
+
+
+@app.errorhandler(Forbidden)
+def forbidden_error(e):
+    """Flask error handler for Forbidden exceptions"""
+    return json_error(403, 'Forbidden', e.args[0])
+
+
+@app.errorhandler(RuntimeError)
+def runtimeerror_error(e):
+    """Flask error handler for RuntimeError exceptions"""
+    return json_error(500, 'Internal Server Error', e.args[0])
+
+
+@app.errorhandler(UnprocessableEntity)
+def unprocessableentity_error(e):
+    """Flask error handler for UnprocessableEntity exceptions"""
+    return json_error(422, 'Unprocessable Entity', e.args[0])
+
+
+@app.errorhandler(Conflict)
+def conflict_error(e):
+    """Flask error handler for Conflict exceptions"""
+    return json_error(409, 'Conflict', e.args[0])
+
+
+@app.errorhandler(NotFound)
+def notfound_error(e):
+    """Flask error handler for Conflict exceptions"""
+    return json_error(404, 'Not Found', e.args[0])
 
 import rida.config
 conf = rida.config.from_app_config()
