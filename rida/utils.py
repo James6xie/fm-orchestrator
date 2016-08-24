@@ -22,9 +22,12 @@
 #            Matt Prahl <mprahl@redhat.com>
 """ Utility functions for rida. """
 from flask import request, url_for
+from datetime import datetime
+import re
 import functools
 import time
 from rida import log, models
+from errors import ValidationError
 
 
 def retry(timeout=120, interval=30, wait_on=Exception):
@@ -96,3 +99,61 @@ def pagination_metadata(p_query):
                                           per_page=p_query.per_page, _external=True)
 
     return pagination_data
+
+
+def filter_module_builds(flask_request):
+    """
+    Returns a flask_sqlalchemy.Pagination object based on the request parameters
+    :param request: Flask request object
+    :return: flask_sqlalchemy.Pagination
+    """
+    search_query = dict()
+    state = flask_request.args.get('state', None)
+
+    if state:
+        if state.isdigit():
+            search_query['state'] = state
+        else:
+            if state in models.BUILD_STATES:
+                search_query['state'] = models.BUILD_STATES[state]
+            else:
+                raise ValidationError('An invalid state was supplied')
+
+    for key in ['name', 'owner']:
+        if flask_request.args.get(key, None):
+            search_query[key] = flask_request.args[key]
+
+    query = models.ModuleBuild.query
+
+    if search_query:
+        query = query.filter_by(**search_query)
+
+    # This is used when filtering the date request parameters, but it is here to avoid recompiling
+    utc_iso_datetime_regex = re.compile(r'^(?P<datetime>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.\d+)?'
+                                        r'(?:Z|[-+]00(?::00)?)?$')
+
+    # Filter the query based on date request parameters
+    for item in ('submitted', 'modified', 'completed'):
+        for context in ('before', 'after'):
+            request_arg = '%s_%s' % (item, context) # i.e. submitted_before
+            iso_datetime_arg = request.args.get(request_arg, None)
+
+            if iso_datetime_arg:
+                iso_datetime_matches = re.match(utc_iso_datetime_regex, iso_datetime_arg)
+
+                if not iso_datetime_matches or not iso_datetime_matches.group('datetime'):
+                    raise ValidationError('An invalid Zulu ISO 8601 timestamp was provided for the "%s" parameter'
+                                          % request_arg)
+                # Converts the ISO 8601 string to a datetime object for SQLAlchemy to use to filter
+                item_datetime = datetime.strptime(iso_datetime_matches.group('datetime'), '%Y-%m-%dT%H:%M:%S')
+                # Get the database column to filter against
+                column = getattr(models.ModuleBuild, 'time_' + item)
+
+                if context == 'after':
+                    query = query.filter(column >= item_datetime)
+                elif context == 'before':
+                    query = query.filter(column <= item_datetime)
+
+    page = flask_request.args.get('page', 1, type=int)
+    per_page = flask_request.args.get('per_page', 10, type=int)
+    return query.paginate(page, per_page, False)

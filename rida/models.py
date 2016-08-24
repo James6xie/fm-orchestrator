@@ -25,12 +25,11 @@
 
 """ SQLAlchemy Database models for the Flask app
 """
-
-from rida import db, log
+from datetime import datetime
 from sqlalchemy.orm import validates
-
 import modulemd as _modulemd
 
+from rida import db, log
 import rida.messaging
 
 
@@ -83,6 +82,10 @@ class ModuleBuild(RidaBase):
     modulemd = db.Column(db.String, nullable=False)
     koji_tag = db.Column(db.String)  # This gets set after 'wait'
     scmurl = db.Column(db.String)
+    owner = db.Column(db.String, nullable=False)
+    time_submitted = db.Column(db.DateTime, nullable=False)
+    time_modified = db.Column(db.DateTime)
+    time_completed = db.Column(db.DateTime)
 
     # A monotonically increasing integer that represents which batch or
     # iteration this module is currently on for successive rebuilds of its
@@ -125,7 +128,8 @@ class ModuleBuild(RidaBase):
         return session.query(cls).filter(cls.id==event['msg']['id']).first()
 
     @classmethod
-    def create(cls, session, conf, name, version, release, modulemd, scmurl):
+    def create(cls, session, conf, name, version, release, modulemd, scmurl, username):
+        now = datetime.utcnow()
         module = cls(
             name=name,
             version=version,
@@ -133,6 +137,8 @@ class ModuleBuild(RidaBase):
             state="init",
             modulemd=modulemd,
             scmurl=scmurl,
+            owner=username,
+            time_submitted=now
         )
         session.add(module)
         session.commit()
@@ -146,8 +152,14 @@ class ModuleBuild(RidaBase):
 
     def transition(self, conf, state):
         """ Record that a build has transitioned state. """
+        now = datetime.utcnow()
         old_state = self.state
         self.state = state
+        self.time_modified = now
+
+        if self.state in ['done', 'failed']:
+            self.time_completed = now
+
         log.debug("%r, state %r->%r" % (self, old_state, self.state))
         rida.messaging.publish(
             modname='rida',
@@ -187,9 +199,39 @@ class ModuleBuild(RidaBase):
             'state': self.state,
             'state_name': INVERSE_BUILD_STATES[self.state],
             'scmurl': self.scmurl,
+            'owner': self.owner,
+            'time_submitted': self.time_submitted,
+            'time_modified': self.time_modified,
+            'time_completed': self.time_completed,
 
             # TODO, show their entire .json() ?
             'component_builds': [build.id for build in self.component_builds],
+        }
+
+    @staticmethod
+    def _utc_datetime_to_iso(datetime_object):
+        """
+        Takes a UTC datetime object and returns an ISO formatted string
+        :param datetime_object: datetime.datetime
+        :return: string with datetime in ISO format
+        """
+        if datetime_object:
+            # Converts the datetime to ISO 8601
+            return datetime_object.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        return None
+
+    def api_json(self):
+
+        return {
+            "id": self.id,
+            "state": self.state,
+            "owner": self.owner,
+            "name": self.name,
+            "time_submitted": self._utc_datetime_to_iso(self.time_submitted),
+            "time_modified": self._utc_datetime_to_iso(self.time_modified),
+            "time_completed": self._utc_datetime_to_iso(self.time_completed),
+            "tasks": self.tasks()
         }
 
     def tasks(self):

@@ -84,10 +84,14 @@ their states.
 Listing all module builds
 -------------------------
 
-The list of all tracked builds and their states can be obtained by querying the
-"module-builds" resource.
+The list of all tracked builds and their states can be obtained by querying the "module-builds" resource.
+There are a number of configurable GET parameters to change how the module builds are displayed. These parameters are:
 
-::
+- verbose - Shows the builds with the same amount of detail as querying them individually (i.e. verbose=True). This value defaults to False.
+- page - Specifies which page should be displayed (e.g. page=3). This value defaults to 1.
+- per_page - Specifies how many items per page should be displayed (e.g. per_page=20). This value defaults to 10.
+
+An example of querying the "module-builds" resource without any additional parameters::
 
     GET /rida/module-builds/
 
@@ -152,11 +156,7 @@ The list of all tracked builds and their states can be obtained by querying the
     }
 
 
-The API is paginated, and defaults to 10 items per page. These values are configurable with the `page` and `per_page`
-GET parameters respectively. Additionally, there is a `verbose` parameter that defaults to false, which allows you to
-query all the builds with the same amount of detail as querying them individually.
-
-::
+An example of querying the "module-builds" resource with the "verbose", "per_page", and the "page" parameters::
 
     GET /rida/module-builds/?verbose=true&per_page=3&page=1
 
@@ -170,27 +170,42 @@ query all the builds with the same amount of detail as querying them individuall
       "items": [
         {
           "id": 1,
+          "name": "testmodule",
+          "owner": "mprahl",
           "state": 3,
           "tasks": {
             "rpms/bash": "90109464/1",
             "rpms/module-build-macros": "90109446/1"
-          }
+          },
+          "time_completed": "2016-08-22T09:44:11Z",
+          "time_modified": "2016-08-22T09:44:11Z",
+          "time_submitted": "2016-08-22T09:40:07Z"
         },
         {
           "id": 2,
+          "name": "testmodule",
+          "owner": "ralph",
           "state": 3,
           "tasks": {
             "rpms/bash": "90109465/1",
             "rpms/module-build-macros": "90109450/1"
-          }
+          },
+          "time_completed": "2016-08-22T09:54:04Z",
+          "time_modified": "2016-08-22T09:54:04Z",
+          "time_submitted": "2016-08-22T09:48:11Z"
         },
         {
           "id": 3,
+          "name": "testmodule",
+          "owner": "mprahl",
           "state": 3,
           "tasks": {
             "rpms/bash": "90109497/1",
             "rpms/module-build-macros": "90109480/1"
-          }
+          },
+          "time_completed": "2016-08-22T10:05:08Z",
+          "time_modified": "2016-08-22T10:05:08Z",
+          "time_submitted": "2016-08-22T09:58:04Z"
         }
       ],
       "meta": {
@@ -204,6 +219,54 @@ query all the builds with the same amount of detail as querying them individuall
       }
     }
 
+
+Filtering module builds
+-----------------------
+
+The module-builds can be filtered by a variety of GET parameters. These paramters are:
+
+- owner - Shows builds submitted by a particular user (e.g. owner=mprahl)
+- state - Shows builds in a particular state (can be the state name or the state ID) (e.g. state=done)
+- submitted_before - Shows builds that were submitted before a particular Zulu ISO 8601 timestamp (e.g. submitted_before=2016-08-23T09:40:07Z)
+- submitted_after - Shows builds that were submitted after a particular Zulu ISO 8601 timestamp (e.g. submitted_after=2016-08-22T09:40:07Z)
+- modified_before - Shows builds that were modified before a particular Zulu ISO 8601 timestamp (e.g. modified_before=2016-08-23T09:40:07Z)
+- modified_after - Shows builds that were modified after a particular Zulu ISO 8601 timestamp (e.g. modified_after=2016-08-22T09:40:07Z)
+- completed_before - Shows builds that were completed before a particular Zulu ISO 8601 timestamp (e.g. completed_before=2016-08-22T09:40:07Z)
+- completed_after - Shows builds that were completed after a particular Zulu ISO 8601 timestamp (e.g. completed_after=2016-08-23T09:40:07Z)
+
+An example of querying the "module-builds" resource with the "state", and the "submitted_before" parameters::
+
+    GET /rida/module-builds/?state=done&submitted_before=2016-08-23T08:10:07Z
+
+::
+
+    HTTP 200 OK
+
+::
+
+    {
+      "items": [
+        {
+          "id": 1,
+          "state": 3
+        },
+        {
+          "id": 2,
+          "state": 3
+        },
+        {
+          "id": 3,
+          "state": 3
+        }
+      ],
+      "meta": {
+        "first": "https://127.0.0.1:5000/rida/module-builds/?per_page=10&page=1",
+        "last": "https://127.0.0.1:5000/rida/module-builds/?per_page=10&page=1",
+        "page": 1,
+        "pages": 1,
+        "per_page": 3,
+        "total": 3
+      }
 
 HTTP Response Codes
 -------------------

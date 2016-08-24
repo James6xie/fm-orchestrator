@@ -39,38 +39,45 @@ import shutil
 import tempfile
 from rida import app, conf, db, log
 from rida import models
-from rida.utils import pagination_metadata
+from rida.utils import pagination_metadata, filter_module_builds
+from errors import ValidationError
 
 
 @app.route("/rida/module-builds/", methods=["POST"])
 def submit_build():
     """Handles new module build submissions."""
-
     username = rida.auth.is_packager(conf.pkgdb_api_url)
     if not username:
-        return ("You must use your Fedora certificate when submitting"
-               " new build", 403)
+        return "You must use your Fedora certificate when submitting a new build", 403
 
     try:
         r = json.loads(request.get_data().decode("utf-8"))
     except:
         return "Invalid JSON submitted", 400
+
     if "scmurl" not in r:
         return "Missing scmurl", 400
+
     url = r["scmurl"]
     urlallowed = False
+
     for prefix in conf.scmurls:
+
         if url.startswith(prefix):
             urlallowed = True
             break
+
     if not urlallowed:
         return "The submitted scmurl isn't allowed", 403
+
     yaml = str()
+    td = None
     try:
         td = tempfile.mkdtemp()
         scm = rida.scm.SCM(url, conf.scmurls)
         cod = scm.checkout(td)
         cofn = os.path.join(cod, (scm.name + ".yaml"))
+
         with open(cofn, "r") as mmdfile:
             yaml = mmdfile.read()
     except Exception as e:
@@ -82,12 +89,20 @@ def submit_build():
             rc = 500
         return str(e), rc
     finally:
-        shutil.rmtree(td)
+        try:
+            if td is not None:
+                shutil.rmtree(td)
+        except Exception as e:
+            log.warning(
+                "Failed to remove temporary directory {!r}: {}".format(
+                    td, str(e)))
+
     mmd = modulemd.ModuleMetadata()
     try:
         mmd.loads(yaml)
     except:
         return "Invalid modulemd", 422
+
     if models.ModuleBuild.query.filter_by(name=mmd.name, version=mmd.version, release=mmd.release).first():
         return "Module already exists", 409
 
@@ -99,6 +114,7 @@ def submit_build():
         release=mmd.release,
         modulemd=yaml,
         scmurl=url,
+        username=username
     )
 
     def failure(message, code):
@@ -123,9 +139,12 @@ def submit_build():
                 pkg["commit"] = rida.scm.SCM(pkg["repository"]).get_latest()
             except Exception as e:
                 return failure("Failed to get the latest commit: %s" % pkgname, 422)
+
         full_url = pkg["repository"] + "?#" + pkg["commit"]
+
         if not rida.scm.SCM(full_url).is_available():
             return failure("Cannot checkout %s" % pkgname, 422)
+
         build = models.ComponentBuild(
             module_id=module.id,
             package=pkgname,
@@ -133,6 +152,7 @@ def submit_build():
             scmurl=full_url,
         )
         db.session.add(build)
+
     module.modulemd = mmd.dumps()
     module.transition(conf, models.BUILD_STATES["wait"])
     db.session.add(module)
@@ -145,18 +165,19 @@ def submit_build():
 @app.route("/rida/module-builds/", methods=["GET"])
 def query_builds():
     """Lists all tracked module builds."""
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 10, type=int)
-    p_query = models.ModuleBuild.query.paginate(page, per_page, False)
-    verbose_flag = request.args.get('verbose', 'false')
+    try:
+        p_query = filter_module_builds(request)
+    except ValidationError as e:
+        return e.message, 400
 
     json_data = {
         'meta': pagination_metadata(p_query)
     }
 
+    verbose_flag = request.args.get('verbose', 'false')
+
     if verbose_flag.lower() == 'true' or verbose_flag == '1':
-        json_data['items'] = [{'id': item.id, 'state': item.state, 'tasks': item.tasks()}
-                              for item in p_query.items]
+        json_data['items'] = [item.api_json() for item in p_query.items]
     else:
         json_data['items'] = [{'id': item.id, 'state': item.state} for item in p_query.items]
 
@@ -169,11 +190,6 @@ def query_build(id):
     module = models.ModuleBuild.query.filter_by(id=id).first()
 
     if module:
-
-        return jsonify({
-            "id": module.id,
-            "state": module.state,
-            "tasks": module.tasks()
-        }), 200
+        return jsonify(module.api_json()), 200
     else:
         return "No such module found.", 404
