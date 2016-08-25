@@ -100,7 +100,7 @@ class MessageWorker(threading.Thread):
             models.BUILD_STATES["wait"]: rida.scheduler.handlers.modules.wait,
             models.BUILD_STATES["build"]: NO_OP,
             models.BUILD_STATES["failed"]: NO_OP,
-            models.BUILD_STATES["done"]: NO_OP,
+            models.BUILD_STATES["done"]: rida.scheduler.handlers.modules.done, # XXX: DIRECT TRANSITION TO READY
             models.BUILD_STATES["ready"]: NO_OP,
         }
         # Only one kind of repo change event, though...
