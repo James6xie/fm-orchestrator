@@ -43,6 +43,24 @@ def get_rpm_release_from_tag(tag):
 def get_artifact_from_srpm(srpm_path):
     return os.path.basename(srpm_path).replace(".src.rpm", "")
 
+def done(config, session, msg):
+    """Called whenever a module enters the 'done' state.
+
+    We currently don't do anything useful, so moving to ready.
+    Otherwise the done -> ready state should happen when all
+    dependent modules were re-built, at least that's the current plan.
+    """
+    build = models.ModuleBuild.from_module_event(db.session, msg)
+    module_info = build.json()
+    if module_info['state'] != msg['msg']['state']:
+        log.warn("Note that retrieved module state %r "
+                 "doesn't match message module state %r" % (
+                     module_info['state'], msg['msg']['state']))
+        # This is ok.. it's a race condition we can ignore.
+        pass
+
+    build.transition(config, state="ready")
+    session.commit()
 
 def wait(config, session, msg):
     """ Called whenever a module enters the 'wait' state.
