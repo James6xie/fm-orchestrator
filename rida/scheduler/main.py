@@ -194,7 +194,6 @@ class Poller(threading.Thread):
 
         if conf.system == "koji":
             koji_session, _ = rida.builder.KojiModuleBuilder.get_session_from_config(conf)
-            state = koji.BUILD_STATES['BUILDING'] # Check tasks that we track as BUILDING
             log.info("Querying tasks for statuses:")
             res = models.ComponentBuild.query.filter_by(state=koji.BUILD_STATES['BUILDING']).all()
 
