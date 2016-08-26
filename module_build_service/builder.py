@@ -45,9 +45,12 @@ import kobo.rpmlib
 
 import munch
 from OpenSSL.SSL import SysCallError
+from copr.client import CoprClient
 
-from module_build_service import log
+from module_build_service import log, db
+from module_build_service.models import ModuleBuild
 import module_build_service.utils
+
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -739,7 +742,23 @@ class CoprModuleBuilder(GenericBuilder):
 
     def build(self, artifact_name, source):
         log.info("Copr build")
-        pass
+
+        modulemd = tempfile.mktemp()
+        m1 = db.session.query(ModuleBuild).first()
+        m1.mmd().dump(modulemd)
+
+        # @TODO how the authentication is designed?
+        username, copr = "@copr", "modules"
+        client = CoprClient.create_from_file_config()
+
+        data = {"modulemd": modulemd}
+        result = client.create_new_build_module(username=username, projectname=copr, **data)
+        if result.output != "ok":
+            log.error(result.error)
+            return
+
+        log.info(result.message)
+        log.info(result.data["modulemd"])
 
     @staticmethod
     def get_disttag_srpm(disttag):
