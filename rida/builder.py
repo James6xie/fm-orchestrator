@@ -376,7 +376,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
 
         address = koji_config.server
         log.info("Connecting to koji %r" % address)
-        koji_session = koji.ClientSession(address, opts=vars(koji_config))
+        koji_session = koji.ClientSession(address, opts=koji_config)
 
         authtype = koji_config.authtype
         if authtype == "kerberos":
