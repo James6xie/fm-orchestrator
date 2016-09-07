@@ -719,6 +719,11 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
 
 class CoprModuleBuilder(GenericBuilder):
 
+    """
+    See http://blog.samalik.com/copr-in-the-modularity-world/
+    especially section "Building a stack"
+    """
+
     backend = "copr"
 
     def __init__(self, module, config, tag_name):
