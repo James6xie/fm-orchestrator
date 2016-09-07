@@ -74,6 +74,9 @@ class Config(object):
         self._ssl_certificate_key_file = ""
         self._ssl_ca_certificate_file = ""
         self._pkgdb_api_url = ""
+        self._fas_url = ""
+        self._fas_username = ""
+        self._fas_password = ""
         self._log_backend = ""
         self._log_file = ""
         self._log_level = 0
@@ -256,6 +259,30 @@ class Config(object):
     @pkgdb_api_url.setter
     def pkgdb_api_url(self, s):
         self._pkgdb_api_url = str(s)
+
+    @property
+    def fas_url(self):
+        return self._fas_url
+
+    @fas_url.setter
+    def fas_url(self, s):
+        self._fas_url = str(s)
+
+    @property
+    def fas_username(self):
+        return self._fas_username
+
+    @fas_username.setter
+    def fas_username(self, s):
+        self._fas_username = str(s)
+
+    @property
+    def fas_password(self):
+        return self._fas_password
+
+    @fas_password.setter
+    def fas_password(self, s):
+        self._fas_password = str(s)
 
     @property
     def log_backend(self):

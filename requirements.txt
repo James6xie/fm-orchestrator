@@ -10,3 +10,4 @@ munch
 Flask-Script
 Flask-SQLAlchemy
 Flask-Migrate
+python-fedora
