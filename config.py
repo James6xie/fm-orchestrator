@@ -51,6 +51,11 @@ class DevConfiguration(BaseConfiguration):
     LOG_BACKEND = 'console'
     HOST = '0.0.0.0'
 
+class TestConfiguration(BaseConfiguration):
+    LOG_BACKEND = 'console'
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+    DEBUG = True
+
 
 class ProdConfiguration(BaseConfiguration):
     pass
