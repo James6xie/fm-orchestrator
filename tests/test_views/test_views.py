@@ -157,9 +157,11 @@ class TestViews(unittest.TestCase):
                           ' was provided for the \"modified_after\" parameter')
         self.assertEquals(data['status'], 400)
 
-    @patch('rida.auth.is_packager', return_value='Homer J. Simpson')
+    @patch('rida.auth.get_username', return_value='Homer J. Simpson')
+    @patch('rida.auth.assert_is_packager')
     @patch('rida.scm.SCM')
-    def test_submit_build(self, mocked_scm, mocked_is_packager):
+    def test_submit_build(self, mocked_scm, mocked_assert_is_packager,
+                          mocked_get_username):
         def mocked_scm_checkout(temp_dir):
             scm_dir = path.join(temp_dir, 'fakemodule')
             mkdir(scm_dir)
@@ -191,21 +193,22 @@ class TestViews(unittest.TestCase):
         self.assertEquals(data['id'], 31)
         self.assertEquals(data['state_name'], 'wait')
 
-    @patch('rida.auth.is_packager', return_value=None)
-    def test_submit_build_cert_error(self, mocked_is_packager):
+    def test_submit_build_cert_error(self):
         rv = self.client.post('/rida/module-builds/', data=json.dumps(
             {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                 'testmodule.git?#48932b90de214d9d13feefbd35246a81b6cb8d49'}))
         data = json.loads(rv.data)
         self.assertEquals(
             data['message'],
-            'You must use your Fedora certificate when submitting a new build'
+            'No SSL client cert CN could be found to work with'
         )
         self.assertEquals(data['status'], 401)
         self.assertEquals(data['error'], 'Unauthorized')
 
-    @patch('rida.auth.is_packager', return_value='Homer J. Simpson')
-    def test_submit_build_scm_url_error(self, mocked_is_packager):
+    @patch('rida.auth.get_username', return_value='Homer J. Simpson')
+    @patch('rida.auth.assert_is_packager')
+    def test_submit_build_scm_url_error(self, mocked_assert_is_packager,
+                                        mocked_get_username):
         rv = self.client.post('/rida/module-builds/', data=json.dumps(
             {'scmurl': 'git://badurl.com'}))
         data = json.loads(rv.data)
@@ -214,9 +217,12 @@ class TestViews(unittest.TestCase):
         self.assertEquals(data['status'], 401)
         self.assertEquals(data['error'], 'Unauthorized')
 
-    @patch('rida.auth.is_packager', return_value='Homer J. Simpson')
+    @patch('rida.auth.get_username', return_value='Homer J. Simpson')
+    @patch('rida.auth.assert_is_packager')
     @patch('rida.scm.SCM')
-    def test_submit_build_bad_modulemd(self, mocked_scm, mocked_is_packager):
+    def test_submit_build_bad_modulemd(self, mocked_scm,
+                                       mocked_assert_is_packager,
+                                       mocked_get_username):
         rv = self.client.post('/rida/module-builds/', data=json.dumps(
             {'scmurl': 'git://badurl.com'}))
         def mocked_scm_checkout(temp_dir):
