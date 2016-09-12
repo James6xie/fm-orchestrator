@@ -57,6 +57,11 @@ class DevConfiguration(BaseConfiguration):
     #FAS_PASSWORD = os.environ('FAS_PASSWORD') # you could store it here
     #FAS_PASSWORD = commands.getoutput('pass your_fas_password').strip()
 
+class TestConfiguration(BaseConfiguration):
+    LOG_BACKEND = 'console'
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+    DEBUG = True
+
 
 class ProdConfiguration(BaseConfiguration):
     FAS_USERNAME = 'TODO'
