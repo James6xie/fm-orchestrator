@@ -23,10 +23,12 @@
 
 """Auth system based on the client certificate and FAS account"""
 
-from flask import Flask, request
 from werkzeug.serving import WSGIRequestHandler
-import requests
-import json
+
+from rida.errors import Unauthorized
+
+import fedora.client
+
 
 class ClientCertRequestHandler(WSGIRequestHandler):
     """
@@ -49,32 +51,34 @@ class ClientCertRequestHandler(WSGIRequestHandler):
                 environ["SSL_CLIENT_CERT_" + key] = val
         return environ
 
-def is_packager(pkgdb_api_url):
+
+def get_username(environ):
+    """ Extract the user's username from the WSGI environment. """
+
+    if not "SSL_CLIENT_CERT_commonName" in environ:
+        raise Unauthorized("No SSL client cert CN could be found to work with")
+
+    return environ["SSL_CLIENT_CERT_commonName"]
+
+
+def assert_is_packager(username, fas_kwargs):
+    """ Assert that a user is a packager by consulting FAS.
+
+    When user is not a packager (is not in the packager FAS group), an
+    exception is raised.
+
+    Note that `fas_kwargs` must contain values for `base_url`, `username`, and
+    `password`.  These are required arguments for authenticating with FAS.
+    (Rida needs its own service account/password to talk to FAS).
     """
-    Returns the username of user associated with current request by checking
-    client cert's commonName and pkgdb database API.
 
-    When user is not a packager (is not in pkgdb), returns None.
-    """
-    if not "SSL_CLIENT_CERT_commonName" in request.environ:
-        return None
+    FAS = fedora.client.AccountSystem(**fas_kwargs)
+    person = FAS.person_by_username(username)
 
-    username = request.environ["SSL_CLIENT_CERT_commonName"]
+    # Check that they have even applied in the first place...
+    if not 'packager' in person['group_roles']:
+        raise Unauthorized("%s is not in the packager group" % username)
 
-    acl_url = pkgdb_api_url + "/packager/package/" + username
-
-    resp = requests.get(acl_url)
-    try:
-        resp.raise_for_status()
-    except:
-        return None
-
-    try:
-        r = json.loads(resp.content.decode('utf-8'))
-    except:
-        return None
-
-    if r["output"] == "ok":
-        return username
-
-    return None
+    # Check more closely to make sure they're approved.
+    if person['group_roles']['packager']['role_status'] != 'approved':
+        raise Unauthorized("%s is not approved in the packager group" % username)
