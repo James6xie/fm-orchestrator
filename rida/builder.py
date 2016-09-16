@@ -370,10 +370,6 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
             config=koji_config,
         )
 
-        krbservice = getattr(koji_config, "krbservice", None)
-        if krbservice:
-            koji_config.krbservice = krbservice
-
         address = koji_config.server
         log.info("Connecting to koji %r" % address)
         koji_session = koji.ClientSession(address, opts=koji_config)
