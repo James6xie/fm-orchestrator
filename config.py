@@ -48,6 +48,11 @@ class BaseConfiguration(object):
     # Available log levels are: debug, info, warn, error.
     LOG_LEVEL = 'info'
 
+    # Settings for Kerberos
+    KRB_KEYTAB = None
+    KRB_PRINCIPAL = None
+    KRB_CCACHE = None
+
 
 class DevConfiguration(BaseConfiguration):
     LOG_BACKEND = 'console'

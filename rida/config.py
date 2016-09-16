@@ -75,6 +75,9 @@ class Config(object):
         self._log_backend = ""
         self._log_file = ""
         self._log_level = 0
+        self._krb_keytab = None
+        self._krb_principal = None
+        self._krb_ccache = "/tmp/krb5cc_rida"
 
     @property
     def system(self):
@@ -311,3 +314,27 @@ class Config(object):
     def log_level(self, s):
         level = str(s).lower()
         self._log_level = logger.str_to_log_level(level)
+
+    @property
+    def krb_keytab(self):
+        return self._krb_keytab
+
+    @krb_keytab.setter
+    def krb_keytab(self, s):
+        self._krb_keytab = s
+
+    @property
+    def krb_principal(self):
+        return self._krb_principal
+
+    @krb_principal.setter
+    def krb_principal(self, s):
+        self._krb_principal = s
+
+    @property
+    def krb_ccache(self):
+        return self._krb_ccache
+
+    @krb_ccache.setter
+    def krb_ccache(self, s):
+        self._krb_ccache = s
