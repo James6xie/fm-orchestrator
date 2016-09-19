@@ -25,11 +25,6 @@
 
 """Configuration handler functions."""
 
-try:
-    import configparser # py3
-except ImportError:
-    import ConfigParser as configparser  # py2
-
 import six
 
 from rida import app

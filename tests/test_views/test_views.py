@@ -25,7 +25,6 @@ import json
 from mock import patch
 from shutil import copyfile
 from os import path, mkdir
-from datetime import datetime
 
 from tests import app, init_data
 
