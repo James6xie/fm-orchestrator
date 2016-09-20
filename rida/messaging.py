@@ -146,25 +146,33 @@ class RidaModule(BaseMessage):
         self.module_build_state = module_build_state
 
 
-def publish(topic, msg, backend, modname='rida'):
-    """ Publish a single message to a given backend, and return. """
+def publish(topic, msg, conf, modname='rida'):
+    """
+    Publish a single message to a given backend, and return
+    :param topic: the topic of the message (e.g. module.state.change)
+    :param msg: the message contents of the message (typically JSON)
+    :param conf: a Config object from the class in config.py
+    :param modname: the system that is publishing the message (e.g. rida)
+    :return:
+    """
     try:
-        handler = _messaging_backends[backend]['publish']
+        handler = _messaging_backends[conf.messaging]['publish']
     except KeyError:
-        raise KeyError("No messaging backend found for %r" % backend)
+        raise KeyError("No messaging backend found for %r" % conf.messaging)
     return handler(topic, msg, modname=modname)
 
 
-def listen(backend, **kwargs):
-    """ Yield messages from a given messaging backend.
-
-    The ``**kwargs`` arguments will be passed on to the backend to do some
-    backend-specific connection handling, throttling, or filtering.
+def listen(conf, **kwargs):
+    """
+    Yield messages from the messaging backend in conf.messaging.
+    :param conf: a Config object from the class in config.py
+    :param kwargs: any additional arguments to pass to the backend handler
+    :return: yields a message object (child class from BaseMessage)
     """
     try:
-        handler = _messaging_backends[backend]['listen']
+        handler = _messaging_backends[conf.messaging]['listen']
     except KeyError:
-        raise KeyError("No messaging backend found for %r" % backend)
+        raise KeyError("No messaging backend found for %r" % conf.messaging)
 
     for event in handler(**kwargs):
         yield event

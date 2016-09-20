@@ -149,7 +149,7 @@ class ModuleBuild(RidaBase):
             modname='rida',
             topic='module.state.change',
             msg=module.json(),  # Note the state is "init" here...
-            backend=conf.messaging,
+            conf=conf,
         )
         return module
 
@@ -168,7 +168,7 @@ class ModuleBuild(RidaBase):
             modname='rida',
             topic='module.state.change',
             msg=self.json(),  # Note the state is "init" here...
-            backend=conf.messaging,
+            conf=conf,
         )
 
     @classmethod

@@ -75,7 +75,7 @@ class MessageIngest(threading.Thread):
 
 
     def run(self):
-        for msg in rida.messaging.listen(conf.messaging):
+        for msg in rida.messaging.listen(conf):
             self.outgoing_work_queue.put(msg)
 
 
