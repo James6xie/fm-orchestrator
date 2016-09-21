@@ -23,6 +23,7 @@
 import unittest
 import mock
 
+import rida.messaging
 import rida.scheduler.handlers.repos
 
 
@@ -43,10 +44,8 @@ class TestRepoDone(unittest.TestCase):
         that we do nothing gracefully.
         """
         from_repo_done_event.return_value = None
-        msg = {
-            'topic': 'org.fedoraproject.prod.buildsys.repo.done',
-            'msg': {'tag': 'no matches for this...'},
-        }
+        msg = rida.messaging.KojiRepoChange(
+            'no matches for this...', '2016-some-guid')
         self.fn(config=self.config, session=self.session, msg=msg)
 
     @mock.patch('rida.builder.KojiModuleBuilder.buildroot_ready')
@@ -75,9 +74,7 @@ class TestRepoDone(unittest.TestCase):
 
         ready.return_value = True
 
-        msg = {
-            'topic': 'org.fedoraproject.prod.buildsys.repo.done',
-            'msg': {'tag': 'no matches for this...'},
-        }
+        msg = rida.messaging.KojiRepoChange(
+            'no matches for this...', '2016-some-guid')
         self.fn(config=self.config, session=self.session, msg=msg)
         build_fn.assert_called_once_with(artifact_name='foo', source='full_scm_url')

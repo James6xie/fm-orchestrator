@@ -123,9 +123,12 @@ class ModuleBuild(RidaBase):
 
     @classmethod
     def from_module_event(cls, session, event):
-        if '.module.' not in event['topic']:
-            raise ValueError("%r is not a module message." % event['topic'])
-        return session.query(cls).filter(cls.id==event['msg']['id']).first()
+        if type(event) == rida.messaging.RidaModule:
+            return session.query(cls).filter(
+                cls.id == event.msg.module_build_id).first()
+        else:
+            raise ValueError("%r is not a module message."
+                             % type(event).__name__)
 
     @classmethod
     def create(cls, session, conf, name, version, release, modulemd, scmurl, username):
@@ -179,7 +182,7 @@ class ModuleBuild(RidaBase):
 
         There should be at most one.
         """
-        tag = event['msg']['tag'].strip('-build')
+        tag = event.repo_tag.strip('-build')
         query = session.query(cls)\
             .filter(cls.koji_tag==tag)\
             .filter(cls.state==BUILD_STATES["build"])
@@ -276,9 +279,11 @@ class ComponentBuild(RidaBase):
 
     @classmethod
     def from_component_event(cls, session, event):
-        if 'component.state.change' not in event['topic'] and '.buildsys.build.state.change' not in event['topic']:
+        if type(event) == rida.messaging.KojiBuildChange:
+            return session.query(cls).filter(
+                cls.task_id == event.build_id).first()
+        else:
             raise ValueError("%r is not a koji message." % event['topic'])
-        return session.query(cls).filter(cls.task_id==event['msg']['task_id']).first()
 
     def json(self):
         retval = {

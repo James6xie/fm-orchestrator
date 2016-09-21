@@ -22,7 +22,7 @@
 
 import unittest
 import mock
-
+import rida.messaging
 import rida.scheduler.handlers.modules
 
 
@@ -47,13 +47,9 @@ class TestModuleWait(unittest.TestCase):
             'release': 1,
             'state': 'some state',
         }
+
         from_module_event.return_value = mocked_module_build
 
-        msg = {
-            'topic': 'org.fedoraproject.prod.rida.module.state.change',
-            'msg': {
-                'id': 1,
-                'state': 'some state',
-            },
-        }
+        msg = rida.messaging.RidaModule(msg_id=None, module_build_id=1,
+                                        module_build_state='some state')
         self.fn(config=self.config, session=self.session, msg=msg)

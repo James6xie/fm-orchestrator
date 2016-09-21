@@ -176,9 +176,14 @@ def _fedmsg_publish(topic, msg, modname):
 
 
 def _fedmsg_listen(**kwargs):
+    """
+    Parses a fedmsg event and constructs it into the appropriate message object
+    """
     import fedmsg
     for name, endpoint, topic, msg in fedmsg.tail_messages(**kwargs):
-        yield msg
+        msg_obj = BaseMessage.from_fedmsg(topic, msg)
+        if msg_obj:
+            yield msg_obj
 
 _messaging_backends = {
     'fedmsg': {
