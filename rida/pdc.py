@@ -27,6 +27,7 @@
 
 import modulemd
 from pdc_client import PDCClient
+import six
 
 
 
@@ -68,7 +69,7 @@ def get_variant_dict(data):
         return isinstance(data, modulemd.ModuleMetadata)
 
     def is_module_str(data):
-        return isinstance(data, str) or isinstance(data, unicode)
+        return isinstance(data, six.string_types)
 
     result = None
 

@@ -41,8 +41,8 @@ import tempfile
 from rida import app, conf, db, log
 from rida import models
 from rida.utils import pagination_metadata, filter_module_builds
-from errors import (ValidationError, Unauthorized, UnprocessableEntity,
-                    Conflict, NotFound)
+from rida.errors import (
+    ValidationError, Unauthorized, UnprocessableEntity, Conflict, NotFound)
 
 class SubmitBuild(View):
     """Handles new module build submissions."""
