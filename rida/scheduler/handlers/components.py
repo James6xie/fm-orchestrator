@@ -41,7 +41,8 @@ def _finalize(config, session, msg, state):
     # First, find our ModuleBuild associated with this repo, if any.
     component_build = models.ComponentBuild.from_component_event(session, msg)
     try:
-        nvr = "{name}-{version}-{release}".format(**msg['msg'])
+        nvr = "{}-{}-{}".format(msg.build_name, msg.build_version,
+                                msg.build_release)
     except KeyError:
         nvr = None
 
@@ -72,7 +73,8 @@ def _finalize(config, session, msg, state):
         builder = rida.builder.KojiModuleBuilder(module_name, config, tag_name=tag)
         builder.buildroot_connect()
         # tag && add to srpm-build group
-        nvr = "{name}-{version}-{release}".format(**msg['msg'])
+        nvr = "{}-{}-{}".format(msg.build_name, msg.build_version,
+                                msg.build_release)
         install = bool(component_build.package == 'module-build-macros')
         builder.buildroot_add_artifacts([nvr,], install=install)
         session.commit()

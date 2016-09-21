@@ -62,7 +62,7 @@ class STOP_WORK(object):
 
 
 def module_build_state_from_msg(msg):
-    state = int(msg['msg']['state'])
+    state = int(msg.module_build_state)
     # TODO better handling
     assert state in models.BUILD_STATES.values(), "state=%s(%s) is not in %s" % (state, type(state), models.BUILD_STATES.values())
     return state
@@ -75,7 +75,7 @@ class MessageIngest(threading.Thread):
 
 
     def run(self):
-        for msg in rida.messaging.listen(backend=conf.messaging):
+        for msg in rida.messaging.listen(conf):
             self.outgoing_work_queue.put(msg)
 
 
@@ -137,33 +137,31 @@ class MessageWorker(threading.Thread):
             try:
                 self.process_message(msg)
             except Exception:
-                log.exception("Failed while handling %r" % msg['msg_id'])
-                # Log the body of the message too, but clear out some spammy
-                # fields that are of no use to a human reader.
-                msg.pop('certificate', None)
-                msg.pop('signature', None)
+                log.exception("Failed while handling %r" % msg.msg_id)
                 log.info(pprint.pformat(msg))
 
     def process_message(self, msg):
-        log.debug("received %r, %r" % (msg['msg_id'], msg['topic']))
+        log.debug('Received a message with an ID of "{0}" and of type "{1}"'
+                  .format(msg.msg_id, type(msg).__name__))
 
         # Choose a handler for this message
-        if '.buildsys.repo.done' in msg['topic']:
+        if type(msg) == rida.messaging.KojiBuildChange:
+            handler = self.on_build_change[msg.build_new_state]
+        elif type(msg) == rida.messaging.KojiRepoChange:
             handler = self.on_repo_change
-        elif '.buildsys.build.state.change' in msg['topic']:
-            handler = self.on_build_change[msg['msg']['new']]
-        elif '.rida.module.state.change' in msg['topic']:
+        elif type(msg) == rida.messaging.RidaModule:
             handler = self.on_module_change[module_build_state_from_msg(msg)]
         else:
             log.debug("Unhandled message...")
             return
 
         # Execute our chosen handler
-        idx = "%s: %s, %s" % (handler.__name__, msg['topic'], msg['msg_id'])
+        idx = "%s: %s, %s" % (handler.__name__, type(msg).__name__,
+                              msg.msg_id)
         if handler is self.NO_OP:
             log.debug("Handler is NO_OP: %s" % idx)
         else:
-            log.info("Calling   %s" % idx)
+            log.info("Calling %s" % idx)
             handler(conf, db.session, msg)
             log.info("Done with %s" % idx)
 
@@ -213,15 +211,15 @@ class Poller(threading.Thread):
                 log.info("  task %r is in state %r" % (component_build.task_id, task_info['state']))
                 if task_info['state'] in dead_states:
                     # Fake a fedmsg message on our internal queue
-                    self.outgoing_work_queue.put({
-                        'msg_id': 'a faked internal message',
-                        'topic': 'org.fedoraproject.prod.buildsys.build.state.change',
-                        'msg': {
-                            'msg_id': 'a faked internal message',
-                            'task_id': component_build.task_id,
-                            'new': koji.BUILD_STATES['FAILED'],
-                        },
-                    })
+                    msg = rida.messaging.KojiBuildChange(
+                        msg_id='a faked internal message',
+                        build_id=component_build.task_id,
+                        build_name=component_build.package,
+                        build_new_state=koji.BUILD_STATES['FAILED'],
+                        build_release=None,
+                        build_version=None
+                    )
+                    self.outgoing_work_queue.put(msg)
 
         else:
             raise NotImplementedError("Buildsystem %r is not supported." % conf.system)

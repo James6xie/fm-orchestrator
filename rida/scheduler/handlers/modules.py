@@ -52,10 +52,10 @@ def done(config, session, msg):
     """
     build = models.ModuleBuild.from_module_event(db.session, msg)
     module_info = build.json()
-    if module_info['state'] != msg['msg']['state']:
+    if module_info['state'] != msg.module_build_state:
         log.warn("Note that retrieved module state %r "
                  "doesn't match message module state %r" % (
-                     module_info['state'], msg['msg']['state']))
+                     module_info['state'], msg.module_build_state))
         # This is ok.. it's a race condition we can ignore.
         pass
 
@@ -75,10 +75,10 @@ def wait(config, session, msg):
     log.info("Found build=%r from message" % build)
 
     module_info = build.json()
-    if module_info['state'] != msg['msg']['state']:
+    if module_info['state'] != msg.module_build_state:
         log.warn("Note that retrieved module state %r "
                  "doesn't match message module state %r" % (
-                     module_info['state'], msg['msg']['state']))
+                     module_info['state'], msg.module_build_state))
         # This is ok.. it's a race condition we can ignore.
         pass
 

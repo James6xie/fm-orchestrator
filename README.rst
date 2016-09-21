@@ -347,12 +347,12 @@ Message Topic
 The suffix for message topics concerning changes in module state is
 ``module.state.change``. Currently, it is expected that these messages are sent
 from koji or ridad, i.e. the topic is prefixed with ``*.buildsys.`` or
-``*.ridad.``, respectively.
+``*.rida.``, respectively.
 
 Message Body
 ------------
 
-The message body (``msg['msg']``) is a dictionary with these fields:
+The message body is a dictionary with these fields:
 
 ``state``
 ~~~~~~~~~
