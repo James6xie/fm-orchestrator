@@ -32,6 +32,7 @@ def publish(topic, msg, backend, modname='rida'):
         raise KeyError("No messaging backend found for %r" % backend)
     return handler(topic, msg, modname=modname)
 
+
 def listen(backend, **kwargs):
     """ Yield messages from a given messaging backend.
 
