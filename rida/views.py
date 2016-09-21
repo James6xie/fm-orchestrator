@@ -28,7 +28,7 @@ This is the implementation of the orchestrator's public RESTful API.
 """
 
 from flask import request, jsonify
-from flask.views import View
+from flask.views import MethodView
 import json
 import logging
 import modulemd
@@ -44,10 +44,37 @@ from rida.utils import pagination_metadata, filter_module_builds
 from rida.errors import (
     ValidationError, Unauthorized, UnprocessableEntity, Conflict, NotFound)
 
-class SubmitBuild(View):
-    """Handles new module build submissions."""
 
-    def dispatch_request(self):
+class ModuleBuildAPI(MethodView):
+
+    def get(self, id):
+        if id is None:
+            # Lists all tracked module builds
+            p_query = filter_module_builds(request)
+
+            json_data = {
+                'meta': pagination_metadata(p_query)
+            }
+
+            verbose_flag = request.args.get('verbose', 'false')
+
+            if verbose_flag.lower() == 'true' or verbose_flag == '1':
+                json_data['items'] = [item.api_json() for item in p_query.items]
+            else:
+                json_data['items'] = [{'id': item.id, 'state': item.state} for
+                                      item in p_query.items]
+
+            return jsonify(json_data), 200
+        else:
+            # Lists details for the specified module builds
+            module = models.ModuleBuild.query.filter_by(id=id).first()
+
+            if module:
+                return jsonify(module.api_json()), 200
+            else:
+                raise NotFound('No such module found.')
+
+    def post(self):
         username = rida.auth.get_username(request.environ)
         rida.auth.assert_is_packager(username, fas_kwargs=dict(
             base_url=conf.fas_url,
@@ -152,56 +179,15 @@ class SubmitBuild(View):
                      mmd.version, mmd.release)
         return jsonify(module.json()), 201
 
-class QueryBuilds(View):
-    """Lists all tracked module builds."""
-
-    def dispatch_builds_request(self):
-        """Lists all tracked module builds."""
-        p_query = filter_module_builds(request)
-
-        json_data = {
-            'meta': pagination_metadata(p_query)
-        }
-
-        verbose_flag = request.args.get('verbose', 'false')
-
-        if verbose_flag.lower() == 'true' or verbose_flag == '1':
-            json_data['items'] = [item.api_json() for item in p_query.items]
-        else:
-            json_data['items'] = [{'id': item.id, 'state': item.state} for item in p_query.items]
-
-        return jsonify(json_data), 200
-
-    def dispatch_build_request(self, id):
-        """Lists details for the specified module builds."""
-
-        module = models.ModuleBuild.query.filter_by(id=id).first()
-
-        if module:
-            return jsonify(module.api_json()), 200
-        else:
-            raise NotFound('No such module found.')
-
-    def dispatch_request(self, id):
-        if id is None:
-            return self.dispatch_builds_request()
-        else:
-            return self.dispatch_build_request(id)
 
 def register_v1_api():
     """ Registers version 1 of Rida API. """
-
-    query_builds = QueryBuilds.as_view("query-builds")
-    module_builds = SubmitBuild.as_view("module-builds")
-
-    app.add_url_rule('/rida/1/module-builds/',
-                        view_func=module_builds,
-                        methods=['POST'])
-    app.add_url_rule('/rida/1/module-builds/',
-                        defaults={'id': None}, view_func=query_builds,
-                        methods=['GET'])
-    app.add_url_rule('/rida/1/module-builds/<int:id>',
-                    view_func=query_builds,
-                    methods=['GET'])
+    module_view = ModuleBuildAPI.as_view('module_builds')
+    app.add_url_rule('/rida/1/module-builds/', defaults={'id': None},
+                     view_func=module_view, methods=['GET'])
+    app.add_url_rule('/rida/1/module-builds/', view_func=module_view,
+                     methods=['POST'])
+    app.add_url_rule('/rida/1/module-builds/<int:id>', view_func=module_view,
+                     methods=['GET'])
 
 register_v1_api()
