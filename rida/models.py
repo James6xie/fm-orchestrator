@@ -125,7 +125,7 @@ class ModuleBuild(RidaBase):
     def from_module_event(cls, session, event):
         if type(event) == rida.messaging.RidaModule:
             return session.query(cls).filter(
-                cls.id == event.msg.module_build_id).first()
+                cls.id == event.module_build_id).first()
         else:
             raise ValueError("%r is not a module message."
                              % type(event).__name__)
