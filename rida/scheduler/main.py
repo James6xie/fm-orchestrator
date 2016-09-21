@@ -163,7 +163,7 @@ class MessageWorker(threading.Thread):
         if handler is self.NO_OP:
             log.debug("Handler is NO_OP: %s" % idx)
         else:
-            log.info("Calling   %s" % idx)
+            log.info("Calling %s" % idx)
             handler(conf, db.session, msg)
             log.info("Done with %s" % idx)
 
