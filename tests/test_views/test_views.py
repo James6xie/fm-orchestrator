@@ -37,7 +37,7 @@ class TestViews(unittest.TestCase):
         init_data()
 
     def test_query_build(self):
-        rv = self.client.get('/rida/module-builds/1')
+        rv = self.client.get('/rida/1/module-builds/1')
         data = json.loads(rv.data)
         self.assertEquals(data['id'], 1)
         self.assertEquals(data['name'], 'nginx')
@@ -52,29 +52,29 @@ class TestViews(unittest.TestCase):
         self.assertEquals(data['time_submitted'], '2016-09-03T11:23:20Z')
 
     def test_pagination_metadata(self):
-        rv = self.client.get('/rida/module-builds/?per_page=8&page=2')
+        rv = self.client.get('/rida/1/module-builds/?per_page=8&page=2')
         meta_data = json.loads(rv.data)['meta']
         self.assertTrue(
-            'rida/module-builds/?per_page=8&page=1' in meta_data['prev'])
+            'rida/1/module-builds/?per_page=8&page=1' in meta_data['prev'])
         self.assertTrue(
-            'rida/module-builds/?per_page=8&page=3' in meta_data['next'])
+            'rida/1/module-builds/?per_page=8&page=3' in meta_data['next'])
         self.assertTrue(
-            'rida/module-builds/?per_page=8&page=4' in meta_data['last'])
+            'rida/1/module-builds/?per_page=8&page=4' in meta_data['last'])
         self.assertTrue(
-            'rida/module-builds/?per_page=8&page=1' in meta_data['first'])
+            'rida/1/module-builds/?per_page=8&page=1' in meta_data['first'])
         self.assertEquals(meta_data['total'], 30)
         self.assertEquals(meta_data['per_page'], 8)
         self.assertEquals(meta_data['pages'], 4)
         self.assertEquals(meta_data['page'], 2)
 
     def test_query_builds(self):
-        rv = self.client.get('/rida/module-builds/?per_page=2')
+        rv = self.client.get('/rida/1/module-builds/?per_page=2')
         items = json.loads(rv.data)['items']
         self.assertEquals(items,
                           [{u'state': 3, u'id': 1}, {u'state': 3, u'id': 2}])
 
     def test_query_builds_verbose(self):
-        rv = self.client.get('/rida/module-builds/?per_page=2&verbose=True')
+        rv = self.client.get('/rida/1/module-builds/?per_page=2&verbose=True')
         item = json.loads(rv.data)['items'][1]
         self.assertEquals(item['id'], 2)
         self.assertEquals(item['name'], 'postgressql')
@@ -90,67 +90,67 @@ class TestViews(unittest.TestCase):
         self.assertEquals(item['time_submitted'], '2016-09-03T12:25:33Z')
 
     def test_query_builds_filter_name(self):
-        rv = self.client.get('/rida/module-builds/?name=nginx')
+        rv = self.client.get('/rida/1/module-builds/?name=nginx')
         data = json.loads(rv.data)
         self.assertEquals(data['meta']['total'], 10)
 
     def test_query_builds_filter_completed_before(self):
         rv = self.client.get(
-            '/rida/module-builds/?completed_before=2016-09-03T11:30:00Z')
+            '/rida/1/module-builds/?completed_before=2016-09-03T11:30:00Z')
         data = json.loads(rv.data)
         self.assertEquals(data['meta']['total'], 2)
 
     def test_query_builds_filter_completed_after(self):
         rv = self.client.get(
-            '/rida/module-builds/?completed_after=2016-09-03T12:25:00Z')
+            '/rida/1/module-builds/?completed_after=2016-09-03T12:25:00Z')
         data = json.loads(rv.data)
         self.assertEquals(data['meta']['total'], 8)
 
     def test_query_builds_filter_submitted_before(self):
         rv = self.client.get(
-            '/rida/module-builds/?submitted_before=2016-09-03T12:25:00Z')
+            '/rida/1/module-builds/?submitted_before=2016-09-03T12:25:00Z')
         data = json.loads(rv.data)
         self.assertEquals(data['meta']['total'], 7)
 
     def test_query_builds_filter_submitted_after(self):
         rv = self.client.get(
-            '/rida/module-builds/?submitted_after=2016-09-03T12:25:00Z')
+            '/rida/1/module-builds/?submitted_after=2016-09-03T12:25:00Z')
         data = json.loads(rv.data)
         self.assertEquals(data['meta']['total'], 23)
 
     def test_query_builds_filter_modified_before(self):
         rv = self.client.get(
-            '/rida/module-builds/?modified_before=2016-09-03T12:25:00Z')
+            '/rida/1/module-builds/?modified_before=2016-09-03T12:25:00Z')
         data = json.loads(rv.data)
         self.assertEquals(data['meta']['total'], 6)
 
     def test_query_builds_filter_modified_after(self):
         rv = self.client.get(
-            '/rida/module-builds/?modified_after=2016-09-03T12:25:00Z')
+            '/rida/1/module-builds/?modified_after=2016-09-03T12:25:00Z')
         data = json.loads(rv.data)
         self.assertEquals(data['meta']['total'], 24)
 
     def test_query_builds_filter_owner(self):
         rv = self.client.get(
-            '/rida/module-builds/?owner=Moe%20Szyslak')
+            '/rida/1/module-builds/?owner=Moe%20Szyslak')
         data = json.loads(rv.data)
         self.assertEquals(data['meta']['total'], 10)
 
     def test_query_builds_filter_state(self):
         rv = self.client.get(
-            '/rida/module-builds/?state=3')
+            '/rida/1/module-builds/?state=3')
         data = json.loads(rv.data)
         self.assertEquals(data['meta']['total'], 20)
 
     def test_query_builds_two_filters(self):
-        rv = self.client.get('/rida/module-builds/?owner=Moe%20Szyslak'
+        rv = self.client.get('/rida/1/module-builds/?owner=Moe%20Szyslak'
                              '&modified_after=2016-09-03T12:25:00Z')
         data = json.loads(rv.data)
         self.assertEquals(data['meta']['total'], 4)
 
     def test_query_builds_filter_invalid_date(self):
         rv = self.client.get(
-            '/rida/module-builds/?modified_after=2016-09-03T12:25:00-05:00')
+            '/rida/1/module-builds/?modified_after=2016-09-03T12:25:00-05:00')
         data = json.loads(rv.data)
         self.assertEquals(data['error'], 'Bad Request')
         self.assertEquals(data['message'], 'An invalid Zulu ISO 8601 timestamp'
@@ -173,7 +173,7 @@ class TestViews(unittest.TestCase):
 
         mocked_scm.return_value.checkout = mocked_scm_checkout
         mocked_scm.return_value.name = 'fakemodule'
-        rv = self.client.post('/rida/module-builds/', data=json.dumps(
+        rv = self.client.post('/rida/1/module-builds/', data=json.dumps(
             {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                 'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}))
         data = json.loads(rv.data)
@@ -194,7 +194,7 @@ class TestViews(unittest.TestCase):
         self.assertEquals(data['state_name'], 'wait')
 
     def test_submit_build_cert_error(self):
-        rv = self.client.post('/rida/module-builds/', data=json.dumps(
+        rv = self.client.post('/rida/1/module-builds/', data=json.dumps(
             {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                 'testmodule.git?#48932b90de214d9d13feefbd35246a81b6cb8d49'}))
         data = json.loads(rv.data)
@@ -209,11 +209,11 @@ class TestViews(unittest.TestCase):
     @patch('rida.auth.assert_is_packager')
     def test_submit_build_scm_url_error(self, mocked_assert_is_packager,
                                         mocked_get_username):
-        rv = self.client.post('/rida/module-builds/', data=json.dumps(
+        rv = self.client.post('/rida/1/module-builds/', data=json.dumps(
             {'scmurl': 'git://badurl.com'}))
         data = json.loads(rv.data)
         self.assertEquals(
-            data['message'], 'The submitted scmurl isn\'t allowed')
+            data['message'], 'The submitted scmurl is not allowed')
         self.assertEquals(data['status'], 401)
         self.assertEquals(data['error'], 'Unauthorized')
 
@@ -223,7 +223,7 @@ class TestViews(unittest.TestCase):
     def test_submit_build_bad_modulemd(self, mocked_scm,
                                        mocked_assert_is_packager,
                                        mocked_get_username):
-        rv = self.client.post('/rida/module-builds/', data=json.dumps(
+        rv = self.client.post('/rida/1/module-builds/', data=json.dumps(
             {'scmurl': 'git://badurl.com'}))
         def mocked_scm_checkout(temp_dir):
             scm_dir = path.join(temp_dir, 'fakemodule')
@@ -237,7 +237,7 @@ class TestViews(unittest.TestCase):
 
         mocked_scm.return_value.checkout = mocked_scm_checkout
         mocked_scm.return_value.name = 'fakemodule'
-        rv = self.client.post('/rida/module-builds/', data=json.dumps(
+        rv = self.client.post('/rida/1/module-builds/', data=json.dumps(
             {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                 'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}))
         data = json.loads(rv.data)
