@@ -212,8 +212,8 @@ class GenericBuilder:
 
         The artifact_name parameter is used in koji add-pkg (and it's actually
         the only reason why we need to pass it). We don't really limit source
-        types. The actual source is usually delivered as an SCM URL in
-        fedmsg['msg']['scmurl'] (currently only SCM URLs work).
+        types. The actual source is usually delivered as an SCM URL from
+        fedmsg.
 
         Example
         .build("bash", "git://someurl/bash#damn") #build from SCM URL
