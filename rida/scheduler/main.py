@@ -32,7 +32,6 @@ proper scheduling component builds in the supported build systems.
 import inspect
 import operator
 import os
-import pprint
 import threading
 import time
 import six.moves.queue as queue
@@ -133,7 +132,7 @@ class MessageWorker(threading.Thread):
                 self.process_message(msg)
             except Exception:
                 log.exception("Failed while handling %r" % msg.msg_id)
-                log.info(pprint.pformat(msg))
+                log.info(msg)
 
     def process_message(self, msg):
         log.debug('Received a message with an ID of "{0}" and of type "{1}"'
