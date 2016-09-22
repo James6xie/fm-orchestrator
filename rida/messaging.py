@@ -30,7 +30,7 @@ try:
 except ImportError:
     from funcsigs import signature
 
-from rida import logger
+from rida import log
 
 
 class BaseMessage(object):
@@ -78,7 +78,7 @@ class BaseMessage(object):
 
             # If there isn't a msg dict in msg then this message can be skipped
             if not msg_inner_msg:
-                logger.debug(('Skipping message without any content with the '
+                log.debug(('Skipping message without any content with the '
                              'topic "{0}"').format(topic))
                 return None
 
@@ -111,7 +111,7 @@ class BaseMessage(object):
             if msg_obj:
                 return msg_obj
 
-        logger.debug('Skipping unrecognized message with the topic "{0}"'
+        log.debug('Skipping unrecognized message with the topic "{0}"'
                      .format(topic))
         return None
 
