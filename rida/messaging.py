@@ -25,6 +25,11 @@
 """Generic messaging functions."""
 
 import re
+try:
+    from inspect import signature
+except ImportError:
+    from funcsigs import signature
+
 from rida import logger
 
 
@@ -35,6 +40,17 @@ class BaseMessage(object):
         :param msg_id: the id of the msg (e.g. 2016-SomeGUID)
         """
         self.msg_id = msg_id
+
+    def __repr__(self):
+        init_sig = signature(self.__init__)
+
+        args_strs = (
+            "{}={!r}".format(name, getattr(self, name))
+            if param.default != param.empty
+            else repr(getattr(self, name))
+            for name, param in init_sig.parameters.items())
+
+        return "{}({})".format(type(self).__name__, ', '.join(args_strs))
 
     @staticmethod
     def from_fedmsg(topic, msg):
