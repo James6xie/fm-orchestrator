@@ -28,6 +28,7 @@
 #       their tag names.
 # TODO: Ensure the RPM %dist tag is set according to the policy.
 
+import six
 from abc import ABCMeta, abstractmethod
 import logging
 import os
@@ -112,7 +113,7 @@ Koji workflow
 8) (optional) wait for selected builds to be available in buildroot
 
 """
-class GenericBuilder:
+class GenericBuilder(six.with_metaclass(ABCMeta)):
     """
     External Api for builders
 
@@ -138,7 +139,6 @@ class GenericBuilder:
                              "?#70fa7516b83768595a4f3280ae890a7ac957e0c7")
 
     """
-    __metaclass__ = ABCMeta
 
     backend = "generic"
 
@@ -589,7 +589,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
         :param build_tag_name
         :param groups: A dict {'group' : [package, ...]}
         """
-        log.debug("Adding groups=%s to tag=%s" % (groups.keys(), dest_tag))
+        log.debug("Adding groups=%s to tag=%s" % (list(groups), dest_tag))
         if groups and not isinstance(groups, dict):
             raise ValueError("Expected dict {'group' : [str(package1), ...]")
 
@@ -599,7 +599,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
             for p in self.koji_session.getTagGroups(dest_tag, inherit=False)
         ])
 
-        for group, packages in groups.iteritems():
+        for group, packages in groups.items():
             group_id = existing_groups.get(group, None)
             if group_id is not None:
                 log.debug("Group %s already exists for tag %s. Skipping creation." % (group, dest_tag))
@@ -646,7 +646,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
                 raise SystemError("Tag %s: master lock already set. Can't edit tag" % taginfo['name'])
 
             perm_ids = dict([(p['name'], p['id']) for p in self.koji_session.getAllPerms()])
-            if perm not in perm_ids.keys():
+            if perm not in perm_ids:
                 raise ValueError("Unknown permissions %s" % perm)
 
             perm_id = perm_ids[perm]

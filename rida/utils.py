@@ -27,7 +27,7 @@ import re
 import functools
 import time
 from rida import log, models
-from errors import ValidationError
+from rida.errors import ValidationError
 
 
 def retry(timeout=120, interval=30, wait_on=Exception):

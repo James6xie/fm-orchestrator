@@ -29,21 +29,13 @@ This is the main component of the orchestrator and is responsible for
 proper scheduling component builds in the supported build systems.
 """
 
-
 import inspect
 import operator
 import os
 import pprint
 import threading
 import time
-
-try:
-    # Py3
-    import queue
-except ImportError:
-    # Py2
-    import Queue as queue
-
+import six.moves.queue as queue
 
 import rida.config
 import rida.messaging
@@ -64,7 +56,9 @@ class STOP_WORK(object):
 def module_build_state_from_msg(msg):
     state = int(msg.module_build_state)
     # TODO better handling
-    assert state in models.BUILD_STATES.values(), "state=%s(%s) is not in %s" % (state, type(state), models.BUILD_STATES.values())
+    assert state in models.BUILD_STATES.values(), (
+        'state=%s(%s) is not in %s'
+        % (state, type(state), list(models.BUILD_STATES.values())))
     return state
 
 
@@ -116,7 +110,8 @@ class MessageWorker(threading.Thread):
             if koji.BUILD_STATES[state] not in self.on_build_change:
                 raise KeyError("Koji build states %r not handled." % state)
 
-        all_fns = self.on_build_change.items() + self.on_module_change.items()
+        all_fns = (list(self.on_build_change.items()) +
+                   list(self.on_module_change.items()))
         for key, callback in all_fns:
             expected = ['config', 'session', 'msg']
             argspec = inspect.getargspec(callback)[0]
