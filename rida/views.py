@@ -63,7 +63,7 @@ class SubmitBuild(View):
             raise ValidationError('Missing scmurl')
 
         url = r["scmurl"]
-        if not any(url.startswith(prefix) for prefix in conf.scmurls): 
+        if not any(url.startswith(prefix) for prefix in conf.scmurls):
             raise Unauthorized("The submitted scmurl is not allowed")
 
         yaml = ""
@@ -149,7 +149,7 @@ class SubmitBuild(View):
         db.session.add(module)
         db.session.commit()
         logging.info("%s submitted build of %s-%s-%s", username, mmd.name,
-                mmd.version, mmd.release)
+                     mmd.version, mmd.release)
         return jsonify(module.json()), 201
 
 class QueryBuilds(View):
