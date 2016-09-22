@@ -29,8 +29,9 @@ import ssl
 
 from rida import app, conf, db
 from rida.config import Config
-from rida.pdc import get_pdc_client_session, get_module, get_module_runtime_dependencies, get_module_tag, \
-    get_module_build_dependencies
+from rida.pdc import (
+    get_pdc_client_session, get_module, get_module_runtime_dependencies,
+    get_module_tag, get_module_build_dependencies)
 import rida.auth
 
 
@@ -75,12 +76,14 @@ def testpdc():
     cfg.pdc_develop = True
 
     pdc_session = get_pdc_client_session(cfg)
-    module = get_module(pdc_session, {'name': 'testmodule', 'version': '4.3.43', 'release': '1'})
+    module = get_module(pdc_session, {'name': 'testmodule', 'version': '4.3.43',
+                                      'release': '1'})
 
     if module:
         print ("pdc_data=%s" % str(module))
         print ("deps=%s" % get_module_runtime_dependencies(pdc_session, module))
-        print ("build_deps=%s" % get_module_build_dependencies(pdc_session, module))
+        print ("build_deps=%s" % get_module_build_dependencies(
+            pdc_session, module))
         print ("tag=%s" % get_module_tag(pdc_session, module))
     else:
         print ('module was not found')
