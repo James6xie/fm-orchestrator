@@ -370,26 +370,24 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
             config=koji_config,
         )
 
-        krbservice = getattr(koji_config, "krbservice", None)
-        if krbservice:
-            koji_config.krbservice = krbservice
-
         address = koji_config.server
         log.info("Connecting to koji %r" % address)
         koji_session = koji.ClientSession(address, opts=koji_config)
 
         authtype = koji_config.authtype
         if authtype == "kerberos":
-            keytab = getattr(koji_config, "keytab", None)
-            principal = getattr(koji_config, "principal", None)
+            ccache = getattr(config, "krb_ccache", None)
+            keytab = getattr(config, "krb_keytab", None)
+            principal = getattr(config, "krb_principal", None)
             if keytab and principal:
                 koji_session.krb_login(
                     principal=principal,
                     keytab=keytab,
+                    ccache=ccache,
                     proxyuser=None,
                 )
             else:
-                koji_session.krb_login()
+                koji_session.krb_login(ccache=ccache)
         elif authtype == "ssl":
             koji_session.ssl_login(
                 os.path.expanduser(koji_config.cert),
