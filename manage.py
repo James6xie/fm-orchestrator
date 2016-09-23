@@ -115,8 +115,8 @@ def gendevfedmsgcert(pki_dir='/opt/fm-orchestrator/pki', force=False):
 
     ca_crt_path = os.path.join(pki_dir, 'ca.crt')
     ca_key_path = os.path.join(pki_dir, 'ca.key')
-    msg_key_path = os.path.join(pki_dir, 'msg_signing.key')
-    msg_crt_path = os.path.join(pki_dir, 'msg_signing.crt')
+    msg_key_path = os.path.join(pki_dir, 'localhost.key')
+    msg_crt_path = os.path.join(pki_dir, 'localhost.crt')
     ca_crl = os.path.join(pki_dir, 'ca.crl')
 
     # Create a key pair for the CA
