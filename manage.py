@@ -197,6 +197,43 @@ def gendevfedmsgcert(pki_dir='/opt/fm-orchestrator/pki', force=False):
 
 
 @manager.command
+def generatelocalhostcert():
+    # Create a key pair for the message signing cert
+    from OpenSSL import crypto
+    cert_key = crypto.PKey()
+    cert_key.generate_key(crypto.TYPE_RSA, 2048)
+
+    with open('server.key', 'w') as cert_key_file:
+        cert_key_file.write(
+            crypto.dump_privatekey(crypto.FILETYPE_PEM, cert_key))
+
+    cert = crypto.X509()
+    msg_cert_subject = cert.get_subject()
+    msg_cert_subject.C = 'US'
+    msg_cert_subject.ST = 'MA'
+    msg_cert_subject.L = 'Boston'
+    msg_cert_subject.O = 'Development'
+    msg_cert_subject.CN = 'localhost'
+    cert.set_serial_number(2)
+    cert.gmtime_adj_notBefore(0)
+    cert.gmtime_adj_notAfter(315360000)  # 10 years
+    cert.set_issuer(cert.get_subject())
+    cert.set_pubkey(cert_key)
+    cert_extensions = [
+        crypto.X509Extension(
+            'keyUsage', True,
+            'digitalSignature, keyEncipherment, nonRepudiation'),
+        crypto.X509Extension('extendedKeyUsage', True, 'serverAuth'),
+    ]
+    cert.add_extensions(cert_extensions)
+    cert.sign(cert_key, 'sha256')
+
+    with open('server.crt', 'w') as cert_file:
+        cert_file.write(
+            crypto.dump_certificate(crypto.FILETYPE_PEM, cert))
+
+
+@manager.command
 def runssl(host=conf.host, port=conf.port, debug=False):
     """ Runs the Flask app with the HTTPS settings configured in config.py
     """

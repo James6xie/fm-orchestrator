@@ -9,7 +9,7 @@ $script = <<SCRIPT
     mkdir -p /etc/rida
     cp -av koji.conf /etc/rida/
     python manage.py upgradedb
-    ./generate_localhost_cert.sh
+    python manage.py generatelocalhostcert
 SCRIPT
 
 Vagrant.configure("2") do |config|

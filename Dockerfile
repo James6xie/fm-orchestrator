@@ -12,5 +12,5 @@ COPY koji.conf /etc/rida/
 
 COPY . /opt/fm-orchestrator/
 
-RUN python2 ./manage.py upgradedb && ./generate_localhost_cert.sh
+RUN python2 ./manage.py upgradedb && python2 manage.py generatelocalhostcert
 CMD ["python2", "manage.py", "runssl"]
