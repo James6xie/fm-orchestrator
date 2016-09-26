@@ -12,7 +12,7 @@ class BaseConfiguration(object):
     PORT = 5000
 
     SYSTEM = 'koji'
-    MESSAGING = 'fedmsg'
+    MESSAGING = 'fedmsg' # or amq
     KOJI_CONFIG = '/etc/rida/koji.conf'
     KOJI_PROFILE = 'koji'
     KOJI_ARCHES = ['i686', 'armv7hl', 'x86_64']
@@ -53,6 +53,15 @@ class BaseConfiguration(object):
     KRB_PRINCIPAL = None
     KRB_CCACHE = None
 
+    # AMQ prefixed variables are required only while using 'amq' as messaging backend
+    # Addresses to listen to
+    AMQ_RECV_ADDRESSES = ['amqps://messaging.mydomain.com/Consumer.m8y.VirtualTopic.eng.koji',
+            'amqps://messaging.mydomain.com/Consumer.m8y.VirtualTopic.eng.rida',]
+    # Address for sending messages
+    AMQ_DEST_ADDRESS = 'amqps://messaging.mydomain.com/Consumer.m8y.VirtualTopic.eng.rida'
+    AMQ_CERT_FILE = '/etc/rida/msg-m8y-client.crt'
+    AMQ_PRIVATE_KEY_FILE = '/etc/rida/msg-m8y-client.key'
+    AMQ_TRUSTED_CERT_FILE = '/etci/rida/Root-CA.crt'
 
 class DevConfiguration(BaseConfiguration):
     LOG_BACKEND = 'console'
