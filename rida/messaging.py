@@ -162,20 +162,20 @@ class RidaModule(BaseMessage):
         self.module_build_state = module_build_state
 
 
-def publish(topic, msg, conf, modname='rida'):
+def publish(topic, msg, conf, service='rida'):
     """
     Publish a single message to a given backend, and return
     :param topic: the topic of the message (e.g. module.state.change)
     :param msg: the message contents of the message (typically JSON)
     :param conf: a Config object from the class in config.py
-    :param modname: the system that is publishing the message (e.g. rida)
+    :param service: the system that is publishing the message (e.g. rida)
     :return:
     """
     try:
         handler = _messaging_backends[conf.messaging]['publish']
     except KeyError:
         raise KeyError("No messaging backend found for %r" % conf.messaging)
-    return handler(topic, msg, modname=modname)
+    return handler(topic, msg, service=service)
 
 
 def listen(conf, **kwargs):
@@ -190,16 +190,15 @@ def listen(conf, **kwargs):
     except KeyError:
         raise KeyError("No messaging backend found for %r" % conf.messaging)
 
-    for event in handler(**kwargs):
+    for event in handler(conf, **kwargs):
         yield event
 
 
-def _fedmsg_publish(topic, msg, modname):
+def _fedmsg_publish(conf, topic, msg, service):
     import fedmsg
-    return fedmsg.publish(topic=topic, msg=msg, modname=modname)
+    return fedmsg.publish(topic, msg=msg, modname=service)
 
-
-def _fedmsg_listen(**kwargs):
+def _fedmsg_listen(conf, **kwargs): # XXX: should we keep conf?
     """
     Parses a fedmsg event and constructs it into the appropriate message object
     """
