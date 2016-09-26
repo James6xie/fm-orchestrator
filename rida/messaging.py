@@ -59,7 +59,7 @@ class BaseMessage(object):
         msg_obj = None
         properties = None
         body = None
-        if hasattr('properties'):
+        if hasattr(msg, 'properties'):
             properties = json.loads(msg.properties, encoding='utf8')
             if not ((properties.get('service') == 'koji' or properties.get('service') == 'rida')):
                 log.debug("Skipping msg: %s" % msg)
