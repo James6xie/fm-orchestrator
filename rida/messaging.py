@@ -57,15 +57,16 @@ class BaseMessage(object):
     @staticmethod
     def from_amq(topic, msg):
         msg_obj = None
-        properties = None
-        body = None
-        if hasattr(msg, 'properties'):
-            properties = json.loads(msg.properties, encoding='utf8')
-            if not ((properties.get('service') == 'koji' or properties.get('service') == 'rida')):
-                log.debug("Skipping msg: %s" % msg)
-                return None
 
+        if not hasattr(msg, 'properties'):
+            return None # Unrelated message not identifying service origin
+        properties = json.loads(msg.properties, encoding='utf8')
         service = properties.get('service')
+
+        if service not in ('koji', 'rida'):
+            log.debug('Skipping msg due service=%s which is not related (msg=%r): ' % (service, msg))
+            return None
+
         # This probably appies only for brew
         # Also wouldn't be easier to use properties?
         if service == 'koji':
