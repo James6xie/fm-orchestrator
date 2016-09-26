@@ -52,7 +52,6 @@ class Config(object):
     def __init__(self):
         """Initialize the Config object."""
         self._system = ""
-        self._messaging = ""
         self._db = ""
         self._polling_interval = 0
         self._pdc_url = ""
@@ -78,6 +77,12 @@ class Config(object):
         self._krb_keytab = None
         self._krb_principal = None
         self._krb_ccache = "/tmp/krb5cc_rida"
+        self._messaging = ""
+        self._amq_recv_addresses = []
+        self._amq_dest_address = ""
+        self._amq_cert_file = ""
+        self._amq_private_key_file = ""
+        self._amq_trusted_cert_file = ""
 
     @property
     def system(self):
@@ -99,9 +104,59 @@ class Config(object):
     @messaging.setter
     def messaging(self, s):
         s = str(s)
-        if s not in ("fedmsg"):
+        if s not in ("fedmsg" , "amq"):
             raise ValueError("Unsupported messaging system.")
         self._messaging = s
+
+    @property
+    def amq_recv_addresses(self):
+        """Apache MQ broker url to receive messages."""
+        return self._amq_recv_addresses
+
+    @amq_recv_addresses.setter
+    def amq_recv_addresses(self, l):
+        assert isinstance(l, list) or isinstance(l, tuple)
+        self._amq_recv_addresses = list(l)
+
+    @property
+    def amq_dest_address(self):
+        """Apache MQ broker address to send messages"""
+        return self._amq_dest_address
+
+    @amq_dest_address.setter
+    def amq_dest_address(self, s):
+        self._amq_dest_address = str(s)
+
+    @property
+    def amq_cert_file(self):
+        """Certificate for Apache MQ broker auth."""
+        return self._amq_cert_file
+
+    @amq_cert_file.setter
+    def amq_cert_file(self, s):
+        s = str(s)
+        self._amq_cert_file = s
+
+    @property
+    def amq_private_key_file(self):
+        """Private key for Apache MQ broker auth."""
+        return self._amq_private_key_file
+
+    @amq_private_key_file.setter
+    def amq_private_key_file(self, s):
+        s = str(s)
+        self._amq_private_key_file = s
+
+    @property
+    def amq_trusted_cert_file(self):
+        """Trusted certificate for ssl connection."""
+        return self._amq_trusted_cert_file
+
+    @amq_trusted_cert_file.setter
+    def amq_trusted_cert_file(self, s):
+        s = str(s)
+        self._amq_trusted_cert_file = s
+
 
     @property
     def db(self):
