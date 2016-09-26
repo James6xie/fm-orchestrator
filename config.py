@@ -61,7 +61,7 @@ class BaseConfiguration(object):
     AMQ_DEST_ADDRESS = 'amqps://messaging.mydomain.com/Consumer.m8y.VirtualTopic.eng.rida'
     AMQ_CERT_FILE = '/etc/rida/msg-m8y-client.crt'
     AMQ_PRIVATE_KEY_FILE = '/etc/rida/msg-m8y-client.key'
-    AMQ_TRUSTED_CERT_FILE = '/etci/rida/Root-CA.crt'
+    AMQ_TRUSTED_CERT_FILE = '/etc/rida/Root-CA.crt'
 
 class DevConfiguration(BaseConfiguration):
     LOG_BACKEND = 'console'
