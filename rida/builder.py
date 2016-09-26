@@ -221,7 +221,7 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
         """
         raise NotImplementedError()
 
-class Builder:
+class Builder(object):
     """Wrapper class"""
 
     def __new__(cls, module, backend, config, **extra):
