@@ -395,3 +395,27 @@ It may happen that you will run into issues and the container won't start proper
     $ sudo docker-compose build --no-cache --pull
 
 First command will stop and remove all containers and volumes and second command will pull latest base image and perform a clean build without cache.
+
+
+``fedmsg Signing for Development``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In order to enable fedmsg signing in development, you will need to follow a series of steps.
+Note that this will conflict with signed messages from a different CA that are on the message bus, so this may cause unexpected results.
+
+Generate the CA, the certificate to be used by fedmsg, and the CRL with::
+
+    $ python manage.py gendevfedmsgcert
+
+Setup Apache to host the CRL::
+
+    $ dnf install httpd && systemctl enable httpd && systemctl start httpd
+    $ mkdir -p /var/www/html/crl
+    $ ln -s /opt/fm-orchestrator/pki/ca.crl /var/www/html/crl/ca.crl
+    $ ln -s /opt/fm-orchestrator/pki/ca.crt /var/www/html/crl/ca.crt
+
+Create a directory to house the fedmsg cache::
+
+    $ mkdir -p /etc/pki/fedmsg
+
+Then uncomment the fedmsg signing configuration in fedmsg.d/rida.py.

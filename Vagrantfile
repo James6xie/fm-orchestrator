@@ -2,14 +2,14 @@
 # vi: set ft=ruby :
 
 $script = <<SCRIPT
-    dnf install -y python python-virtualenv python-devel libffi-devel redhat-rpm-config openssl-devel gcc gcc-c++ koji git
+    dnf install -y python python-virtualenv python-devel libffi-devel redhat-rpm-config openssl-devel gcc gcc-c++ koji git swig
     pip install -r /opt/fm-orchestrator/src/requirements.txt
     pip install -r /opt/fm-orchestrator/src/test-requirements.txt
     cd /opt/fm-orchestrator/src
     mkdir -p /etc/rida
     cp -av koji.conf /etc/rida/
     python manage.py upgradedb
-    ./generate_localhost_cert.sh
+    python manage.py generatelocalhostcert
 SCRIPT
 
 Vagrant.configure("2") do |config|
