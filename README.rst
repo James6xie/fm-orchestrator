@@ -383,6 +383,9 @@ states 'done' or 'ready'.
 Development
 ===========
 
+``Docker``
+~~~~~~~~~~
+
 You can use docker containers for development. Here's a guide how to setup `docker <https://developer.fedoraproject.org/tools/docker/about.html>`_ and `docker-compose <https://developer.fedoraproject.org/tools/docker/compose.html>`_.
 
 After your docker engine is set up and running, and docker-compose installed you can start whole system with a single command::
@@ -396,6 +399,38 @@ It may happen that you will run into issues and the container won't start proper
 
 First command will stop and remove all containers and volumes and second command will pull latest base image and perform a clean build without cache.
 
+
+``Vagrant``
+~~~~~~~~~~~
+
+In order to to setup a development environment using Vagrant, it is required that you have your FAS (Fedora Account System) certificates generated and located in your home directory.
+For more information on these certificates, visit the `Koji documentation <https://fedoraproject.org/wiki/Using_the_Koji_build_system#Fedora_Certificates>`_.
+
+Once your environment is setup, run (depending on your OS, you may need to run it with sudo)::
+
+    $ vagrant up
+
+This will start fm-orchestrator's frontend (API) and scheduler. To access the frontend, visit the following URL::
+
+    https://127.0.0.1:5000/rida/1/module-builds/
+
+At any point you may enter the guest VM with::
+
+    $ vagrant ssh
+
+To start the frontend manually, run the following inside the guest::
+
+    $ cd /opt/fm-orchestrator/src
+    $ python manage.py runssl --debug
+
+To start the scheduler manually, run the following inside the guest::
+
+    $ cd /opt/fm-orchestrator/src
+    $ python ridad.py
+
+Alternatively, you can restart the Vagrant guest, which inherently starts/restarts the frontend and the scheduler with::
+
+    $ vagrant reload
 
 ``fedmsg Signing for Development``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
