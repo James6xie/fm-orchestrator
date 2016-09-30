@@ -384,7 +384,7 @@ Development
 ===========
 
 ``Docker``
-~~~~~~~~~~
+----------
 
 You can use docker containers for development. Here's a guide how to setup `docker <https://developer.fedoraproject.org/tools/docker/about.html>`_ and `docker-compose <https://developer.fedoraproject.org/tools/docker/compose.html>`_.
 
@@ -401,7 +401,7 @@ First command will stop and remove all containers and volumes and second command
 
 
 ``Vagrant``
-~~~~~~~~~~~
+-----------
 
 In order to to setup a development environment using Vagrant, it is required that you have your FAS (Fedora Account System) certificates generated and located in your home directory.
 For more information on these certificates, visit the `Koji documentation <https://fedoraproject.org/wiki/Using_the_Koji_build_system#Fedora_Certificates>`_.
@@ -432,8 +432,9 @@ Alternatively, you can restart the Vagrant guest, which inherently starts/restar
 
     $ vagrant reload
 
+
 ``fedmsg Signing for Development``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+----------------------------------
 
 In order to enable fedmsg signing in development, you will need to follow a series of steps.
 Note that this will conflict with signed messages from a different CA that are on the message bus, so this may cause unexpected results.
