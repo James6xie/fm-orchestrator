@@ -72,11 +72,11 @@ class BaseMessage(object):
         if service == 'koji':
             content = json.loads(msg.body, encoding='utf8')['content']
             log.debug("Found koji related msg: %s" % msg)
-            method =  content['info']['method']
-            msg_type =  content['info']['type']
+            method = content['info']['method']
+            msg_type = content['info']['type']
 
             if method == 'newRepo':
-                attr  = content['attribute']
+                attr = content['attribute']
                 state = content['info']['new']
                 if attr == "state" and state == "CLOSED":
                     repo_tag = content['info']['request']
@@ -106,7 +106,7 @@ class BaseMessage(object):
             log.debug("Found rida related msg: %s" % msg)
             body = json.loads(msg.body, encoding='utf8')
             if topic == 'module.state.change':
-               msg_obj = RidaModule(
+                msg_obj = RidaModule(
                     msg.id, body['id'], body['state'] )
 
         if msg_obj:
@@ -142,7 +142,7 @@ class BaseMessage(object):
             # If there isn't a msg dict in msg then this message can be skipped
             if not msg_inner_msg:
                 log.debug(('Skipping message without any content with the '
-                             'topic "{0}"').format(topic))
+                           'topic "{0}"').format(topic))
                 return None
 
             msg_obj = None
@@ -262,7 +262,7 @@ def _fedmsg_publish(topic, msg, conf, service):
     import fedmsg
     return fedmsg.publish(topic, msg=msg, modname=service)
 
-def _fedmsg_listen(conf, **kwargs): # XXX: should we keep conf?
+def _fedmsg_listen(conf, **kwargs):
     """
     Parses a fedmsg event and constructs it into the appropriate message object
     """
@@ -293,9 +293,9 @@ def _amq_get_messenger(conf):
             assert val and '://' in val, 'config.%s: value "%s" does not seem like a valid url' % (attr, val)
 
     msngr = proton.Messenger()
-    msngr.certificate=conf.amq_cert_file
-    msngr.private_key=conf.amq_private_key_file
-    msngr.trusted_certificates=conf.amq_trusted_cert_file
+    msngr.certificate = conf.amq_cert_file
+    msngr.private_key = conf.amq_private_key_file
+    msngr.trusted_certificates = conf.amq_trusted_cert_file
     msngr.start()
     for url in conf.amq_recv_addresses:
         msngr.subscribe(url)
