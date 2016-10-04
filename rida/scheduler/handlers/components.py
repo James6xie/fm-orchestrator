@@ -70,7 +70,8 @@ def _finalize(config, session, msg, state):
         # And install the macros.
         module_name = parent.name
         tag = parent.koji_tag
-        builder = rida.builder.KojiModuleBuilder(module_name, config, tag_name=tag)
+        builder = rida.builder.Builder(module_name, 'koji', config,
+                                       tag_name=tag)
         builder.buildroot_connect()
         # tag && add to srpm-build group
         nvr = "{}-{}-{}".format(msg.build_name, msg.build_version,
