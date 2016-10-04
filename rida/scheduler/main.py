@@ -185,7 +185,9 @@ class Poller(threading.Thread):
         # TODO re-use
 
         if conf.system == "koji":
-            koji_session = rida.builder.KojiModuleBuilder.get_session(conf)
+            # we don't do this on behalf of users
+            koji_session = (
+                rida.builder.KojiModuleBuilder.get_session(conf, None))
             log.info("Querying tasks for statuses:")
             res = models.ComponentBuild.query.filter_by(state=koji.BUILD_STATES['BUILDING']).all()
 
