@@ -286,10 +286,10 @@ def _amq_get_messenger(conf):
             assert val, 'config.%s is not supposed to be empty' % attr
             # individual urls
             for v in val:
-                assert v and '://' in v, 'config.%s: value "%s" doesn not seem like a valid url' % (attr, val)
+                assert v and '://' in v, 'config.%s: value "%s" does not seem like a valid url' % (attr, val)
         # string values
         else:
-            assert val and '://' in val, 'config.%s: value "%s" doesn not seem like a valid url' % (attr, val)
+            assert val and '://' in val, 'config.%s: value "%s" does not seem like a valid url' % (attr, val)
 
     msngr = proton.Messenger()
     msngr.certificate=conf.amq_cert_file
