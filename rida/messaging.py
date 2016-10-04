@@ -282,7 +282,7 @@ def _amq_get_messenger(conf):
         val = getattr(conf, attr)
         log.debug('Checking config.%s=%s' % (attr, val))
         # list values
-        if isinstance(val, list) or isinstance(val, tuple):
+        if isinstance(val, (list, tuple)):
             assert val, 'config.%s is not supposed to be empty' % attr
             # individual urls
             for v in val:
