@@ -225,7 +225,7 @@ class RidaModule(BaseMessage):
         self.module_build_state = module_build_state
 
 
-def publish(topic, msg, conf, service='rida'):
+def publish(topic, msg, conf, service):
     """
     Publish a single message to a given backend, and return
     :param topic: the topic of the message (e.g. module.state.change)
@@ -238,7 +238,7 @@ def publish(topic, msg, conf, service='rida'):
         handler = _messaging_backends[conf.messaging]['publish']
     except KeyError:
         raise KeyError("No messaging backend found for %r" % conf.messaging)
-    return handler(topic, msg, service=service)
+    return handler(topic, msg, conf, service)
 
 
 def listen(conf, **kwargs):
@@ -257,7 +257,8 @@ def listen(conf, **kwargs):
         yield event
 
 
-def _fedmsg_publish(conf, topic, msg, service):
+def _fedmsg_publish(topic, msg, conf, service):
+    # fedmsg doesn't really need access to conf, however other backends do
     import fedmsg
     return fedmsg.publish(topic, msg=msg, modname=service)
 
@@ -314,7 +315,7 @@ def _amq_listen(conf, **kwargs):
             if msg_obj:
                 yield msg_obj
 
-def _amq_publish(conf, topic, msg, service):
+def _amq_publish(topic, msg, conf, service):
     import proton
     msngr = _amq_get_messenger(conf)
     message = proton.Message()
