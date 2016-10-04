@@ -291,39 +291,39 @@ def _amq_get_messenger(conf):
         else:
             assert val and '://' in val, 'config.%s: value "%s" doesn not seem like a valid url' % (attr, val)
 
-    mng = proton.Messenger()
-    mng.certificate=conf.amq_cert_file
-    mng.private_key=conf.amq_private_key_file
-    mng.trusted_certificates=conf.amq_trusted_cert_file
-    mng.start()
+    msngr = proton.Messenger()
+    msngr.certificate=conf.amq_cert_file
+    msngr.private_key=conf.amq_private_key_file
+    msngr.trusted_certificates=conf.amq_trusted_cert_file
+    msngr.start()
     for url in conf.amq_recv_addresses:
-        mng.subscribe(url)
+        msngr.subscribe(url)
         log.debug('proton.Messenger: Subscribing to address=%s' % url)
-    return mng
+    return msngr
 
 def _amq_listen(conf, **kwargs):
     import proton
-    mng = _amq_get_messenger(conf)
+    msngr = _amq_get_messenger(conf)
     msg = proton.Message()
     while True:
-        mng.recv()
+        msngr.recv()
 
-        while mng.incoming:
-            mng.get(msg)
+        while msngr.incoming:
+            msngr.get(msg)
             msg_obj = BaseMessage.from_amq(msg.address, msg)
             if msg_obj:
                 yield msg_obj
 
 def _amq_publish(conf, topic, msg, service):
     import proton
-    mng = _amq_get_messenger(conf)
+    msngr = _amq_get_messenger(conf)
     message = proton.Message()
     message.address = conf.amq_dest_address
     message.subject = topic
     message.properties['service'] = service
     message.content = json.dumps(msg, ensure_ascii=False).encode('utf8')
-    mng.put(message)
-    mng.send()
+    msngr.put(message)
+    msngr.send()
 
 
 _messaging_backends = {
