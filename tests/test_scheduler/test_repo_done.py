@@ -49,7 +49,7 @@ class TestRepoDone(unittest.TestCase):
         self.fn(config=self.config, session=self.session, msg=msg)
 
     @mock.patch('rida.builder.KojiModuleBuilder.buildroot_ready')
-    @mock.patch('rida.builder.KojiModuleBuilder.get_session_from_config')
+    @mock.patch('rida.builder.KojiModuleBuilder.get_session')
     @mock.patch('rida.builder.KojiModuleBuilder.build')
     @mock.patch('rida.builder.KojiModuleBuilder.buildroot_connect')
     @mock.patch('rida.models.ModuleBuild.from_repo_done_event')

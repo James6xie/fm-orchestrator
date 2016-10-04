@@ -261,7 +261,7 @@ class KojiModuleBuilder(GenericBuilder):
         log.debug("Using koji profile %r" % config.koji_profile)
         log.debug("Using koji_config: %s" % config.koji_config)
 
-        self.koji_session = self.get_session_from_config(config)
+        self.koji_session = self.get_session(config)
         self.arches = config.koji_arches
         if not self.arches:
             raise ValueError("No koji_arches specified in the config.")
@@ -364,7 +364,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
         return srpm_paths[0]
 
     @staticmethod
-    def get_session_from_config(config):
+    def get_session(config):
         koji_config = munch.Munch(koji.read_config(
             profile_name=config.koji_profile,
             user_config=config.koji_config,
