@@ -224,9 +224,10 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
 class Builder(object):
     """Wrapper class"""
 
-    def __new__(cls, module, backend, config, **extra):
+    def __new__(cls, owner, module, backend, config, **extra):
         """
-        :param module : a module string e.g. 'testmodule-1.0'
+        :param owner: a string representing who kicked off the builds
+        :param module: a module string e.g. 'testmodule-1.0'
         :param backend: a string representing backend e.g. 'koji'
         :param config: instance of rida.config.Config
 
@@ -235,7 +236,8 @@ class Builder(object):
         """
 
         if backend == "koji":
-            return KojiModuleBuilder(module=module, config=config, **extra)
+            return KojiModuleBuilder(owner=owner, module=module,
+                                     config=config, **extra)
         else:
             raise ValueError("Builder backend='%s' not recognized" % backend)
 
@@ -245,12 +247,14 @@ class KojiModuleBuilder(GenericBuilder):
 
     backend = "koji"
 
-    def __init__(self, module, config, tag_name):
+    def __init__(self, owner, module, config, tag_name):
         """
+        :param owner: a string representing who kicked off the builds
         :param module: string representing module
         :param config: rida.config.Config instance
         :param tag_name: name of tag for given module
         """
+        self.owner = owner
         self.module_str = module
         self.tag_name = tag_name
         self.__prep = False
