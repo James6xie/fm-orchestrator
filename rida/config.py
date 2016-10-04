@@ -134,8 +134,7 @@ class Config(object):
 
     @amq_cert_file.setter
     def amq_cert_file(self, s):
-        s = str(s)
-        self._amq_cert_file = s
+        self._amq_cert_file = str(s)
 
     @property
     def amq_private_key_file(self):
@@ -144,8 +143,7 @@ class Config(object):
 
     @amq_private_key_file.setter
     def amq_private_key_file(self, s):
-        s = str(s)
-        self._amq_private_key_file = s
+        self._amq_private_key_file = str(s)
 
     @property
     def amq_trusted_cert_file(self):
