@@ -100,7 +100,7 @@ class BaseMessage(object):
 
                     msg_obj = KojiBuildChange(
                         msg.id, build_id, build_state, build_name,
-                        build_version,build_release)
+                        build_version, build_release)
 
         elif service == 'rida':
             log.debug("Found rida related msg: %s" % msg)
