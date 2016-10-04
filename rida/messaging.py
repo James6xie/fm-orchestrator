@@ -314,17 +314,13 @@ def _amq_listen(conf, **kwargs):
             if msg_obj:
                 yield msg_obj
 
-def _amq_get_dst_address(conf, topic, msg, service):
-    return conf.amq_broker_dest_url
-
 def _amq_publish(conf, topic, msg, service):
     import proton
     mng = _amq_get_messenger(conf)
     message = proton.Message()
-    message.address = _amq_get_dst_address(conf, topic, msg, service)
+    message.address = conf.amq_dest_address
     message.subject = topic
     message.properties['service'] = service
-    message.address = conf.amq_dest_address
     message.content = json.dumps(msg, ensure_ascii=False).encode('utf8')
     mng.put(message)
     mng.send()
