@@ -730,6 +730,9 @@ class CoprModuleBuilder(GenericBuilder):
         self.module_str = module
         self.tag_name = tag_name
 
+    def buildroot_connect(self):
+        pass
+
     def buildroot_prep(self):
         pass
 
@@ -743,6 +746,9 @@ class CoprModuleBuilder(GenericBuilder):
         pass
 
     def buildroot_add_artifacts(self, artifacts, install=False):
+        pass
+
+    def buildroot_add_repos(self, dependencies):
         pass
 
     def build(self, artifact_name, source):
