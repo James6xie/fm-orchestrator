@@ -2,7 +2,7 @@
 # vi: set ft=ruby :
 
 $script = <<SCRIPT
-    dnf install -y python python-virtualenv python-devel libffi-devel redhat-rpm-config openssl-devel gcc gcc-c++ koji git swig fedmsg-relay
+    dnf install -y python python-virtualenv python-devel libffi-devel redhat-rpm-config openssl-devel gcc gcc-c++ koji git swig fedmsg-relay rpm-build
     pip install -r /opt/module_build_service/src/requirements.txt
     pip install -r /opt/module_build_service/src/test-requirements.txt
     cd /opt/module_build_service/src
