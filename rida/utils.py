@@ -71,6 +71,11 @@ def start_next_build_batch(module, session, builder, components=None):
     for c in unbuilt_components:
         c.batch = module.batch
         c.task_id = builder.build(artifact_name=c.package, source=c.scmurl)
+        # Fail task if we failed to submit it to koji
+        # This typically happens when koji auth failed
+        if not c.task_id:
+            c.state = koji.BUILD_STATES['FAILED']
+            # TODO: set c.fail_reason to "Failed to submit build"
 
     session.commit()
 
