@@ -22,6 +22,7 @@
 
 import unittest
 import json
+import time
 from mock import patch
 from shutil import copyfile
 from os import path, mkdir
@@ -244,3 +245,79 @@ class TestViews(unittest.TestCase):
             data['message'], 'Invalid modulemd')
         self.assertEquals(data['status'], 422)
         self.assertEquals(data['error'], 'Unprocessable Entity')
+
+    @patch('rida.auth.get_username', return_value='Homer J. Simpson')
+    @patch('rida.auth.assert_is_packager')
+    @patch('rida.scm.SCM')
+    def test_submit_build_scm_parallalization(self, mocked_scm,
+                          mocked_assert_is_packager, mocked_get_username):
+        def mocked_scm_checkout(temp_dir):
+            scm_dir = path.join(temp_dir, 'base-runtime')
+            mkdir(scm_dir)
+            base_dir = path.abspath(path.dirname(__file__))
+            copyfile(path.join(base_dir, 'base-runtime.yaml'),
+                     path.join(scm_dir, 'base-runtime.yaml'))
+
+            return scm_dir
+
+        def mocked_scm_is_available():
+            time.sleep(1)
+            return True
+
+        start = time.time()
+        mocked_scm.return_value.checkout = mocked_scm_checkout
+        mocked_scm.return_value.name = 'base-runtime'
+        mocked_scm.return_value.is_available = mocked_scm_is_available
+        rv = self.client.post('/rida/1/module-builds/', data=json.dumps(
+            {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+                'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}))
+        data = json.loads(rv.data)
+
+        self.assertEquals(len(data['component_builds']), 5)
+        self.assertEquals(data['name'], 'base-runtime')
+        self.assertEquals(data['scmurl'],
+                          ('git://pkgs.stg.fedoraproject.org/modules/testmodule'
+                          '.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'))
+        self.assertTrue(data['time_submitted'] is not None)
+        self.assertTrue(data['time_modified'] is not None)
+        self.assertEquals(data['time_completed'], None)
+        self.assertEquals(data['owner'], 'Homer J. Simpson')
+        self.assertEquals(data['id'], 31)
+        self.assertEquals(data['state_name'], 'wait')
+
+        # SCM availability check is parallelized, so 5 components should not
+        # take longer than 3 second, because each takes 1 second, but they
+        # are execute in 10 threads. They should take around 1 or 2 seconds
+        # max to complete.
+        self.assertTrue(time.time() - start < 3)
+
+    @patch('rida.auth.get_username', return_value='Homer J. Simpson')
+    @patch('rida.auth.assert_is_packager')
+    @patch('rida.scm.SCM')
+    def test_submit_build_scm_non_available(self, mocked_scm,
+                          mocked_assert_is_packager, mocked_get_username):
+        def mocked_scm_checkout(temp_dir):
+            scm_dir = path.join(temp_dir, 'base-runtime')
+            mkdir(scm_dir)
+            base_dir = path.abspath(path.dirname(__file__))
+            copyfile(path.join(base_dir, 'base-runtime.yaml'),
+                     path.join(scm_dir, 'base-runtime.yaml'))
+
+            return scm_dir
+
+        def mocked_scm_is_available():
+            return False
+
+        mocked_scm.return_value.checkout = mocked_scm_checkout
+        mocked_scm.return_value.name = 'base-runtime'
+        mocked_scm.return_value.is_available = mocked_scm_is_available
+        rv = self.client.post('/rida/1/module-builds/', data=json.dumps(
+            {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+                'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}))
+        data = json.loads(rv.data)
+        print(data)
+
+        self.assertEquals(data['status'], 422)
+        self.assertEquals(data['message'][:15], "Cannot checkout")
+        self.assertEquals(data['error'], "Unprocessable Entity")
+

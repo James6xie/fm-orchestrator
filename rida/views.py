@@ -43,6 +43,7 @@ from rida import models
 from rida.utils import pagination_metadata, filter_module_builds
 from rida.errors import (
     ValidationError, Unauthorized, UnprocessableEntity, Conflict, NotFound)
+from multiprocessing.dummy import Pool as ThreadPool
 
 
 class ModuleBuildAPI(MethodView):
@@ -134,6 +135,10 @@ class ModuleBuildAPI(MethodView):
             username=username
         )
 
+        # List of (pkg_name, git_url) tuples to be used to check
+        # the availability of git URLs paralelly later.
+        full_urls = []
+
         for pkgname, pkg in mmd.components.rpms.packages.items():
             try:
                 if pkg.get("repository") and not conf.rpms_allow_repository:
@@ -159,9 +164,19 @@ class ModuleBuildAPI(MethodView):
                 raise
 
             full_url = pkg["repository"] + "?#" + pkg["commit"]
+            full_urls.append((pkgname, full_url))
 
-            if not rida.scm.SCM(full_url).is_available():
-                raise UnprocessableEntity("Cannot checkout %s" % pkgname)
+        # Checks the availability of SCM urls.
+        pool = ThreadPool(10)
+        err_msgs = pool.map(lambda data: "Cannot checkout {}".format(data[0])
+                            if not rida.scm.SCM(data[1]).is_available()
+                            else None, full_urls)
+        for err_msg in err_msgs:
+            if err_msg:
+                raise UnprocessableEntity(err_msg)
+
+        for pkgname, pkg in mmd.components.rpms.packages.items():
+            full_url = pkg["repository"] + "?#" + pkg["commit"]
 
             build = models.ComponentBuild(
                 module_id=module.id,
