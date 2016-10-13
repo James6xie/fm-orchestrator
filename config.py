@@ -56,6 +56,7 @@ class BaseConfiguration(object):
 
 class DevConfiguration(BaseConfiguration):
     LOG_BACKEND = 'console'
+    LOG_LEVEL = 'debug'
     HOST = '0.0.0.0'
     FAS_USERNAME = 'put your fas username here'
     #FAS_PASSWORD = 'put your fas password here....'
@@ -64,6 +65,7 @@ class DevConfiguration(BaseConfiguration):
 
 class TestConfiguration(BaseConfiguration):
     LOG_BACKEND = 'console'
+    LOG_LEVEL = 'debug'
     SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
     DEBUG = True
 

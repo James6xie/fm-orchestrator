@@ -382,6 +382,12 @@ states 'done' or 'ready'.
 
 Development
 ===========
+``Logging``
+----------
+
+If you're running rida from scm then the DevConfiguration from config.py which contains LOG_LEVEL=debug should get applied. If you're having trouble just change LOG_LEVEL in BaseConfiguration.
+See more about it in rida/__init__.py config.from_object()
+
 
 ``Docker``
 ----------
