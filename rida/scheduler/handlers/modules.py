@@ -129,7 +129,7 @@ def wait(config, session, msg):
     build.batch = 1
 
     artifact_name = "module-build-macros"
-    state = koji.BUILD_STATES['BUILDING'] # Default state
+    state = koji.BUILD_STATES['BUILDING']  # Default state
     task_id = builder.build(artifact_name=artifact_name, source=srpm)
 
     # Fail task if we failed to submit it to koji
