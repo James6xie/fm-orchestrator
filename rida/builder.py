@@ -651,6 +651,10 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
             if taginfo['perm'] not in (perm_id, perm): # check either id or the string
                 opts['perm'] = perm_id
 
+        opts['extra'] = {
+            'mock.package_manager': 'dnf',
+        }
+
         # edit tag with opts
         self.koji_session.editTag2(tag_name, **opts)
         return self._get_tag(tag_name) # Return up2date taginfo
