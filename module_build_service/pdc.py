@@ -28,6 +28,7 @@
 import modulemd
 from pdc_client import PDCClient
 import six
+import os
 
 
 
@@ -152,6 +153,36 @@ def get_module_tag(session, module_info, strict=False):
     :return: koji tag string
     """
     return get_module(session, module_info, strict=strict)['koji_tag']
+
+def get_module_repo(session, module_info, strict=False):
+    """
+    :param session : PDCClient instance
+    :param module_info: list of module_info dicts
+    :param strict: Normally this function returns None if no module can be
+           found.  If strict=True, then a ValueError is raised.
+    :return: URL to a DNF repository for the module
+    """
+    module = get_module(session, module_info, strict=strict)
+    if not module:
+        return None
+
+    # Module was built in Koji
+    # @TODO There should be implemented retrieveing URL to a module repofile in koji
+    if module["koji_tag"] != "-":
+        raise NotImplementedError
+
+    # Module was built in Copr
+    # @TODO get the correct user
+    owner, project = "@copr", module["variant_id"]
+
+    # Some user/group logic. We should really be using python-copr for that
+    g = ""
+    if owner[0] == "@":
+        g = "/g"
+        owner = owner[1:]
+
+    base = "http://copr-fe-dev.cloud.fedoraproject.org"
+    return "{}/coprs{}/{}/{}/repo/modules".format(base, g, owner, project)
 
 def module_depsolving_wrapper(session, module_list, strict=True):
     """
