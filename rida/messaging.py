@@ -111,8 +111,6 @@ class BaseMessage(object):
             if msg_obj:
                 return msg_obj
 
-        log.debug('Skipping unrecognized message with the topic "{0}"'
-                     .format(topic))
         return None
 
 

@@ -106,7 +106,7 @@ def wait(config, session, msg):
         dependencies, tag = _get_deps_and_tag()
     except ValueError:
         log.exception("Failed to get module info from PDC. Max retries reached.")
-        build.transition(config, state="build")  # Wait for the buildroot to be ready.a
+        build.transition(config, state="failed")
         session.commit()
         raise
 
