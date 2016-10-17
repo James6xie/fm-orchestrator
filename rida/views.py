@@ -30,11 +30,9 @@ This is the implementation of the orchestrator's public RESTful API.
 from flask import request, jsonify
 from flask.views import MethodView
 import json
-import logging
 import modulemd
 import os
 import rida.auth
-import rida.logger
 import rida.scm
 import shutil
 import tempfile
@@ -85,18 +83,22 @@ class ModuleBuildAPI(MethodView):
         try:
             r = json.loads(request.get_data().decode("utf-8"))
         except:
+            log.error('Invalid JSON submitted')
             raise ValidationError('Invalid JSON submitted')
 
         if "scmurl" not in r:
+            log.error('Missing scmurl')
             raise ValidationError('Missing scmurl')
 
         url = r["scmurl"]
         if not any(url.startswith(prefix) for prefix in conf.scmurls):
+            log.error('The submitted scmurl is not allowed')
             raise Unauthorized("The submitted scmurl is not allowed")
 
         yaml = ""
         td = None
         try:
+            log.debug('Verifying modulemd')
             td = tempfile.mkdtemp()
             scm = rida.scm.SCM(url, conf.scmurls)
             cod = scm.checkout(td)
@@ -117,6 +119,7 @@ class ModuleBuildAPI(MethodView):
         try:
             mmd.loads(yaml)
         except:
+            log.error('Invalid modulemd')
             raise UnprocessableEntity('Invalid modulemd')
 
         if models.ModuleBuild.query.filter_by(name=mmd.name,
@@ -166,6 +169,7 @@ class ModuleBuildAPI(MethodView):
             full_url = pkg["repository"] + "?#" + pkg["commit"]
             full_urls.append((pkgname, full_url))
 
+        log.debug("Checking scm urls")
         # Checks the availability of SCM urls.
         pool = ThreadPool(10)
         err_msgs = pool.map(lambda data: "Cannot checkout {}".format(data[0])
@@ -190,8 +194,8 @@ class ModuleBuildAPI(MethodView):
         module.transition(conf, models.BUILD_STATES["wait"])
         db.session.add(module)
         db.session.commit()
-        logging.info("%s submitted build of %s-%s-%s", username, mmd.name,
-                     mmd.version, mmd.release)
+        log.info("%s submitted build of %s-%s-%s", username, mmd.name,
+                 mmd.version, mmd.release)
         return jsonify(module.json()), 201
 
 
