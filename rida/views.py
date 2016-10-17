@@ -122,21 +122,37 @@ class ModuleBuildAPI(MethodView):
             log.error('Invalid modulemd')
             raise UnprocessableEntity('Invalid modulemd')
 
-        if models.ModuleBuild.query.filter_by(name=mmd.name,
+        module = models.ModuleBuild.query.filter_by(name=mmd.name,
                                               version=mmd.version,
-                                              release=mmd.release).first():
-            raise Conflict('Module already exists')
-
-        module = models.ModuleBuild.create(
-            db.session,
-            conf,
-            name=mmd.name,
-            version=mmd.version,
-            release=mmd.release,
-            modulemd=yaml,
-            scmurl=url,
-            username=username
-        )
+                                              release=mmd.release).first()
+        if module:
+            log.debug('Checking whether module build already exist.')
+             # TODO: make this configurable, we might want to allow
+             # resubmitting any stuck build on DEV no matter the state
+            if module.state not in (models.BUILD_STATES['failed']):
+                log.error('Module (state=%s) already exists. '
+                          'Only new or failed builds are allowed.'
+                          % module.state)
+                raise Conflict('Module (state=%s) already exists. '
+                               'Only new or failed builds are allowed.'
+                               % module.state)
+            log.debug('Resuming existing module build %r' % module)
+            module.username = username
+            module.transition(conf, models.BUILD_STATES["init"])
+            log.info("Resumed existing module build in previous state %s"
+                     % module.state)
+        else:
+            log.debug('Creating new module build')
+            module = models.ModuleBuild.create(
+                db.session,
+                conf,
+                name=mmd.name,
+                version=mmd.version,
+                release=mmd.release,
+                modulemd=yaml,
+                scmurl=url,
+                username=username
+            )
 
         # List of (pkg_name, git_url) tuples to be used to check
         # the availability of git URLs paralelly later.
@@ -182,13 +198,22 @@ class ModuleBuildAPI(MethodView):
         for pkgname, pkg in mmd.components.rpms.packages.items():
             full_url = pkg["repository"] + "?#" + pkg["commit"]
 
-            build = models.ComponentBuild(
-                module_id=module.id,
-                package=pkgname,
-                format="rpms",
-                scmurl=full_url,
-            )
-            db.session.add(build)
+            existing_build = models.ComponentBuild.query.filter_by(
+                module_id=module.id, package=pkgname).first()
+            if (existing_build
+                    and existing_build.state != models.BUILD_STATES['done']):
+                existing_build.state = models.BUILD_STATES['init']
+                db.session.add(existing_build)
+            else:
+                # XXX: what about components that were present in previous
+                # builds but are gone now (component reduction)?
+                build = models.ComponentBuild(
+                    module_id=module.id,
+                    package=pkgname,
+                    format="rpms",
+                    scmurl=full_url,
+                )
+                db.session.add(build)
 
         module.modulemd = mmd.dumps()
         module.transition(conf, models.BUILD_STATES["wait"])
