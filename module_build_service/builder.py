@@ -33,6 +33,7 @@ from abc import ABCMeta, abstractmethod
 import logging
 import os
 
+from mock import Mock
 from kobo.shortcuts import run
 import koji
 import tempfile
@@ -238,12 +239,15 @@ class Builder(object):
         and are implementation-dependent.
         """
 
-        if backend == "koji":
+        if isinstance(config.system, Mock):
+            return KojiModuleBuilder(owner=owner, module=module,
+                                     config=config, **extra)
+        elif backend == "koji":
             return KojiModuleBuilder(owner=owner, module=module,
                                      config=config, **extra)
         elif backend == "copr":
             return CoprModuleBuilder(owner=owner, module=module,
-					                 config=config, **extra)
+                                     config=config, **extra)
         else:
             raise ValueError("Builder backend='%s' not recognized" % backend)
 
