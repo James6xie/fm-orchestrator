@@ -43,6 +43,7 @@ class TestViews(unittest.TestCase):
         self.assertEquals(data['name'], 'nginx')
         self.assertEquals(data['owner'], 'Moe Szyslak')
         self.assertEquals(data['state'], 3)
+        self.assertEquals(data['state_reason'], None)
         self.assertEquals(data['tasks'], {
             'rpms/module-build-macros': '12312321/1',
             'rpms/nginx': '12312345/1'}
