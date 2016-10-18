@@ -28,7 +28,8 @@
 import modulemd
 from pdc_client import PDCClient
 import six
-import os
+import requests
+import json
 
 
 
@@ -172,17 +173,16 @@ def get_module_repo(session, module_info, strict=False):
         raise NotImplementedError
 
     # Module was built in Copr
-    # @TODO get the correct user
-    owner, project = "@copr", module["variant_id"]
-
-    # Some user/group logic. We should really be using python-copr for that
-    g = ""
-    if owner[0] == "@":
-        g = "/g"
-        owner = owner[1:]
-
     base = "http://copr-fe-dev.cloud.fedoraproject.org"
-    return "{}/coprs{}/{}/{}/repo/modules".format(base, g, owner, project)
+
+    # @TODO get the correct user
+    data = {"owner": "@copr", "nvr": module["variant_id"]}
+    r = requests.post("{}/api/module/repo/".format(base), data=data)
+    response = json.loads(r.content)
+
+    if response["output"] == "notok":
+        raise ValueError(response["error"])
+    return response["repo"]
 
 def module_depsolving_wrapper(session, module_list, strict=True):
     """
