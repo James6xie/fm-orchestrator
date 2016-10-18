@@ -1,13 +1,6 @@
-import socket
-hostname = socket.gethostname().split('.')[0]
-
 config = {
-    # Just enough fedmsg config to start publishing...
-    "endpoints": {
-        "rida.%s" % hostname: [
-            "tcp://127.0.0.1:300%i" % i for i in range(10)
-        ],
-    },
+    # Talk to the relay, so things also make it to composer.stg in our dev env
+    "active": True,
 
     # Start of code signing configuration
     # 'sign_messages': True,
