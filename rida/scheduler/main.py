@@ -231,8 +231,10 @@ class Poller(threading.Thread):
             if name == 'build':
                 for module_build in query.all():
                     log.info("    * %r" % module_build)
-                    for component_build in module_build.component_builds:
-                        log.info("      * %r" % component_build)
+                    for i in range(module_build.batch):
+                        n = len([c for c in module_build.component_builds
+                                 if c.batch == i ])
+                        log.info("      * %i components in batch %i" % (n, i))
 
     def process_waiting_module_builds(self, session):
         log.info("Looking for module builds stuck in the wait state.")
