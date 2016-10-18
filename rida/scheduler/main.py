@@ -44,7 +44,7 @@ import rida.scheduler.handlers.repos
 
 import koji
 
-from rida import conf, db, models, log
+from rida import conf, models, log
 
 
 class STOP_WORK(object):
@@ -129,12 +129,13 @@ class MessageWorker(threading.Thread):
                 break
 
             try:
-                self.process_message(msg)
+                with models.make_session(conf) as session:
+                    self.process_message(session, msg)
             except Exception:
                 log.exception("Failed while handling %r" % msg.msg_id)
                 log.info(msg)
 
-    def process_message(self, msg):
+    def process_message(self, session, msg):
         log.debug('Received a message with an ID of "{0}" and of type "{1}"'
                   .format(msg.msg_id, type(msg).__name__))
 
@@ -156,7 +157,7 @@ class MessageWorker(threading.Thread):
             log.debug("Handler is NO_OP: %s" % idx)
         else:
             log.info("Calling %s" % idx)
-            handler(conf, db.session, msg)
+            handler(conf, session, msg)
             log.info("Done with %s" % idx)
 
 
@@ -167,12 +168,13 @@ class Poller(threading.Thread):
 
     def run(self):
         while True:
-            self.log_summary(db.session)
-            # XXX: detect whether it's really stucked first
-            # self.process_waiting_module_builds(db.session)
-            self.process_open_component_builds(db.session)
-            self.process_lingering_module_builds(db.session)
-            self.fail_lost_builds(db.session)
+            with models.make_session(conf) as session:
+                self.log_summary(session)
+                # XXX: detect whether it's really stucked first
+                # self.process_waiting_module_builds(session)
+                self.process_open_component_builds(session)
+                self.process_lingering_module_builds(session)
+                self.fail_lost_builds(session)
 
             log.info("Polling thread sleeping, %rs" % conf.polling_interval)
             time.sleep(conf.polling_interval)
