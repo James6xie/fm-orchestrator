@@ -146,7 +146,7 @@ class ModuleBuild(RidaBase):
         session.add(module)
         session.commit()
         rida.messaging.publish(
-            modname='rida',
+            service='rida',
             topic='module.state.change',
             msg=module.json(),  # Note the state is "init" here...
             conf=conf,
@@ -165,7 +165,7 @@ class ModuleBuild(RidaBase):
 
         log.debug("%r, state %r->%r" % (self, old_state, self.state))
         rida.messaging.publish(
-            modname='rida',
+            service='rida',
             topic='module.state.change',
             msg=self.json(),  # Note the state is "init" here...
             conf=conf,

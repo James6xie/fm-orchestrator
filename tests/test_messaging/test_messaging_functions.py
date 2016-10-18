@@ -69,7 +69,7 @@ class TestUtilFunctions(unittest.TestCase):
         }
         mock_tail_messages.side_effect = \
             lambda: [('fedora-infrastructure', endpoint, topic, msg)]
-        msg_obj = next(rida.messaging._fedmsg_listen())
+        msg_obj = next(rida.messaging._fedmsg_listen(None))
         self.assertEquals(type(msg_obj), rida.messaging.KojiBuildChange)
         self.assertEquals(msg_obj.build_id, 2345678)
         self.assertEquals(msg_obj.build_new_state, 0)
@@ -99,7 +99,7 @@ class TestUtilFunctions(unittest.TestCase):
         }
         mock_tail_messages.side_effect = \
             lambda: [('fedora-infrastructure', endpoint, topic, msg)]
-        msg_obj = next(rida.messaging._fedmsg_listen())
+        msg_obj = next(rida.messaging._fedmsg_listen(None))
         self.assertEquals(type(msg_obj), rida.messaging.KojiRepoChange)
         self.assertEquals(msg_obj.repo_tag, 'f23-build')
         self.assertEquals(msg_obj.msg_id,
@@ -116,7 +116,7 @@ class TestUtilFunctions(unittest.TestCase):
         }
         mock_tail_messages.side_effect = \
             lambda: [('fedora-infrastructure', endpoint, topic, msg)]
-        msg_obj = next(rida.messaging._fedmsg_listen())
+        msg_obj = next(rida.messaging._fedmsg_listen(None))
         self.assertEquals(msg_obj.module_build_id, msg['msg']['id'])
         self.assertEquals(msg_obj.module_build_state, msg['msg']['state'])
         self.assertEquals(msg_obj.msg_id,
