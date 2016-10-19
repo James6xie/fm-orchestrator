@@ -25,8 +25,12 @@
 
 """ SQLAlchemy Database models for the Flask app
 """
+
+import contextlib
+
 from datetime import datetime
-from sqlalchemy.orm import validates
+from sqlalchemy import engine_from_config
+from sqlalchemy.orm import validates, scoped_session, sessionmaker
 import modulemd as _modulemd
 
 from rida import db, log
@@ -60,6 +64,25 @@ BUILD_STATES = {
 }
 
 INVERSE_BUILD_STATES = {v: k for k, v in BUILD_STATES.items()}
+
+
+@contextlib.contextmanager
+def make_session(conf):
+    # TODO - we could use ZopeTransactionExtension() here some day for
+    # improved safety on the backend.
+    engine = engine_from_config({
+        'sqlalchemy.url': conf.sqlalchemy_database_uri,
+    })
+    session = scoped_session(sessionmaker(bind=engine))()
+    try:
+        yield session
+        session.commit()
+    except:
+        # This is a no-op if no transaction is in progress.
+        session.rollback()
+        raise
+    finally:
+        session.close()
 
 
 class RidaBase(db.Model):
