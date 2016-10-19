@@ -70,13 +70,10 @@ INVERSE_BUILD_STATES = {v: k for k, v in BUILD_STATES.items()}
 def make_session(conf):
     # TODO - we could use ZopeTransactionExtension() here some day for
     # improved safety on the backend.
-    log.debug("Getting db session with uri %r" % conf.sqlalchemy_database_uri)
     engine = engine_from_config({
         'sqlalchemy.url': conf.sqlalchemy_database_uri,
     })
-    Session = scoped_session(sessionmaker())
-    Session.configure(bind=engine)
-    session = Session()
+    session = scoped_session(sessionmaker(bind=engine))()
     try:
         yield session
         session.commit()
