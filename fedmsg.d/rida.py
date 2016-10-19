@@ -6,6 +6,7 @@ config = {
     # passive endpoints.  This placeholder value needs to be here for the tests
     # to pass in Jenkins, though.  \o/
     "endpoints": {},
+    "relay_inbound": ["tcp://127.0.0.1:2003"],
 
     # Start of code signing configuration
     # 'sign_messages': True,
