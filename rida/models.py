@@ -81,6 +81,8 @@ def make_session(conf):
         yield session
         session.commit()
     except:
+        # This is a no-op if no transaction is in progress.
+        session.rollback()
         raise
     finally:
         session.close()
