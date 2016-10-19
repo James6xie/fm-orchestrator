@@ -8,6 +8,7 @@ $script = <<SCRIPT
     cd /opt/module_build_service/src
     mkdir -p /etc/module_build_service
     cp -av koji.conf /etc/module_build_service/
+    cp -av copr.conf /etc/module_build_service/
     python manage.py upgradedb
     python manage.py generatelocalhostcert
     cp /home/vagrant/.fedora-server-ca.cert /root/.fedora-server-ca.cert

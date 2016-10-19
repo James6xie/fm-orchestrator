@@ -9,6 +9,7 @@ COPY ./requirements.txt /opt/module_build_service/
 RUN pip install --user -r ./requirements.txt
 
 COPY koji.conf /etc/module_build_service/
+COPY copr.conf /etc/module_build_service/
 
 COPY . /opt/module_build_service/
 
