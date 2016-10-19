@@ -27,9 +27,8 @@
 
 import modulemd
 from pdc_client import PDCClient
+from copr.client import CoprClient
 import six
-import requests
-import json
 
 
 
@@ -173,12 +172,10 @@ def get_module_repo(session, module_info, strict=False):
         raise NotImplementedError
 
     # Module was built in Copr
-    base = "http://copr-fe-dev.cloud.fedoraproject.org"
-
     # @TODO get the correct user
-    data = {"owner": "@copr", "nvr": module["variant_id"]}
-    r = requests.post("{}/api/module/repo/".format(base), data=data)
-    response = json.loads(r.content)
+    owner, nvr = "@copr", module["variant_id"]
+    cl = CoprClient.create_from_file_config('./copr.conf')
+    response = cl.get_module_repo(owner, nvr).data
 
     if response["output"] == "notok":
         raise ValueError(response["error"])
