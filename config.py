@@ -17,6 +17,7 @@ class BaseConfiguration(object):
     KOJI_CONFIG = '/etc/module_build_service/koji.conf'
     KOJI_PROFILE = 'koji'
     KOJI_ARCHES = ['i686', 'armv7hl', 'x86_64']
+    COPR_CONFIG = '/etc/rida/copr.conf'
     PDC_URL = 'http://modularity.fedorainfracloud.org:8080/rest_api/v1'
     PDC_INSECURE = True
     PDC_DEVELOP = True

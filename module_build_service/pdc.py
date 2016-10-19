@@ -29,6 +29,7 @@ import modulemd
 from pdc_client import PDCClient
 from copr.client import CoprClient
 import six
+import rida
 
 
 
@@ -154,12 +155,13 @@ def get_module_tag(session, module_info, strict=False):
     """
     return get_module(session, module_info, strict=strict)['koji_tag']
 
-def get_module_repo(session, module_info, strict=False):
+def get_module_repo(session, module_info, strict=False, config=rida.conf):
     """
     :param session : PDCClient instance
     :param module_info: list of module_info dicts
     :param strict: Normally this function returns None if no module can be
            found.  If strict=True, then a ValueError is raised.
+    :param config: instance of rida.config.Config
     :return: URL to a DNF repository for the module
     """
     module = get_module(session, module_info, strict=strict)
@@ -174,7 +176,7 @@ def get_module_repo(session, module_info, strict=False):
     # Module was built in Copr
     # @TODO get the correct user
     owner, nvr = "@copr", module["variant_id"]
-    cl = CoprClient.create_from_file_config('./copr.conf')
+    cl = CoprClient.create_from_file_config(config.copr_config)
     response = cl.get_module_repo(owner, nvr).data
 
     if response["output"] == "notok":
