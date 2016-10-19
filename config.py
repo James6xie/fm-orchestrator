@@ -72,7 +72,6 @@ class DevConfiguration(BaseConfiguration):
     #FAS_PASSWORD = os.environ('FAS_PASSWORD') # you could store it here
     #FAS_PASSWORD = commands.getoutput('pass your_fas_password').strip()
 
-    LOG_LEVEL = 'debug'
     KOJI_ARCHES = ['x86_64']
 
 class TestConfiguration(BaseConfiguration):
@@ -85,6 +84,3 @@ class TestConfiguration(BaseConfiguration):
 class ProdConfiguration(BaseConfiguration):
     FAS_USERNAME = 'TODO'
     #FAS_PASSWORD = 'another password'
-
-    LOG_LEVEL = 'info'
-    KOJI_ARCHES = ['x86_64']
