@@ -212,8 +212,23 @@ class TestViews(unittest.TestCase):
         rv = self.client.post('/rida/1/module-builds/', data=json.dumps(
             {'scmurl': 'git://badurl.com'}))
         data = json.loads(rv.data)
-        self.assertEquals(
-            data['message'], 'The submitted scmurl is not allowed')
+        self.assertEquals(data['message'], 'The submitted scmurl '
+            'git://badurl.com is not allowed')
+        self.assertEquals(data['status'], 401)
+        self.assertEquals(data['error'], 'Unauthorized')
+
+    @patch('rida.auth.get_username', return_value='Homer J. Simpson')
+    @patch('rida.auth.assert_is_packager')
+    def test_submit_build_scm_url_without_hash(self,
+                                               mocked_assert_is_packager,
+                                               mocked_get_username):
+        rv = self.client.post('/rida/1/module-builds/', data=json.dumps(
+            {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+                'testmodule.git'}))
+        data = json.loads(rv.data)
+        self.assertEquals(data['message'], 'The submitted scmurl '
+            'git://pkgs.stg.fedoraproject.org/modules/testmodule.git '
+            'is not valid')
         self.assertEquals(data['status'], 401)
         self.assertEquals(data['error'], 'Unauthorized')
 
