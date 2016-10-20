@@ -177,7 +177,7 @@ class ModuleBuild(RidaBase):
         )
         return module
 
-    def transition(self, conf, state, state_reason = None):
+    def transition(self, conf, state, state_reason=None):
         """ Record that a build has transitioned state. """
         now = datetime.utcnow()
         old_state = self.state
