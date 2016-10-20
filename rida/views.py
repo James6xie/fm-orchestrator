@@ -36,6 +36,7 @@ import rida.auth
 import rida.scm
 import shutil
 import tempfile
+import re
 from rida import app, conf, db, log
 from rida import models
 from rida.utils import pagination_metadata, filter_module_builds
@@ -92,8 +93,15 @@ class ModuleBuildAPI(MethodView):
 
         url = r["scmurl"]
         if not any(url.startswith(prefix) for prefix in conf.scmurls):
-            log.error('The submitted scmurl is not allowed')
-            raise Unauthorized("The submitted scmurl is not allowed")
+            log.error("The submitted scmurl %r is not allowed" % url)
+            raise Unauthorized("The submitted scmurl %s is not allowed" % url)
+
+        scmurl_re = re.compile(
+            r"(?P<giturl>(?:(?P<scheme>git)://(?P<host>[^/]+))?"
+            r"(?P<repopath>/[^\?]+))\?(?P<modpath>[^#]*)#(?P<revision>.+)")
+        if not scmurl_re.match(url):
+            log.error("The submitted scmurl %r is not valid" % url)
+            raise Unauthorized("The submitted scmurl %s is not valid" % url)
 
         yaml = ""
         td = None
