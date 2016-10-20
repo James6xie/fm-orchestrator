@@ -1,4 +1,4 @@
-"""empty message
+"""Add state_reason to the model.
 
 Revision ID: 229f6f273a56
 Revises: 1a44272e8b4c
