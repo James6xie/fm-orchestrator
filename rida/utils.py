@@ -51,7 +51,7 @@ def retry(timeout=120, interval=30, wait_on=Exception):
     return wrapper
 
 
-def start_next_build_batch(module, session, builder, components=None):
+def start_next_build_batch(config, module, session, builder, components=None):
     """ Starts a next round of the build cycle for a module. """
 
     import koji  # Placed here to avoid py2/py3 conflicts...
@@ -71,11 +71,14 @@ def start_next_build_batch(module, session, builder, components=None):
     for c in unbuilt_components:
         c.batch = module.batch
         c.task_id = builder.build(artifact_name=c.package, source=c.scmurl)
-        # Fail task if we failed to submit it to koji
-        # This typically happens when koji auth failed
+
         if not c.task_id:
-            c.state = koji.BUILD_STATES['FAILED']
-            # TODO: set c.fail_reason to "Failed to submit build"
+            c.state = koji.BUILD_STATES["FAILED"]
+            c.state_reason = "Failed to submit to Koji"
+            module.transition(config, models.BUILD_STATES["failed"],
+                              "Failed to submit artifact %s to Koji" % (c.package))
+            session.add(module)
+            break
 
     session.commit()
 

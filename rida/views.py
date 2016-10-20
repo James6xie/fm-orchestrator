@@ -166,6 +166,10 @@ class ModuleBuildAPI(MethodView):
         # the availability of git URLs paralelly later.
         full_urls = []
 
+        # List of (pkg_name, git_url) tuples to be used to check
+        # the availability of git URLs paralelly later.
+        full_urls = []
+
         for pkgname, pkg in mmd.components.rpms.packages.items():
             try:
                 if pkg.get("repository") and not conf.rpms_allow_repository:

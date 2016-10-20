@@ -100,7 +100,7 @@ def done(config, session, msg):
         if c.state != koji.BUILD_STATES['COMPLETE']
     ]
     if leftover_components:
-        rida.utils.start_next_build_batch(
+        rida.utils.start_next_build_batch(config,
             module_build, session, builder, components=leftover_components)
     else:
         module_build.transition(config, state=models.BUILD_STATES['done'])

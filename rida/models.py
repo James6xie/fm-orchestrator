@@ -102,6 +102,7 @@ class ModuleBuild(RidaBase):
     version = db.Column(db.String, nullable=False)
     release = db.Column(db.String, nullable=False)
     state = db.Column(db.Integer, nullable=False)
+    state_reason = db.Column(db.String)
     modulemd = db.Column(db.String, nullable=False)
     koji_tag = db.Column(db.String)  # This gets set after 'wait'
     scmurl = db.Column(db.String)
@@ -176,15 +177,18 @@ class ModuleBuild(RidaBase):
         )
         return module
 
-    def transition(self, conf, state):
+    def transition(self, conf, state, state_reason = None):
         """ Record that a build has transitioned state. """
         now = datetime.utcnow()
         old_state = self.state
         self.state = state
         self.time_modified = now
 
-        if self.state in ['done', 'failed']:
+        if INVERSE_BUILD_STATES[self.state] in ['done', 'failed']:
             self.time_completed = now
+
+        if INVERSE_BUILD_STATES[self.state] == "failed" and state_reason:
+            self.state_reason = state_reason
 
         log.debug("%r, state %r->%r" % (self, old_state, self.state))
         rida.messaging.publish(
@@ -224,6 +228,7 @@ class ModuleBuild(RidaBase):
             'release': self.release,
             'state': self.state,
             'state_name': INVERSE_BUILD_STATES[self.state],
+            'state_reason': self.state_reason,
             'scmurl': self.scmurl,
             'owner': self.owner,
             'time_submitted': self.time_submitted,
@@ -252,6 +257,7 @@ class ModuleBuild(RidaBase):
         return {
             "id": self.id,
             "state": self.state,
+            'state_reason': self.state_reason,
             "owner": self.owner,
             "name": self.name,
             "time_submitted": self._utc_datetime_to_iso(self.time_submitted),
@@ -288,6 +294,8 @@ class ComponentBuild(RidaBase):
     task_id = db.Column(db.Integer)  # This is the id of the build in koji
     # XXX: Consider making this a proper ENUM (or an int)
     state = db.Column(db.Integer)
+    # Reason why the build failed
+    state_reason = db.Column(db.String)
     # This stays as None until the build completes.
     nvr = db.Column(db.String)
 
@@ -315,6 +323,7 @@ class ComponentBuild(RidaBase):
             'format': self.format,
             'task_id': self.task_id,
             'state': self.state,
+            'state_reason': self.state_reason,
             'module_build': self.module_id,
         }
 
@@ -329,5 +338,5 @@ class ComponentBuild(RidaBase):
         return retval
 
     def __repr__(self):
-        return "<ComponentBuild %s, %r, state: %r, task_id: %r, batch: %r>" % (
-            self.package, self.module_id, self.state, self.task_id, self.batch)
+        return "<ComponentBuild %s, %r, state: %r, task_id: %r, batch: %r, state_reason: %s>" % (
+            self.package, self.module_id, self.state, self.task_id, self.batch, self.state_reason)

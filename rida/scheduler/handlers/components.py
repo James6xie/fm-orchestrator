@@ -50,9 +50,15 @@ def _finalize(config, session, msg, state):
         log.debug("We have no record of %s" % nvr)
         return
 
+    if state != koji.BUILD_STATES['COMPLETE']:
+        state_reason = "Failed to build artifact %s in Koji" % (msg.build_name)
+    else:
+        state_reason = ""
+
     # Mark the state in the db.
     component_build.state = state
     component_build.nvr = nvr
+    component_build.state_reason = state_reason
     session.commit()
 
     parent = component_build.module_build
@@ -60,7 +66,8 @@ def _finalize(config, session, msg, state):
     if component_build.package == 'module-build-macros':
         if state != koji.BUILD_STATES['COMPLETE']:
             # If the macro build failed, then the module is doomed.
-            parent.transition(config, state=models.BUILD_STATES['failed'])
+            parent.transition(config, state=models.BUILD_STATES['failed'],
+                              state_reason)
             session.commit()
             return
 
@@ -87,7 +94,7 @@ def _finalize(config, session, msg, state):
     # to a next batch.  This module build is doomed.
     if all([c.state != koji.BUILD_STATES['COMPLETE'] for c in current_batch]):
         # They didn't all succeed.. so mark this module build as a failure.
-        parent.transition(config, models.BUILD_STATES['failed'])
+        parent.transition(config, models.BUILD_STATES['failed'], state_reason)
         session.commit()
         return
 

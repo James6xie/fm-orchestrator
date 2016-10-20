@@ -25,6 +25,7 @@ import mock
 
 import rida.messaging
 import rida.scheduler.handlers.repos
+import rida.models
 
 
 class TestRepoDone(unittest.TestCase):
@@ -78,3 +79,41 @@ class TestRepoDone(unittest.TestCase):
             'no matches for this...', '2016-some-guid')
         self.fn(config=self.config, session=self.session, msg=msg)
         build_fn.assert_called_once_with(artifact_name='foo', source='full_scm_url')
+
+
+    @mock.patch('rida.builder.KojiModuleBuilder.buildroot_ready')
+    @mock.patch('rida.builder.KojiModuleBuilder.get_session_from_config')
+    @mock.patch('rida.builder.KojiModuleBuilder.build')
+    @mock.patch('rida.builder.KojiModuleBuilder.buildroot_connect')
+    @mock.patch('rida.models.ModuleBuild.from_repo_done_event')
+    def test_a_single_match_build_fail(self, from_repo_done_event, connect, build_fn, config, ready):
+        """ Test that when a KojiModuleBuilder.build fails, the build is
+        marked as failed with proper state_reason.
+        """
+        config.return_value = mock.Mock(), "development"
+        unbuilt_component_build = mock.Mock()
+        unbuilt_component_build.package = 'foo'
+        unbuilt_component_build.scmurl = 'full_scm_url'
+        unbuilt_component_build.state = None
+        built_component_build = mock.Mock()
+        built_component_build.package = 'foo2'
+        built_component_build.scmurl = 'full_scm_url'
+        built_component_build.state = 1
+        module_build = mock.Mock()
+        module_build.batch = 1
+        module_build.component_builds = [unbuilt_component_build, built_component_build]
+        module_build.current_batch.return_value = [built_component_build]
+        build_fn.return_value = None
+
+        from_repo_done_event.return_value = module_build
+
+        ready.return_value = True
+
+        msg = rida.messaging.KojiRepoChange(
+            'no matches for this...', '2016-some-guid')
+        self.fn(config=self.config, session=self.session, msg=msg)
+        build_fn.assert_called_once_with(artifact_name='foo', source='full_scm_url')
+        module_build.transition.assert_called_once_with(self.config,
+                                                        rida.models.BUILD_STATES["failed"],
+                                                        'Failed to submit artifact foo to Koji')
+        self.assertEquals(unbuilt_component_build.state_reason, "Failed to submit to Koji")

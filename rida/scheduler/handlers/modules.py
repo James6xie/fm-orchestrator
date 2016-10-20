@@ -131,13 +131,14 @@ def wait(config, session, msg):
 
     artifact_name = "module-build-macros"
     state = koji.BUILD_STATES['BUILDING']  # Default state
+    state_reason = ""
     task_id = builder.build(artifact_name=artifact_name, source=srpm)
 
     # Fail task if we failed to submit it to koji
     # This typically happens when koji auth failed
     if not task_id:
         state = koji.BUILD_STATES['FAILED']
-        # TODO: set fail_reason to "Failed to submit build"
+        state_reason = "Failed to submit artifact %s to Koji" % (artifact_name)
 
     component_build = models.ComponentBuild(
         module_id=build.id,
@@ -146,6 +147,7 @@ def wait(config, session, msg):
         scmurl=srpm,
         task_id=task_id,
         state=state,
+        state_reason = state_reason,
         batch=1,
     )
     session.add(component_build)
