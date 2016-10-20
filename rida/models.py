@@ -187,7 +187,7 @@ class ModuleBuild(RidaBase):
         if INVERSE_BUILD_STATES[self.state] in ['done', 'failed']:
             self.time_completed = now
 
-        if INVERSE_BUILD_STATES[self.state] == "failed" and state_reason:
+        if state_reason:
             self.state_reason = state_reason
 
         log.debug("%r, state %r->%r" % (self, old_state, self.state))
