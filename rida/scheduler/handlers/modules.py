@@ -118,7 +118,8 @@ def wait(config, session, msg):
     log.debug("Assigning koji tag=%s to module build" % tag)
     build.koji_tag = tag
 
-    builder = rida.builder.KojiModuleBuilder(build.name, config, tag_name=tag)
+    builder = rida.builder.Builder(build.owner, build.name, 'koji', config,
+                                   tag_name=tag)
     build.buildroot_task_id = builder.buildroot_connect()
     log.debug("Adding dependencies %s into buildroot for module %s" % (dependencies, module_info))
     builder.buildroot_add_repos(dependencies)

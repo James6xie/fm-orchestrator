@@ -221,12 +221,13 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
         """
         raise NotImplementedError()
 
-class Builder:
+class Builder(object):
     """Wrapper class"""
 
-    def __new__(cls, module, backend, config, **extra):
+    def __new__(cls, owner, module, backend, config, **extra):
         """
-        :param module : a module string e.g. 'testmodule-1.0'
+        :param owner: a string representing who kicked off the builds
+        :param module: a module string e.g. 'testmodule-1.0'
         :param backend: a string representing backend e.g. 'koji'
         :param config: instance of rida.config.Config
 
@@ -235,7 +236,8 @@ class Builder:
         """
 
         if backend == "koji":
-            return KojiModuleBuilder(module=module, config=config, **extra)
+            return KojiModuleBuilder(owner=owner, module=module,
+                                     config=config, **extra)
         else:
             raise ValueError("Builder backend='%s' not recognized" % backend)
 
@@ -245,19 +247,21 @@ class KojiModuleBuilder(GenericBuilder):
 
     backend = "koji"
 
-    def __init__(self, module, config, tag_name):
+    def __init__(self, owner, module, config, tag_name):
         """
+        :param owner: a string representing who kicked off the builds
         :param module: string representing module
         :param config: rida.config.Config instance
         :param tag_name: name of tag for given module
         """
+        self.owner = owner
         self.module_str = module
         self.tag_name = tag_name
         self.__prep = False
         log.debug("Using koji profile %r" % config.koji_profile)
         log.debug("Using koji_config: %s" % config.koji_config)
 
-        self.koji_session, self.koji_module = self.get_session_from_config(config)
+        self.koji_session = self.get_session(config, owner)
         self.arches = config.koji_arches
         if not self.arches:
             raise ValueError("No koji_arches specified in the config.")
@@ -360,15 +364,11 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
         return srpm_paths[0]
 
     @staticmethod
-    def get_session_from_config(config):
+    def get_session(config, owner):
         koji_config = munch.Munch(koji.read_config(
             profile_name=config.koji_profile,
             user_config=config.koji_config,
         ))
-        koji_module = koji.get_profile_module(
-            config.koji_profile,
-            config=koji_config,
-        )
 
         address = koji_config.server
         log.info("Connecting to koji %r" % address)
@@ -384,7 +384,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
                     principal=principal,
                     keytab=keytab,
                     ccache=ccache,
-                    proxyuser=None,
+                    proxyuser=owner,
                 )
             else:
                 koji_session.krb_login(ccache=ccache)
@@ -393,11 +393,12 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
                 os.path.expanduser(koji_config.cert),
                 None,
                 os.path.expanduser(koji_config.serverca),
-                proxyuser=None,
+                proxyuser=owner,
             )
         else:
             raise ValueError("Unrecognized koji authtype %r" % authtype)
-        return (koji_session, koji_module)
+
+        return koji_session
 
     def buildroot_connect(self):
         log.info("%r connecting buildroot." % self)
