@@ -67,7 +67,7 @@ def _finalize(config, session, msg, state):
         if state != koji.BUILD_STATES['COMPLETE']:
             # If the macro build failed, then the module is doomed.
             parent.transition(config, state=models.BUILD_STATES['failed'],
-                              state_reason)
+                              state_reason=state_reason)
             session.commit()
             return
 
