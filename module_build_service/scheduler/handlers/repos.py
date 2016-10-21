@@ -23,11 +23,11 @@
 
 """ Handlers for repo change events on the message bus. """
 
-import rida.builder
-import rida.pdc
+import module_build_service.builder
+import module_build_service.pdc
 import logging
 import koji
-from rida import models, log
+from module_build_service import models, log
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -43,7 +43,7 @@ def done(config, session, msg):
         return
 
     # It is possible that we have already failed.. but our repo is just being
-    # routinely regenerated.  Just ignore that.  If rida says the module is
+    # routinely regenerated.  Just ignore that.  If module_build_service says the module is
     # dead, then the module is dead.
     if module_build.state == models.BUILD_STATES['failed']:
         log.info("Ignoring repo regen for already failed %r" % module_build)
@@ -75,7 +75,7 @@ def done(config, session, msg):
         log.warn("Odd!  All components in batch failed for %r." % module_build)
         return
 
-    builder = rida.builder.Builder(module_build.owner, module_build.name,
+    builder = module_build_service.builder.Builder(module_build.owner, module_build.name,
                                    'koji', config, tag_name=tag)
     builder.buildroot_connect()
 
@@ -100,8 +100,8 @@ def done(config, session, msg):
         if c.state != koji.BUILD_STATES['COMPLETE']
     ]
     if leftover_components:
-        rida.utils.start_next_build_batch(config,
-            module_build, session, builder, components=leftover_components)
+        module_build_service.utils.start_next_build_batch(config,
+                                                          module_build, session, builder, components=leftover_components)
     else:
         module_build.transition(config, state=models.BUILD_STATES['done'])
         session.commit()

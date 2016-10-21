@@ -1,5 +1,5 @@
-The module build orchestrator for Modularity
-============================================
+The module build service for Modularity
+=======================================
 
 The orchestrator coordinates module builds and is responsible for a number of
 tasks:
@@ -27,7 +27,7 @@ Module submission is done via posting the modulemd SCM URL.
 
 ::
 
-    POST /rida/module-builds/
+    POST /module-build-service/1/module-builds/
 
 ::
 
@@ -55,7 +55,7 @@ build task's URL.  Querying the BPO service might be preferred, however.
 
 ::
 
-    GET /rida/module-builds/42
+    GET /module-build-service/1/module-builds/42
 
 The response, if the task exists, would include various pieces of information
 about the referenced build task.
@@ -93,7 +93,7 @@ There are a number of configurable GET parameters to change how the module build
 
 An example of querying the "module-builds" resource without any additional parameters::
 
-    GET /rida/module-builds/
+    GET /module-build-service/1/module-builds/
 
 ::
 
@@ -145,9 +145,9 @@ An example of querying the "module-builds" resource without any additional param
         }
       ],
       "meta": {
-        "first": "https://rida.fedora.local:5000/rida/module-builds/?per_page=10&page=1",
-        "last": "https://rida.fedora.local:5000/rida/module-builds/?per_page=10&page=3",
-        "next": "https://rida.fedora.local:5000/rida/module-builds/?per_page=10&page=2",
+        "first": "https://127.0.0.1:5000/module-build-service/1/module-builds/?per_page=10&page=1",
+        "last": "https://127.0.0.1:5000/module-build-service/1/module-builds/?per_page=10&page=3",
+        "next": "https://127.0.0.1:5000/module-build-service/1/module-builds/?per_page=10&page=2",
         "page": 1,
         "pages": 3,
         "per_page": 10,
@@ -158,7 +158,7 @@ An example of querying the "module-builds" resource without any additional param
 
 An example of querying the "module-builds" resource with the "verbose", "per_page", and the "page" parameters::
 
-    GET /rida/module-builds/?verbose=true&per_page=3&page=1
+    GET /module-build-service/1/module-builds/?verbose=true&per_page=3&page=1
 
 ::
 
@@ -209,9 +209,9 @@ An example of querying the "module-builds" resource with the "verbose", "per_pag
         }
       ],
       "meta": {
-        "first": "https://127.0.0.1:5000/rida/module-builds/?per_page=3&page=1",
-        "last": "https://127.0.0.1:5000/rida/module-builds/?per_page=3&page=10",
-        "next": "https://127.0.0.1:5000/rida/module-builds/?per_page=3&page=2",
+        "first": "https://127.0.0.1:5000/module-build-service/1/module-builds/?per_page=3&page=1",
+        "last": "https://127.0.0.1:5000/module-build-service/1/module-builds/?per_page=3&page=10",
+        "next": "https://127.0.0.1:5000/module-build-service/1/module-builds/?per_page=3&page=2",
         "page": 1,
         "pages": 10,
         "per_page": 3,
@@ -236,7 +236,7 @@ The module-builds can be filtered by a variety of GET parameters. These paramter
 
 An example of querying the "module-builds" resource with the "state", and the "submitted_before" parameters::
 
-    GET /rida/module-builds/?state=done&submitted_before=2016-08-23T08:10:07Z
+    GET /module-build-service/1/module-builds/?state=done&submitted_before=2016-08-23T08:10:07Z
 
 ::
 
@@ -260,8 +260,8 @@ An example of querying the "module-builds" resource with the "state", and the "s
         }
       ],
       "meta": {
-        "first": "https://127.0.0.1:5000/rida/module-builds/?per_page=10&page=1",
-        "last": "https://127.0.0.1:5000/rida/module-builds/?per_page=10&page=1",
+        "first": "https://127.0.0.1:5000/module-build-service/1/module-builds/?per_page=10&page=1",
+        "last": "https://127.0.0.1:5000/module-build-service/1/module-builds/?per_page=10&page=1",
         "page": 1,
         "pages": 1,
         "per_page": 3,
@@ -292,7 +292,7 @@ _`Module Build States`
 
 You can see the list of possible states with::
 
-    from rida.models import BUILD_STATES
+    from module_build_service.models import BUILD_STATES
     print(BUILD_STATES)
 
 Here's a description of what each of them means:
@@ -346,8 +346,8 @@ Message Topic
 
 The suffix for message topics concerning changes in module state is
 ``module.state.change``. Currently, it is expected that these messages are sent
-from koji or ridad, i.e. the topic is prefixed with ``*.buildsys.`` or
-``*.rida.``, respectively.
+from koji or module_build_service_daemon, i.e. the topic is prefixed with ``*.buildsys.`` or
+``*.module_build_service.``, respectively.
 
 Message Body
 ------------
@@ -385,8 +385,8 @@ Development
 ``Logging``
 ----------
 
-If you're running rida from scm then the DevConfiguration from config.py which contains LOG_LEVEL=debug should get applied. If you're having trouble just change LOG_LEVEL in BaseConfiguration.
-See more about it in rida/__init__.py config.from_object()
+If you're running module_build_service from scm then the DevConfiguration from config.py which contains LOG_LEVEL=debug should get applied. If you're having trouble just change LOG_LEVEL in BaseConfiguration.
+See more about it in module_build_service/__init__.py config.from_object()
 
 
 ``Docker``
@@ -416,9 +416,9 @@ Once your environment is setup, run (depending on your OS, you may need to run i
 
     $ vagrant up
 
-This will start fm-orchestrator's frontend (API) and scheduler. To access the frontend, visit the following URL::
+This will start module_build_service's frontend (API) and scheduler. To access the frontend, visit the following URL::
 
-    https://127.0.0.1:5000/rida/1/module-builds/
+    https://127.0.0.1:5000/module-build-service/1/module-builds/
 
 At any point you may enter the guest VM with::
 
@@ -426,13 +426,13 @@ At any point you may enter the guest VM with::
 
 To start the frontend manually, run the following inside the guest::
 
-    $ cd /opt/fm-orchestrator/src
+    $ cd /opt/module_build_service/src
     $ python manage.py runssl --debug
 
 To start the scheduler manually, run the following inside the guest::
 
-    $ cd /opt/fm-orchestrator/src
-    $ python ridad.py
+    $ cd /opt/module_build_service/src
+    $ python module_build_service_daemon.py
 
 Alternatively, you can restart the Vagrant guest, which inherently starts/restarts the frontend and the scheduler with::
 
@@ -453,11 +453,11 @@ Setup Apache to host the CRL::
 
     $ dnf install httpd && systemctl enable httpd && systemctl start httpd
     $ mkdir -p /var/www/html/crl
-    $ ln -s /opt/fm-orchestrator/pki/ca.crl /var/www/html/crl/ca.crl
-    $ ln -s /opt/fm-orchestrator/pki/ca.crt /var/www/html/crl/ca.crt
+    $ ln -s /opt/module_build_service/pki/ca.crl /var/www/html/crl/ca.crl
+    $ ln -s /opt/module_build_service/pki/ca.crt /var/www/html/crl/ca.crt
 
 Create a directory to house the fedmsg cache::
 
     $ mkdir -p /etc/pki/fedmsg
 
-Then uncomment the fedmsg signing configuration in fedmsg.d/rida.py.
+Then uncomment the fedmsg signing configuration in fedmsg.d/module_build_service.py.

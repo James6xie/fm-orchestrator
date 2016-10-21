@@ -23,10 +23,10 @@
 
 """ Handlers for module change events on the message bus. """
 
-from rida import models, db, log
-import rida.builder
-import rida.pdc
-import rida.utils
+from module_build_service import models, db, log
+import module_build_service.builder
+import module_build_service.pdc
+import module_build_service.utils
 
 import koji
 
@@ -69,7 +69,7 @@ def wait(config, session, msg):
 
     All we do here is request preparation of the buildroot.
     The kicking off of individual component builds is handled elsewhere,
-    in rida.schedulers.handlers.repos.
+    in module_build_service.schedulers.handlers.repos.
     """
     build = models.ModuleBuild.from_module_event(db.session, msg)
     log.info("Found build=%r from message" % build)
@@ -84,7 +84,7 @@ def wait(config, session, msg):
 
     tag = None
     dependencies = None
-    pdc_session = rida.pdc.get_pdc_client_session(config)
+    pdc_session = module_build_service.pdc.get_pdc_client_session(config)
 
     pdc_query = {
         'name': module_info['name'],
@@ -92,13 +92,13 @@ def wait(config, session, msg):
         'release': module_info['release'],
     }
 
-    @rida.utils.retry(interval=10, timeout=30, wait_on=ValueError)
+    @module_build_service.utils.retry(interval=10, timeout=30, wait_on=ValueError)
     def _get_deps_and_tag():
         log.info("Getting %s deps from pdc" % module_info['name'])
-        dependencies = rida.pdc.get_module_build_dependencies(
+        dependencies = module_build_service.pdc.get_module_build_dependencies(
             pdc_session, pdc_query, strict=True)
         log.info("Getting %s tag from pdc" % module_info['name'])
-        tag = rida.pdc.get_module_tag(
+        tag = module_build_service.pdc.get_module_tag(
             pdc_session, pdc_query, strict=True)
         return dependencies, tag
 
@@ -118,8 +118,8 @@ def wait(config, session, msg):
     log.debug("Assigning koji tag=%s to module build" % tag)
     build.koji_tag = tag
 
-    builder = rida.builder.Builder(build.owner, build.name, 'koji', config,
-                                   tag_name=tag)
+    builder = module_build_service.builder.Builder(build.owner, build.name, 'koji', config,
+                                                   tag_name=tag)
     build.buildroot_task_id = builder.buildroot_connect()
     log.debug("Adding dependencies %s into buildroot for module %s" % (dependencies, module_info))
     builder.buildroot_add_repos(dependencies)

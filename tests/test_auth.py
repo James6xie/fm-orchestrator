@@ -26,20 +26,20 @@ from nose.tools import raises, eq_
 import unittest
 import mock
 
-import rida.auth
-import rida.errors
+import module_build_service.auth
+import module_build_service.errors
 
 
 class TestAuthModule(unittest.TestCase):
-    @raises(rida.errors.Unauthorized)
+    @raises(module_build_service.errors.Unauthorized)
     def test_get_username_failure(self):
-        rida.auth.get_username({})
+        module_build_service.auth.get_username({})
 
     def test_get_username_good(self):
         # https://www.youtube.com/watch?v=G-LtddOgUCE
         name = "Joey Jo Jo Junior Shabadoo"
         environ = {'SSL_CLIENT_CERT_commonName': name}
-        result = rida.auth.get_username(environ)
+        result = module_build_service.auth.get_username(environ)
         eq_(result, name)
 
     @mock.patch('fedora.client.AccountSystem')
@@ -54,9 +54,9 @@ class TestAuthModule(unittest.TestCase):
         }
         AccountSystem.return_value = FAS
         # This should not raise an exception
-        rida.auth.assert_is_packager('ralph', dict())
+        module_build_service.auth.assert_is_packager('ralph', dict())
 
-    @raises(rida.errors.Unauthorized)
+    @raises(module_build_service.errors.Unauthorized)
     @mock.patch('fedora.client.AccountSystem')
     def test_assert_is_packager_failure(self, AccountSystem):
         FAS = mock.MagicMock()
@@ -69,4 +69,4 @@ class TestAuthModule(unittest.TestCase):
         }
         AccountSystem.return_value = FAS
         # This should not raise an exception
-        rida.auth.assert_is_packager('ralph', dict())
+        module_build_service.auth.assert_is_packager('ralph', dict())

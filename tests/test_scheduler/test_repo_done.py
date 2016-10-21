@@ -23,9 +23,9 @@
 import unittest
 import mock
 
-import rida.messaging
-import rida.scheduler.handlers.repos
-import rida.models
+import module_build_service.messaging
+import module_build_service.scheduler.handlers.repos
+import module_build_service.models
 
 
 class TestRepoDone(unittest.TestCase):
@@ -37,23 +37,23 @@ class TestRepoDone(unittest.TestCase):
 
 
         self.session = mock.Mock()
-        self.fn = rida.scheduler.handlers.repos.done
+        self.fn = module_build_service.scheduler.handlers.repos.done
 
-    @mock.patch('rida.models.ModuleBuild.from_repo_done_event')
+    @mock.patch('module_build_service.models.ModuleBuild.from_repo_done_event')
     def test_no_match(self, from_repo_done_event):
         """ Test that when a repo msg hits us and we have no match,
         that we do nothing gracefully.
         """
         from_repo_done_event.return_value = None
-        msg = rida.messaging.KojiRepoChange(
+        msg = module_build_service.messaging.KojiRepoChange(
             'no matches for this...', '2016-some-guid')
         self.fn(config=self.config, session=self.session, msg=msg)
 
-    @mock.patch('rida.builder.KojiModuleBuilder.buildroot_ready')
-    @mock.patch('rida.builder.KojiModuleBuilder.get_session')
-    @mock.patch('rida.builder.KojiModuleBuilder.build')
-    @mock.patch('rida.builder.KojiModuleBuilder.buildroot_connect')
-    @mock.patch('rida.models.ModuleBuild.from_repo_done_event')
+    @mock.patch('module_build_service.builder.KojiModuleBuilder.buildroot_ready')
+    @mock.patch('module_build_service.builder.KojiModuleBuilder.get_session')
+    @mock.patch('module_build_service.builder.KojiModuleBuilder.build')
+    @mock.patch('module_build_service.builder.KojiModuleBuilder.buildroot_connect')
+    @mock.patch('module_build_service.models.ModuleBuild.from_repo_done_event')
     def test_a_single_match(self, from_repo_done_event, connect, build_fn, config, ready):
         """ Test that when a repo msg hits us and we have a single match.
         """
@@ -75,17 +75,16 @@ class TestRepoDone(unittest.TestCase):
 
         ready.return_value = True
 
-        msg = rida.messaging.KojiRepoChange(
+        msg = module_build_service.messaging.KojiRepoChange(
             'no matches for this...', '2016-some-guid')
         self.fn(config=self.config, session=self.session, msg=msg)
         build_fn.assert_called_once_with(artifact_name='foo', source='full_scm_url')
 
-
-    @mock.patch('rida.builder.KojiModuleBuilder.buildroot_ready')
-    @mock.patch('rida.builder.KojiModuleBuilder.get_session')
-    @mock.patch('rida.builder.KojiModuleBuilder.build')
-    @mock.patch('rida.builder.KojiModuleBuilder.buildroot_connect')
-    @mock.patch('rida.models.ModuleBuild.from_repo_done_event')
+    @mock.patch('module_build_service.builder.KojiModuleBuilder.buildroot_ready')
+    @mock.patch('module_build_service.builder.KojiModuleBuilder.get_session')
+    @mock.patch('module_build_service.builder.KojiModuleBuilder.build')
+    @mock.patch('module_build_service.builder.KojiModuleBuilder.buildroot_connect')
+    @mock.patch('module_build_service.models.ModuleBuild.from_repo_done_event')
     def test_a_single_match_build_fail(self, from_repo_done_event, connect, build_fn, config, ready):
         """ Test that when a KojiModuleBuilder.build fails, the build is
         marked as failed with proper state_reason.
@@ -109,11 +108,11 @@ class TestRepoDone(unittest.TestCase):
 
         ready.return_value = True
 
-        msg = rida.messaging.KojiRepoChange(
+        msg = module_build_service.messaging.KojiRepoChange(
             'no matches for this...', '2016-some-guid')
         self.fn(config=self.config, session=self.session, msg=msg)
         build_fn.assert_called_once_with(artifact_name='foo', source='full_scm_url')
         module_build.transition.assert_called_once_with(self.config,
-                                                        rida.models.BUILD_STATES["failed"],
+                                                        module_build_service.models.BUILD_STATES["failed"],
                                                         'Failed to submit artifact foo to Koji')
         self.assertEquals(unbuilt_component_build.state_reason, "Failed to submit to Koji")

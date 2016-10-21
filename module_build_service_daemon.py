@@ -24,7 +24,7 @@
 #            Ralph Bean <rbean@redhat.com>
 """The module build orchestrator for Modularity, the builder. """
 
-import rida.scheduler.main
+import module_build_service.scheduler.main
 
 if __name__ == '__main__':
-    rida.scheduler.main.main()
+    module_build_service.scheduler.main.main()

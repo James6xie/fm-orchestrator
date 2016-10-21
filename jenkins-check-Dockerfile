@@ -5,9 +5,9 @@ FROM fedora:24
 # so we don't have to compile those when fetched from PyPI
 RUN dnf install -y python python-virtualenv python-devel libffi-devel redhat-rpm-config openssl-devel gcc gcc-c++ koji git swig && \
     dnf autoremove -y && dnf clean all && \
-    mkdir /opt/fm-orchestrator/
-WORKDIR /opt/fm-orchestrator/
-COPY ./requirements.txt /opt/fm-orchestrator/
+    mkdir /opt/module_build_service/
+WORKDIR /opt/module_build_service/
+COPY ./requirements.txt /opt/module_build_service/
 RUN pip install --user -r ./requirements.txt
 
 # This isn't what we do in jenkins, blah ...
@@ -18,6 +18,6 @@ RUN pip install --upgrade mock
 # Need to force reinstall so nose gets the virtualenv modules.
 RUN pip install nose --ignore-installed
 
-COPY . /opt/fm-orchestrator/
+COPY . /opt/module_build_service/
 
 CMD ["nosetests", "."]

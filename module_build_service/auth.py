@@ -25,7 +25,7 @@
 
 from werkzeug.serving import WSGIRequestHandler
 
-from rida.errors import Unauthorized
+from module_build_service.errors import Unauthorized
 
 import fedora.client
 

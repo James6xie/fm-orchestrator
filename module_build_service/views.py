@@ -32,15 +32,15 @@ from flask.views import MethodView
 import json
 import modulemd
 import os
-import rida.auth
-import rida.scm
+import module_build_service.auth
+import module_build_service.scm
 import shutil
 import tempfile
 import re
-from rida import app, conf, db, log
-from rida import models
-from rida.utils import pagination_metadata, filter_module_builds
-from rida.errors import (
+from module_build_service import app, conf, db, log
+from module_build_service import models
+from module_build_service.utils import pagination_metadata, filter_module_builds
+from module_build_service.errors import (
     ValidationError, Unauthorized, UnprocessableEntity, Conflict, NotFound)
 from multiprocessing.dummy import Pool as ThreadPool
 
@@ -75,8 +75,8 @@ class ModuleBuildAPI(MethodView):
                 raise NotFound('No such module found.')
 
     def post(self):
-        username = rida.auth.get_username(request.environ)
-        rida.auth.assert_is_packager(username, fas_kwargs=dict(
+        username = module_build_service.auth.get_username(request.environ)
+        module_build_service.auth.assert_is_packager(username, fas_kwargs=dict(
             base_url=conf.fas_url,
             username=conf.fas_username,
             password=conf.fas_password))
@@ -108,7 +108,7 @@ class ModuleBuildAPI(MethodView):
         try:
             log.debug('Verifying modulemd')
             td = tempfile.mkdtemp()
-            scm = rida.scm.SCM(url, conf.scmurls)
+            scm = module_build_service.scm.SCM(url, conf.scmurls)
             cod = scm.checkout(td)
             cofn = os.path.join(cod, (scm.name + ".yaml"))
 
@@ -183,7 +183,7 @@ class ModuleBuildAPI(MethodView):
                     pkg["cache"] = conf.rpms_default_cache + pkgname
                 if not pkg.get("commit"):
                     try:
-                        pkg["commit"] = rida.scm.SCM(
+                        pkg["commit"] = module_build_service.scm.SCM(
                             pkg["repository"]).get_latest()
                     except Exception as e:
                         raise UnprocessableEntity(
@@ -201,7 +201,7 @@ class ModuleBuildAPI(MethodView):
         # Checks the availability of SCM urls.
         pool = ThreadPool(10)
         err_msgs = pool.map(lambda data: "Cannot checkout {}".format(data[0])
-                            if not rida.scm.SCM(data[1]).is_available()
+                            if not module_build_service.scm.SCM(data[1]).is_available()
                             else None, full_urls)
         for err_msg in err_msgs:
             if err_msg:
@@ -239,11 +239,11 @@ class ModuleBuildAPI(MethodView):
 def register_v1_api():
     """ Registers version 1 of Rida API. """
     module_view = ModuleBuildAPI.as_view('module_builds')
-    app.add_url_rule('/rida/1/module-builds/', defaults={'id': None},
+    app.add_url_rule('/module-build-service/1/module-builds/', defaults={'id': None},
                      view_func=module_view, methods=['GET'])
-    app.add_url_rule('/rida/1/module-builds/', view_func=module_view,
+    app.add_url_rule('/module-build-service/1/module-builds/', view_func=module_view,
                      methods=['POST'])
-    app.add_url_rule('/rida/1/module-builds/<int:id>', view_func=module_view,
+    app.add_url_rule('/module-build-service/1/module-builds/<int:id>', view_func=module_view,
                      methods=['GET'])
 
 register_v1_api()

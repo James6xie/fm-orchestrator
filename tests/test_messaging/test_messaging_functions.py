@@ -23,12 +23,12 @@ from __future__ import unicode_literals
 import unittest
 import mock
 from datetime import datetime
-import rida.messaging
+import module_build_service.messaging
 
 
 class TestUtilFunctions(unittest.TestCase):
 
-    rida_msg = msg = {
+    module_build_service_msg = msg = {
         'component_builds': [1, 2],
         'id': 1,
         'name': 'testmodule',
@@ -69,8 +69,8 @@ class TestUtilFunctions(unittest.TestCase):
         }
         mock_tail_messages.side_effect = \
             lambda: [('fedora-infrastructure', endpoint, topic, msg)]
-        msg_obj = next(rida.messaging._fedmsg_listen(None))
-        self.assertEquals(type(msg_obj), rida.messaging.KojiBuildChange)
+        msg_obj = next(module_build_service.messaging._fedmsg_listen(None))
+        self.assertEquals(type(msg_obj), module_build_service.messaging.KojiBuildChange)
         self.assertEquals(msg_obj.build_id, 2345678)
         self.assertEquals(msg_obj.build_new_state, 0)
         self.assertEquals(msg_obj.build_name, 'some-package')
@@ -99,24 +99,24 @@ class TestUtilFunctions(unittest.TestCase):
         }
         mock_tail_messages.side_effect = \
             lambda: [('fedora-infrastructure', endpoint, topic, msg)]
-        msg_obj = next(rida.messaging._fedmsg_listen(None))
-        self.assertEquals(type(msg_obj), rida.messaging.KojiRepoChange)
+        msg_obj = next(module_build_service.messaging._fedmsg_listen(None))
+        self.assertEquals(type(msg_obj), module_build_service.messaging.KojiRepoChange)
         self.assertEquals(msg_obj.repo_tag, 'f23-build')
         self.assertEquals(msg_obj.msg_id,
                           '2016-e05415d9-9b35-4f13-8b25-0daddeabfb8c')
 
     @mock.patch('fedmsg.tail_messages')
-    def test_fedmsg_listen_rida_msg(self, mock_tail_messages):
+    def test_fedmsg_listen_module_build_service_msg(self, mock_tail_messages):
         endpoint = 'tcp://hub.fedoraproject.org:9940'
-        topic = 'org.fedoraproject.prod.rida.module.state.change'
+        topic = 'org.fedoraproject.prod.module_build_service.module.state.change'
         msg = {
             'msg_id': '2016-e05415d9-9b35-4f13-8b25-0daddeabfb8c',
-            'topic': 'org.fedoraproject.prod.rida.module.state.change',
-            'msg': self.rida_msg
+            'topic': 'org.fedoraproject.prod.module_build_service.module.state.change',
+            'msg': self.module_build_service_msg
         }
         mock_tail_messages.side_effect = \
             lambda: [('fedora-infrastructure', endpoint, topic, msg)]
-        msg_obj = next(rida.messaging._fedmsg_listen(None))
+        msg_obj = next(module_build_service.messaging._fedmsg_listen(None))
         self.assertEquals(msg_obj.module_build_id, msg['msg']['id'])
         self.assertEquals(msg_obj.module_build_state, msg['msg']['state'])
         self.assertEquals(msg_obj.msg_id,

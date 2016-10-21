@@ -20,8 +20,8 @@
 #
 # Written by Matt Prahl <mprahl@redhat.com
 from datetime import datetime, timedelta
-from rida import app, db
-from rida.models import ModuleBuild, ComponentBuild
+from module_build_service import app, db
+from module_build_service.models import ModuleBuild, ComponentBuild
 
 app.config.from_object('config.TestConfiguration')
 
@@ -65,7 +65,7 @@ def init_data():
         component_two_build_one = ComponentBuild()
         component_two_build_one.package = 'module-build-macros'
         component_two_build_one.scmurl = \
-            ('/tmp/rida-build-macrosWZUPeK/SRPMS/'
+            ('/tmp/module_build_service-build-macrosWZUPeK/SRPMS/'
              'module-build-macros-0.1-1.module_nginx_1_2.src.rpm')
         component_two_build_one.format = 'rpms'
         component_two_build_one.task_id = 12312321 + index
@@ -108,7 +108,7 @@ def init_data():
         component_two_build_two = ComponentBuild()
         component_two_build_two.package = 'module-build-macros'
         component_two_build_two.scmurl = \
-            ('/tmp/rida-build-macrosWZUPeK/SRPMS/'
+            ('/tmp/module_build_service-build-macrosWZUPeK/SRPMS/'
              'module-build-macros-0.1-1.module_postgresql_1_2.src.rpm')
         component_two_build_two.format = 'rpms'
         component_two_build_two.task_id = 47383993 + index
@@ -150,7 +150,7 @@ def init_data():
         component_two_build_three = ComponentBuild()
         component_two_build_three.package = 'module-build-macros'
         component_two_build_three.scmurl = \
-            ('/tmp/rida-build-macrosWZUPeK/SRPMS/'
+            ('/tmp/module_build_service-build-macrosWZUPeK/SRPMS/'
              'module-build-macros-0.1-1.module_testmodule_1_2.src.rpm')
         component_two_build_three.format = 'rpms'
         component_two_build_three.task_id = 47383993 + index

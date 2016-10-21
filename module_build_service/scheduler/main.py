@@ -36,15 +36,15 @@ import threading
 import time
 import six.moves.queue as queue
 
-import rida.config
-import rida.messaging
-import rida.scheduler.handlers.components
-import rida.scheduler.handlers.modules
-import rida.scheduler.handlers.repos
+import module_build_service.config
+import module_build_service.messaging
+import module_build_service.scheduler.handlers.components
+import module_build_service.scheduler.handlers.modules
+import module_build_service.scheduler.handlers.repos
 
 import koji
 
-from rida import conf, models, log
+from module_build_service import conf, models, log
 
 
 class STOP_WORK(object):
@@ -68,7 +68,7 @@ class MessageIngest(threading.Thread):
 
 
     def run(self):
-        for msg in rida.messaging.listen(conf):
+        for msg in module_build_service.messaging.listen(conf):
             self.outgoing_work_queue.put(msg)
 
 
@@ -83,21 +83,21 @@ class MessageWorker(threading.Thread):
         self.NO_OP = NO_OP = lambda config, session, msg: True
         self.on_build_change = {
             koji.BUILD_STATES["BUILDING"]: NO_OP,
-            koji.BUILD_STATES["COMPLETE"]: rida.scheduler.handlers.components.complete,
-            koji.BUILD_STATES["FAILED"]: rida.scheduler.handlers.components.failed,
-            koji.BUILD_STATES["CANCELED"]: rida.scheduler.handlers.components.canceled,
+            koji.BUILD_STATES["COMPLETE"]: module_build_service.scheduler.handlers.components.complete,
+            koji.BUILD_STATES["FAILED"]: module_build_service.scheduler.handlers.components.failed,
+            koji.BUILD_STATES["CANCELED"]: module_build_service.scheduler.handlers.components.canceled,
             koji.BUILD_STATES["DELETED"]: NO_OP,
         }
         self.on_module_change = {
             models.BUILD_STATES["init"]: NO_OP,
-            models.BUILD_STATES["wait"]: rida.scheduler.handlers.modules.wait,
+            models.BUILD_STATES["wait"]: module_build_service.scheduler.handlers.modules.wait,
             models.BUILD_STATES["build"]: NO_OP,
             models.BUILD_STATES["failed"]: NO_OP,
-            models.BUILD_STATES["done"]: rida.scheduler.handlers.modules.done, # XXX: DIRECT TRANSITION TO READY
+            models.BUILD_STATES["done"]: module_build_service.scheduler.handlers.modules.done, # XXX: DIRECT TRANSITION TO READY
             models.BUILD_STATES["ready"]: NO_OP,
         }
         # Only one kind of repo change event, though...
-        self.on_repo_change = rida.scheduler.handlers.repos.done
+        self.on_repo_change = module_build_service.scheduler.handlers.repos.done
 
     def sanity_check(self):
         """ On startup, make sure our implementation is sane. """
@@ -140,11 +140,11 @@ class MessageWorker(threading.Thread):
                   .format(msg.msg_id, type(msg).__name__))
 
         # Choose a handler for this message
-        if type(msg) == rida.messaging.KojiBuildChange:
+        if type(msg) == module_build_service.messaging.KojiBuildChange:
             handler = self.on_build_change[msg.build_new_state]
-        elif type(msg) == rida.messaging.KojiRepoChange:
+        elif type(msg) == module_build_service.messaging.KojiRepoChange:
             handler = self.on_repo_change
-        elif type(msg) == rida.messaging.RidaModule:
+        elif type(msg) == module_build_service.messaging.RidaModule:
             handler = self.on_module_change[module_build_state_from_msg(msg)]
         else:
             log.debug("Unhandled message...")
@@ -189,7 +189,7 @@ class Poller(threading.Thread):
         if conf.system == "koji":
             # we don't do this on behalf of users
             koji_session = (
-                rida.builder.KojiModuleBuilder.get_session(conf, None))
+                module_build_service.builder.KojiModuleBuilder.get_session(conf, None))
             log.info("Querying tasks for statuses:")
             res = models.ComponentBuild.query.filter_by(state=koji.BUILD_STATES['BUILDING']).all()
 
@@ -209,7 +209,7 @@ class Poller(threading.Thread):
                 log.info("  task %r is in state %r" % (component_build.task_id, task_info['state']))
                 if task_info['state'] in dead_states:
                     # Fake a fedmsg message on our internal queue
-                    msg = rida.messaging.KojiBuildChange(
+                    msg = module_build_service.messaging.KojiBuildChange(
                         msg_id='a faked internal message',
                         build_id=component_build.task_id,
                         build_name=component_build.package,
@@ -251,7 +251,7 @@ class Poller(threading.Thread):
                 'topic': '.module.build.state.change',
                 'msg': build.json(),
             }
-            rida.scheduler.handlers.modules.wait(conf, session, msg)
+            module_build_service.scheduler.handlers.modules.wait(conf, session, msg)
 
     def process_open_component_builds(self, session):
         log.warning("process_open_component_builds is not yet implemented...")
@@ -261,7 +261,7 @@ class Poller(threading.Thread):
 
 
 def main():
-    log.info("Starting ridad.")
+    log.info("Starting module_build_service_daemon.")
     try:
         work_queue = queue.Queue()
 

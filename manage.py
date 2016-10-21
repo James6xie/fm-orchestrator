@@ -28,12 +28,12 @@ import os
 import ssl
 from shutil import rmtree
 
-from rida import app, conf, db
-from rida.config import Config
-from rida.pdc import (
+from module_build_service import app, conf, db
+from module_build_service.config import Config
+from module_build_service.pdc import (
     get_pdc_client_session, get_module, get_module_runtime_dependencies,
     get_module_tag, get_module_build_dependencies)
-import rida.auth
+import module_build_service.auth
 
 
 manager = Manager(app)
@@ -98,7 +98,7 @@ def upgradedb():
 
 
 @manager.command
-def gendevfedmsgcert(pki_dir='/opt/fm-orchestrator/pki', force=False):
+def gendevfedmsgcert(pki_dir='/opt/module_build_service/pki', force=False):
     """
     Creates a CA, a certificate signed by that CA, and generates a CRL.
     """
@@ -242,7 +242,7 @@ def runssl(host=conf.host, port=conf.port, debug=False):
     app.run(
         host=host,
         port=port,
-        request_handler=rida.auth.ClientCertRequestHandler,
+        request_handler=module_build_service.auth.ClientCertRequestHandler,
         ssl_context=ssl_ctx,
         debug=debug
     )

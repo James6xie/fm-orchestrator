@@ -22,8 +22,8 @@
 
 import unittest
 import mock
-import rida.messaging
-import rida.scheduler.handlers.modules
+import module_build_service.messaging
+import module_build_service.scheduler.handlers.modules
 
 
 class TestModuleWait(unittest.TestCase):
@@ -31,11 +31,11 @@ class TestModuleWait(unittest.TestCase):
     def setUp(self):
         self.config = mock.Mock()
         self.session = mock.Mock()
-        self.fn = rida.scheduler.handlers.modules.wait
+        self.fn = module_build_service.scheduler.handlers.modules.wait
 
-    @mock.patch('rida.builder.KojiModuleBuilder')
-    @mock.patch('rida.models.ModuleBuild.from_module_event')
-    @mock.patch('rida.pdc')
+    @mock.patch('module_build_service.builder.KojiModuleBuilder')
+    @mock.patch('module_build_service.models.ModuleBuild.from_module_event')
+    @mock.patch('module_build_service.pdc')
     def test_init_basic(self, pdc, from_module_event, KojiModuleBuilder):
         builder = mock.Mock()
         builder.get_disttag_srpm.return_value = 'some srpm disttag'
@@ -50,6 +50,6 @@ class TestModuleWait(unittest.TestCase):
 
         from_module_event.return_value = mocked_module_build
 
-        msg = rida.messaging.RidaModule(msg_id=None, module_build_id=1,
-                                        module_build_state='some state')
+        msg = module_build_service.messaging.RidaModule(msg_id=None, module_build_id=1,
+                                                        module_build_state='some state')
         self.fn(config=self.config, session=self.session, msg=msg)

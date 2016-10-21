@@ -44,10 +44,11 @@ for a number of tasks:
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from os import sys
-import rida.logger
+import module_build_service.logger
 from logging import getLogger
-from rida.errors import (ValidationError, Unauthorized, UnprocessableEntity,
-                         Conflict, NotFound, Forbidden, json_error)
+from module_build_service.errors import (
+    ValidationError, Unauthorized, UnprocessableEntity, Conflict, NotFound,
+    Forbidden, json_error)
 
 app = Flask(__name__)
 app.config.from_envvar("RIDA_SETTINGS", silent=True)
@@ -102,9 +103,9 @@ def notfound_error(e):
     """Flask error handler for Conflict exceptions"""
     return json_error(404, 'Not Found', e.args[0])
 
-import rida.config
-conf = rida.config.from_app_config()
-rida.logger.init_logging(conf)
+import module_build_service.config
+conf = module_build_service.config.from_app_config()
+module_build_service.logger.init_logging(conf)
 log = getLogger(__name__)
 
-from rida import views
+from module_build_service import views

@@ -20,14 +20,14 @@
 #
 # Written by Ralph Bean <rbean@redhat.com>
 #            Matt Prahl <mprahl@redhat.com>
-""" Utility functions for rida. """
+""" Utility functions for module_build_service. """
 from flask import request, url_for
 from datetime import datetime
 import re
 import functools
 import time
-from rida import log, models
-from rida.errors import ValidationError
+from module_build_service import log, models
+from module_build_service.errors import ValidationError
 
 
 def retry(timeout=120, interval=30, wait_on=Exception):

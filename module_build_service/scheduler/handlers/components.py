@@ -25,12 +25,12 @@
 
 import logging
 
-import rida.builder
-import rida.pdc
+import module_build_service.builder
+import module_build_service.pdc
 
 import koji
 
-from rida import models, log
+from module_build_service import models, log
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -77,8 +77,8 @@ def _finalize(config, session, msg, state):
         # And install the macros.
         module_name = parent.name
         tag = parent.koji_tag
-        builder = rida.builder.Builder(parent.owner, module_name, 'koji',
-                                       config, tag_name=tag)
+        builder = module_build_service.builder.Builder(parent.owner, module_name, 'koji',
+                                                       config, tag_name=tag)
         builder.buildroot_connect()
         # tag && add to srpm-build group
         nvr = "{}-{}-{}".format(msg.build_name, msg.build_version,

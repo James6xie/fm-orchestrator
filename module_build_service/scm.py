@@ -35,9 +35,9 @@ import re
 import tempfile
 import shutil
 
-from rida import log
-from rida.errors import Unauthorized, ValidationError
-import rida.utils
+from module_build_service import log
+from module_build_service.errors import Unauthorized, ValidationError
+import module_build_service.utils
 
 
 class SCM(object):
@@ -94,7 +94,7 @@ class SCM(object):
             raise ValidationError("Unhandled SCM scheme: %s" % self.scheme)
 
     @staticmethod
-    @rida.utils.retry(wait_on=RuntimeError)
+    @module_build_service.utils.retry(wait_on=RuntimeError)
     def _run(cmd, chdir=None):
         proc = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE, cwd=chdir)
         stdout, stderr = proc.communicate()

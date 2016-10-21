@@ -27,8 +27,8 @@
 
 import six
 
-from rida import app
-from rida import logger
+from module_build_service import app
+from module_build_service import logger
 
 def asbool(value):
     """ Cast config values to boolean. """
@@ -76,7 +76,7 @@ class Config(object):
         self._log_level = 0
         self._krb_keytab = None
         self._krb_principal = None
-        self._krb_ccache = "/tmp/krb5cc_rida"
+        self._krb_ccache = "/tmp/krb5cc_module_build_service"
         self._messaging = ""
         self._amq_recv_addresses = []
         self._amq_dest_address = ""

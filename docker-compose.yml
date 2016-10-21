@@ -1,20 +1,20 @@
 version: "2"
 services:
-  ridad:
+  module_build_service_daemon:
     build:
       context: .
-    command: python2 /opt/fm-orchestrator/ridad.py
+    command: python2 /opt/module_build_service/module_build_service_daemon.py
     volumes:
-      - ./rida/:/opt/fm-orchestrator/rida/:Z  # rida sources are bind-mounted, so you don't have to rebuild
+      - ./module_build_service/:/opt/module_build_service/module_build_service/:Z  # module_build_service sources are bind-mounted, so you don't have to rebuild
       - ~/.fedora.cert:/root/.fedora.cert:Z   # koji credentials are mounted inside
       - ~/.fedora-server-ca.cert:/root/.fedora-server-ca.cert:Z
       - ~/.fedora-upload-ca.cert:/root/.fedora-upload-ca.cert:Z
-  rida:
+  module_build_service:
     build:
       context: .
     ports:
       - "5000:5000"
     links:
-      - ridad
+      - module_build_service_daemon
     volumes:
-      - ./rida/:/opt/fm-orchestrator/rida/:Z
+      - ./module_build_service/:/opt/module_build_service/module_build_service/:Z

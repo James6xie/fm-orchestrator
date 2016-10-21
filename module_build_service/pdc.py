@@ -33,7 +33,7 @@ import six
 
 def get_pdc_client_session(config):
     """
-    :param config: instance of rida.config.Config
+    :param config: instance of module_build_service.config.Config
     :return pdc_client.PDCClient instance
     """
     return PDCClient(config.pdc_url, config.pdc_develop, config.pdc_insecure) # hardcoded devel env

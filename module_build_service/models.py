@@ -33,8 +33,8 @@ from sqlalchemy import engine_from_config
 from sqlalchemy.orm import validates, scoped_session, sessionmaker
 import modulemd as _modulemd
 
-from rida import db, log
-import rida.messaging
+from module_build_service import db, log
+import module_build_service.messaging
 
 
 # Just like koji.BUILD_STATES, except our own codes for modules.
@@ -44,7 +44,7 @@ BUILD_STATES = {
     # publish the message
     # validate that components are available
     #   and that you can fetch them.
-    # if all is good, go to wait: telling ridad to take over.
+    # if all is good, go to wait: telling module_build_service_daemon to take over.
     # if something is bad, go straight to failed.
     "init": 0,
     # Here, the scheduler picks up tasks in wait.
@@ -147,7 +147,7 @@ class ModuleBuild(RidaBase):
 
     @classmethod
     def from_module_event(cls, session, event):
-        if type(event) == rida.messaging.RidaModule:
+        if type(event) == module_build_service.messaging.RidaModule:
             return session.query(cls).filter(
                 cls.id == event.module_build_id).first()
         else:
@@ -169,8 +169,8 @@ class ModuleBuild(RidaBase):
         )
         session.add(module)
         session.commit()
-        rida.messaging.publish(
-            service='rida',
+        module_build_service.messaging.publish(
+            service='module_build_service',
             topic='module.state.change',
             msg=module.json(),  # Note the state is "init" here...
             conf=conf,
@@ -191,8 +191,8 @@ class ModuleBuild(RidaBase):
             self.state_reason = state_reason
 
         log.debug("%r, state %r->%r" % (self, old_state, self.state))
-        rida.messaging.publish(
-            service='rida',
+        module_build_service.messaging.publish(
+            service='module_build_service',
             topic='module.state.change',
             msg=self.json(),  # Note the state is "init" here...
             conf=conf,
@@ -310,7 +310,7 @@ class ComponentBuild(RidaBase):
 
     @classmethod
     def from_component_event(cls, session, event):
-        if type(event) == rida.messaging.KojiBuildChange:
+        if type(event) == module_build_service.messaging.KojiBuildChange:
             return session.query(cls).filter(
                 cls.task_id == event.build_id).first()
         else:

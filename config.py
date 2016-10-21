@@ -5,7 +5,8 @@ class BaseConfiguration(object):
     # Make this random (used to generate session keys)
     SECRET_KEY = '74d9e9f9cd40e66fc6c4c2e9987dce48df3ce98542529fd0'
     basedir = path.abspath(path.dirname(__file__))
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///{0}'.format(path.join(basedir, 'rida.db'))
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///{0}'.format(path.join(
+        basedir, 'module_build_service.db'))
     SQLALCHEMY_TRACK_MODIFICATIONS = True
     # Where we should run when running "manage.py runssl" directly.
     HOST = '127.0.0.1'
@@ -13,7 +14,7 @@ class BaseConfiguration(object):
 
     SYSTEM = 'koji'
     MESSAGING = 'fedmsg' # or amq
-    KOJI_CONFIG = '/etc/rida/koji.conf'
+    KOJI_CONFIG = '/etc/module_build_service/koji.conf'
     KOJI_PROFILE = 'koji'
     KOJI_ARCHES = ['i686', 'armv7hl', 'x86_64']
     PDC_URL = 'http://modularity.fedorainfracloud.org:8080/rest_api/v1'
@@ -43,7 +44,7 @@ class BaseConfiguration(object):
     LOG_BACKEND = 'journal'
 
     # Path to log file when LOG_BACKEND is set to "file".
-    LOG_FILE = 'rida.log'
+    LOG_FILE = 'module_build_service.log'
 
     # Available log levels are: debug, info, warn, error.
     LOG_LEVEL = 'info'
@@ -56,12 +57,12 @@ class BaseConfiguration(object):
     # AMQ prefixed variables are required only while using 'amq' as messaging backend
     # Addresses to listen to
     AMQ_RECV_ADDRESSES = ['amqps://messaging.mydomain.com/Consumer.m8y.VirtualTopic.eng.koji',
-            'amqps://messaging.mydomain.com/Consumer.m8y.VirtualTopic.eng.rida',]
+            'amqps://messaging.mydomain.com/Consumer.m8y.VirtualTopic.eng.module_build_service',]
     # Address for sending messages
-    AMQ_DEST_ADDRESS = 'amqps://messaging.mydomain.com/Consumer.m8y.VirtualTopic.eng.rida'
-    AMQ_CERT_FILE = '/etc/rida/msg-m8y-client.crt'
-    AMQ_PRIVATE_KEY_FILE = '/etc/rida/msg-m8y-client.key'
-    AMQ_TRUSTED_CERT_FILE = '/etc/rida/Root-CA.crt'
+    AMQ_DEST_ADDRESS = 'amqps://messaging.mydomain.com/Consumer.m8y.VirtualTopic.eng.module_build_service'
+    AMQ_CERT_FILE = '/etc/module_build_service/msg-m8y-client.crt'
+    AMQ_PRIVATE_KEY_FILE = '/etc/module_build_service/msg-m8y-client.key'
+    AMQ_TRUSTED_CERT_FILE = '/etc/module_build_service/Root-CA.crt'
 
 class DevConfiguration(BaseConfiguration):
     LOG_BACKEND = 'console'

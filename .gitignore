@@ -1,5 +1,5 @@
 *.pyc
-rida.db
+module_build_service.db
 server.crt
 server.key
 .vagrant
