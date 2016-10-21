@@ -730,7 +730,7 @@ class CoprModuleBuilder(GenericBuilder):
 
     backend = "copr"
 
-    def __init__(self, module, config, tag_name):
+    def __init__(self, owner, module, config, tag_name):
         self.module_str = module
         self.tag_name = tag_name
 
