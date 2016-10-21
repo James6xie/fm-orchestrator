@@ -2,7 +2,7 @@
 # vi: set ft=ruby :
 
 $script = <<SCRIPT
-    dnf install -y python python-virtualenv python-devel libffi-devel redhat-rpm-config openssl-devel gcc gcc-c++ koji git swig
+    dnf install -y python python-virtualenv python-devel libffi-devel redhat-rpm-config openssl-devel gcc gcc-c++ koji git swig fedmsg-relay
     pip install -r /opt/module_build_service/src/requirements.txt
     pip install -r /opt/module_build_service/src/test-requirements.txt
     cd /opt/module_build_service/src
@@ -13,6 +13,7 @@ $script = <<SCRIPT
     cp /home/vagrant/.fedora-server-ca.cert /root/.fedora-server-ca.cert
     cp /home/vagrant/.fedora-upload-ca.cert /root/.fedora-upload-ca.cert
     cp /home/vagrant/.fedora.cert /root/.fedora.cert
+    systemctl start fedmsg-relay
 SCRIPT
 
 Vagrant.configure("2") do |config|
