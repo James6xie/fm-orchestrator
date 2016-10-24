@@ -14,4 +14,3 @@ python-fedora
 funcsigs # Python2 only
 m2crypto
 m2ext
-copr > 1.74
