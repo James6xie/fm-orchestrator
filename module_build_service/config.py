@@ -60,6 +60,7 @@ class Config(object):
         self._koji_config = None
         self._koji_profile = None
         self._koji_arches = None
+        self._koji_repository_url = None
         self._rpms_default_repository = ""
         self._rpms_allow_repository = False
         self._rpms_default_cache = ""
@@ -231,6 +232,14 @@ class Config(object):
     @koji_arches.setter
     def koji_arches(self, s):
         self._koji_arches = list(s)
+
+    @property
+    def koji_repository_url(self):
+        return self._koji_repository_url
+
+    @koji_repository_url.setter
+    def koji_repository_url(self, s):
+        self._koji_repository_url = str(s)
 
     @property
     def scmurls(self):
