@@ -14,4 +14,3 @@ COPY copr.conf /etc/module_build_service/
 COPY . /opt/module_build_service/
 
 RUN python2 ./manage.py upgradedb && python2 manage.py generatelocalhostcert
-CMD ["python2", "manage.py", "runssl"]
