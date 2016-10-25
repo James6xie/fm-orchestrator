@@ -53,11 +53,6 @@ import module_build_service.utils
 
 logging.basicConfig(level=logging.DEBUG)
 
-try:
-    from copr.client import CoprClient
-except ImportError:
-    log.exception("Failed to import CoprClient.")
-
 # TODO: read defaults from module_build_service's config
 KOJI_DEFAULT_GROUPS = {
     'build': [
@@ -813,6 +808,8 @@ class CoprModuleBuilder(GenericBuilder):
         modulemd = tempfile.mktemp()
         m1 = db.session.query(ModuleBuild).first()
         m1.mmd().dump(modulemd)
+
+        from copr.client import CoprClient
 
         # @TODO how the authentication is designed?
         username, copr = "@copr", "modules"

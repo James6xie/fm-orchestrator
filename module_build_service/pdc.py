@@ -31,11 +31,6 @@ from pdc_client import PDCClient
 import logging
 log = logging.getLogger()
 
-try:
-    from copr.client import CoprClient
-except ImportError:
-    log.exception("Failed to import CoprClient.")
-
 import six
 import module_build_service
 
@@ -179,6 +174,10 @@ def get_module_repo(session, module_info, strict=False, config=module_build_serv
     # @TODO There should be implemented retrieveing URL to a module repofile in koji
     if module["koji_tag"] != "-":
         raise NotImplementedError
+
+    # TODO We should revisit the decision to include CoprClient code in the
+    # pdc.py module.
+    from copr.client import CoprClient
 
     # Module was built in Copr
     # @TODO get the correct user
