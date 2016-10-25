@@ -28,3 +28,4 @@ services:
       - fedmsg-relay
     volumes:
       - ./module_build_service/:/opt/module_build_service/module_build_service/:Z
+    command: python2 manage.py runssl
