@@ -194,6 +194,42 @@ class TestViews(unittest.TestCase):
         self.assertEquals(data['id'], 31)
         self.assertEquals(data['state_name'], 'wait')
 
+    @patch('module_build_service.auth.get_username', return_value='Homer J. Simpson')
+    @patch('module_build_service.auth.assert_is_packager')
+    @patch('module_build_service.scm.SCM')
+    def test_submit_componentless_build(self, mocked_scm, mocked_assert_is_packager,
+                          mocked_get_username):
+        def mocked_scm_checkout(temp_dir):
+            scm_dir = path.join(temp_dir, 'fakemodule2')
+            mkdir(scm_dir)
+            base_dir = path.abspath(path.dirname(__file__))
+            copyfile(path.join(base_dir, 'fakemodule2.yaml'),
+                     path.join(scm_dir, 'fakemodule2.yaml'))
+
+            return scm_dir
+
+        mocked_scm.return_value.checkout = mocked_scm_checkout
+        mocked_scm.return_value.name = 'fakemodule2'
+        rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
+            {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+                'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}))
+        data = json.loads(rv.data)
+
+        self.assertEquals(data['component_builds'], [])
+        self.assertEquals(data['name'], 'fakemodule2')
+        self.assertEquals(data['scmurl'],
+                          ('git://pkgs.stg.fedoraproject.org/modules/testmodule'
+                          '.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'))
+        self.assertEquals(data['release'], '5')
+        self.assertTrue(data['time_submitted'] is not None)
+        self.assertTrue(data['time_modified'] is not None)
+        self.assertEquals(data['release'], '5')
+        self.assertEquals(data['time_completed'], None)
+        self.assertEquals(data['version'], '4.3.44')
+        self.assertEquals(data['owner'], 'Homer J. Simpson')
+        self.assertEquals(data['id'], 31)
+        self.assertEquals(data['state_name'], 'wait')
+
     def test_submit_build_cert_error(self):
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'

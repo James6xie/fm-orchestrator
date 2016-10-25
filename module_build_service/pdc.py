@@ -155,7 +155,7 @@ def get_module_tag(session, module_info, strict=False):
     """
     return get_module(session, module_info, strict=strict)['koji_tag']
 
-def get_module_repo(session, module_info, strict=False, config=rida.conf):
+def get_module_repo(session, module_info, strict=False, config=module_build_service.conf):
     """
     :param session : PDCClient instance
     :param module_info: list of module_info dicts
