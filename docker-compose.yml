@@ -15,7 +15,8 @@ services:
       - module_build_service_daemon
       - fedmsg-relay
     volumes:
-      - ./module_build_service/:/opt/module_build_service/module_build_service/:Z  # module_build_service sources are bind-mounted, so you don't have to rebuild
+      # module_build_service sources are bind-mounted, so you don't have to rebuild
+      - ./module_build_service/:/opt/module_build_service/module_build_service/:Z
       - ~/.fedora.cert:/root/.fedora.cert:Z   # koji credentials are mounted inside
       - ~/.fedora-server-ca.cert:/root/.fedora-server-ca.cert:Z
       - ~/.fedora-upload-ca.cert:/root/.fedora-upload-ca.cert:Z
@@ -28,4 +29,5 @@ services:
       - module_build_service_daemon
       - fedmsg-relay
     volumes:
+      # module_build_service sources are bind-mounted, so you don't have to rebuild
       - ./module_build_service/:/opt/module_build_service/module_build_service/:Z
