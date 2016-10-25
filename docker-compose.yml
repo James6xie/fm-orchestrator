@@ -12,7 +12,6 @@ services:
       context: .
     command: python2 /opt/module_build_service/module_build_service_daemon.py
     links:
-      - module_build_service_daemon
       - fedmsg-relay
     volumes:
       - ./module_build_service/:/opt/module_build_service/module_build_service/:Z  # module_build_service sources are bind-mounted, so you don't have to rebuild
