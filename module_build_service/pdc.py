@@ -29,7 +29,7 @@ import modulemd
 from pdc_client import PDCClient
 from copr.client import CoprClient
 import six
-import rida
+import module_build_service
 
 
 
