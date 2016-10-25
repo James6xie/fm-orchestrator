@@ -1,2 +1,3 @@
 nose
 mock
+copr-backend

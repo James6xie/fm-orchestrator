@@ -166,66 +166,64 @@ class ModuleBuildAPI(MethodView):
         # the availability of git URLs paralelly later.
         full_urls = []
 
-        # List of (pkg_name, git_url) tuples to be used to check
-        # the availability of git URLs paralelly later.
-        full_urls = []
+        # If the modulemd yaml specifies components, then submit them for build
+        if mmd.components:
+            for pkgname, pkg in mmd.components.rpms.packages.items():
+                try:
+                    if pkg.get("repository") and not conf.rpms_allow_repository:
+                        raise Unauthorized(
+                            "Custom component repositories aren't allowed")
+                    if pkg.get("cache") and not conf.rpms_allow_cache:
+                        raise Unauthorized("Custom component caches aren't allowed")
+                    if not pkg.get("repository"):
+                        pkg["repository"] = conf.rpms_default_repository + pkgname
+                    if not pkg.get("cache"):
+                        pkg["cache"] = conf.rpms_default_cache + pkgname
+                    if not pkg.get("commit"):
+                        try:
+                            pkg["commit"] = module_build_service.scm.SCM(
+                                pkg["repository"]).get_latest()
+                        except Exception as e:
+                            raise UnprocessableEntity(
+                                "Failed to get the latest commit: %s" % pkgname)
+                except Exception:
+                    module.transition(conf, models.BUILD_STATES["failed"])
+                    db.session.add(module)
+                    db.session.commit()
+                    raise
 
-        for pkgname, pkg in mmd.components.rpms.packages.items():
-            try:
-                if pkg.get("repository") and not conf.rpms_allow_repository:
-                    raise Unauthorized(
-                        "Custom component repositories aren't allowed")
-                if pkg.get("cache") and not conf.rpms_allow_cache:
-                    raise Unauthorized("Custom component caches aren't allowed")
-                if not pkg.get("repository"):
-                    pkg["repository"] = conf.rpms_default_repository + pkgname
-                if not pkg.get("cache"):
-                    pkg["cache"] = conf.rpms_default_cache + pkgname
-                if not pkg.get("commit"):
-                    try:
-                        pkg["commit"] = module_build_service.scm.SCM(
-                            pkg["repository"]).get_latest()
-                    except Exception as e:
-                        raise UnprocessableEntity(
-                            "Failed to get the latest commit: %s" % pkgname)
-            except Exception:
-                module.transition(conf, models.BUILD_STATES["failed"])
-                db.session.add(module)
-                db.session.commit()
-                raise
+                full_url = pkg["repository"] + "?#" + pkg["commit"]
+                full_urls.append((pkgname, full_url))
 
-            full_url = pkg["repository"] + "?#" + pkg["commit"]
-            full_urls.append((pkgname, full_url))
+            log.debug("Checking scm urls")
+            # Checks the availability of SCM urls.
+            pool = ThreadPool(10)
+            err_msgs = pool.map(lambda data: "Cannot checkout {}".format(data[0])
+                                if not module_build_service.scm.SCM(data[1]).is_available()
+                                else None, full_urls)
+            for err_msg in err_msgs:
+                if err_msg:
+                    raise UnprocessableEntity(err_msg)
 
-        log.debug("Checking scm urls")
-        # Checks the availability of SCM urls.
-        pool = ThreadPool(10)
-        err_msgs = pool.map(lambda data: "Cannot checkout {}".format(data[0])
-                            if not module_build_service.scm.SCM(data[1]).is_available()
-                            else None, full_urls)
-        for err_msg in err_msgs:
-            if err_msg:
-                raise UnprocessableEntity(err_msg)
+            for pkgname, pkg in mmd.components.rpms.packages.items():
+                full_url = pkg["repository"] + "?#" + pkg["commit"]
 
-        for pkgname, pkg in mmd.components.rpms.packages.items():
-            full_url = pkg["repository"] + "?#" + pkg["commit"]
-
-            existing_build = models.ComponentBuild.query.filter_by(
-                module_id=module.id, package=pkgname).first()
-            if (existing_build
-                    and existing_build.state != models.BUILD_STATES['done']):
-                existing_build.state = models.BUILD_STATES['init']
-                db.session.add(existing_build)
-            else:
-                # XXX: what about components that were present in previous
-                # builds but are gone now (component reduction)?
-                build = models.ComponentBuild(
-                    module_id=module.id,
-                    package=pkgname,
-                    format="rpms",
-                    scmurl=full_url,
-                )
-                db.session.add(build)
+                existing_build = models.ComponentBuild.query.filter_by(
+                    module_id=module.id, package=pkgname).first()
+                if (existing_build
+                        and existing_build.state != models.BUILD_STATES['done']):
+                    existing_build.state = models.BUILD_STATES['init']
+                    db.session.add(existing_build)
+                else:
+                    # XXX: what about components that were present in previous
+                    # builds but are gone now (component reduction)?
+                    build = models.ComponentBuild(
+                        module_id=module.id,
+                        package=pkgname,
+                        format="rpms",
+                        scmurl=full_url,
+                    )
+                    db.session.add(build)
 
         module.modulemd = mmd.dumps()
         module.transition(conf, models.BUILD_STATES["wait"])

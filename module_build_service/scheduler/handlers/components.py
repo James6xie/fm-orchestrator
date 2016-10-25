@@ -90,6 +90,13 @@ def _finalize(config, session, msg, state):
     # Find all of the sibling builds of this particular build.
     current_batch = parent.current_batch()
 
+    # If there are no components, transition module build state to 'done'
+    if not current_batch:
+        log.info("Batch is empty. Moving module state to DONE.")
+        parent.transition(config, module.BUILD_STATES['done'])
+        session.commit()
+        return
+
     # Otherwise, check to see if all failed.  If so, then we cannot continue on
     # to a next batch.  This module build is doomed.
     if all([c.state != koji.BUILD_STATES['COMPLETE'] for c in current_batch]):
