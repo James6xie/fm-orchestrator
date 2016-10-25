@@ -225,6 +225,19 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
         """
         raise NotImplementedError()
 
+    @classmethod
+    @abstractmethod
+    def tag_to_repo(self, config, tag_name, arch):
+        """
+        :param config: instance of rida.config.Config
+        :param tag_name: Tag for which the repository is returned
+        :param arch: Architecture for which the repository is returned
+
+        Returns URL of repository containing the built artifacts for
+        the tag with particular name and architecture.
+        """
+        raise NotImplementedError()
+
 class Builder(object):
     """Wrapper class"""
 
@@ -248,6 +261,22 @@ class Builder(object):
         elif backend == "copr":
             return CoprModuleBuilder(owner=owner, module=module,
                                      config=config, **extra)
+        else:
+            raise ValueError("Builder backend='%s' not recognized" % backend)
+
+    @classmethod
+    def tag_to_repo(cls, backend, config, tag_name, arch):
+        """
+        :param backend: a string representing the backend e.g. 'koji'.
+        :param config: instance of rida.config.Config
+        :param tag_name: Tag for which the repository is returned
+        :param arch: Architecture for which the repository is returned
+
+        Returns URL of repository containing the built artifacts for
+        the tag with particular name and architecture.
+        """
+        if backend == "koji":
+            return KojiModuleBuilder.tag_to_repo(config, tag_name, arch)
         else:
             raise ValueError("Builder backend='%s' not recognized" % backend)
 
@@ -431,7 +460,16 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
                 )
             add_groups()
 
-        self.module_target = self._koji_add_target(self.tag_name, self.module_build_tag, self.module_tag)
+        # Add main build target.
+        self.module_target = self._koji_add_target(self.tag_name,
+                                                   self.module_build_tag,
+                                                   self.module_tag)
+
+        # Add -repo target, so Kojira creates RPM repository with built
+        # module for us.
+        self._koji_add_target(self.tag_name + "-repo", self.module_tag,
+                              self.module_tag)
+
         self.__prep = True
         log.info("%r buildroot sucessfully connected." % self)
 
@@ -479,7 +517,6 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
             return task
 
         return get_result()
-
 
     def _get_task_by_artifact(self, artifact_name):
         """
@@ -551,6 +588,18 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
         log.info("submitted build of %s (task_id=%s), via %s" % (
             source, task_id, self))
         return task_id
+
+    @classmethod
+    def tag_to_repo(cls, config, tag_name, arch):
+        """
+        :param config: instance of rida.config.Config
+        :param tag_name: Tag for which the repository is returned
+        :param arch: Architecture for which the repository is returned
+
+        Returns URL of repository containing the built artifacts for
+        the tag with particular name and architecture.
+        """
+        return "%s/%s/latest/%s" % (config.koji_repository_url, tag_name, arch)
 
     def _get_tag(self, tag, strict=True):
         if isinstance(tag, dict):
