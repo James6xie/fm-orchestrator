@@ -23,10 +23,10 @@
 import unittest
 import mock
 
-import rida.messaging
-import rida.scheduler.handlers.repos
-import rida.models
-import rida.builder
+import module_build_service.messaging
+import module_build_service.scheduler.handlers.repos
+import module_build_service.models
+import module_build_service.builder
 
 class TestKojiBuilder(unittest.TestCase):
 
@@ -40,8 +40,9 @@ class TestKojiBuilder(unittest.TestCase):
         """ Test that when a repo msg hits us and we have no match,
         that we do nothing gracefully.
         """
-        repo = rida.builder.Builder.tag_to_repo("koji", self.config,
-                                                "module-base-runtime-0.25-9",
-                                                "x86_64")
+        repo = module_build_service.builder.Builder.tag_to_repo(
+            "koji", self.config,
+            "module-base-runtime-0.25-9",
+            "x86_64")
         self.assertEquals(repo, "https://kojipkgs.stg.fedoraproject.org/repos"
                           "/module-base-runtime-0.25-9/latest/x86_64")
