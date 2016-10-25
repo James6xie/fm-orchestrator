@@ -27,10 +27,17 @@
 
 import modulemd
 from pdc_client import PDCClient
-from copr.client import CoprClient
+
+import logging
+log = logging.getLogger()
+
+try:
+    from copr.client import CoprClient
+except ImportError:
+    log.exception("Failed to import CoprClient.")
+
 import six
 import module_build_service
-
 
 
 def get_pdc_client_session(config):
@@ -161,7 +168,7 @@ def get_module_repo(session, module_info, strict=False, config=module_build_serv
     :param module_info: list of module_info dicts
     :param strict: Normally this function returns None if no module can be
            found.  If strict=True, then a ValueError is raised.
-    :param config: instance of rida.config.Config
+    :param config: instance of module_build_service.config.Config
     :return: URL to a DNF repository for the module
     """
     module = get_module(session, module_info, strict=strict)
