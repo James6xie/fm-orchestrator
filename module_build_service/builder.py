@@ -46,12 +46,10 @@ import kobo.rpmlib
 
 import munch
 from OpenSSL.SSL import SysCallError
-from copr.client import CoprClient
 
 from module_build_service import log, db
 from module_build_service.models import ModuleBuild
 import module_build_service.utils
-
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -810,6 +808,8 @@ class CoprModuleBuilder(GenericBuilder):
         modulemd = tempfile.mktemp()
         m1 = db.session.query(ModuleBuild).first()
         m1.mmd().dump(modulemd)
+
+        from copr.client import CoprClient
 
         # @TODO how the authentication is designed?
         username, copr = "@copr", "modules"
