@@ -15,10 +15,10 @@ services:
       - fedmsg-relay
     volumes:
       # module_build_service sources are bind-mounted, so you don't have to rebuild
-      - ./module_build_service/:/opt/module_build_service/module_build_service/:Z
-      - ~/.fedora.cert:/root/.fedora.cert:Z   # koji credentials are mounted inside
-      - ~/.fedora-server-ca.cert:/root/.fedora-server-ca.cert:Z
-      - ~/.fedora-upload-ca.cert:/root/.fedora-upload-ca.cert:Z
+      - ./module_build_service/:/opt/module_build_service/module_build_service/:z
+      - ~/.fedora.cert:/root/.fedora.cert:z   # koji credentials are mounted inside
+      - ~/.fedora-server-ca.cert:/root/.fedora-server-ca.cert:z
+      - ~/.fedora-upload-ca.cert:/root/.fedora-upload-ca.cert:z
   module_build_service:
     build:
       context: .
@@ -29,5 +29,5 @@ services:
       - fedmsg-relay
     volumes:
       # module_build_service sources are bind-mounted, so you don't have to rebuild
-      - ./module_build_service/:/opt/module_build_service/module_build_service/:Z
+      - ./module_build_service/:/opt/module_build_service/module_build_service/:z
     command: python2 manage.py runssl
