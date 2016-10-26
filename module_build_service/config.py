@@ -269,7 +269,10 @@ class Config(object):
 
     @rpms_default_repository.setter
     def rpms_default_repository(self, s):
-        self._rpms_default_repository = str(s)
+        rpm_repo = str(s)
+        if rpm_repo[-1] != '/':
+            rpm_repo = rpm_repo + '/'
+        self._rpms_default_repository = rpm_repo
 
     @property
     def rpms_allow_repository(self):
@@ -287,7 +290,10 @@ class Config(object):
 
     @rpms_default_cache.setter
     def rpms_default_cache(self, s):
-        self._rpms_default_cache = str(s)
+        rpm_cache = str(s)
+        if rpm_cache[-1] != '/':
+            rpm_cache = rpm_cache + '/'
+        self._rpms_default_cache = rpm_cache
 
     @property
     def rpms_allow_cache(self):
