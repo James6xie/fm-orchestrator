@@ -30,12 +30,6 @@ import six
 from module_build_service import app
 from module_build_service import logger
 
-def asbool(value):
-    """ Cast config values to boolean. """
-    return six.text_type(value).lower() in [
-        'y', 'yes', 't', 'true', '1', 'on'
-    ]
-
 
 def from_app_config():
     """ Create the configuration instance from the values in app.config
