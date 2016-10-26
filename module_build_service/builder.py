@@ -308,6 +308,8 @@ class KojiModuleBuilder(GenericBuilder):
         self.module_build_tag = None # string
         self.module_target = None # A koji target dict
 
+        self.build_priority = config.koji_build_priority
+
     def __repr__(self):
         return "<KojiModuleBuilder module: %s, tag: %s>" % (
             self.module_str, self.tag_name)
@@ -582,7 +584,8 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
             self.koji_session.uploadWrapper(source, serverdir, callback=callback)
             source = "%s/%s" % (serverdir, os.path.basename(source))
 
-        task_id = self.koji_session.build(source, self.module_target['name'])
+        task_id = self.koji_session.build(source, self.module_target['name'],
+                                          priority=self.build_priority)
         log.info("submitted build of %s (task_id=%s), via %s" % (
             source, task_id, self))
         return task_id

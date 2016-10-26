@@ -60,6 +60,7 @@ class Config(object):
         self._koji_config = None
         self._koji_profile = None
         self._koji_arches = None
+        self._koji_build_priority = 10
         self._koji_repository_url = None
         self._rpms_default_repository = ""
         self._rpms_allow_repository = False
@@ -240,6 +241,16 @@ class Config(object):
     @koji_repository_url.setter
     def koji_repository_url(self, s):
         self._koji_repository_url = str(s)
+
+    @property
+    def koji_build_priority(self):
+        return self._koji_build_priority
+
+    @koji_build_priority.setter
+    def koji_build_priority(self, i):
+        if not isinstance(i, int):
+            raise TypeError("koji_build_priority needs to be an int")
+        self._koji_build_priority = i
 
     @property
     def scmurls(self):
