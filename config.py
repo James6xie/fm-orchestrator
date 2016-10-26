@@ -40,6 +40,7 @@ class BaseConfiguration(object):
     PKGDB_API_URL = 'https://admin.stg.fedoraproject.org/pkgdb/api'
 
     FAS_URL = 'https://admin.stg.fedoraproject.org/accounts'
+    REQUIRE_PACKAGER = True
 
     # Available backends are: console, file, journal.
     LOG_BACKEND = 'journal'
@@ -69,7 +70,10 @@ class DevConfiguration(BaseConfiguration):
     LOG_BACKEND = 'console'
     LOG_LEVEL = 'debug'
     HOST = '0.0.0.0'
-    FAS_USERNAME = 'put your fas username here'
+    REQUIRE_PACKAGER = False
+    # You only need these FAS options if you turn on authorization
+    # with REQUIRE_PACKAGER=True
+    #FAS_USERNAME = 'put your fas username here'
     #FAS_PASSWORD = 'put your fas password here....'
     #FAS_PASSWORD = os.environ('FAS_PASSWORD') # you could store it here
     #FAS_PASSWORD = commands.getoutput('pass your_fas_password').strip()

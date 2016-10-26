@@ -72,6 +72,7 @@ class Config(object):
         self._fas_url = ""
         self._fas_username = ""
         self._fas_password = ""
+        self._require_packager = True
         self._log_backend = ""
         self._log_file = ""
         self._log_level = 0
@@ -343,6 +344,14 @@ class Config(object):
     @fas_password.setter
     def fas_password(self, s):
         self._fas_password = str(s)
+
+    @property
+    def require_packager(self):
+        return self._require_packager
+
+    @require_packager.setter
+    def require_packager(self, s):
+        self._require_packager = bool(s)
 
     @property
     def log_backend(self):
