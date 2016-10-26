@@ -12,6 +12,7 @@ RUN dnf install -y \
     python-m2ext \
     fedmsg-relay \
     python-mock \
+    git \
     && \
     dnf autoremove -y \
     && \
