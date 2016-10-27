@@ -30,12 +30,6 @@ import six
 from module_build_service import app
 from module_build_service import logger
 
-def asbool(value):
-    """ Cast config values to boolean. """
-    return six.text_type(value).lower() in [
-        'y', 'yes', 't', 'true', '1', 'on'
-    ]
-
 
 def from_app_config():
     """ Create the configuration instance from the values in app.config
@@ -73,6 +67,7 @@ class Config(object):
         self._fas_url = ""
         self._fas_username = ""
         self._fas_password = ""
+        self._require_packager = True
         self._log_backend = ""
         self._log_file = ""
         self._log_level = 0
@@ -360,6 +355,14 @@ class Config(object):
     @fas_password.setter
     def fas_password(self, s):
         self._fas_password = str(s)
+
+    @property
+    def require_packager(self):
+        return self._require_packager
+
+    @require_packager.setter
+    def require_packager(self, s):
+        self._require_packager = bool(s)
 
     @property
     def log_backend(self):
