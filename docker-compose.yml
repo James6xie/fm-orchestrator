@@ -1,8 +1,7 @@
 version: "2"
 services:
   fedmsg-relay:
-    build:
-      context: .
+    build: .
     command: fedmsg-relay
     expose:
       - 2001
@@ -11,8 +10,7 @@ services:
       # module_build_service sources are bind-mounted, so you don't have to rebuild
       - ./:/opt/module_build_service/:z
   scheduler:
-    build:
-      context: .
+    build: .
     command: python2 /opt/module_build_service/module_build_service_daemon.py
     links:
       - fedmsg-relay
@@ -23,8 +21,7 @@ services:
       - ~/.fedora-server-ca.cert:/root/.fedora-server-ca.cert:z
       - ~/.fedora-upload-ca.cert:/root/.fedora-upload-ca.cert:z
   frontend:
-    build:
-      context: .
+    build: .
     ports:
       - "5000:5000"
     links:
