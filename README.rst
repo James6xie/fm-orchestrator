@@ -14,6 +14,11 @@ tasks:
 - Emitting bus messages about all state changes so that other infrastructure
   services can pick up the work.
 
+Development
+===========
+
+For help on setting up a development environment, see `HACKING.rst`.
+
 Client-side API
 ===============
 
@@ -378,86 +383,3 @@ E.g. ``"scmurl": "git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#020ea
 The toplevel directory containing the trees for each architecture of a module.
 This field is only present when a module finished building, i.e. with the
 states 'done' or 'ready'.
-
-
-Development
-===========
-``Logging``
-----------
-
-If you're running module_build_service from scm then the DevConfiguration from config.py which contains LOG_LEVEL=debug should get applied. If you're having trouble just change LOG_LEVEL in BaseConfiguration.
-See more about it in module_build_service/__init__.py config.from_object()
-
-
-``Docker``
-----------
-
-You can use docker containers for development. Here's a guide how to setup `docker <https://developer.fedoraproject.org/tools/docker/about.html>`_ and `docker-compose <https://developer.fedoraproject.org/tools/docker/compose.html>`_.
-
-After your docker engine is set up and running, and docker-compose installed you can start whole system with a single command::
-
-    $ sudo docker-compose up
-
-It may happen that you will run into issues and the container won't start properly. Best thing to do in that case is to rebuild the environment from scratch::
-
-    $ sudo docker-compose down -v
-    $ sudo docker-compose build --no-cache --pull
-
-First command will stop and remove all containers and volumes and second command will pull latest base image and perform a clean build without cache.
-
-
-``Vagrant``
------------
-
-In order to to setup a development environment using Vagrant, it is required that you have your FAS (Fedora Account System) certificates generated and located in your home directory.
-For more information on these certificates, visit the `Koji documentation <https://fedoraproject.org/wiki/Using_the_Koji_build_system#Fedora_Certificates>`_.
-
-Once your environment is setup, run (depending on your OS, you may need to run it with sudo)::
-
-    $ vagrant up
-
-This will start module_build_service's frontend (API) and scheduler. To access the frontend, visit the following URL::
-
-    https://127.0.0.1:5000/module-build-service/1/module-builds/
-
-At any point you may enter the guest VM with::
-
-    $ vagrant ssh
-
-To start the frontend manually, run the following inside the guest::
-
-    $ cd /opt/module_build_service/src
-    $ python manage.py runssl --debug
-
-To start the scheduler manually, run the following inside the guest::
-
-    $ cd /opt/module_build_service/src
-    $ python module_build_service_daemon.py
-
-Alternatively, you can restart the Vagrant guest, which inherently starts/restarts the frontend and the scheduler with::
-
-    $ vagrant reload
-
-
-``fedmsg Signing for Development``
-----------------------------------
-
-In order to enable fedmsg signing in development, you will need to follow a series of steps.
-Note that this will conflict with signed messages from a different CA that are on the message bus, so this may cause unexpected results.
-
-Generate the CA, the certificate to be used by fedmsg, and the CRL with::
-
-    $ python manage.py gendevfedmsgcert
-
-Setup Apache to host the CRL::
-
-    $ dnf install httpd && systemctl enable httpd && systemctl start httpd
-    $ mkdir -p /var/www/html/crl
-    $ ln -s /opt/module_build_service/pki/ca.crl /var/www/html/crl/ca.crl
-    $ ln -s /opt/module_build_service/pki/ca.crt /var/www/html/crl/ca.crt
-
-Create a directory to house the fedmsg cache::
-
-    $ mkdir -p /etc/pki/fedmsg
-
-Then uncomment the fedmsg signing configuration in fedmsg.d/module_build_service.py.
