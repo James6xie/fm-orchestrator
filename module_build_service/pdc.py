@@ -199,6 +199,10 @@ def module_depsolving_wrapper(session, module_list, strict=True):
 
     # Make sure that these are dicts from PDC ... ensures all values
     module_list = set([get_module_tag(session, x, strict) for x in module_list])
+    # pdc-updater adds "module-" prefix to koji_tag, but here we expect koji_tag
+    # is just NVR of a module, so remove the "module-" prefix.
+    module_list = set([x[len("module-"):] if x.startswith("module-") else x
+                       for x in module_list])
     seen = set() # don't query pdc for the same items all over again
 
     while True:
