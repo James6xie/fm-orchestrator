@@ -1,5 +1,6 @@
 version: "2"
 services:
+
   fedmsg-relay:
     build: .
     command: fedmsg-relay
@@ -9,6 +10,7 @@ services:
     volumes:
       # module_build_service sources are bind-mounted, so you don't have to rebuild
       - ./:/opt/module_build_service/:z
+
   scheduler:
     build: .
     command: python2 /opt/module_build_service/module_build_service_daemon.py
@@ -20,6 +22,7 @@ services:
       - ~/.fedora.cert:/root/.fedora.cert:z   # koji credentials are mounted inside
       - ~/.fedora-server-ca.cert:/root/.fedora-server-ca.cert:z
       - ~/.fedora-upload-ca.cert:/root/.fedora-upload-ca.cert:z
+
   frontend:
     build: .
     ports:
