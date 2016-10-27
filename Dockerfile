@@ -13,7 +13,7 @@ RUN dnf install -y \
         fedmsg-relay \
         python-mock \
         git \
-	# Troubleshooting tools
+        # Troubleshooting tools
         telnet \
         nc \
     && dnf autoremove -y \

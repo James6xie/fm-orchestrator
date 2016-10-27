@@ -4,10 +4,13 @@ services:
     build:
       context: .
     command: fedmsg-relay
-    ports:
-      - "2003:2003"
-      - "4001:4001"
-  module_build_service_daemon:
+    expose:
+      - 2001
+      - 2003
+    volumes:
+      # module_build_service sources are bind-mounted, so you don't have to rebuild
+      - ./:/opt/module_build_service/:z
+  scheduler:
     build:
       context: .
     command: python2 /opt/module_build_service/module_build_service_daemon.py
@@ -15,19 +18,19 @@ services:
       - fedmsg-relay
     volumes:
       # module_build_service sources are bind-mounted, so you don't have to rebuild
-      - ./module_build_service/:/opt/module_build_service/module_build_service/:z
+      - ./:/opt/module_build_service/:z
       - ~/.fedora.cert:/root/.fedora.cert:z   # koji credentials are mounted inside
       - ~/.fedora-server-ca.cert:/root/.fedora-server-ca.cert:z
       - ~/.fedora-upload-ca.cert:/root/.fedora-upload-ca.cert:z
-  module_build_service:
+  frontend:
     build:
       context: .
     ports:
       - "5000:5000"
     links:
-      - module_build_service_daemon
+      - scheduler
       - fedmsg-relay
     volumes:
       # module_build_service sources are bind-mounted, so you don't have to rebuild
-      - ./module_build_service/:/opt/module_build_service/module_build_service/:z
+      - ./:/opt/module_build_service/:z
     command: python2 manage.py runssl
