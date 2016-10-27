@@ -43,6 +43,7 @@ import time
 import random
 import string
 import kobo.rpmlib
+import xmlrpclib
 
 import munch
 from OpenSSL.SSL import SysCallError
@@ -403,6 +404,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
         return srpm_paths[0]
 
     @staticmethod
+    @module_build_service.utils.retry(wait_on=(xmlrpclib.ProtocolError, koji.GenericError))
     def get_session(config, owner):
         koji_config = munch.Munch(koji.read_config(
             profile_name=config.koji_profile,
