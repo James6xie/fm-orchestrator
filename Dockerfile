@@ -13,6 +13,9 @@ RUN dnf install -y \
         fedmsg-relay \
         python-mock \
         git \
+	# Troubleshooting tools
+        telnet \
+        nc \
     && dnf autoremove -y \
     && dnf clean all \
     && mkdir /opt/module_build_service/ \
