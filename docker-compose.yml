@@ -30,7 +30,22 @@ services:
     links:
       - scheduler
       - fedmsg-relay
+    depends_on:
+      - upgradedb
+      - generatelocalhostcert
     volumes:
       # module_build_service sources are bind-mounted, so you don't have to rebuild
       - ./:/opt/module_build_service/:z
     command: python2 manage.py runssl
+
+  upgradedb:
+    build: .
+    volumes:
+      - ./:/opt/module_build_service/:z
+    command: python2 manage.py upgradedb
+
+  generatelocalhostcert:
+    build: .
+    volumes:
+      - ./:/opt/module_build_service/:z
+    command: python2 manage.py generatelocalhostcert
