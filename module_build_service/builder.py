@@ -425,7 +425,12 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
                     principal=principal,
                     keytab=keytab,
                     ccache=ccache,
-                    proxyuser=owner,
+                    # Unfortunately, the proxyuser method requires that we add all
+                    # of the modularity developers to the ProxyDNs entry in the
+                    # staging koji-hub config, and that's just not going to happen.
+                    # We get to re-work this in this ticket anyways,
+                    # https://pagure.io/fm-orchestrator/issue/112
+                    #proxyuser=owner,
                 )
             else:
                 koji_session.krb_login(ccache=ccache)
@@ -434,7 +439,12 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
                 os.path.expanduser(koji_config.cert),
                 None,
                 os.path.expanduser(koji_config.serverca),
-                proxyuser=owner,
+                # Unfortunately, the proxyuser method requires that we add all
+                # of the modularity developers to the ProxyDNs entry in the
+                # staging koji-hub config, and that's just not going to happen.
+                # We get to re-work this in this ticket anyways,
+                # https://pagure.io/fm-orchestrator/issue/112
+                #proxyuser=owner,
             )
         else:
             raise ValueError("Unrecognized koji authtype %r" % authtype)
