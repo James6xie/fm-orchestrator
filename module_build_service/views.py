@@ -139,7 +139,7 @@ class ModuleBuildAPI(MethodView):
             log.debug('Checking whether module build already exist.')
              # TODO: make this configurable, we might want to allow
              # resubmitting any stuck build on DEV no matter the state
-            if module.state not in (models.BUILD_STATES['failed']):
+            if module.state not in (models.BUILD_STATES['failed'],):
                 log.error('Module (state=%s) already exists. '
                           'Only new or failed builds are allowed.'
                           % module.state)
