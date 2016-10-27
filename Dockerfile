@@ -2,25 +2,21 @@ FROM fedora:24
 
 # so we don't have to compile those when fetched from PyPI
 RUN dnf install -y \
-    python-pip \
-    python2-setuptools \
-    python2-cffi \
-    python2-zmq \
-    python2-cryptography \
-    koji \
-    python2-pdc-client \
-    python-m2ext \
-    fedmsg-relay \
-    python-mock \
-    git \
-    && \
-    dnf autoremove -y \
-    && \
-    dnf clean all \
-    && \
-    mkdir /opt/module_build_service/ \
-    && \
-    mkdir /etc/module_build_service
+        python-pip \
+        python2-setuptools \
+        python2-cffi \
+        python2-zmq \
+        python2-cryptography \
+        koji \
+        python2-pdc-client \
+        python-m2ext \
+        fedmsg-relay \
+        python-mock \
+        git \
+    && dnf autoremove -y \
+    && dnf clean all \
+    && mkdir /opt/module_build_service/ \
+    && mkdir /etc/module_build_service
 WORKDIR /opt/module_build_service/
 COPY ./requirements.txt /opt/module_build_service/
 RUN pip install --user -r ./requirements.txt
