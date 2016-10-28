@@ -54,6 +54,7 @@ class Config(object):
         self._koji_config = None
         self._koji_profile = None
         self._koji_arches = None
+        self._koji_proxyuser = None
         self._koji_build_priority = 10
         self._koji_repository_url = None
         self._rpms_default_repository = ""
@@ -228,6 +229,15 @@ class Config(object):
     @koji_arches.setter
     def koji_arches(self, s):
         self._koji_arches = list(s)
+
+    @property
+    def koji_proxyuser(self):
+        """Koji proxyuser flag."""
+        return self._koji_proxyuser
+
+    @koji_proxyuser.setter
+    def koji_proxyuser(self, s):
+        self._koji_proxyuser = bool(s)
 
     @property
     def koji_repository_url(self):

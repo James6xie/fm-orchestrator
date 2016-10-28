@@ -411,6 +411,12 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
             user_config=config.koji_config,
         ))
 
+        # In "production" scenarios, our service principal may be blessed to
+        # allow us to authenticate as the owner of this request.  But, in local
+        # development that is unreasonable so just submit the job as the
+        # module_build_service developer.
+        proxyuser = owner if config.koji_proxyuser else None
+
         address = koji_config.server
         log.info("Connecting to koji %r" % address)
         koji_session = koji.ClientSession(address, opts=koji_config)
@@ -425,12 +431,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
                     principal=principal,
                     keytab=keytab,
                     ccache=ccache,
-                    # Unfortunately, the proxyuser method requires that we add all
-                    # of the modularity developers to the ProxyDNs entry in the
-                    # staging koji-hub config, and that's just not going to happen.
-                    # We get to re-work this in this ticket anyways,
-                    # https://pagure.io/fm-orchestrator/issue/112
-                    #proxyuser=owner,
+                    proxyuser=owner,
                 )
             else:
                 koji_session.krb_login(ccache=ccache)
@@ -439,12 +440,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
                 os.path.expanduser(koji_config.cert),
                 None,
                 os.path.expanduser(koji_config.serverca),
-                # Unfortunately, the proxyuser method requires that we add all
-                # of the modularity developers to the ProxyDNs entry in the
-                # staging koji-hub config, and that's just not going to happen.
-                # We get to re-work this in this ticket anyways,
-                # https://pagure.io/fm-orchestrator/issue/112
-                #proxyuser=owner,
+                proxyuser=owner,
             )
         else:
             raise ValueError("Unrecognized koji authtype %r" % authtype)
