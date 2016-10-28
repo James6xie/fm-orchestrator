@@ -13,6 +13,7 @@ RUN dnf install -y \
         fedmsg-relay \
         python-mock \
         git \
+        krb5-workstation \
         # Troubleshooting tools
         telnet \
         nc \
@@ -24,7 +25,5 @@ WORKDIR /opt/module_build_service/
 COPY ./requirements.txt /opt/module_build_service/
 RUN pip install --user -r ./requirements.txt
 
-COPY koji.conf /etc/module_build_service/
-COPY copr.conf /etc/module_build_service/
-
-COPY . /opt/module_build_service/
+RUN ln -s /opt/module_build_service/koji.conf /etc/module_build_service/koji.conf \
+ && ln -s /opt/module_build_service/copr.conf /etc/module_build_service/copr.conf

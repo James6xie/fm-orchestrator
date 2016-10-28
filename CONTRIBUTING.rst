@@ -4,9 +4,15 @@ Development
 We have two mechanisms for quickly setting up a development environment.  `docker-compose` and `vagrant`.
 
 In order to to setup a development environment, it is required that you have
-your FAS (Fedora Account System) certificates generated and located in your
-home directory. For more information on these certificates, visit the `Koji
-documentation <https://fedoraproject.org/wiki/Using_the_Koji_build_system#Fedora_Certificates>`_.
+your Fedora kerberos credentials generated in a *special location*.  Run the
+following::
+
+    $ KRB5CCNAME=FILE:/var/tmp/krbcc kinit YOUR_USERNAME@FEDORAPROJECT.ORG
+
+If you have problems in later steps with kerberos reading those credentials
+inside the `scheduler` container, you should check that `/var/tmp/krbcc` exists
+on your machine and that *it is not a directory*.  Try removing it with `$ sudo
+rm -rf /var/tmp/krbcc` and running `kinit` again.
 
 Docker
 ------
