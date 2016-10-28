@@ -26,4 +26,5 @@ COPY ./requirements.txt /opt/module_build_service/
 RUN pip install --user -r ./requirements.txt
 
 RUN ln -s /opt/module_build_service/koji.conf /etc/module_build_service/koji.conf \
- && ln -s /opt/module_build_service/copr.conf /etc/module_build_service/copr.conf
+ && ln -s /opt/module_build_service/copr.conf /etc/module_build_service/copr.conf \
+ && ln -s /opt/module_build_service/krb5-stg.fp.o /etc/krb5.conf.d/stg_fedoraproject_org
