@@ -418,10 +418,9 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
         proxyuser = owner if config.koji_proxyuser else None
 
         address = koji_config.server
-        log.info("Connecting to koji %r" % address)
-        koji_session = koji.ClientSession(address, opts=koji_config)
-
         authtype = koji_config.authtype
+        log.info("Connecting to koji %r with %r" % (address, authtype))
+        koji_session = koji.ClientSession(address, opts=koji_config)
         if authtype == "kerberos":
             ccache = getattr(config, "krb_ccache", None)
             keytab = getattr(config, "krb_keytab", None)
