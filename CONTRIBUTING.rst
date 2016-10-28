@@ -11,13 +11,14 @@ documentation <https://fedoraproject.org/wiki/Using_the_Koji_build_system#Fedora
 Docker
 ------
 
-You can use docker containers for development.  Here's a guide how to setup
+You can use docker containers for development.  Here's a guide on how to setup
 `docker <https://developer.fedoraproject.org/tools/docker/about.html>`_ and
 `docker-compose <https://developer.fedoraproject.org/tools/docker/compose.html>`_
-(it's just a `dnf install` away).
+for Fedora users (it's just a `dnf install` away).  Mac users should see `these
+docs <https://docs.docker.com/docker-for-mac/>`_.
 
-After your docker engine is set up and running, and docker-compose installed
-you can start whole system with a single command::
+After your docker engine is set up and running and docker-compose is installed,
+you can start the entire development environment with a single command::
 
     $ docker-compose up
 
@@ -26,21 +27,20 @@ and the backend `scheduler`. You can submit a local test build with the
 `submit-build.sh` script, which should submit an HTTP POST to the frontend,
 requesting a build.
 
-You may want to wipe your local development database from time to time to try
-something starting from scratch.  Try the following commands, and you should
-have a fresh environment::
+You may want to wipe your local development database from time to time. Try the
+following commands, and you should have a fresh environment::
 
     $ rm module_build_service.db
     $ docker-compose down -v && docker-compose up
 
-If things get really screwy and your container won't start properly, best thing
+If things get really screwy and your containers won't start properly, the best thing
 to do is to rebuild the environment from scratch::
 
     $ docker-compose down -v
     $ docker-compose build --no-cache --pull
 
-First command will stop and remove all containers and volumes and second
-command will pull latest base image and perform a clean build without cache.
+The first command will stop and remove all your containers and volumes and the second
+command will pull the latest base image and perform a clean build without using the cache.
 
 Vagrant
 -------
@@ -74,8 +74,9 @@ Alternatively, you can restart the Vagrant guest, which inherently starts/restar
 Logging
 ------
 
-If you're running module_build_service from scm then the DevConfiguration from config.py which contains LOG_LEVEL=debug should get applied. If you're having trouble just change LOG_LEVEL in BaseConfiguration.
-See more about it in module_build_service/__init__.py config.from_object()
+If you're running module_build_service from scm, then the DevConfiguration from
+`config.py` which contains `LOG_LEVEL=debug` should get applied. See more about
+it in `module_build_service/__init__.py`, `config.from_object()`.
 
 
 fedmsg Signing for Development
