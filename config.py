@@ -17,6 +17,7 @@ class BaseConfiguration(object):
     KOJI_CONFIG = '/etc/module_build_service/koji.conf'
     KOJI_PROFILE = 'koji'
     KOJI_ARCHES = ['i686', 'armv7hl', 'x86_64']
+    KOJI_PROXYUSER = True
     COPR_CONFIG = '/etc/rida/copr.conf'
     PDC_URL = 'http://modularity.fedorainfracloud.org:8080/rest_api/v1'
     PDC_INSECURE = True
@@ -70,6 +71,10 @@ class DevConfiguration(BaseConfiguration):
     LOG_BACKEND = 'console'
     LOG_LEVEL = 'debug'
     HOST = '0.0.0.0'
+
+    # This requires that your principal be listed server side in ProxyPrincipals.
+    KOJI_PROXYUSER = False
+
     REQUIRE_PACKAGER = False
     # You only need these FAS options if you turn on authorization
     # with REQUIRE_PACKAGER=True
