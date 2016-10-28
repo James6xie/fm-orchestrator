@@ -13,6 +13,9 @@ RUN dnf install -y \
         fedmsg-relay \
         python-mock \
         git \
+        # Troubleshooting tools
+        telnet \
+        nc \
     && dnf autoremove -y \
     && dnf clean all \
     && mkdir /opt/module_build_service/ \
@@ -25,5 +28,3 @@ COPY koji.conf /etc/module_build_service/
 COPY copr.conf /etc/module_build_service/
 
 COPY . /opt/module_build_service/
-
-RUN python2 ./manage.py upgradedb && python2 manage.py generatelocalhostcert

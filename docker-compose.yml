@@ -1,33 +1,51 @@
 version: "2"
 services:
+
   fedmsg-relay:
-    build:
-      context: .
+    build: .
     command: fedmsg-relay
-    ports:
-      - "2003:2003"
-      - "4001:4001"
-  module_build_service_daemon:
-    build:
-      context: .
+    expose:
+      - 2001
+      - 2003
+    volumes:
+      # module_build_service sources are bind-mounted, so you don't have to rebuild
+      - ./:/opt/module_build_service/:z
+
+  scheduler:
+    build: .
     command: python2 /opt/module_build_service/module_build_service_daemon.py
     links:
       - fedmsg-relay
     volumes:
       # module_build_service sources are bind-mounted, so you don't have to rebuild
-      - ./module_build_service/:/opt/module_build_service/module_build_service/:z
+      - ./:/opt/module_build_service/:z
       - ~/.fedora.cert:/root/.fedora.cert:z   # koji credentials are mounted inside
       - ~/.fedora-server-ca.cert:/root/.fedora-server-ca.cert:z
       - ~/.fedora-upload-ca.cert:/root/.fedora-upload-ca.cert:z
-  module_build_service:
-    build:
-      context: .
+
+  frontend:
+    build: .
     ports:
       - "5000:5000"
     links:
-      - module_build_service_daemon
+      - scheduler
       - fedmsg-relay
+    depends_on:
+      - upgradedb
+      - generatelocalhostcert
     volumes:
       # module_build_service sources are bind-mounted, so you don't have to rebuild
-      - ./module_build_service/:/opt/module_build_service/module_build_service/:z
+      - ./:/opt/module_build_service/:z
     command: python2 manage.py runssl
+
+  upgradedb:
+    build: .
+    volumes:
+      - ./:/opt/module_build_service/:z
+    command: python2 manage.py upgradedb
+
+  generatelocalhostcert:
+    build: .
+    volumes:
+      - ./:/opt/module_build_service/:z
+    command: python2 manage.py generatelocalhostcert
