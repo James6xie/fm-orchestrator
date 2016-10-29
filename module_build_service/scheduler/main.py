@@ -157,8 +157,11 @@ class MessageWorker(threading.Thread):
             log.debug("Handler is NO_OP: %s" % idx)
         else:
             log.info("Calling %s" % idx)
-            handler(conf, session, msg)
+            further_work = handler(conf, session, msg) or []
             log.info("Done with %s" % idx)
+            for event in further_work:
+                log.info("  Scheduling faked event %r" % event)
+                self.incoming_work_queue.put(event)
 
 
 class Poller(threading.Thread):
