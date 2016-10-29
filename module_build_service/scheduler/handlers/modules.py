@@ -23,7 +23,7 @@
 
 """ Handlers for module change events on the message bus. """
 
-from module_build_service import models, db, log
+from module_build_service import models, log
 import module_build_service.builder
 import module_build_service.pdc
 import module_build_service.utils
@@ -50,7 +50,7 @@ def done(config, session, msg):
     Otherwise the done -> ready state should happen when all
     dependent modules were re-built, at least that's the current plan.
     """
-    build = models.ModuleBuild.from_module_event(db.session, msg)
+    build = models.ModuleBuild.from_module_event(session, msg)
     module_info = build.json()
     if module_info['state'] != msg.module_build_state:
         log.warn("Note that retrieved module state %r "
@@ -71,7 +71,7 @@ def wait(config, session, msg):
     The kicking off of individual component builds is handled elsewhere,
     in module_build_service.schedulers.handlers.repos.
     """
-    build = models.ModuleBuild.from_module_event(db.session, msg)
+    build = models.ModuleBuild.from_module_event(session, msg)
     log.info("Found build=%r from message" % build)
 
     module_info = build.json()
