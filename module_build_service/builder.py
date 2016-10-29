@@ -430,7 +430,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
                     principal=principal,
                     keytab=keytab,
                     ccache=ccache,
-                    proxyuser=owner,
+                    proxyuser=proxyuser,
                 )
             else:
                 koji_session.krb_login(ccache=ccache)
@@ -439,7 +439,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
                 os.path.expanduser(koji_config.cert),
                 None,
                 os.path.expanduser(koji_config.serverca),
-                proxyuser=owner,
+                proxyuser=proxyuser,
             )
         else:
             raise ValueError("Unrecognized koji authtype %r" % authtype)
