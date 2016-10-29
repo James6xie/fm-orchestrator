@@ -419,12 +419,15 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
 
         address = koji_config.server
         authtype = koji_config.authtype
-        log.info("Connecting to koji %r with %r" % (address, authtype))
+        log.info("Connecting to koji %r with %r.  (proxyuser %r)" % (
+            address, authtype, proxyuser))
         koji_session = koji.ClientSession(address, opts=koji_config)
         if authtype == "kerberos":
             ccache = getattr(config, "krb_ccache", None)
             keytab = getattr(config, "krb_keytab", None)
             principal = getattr(config, "krb_principal", None)
+            log.debug("  ccache: %r, keytab: %r, principal: %r" % (
+                ccache, keytab, principal))
             if keytab and principal:
                 koji_session.krb_login(
                     principal=principal,
