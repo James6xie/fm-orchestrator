@@ -27,6 +27,7 @@ from module_build_service import models, db, log
 import module_build_service.builder
 import module_build_service.pdc
 import module_build_service.utils
+import module_build_service.messaging
 
 import koji
 
@@ -130,15 +131,7 @@ def wait(config, session, msg):
     build.batch = 1
 
     artifact_name = "module-build-macros"
-    state = koji.BUILD_STATES['BUILDING']  # Default state
-    state_reason = ""
-    task_id = builder.build(artifact_name=artifact_name, source=srpm)
-
-    # Fail task if we failed to submit it to koji
-    # This typically happens when koji auth failed
-    if not task_id:
-        state = koji.BUILD_STATES['FAILED']
-        state_reason = "Failed to submit artifact %s to Koji" % (artifact_name)
+    task_id, state, reason, nvr = builder.build(artifact_name=artifact_name, source=srpm)
 
     component_build = models.ComponentBuild(
         module_id=build.id,
@@ -147,9 +140,16 @@ def wait(config, session, msg):
         scmurl=srpm,
         task_id=task_id,
         state=state,
-        state_reason = state_reason,
+        state_reason=reason,
+        nvr=nvr,
         batch=1,
     )
     session.add(component_build)
     build.transition(config, state="build")
+    session.add(build)
     session.commit()
+
+    # If this build already exists and is done, then fake the repo change event
+    # back to the scheduler
+    if state == koji.BUILD_STATES['COMPLETE']:
+        return [module_build_service.messaging.KojiRepoChange('fake msg', build.koji_tag)]
