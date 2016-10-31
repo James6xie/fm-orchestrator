@@ -15,11 +15,15 @@ config = {
             "tcp://stg.fedoraproject.org:9940",
         ],
         "relay_outbound": [
-            "tcp://fedmsg-relay:2001"
+            "tcp://fedmsg-relay:2001",
+            "tcp://127.0.0.1:4001",
         ],
     },
     "relay_inbound": [
-        "tcp://fedmsg-relay:2003"
+        # Try this first. (docker-compose)
+        "tcp://fedmsg-relay:2003",
+        # If it fails, then failover to this (modularity.fic.o)
+        "tcp://127.0.0.1:2003",
     ],
 
     # Start of code signing configuration

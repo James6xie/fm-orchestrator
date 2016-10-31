@@ -75,6 +75,11 @@ class DevConfiguration(BaseConfiguration):
     # This requires that your principal be listed server side in ProxyPrincipals.
     KOJI_PROXYUSER = False
 
+    if path.exists('/home/fedora/modularity.keytab'):
+        KRB_PRINCIPAL = 'modularity@STG.FEDORAPROJECT.ORG'
+        KRB_KEYTAB = '/home/fedora/modularity.keytab'
+        KRB_CCACHE = '/var/tmp/krb5cc'
+
     REQUIRE_PACKAGER = False
     # You only need these FAS options if you turn on authorization
     # with REQUIRE_PACKAGER=True
