@@ -1,3 +1,5 @@
+import os
+
 config = {
     # Just for dev.
     "validate_signatures": False,
@@ -14,17 +16,7 @@ config = {
             #"tcp://hub.fedoraproject.org:9940",
             "tcp://stg.fedoraproject.org:9940",
         ],
-        "relay_outbound": [
-            "tcp://fedmsg-relay:2001",
-            "tcp://127.0.0.1:4001",
-        ],
     },
-    "relay_inbound": [
-        # Try this first. (docker-compose)
-        "tcp://fedmsg-relay:2003",
-        # If it fails, then failover to this (modularity.fic.o)
-        "tcp://127.0.0.1:2003",
-    ],
 
     # Start of code signing configuration
     # 'sign_messages': True,
@@ -43,3 +35,13 @@ config = {
     # }
     # End of code signing configuration
 }
+
+# Try to figure out if we're running inside a docker-compose container
+# http://stackoverflow.com/questions/20010199
+if os.path.exists('/.dockerenv'):
+    config['endpoints']['relay_outbound'] = ["tcp://fedmsg-relay:2001"]
+    config['relay_inbound'] = ["tcp://fedmsg-relay:2003"]
+else:
+    # These configuration values are reasonable for most other configurations.
+    config['endpoints']['relay_outbound'] = ["tcp://127.0.0.1:4001"]
+    config['relay_inbound'] = ["tcp://127.0.0.1:2003"]
