@@ -312,7 +312,7 @@ class ComponentBuild(RidaBase):
     def from_component_event(cls, session, event):
         if type(event) == module_build_service.messaging.KojiBuildChange:
             return session.query(cls).filter(
-                cls.task_id == event.build_id).first()
+                cls.task_id == event.task_id).first()
         else:
             raise ValueError("%r is not a koji message." % event['topic'])
 

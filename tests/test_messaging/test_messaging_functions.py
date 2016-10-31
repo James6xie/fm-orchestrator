@@ -72,6 +72,7 @@ class TestUtilFunctions(unittest.TestCase):
         msg_obj = next(module_build_service.messaging._fedmsg_listen(None))
         self.assertEquals(type(msg_obj), module_build_service.messaging.KojiBuildChange)
         self.assertEquals(msg_obj.build_id, 2345678)
+        self.assertEquals(msg_obj.task_id, 1234567)
         self.assertEquals(msg_obj.build_new_state, 0)
         self.assertEquals(msg_obj.build_name, 'some-package')
         self.assertEquals(msg_obj.build_version, '2.1.0')

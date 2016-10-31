@@ -87,6 +87,10 @@ class BaseMessage(object):
                 attr = content['attribute']
                 if attr == "state":
                     build_id = content['info']['id']
+                    # TODO: Someone with AMQ knowledge should check if
+                    # info.id is build id or task_id here. For now I presume
+                    # it is task_id.
+                    task_id = content['info']['id']
                     build_state = content['new']
                     # These are not available before build is assigned
                     build_name = None
@@ -99,7 +103,7 @@ class BaseMessage(object):
                         build_release = content['info']['release']
 
                     msg_obj = KojiBuildChange(
-                        msg.id, build_id, build_state, build_name,
+                        msg.id, build_id, task_id, build_state, build_name,
                         build_version, build_release)
 
         elif service == 'module_build_service':
@@ -150,13 +154,14 @@ class BaseMessage(object):
             if category == 'buildsys' and object == 'build' and \
                     subobject == 'state' and event == 'change':
                 build_id = msg_inner_msg.get('build_id')
+                task_id = msg_inner_msg.get('task_id')
                 build_new_state = msg_inner_msg.get('new')
                 build_name = msg_inner_msg.get('name')
                 build_version = msg_inner_msg.get('version')
                 build_release = msg_inner_msg.get('release')
 
                 msg_obj = KojiBuildChange(
-                    msg_id, build_id, build_new_state, build_name,
+                    msg_id, build_id, task_id, build_new_state, build_name,
                     build_version, build_release)
 
             elif category == 'buildsys' and object == 'repo' and \
@@ -189,10 +194,11 @@ class KojiBuildChange(BaseMessage):
     :param build_version: the version of the build (e.g. 6.06.06)
     :param build_release: the release of the build (e.g. 4.fc25)
     """
-    def __init__(self, msg_id, build_id, build_new_state, build_name,
+    def __init__(self, msg_id, build_id, task_id, build_new_state, build_name,
                  build_version, build_release):
         super(KojiBuildChange, self).__init__(msg_id)
         self.build_id = build_id
+        self.task_id = task_id
         self.build_new_state = build_new_state
         self.build_name = build_name
         self.build_version = build_version
