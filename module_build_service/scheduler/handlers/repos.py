@@ -36,7 +36,11 @@ def done(config, session, msg):
     """ Called whenever koji rebuilds a repo, any repo. """
 
     # First, find our ModuleBuild associated with this repo, if any.
-    tag = msg.repo_tag.strip('-build')
+    tag = msg.repo_tag
+    if not tag.endswith('-build'):
+        log.info("Tag %r does not end with '-build' suffix, ignoring" % tag)
+        return
+    tag = tag.strip('-build')
     module_build = models.ModuleBuild.from_repo_done_event(session, msg)
     if not module_build:
         log.info("No module build found associated with koji tag %r" % tag)

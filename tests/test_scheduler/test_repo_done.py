@@ -46,7 +46,7 @@ class TestRepoDone(unittest.TestCase):
         """
         from_repo_done_event.return_value = None
         msg = module_build_service.messaging.KojiRepoChange(
-            'no matches for this...', '2016-some-guid')
+            'no matches for this...', '2016-some-guid-build')
         self.fn(config=self.config, session=self.session, msg=msg)
 
     @mock.patch('module_build_service.builder.KojiModuleBuilder.buildroot_ready')
@@ -76,7 +76,7 @@ class TestRepoDone(unittest.TestCase):
         ready.return_value = True
 
         msg = module_build_service.messaging.KojiRepoChange(
-            'no matches for this...', '2016-some-guid')
+            'no matches for this...', '2016-some-guid-build')
         self.fn(config=self.config, session=self.session, msg=msg)
         build_fn.assert_called_once_with(artifact_name='foo', source='full_scm_url')
 
@@ -109,7 +109,7 @@ class TestRepoDone(unittest.TestCase):
         ready.return_value = True
 
         msg = module_build_service.messaging.KojiRepoChange(
-            'no matches for this...', '2016-some-guid')
+            'no matches for this...', '2016-some-guid-build')
         self.fn(config=self.config, session=self.session, msg=msg)
         build_fn.assert_called_once_with(artifact_name='foo', source='full_scm_url')
         module_build.transition.assert_called_once_with(self.config,
