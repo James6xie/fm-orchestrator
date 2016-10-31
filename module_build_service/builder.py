@@ -549,7 +549,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
 
         if tagged:
             assert len(tagged) == 1, "Expected exactly one item in list. Got %s" % tagged
-            return tagged[0]['task_id']
+            return tagged[0]
 
         return None
 
@@ -557,7 +557,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
         """
         :param source : scmurl to spec repository
         : param artifact_name: name of artifact (which we couldn't get from spec due involved macros)
-        :return koji build task id
+        :return 4-tuple of the form (koji build task id, state, reason, nvr)
         """
 
         # This code supposes that artifact_name can be built within the component
@@ -580,11 +580,12 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
             raise RuntimeError("Buildroot is not prep-ed")
 
         # Skip existing builds
-        task_id = self._get_task_by_artifact(artifact_name)
+        task_info = self._get_task_by_artifact(artifact_name)
+        task_id = task_info['task_id']
         if task_id:
             log.info("skipping build of %s. Build already exists (task_id=%s), via %s" % (
                 source, task_id, self))
-            return task_id
+            return task_id, koji.BUILD_STATES['COMPLETE'], 'Build already exists.', task_info['nvr']
 
         self._koji_whitelist_packages([artifact_name,])
         if '://' not in source:
@@ -598,7 +599,13 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
                                           priority=self.build_priority)
         log.info("submitted build of %s (task_id=%s), via %s" % (
             source, task_id, self))
-        return task_id
+        if task_id:
+            state = koji.BUILD_STATES['BUILDING']
+            reason = "Submitted %s to Koji" % (artifact_name)
+        else:
+            state = koji.BUILD_STATES['FAILED']
+            reason = "Failed to submit artifact %s to Koji" % (artifact_name)
+        return task_id, state, reason, None
 
     @classmethod
     def tag_to_repo(cls, config, tag_name, arch):

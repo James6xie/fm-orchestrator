@@ -70,11 +70,9 @@ def start_next_build_batch(config, module, session, builder, components=None):
     module.batch += 1
     for c in unbuilt_components:
         c.batch = module.batch
-        c.task_id = builder.build(artifact_name=c.package, source=c.scmurl)
+        c.task_id, c.state, c.state_reason, c.nvr = builder.build(artifact_name=c.package, source=c.scmurl)
 
         if not c.task_id:
-            c.state = koji.BUILD_STATES["FAILED"]
-            c.state_reason = "Failed to submit to Koji"
             module.transition(config, models.BUILD_STATES["failed"],
                               "Failed to submit artifact %s to Koji" % (c.package))
             session.add(module)
