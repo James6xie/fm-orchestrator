@@ -1,4 +1,4 @@
-import socket
+import os
 
 config = {
     # Just for dev.
@@ -37,9 +37,8 @@ config = {
 }
 
 # Try to figure out if we're running inside a docker-compose container
-fqdn = socket.getfqdn()
-# If we are, then fqdn is something like '4c62a35c9f9c'
-if fqdn.isalnum() and len(fqdn) == 12:
+# http://stackoverflow.com/questions/20010199
+if os.path.exists('/.dockerenv'):
     config['endpoints']['relay_outbound'] = ["tcp://fedmsg-relay:2001"]
     config['relay_inbound'] = ["tcp://fedmsg-relay:2003"]
 else:
