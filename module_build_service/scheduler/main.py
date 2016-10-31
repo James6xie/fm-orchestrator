@@ -157,8 +157,18 @@ class MessageWorker(threading.Thread):
             log.debug("Handler is NO_OP: %s" % idx)
         else:
             log.info("Calling %s" % idx)
-            handler(conf, session, msg)
+            further_work = handler(conf, session, msg) or []
             log.info("Done with %s" % idx)
+
+            # Handlers can *optionally* return a list of fake messages that
+            # should be re-inserted back into the main work queue. We can use
+            # this (for instance) when we submit a new component build but (for
+            # some reason) it has already been built, then it can fake its own
+            # completion back to the scheduler so that work resumes as if it
+            # was submitted for real and koji announced its completion.
+            for event in further_work:
+                log.info("  Scheduling faked event %r" % event)
+                self.incoming_work_queue.put(event)
 
 
 class Poller(threading.Thread):
