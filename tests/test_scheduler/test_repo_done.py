@@ -70,6 +70,7 @@ class TestRepoDone(unittest.TestCase):
         module_build.batch = 1
         module_build.component_builds = [unbuilt_component_build, built_component_build]
         module_build.current_batch.return_value = [built_component_build]
+        build_fn.return_value = 1234, 1, "", None
 
         from_repo_done_event.return_value = module_build
 
@@ -102,7 +103,7 @@ class TestRepoDone(unittest.TestCase):
         module_build.batch = 1
         module_build.component_builds = [unbuilt_component_build, built_component_build]
         module_build.current_batch.return_value = [built_component_build]
-        build_fn.return_value = None
+        build_fn.return_value = None, 4, "Failed to submit artifact foo to Koji", None
 
         from_repo_done_event.return_value = module_build
 
@@ -115,4 +116,4 @@ class TestRepoDone(unittest.TestCase):
         module_build.transition.assert_called_once_with(self.config,
                                                         module_build_service.models.BUILD_STATES["failed"],
                                                         'Failed to submit artifact foo to Koji')
-        self.assertEquals(unbuilt_component_build.state_reason, "Failed to submit to Koji")
+        self.assertEquals(unbuilt_component_build.state_reason, "Failed to submit artifact foo to Koji")

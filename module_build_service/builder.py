@@ -212,6 +212,7 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
                                collections).
         :param source : an SCM URL, clearly identifying the build artifact in a
                         repository
+        :return 4-tuple of the form (build task id, state, reason, nvr)
 
         The artifact_name parameter is used in koji add-pkg (and it's actually
         the only reason why we need to pass it). We don't really limit source

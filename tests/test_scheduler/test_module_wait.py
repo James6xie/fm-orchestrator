@@ -39,6 +39,7 @@ class TestModuleWait(unittest.TestCase):
     def test_init_basic(self, pdc, from_module_event, KojiModuleBuilder):
         builder = mock.Mock()
         builder.get_disttag_srpm.return_value = 'some srpm disttag'
+        builder.build.return_value = 1234, 1, "", None
         KojiModuleBuilder.return_value = builder
         mocked_module_build = mock.Mock()
         mocked_module_build.json.return_value = {
