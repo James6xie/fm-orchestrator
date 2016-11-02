@@ -145,6 +145,46 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
 
     backend = "generic"
 
+    @classmethod
+    def create(cls, owner, module, backend, config, **extra):
+        """
+        :param owner: a string representing who kicked off the builds
+        :param module: a module string e.g. 'testmodule-1.0'
+        :param backend: a string representing backend e.g. 'koji'
+        :param config: instance of module_build_service.config.Config
+
+        Any additional arguments are optional extras which can be passed along
+        and are implementation-dependent.
+        """
+
+        if isinstance(config.system, Mock):
+            return KojiModuleBuilder(owner=owner, module=module,
+                                     config=config, **extra)
+        elif backend == "koji":
+            return KojiModuleBuilder(owner=owner, module=module,
+                                     config=config, **extra)
+        elif backend == "copr":
+            return CoprModuleBuilder(owner=owner, module=module,
+                                     config=config, **extra)
+        else:
+            raise ValueError("Builder backend='%s' not recognized" % backend)
+
+    @classmethod
+    def tag_to_repo(cls, backend, config, tag_name, arch):
+        """
+        :param backend: a string representing the backend e.g. 'koji'.
+        :param config: instance of rida.config.Config
+        :param tag_name: Tag for which the repository is returned
+        :param arch: Architecture for which the repository is returned
+
+        Returns URL of repository containing the built artifacts for
+        the tag with particular name and architecture.
+        """
+        if backend == "koji":
+            return KojiModuleBuilder.repo_from_tag(config, tag_name, arch)
+        else:
+            raise ValueError("Builder backend='%s' not recognized" % backend)
+
     @abstractmethod
     def buildroot_connect(self):
         """
@@ -227,7 +267,7 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
 
     @classmethod
     @abstractmethod
-    def tag_to_repo(self, config, tag_name, arch):
+    def repo_from_tag(self, config, tag_name, arch):
         """
         :param config: instance of rida.config.Config
         :param tag_name: Tag for which the repository is returned
@@ -237,49 +277,6 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
         the tag with particular name and architecture.
         """
         raise NotImplementedError()
-
-class Builder(object):
-    """Wrapper class"""
-
-    def __new__(cls, owner, module, backend, config, **extra):
-        """
-        :param owner: a string representing who kicked off the builds
-        :param module: a module string e.g. 'testmodule-1.0'
-        :param backend: a string representing backend e.g. 'koji'
-        :param config: instance of module_build_service.config.Config
-
-        Any additional arguments are optional extras which can be passed along
-        and are implementation-dependent.
-        """
-
-        if isinstance(config.system, Mock):
-            return KojiModuleBuilder(owner=owner, module=module,
-                                     config=config, **extra)
-        elif backend == "koji":
-            return KojiModuleBuilder(owner=owner, module=module,
-                                     config=config, **extra)
-        elif backend == "copr":
-            return CoprModuleBuilder(owner=owner, module=module,
-                                     config=config, **extra)
-        else:
-            raise ValueError("Builder backend='%s' not recognized" % backend)
-
-    @classmethod
-    def tag_to_repo(cls, backend, config, tag_name, arch):
-        """
-        :param backend: a string representing the backend e.g. 'koji'.
-        :param config: instance of rida.config.Config
-        :param tag_name: Tag for which the repository is returned
-        :param arch: Architecture for which the repository is returned
-
-        Returns URL of repository containing the built artifacts for
-        the tag with particular name and architecture.
-        """
-        if backend == "koji":
-            return KojiModuleBuilder.tag_to_repo(config, tag_name, arch)
-        else:
-            raise ValueError("Builder backend='%s' not recognized" % backend)
-
 
 class KojiModuleBuilder(GenericBuilder):
     """ Koji specific builder class """
@@ -609,7 +606,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
         return task_id, state, reason, None
 
     @classmethod
-    def tag_to_repo(cls, config, tag_name, arch):
+    def repo_from_tag(cls, config, tag_name, arch):
         """
         :param config: instance of rida.config.Config
         :param tag_name: Tag for which the repository is returned

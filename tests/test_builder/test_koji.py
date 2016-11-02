@@ -40,7 +40,7 @@ class TestKojiBuilder(unittest.TestCase):
         """ Test that when a repo msg hits us and we have no match,
         that we do nothing gracefully.
         """
-        repo = module_build_service.builder.Builder.tag_to_repo(
+        repo = module_build_service.builder.GenericBuilder.tag_to_repo(
             "koji", self.config,
             "module-base-runtime-0.25-9",
             "x86_64")

@@ -79,8 +79,9 @@ def done(config, session, msg):
         log.warn("Odd!  All components in batch failed for %r." % module_build)
         return
 
-    builder = module_build_service.builder.Builder(module_build.owner, module_build.name,
-                                   config.system, config, tag_name=tag)
+    builder = module_build_service.builder.GenericBuilder.create(
+        module_build.owner, module_build.name, config.system, config,
+        tag_name=tag)
     builder.buildroot_connect()
 
     # Ok, for the subset of builds that did complete successfully, check to
