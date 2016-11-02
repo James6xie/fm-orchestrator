@@ -579,11 +579,10 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
 
         # Skip existing builds
         task_info = self._get_task_by_artifact(artifact_name)
-        task_id = task_info['task_id']
-        if task_id:
+        if task_info:
             log.info("skipping build of %s. Build already exists (task_id=%s), via %s" % (
-                source, task_id, self))
-            return task_id, koji.BUILD_STATES['COMPLETE'], 'Build already exists.', task_info['nvr']
+                source, task_info['task_id'], self))
+            return task_info['task_id'], koji.BUILD_STATES['COMPLETE'], 'Build already exists.', task_info['nvr']
 
         self._koji_whitelist_packages([artifact_name,])
         if '://' not in source:
