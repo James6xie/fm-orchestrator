@@ -36,6 +36,8 @@ import modulemd as _modulemd
 from module_build_service import db, log
 import module_build_service.messaging
 
+from sqlalchemy.orm import lazyload
+
 
 # Just like koji.BUILD_STATES, except our own codes for modules.
 BUILD_STATES = {
@@ -273,7 +275,7 @@ class ModuleBuild(RidaBase):
         tasks = dict()
         if self.id and self.state != 'init':
 
-            for build in ComponentBuild.query.filter_by(module_id=self.id).all():
+            for build in ComponentBuild.query.filter_by(module_id=self.id).options(lazyload('module_build')).all():
                 tasks["%s/%s" % (build.format, build.package)] = "%s/%s" % (build.task_id, build.state)
 
         return tasks

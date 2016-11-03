@@ -46,6 +46,8 @@ import koji
 
 from module_build_service import conf, models, log
 
+from sqlalchemy.orm import lazyload
+
 
 class STOP_WORK(object):
     """ A sentinel value, indicating that work should be stopped. """
@@ -201,7 +203,7 @@ class Poller(threading.Thread):
             koji_session = (
                 module_build_service.builder.KojiModuleBuilder.get_session(conf, None))
             log.info("Querying tasks for statuses:")
-            res = models.ComponentBuild.query.filter_by(state=koji.BUILD_STATES['BUILDING']).all()
+            res = models.ComponentBuild.query.filter_by(state=koji.BUILD_STATES['BUILDING']).options(lazyload('module_build')).all()
 
             log.info("Checking status for %d tasks." % len(res))
             for component_build in res:
@@ -222,6 +224,7 @@ class Poller(threading.Thread):
                     msg = module_build_service.messaging.KojiBuildChange(
                         msg_id='a faked internal message',
                         build_id=component_build.task_id,
+                        task_id=component_build.task_id,
                         build_name=component_build.package,
                         build_new_state=koji.BUILD_STATES['FAILED'],
                         build_release=None,
