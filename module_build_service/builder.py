@@ -188,6 +188,8 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
         """
         if backend == "koji":
             return KojiModuleBuilder.repo_from_tag(config, tag_name, arch)
+        if backend == "copr":
+            return CoprModuleBuilder.repo_from_tag(config, tag_name, arch)
         else:
             raise ValueError("Builder backend='%s' not recognized" % backend)
 
@@ -1026,3 +1028,17 @@ class MockModuleBuilder(GenericBuilder):
     def get_disttag_srpm(disttag):
         # @FIXME
         return KojiModuleBuilder.get_disttag_srpm(disttag)
+
+    @classmethod
+    def repo_from_tag(cls, config, tag_name, arch):
+        from copr.client import CoprClient
+
+        # @TODO get the correct user
+        # Premise is that tag_name is in name-version-release format
+        owner, nvr = "@copr", tag_name
+        cl = CoprClient.create_from_file_config(config.copr_config)
+        response = cl.get_module_repo(owner, nvr).data
+
+        if response["output"] == "notok":
+            raise ValueError(response["error"])
+        return response["repo"]
