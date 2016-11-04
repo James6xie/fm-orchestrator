@@ -157,38 +157,6 @@ def get_module_tag(session, module_info, strict=False):
     """
     return get_module(session, module_info, strict=strict)['koji_tag']
 
-def get_module_repo(session, module_info, strict=False, config=module_build_service.conf):
-    """
-    :param session : PDCClient instance
-    :param module_info: list of module_info dicts
-    :param strict: Normally this function returns None if no module can be
-           found.  If strict=True, then a ValueError is raised.
-    :param config: instance of module_build_service.config.Config
-    :return: URL to a DNF repository for the module
-    """
-    module = get_module(session, module_info, strict=strict)
-    if not module:
-        return None
-
-    # Module was built in Koji
-    # @TODO There should be implemented retrieveing URL to a module repofile in koji
-    if module["koji_tag"] != "-":
-        raise NotImplementedError
-
-    # TODO We should revisit the decision to include CoprClient code in the
-    # pdc.py module.
-    from copr.client import CoprClient
-
-    # Module was built in Copr
-    # @TODO get the correct user
-    owner, nvr = "@copr", module["variant_id"]
-    cl = CoprClient.create_from_file_config(config.copr_config)
-    response = cl.get_module_repo(owner, nvr).data
-
-    if response["output"] == "notok":
-        raise ValueError(response["error"])
-    return response["repo"]
-
 def module_depsolving_wrapper(session, module_list, strict=True):
     """
     :param session : PDCClient instance

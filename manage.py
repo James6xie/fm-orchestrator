@@ -34,7 +34,7 @@ from module_build_service.config import Config
 from module_build_service import models
 from module_build_service.pdc import (
     get_pdc_client_session, get_module, get_module_runtime_dependencies,
-    get_module_tag, get_module_build_dependencies, get_module_repo)
+    get_module_tag, get_module_build_dependencies)
 import module_build_service.auth
 import module_build_service.scheduler.main
 from module_build_service.utils import submit_module_build
@@ -91,10 +91,6 @@ def testpdc():
         print ("build_deps=%s" % get_module_build_dependencies(
             pdc_session, module))
         print ("tag=%s" % get_module_tag(pdc_session, module))
-
-        module2 = get_module(pdc_session, {"name": "coprtestmodule", "version": "4.3.43", "release": 1})
-        print ("pdc_data=%s" % str(module))
-        print ("repo=%s" % get_module_repo(pdc_session, module2))
     else:
         print ('module was not found')
 
