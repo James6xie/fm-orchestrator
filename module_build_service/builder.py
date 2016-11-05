@@ -1031,6 +1031,15 @@ class MockModuleBuilder(GenericBuilder):
 
     @classmethod
     def repo_from_tag(cls, config, tag_name, arch):
+        """
+        :param backend: a string representing the backend e.g. 'koji'.
+        :param config: instance of rida.config.Config
+        :param tag_name: Tag for which the repository is returned
+        :param arch: Architecture for which the repository is returned
+
+        Returns URL of repository containing the built artifacts for
+        the tag with particular name and architecture.
+        """
         from copr.client import CoprClient
 
         # @TODO get the correct user
