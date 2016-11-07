@@ -59,7 +59,7 @@ api_definition = {
         }
     },
     'module_build_query': {
-        'url': ['/module-build-service/1/module-builds/', '<int:id>'],
+        'url': '/module-build-service/1/module-builds/<int:id>',
         'options': {
             'methods': ['GET'],
         }
@@ -261,7 +261,10 @@ class ModuleBuildAPI(MethodView):
 def register_v1_api():
     """ Registers version 1 of Rida API. """
     module_view = ModuleBuildAPI.as_view('module_builds')
-    for val in api_definition.values():
-        app.add_url_rule(''.join(val['url']), view_func=module_view, **val['options'])
+    for key, val in api_definition.items():
+        app.add_url_rule(val['url'],
+                         endpoint=key,
+                         view_func=module_view,
+                         **val['options'])
 
 register_v1_api()

@@ -38,6 +38,8 @@ import module_build_service.messaging
 
 from sqlalchemy.orm import lazyload
 
+from flask import url_for
+
 
 # Just like koji.BUILD_STATES, except our own codes for modules.
 BUILD_STATES = {
@@ -233,8 +235,7 @@ class ModuleBuild(RidaBase):
             'state': self.state,
             'state_name': INVERSE_BUILD_STATES[self.state],
             'state_reason': self.state_reason,
-            'state_url': '{}{}'.format(api_definition['module_build_query']['url'][0],
-                                       self.id),
+            'state_url': url_for('module_build_query', id=self.id),
             'scmurl': self.scmurl,
             'owner': self.owner,
             'time_submitted': self.time_submitted,
