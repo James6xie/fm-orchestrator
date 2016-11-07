@@ -225,8 +225,6 @@ class ModuleBuild(RidaBase):
         return query.first()
 
     def json(self):
-        from module_build_service.views import api_definition
-
         return {
             'id': self.id,
             'name': self.name,
