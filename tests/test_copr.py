@@ -31,7 +31,7 @@ class TestCoprBuilder(unittest.TestCase):
 
     def setUp(self):
         self.config = mock.Mock()
-        self.config.copr_config = "/etc/rida/copr.conf"
+        self.config.copr_config = None
 
     @mock.patch.object(CoprClient, "get_module_repo")
     def test_tag_to_repo(self, get_module_repo):
