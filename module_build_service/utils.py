@@ -26,9 +26,16 @@ from datetime import datetime
 import re
 import functools
 import time
+import shutil
+import tempfile
+import os
+import modulemd
 from module_build_service import log, models
-from module_build_service.errors import ValidationError
-
+from module_build_service.errors import ValidationError, UnprocessableEntity
+from module_build_service import app, conf, db, log
+from module_build_service.errors import (
+    ValidationError, Unauthorized, UnprocessableEntity, Conflict, NotFound)
+from multiprocessing.dummy import Pool as ThreadPool
 
 def retry(timeout=120, interval=30, wait_on=Exception):
     """ A decorator that allows to retry a section of code...
@@ -163,3 +170,138 @@ def filter_module_builds(flask_request):
     page = flask_request.args.get('page', 1, type=int)
     per_page = flask_request.args.get('per_page', 10, type=int)
     return query.paginate(page, per_page, False)
+
+def submit_module_build(username, url):
+    # Import it here, because SCM uses utils methods
+    # and fails to import them because of dep-chain.
+    import module_build_service.scm
+
+    yaml = ""
+    td = None
+    try:
+        log.debug('Verifying modulemd')
+        td = tempfile.mkdtemp()
+        scm = module_build_service.scm.SCM(url, conf.scmurls)
+        cod = scm.checkout(td)
+        cofn = os.path.join(cod, (scm.name + ".yaml"))
+
+        with open(cofn, "r") as mmdfile:
+            yaml = mmdfile.read()
+    finally:
+        try:
+            if td is not None:
+                shutil.rmtree(td)
+        except Exception as e:
+            log.warning(
+                "Failed to remove temporary directory {!r}: {}".format(
+                    td, str(e)))
+
+    mmd = modulemd.ModuleMetadata()
+    try:
+        mmd.loads(yaml)
+    except:
+        log.error('Invalid modulemd')
+        raise UnprocessableEntity('Invalid modulemd')
+
+    module = models.ModuleBuild.query.filter_by(name=mmd.name,
+                                            version=mmd.version,
+                                            release=mmd.release).first()
+    if module:
+        log.debug('Checking whether module build already exist.')
+            # TODO: make this configurable, we might want to allow
+            # resubmitting any stuck build on DEV no matter the state
+        if module.state not in (models.BUILD_STATES['failed'],):
+            log.error('Module (state=%s) already exists. '
+                        'Only new or failed builds are allowed.'
+                        % module.state)
+            raise Conflict('Module (state=%s) already exists. '
+                            'Only new or failed builds are allowed.'
+                            % module.state)
+        log.debug('Resuming existing module build %r' % module)
+        module.username = username
+        module.transition(conf, models.BUILD_STATES["init"])
+        log.info("Resumed existing module build in previous state %s"
+                    % module.state)
+    else:
+        log.debug('Creating new module build')
+        module = models.ModuleBuild.create(
+            db.session,
+            conf,
+            name=mmd.name,
+            version=mmd.version,
+            release=mmd.release,
+            modulemd=yaml,
+            scmurl=url,
+            username=username
+        )
+
+    # List of (pkg_name, git_url) tuples to be used to check
+    # the availability of git URLs paralelly later.
+    full_urls = []
+
+    # If the modulemd yaml specifies components, then submit them for build
+    if mmd.components:
+        for pkgname, pkg in mmd.components.rpms.packages.items():
+            try:
+                if pkg.get("repository") and not conf.rpms_allow_repository:
+                    raise Unauthorized(
+                        "Custom component repositories aren't allowed")
+                if pkg.get("cache") and not conf.rpms_allow_cache:
+                    raise Unauthorized("Custom component caches aren't allowed")
+                if not pkg.get("repository"):
+                    pkg["repository"] = conf.rpms_default_repository + pkgname
+                if not pkg.get("cache"):
+                    pkg["cache"] = conf.rpms_default_cache + pkgname
+                if not pkg.get("commit"):
+                    try:
+                        pkg["commit"] = module_build_service.scm.SCM(
+                            pkg["repository"]).get_latest()
+                    except Exception as e:
+                        raise UnprocessableEntity(
+                            "Failed to get the latest commit: %s" % pkgname)
+            except Exception:
+                module.transition(conf, models.BUILD_STATES["failed"])
+                db.session.add(module)
+                db.session.commit()
+                raise
+
+            full_url = pkg["repository"] + "?#" + pkg["commit"]
+            full_urls.append((pkgname, full_url))
+
+        log.debug("Checking scm urls")
+        # Checks the availability of SCM urls.
+        pool = ThreadPool(10)
+        err_msgs = pool.map(lambda data: "Cannot checkout {}".format(data[0])
+                            if not module_build_service.scm.SCM(data[1]).is_available()
+                            else None, full_urls)
+        for err_msg in err_msgs:
+            if err_msg:
+                raise UnprocessableEntity(err_msg)
+
+        for pkgname, pkg in mmd.components.rpms.packages.items():
+            full_url = pkg["repository"] + "?#" + pkg["commit"]
+
+            existing_build = models.ComponentBuild.query.filter_by(
+                module_id=module.id, package=pkgname).first()
+            if (existing_build
+                    and existing_build.state != models.BUILD_STATES['done']):
+                existing_build.state = models.BUILD_STATES['init']
+                db.session.add(existing_build)
+            else:
+                # XXX: what about components that were present in previous
+                # builds but are gone now (component reduction)?
+                build = models.ComponentBuild(
+                    module_id=module.id,
+                    package=pkgname,
+                    format="rpms",
+                    scmurl=full_url,
+                )
+                db.session.add(build)
+
+    module.modulemd = mmd.dumps()
+    module.transition(conf, models.BUILD_STATES["wait"])
+    db.session.add(module)
+    db.session.commit()
+    log.info("%s submitted build of %s-%s-%s", username, mmd.name,
+                mmd.version, mmd.release)
+    return module

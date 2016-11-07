@@ -76,8 +76,9 @@ class MessageIngest(threading.Thread):
 
 class MessageWorker(threading.Thread):
 
-    def __init__(self, incoming_work_queue, *args, **kwargs):
+    def __init__(self, incoming_work_queue, stop_after_build, *args, **kwargs):
         self.incoming_work_queue = incoming_work_queue
+        self.stop_after_build = stop_after_build
         super(MessageWorker, self).__init__(*args, **kwargs)
 
         # These are our main lookup tables for figuring out what to run in response
@@ -128,6 +129,7 @@ class MessageWorker(threading.Thread):
 
             if msg is STOP_WORK:
                 log.info("Worker thread received STOP_WORK, shutting down...")
+                os._exit(0)
                 break
 
             try:
@@ -148,6 +150,9 @@ class MessageWorker(threading.Thread):
             handler = self.on_repo_change
         elif type(msg) == module_build_service.messaging.RidaModule:
             handler = self.on_module_change[module_build_state_from_msg(msg)]
+            if (self.stop_after_build and module_build_state_from_msg(msg)
+                    in [models.BUILD_STATES["failed"], models.BUILD_STATES["ready"]]):
+                self.incoming_work_queue.put(STOP_WORK)
         else:
             log.debug("Unhandled message...")
             return
@@ -236,6 +241,9 @@ class Poller(threading.Thread):
             # @TODO
             pass
 
+        elif conf.system == "mock":
+            pass
+
         else:
             raise NotImplementedError("Buildsystem %r is not supported." % conf.system)
 
@@ -277,17 +285,24 @@ class Poller(threading.Thread):
         log.warning("process_lingering_module_builds is not yet implemented...")
 
 
-def main():
-    log.info("Starting module_build_service_daemon.")
-    try:
-        work_queue = queue.Queue()
+_work_queue = queue.Queue()
 
+def outgoing_work_queue_put(msg):
+    _work_queue.put(msg)
+
+def main(initial_msgs = [], return_after_build = False):
+    log.info("Starting module_build_service_daemon.")
+
+    for msg in initial_msgs:
+        outgoing_work_queue_put(msg)
+
+    try:
         # This ingest thread puts work on the queue
-        messaging_thread = MessageIngest(work_queue)
+        messaging_thread = MessageIngest(_work_queue)
         # This poller does other work, but also sometimes puts work in queue.
-        polling_thread = Poller(work_queue)
+        polling_thread = Poller(_work_queue)
         # This worker takes work off the queue and handles it.
-        worker_thread = MessageWorker(work_queue)
+        worker_thread = MessageWorker(_work_queue, return_after_build)
 
         messaging_thread.start()
         polling_thread.start()
@@ -295,4 +310,4 @@ def main():
 
     except KeyboardInterrupt:
         # FIXME: Make this less brutal
-        os._exit()
+        os._exit(0)

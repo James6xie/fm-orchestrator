@@ -27,13 +27,18 @@ import logging
 import os
 import ssl
 from shutil import rmtree
+import getpass
 
 from module_build_service import app, conf, db
 from module_build_service.config import Config
+from module_build_service import models
 from module_build_service.pdc import (
     get_pdc_client_session, get_module, get_module_runtime_dependencies,
     get_module_tag, get_module_build_dependencies, get_module_repo)
 import module_build_service.auth
+import module_build_service.scheduler.main
+from module_build_service.utils import submit_module_build
+from module_build_service.messaging import RidaModule
 
 
 manager = Manager(app)
@@ -99,6 +104,23 @@ def upgradedb():
     """ Upgrades the database schema to the latest revision
     """
     flask_migrate.upgrade()
+
+
+@manager.command
+def cleardb():
+    models.ModuleBuild.query.delete()
+    models.ComponentBuild.query.delete()
+
+@manager.command
+def build_module_locally(url):
+    username = getpass.getuser()
+
+    cleardb()
+    submit_module_build(username, url)
+
+    msgs = []
+    msgs.append(RidaModule("fake msg", 1, 1))
+    module_build_service.scheduler.main.main(msgs, True)
 
 
 @manager.command
