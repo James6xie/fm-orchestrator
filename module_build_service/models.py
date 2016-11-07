@@ -223,6 +223,8 @@ class ModuleBuild(RidaBase):
         return query.first()
 
     def json(self):
+        from module_build_service.views import api_definition
+
         return {
             'id': self.id,
             'name': self.name,
@@ -231,6 +233,8 @@ class ModuleBuild(RidaBase):
             'state': self.state,
             'state_name': INVERSE_BUILD_STATES[self.state],
             'state_reason': self.state_reason,
+            'state_url': '{}{}'.format(api_definition['module_build_query']['url'][0],
+                                       self.id),
             'scmurl': self.scmurl,
             'owner': self.owner,
             'time_submitted': self.time_submitted,

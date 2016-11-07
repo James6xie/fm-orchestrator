@@ -44,6 +44,28 @@ from module_build_service.errors import (
     ValidationError, Unauthorized, UnprocessableEntity, Conflict, NotFound)
 from multiprocessing.dummy import Pool as ThreadPool
 
+api_definition = {
+    'module_build_submit': {
+        'url': '/module-build-service/1/module-builds/',
+        'options': {
+            'methods': ['POST'],
+        }
+    },
+    'module_build_list': {
+        'url': '/module-build-service/1/module-builds/',
+        'options': {
+            'defaults': {'id': None},
+            'methods': ['GET'],
+        }
+    },
+    'module_build_query': {
+        'url': ['/module-build-service/1/module-builds/', '<int:id>'],
+        'options': {
+            'methods': ['GET'],
+        }
+    },
+}
+
 
 class ModuleBuildAPI(MethodView):
 
@@ -239,11 +261,7 @@ class ModuleBuildAPI(MethodView):
 def register_v1_api():
     """ Registers version 1 of Rida API. """
     module_view = ModuleBuildAPI.as_view('module_builds')
-    app.add_url_rule('/module-build-service/1/module-builds/', defaults={'id': None},
-                     view_func=module_view, methods=['GET'])
-    app.add_url_rule('/module-build-service/1/module-builds/', view_func=module_view,
-                     methods=['POST'])
-    app.add_url_rule('/module-build-service/1/module-builds/<int:id>', view_func=module_view,
-                     methods=['GET'])
+    for val in api_definition.values():
+        app.add_url_rule(''.join(val['url']), view_func=module_view, **val['options'])
 
 register_v1_api()

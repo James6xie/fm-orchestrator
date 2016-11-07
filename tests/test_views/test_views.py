@@ -193,6 +193,7 @@ class TestViews(unittest.TestCase):
         self.assertEquals(data['owner'], 'Homer J. Simpson')
         self.assertEquals(data['id'], 31)
         self.assertEquals(data['state_name'], 'wait')
+        self.assertEquals(data['state_url'], '/module-build-service/1/module-builds/31')
 
     @patch('module_build_service.auth.get_username', return_value='Homer J. Simpson')
     @patch('module_build_service.auth.assert_is_packager')
