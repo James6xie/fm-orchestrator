@@ -824,12 +824,6 @@ class CoprModuleBuilder(GenericBuilder):
         """
         pass
 
-    def buildroot_prep(self):
-        pass
-
-    def buildroot_resume(self):
-        pass
-
     def buildroot_ready(self, artifacts=None):
         """
         :param artifacts=None : a list of artifacts supposed to be in the buildroot
@@ -841,9 +835,6 @@ class CoprModuleBuilder(GenericBuilder):
         contains the listed artifacts if specified.
         """
         return True
-
-    def buildroot_add_dependency(self, dependencies):
-        pass
 
     def buildroot_add_artifacts(self, artifacts, install=False):
         """
