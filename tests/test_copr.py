@@ -24,7 +24,6 @@
 import unittest
 import mock
 import module_build_service.builder
-from copr.client import CoprClient
 
 
 @unittest.skip("We need not yet released version of python-copr. Let's skip this for some time")
@@ -34,7 +33,7 @@ class TestCoprBuilder(unittest.TestCase):
         self.config = mock.Mock()
         self.config.copr_config = None
 
-    @mock.patch.object(CoprClient, "get_module_repo")
+    @mock.patch("copr.CoprClient.get_module_repo")
     def test_tag_to_repo(self, get_module_repo):
         # Mock the CoprClient.get_module_repo to return something, without requesting a Copr instance
         def get_module_repo_mock(owner, nvr):
@@ -48,7 +47,7 @@ class TestCoprBuilder(unittest.TestCase):
             "copr", self.config, "foo-module-name-0.25-9", None)
         self.assertEquals(repo, "http://copr-be-instance/results/@copr/foo-module-name-0.25-9/modules")
 
-    @mock.patch.object(CoprClient, "get_module_repo")
+    @mock.patch("copr.CoprClient.get_module_repo")
     def test_non_existing_tag_to_repo(self, get_module_repo):
         # Let's pretend that CoprClient.get_module_repo couldn't find the project on Copr instance
         get_module_repo.return_value = ResponseMock({"output": "notok", "error": "some error"})
