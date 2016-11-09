@@ -27,6 +27,7 @@ import module_build_service.builder
 from copr.client import CoprClient
 
 
+@unittest.skip("We need not yet released version of python-copr. Let's skip this for some time")
 class TestCoprBuilder(unittest.TestCase):
 
     def setUp(self):
