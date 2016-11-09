@@ -824,19 +824,26 @@ class CoprModuleBuilder(GenericBuilder):
 
         Koji Example: create tag, targets, set build tag inheritance...
         """
-        self.copr = self._get_copr()
+        self.copr = self._get_copr_safe()
         if self.copr and self.copr.projectname and self.copr.username:
             self.__prep = True
         log.info("%r buildroot sucessfully connected." % self)
 
-    def _get_copr(self):
+    def _get_copr_safe(self):
         from copr.exceptions import CoprRequestException
         # @TODO how the authentication is designed?
-        username, copr = "@copr", "modules"
+        kwargs = {"ownername": "@copr", "projectname": self.tag_name}
         try:
-            return self.client.get_project_details(copr, username=username).handle
+            return self._get_copr(**kwargs)
         except CoprRequestException:
-            return self.client.create_project(username, copr, ["fedora-24-x86_64"]).handle
+            self._create_copr(**kwargs)
+            return self._get_copr(**kwargs)
+
+    def _get_copr(self, ownername, projectname):
+        return self.client.get_project_details(projectname, username=ownername).handle
+
+    def _create_copr(self, ownername, projectname):
+        return self.client.create_project(ownername, projectname, ["fedora-24-x86_64"])
 
     def buildroot_ready(self, artifacts=None):
         """
