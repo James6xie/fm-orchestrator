@@ -897,8 +897,9 @@ class CoprModuleBuilder(GenericBuilder):
         if response.output != "ok":
             log.error(response.error)
 
+        # Create a module from previous project
         modulemd = tempfile.mktemp()
-        m1 = db.session.query(ModuleBuild).first()
+        m1 = ModuleBuild.query.filter(ModuleBuild.name == self.module_str).first()
         m1.mmd().dump(modulemd)
 
         data = {"modulemd": modulemd}
