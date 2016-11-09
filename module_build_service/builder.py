@@ -815,6 +815,13 @@ class CoprModuleBuilder(GenericBuilder):
         return CoprClient.create_from_file_config(config.copr_config)
 
     def buildroot_connect(self):
+        """
+        This is an idempotent call to create or resume and validate the build
+        environment.  .build() should immediately fail if .buildroot_connect()
+        wasn't called.
+
+        Koji Example: create tag, targets, set build tag inheritance...
+        """
         pass
 
     def buildroot_prep(self):
@@ -824,12 +831,35 @@ class CoprModuleBuilder(GenericBuilder):
         pass
 
     def buildroot_ready(self, artifacts=None):
+        """
+        :param artifacts=None : a list of artifacts supposed to be in the buildroot
+                                (['bash-123-0.el6'])
+
+        returns when the buildroot is ready (or contains the specified artifact)
+
+        This function is here to ensure that the buildroot (repo) is ready and
+        contains the listed artifacts if specified.
+        """
         return True
 
     def buildroot_add_dependency(self, dependencies):
         pass
 
     def buildroot_add_artifacts(self, artifacts, install=False):
+        """
+        :param artifacts: list of artifacts to be available or installed
+                          (install=False) in the buildroot (e.g  list of $NEVRAS)
+        :param install=False: pre-install artifact in the buildroot (otherwise
+                              "just make it available for install")
+
+        Example:
+
+        koji tag-build $module-build-tag bash-1.234-1.el6
+        if install:
+            koji add-group-pkg $module-build-tag build bash
+            # This forces install of bash into buildroot and srpm-buildroot
+            koji add-group-pkg $module-build-tag srpm-build bash
+        """
         pass
 
     def buildroot_add_repos(self, dependencies):
@@ -840,6 +870,23 @@ class CoprModuleBuilder(GenericBuilder):
         self.client.modify_project(copr, username=username, repos=self.repos)
 
     def build(self, artifact_name, source):
+        """
+        :param artifact_name : A package name. We can't guess it since macros
+                               in the buildroot could affect it, (e.g. software
+                               collections).
+        :param source : an SCM URL, clearly identifying the build artifact in a
+                        repository
+        :return 4-tuple of the form (build task id, state, reason, nvr)
+
+        The artifact_name parameter is used in koji add-pkg (and it's actually
+        the only reason why we need to pass it). We don't really limit source
+        types. The actual source is usually delivered as an SCM URL from
+        fedmsg.
+
+        Example
+        .build("bash", "git://someurl/bash#damn") #build from SCM URL
+        .build("bash", "/path/to/srpm.src.rpm") #build from source RPM
+        """
         log.info("Copr build")
 
         # @TODO how the authentication is designed?
