@@ -910,6 +910,9 @@ class CoprModuleBuilder(GenericBuilder):
         log.info(result.message)
         log.info(result.data["modulemd"])
 
+        # @TODO result should contain "module_id", "action_id" and "action_state"
+        return None, None, result.message, "-".join([m1.name, m1.version, m1.release])
+
     @staticmethod
     def get_disttag_srpm(disttag):
         # @FIXME
