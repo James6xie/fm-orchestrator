@@ -807,6 +807,12 @@ class CoprModuleBuilder(GenericBuilder):
         self.config = config
         self.tag_name = tag_name
         self.repos = []
+        self.client = CoprModuleBuilder._get_client(config)
+
+    @classmethod
+    def _get_client(cls, config):
+        from copr.client import CoprClient
+        return CoprClient.create_from_file_config(config.copr_config)
 
     def buildroot_connect(self):
         pass
@@ -830,23 +836,17 @@ class CoprModuleBuilder(GenericBuilder):
         log.info("%r adding deps on %r" % (self, dependencies))
         self.repos = [GenericBuilder.tag_to_repo("copr", self.config, d, "x86_64") for d in dependencies]
 
-        from copr.client import CoprClient
         username, copr = "@copr", "modules"
-
-        client = CoprClient.create_from_file_config(self.config.copr_config)
-        client.modify_project(copr, username=username, repos=self.repos)
+        self.client.modify_project(copr, username=username, repos=self.repos)
 
     def build(self, artifact_name, source):
         log.info("Copr build")
 
-        from copr.client import CoprClient
-
         # @TODO how the authentication is designed?
         username, copr = "@copr", "modules"
-        client = CoprClient.create_from_file_config()
 
         # Build package from `source`
-        response = client.create_new_build(copr, [source], username=username)
+        response = self.client.create_new_build(copr, [source], username=username)
         if response.output != "ok":
             log.error(response.error)
 
@@ -855,7 +855,7 @@ class CoprModuleBuilder(GenericBuilder):
         m1.mmd().dump(modulemd)
 
         data = {"modulemd": modulemd}
-        result = client.create_new_build_module(username=username, projectname=copr, **data)
+        result = self.client.create_new_build_module(username=username, projectname=copr, **data)
         if result.output != "ok":
             log.error(result.error)
             return
@@ -1054,13 +1054,11 @@ class MockModuleBuilder(GenericBuilder):
         Returns URL of repository containing the built artifacts for
         the tag with particular name and architecture.
         """
-        from copr.client import CoprClient
-
         # @TODO get the correct user
         # Premise is that tag_name is in name-version-release format
         owner, nvr = "@copr", tag_name
-        cl = CoprClient.create_from_file_config(config.copr_config)
-        response = cl.get_module_repo(owner, nvr).data
+        client = cls._get_client(config)
+        response = client.get_module_repo(owner, nvr).data
 
         if response["output"] == "notok":
             raise ValueError(response["error"])
