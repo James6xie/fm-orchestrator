@@ -3,7 +3,7 @@ sqlalchemy
 six
 fedmsg
 pdc-client
-modulemd
+modulemd==0.1
 pyOpenSSL
 kobo
 munch
