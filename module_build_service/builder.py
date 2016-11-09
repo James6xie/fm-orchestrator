@@ -830,15 +830,20 @@ class CoprModuleBuilder(GenericBuilder):
     def build(self, artifact_name, source):
         log.info("Copr build")
 
-        modulemd = tempfile.mktemp()
-        m1 = db.session.query(ModuleBuild).first()
-        m1.mmd().dump(modulemd)
-
         from copr.client import CoprClient
 
         # @TODO how the authentication is designed?
         username, copr = "@copr", "modules"
         client = CoprClient.create_from_file_config()
+
+        # Build package from `source`
+        response = client.create_new_build(copr, [source], username=username)
+        if response.output != "ok":
+            log.error(response.error)
+
+        modulemd = tempfile.mktemp()
+        m1 = db.session.query(ModuleBuild).first()
+        m1.mmd().dump(modulemd)
 
         data = {"modulemd": modulemd}
         result = client.create_new_build_module(username=username, projectname=copr, **data)
