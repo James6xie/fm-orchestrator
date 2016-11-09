@@ -808,6 +808,8 @@ class CoprModuleBuilder(GenericBuilder):
         self.tag_name = tag_name
         self.repos = []
         self.client = CoprModuleBuilder._get_client(config)
+        self.__prep = False
+        self.copr = None
 
     @classmethod
     def _get_client(cls, config):
@@ -822,7 +824,19 @@ class CoprModuleBuilder(GenericBuilder):
 
         Koji Example: create tag, targets, set build tag inheritance...
         """
-        pass
+        self.copr = self._get_copr()
+        if self.copr and self.copr.projectname and self.copr.username:
+            self.__prep = True
+        log.info("%r buildroot sucessfully connected." % self)
+
+    def _get_copr(self):
+        from copr.exceptions import CoprRequestException
+        # @TODO how the authentication is designed?
+        username, copr = "@copr", "modules"
+        try:
+            return self.client.get_project_details(copr, username=username).handle
+        except CoprRequestException:
+            return self.client.create_project(username, copr, ["fedora-24-x86_64"]).handle
 
     def buildroot_ready(self, artifacts=None):
         """
@@ -856,9 +870,7 @@ class CoprModuleBuilder(GenericBuilder):
     def buildroot_add_repos(self, dependencies):
         log.info("%r adding deps on %r" % (self, dependencies))
         self.repos = [GenericBuilder.tag_to_repo("copr", self.config, d, "x86_64") for d in dependencies]
-
-        username, copr = "@copr", "modules"
-        self.client.modify_project(copr, username=username, repos=self.repos)
+        self.client.modify_project(self.copr.projectname, username=self.copr.username, repos=self.repos)
 
     def build(self, artifact_name, source):
         """
@@ -880,11 +892,11 @@ class CoprModuleBuilder(GenericBuilder):
         """
         log.info("Copr build")
 
-        # @TODO how the authentication is designed?
-        username, copr = "@copr", "modules"
+        if not self.__prep:
+            raise RuntimeError("Buildroot is not prep-ed")
 
         # Build package from `source`
-        response = self.client.create_new_build(copr, [source], username=username)
+        response = self.client.create_new_build(self.copr.projectname, [source], username=self.copr.username)
         if response.output != "ok":
             log.error(response.error)
 
@@ -893,8 +905,8 @@ class CoprModuleBuilder(GenericBuilder):
         m1 = ModuleBuild.query.filter(ModuleBuild.name == self.module_str).first()
         m1.mmd().dump(modulemd)
 
-        data = {"modulemd": modulemd}
-        result = self.client.create_new_build_module(username=username, projectname=copr, **data)
+        kwargs = {"username": self.copr.username, "projectname": self.copr.projectname, "modulemd": modulemd}
+        result = self.client.create_new_build_module(**kwargs)
         if result.output != "ok":
             log.error(result.error)
             return
