@@ -804,7 +804,9 @@ class CoprModuleBuilder(GenericBuilder):
 
     def __init__(self, owner, module, config, tag_name):
         self.module_str = module
+        self.config = config
         self.tag_name = tag_name
+        self.repos = []
 
     def buildroot_connect(self):
         pass
@@ -825,7 +827,14 @@ class CoprModuleBuilder(GenericBuilder):
         pass
 
     def buildroot_add_repos(self, dependencies):
-        pass
+        log.info("%r adding deps on %r" % (self, dependencies))
+        self.repos = [GenericBuilder.tag_to_repo("copr", self.config, d, "x86_64") for d in dependencies]
+
+        from copr.client import CoprClient
+        username, copr = "@copr", "modules"
+
+        client = CoprClient.create_from_file_config(self.config.copr_config)
+        client.modify_project(copr, username=username, repos=self.repos)
 
     def build(self, artifact_name, source):
         log.info("Copr build")
