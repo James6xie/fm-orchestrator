@@ -844,6 +844,7 @@ class CoprModuleBuilder(GenericBuilder):
         return self.client.get_project_details(projectname, username=ownername).handle
 
     def _create_copr(self, ownername, projectname):
+        # @TODO fix issues with custom-1-x86_64 and custom-1-i386 chroot and use it
         return self.client.create_project(ownername, projectname, ["fedora-24-x86_64"])
 
     def buildroot_ready(self, artifacts=None):
@@ -877,6 +878,8 @@ class CoprModuleBuilder(GenericBuilder):
 
     def buildroot_add_repos(self, dependencies):
         log.info("%r adding deps on %r" % (self, dependencies))
+        # @TODO get architecture from some builder variable
+        # @TODO use the proper backend for each dependency
         repos = [GenericBuilder.tag_to_repo("copr", self.config, d, "x86_64") for d in dependencies]
         self.client.modify_project(self.copr.projectname, username=self.copr.username, repos=repos)
 
