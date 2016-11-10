@@ -81,6 +81,8 @@ class Config(object):
         self._amq_cert_file = ""
         self._amq_private_key_file = ""
         self._amq_trusted_cert_file = ""
+        self._mock_config = "fedora-25-x86_64"
+        self._mock_build_srpm_cmd = "fedpkg --dist f25 srpm"
 
     @property
     def system(self):
@@ -90,8 +92,8 @@ class Config(object):
     @system.setter
     def system(self, s):
         s = str(s)
-        if s not in ("koji", "copr"):
-            raise ValueError("Unsupported buildsystem.")
+        if s not in ("koji", "copr", "mock"):
+            raise ValueError("Unsupported buildsystem: %s." % s)
         self._system = s
 
     @property
@@ -202,6 +204,22 @@ class Config(object):
         if i < 0:
             raise ValueError("polling_interval must be >= 0")
         self._polling_interval = i
+
+    @property
+    def mock_config(self):
+        return self._mock_config
+
+    @mock_config.setter
+    def mock_config(self, s):
+        self._mock_config = str(s)
+
+    @property
+    def mock_build_srpm_cmd(self):
+        return self._mock_build_srpm_cmd
+
+    @mock_build_srpm_cmd.setter
+    def mock_build_srpm_cmd(self, s):
+        self._mock_build_srpm_cmd = str(s)
 
     @property
     def koji_config(self):

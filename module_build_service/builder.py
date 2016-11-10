@@ -44,12 +44,15 @@ import random
 import string
 import kobo.rpmlib
 import xmlrpclib
+import shutil
+import subprocess
 
 import munch
 from OpenSSL.SSL import SysCallError
 
-from module_build_service import log, db
+from module_build_service import conf, log, db
 from module_build_service.models import ModuleBuild
+import module_build_service.scheduler.main
 import module_build_service.utils
 
 logging.basicConfig(level=logging.DEBUG)
@@ -165,6 +168,9 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
                                      config=config, **extra)
         elif backend == "copr":
             return CoprModuleBuilder(owner=owner, module=module,
+                                     config=config, **extra)
+        elif backend == "mock":
+            return MockModuleBuilder(owner=owner, module=module,
                                      config=config, **extra)
         else:
             raise ValueError("Builder backend='%s' not recognized" % backend)
@@ -840,6 +846,181 @@ class CoprModuleBuilder(GenericBuilder):
 
         log.info(result.message)
         log.info(result.data["modulemd"])
+
+    @staticmethod
+    def get_disttag_srpm(disttag):
+        # @FIXME
+        return KojiModuleBuilder.get_disttag_srpm(disttag)
+
+class MockModuleBuilder(GenericBuilder):
+    """
+    See http://blog.samalik.com/copr-in-the-modularity-world/
+    especially section "Building a stack"
+    """
+
+    backend = "mock"
+
+    def __init__(self, owner, module, config, tag_name):
+        self.module_str = module
+        self.tag_name = tag_name
+        self.config = config
+
+        self.tag_dir = os.path.join("/tmp/", tag_name)
+        if not os.path.exists(self.tag_dir):
+            os.makedirs(self.tag_dir)
+
+        log.info("MockModuleBuilder initialized, tag_name=%s, tag_dir=%s" %
+                 (tag_name, self.tag_dir))
+
+    def buildroot_connect(self):
+        pass
+
+    def buildroot_prep(self):
+        pass
+
+    def buildroot_resume(self):
+        pass
+
+    def buildroot_ready(self, artifacts=None):
+        return True
+
+    def buildroot_add_dependency(self, dependencies):
+        pass
+
+    def buildroot_add_artifacts(self, artifacts, install=False):
+        pass
+
+    def buildroot_add_repos(self, dependencies):
+        pass
+
+    def _send_repo_done(self):
+        msg = module_build_service.messaging.KojiRepoChange(
+            msg_id='a faked internal message',
+            repo_tag=self.tag_name + "-build",
+        )
+        module_build_service.scheduler.main.outgoing_work_queue_put(msg)
+
+    def _send_build_change(self, state, source):
+        nvr = kobo.rpmlib.parse_nvr(source)
+
+        # build_id=1 and task_id=1 are OK here, because we are building just
+        # one RPM at the time.
+        msg = module_build_service.messaging.KojiBuildChange(
+            msg_id='a faked internal message',
+            build_id=1,
+            task_id=1,
+            build_name=nvr["name"],
+            build_new_state=state,
+            build_release=nvr["release"],
+            build_version=nvr["version"]
+        )
+        module_build_service.scheduler.main.outgoing_work_queue_put(msg)
+
+    def _execute_cmd(self, args):
+        log.debug("Executing command: %s" % args)
+        ret = subprocess.call(args)
+        if ret != 0:
+            raise RuntimeError("Command '%s' returned non-zero value %d"
+                               % (cmd, ret))
+
+    def build_srpm(self, artifact_name, source):
+        """
+        Builds the artifact from the SRPM.
+        """
+        try:
+            # Initialize mock.
+            self._execute_cmd(["mock", "-r", self.config.mock_config, "--init"])
+
+            # Install all RPMs from our tag_dir to mock.
+            self._execute_cmd(["mock", "-r", self.config.mock_config,
+                               "--copyin", self.tag_dir, "/tmp"])
+            rpms = [os.path.join("/tmp", self.tag_name, rpm) for rpm
+                    in os.listdir(self.tag_dir)
+                    if rpm.endswith(".rpm") and not rpm.endswith(".src.rpm")]
+            if rpms:
+                self._execute_cmd(["mock", "-r", self.config.mock_config,
+                                   "--install"] + rpms)
+
+            # Start the build and store results to tag_dir
+            # TODO: Maybe this should not block in the future, but for local
+            # builds it is not a big problem.
+            self._execute_cmd(["mock", "-r", self.config.mock_config,
+                               "--no-clean", "--rebuild", source,
+                               "--resultdir=%s" % self.tag_dir])
+
+            # Emit messages simulating complete build. These messages
+            # are put in the scheduler.main._work_queue and are handled
+            # by MBS after the build_srpm() method returns and scope gets
+            # back to scheduler.main.main() method.
+            self._send_repo_done()
+            self._send_build_change(koji.BUILD_STATES['COMPLETE'], source)
+            self._send_repo_done()
+        except Exception as e:
+            log.error("Error while building artifact %s: %s" % (artifact_name,
+                      str(e)))
+
+            # Emit messages simulating complete build. These messages
+            # are put in the scheduler.main._work_queue and are handled
+            # by MBS after the build_srpm() method returns and scope gets
+            # back to scheduler.main.main() method.
+            self._send_repo_done()
+            self._send_build_change(koji.BUILD_STATES['FAILED'], source)
+            self._send_repo_done()
+
+        # Return the "building" state. Real state will be taken by MBS
+        # from the messages emitted above.
+        state = koji.BUILD_STATES['BUILDING']
+        reason = "Submitted %s to Koji" % (artifact_name)
+        return 1, state, reason, None
+
+    def build_from_scm(self, artifact_name, source):
+        """
+        Builds the artifact from the SCM based source.
+        """
+        td = None
+        owd = os.getcwd()
+        ret = 1, koji.BUILD_STATES["FAILED"], "Cannot create SRPM", None
+
+        try:
+            log.debug('Cloning source URL: %s' % source)
+            # Create temp dir and clone the repo there.
+            td = tempfile.mkdtemp()
+            scm = module_build_service.scm.SCM(source)
+            cod = scm.checkout(td)
+
+            # Use configured command to create SRPM out of the SCM repo.
+            log.debug("Creating SRPM")
+            os.chdir(cod)
+            self._execute_cmd(self.config.mock_build_srpm_cmd.split(" "))
+
+            # Find out the built SRPM and build it normally.
+            for f in os.listdir(cod):
+                if f.endswith(".src.rpm"):
+                    log.info("Created SRPM %s" % f)
+                    source = os.path.join(cod, f)
+                    ret = self.build_srpm(artifact_name, source)
+                    break
+        finally:
+            os.chdir(owd)
+            try:
+                if td is not None:
+                    shutil.rmtree(td)
+            except Exception as e:
+                log.warning(
+                    "Failed to remove temporary directory {!r}: {}".format(
+                        td, str(e)))
+
+        return ret
+
+    def build(self, artifact_name, source):
+        log.info("Starting building artifact %s: %s" % (artifact_name, source))
+
+        # Git sources are treated specially.
+        if source.startswith("git://"):
+            return self.build_from_scm(artifact_name, source)
+        else:
+            return self.build_srpm(artifact_name, source)
+
 
     @staticmethod
     def get_disttag_srpm(disttag):
