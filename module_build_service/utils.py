@@ -291,6 +291,8 @@ def submit_module_build(username, url):
         err_msgs = pool.map(lambda data: "Cannot checkout {}".format(data[0])
                             if not module_build_service.scm.SCM(data[1]).is_available()
                             else None, full_urls)
+        # TODO: only the first error message is raised, perhaps concatenate
+        # the messages together?
         for err_msg in err_msgs:
             if err_msg:
                 raise UnprocessableEntity(err_msg)
