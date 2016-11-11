@@ -197,7 +197,7 @@ def from_app_config():
     for key, value in app.config.items():
         # lower keys
         key = key.lower()
-        conf.setitem(key, value)
+        conf.set_item(key, value)
     return conf
 
 
@@ -212,10 +212,10 @@ class Config(object):
                                   in self._defaults}
 
         for conf_item in self._defaults:
-            self.setitem(conf_item['name'], conf_item['default'])
+            self.set_item(conf_item['name'], conf_item['default'])
 
-    def setitem(self, key, value):
-        if key == 'setitem' or key.startswith('_'):
+    def set_item(self, key, value):
+        if key == 'set_item' or key.startswith('_'):
             raise Exception("Configuration item's name is not allowed: %s" % key)
 
         # registered defaults
