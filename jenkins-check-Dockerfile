@@ -1,14 +1,33 @@
 # This is what jenkins uses to check, roughly
+# Those parts starting with `###' were taken from Dockerfile just for some
+# overview on what's happening there.
 
 FROM fedora:24
 
 # so we don't have to compile those when fetched from PyPI
-RUN dnf install -y python python-virtualenv python-devel libffi-devel redhat-rpm-config openssl-devel gcc gcc-c++ koji git swig && \
-    dnf autoremove -y && dnf clean all && \
-    mkdir /opt/module_build_service/
+RUN dnf install -y \
+        python \
+        python-virtualenv \
+        python-devel \
+        libffi-devel \
+        redhat-rpm-config \
+        openssl-devel \
+        gcc \
+        gcc-c++ \
+        koji \
+        git \
+        swig \
+    && dnf autoremove -y \
+    && dnf clean all \
+    && mkdir /opt/module_build_service/
+    ###&& mkdir /etc/module_build_service
 WORKDIR /opt/module_build_service/
 COPY ./requirements.txt /opt/module_build_service/
 RUN pip install --user -r ./requirements.txt
+
+###RUN ln -s /opt/module_build_service/koji.conf /etc/module_build_service/koji.conf \
+### && ln -s /opt/module_build_service/copr.conf /etc/module_build_service/copr.conf \
+### && ln -s /opt/module_build_service/krb5-stg.fp.o /etc/krb5.conf.d/stg_fedoraproject_org
 
 # This isn't what we do in jenkins, blah ...
 # RUN pip install --upgrade -r test-requirements.txt
