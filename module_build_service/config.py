@@ -220,7 +220,7 @@ class Config(object):
 
         # registered defaults
         if key in self._defaults_by_name:
-            # customized check & set first
+            # customized check & set if there's a corresponding handler
             setifok_func = '_setifok_{}'.format(key)
             if hasattr(self, setifok_func):
                 getattr(self, setifok_func)(value)
@@ -241,7 +241,13 @@ class Config(object):
                 raise Exception("Unsupported type %s for configuration item name: %s" % (convert, key))
         # passthrough for uncontrolled configuration items
         else:
-            setattr(self, key, value)
+            # customized check & set if there's a corresponding handler
+            setifok_func = '_setifok_{}'.format(key)
+            if hasattr(self, setifok_func):
+                getattr(self, setifok_func)(value)
+            # otherwise just blindly set value for a key
+            else:
+                setattr(self, key, value)
 
         return
 
