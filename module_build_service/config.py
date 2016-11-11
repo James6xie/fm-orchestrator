@@ -229,7 +229,10 @@ class Config(object):
             # type conversion
             convert = self._defaults_by_name[key]['type']
             if convert in [bool, int, list, str]:
-                setattr(self, key, convert(value))
+                try:
+                    setattr(self, key, convert(value))
+                except:
+                    raise Exception("Configuration value conversion failed for name: %s" % key)
             # conversion is not required if type is None
             elif convert is None:
                 setattr(self, key, value)
