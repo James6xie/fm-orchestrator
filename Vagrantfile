@@ -18,9 +18,9 @@ $script = <<SCRIPT
         rpm-build \
         python-mock \
         krb5-workstation
-    pip install -r /opt/module_build_service/src/requirements.txt
-    pip install -r /opt/module_build_service/src/test-requirements.txt
-    cd /opt/module_build_service/src
+    pip install -r /opt/module_build_service/requirements.txt
+    pip install -r /opt/module_build_service/test-requirements.txt
+    cd /opt/module_build_service
     mkdir -p /etc/module_build_service
     ln -s /opt/module_build_service/koji.conf /etc/module_build_service/koji.conf
     ln -s /opt/module_build_service/copr.conf /etc/module_build_service/copr.conf
@@ -33,10 +33,10 @@ SCRIPT
 
 Vagrant.configure("2") do |config|
   config.vm.box = "boxcutter/fedora24"
-  config.vm.synced_folder "./", "/opt/module_build_service/src"
+  config.vm.synced_folder "./", "/opt/module_build_service"
   config.vm.provision "file", source: "/var/tmp/krbcc", destination: "/var/tmp/krbcc", run: "always"
   config.vm.network "forwarded_port", guest: 5000, host: 5000
   config.vm.provision "shell", inline: $script
-  config.vm.provision :shell, inline: "cd /opt/module_build_service/src && python manage.py runssl --debug &", run: "always"
-  config.vm.provision :shell, inline: "cd /opt/module_build_service/src && python module_build_service_daemon.py &", run: "always"
+  config.vm.provision :shell, inline: "cd /opt/module_build_service && python manage.py runssl --debug &", run: "always"
+  config.vm.provision :shell, inline: "cd /opt/module_build_service && python module_build_service_daemon.py &", run: "always"
 end
