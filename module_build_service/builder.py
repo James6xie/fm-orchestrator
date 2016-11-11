@@ -934,6 +934,28 @@ class CoprModuleBuilder(GenericBuilder):
         # @FIXME
         return KojiModuleBuilder.get_disttag_srpm(disttag)
 
+    @classmethod
+    def repo_from_tag(cls, config, tag_name, arch):
+        """
+        :param backend: a string representing the backend e.g. 'koji'.
+        :param config: instance of rida.config.Config
+        :param tag_name: Tag for which the repository is returned
+        :param arch: Architecture for which the repository is returned
+
+        Returns URL of repository containing the built artifacts for
+        the tag with particular name and architecture.
+        """
+        # @TODO get the correct user
+        # Premise is that tag_name is in name-version-release format
+        owner, nvr = "@copr", tag_name
+        client = cls._get_client(config)
+        response = client.get_module_repo(owner, nvr).data
+
+        if response["output"] == "notok":
+            raise ValueError(response["error"])
+        return response["repo"]
+
+
 class MockModuleBuilder(GenericBuilder):
     """
     See http://blog.samalik.com/copr-in-the-modularity-world/
@@ -1115,24 +1137,3 @@ class MockModuleBuilder(GenericBuilder):
     def get_disttag_srpm(disttag):
         # @FIXME
         return KojiModuleBuilder.get_disttag_srpm(disttag)
-
-    @classmethod
-    def repo_from_tag(cls, config, tag_name, arch):
-        """
-        :param backend: a string representing the backend e.g. 'koji'.
-        :param config: instance of rida.config.Config
-        :param tag_name: Tag for which the repository is returned
-        :param arch: Architecture for which the repository is returned
-
-        Returns URL of repository containing the built artifacts for
-        the tag with particular name and architecture.
-        """
-        # @TODO get the correct user
-        # Premise is that tag_name is in name-version-release format
-        owner, nvr = "@copr", tag_name
-        client = cls._get_client(config)
-        response = client.get_module_repo(owner, nvr).data
-
-        if response["output"] == "notok":
-            raise ValueError(response["error"])
-        return response["repo"]
