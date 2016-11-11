@@ -238,7 +238,7 @@ class Config(object):
                 setattr(self, key, value)
             # unknown type/unsupported conversion
             else:
-                raise Exception("Unsupported type %s for configuration item: %s" % (convert, key))
+                raise Exception("Unsupported type %s for configuration item name: %s" % (convert, key))
         # passthrough for uncontrolled configuration items
         else:
             setattr(self, key, value)
