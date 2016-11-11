@@ -184,12 +184,12 @@ class TestViews(unittest.TestCase):
         self.assertEquals(data['scmurl'],
                           ('git://pkgs.stg.fedoraproject.org/modules/testmodule'
                           '.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'))
-        self.assertEquals(data['release'], '5')
+        self.assertEquals(data['version'], '5')
         self.assertTrue(data['time_submitted'] is not None)
         self.assertTrue(data['time_modified'] is not None)
-        self.assertEquals(data['release'], '5')
+        self.assertEquals(data['version'], '5')
         self.assertEquals(data['time_completed'], None)
-        self.assertEquals(data['version'], '4.3.44')
+        self.assertEquals(data['stream'], '4.3.44')
         self.assertEquals(data['owner'], 'Homer J. Simpson')
         self.assertEquals(data['id'], 31)
         self.assertEquals(data['state_name'], 'wait')
@@ -221,12 +221,12 @@ class TestViews(unittest.TestCase):
         self.assertEquals(data['scmurl'],
                           ('git://pkgs.stg.fedoraproject.org/modules/testmodule'
                           '.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'))
-        self.assertEquals(data['release'], '5')
+        self.assertEquals(data['version'], '5')
         self.assertTrue(data['time_submitted'] is not None)
         self.assertTrue(data['time_modified'] is not None)
-        self.assertEquals(data['release'], '5')
+        self.assertEquals(data['version'], '5')
         self.assertEquals(data['time_completed'], None)
-        self.assertEquals(data['version'], '4.3.44')
+        self.assertEquals(data['stream'], '4.3.44')
         self.assertEquals(data['owner'], 'Homer J. Simpson')
         self.assertEquals(data['id'], 31)
         self.assertEquals(data['state_name'], 'wait')
@@ -295,7 +295,8 @@ class TestViews(unittest.TestCase):
                 'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}))
         data = json.loads(rv.data)
         self.assertEquals(
-            data['message'], 'Invalid modulemd')
+            data['message'], 'Invalid modulemd: The supplied data isn\'t'
+            ' a valid modulemd document')
         self.assertEquals(data['status'], 422)
         self.assertEquals(data['error'], 'Unprocessable Entity')
 

@@ -41,7 +41,7 @@ for a number of tasks:
 - Emitting bus messages about all state changes so that other
   infrastructure services can pick up the work.
 """
-from flask import Flask
+from flask import Flask, has_app_context, url_for
 from flask_sqlalchemy import SQLAlchemy
 from os import sys
 import module_build_service.logger
@@ -61,6 +61,18 @@ else:
 
 db = SQLAlchemy(app)
 
+def get_url_for(*args, **kwargs):
+    """
+    flask.url_for wrapper which creates the app_context on-the-fly.
+    """
+    if has_app_context():
+        return url_for(*args, **kwargs)
+
+    # Localhost is right URL only when the scheduler runs on the same
+    # system as the web views.
+    app.config['SERVER_NAME'] = 'localhost'
+    with app.app_context():
+        return url_for(*args, **kwargs)
 
 @app.errorhandler(ValidationError)
 def validationerror_error(e):

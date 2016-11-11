@@ -178,6 +178,7 @@ def submit_module_build(username, url):
 
     yaml = ""
     td = None
+    scm = None
     try:
         log.debug('Verifying modulemd')
         td = tempfile.mkdtemp()
@@ -199,13 +200,25 @@ def submit_module_build(username, url):
     mmd = modulemd.ModuleMetadata()
     try:
         mmd.loads(yaml)
-    except:
-        log.error('Invalid modulemd')
-        raise UnprocessableEntity('Invalid modulemd')
+    except Exception as e:
+        log.error('Invalid modulemd: %s' % str(e))
+        raise UnprocessableEntity('Invalid modulemd: %s' % str(e))
+
+    # If undefined, set the name field to VCS repo name.
+    if not mmd.name and scm:
+        mmd.name = scm.name
+
+    # If undefined, set the stream field to the VCS branch name.
+    if not mmd.stream and scm:
+        mmd.stream = scm.branch
+
+    # If undefined, set the version field to int represenation of VCS commit.
+    if not mmd.version and scm:
+        mmd.version = int(scm.version)
 
     module = models.ModuleBuild.query.filter_by(name=mmd.name,
-                                            version=mmd.version,
-                                            release=mmd.release).first()
+                                            stream=mmd.stream,
+                                            version=mmd.version).first()
     if module:
         log.debug('Checking whether module build already exist.')
             # TODO: make this configurable, we might want to allow
@@ -228,8 +241,8 @@ def submit_module_build(username, url):
             db.session,
             conf,
             name=mmd.name,
+            stream=mmd.stream,
             version=mmd.version,
-            release=mmd.release,
             modulemd=yaml,
             scmurl=url,
             username=username
@@ -241,21 +254,21 @@ def submit_module_build(username, url):
 
     # If the modulemd yaml specifies components, then submit them for build
     if mmd.components:
-        for pkgname, pkg in mmd.components.rpms.packages.items():
+        for pkgname, pkg in mmd.components.rpms.items():
             try:
-                if pkg.get("repository") and not conf.rpms_allow_repository:
+                if pkg.repository and not conf.rpms_allow_repository:
                     raise Unauthorized(
                         "Custom component repositories aren't allowed")
-                if pkg.get("cache") and not conf.rpms_allow_cache:
+                if pkg.cache and not conf.rpms_allow_cache:
                     raise Unauthorized("Custom component caches aren't allowed")
-                if not pkg.get("repository"):
-                    pkg["repository"] = conf.rpms_default_repository + pkgname
-                if not pkg.get("cache"):
-                    pkg["cache"] = conf.rpms_default_cache + pkgname
-                if not pkg.get("commit"):
+                if not pkg.repository:
+                    pkg.repository = conf.rpms_default_repository + pkgname
+                if not pkg.cache:
+                    pkg.cache = conf.rpms_default_cache + pkgname
+                if not pkg.ref:
                     try:
-                        pkg["commit"] = module_build_service.scm.SCM(
-                            pkg["repository"]).get_latest()
+                        pkg.ref = module_build_service.scm.SCM(
+                            pkg.repository).get_latest()
                     except Exception as e:
                         raise UnprocessableEntity(
                             "Failed to get the latest commit: %s" % pkgname)
@@ -265,7 +278,7 @@ def submit_module_build(username, url):
                 db.session.commit()
                 raise
 
-            full_url = pkg["repository"] + "?#" + pkg["commit"]
+            full_url = "%s?#%s" % (pkg.repository, pkg.ref)
             full_urls.append((pkgname, full_url))
 
         log.debug("Checking scm urls")
@@ -278,8 +291,8 @@ def submit_module_build(username, url):
             if err_msg:
                 raise UnprocessableEntity(err_msg)
 
-        for pkgname, pkg in mmd.components.rpms.packages.items():
-            full_url = pkg["repository"] + "?#" + pkg["commit"]
+        for pkgname, pkg in mmd.components.rpms.items():
+            full_url = "%s?#%s" % (pkg.repository, pkg.ref)
 
             existing_build = models.ComponentBuild.query.filter_by(
                 module_id=module.id, package=pkgname).first()
@@ -302,6 +315,6 @@ def submit_module_build(username, url):
     module.transition(conf, models.BUILD_STATES["wait"])
     db.session.add(module)
     db.session.commit()
-    log.info("%s submitted build of %s-%s-%s", username, mmd.name,
-                mmd.version, mmd.release)
+    log.info("%s submitted build of %s, stream=%s, version=%s", username,
+             mmd.name, mmd.stream, mmd.version)
     return module
