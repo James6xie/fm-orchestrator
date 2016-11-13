@@ -30,7 +30,6 @@ import shutil
 import tempfile
 import os
 import modulemd
-import time
 from module_build_service import log, models
 from module_build_service.errors import ValidationError, UnprocessableEntity
 from module_build_service import app, conf, db, log
@@ -59,9 +58,28 @@ def retry(timeout=120, interval=30, wait_on=Exception):
     return wrapper
 
 
+def at_concurrent_component_threshold(config, session):
+    """
+    Determines if the number of concurrent component builds has reached
+    the configured threshold
+    :param config: Module Build Service configuration object
+    :param session: SQLAlchemy database session
+    :return: boolean representing if there are too many concurrent builds at
+    this time
+    """
+
+    import koji  # Placed here to avoid py2/py3 conflicts...
+
+    if config.num_consecutive_builds and config.num_consecutive_builds <= \
+        session.query(models.ComponentBuild).filter_by(
+            state=koji.BUILD_STATES['BUILDING']).count():
+        return True
+
+    return False
+
+
 def start_build_batch(config, module, session, builder, components=None):
     """ Starts a round of the build cycle for a module. """
-
     import koji  # Placed here to avoid py2/py3 conflicts...
 
     if any([c.state == koji.BUILD_STATES['BUILDING']
@@ -70,11 +88,11 @@ def start_build_batch(config, module, session, builder, components=None):
 
     # The user can either pass in a list of components to 'seed' the batch, or
     # if none are provided then we just select everything that hasn't
-    # successfully built yet.
-    module.batch += 1
+    # successfully built yet or isn't currently being built.
     unbuilt_components = components or [
         c for c in module.component_builds
         if (c.state != koji.BUILD_STATES['COMPLETE']
+            and c.state != koji.BUILD_STATES['BUILDING']
             and c.batch == module.batch)
     ]
 
@@ -82,7 +100,12 @@ def start_build_batch(config, module, session, builder, components=None):
         unbuilt_components))
 
     for c in unbuilt_components:
-        c.task_id, c.state, c.state_reason, c.nvr = builder.build(artifact_name=c.package, source=c.scmurl)
+        if at_concurrent_component_threshold(config, session):
+            log.info('Concurrent build threshold met')
+            break
+
+        c.task_id, c.state, c.state_reason, c.nvr = builder.build(
+            artifact_name=c.package, source=c.scmurl)
 
         if not c.task_id:
             module.transition(config, models.BUILD_STATES["failed"],

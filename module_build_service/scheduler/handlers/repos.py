@@ -100,18 +100,24 @@ def done(config, session, msg):
     # So now we can either start a new batch if there are still some to build
     # or, if everything is built successfully, then we can bless the module as
     # complete.
-    leftover_components = [
+    unbuilt_components = [
         c for c in module_build.component_builds
         if (c.state != koji.BUILD_STATES['COMPLETE']
             and c.state != koji.BUILD_STATES["FAILED"])
     ]
 
-    if leftover_components:
-        module_build.batch += 1
+    if unbuilt_components:
+        # Increment the build batch when no components are being built and all
+        # have at least attempted a build (even failures) in the current batch
+        unbuilt_components_in_batch = [
+            c for c in module_build.current_batch()
+            if c.state == koji.BUILD_STATES['BUILDING'] or not c.state
+        ]
+        if not unbuilt_components_in_batch:
+            module_build.batch += 1
+
         module_build_service.utils.start_build_batch(
             config, module_build, session, builder)
     else:
         module_build.transition(config, state=models.BUILD_STATES['done'])
         session.commit()
-
-    # And that's it.  :)

@@ -122,16 +122,22 @@ class ModuleBuild(RidaBase):
 
     module = db.relationship('Module', backref='module_builds', lazy=False)
 
-    def current_batch(self):
+    def current_batch(self, state=None):
         """ Returns all components of this module in the current batch. """
 
         if not self.batch:
             raise ValueError("No batch is in progress: %r" % self.batch)
 
-        return [
-            component for component in self.component_builds
-            if component.batch == self.batch
-        ]
+        if state:
+            return [
+                component for component in self.component_builds
+                if component.batch == self.batch and component.state == state
+            ]
+        else:
+            return [
+                component for component in self.component_builds
+                if component.batch == self.batch
+            ]
 
     def mmd(self):
         mmd = _modulemd.ModuleMetadata()
