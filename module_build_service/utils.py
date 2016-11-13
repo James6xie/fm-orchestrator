@@ -30,6 +30,7 @@ import shutil
 import tempfile
 import os
 import modulemd
+import time
 from module_build_service import log, models
 from module_build_service.errors import ValidationError, UnprocessableEntity
 from module_build_service import app, conf, db, log
@@ -58,8 +59,8 @@ def retry(timeout=120, interval=30, wait_on=Exception):
     return wrapper
 
 
-def start_next_build_batch(config, module, session, builder, components=None):
-    """ Starts a next round of the build cycle for a module. """
+def start_build_batch(config, module, session, builder, components=None):
+    """ Starts a round of the build cycle for a module. """
 
     import koji  # Placed here to avoid py2/py3 conflicts...
 

@@ -107,7 +107,8 @@ def done(config, session, msg):
     ]
 
     if leftover_components:
-        module_build_service.utils.start_next_build_batch(
+        module_build.batch += 1
+        module_build_service.utils.start_build_batch(
             config, module_build, session, builder)
     else:
         module_build.transition(config, state=models.BUILD_STATES['done'])
