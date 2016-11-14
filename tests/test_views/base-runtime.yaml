@@ -1,9 +1,9 @@
 document: modulemd
-version: 0
+version: 1
 data:
     name: base-runtime
-    version: 0.25
-    release: 1
+    stream: "0.25"
+    version: 1
     summary: The base application runtime and hardware enablement layer
     description: >
         A project closely linked to the Modularity Initiative, base-runtime
@@ -17,7 +17,7 @@ data:
         # Build-require self for now.
         # TODO: Don't forget to update this once we're no longer self-hosted
         buildrequires:
-            base-runtime: ~
+            base-runtime: "0.25"
     references:
         community: https://fedoraproject.org/wiki/BaseRuntime
         documentation: https://pagure.io/base-runtime
@@ -118,65 +118,64 @@ data:
                 - uucp
                 # ex, vi
                 - vim-minimal
+    api:
+        rpms:
+            - at
+            - bash
+            - bc
+            - binutils
+            - byacc
+            - cflow
+            - coreutils
+            - cronie
+            - ctags
+            - cups-client
+            - diffutils
+            - ed
+            - file
+            - flex
+            - findutils
+            - gawk
+            - gcc
+            - gcc-gfortran
+            - glibc-common
+            - grep
+            - gzip
+            - kernel
+            - m4
+            - mailx
+            - make
+            - man-db
+            - ncompress
+            - ncurses
+            - patch
+            - psmisc
+            - procps-ng
+            - sed
+            - shadow-utils
+            - sharutils
+            - spax
+            - systemd
+            - talk
+            - time
+            - torque-client
+            - util-linux
+            - uucp
+            - vim-minimal
     components:
         rpms:
-            # The same as the default installation profile for now
-            api:
-                - at
-                - bash
-                - bc
-                - binutils
-                - byacc
-                - cflow
-                - coreutils
-                - cronie
-                - ctags
-                - cups-client
-                - diffutils
-                - ed
-                - file
-                - flex
-                - findutils
-                - gawk
-                - gcc
-                - gcc-gfortran
-                - glibc-common
-                - grep
-                - gzip
-                - kernel
-                - m4
-                - mailx
-                - make
-                - man-db
-                - ncompress
-                - ncurses
-                - patch
-                - psmisc
-                - procps-ng
-                - sed
-                - shadow-utils
-                - sharutils
-                - spax
-                - systemd
-                - talk
-                - time
-                - torque-client
-                - util-linux
-                - uucp
-                - vim-minimal
-            packages:
-                CUnit2:
-                    rationale: Part of the first base-runtime prototype.
-                    commit: 2fb6e8f0529a1196a4bd0897e9bfcd93719e686c
-                Canna:
-                    rationale: Part of the first base-runtime prototype.
-                    commit: 8d636177ba858cfabf02df029b2089cf192d683e
-                Cython:
-                    rationale: Part of the first base-runtime prototype.
-                    commit: 6c9d7cad8ac0a840b18b495c4fe152967d808600
-                DevIL:
-                    rationale: Part of the first base-runtime prototype.
-                    commit: de58614c0febb5032b710739f34f7344679668f6
-                GConf2:
-                    rationale: Part of the first base-runtime prototype.
-                    commit: a13087720a27b17b61bd0a1cbd6042a1d0ab98b7
+            CUnit2:
+                rationale: Part of the first base-runtime prototype.
+                ref: 2fb6e8f0529a1196a4bd0897e9bfcd93719e686c
+            Canna:
+                rationale: Part of the first base-runtime prototype.
+                ref: 8d636177ba858cfabf02df029b2089cf192d683e
+            Cython:
+                rationale: Part of the first base-runtime prototype.
+                ref: 6c9d7cad8ac0a840b18b495c4fe152967d808600
+            DevIL:
+                rationale: Part of the first base-runtime prototype.
+                ref: de58614c0febb5032b710739f34f7344679668f6
+            GConf2:
+                rationale: Part of the first base-runtime prototype.
+                ref: a13087720a27b17b61bd0a1cbd6042a1d0ab98b7

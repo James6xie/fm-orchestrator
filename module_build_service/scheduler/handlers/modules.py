@@ -90,15 +90,15 @@ def wait(config, session, msg):
         # In case of mock, we do not try to get anything from pdc,
         # just generate our own koji_tag to identify the module in messages.
         tag = '-'.join(['module', module_info['name'],
-            str(module_info['version']), str(module_info['release'])])
+            str(module_info['stream']), str(module_info['version'])])
         # TODO: Dependencies
     else:
         # TODO: Move this to separate func
         pdc_session = module_build_service.pdc.get_pdc_client_session(config)
         pdc_query = {
             'name': module_info['name'],
-            'version': module_info['version'],
-            'release': module_info['release'],
+            'version': module_info['stream'],
+            'release': module_info['version'],
         }
 
         @module_build_service.utils.retry(interval=10, timeout=30, wait_on=ValueError)

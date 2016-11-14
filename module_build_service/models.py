@@ -33,7 +33,7 @@ from sqlalchemy import engine_from_config
 from sqlalchemy.orm import validates, scoped_session, sessionmaker
 import modulemd as _modulemd
 
-from module_build_service import db, log
+from module_build_service import db, log, get_url_for
 import module_build_service.messaging
 
 from sqlalchemy.orm import lazyload
@@ -103,8 +103,8 @@ class ModuleBuild(RidaBase):
     __tablename__ = "module_builds"
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String, db.ForeignKey('modules.name'), nullable=False)
+    stream = db.Column(db.String, nullable=False)
     version = db.Column(db.String, nullable=False)
-    release = db.Column(db.String, nullable=False)
     state = db.Column(db.Integer, nullable=False)
     state_reason = db.Column(db.String)
     modulemd = db.Column(db.String, nullable=False)
@@ -159,12 +159,12 @@ class ModuleBuild(RidaBase):
                              % type(event).__name__)
 
     @classmethod
-    def create(cls, session, conf, name, version, release, modulemd, scmurl, username):
+    def create(cls, session, conf, name, stream, version, modulemd, scmurl, username):
         now = datetime.utcnow()
         module = cls(
             name=name,
+            stream=stream,
             version=version,
-            release=release,
             state="init",
             modulemd=modulemd,
             scmurl=scmurl,
@@ -228,12 +228,12 @@ class ModuleBuild(RidaBase):
         return {
             'id': self.id,
             'name': self.name,
+            'stream': self.stream,
             'version': self.version,
-            'release': self.release,
             'state': self.state,
             'state_name': INVERSE_BUILD_STATES[self.state],
             'state_reason': self.state_reason,
-            'state_url': url_for('module_build_query', id=self.id),
+            'state_url': get_url_for('module_build_query', id=self.id),
             'scmurl': self.scmurl,
             'owner': self.owner,
             'time_submitted': self.time_submitted,
@@ -284,8 +284,8 @@ class ModuleBuild(RidaBase):
         return tasks
 
     def __repr__(self):
-        return "<ModuleBuild %s-%s-%s, state %r, batch %r>" % (
-            self.name, self.version, self.release,
+        return "<ModuleBuild %s, stream=%s, version=%s, state %r, batch %r>" % (
+            self.name, self.stream, self.version,
             INVERSE_BUILD_STATES[self.state], self.batch)
 
 

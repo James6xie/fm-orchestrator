@@ -34,6 +34,7 @@ import subprocess as sp
 import re
 import tempfile
 import shutil
+import datetime
 
 from module_build_service import log
 from module_build_service.errors import Unauthorized, ValidationError
@@ -90,6 +91,8 @@ class SCM(object):
             if self.name.endswith(".git"):
                 self.name = self.name[:-4]
             self.commit = match.group("commit")
+            self.branch = "master"
+            self.version = None
         else:
             raise ValidationError("Unhandled SCM scheme: %s" % self.scheme)
 
@@ -105,7 +108,7 @@ class SCM(object):
         if proc.returncode != 0:
             raise RuntimeError("Failed on %r, retcode %r, out %r, err %r" % (
                 cmd, proc.returncode, stdout, stderr))
-        return proc.returncode
+        return proc.returncode, stdout, stderr
 
     def checkout(self, scmdir):
         """Checkout the module from SCM.
@@ -129,6 +132,10 @@ class SCM(object):
             SCM._run(module_clone_cmd, chdir=scmdir)
             if self.commit:
                 SCM._run(module_checkout_cmd, chdir=sourcedir)
+
+            timestamp = SCM._run(["git", "show" , "-s", "--format=%ct"], chdir=sourcedir)[1]
+            dt = datetime.datetime.utcfromtimestamp(int(timestamp))
+            self.version = dt.strftime("%Y%m%d%H%M%S")
         else:
             raise RuntimeError("checkout: Unhandled SCM scheme.")
         return sourcedir

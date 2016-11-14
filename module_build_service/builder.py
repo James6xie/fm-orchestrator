@@ -940,6 +940,8 @@ class MockModuleBuilder(GenericBuilder):
     """
 
     backend = "mock"
+    # Global build_id/task_id we increment when new build is executed.
+    _build_id = 1
 
     def __init__(self, owner, module, config, tag_name):
         self.module_str = module
@@ -981,15 +983,15 @@ class MockModuleBuilder(GenericBuilder):
         )
         module_build_service.scheduler.main.outgoing_work_queue_put(msg)
 
-    def _send_build_change(self, state, source):
+    def _send_build_change(self, state, source, build_id):
         nvr = kobo.rpmlib.parse_nvr(source)
 
         # build_id=1 and task_id=1 are OK here, because we are building just
         # one RPM at the time.
         msg = module_build_service.messaging.KojiBuildChange(
             msg_id='a faked internal message',
-            build_id=1,
-            task_id=1,
+            build_id=build_id,
+            task_id=build_id,
             build_name=nvr["name"],
             build_new_state=state,
             build_release=nvr["release"],
@@ -1034,7 +1036,8 @@ class MockModuleBuilder(GenericBuilder):
             # by MBS after the build_srpm() method returns and scope gets
             # back to scheduler.main.main() method.
             self._send_repo_done()
-            self._send_build_change(koji.BUILD_STATES['COMPLETE'], source)
+            self._send_build_change(koji.BUILD_STATES['COMPLETE'], source,
+                                    MockModuleBuilder._build_id)
             self._send_repo_done()
         except Exception as e:
             log.error("Error while building artifact %s: %s" % (artifact_name,
@@ -1045,14 +1048,15 @@ class MockModuleBuilder(GenericBuilder):
             # by MBS after the build_srpm() method returns and scope gets
             # back to scheduler.main.main() method.
             self._send_repo_done()
-            self._send_build_change(koji.BUILD_STATES['FAILED'], source)
+            self._send_build_change(koji.BUILD_STATES['FAILED'], source,
+                                    MockModuleBuilder._build_id)
             self._send_repo_done()
 
         # Return the "building" state. Real state will be taken by MBS
         # from the messages emitted above.
         state = koji.BUILD_STATES['BUILDING']
         reason = "Submitted %s to Koji" % (artifact_name)
-        return 1, state, reason, None
+        return MockModuleBuilder._build_id, state, reason, None
 
     def build_from_scm(self, artifact_name, source):
         """
@@ -1060,7 +1064,8 @@ class MockModuleBuilder(GenericBuilder):
         """
         td = None
         owd = os.getcwd()
-        ret = 1, koji.BUILD_STATES["FAILED"], "Cannot create SRPM", None
+        ret = (MockModuleBuilder._build_id, koji.BUILD_STATES["FAILED"],
+               "Cannot create SRPM", None)
 
         try:
             log.debug('Cloning source URL: %s' % source)
@@ -1095,6 +1100,8 @@ class MockModuleBuilder(GenericBuilder):
 
     def build(self, artifact_name, source):
         log.info("Starting building artifact %s: %s" % (artifact_name, source))
+
+        MockModuleBuilder._build_id += 1
 
         # Git sources are treated specially.
         if source.startswith("git://"):

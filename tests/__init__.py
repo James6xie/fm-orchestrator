@@ -33,8 +33,8 @@ def init_data():
     for index in range(10):
         build_one = ModuleBuild()
         build_one.name = 'nginx'
-        build_one.version = '1'
-        build_one.release = 2
+        build_one.stream = '1'
+        build_one.version = 2
         build_one.state = 3
         build_one.modulemd = '' # Skipping since no tests rely on it
         build_one.koji_tag = 'module-nginx-1.2'
@@ -77,8 +77,8 @@ def init_data():
 
         build_two = ModuleBuild()
         build_two.name = 'postgressql'
-        build_two.version = '1'
-        build_two.release = 2
+        build_two.stream = '1'
+        build_two.version = 2
         build_two.state = 3
         build_two.modulemd = ''  # Skipping since no tests rely on it
         build_two.koji_tag = 'module-postgressql-1.2'
@@ -120,8 +120,8 @@ def init_data():
 
         build_three = ModuleBuild()
         build_three.name = 'testmodule'
-        build_three.version = '4.3.43'
-        build_three.release = 6
+        build_three.stream = '4.3.43'
+        build_three.version = 6
         build_three.state = 1
         build_three.modulemd = ''  # Skipping because no tests rely on it
         build_three.koji_tag = None
