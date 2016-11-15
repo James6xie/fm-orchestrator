@@ -28,6 +28,7 @@
 import modulemd
 from pdc_client import PDCClient
 
+import pprint
 import logging
 log = logging.getLogger()
 
@@ -64,7 +65,7 @@ def get_variant_dict(data):
         if not isinstance(data, dict):
             return False
 
-        for attr in ('variant_id', 'variant_version', 'variant_release'):
+        for attr in ('variant_id', 'variant_stream'):
             if attr not in data.keys():
                 return False
         return True
@@ -84,13 +85,17 @@ def get_variant_dict(data):
         result = {'variant_id': data.name, 'variant_version': data.version, 'variant_release': data.release }
 
     elif is_variant_dict(data):
-        result = data
+        result = data.copy()
+
+        # This is a transitionary thing until we've ported PDC away from the old nomenclature
+        if 'variant_version' not in result and 'variant_stream' in result:
+            result['variant_version'] = result['variant_stream']
+            del result['variant_stream']
+
         # ensure that variant_type is in result
         if 'variant_type' not in result.keys():
             result['variant_type'] = 'module'
 
-        if 'variant_release' not in result.keys():
-            result['variant_release'] = '0'
 
     elif is_module_dict(data):
         result = {'variant_id': data['name'], 'variant_version': data['version'], 'variant_release': data['release']}
@@ -132,16 +137,21 @@ def get_module(session, module_info, strict=False):
     """
 
     module_info = get_variant_dict(module_info)
-    retval = session['unreleasedvariants'](page_size=-1,
-                variant_id=module_info['variant_id'],
-                variant_version=module_info['variant_version'],
-                variant_release=module_info['variant_release'])
-    assert len(retval) <= 1
+
+    query = dict(
+        variant_id=module_info['variant_id'],
+        variant_version=module_info['variant_version'],
+    )
+    if module_info.get('variant_release'):
+        query['variant_release'] = module_info['variant_release']
+
+    retval = session['unreleasedvariants'](page_size=-1, **query) # ordering=variant_release...
+    assert len(retval) <= 1, pprint.pformat(retval)
 
     # Error handling
     if not retval:
         if strict:
-            raise ValueError("Failed to find module in PDC %r" % module_info)
+            raise ValueError("Failed to find module in PDC %r" % query)
         else:
             return None
 
@@ -202,7 +212,8 @@ def get_module_runtime_dependencies(session, module_info, strict=False):
     deps = []
     module_info = get_module(session, module_info, strict=strict)
     if module_info and module_info.get('runtime_deps', None):
-        deps = [x['dependency'] for x in module_info['runtime_deps']]
+        deps = [dict(variant_id=x['dependency'], variant_stream=x['stream'])
+                for x in module_info['runtime_deps']]
         deps = module_depsolving_wrapper(session, deps, strict=strict)
 
     return deps
@@ -222,7 +233,8 @@ def get_module_build_dependencies(session, module_info, strict=False):
     deps = []
     module_info = get_module(session, module_info, strict=strict)
     if module_info and module_info.get('build_deps', None):
-        deps = [x['dependency'] for x in module_info['build_deps']]
+        deps = [dict(variant_id=x['dependency'], variant_stream=x['stream'])
+                for x in module_info['build_deps']]
         deps = module_depsolving_wrapper(session, deps, strict=strict)
 
     return deps
