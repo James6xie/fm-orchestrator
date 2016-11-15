@@ -25,169 +25,9 @@
 
 """Configuration handler functions."""
 
-import six
-
 from module_build_service import app
 from module_build_service import logger
 
-DEFAULTS = [
-    {'name': 'system',
-     'type': str,
-     'default': 'koji',
-     'desc': 'The buildsystem to use.'},
-    {'name': 'db',
-     'type': str,
-     'default': '',
-     'desc': 'RDB URL.'},
-    {'name': 'polling_interval',
-     'type': int,
-     'default': 0,
-     'desc': 'Polling interval, in seconds.'},
-    {'name': 'pdc_url',
-     'type': str,
-     'default': '',
-     'desc': 'PDC URL.'},
-    {'name': 'pdc_insecure',
-     'type': bool,
-     'default': False,
-     'desc': 'Allow insecure connection to PDC.'},
-    {'name': 'pdc_develop',
-     'type': bool,
-     'default': False,
-     'desc': 'PDC Development mode, basically noauth.'},
-    {'name': 'koji_config',
-     'type': str,
-     'default': None,
-     'desc': 'Koji config file.'},
-    {'name': 'koji_profile',
-     'type': str,
-     'default': None,
-     'desc': 'Koji config profile.'},
-    {'name': 'koji_arches',
-     'type': list,
-     'default': [],
-     'desc': 'Koji architectures.'},
-    {'name': 'koji_proxyuser',
-     'type': bool,
-     'default': None,
-     'desc': 'Koji proxyuser flag.'},
-    {'name': 'koji_build_priority',
-     'type': int,
-     'default': 10,
-     'desc': ''},
-    {'name': 'koji_repository_url',
-     'type': str,
-     'default': None,
-     'desc': 'Koji repository URL.'},
-    {'name': 'rpms_default_repository',
-     'type': str,
-     'default': 'git://pkgs.fedoraproject.org/rpms/',
-     'desc': 'RPMs default repository URL.'},
-    {'name': 'rpms_allow_repository',
-     'type': bool,
-     'default': False,
-     'desc': 'Allow custom RPMs repositories.'},
-    {'name': 'rpms_default_cache',
-     'type': str,
-     'default': 'http://pkgs.fedoraproject.org/repo/pkgs/',
-     'desc': 'RPMs default cache URL.'},
-    {'name': 'rpms_allow_cache',
-     'type': bool,
-     'default': False,
-     'desc': 'Allow custom RPMs cache.'},
-    {'name': 'ssl_certificate_file',
-     'type': str,
-     'default': '',
-     'desc': ''},
-    {'name': 'ssl_certificate_key_file',
-     'type': str,
-     'default': '',
-     'desc': ''},
-    {'name': 'ssl_ca_certificate_file',
-     'type': str,
-     'default': '',
-     'desc': ''},
-    {'name': 'pkgdb_api_url',
-     'type': str,
-     'default': '',
-     'desc': ''},
-    {'name': 'fas_url',
-     'type': str,
-     'default': '',
-     'desc': 'FAS URL'},
-    {'name': 'fas_username',
-     'type': str,
-     'default': '',
-     'desc': 'FAS username'},
-    {'name': 'fas_password',
-     'type': str,
-     'default': '',
-     'desc': 'FAS password'},
-    {'name': 'require_packager',
-     'type': bool,
-     'default': True,
-     'desc': 'Turn on authorization against FAS'},
-    {'name': 'log_backend',
-     'type': str,
-     'default': None,
-     'desc': 'Log backend'},
-    {'name': 'log_file',
-     'type': str,
-     'default': '',
-     'desc': 'Path to log file'},
-    {'name': 'log_level',
-     'type': str,
-     'default': 0,
-     'desc': 'Log level'},
-    {'name': 'krb_keytab',
-     'type': None,
-     'default': None,
-     'desc': ''},
-    {'name': 'krb_principal',
-     'type': None,
-     'default': None,
-     'desc': ''},
-    {'name': 'krb_ccache',
-     'type': None,
-     'default': '/tmp/krb5cc_module_build_service',
-     'desc': ''},
-    {'name': 'messaging',
-     'type': str,
-     'default': 'fedmsg',
-     'desc': 'The messaging system to use.'},
-    {'name': 'amq_recv_addresses',
-     'type': list,
-     'default': [],
-     'desc': 'Apache MQ broker url to receive messages.'},
-    {'name': 'amq_dest_address',
-     'type': str,
-     'default': '',
-     'desc': 'Apache MQ broker address to send messages'},
-    {'name': 'amq_cert_file',
-     'type': str,
-     'default': '',
-     'desc': 'Certificate for Apache MQ broker auth.'},
-    {'name': 'amq_private_key_file',
-     'type': str,
-     'default': '',
-     'desc': 'Private key for Apache MQ broker auth.'},
-    {'name': 'amq_trusted_cert_file',
-     'type': str,
-     'default': '',
-     'desc': 'Trusted certificate for ssl connection.'},
-    {'name': 'mock_config',
-     'type': str,
-     'default': 'fedora-25-x86_64',
-     'desc': ''},
-    {'name': 'mock_build_srpm_cmd',
-     'type': str,
-     'default': 'fedpkg --dist f25 srpm',
-     'desc': ''},
-    {'name': 'scmurls',
-     'type': list,
-     'default': [],
-     'desc': 'Allowed SCM URLs.'},
-]
 
 
 def from_app_config():
@@ -203,23 +43,177 @@ def from_app_config():
 
 class Config(object):
     """Class representing the orchestrator configuration."""
+    _defaults = {
+        'system': {
+            'type': str,
+            'default': 'koji',
+            'desc': 'The buildsystem to use.'},
+        'db': {
+            'type': str,
+            'default': '',
+            'desc': 'RDB URL.'},
+        'polling_interval': {
+            'type': int,
+            'default': 0,
+            'desc': 'Polling interval, in seconds.'},
+        'pdc_url': {
+            'type': str,
+            'default': '',
+            'desc': 'PDC URL.'},
+        'pdc_insecure': {
+            'type': bool,
+            'default': False,
+            'desc': 'Allow insecure connection to PDC.'},
+        'pdc_develop': {
+            'type': bool,
+            'default': False,
+            'desc': 'PDC Development mode, basically noauth.'},
+        'koji_config': {
+            'type': str,
+            'default': None,
+            'desc': 'Koji config file.'},
+        'koji_profile': {
+            'type': str,
+            'default': None,
+            'desc': 'Koji config profile.'},
+        'koji_arches': {
+            'type': list,
+            'default': [],
+            'desc': 'Koji architectures.'},
+        'koji_proxyuser': {
+            'type': bool,
+            'default': None,
+            'desc': 'Koji proxyuser flag.'},
+        'koji_build_priority': {
+            'type': int,
+            'default': 10,
+            'desc': ''},
+        'koji_repository_url': {
+            'type': str,
+            'default': None,
+            'desc': 'Koji repository URL.'},
+        'rpms_default_repository': {
+            'type': str,
+            'default': 'git://pkgs.fedoraproject.org/rpms/',
+            'desc': 'RPMs default repository URL.'},
+        'rpms_allow_repository': {
+            'type': bool,
+            'default': False,
+            'desc': 'Allow custom RPMs repositories.'},
+        'rpms_default_cache': {
+            'type': str,
+            'default': 'http://pkgs.fedoraproject.org/repo/pkgs/',
+            'desc': 'RPMs default cache URL.'},
+        'rpms_allow_cache': {
+            'type': bool,
+            'default': False,
+            'desc': 'Allow custom RPMs cache.'},
+        'ssl_certificate_file': {
+            'type': str,
+            'default': '',
+            'desc': ''},
+        'ssl_certificate_key_file': {
+            'type': str,
+            'default': '',
+            'desc': ''},
+        'ssl_ca_certificate_file': {
+            'type': str,
+            'default': '',
+            'desc': ''},
+        'pkgdb_api_url': {
+            'type': str,
+            'default': '',
+            'desc': ''},
+        'fas_url': {
+            'type': str,
+            'default': '',
+            'desc': 'FAS URL'},
+        'fas_username': {
+            'type': str,
+            'default': '',
+            'desc': 'FAS username'},
+        'fas_password': {
+            'type': str,
+            'default': '',
+            'desc': 'FAS password'},
+        'require_packager': {
+            'type': bool,
+            'default': True,
+            'desc': 'Turn on authorization against FAS'},
+        'log_backend': {
+            'type': str,
+            'default': None,
+            'desc': 'Log backend'},
+        'log_file': {
+            'type': str,
+            'default': '',
+            'desc': 'Path to log file'},
+        'log_level': {
+            'type': str,
+            'default': 0,
+            'desc': 'Log level'},
+        'krb_keytab': {
+            'type': None,
+            'default': None,
+            'desc': ''},
+        'krb_principal': {
+            'type': None,
+            'default': None,
+            'desc': ''},
+        'krb_ccache': {
+            'type': None,
+            'default': '/tmp/krb5cc_module_build_service',
+            'desc': ''},
+        'messaging': {
+            'type': str,
+            'default': 'fedmsg',
+            'desc': 'The messaging system to use.'},
+        'amq_recv_addresses': {
+            'type': list,
+            'default': [],
+            'desc': 'Apache MQ broker url to receive messages.'},
+        'amq_dest_address': {
+            'type': str,
+            'default': '',
+            'desc': 'Apache MQ broker address to send messages'},
+        'amq_cert_file': {
+            'type': str,
+            'default': '',
+            'desc': 'Certificate for Apache MQ broker auth.'},
+        'amq_private_key_file': {
+            'type': str,
+            'default': '',
+            'desc': 'Private key for Apache MQ broker auth.'},
+        'amq_trusted_cert_file': {
+            'type': str,
+            'default': '',
+            'desc': 'Trusted certificate for ssl connection.'},
+        'mock_config': {
+            'type': str,
+            'default': 'fedora-25-x86_64',
+            'desc': ''},
+        'mock_build_srpm_cmd': {
+            'type': str,
+            'default': 'fedpkg --dist f25 srpm',
+            'desc': ''},
+        'scmurls': {
+            'type': list,
+            'default': [],
+            'desc': 'Allowed SCM URLs.'},
+    }
 
     def __init__(self):
         """Initialize the Config object with defaults."""
-        self._defaults = DEFAULTS
-        self._defaults_by_name = {conf_item['name']: conf_item
-                                  for conf_item
-                                  in self._defaults}
 
-        for conf_item in self._defaults:
-            self.set_item(conf_item['name'], conf_item['default'])
+        for name, values in self._defaults.items():
+            self.set_item(name, values['default'])
 
     def set_item(self, key, value):
         if key == 'set_item' or key.startswith('_'):
             raise Exception("Configuration item's name is not allowed: %s" % key)
 
         # managed/registered configuration items
-        if key in self._defaults_by_name:
+        if key in self._defaults:
             # customized check & set if there's a corresponding handler
             setifok_func = '_setifok_{}'.format(key)
             if hasattr(self, setifok_func):
@@ -227,7 +221,7 @@ class Config(object):
                 return
 
             # type conversion for configuration item
-            convert = self._defaults_by_name[key]['type']
+            convert = self._defaults[key]['type']
             if convert in [bool, int, list, str]:
                 try:
                     setattr(self, key, convert(value))
