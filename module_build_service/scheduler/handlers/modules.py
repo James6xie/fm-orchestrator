@@ -103,10 +103,10 @@ def wait(config, session, msg):
 
         @module_build_service.utils.retry(interval=10, timeout=30, wait_on=ValueError)
         def _get_deps_and_tag():
-            log.info("Getting %s deps from pdc" % module_info['name'])
+            log.info("Getting %s deps from pdc (query %r)" % (module_info['name'], pdc_query))
             dependencies = module_build_service.pdc.get_module_build_dependencies(
                 pdc_session, pdc_query, strict=True)
-            log.info("Getting %s tag from pdc" % module_info['name'])
+            log.info("Getting %s tag from pdc (query %r)" % (module_info['name'], pdc_query))
             tag = module_build_service.pdc.get_module_tag(
                 pdc_session, pdc_query, strict=True)
             return dependencies, tag

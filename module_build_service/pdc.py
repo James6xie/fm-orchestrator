@@ -108,6 +108,7 @@ def variant_dict_from_str(module_str):
 
     Example minimal module_info {'variant_id': module_name, 'variant_version': module_version, 'variant_type': 'module'}
     """
+    log.debug("variant_dict_from_str(%r)" % module_str)
     # best match due several filters not being provided such as variant type ...
 
     module_info = {}
@@ -163,6 +164,7 @@ def module_depsolving_wrapper(session, module_list, strict=True):
     :param module_list: list of module_info dicts
     :return final list of module_info which pass repoclosure
     """
+    log.debug("module_depsolving_wrapper(%r, strict=%r)" % (module_list, strict))
     # TODO: implement this
 
     # Make sure that these are dicts from PDC ... ensures all values
@@ -197,6 +199,7 @@ def get_module_runtime_dependencies(session, module_info, strict=False):
 
     Example minimal module_info {'variant_id': module_name, 'variant_version': module_version, 'variant_type': 'module'}
     """
+    log.debug("get_module_runtime_dependencies(%r, strict=%r)" % (module_info, strict))
     # XXX get definitive list of modules
 
     deps = []
@@ -217,6 +220,7 @@ def get_module_build_dependencies(session, module_info, strict=False):
 
     Example minimal module_info {'variant_id': module_name, 'variant_version': module_version, 'variant_type': 'module'}
     """
+    log.debug("get_module_build_dependencies(%r, strict=%r)" % (module_info, strict))
     # XXX get definitive list of modules
 
     deps = []
