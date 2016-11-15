@@ -218,7 +218,7 @@ class Config(object):
         if key == 'set_item' or key.startswith('_'):
             raise Exception("Configuration item's name is not allowed: %s" % key)
 
-        # registered defaults
+        # managed/registered configuration items
         if key in self._defaults_by_name:
             # customized check & set if there's a corresponding handler
             setifok_func = '_setifok_{}'.format(key)
@@ -226,26 +226,26 @@ class Config(object):
                 getattr(self, setifok_func)(value)
                 return
 
-            # type conversion
+            # type conversion for configuration item
             convert = self._defaults_by_name[key]['type']
             if convert in [bool, int, list, str]:
                 try:
                     setattr(self, key, convert(value))
                 except:
-                    raise Exception("Configuration value conversion failed for name: %s" % key)
-            # conversion is not required if type is None
+                    raise TypeError("Configuration value conversion failed for name: %s" % key)
+            # if type is None, do not perform any conversion
             elif convert is None:
                 setattr(self, key, value)
             # unknown type/unsupported conversion
             else:
-                raise Exception("Unsupported type %s for configuration item name: %s" % (convert, key))
-        # passthrough for uncontrolled configuration items
+                raise TypeError("Unsupported type %s for configuration item name: %s" % (convert, key))
+        # passthrough for unmanaged configuration items
         else:
             # customized check & set if there's a corresponding handler
             setifok_func = '_setifok_{}'.format(key)
             if hasattr(self, setifok_func):
                 getattr(self, setifok_func)(value)
-            # otherwise just blindly set value for a key
+            # otherwise just transparently set value for a key
             else:
                 setattr(self, key, value)
 
