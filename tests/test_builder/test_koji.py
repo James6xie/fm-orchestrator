@@ -28,13 +28,17 @@ import module_build_service.scheduler.handlers.repos
 import module_build_service.models
 import module_build_service.builder
 
+from mock import patch
+
+from tests import conf
+
 
 class TestKojiBuilder(unittest.TestCase):
 
     def setUp(self):
         self.config = mock.Mock()
-        self.config.koji_profile = 'staging'
-        self.config.koji_repository_url = 'https://kojipkgs.stg.fedoraproject.org/repos'
+        self.config.koji_profile = conf.koji_profile
+        self.config.koji_repository_url = conf.koji_repository_url
 
     def test_tag_to_repo(self):
         """ Test that when a repo msg hits us and we have no match,
