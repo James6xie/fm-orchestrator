@@ -17,7 +17,7 @@ tasks:
 Development
 ===========
 
-For help on setting up a development environment, see `HACKING.rst`.
+For help on setting up a development environment, see `docs/HACKING.rst`.
 
 Client-side API
 ===============
