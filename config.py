@@ -12,8 +12,12 @@ class BaseConfiguration(object):
     HOST = '127.0.0.1'
     PORT = 5000
 
+    # Global network-related values, in seconds
+    NET_TIMEOUT = 120
+    NET_RETRY_INTERVAL = 30
+
     SYSTEM = 'koji'
-    MESSAGING = 'fedmsg' # or amq
+    MESSAGING = 'fedmsg'  # or amq
     KOJI_CONFIG = '/etc/module_build_service/koji.conf'
     KOJI_PROFILE = 'koji'
     KOJI_ARCHES = ['i686', 'armv7hl', 'x86_64']
@@ -64,18 +68,22 @@ class BaseConfiguration(object):
     # AMQ prefixed variables are required only while using 'amq' as messaging backend
     # Addresses to listen to
     AMQ_RECV_ADDRESSES = ['amqps://messaging.mydomain.com/Consumer.m8y.VirtualTopic.eng.koji',
-            'amqps://messaging.mydomain.com/Consumer.m8y.VirtualTopic.eng.module_build_service',]
+                          'amqps://messaging.mydomain.com/Consumer.m8y.VirtualTopic.eng.module_build_service']
     # Address for sending messages
     AMQ_DEST_ADDRESS = 'amqps://messaging.mydomain.com/Consumer.m8y.VirtualTopic.eng.module_build_service'
     AMQ_CERT_FILE = '/etc/module_build_service/msg-m8y-client.crt'
     AMQ_PRIVATE_KEY_FILE = '/etc/module_build_service/msg-m8y-client.key'
     AMQ_TRUSTED_CERT_FILE = '/etc/module_build_service/Root-CA.crt'
 
+
 class DevConfiguration(BaseConfiguration):
     LOG_BACKEND = 'console'
     LOG_LEVEL = 'debug'
     HOST = '0.0.0.0'
 
+    # Global network-related values, in seconds
+    NET_TIMEOUT = 5
+    NET_RETRY_INTERVAL = 1
 
     if path.exists('/home/fedora/modularity.keytab'):
         KRB_PRINCIPAL = 'modularity@STG.FEDORAPROJECT.ORG'
@@ -90,12 +98,13 @@ class DevConfiguration(BaseConfiguration):
     REQUIRE_PACKAGER = False
     # You only need these FAS options if you turn on authorization
     # with REQUIRE_PACKAGER=True
-    #FAS_USERNAME = 'put your fas username here'
-    #FAS_PASSWORD = 'put your fas password here....'
-    #FAS_PASSWORD = os.environ('FAS_PASSWORD') # you could store it here
-    #FAS_PASSWORD = commands.getoutput('pass your_fas_password').strip()
+    # FAS_USERNAME = 'put your fas username here'
+    # FAS_PASSWORD = 'put your fas password here....'
+    # FAS_PASSWORD = os.environ('FAS_PASSWORD') # you could store it here
+    # FAS_PASSWORD = commands.getoutput('pass your_fas_password').strip()
 
     KOJI_ARCHES = ['x86_64']
+
 
 class TestConfiguration(BaseConfiguration):
     LOG_BACKEND = 'console'
@@ -103,7 +112,11 @@ class TestConfiguration(BaseConfiguration):
     SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
     DEBUG = True
 
+    # Global network-related values, in seconds
+    NET_TIMEOUT = 5
+    NET_RETRY_INTERVAL = 1
+
 
 class ProdConfiguration(BaseConfiguration):
     FAS_USERNAME = 'TODO'
-    #FAS_PASSWORD = 'another password'
+    # FAS_PASSWORD = 'another password'
