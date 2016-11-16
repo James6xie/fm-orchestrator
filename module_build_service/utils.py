@@ -40,7 +40,7 @@ from module_build_service.errors import (Unauthorized, Conflict)
 from multiprocessing.dummy import Pool as ThreadPool
 
 
-def retry(timeout=120, interval=30, wait_on=Exception):
+def retry(timeout=conf.net_timeout, interval=conf.net_retry_interval, wait_on=Exception):
     """ A decorator that allows to retry a section of code...
     ...until success or timeout.
     """
