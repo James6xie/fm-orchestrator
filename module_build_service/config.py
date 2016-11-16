@@ -196,6 +196,10 @@ class Config(object):
             'type': str,
             'default': 'fedpkg --dist f25 srpm',
             'desc': ''},
+        'mock_resultsdir': {
+            'type': str,
+            'default': '/tmp',
+            'desc': 'Directory for Mock build results.'},
         'scmurls': {
             'type': list,
             'default': [],
