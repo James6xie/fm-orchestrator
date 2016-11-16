@@ -50,3 +50,16 @@ class TestKojiBuilder(unittest.TestCase):
             "x86_64")
         self.assertEquals(repo, "https://kojipkgs.stg.fedoraproject.org/repos"
                           "/module-base-runtime-0.25-9/latest/x86_64")
+
+    @patch('koji.util.checkForBuilds')
+    def test_buildroot_ready(self, mocked_kojiutil):
+
+        def mocked_checkForBuilds(*args, **kwargs):
+            raise IOError
+
+        mocked_kojiutil.return_value.checkForBuilds = mocked_checkForBuilds
+        kmb = module_build_service.builder.KojiModuleBuilder(owner='Moe Szyslak',
+                                                             module='nginx',
+                                                             config=conf,
+                                                             tag_name='module-nginx-1.2')
+        kmb.buildroot_ready()
