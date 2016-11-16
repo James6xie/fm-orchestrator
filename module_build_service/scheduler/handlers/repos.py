@@ -102,11 +102,13 @@ def done(config, session, msg):
     # complete.
     leftover_components = [
         c for c in module_build.component_builds
-        if c.state != koji.BUILD_STATES['COMPLETE']
+        if (c.state != koji.BUILD_STATES['COMPLETE']
+            and c.state != koji.BUILD_STATES["FAILED"])
     ]
+
     if leftover_components:
-        module_build_service.utils.start_next_build_batch(config,
-                                                          module_build, session, builder, components=leftover_components)
+        module_build_service.utils.start_next_build_batch(
+            config, module_build, session, builder)
     else:
         module_build.transition(config, state=models.BUILD_STATES['done'])
         session.commit()

@@ -70,13 +70,17 @@ def start_next_build_batch(config, module, session, builder, components=None):
     # The user can either pass in a list of components to 'seed' the batch, or
     # if none are provided then we just select everything that hasn't
     # successfully built yet.
+    module.batch += 1
     unbuilt_components = components or [
         c for c in module.component_builds
-        if c.state != koji.BUILD_STATES['COMPLETE']
+        if (c.state != koji.BUILD_STATES['COMPLETE']
+            and c.batch == module.batch)
     ]
-    module.batch += 1
+
+    log.info("Starting build of next batch %d, %s" % (module.batch,
+        unbuilt_components))
+
     for c in unbuilt_components:
-        c.batch = module.batch
         c.task_id, c.state, c.state_reason, c.nvr = builder.build(artifact_name=c.package, source=c.scmurl)
 
         if not c.task_id:
@@ -291,11 +295,24 @@ def submit_module_build(username, url):
             if err_msg:
                 raise UnprocessableEntity(err_msg)
 
-        for pkgname, pkg in mmd.components.rpms.items():
-            full_url = "%s?#%s" % (pkg.repository, pkg.ref)
+        components = mmd.components.all
+        components.sort(key=lambda x: x.buildorder)
+        previous_buildorder = None
+
+        # We do not start with batch = 0 here, because the first batch is
+        # reserved for module-build-macros. First real components must be
+        # planned for batch 2 and following.
+        batch = 1
+ 
+        for pkg in components:
+            if previous_buildorder != pkg.buildorder:
+                previous_buildorder = pkg.buildorder
+                batch += 1
+
+            full_url = pkg.repository + "?#" + pkg.ref
 
             existing_build = models.ComponentBuild.query.filter_by(
-                module_id=module.id, package=pkgname).first()
+                module_id=module.id, package=pkg.name).first()
             if (existing_build
                     and existing_build.state != models.BUILD_STATES['done']):
                 existing_build.state = models.BUILD_STATES['init']
@@ -305,9 +322,10 @@ def submit_module_build(username, url):
                 # builds but are gone now (component reduction)?
                 build = models.ComponentBuild(
                     module_id=module.id,
-                    package=pkgname,
+                    package=pkg.name,
                     format="rpms",
                     scmurl=full_url,
+                    batch=batch
                 )
                 db.session.add(build)
 

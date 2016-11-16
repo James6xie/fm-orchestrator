@@ -62,10 +62,12 @@ class TestRepoDone(unittest.TestCase):
         unbuilt_component_build.package = 'foo'
         unbuilt_component_build.scmurl = 'full_scm_url'
         unbuilt_component_build.state = None
+        unbuilt_component_build.batch = 2
         built_component_build = mock.Mock()
         built_component_build.package = 'foo2'
         built_component_build.scmurl = 'full_scm_url'
         built_component_build.state = 1
+        built_component_build.batch = 2
         module_build = mock.Mock()
         module_build.batch = 1
         module_build.component_builds = [unbuilt_component_build, built_component_build]
@@ -95,10 +97,12 @@ class TestRepoDone(unittest.TestCase):
         unbuilt_component_build.package = 'foo'
         unbuilt_component_build.scmurl = 'full_scm_url'
         unbuilt_component_build.state = None
+        unbuilt_component_build.batch = 2
         built_component_build = mock.Mock()
         built_component_build.package = 'foo2'
         built_component_build.scmurl = 'full_scm_url'
         built_component_build.state = 1
+        built_component_build.batch = 2
         module_build = mock.Mock()
         module_build.batch = 1
         module_build.component_builds = [unbuilt_component_build, built_component_build]
