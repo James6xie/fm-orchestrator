@@ -24,7 +24,6 @@ $script = <<SCRIPT
     mkdir -p /etc/module_build_service
     ln -s /opt/module_build_service/koji.conf /etc/module_build_service/koji.conf
     ln -s /opt/module_build_service/copr.conf /etc/module_build_service/copr.conf
-    ln -s /opt/module_build_service/krb5-stg.fp.o /etc/krb5.conf.d/stg_fedoraproject_org
     python manage.py upgradedb
     python manage.py generatelocalhostcert
     systemctl enable fedmsg-relay
