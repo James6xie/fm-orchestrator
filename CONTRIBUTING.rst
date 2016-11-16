@@ -4,14 +4,8 @@ Development
 We have two mechanisms for quickly setting up a development environment.  `docker-compose` and `vagrant`.
 
 In order to to setup a development environment, it is required that you have
-your Fedora kerberos credentials generated in a *special location*.
-Furthermore, our staging kerberos environment is a little special (compared to
-the production one).  You need to copy a kerberos configuration file for the
-realm to your system::
-
-    $ sudo cp krb5-stg.fp.o /etc/krb5.conf.d/stg_fedoraproject_org
-
-Then, before starting your development environment, run the following::
+your Fedora kerberos credentials generated in a *special location*. Before
+starting your development environment, run the following::
 
     $ KRB5CCNAME=FILE:/var/tmp/krbcc kinit YOUR_USERNAME@STG.FEDORAPROJECT.ORG
 
