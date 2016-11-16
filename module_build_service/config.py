@@ -200,6 +200,14 @@ class Config(object):
             'type': list,
             'default': [],
             'desc': 'Allowed SCM URLs.'},
+        'net_timeout': {
+            'type': int,
+            'default': 120,
+            'desc': 'Global network timeout for read/write operations, in seconds.'},
+        'net_retry_interval': {
+            'type': int,
+            'default': 30,
+            'desc': 'Global network retry interval for read/write operations, in seconds.'},
     }
 
     def __init__(self):
