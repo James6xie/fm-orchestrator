@@ -19,11 +19,14 @@
 # SOFTWARE.
 #
 # Written by Matt Prahl <mprahl@redhat.com
+
 from datetime import datetime, timedelta
 from module_build_service import app, db
+from module_build_service.config import from_app_config
 from module_build_service.models import ModuleBuild, ComponentBuild
 
 app.config.from_object('config.TestConfiguration')
+conf = from_app_config()
 
 
 def init_data():
