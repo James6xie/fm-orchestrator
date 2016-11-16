@@ -204,6 +204,10 @@ class Config(object):
             'type': list,
             'default': [],
             'desc': 'Allowed SCM URLs.'},
+        'num_consecutive_builds': {
+            'type': int,
+            'default': 0,
+            'desc': 'Number of consecutive component builds.'},
     }
 
     def __init__(self):
@@ -305,3 +309,10 @@ class Config(object):
         if not isinstance(l, list):
             raise TypeError("scmurls needs to be a list.")
         self.scmurls = [str(x) for x in l]
+
+    def _setifok_num_consecutive_builds(self, i):
+        if not isinstance(i, int):
+            raise TypeError('NUM_CONSECUTIVE_BUILDS needs to be an int')
+        if i < 0:
+            raise ValueError('NUM_CONSECUTIVE_BUILDS must be >= 0')
+        self.num_consecutive_builds = i

@@ -38,6 +38,7 @@ import six.moves.queue as queue
 
 import module_build_service.config
 import module_build_service.messaging
+import module_build_service.utils
 import module_build_service.scheduler.handlers.components
 import module_build_service.scheduler.handlers.modules
 import module_build_service.scheduler.handlers.repos
@@ -190,8 +191,8 @@ class Poller(threading.Thread):
                 # XXX: detect whether it's really stucked first
                 # self.process_waiting_module_builds(session)
                 self.process_open_component_builds(session)
-                self.process_lingering_module_builds(session)
                 self.fail_lost_builds(session)
+                self.process_paused_module_builds(conf, session)
 
             log.info("Polling thread sleeping, %rs" % conf.polling_interval)
             time.sleep(conf.polling_interval)
@@ -281,8 +282,21 @@ class Poller(threading.Thread):
     def process_open_component_builds(self, session):
         log.warning("process_open_component_builds is not yet implemented...")
 
-    def process_lingering_module_builds(self, session):
-        log.warning("process_lingering_module_builds is not yet implemented...")
+    def process_paused_module_builds(self, config, session):
+        if module_build_service.utils.at_concurrent_component_threshold(
+                config, session):
+            log.debug('Will not attempt to start paused module builds due to '
+                      'the concurrent build threshold being met')
+            return
+        # Check to see if module builds that are in build state but don't have
+        # any component builds being built can be worked on
+        for module_build in session.query(models.ModuleBuild).filter_by(
+                    state=models.BUILD_STATES['build']).all():
+            # If there are no components in the build state on the module build,
+            # then no possible event will start off new component builds
+            if not module_build.current_batch(koji.BUILD_STATES['BUILDING']):
+                module_build_service.utils.start_build_batch(
+                    config, module_build, session, config.system)
 
 
 _work_queue = queue.Queue()

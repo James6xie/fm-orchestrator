@@ -27,6 +27,7 @@ $script = <<SCRIPT
     ln -s /opt/module_build_service/krb5-stg.fp.o /etc/krb5.conf.d/stg_fedoraproject_org
     python manage.py upgradedb
     python manage.py generatelocalhostcert
+    systemctl enable fedmsg-relay
     systemctl start fedmsg-relay
     echo "export KRB5CCNAME=FILE:/var/tmp/krbcc" >> ~/.bashrc
 SCRIPT

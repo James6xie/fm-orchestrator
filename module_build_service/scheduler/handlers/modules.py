@@ -160,4 +160,7 @@ def wait(config, session, msg):
     # If this build already exists and is done, then fake the repo change event
     # back to the scheduler
     if state == koji.BUILD_STATES['COMPLETE']:
-        return [module_build_service.messaging.KojiRepoChange('fake msg', build.koji_tag)]
+        # TODO: builder.module_build_tag only works for Koji, figure out if
+        # other backends need this implemented (e.g. COPR)
+        return [module_build_service.messaging.KojiRepoChange(
+            'fake msg', builder.module_build_tag['name'])]

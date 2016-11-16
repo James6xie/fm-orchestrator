@@ -54,7 +54,9 @@ class TestRepoDone(unittest.TestCase):
     @mock.patch('module_build_service.builder.KojiModuleBuilder.build')
     @mock.patch('module_build_service.builder.KojiModuleBuilder.buildroot_connect')
     @mock.patch('module_build_service.models.ModuleBuild.from_repo_done_event')
-    def test_a_single_match(self, from_repo_done_event, connect, build_fn, config, ready):
+    @mock.patch('module_build_service.utils.at_concurrent_component_threshold',
+                return_value=False)
+    def test_a_single_match(self, threshold, from_repo_done_event, connect, build_fn, config, ready):
         """ Test that when a repo msg hits us and we have a single match.
         """
         config.return_value = mock.Mock(), "development"
@@ -88,7 +90,9 @@ class TestRepoDone(unittest.TestCase):
     @mock.patch('module_build_service.builder.KojiModuleBuilder.build')
     @mock.patch('module_build_service.builder.KojiModuleBuilder.buildroot_connect')
     @mock.patch('module_build_service.models.ModuleBuild.from_repo_done_event')
-    def test_a_single_match_build_fail(self, from_repo_done_event, connect, build_fn, config, ready):
+    @mock.patch('module_build_service.utils.at_concurrent_component_threshold',
+                return_value=False)
+    def test_a_single_match_build_fail(self, threshold, from_repo_done_event, connect, build_fn, config, ready):
         """ Test that when a KojiModuleBuilder.build fails, the build is
         marked as failed with proper state_reason.
         """

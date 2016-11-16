@@ -28,6 +28,10 @@ class BaseConfiguration(object):
     # Set to zero to disable polling
     POLLING_INTERVAL = 600
 
+    # Determines how many builds that can be submitted to the builder
+    # and be in the build state at a time. Set this to 0 for no restrictions
+    NUM_CONSECUTIVE_BUILDS = 5
+
     RPMS_DEFAULT_REPOSITORY = 'git://pkgs.fedoraproject.org/rpms/'
     RPMS_ALLOW_REPOSITORY = False
     RPMS_DEFAULT_CACHE = 'http://pkgs.fedoraproject.org/repo/pkgs/'
