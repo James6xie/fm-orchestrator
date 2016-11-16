@@ -29,7 +29,6 @@ from module_build_service import app
 from module_build_service import logger
 
 
-
 def from_app_config():
     """ Create the configuration instance from the values in app.config
     """
@@ -208,6 +207,14 @@ class Config(object):
             'type': int,
             'default': 0,
             'desc': 'Number of consecutive component builds.'},
+        'net_timeout': {
+            'type': int,
+            'default': 120,
+            'desc': 'Global network timeout for read/write operations, in seconds.'},
+        'net_retry_interval': {
+            'type': int,
+            'default': 30,
+            'desc': 'Global network retry interval for read/write operations, in seconds.'},
     }
 
     def __init__(self):
