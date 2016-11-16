@@ -20,9 +20,8 @@
 #
 # Written by Ralph Bean <rbean@redhat.com>
 #            Matt Prahl <mprahl@redhat.com>
+
 """ Utility functions for module_build_service. """
-from flask import request, url_for
-from datetime import datetime
 import re
 import functools
 import time
@@ -30,12 +29,16 @@ import shutil
 import tempfile
 import os
 import modulemd
+
+from flask import request, url_for
+from datetime import datetime
+
 from module_build_service import log, models
 from module_build_service.errors import ValidationError, UnprocessableEntity
-from module_build_service import app, conf, db, log
-from module_build_service.errors import (
-    ValidationError, Unauthorized, UnprocessableEntity, Conflict, NotFound)
+from module_build_service import conf, db
+from module_build_service.errors import (Unauthorized, Conflict)
 from multiprocessing.dummy import Pool as ThreadPool
+
 
 def retry(timeout=120, interval=30, wait_on=Exception):
     """ A decorator that allows to retry a section of code...
@@ -83,7 +86,7 @@ def start_build_batch(config, module, session, builder, components=None):
     import koji  # Placed here to avoid py2/py3 conflicts...
 
     if any([c.state == koji.BUILD_STATES['BUILDING']
-            for c in module.component_builds ]):
+            for c in module.component_builds]):
         raise ValueError("Cannot start a batch when another is in flight.")
 
     # The user can either pass in a list of components to 'seed' the batch, or
@@ -176,7 +179,7 @@ def filter_module_builds(flask_request):
     # Filter the query based on date request parameters
     for item in ('submitted', 'modified', 'completed'):
         for context in ('before', 'after'):
-            request_arg = '%s_%s' % (item, context) # i.e. submitted_before
+            request_arg = '%s_%s' % (item, context)  # i.e. submitted_before
             iso_datetime_arg = request.args.get(request_arg, None)
 
             if iso_datetime_arg:
@@ -198,6 +201,7 @@ def filter_module_builds(flask_request):
     page = flask_request.args.get('page', 1, type=int)
     per_page = flask_request.args.get('per_page', 10, type=int)
     return query.paginate(page, per_page, False)
+
 
 def submit_module_build(username, url):
     # Import it here, because SCM uses utils methods
@@ -245,24 +249,24 @@ def submit_module_build(username, url):
         mmd.version = int(scm.version)
 
     module = models.ModuleBuild.query.filter_by(name=mmd.name,
-                                            stream=mmd.stream,
-                                            version=mmd.version).first()
+                                                stream=mmd.stream,
+                                                version=mmd.version).first()
     if module:
         log.debug('Checking whether module build already exist.')
-            # TODO: make this configurable, we might want to allow
-            # resubmitting any stuck build on DEV no matter the state
+        # TODO: make this configurable, we might want to allow
+        # resubmitting any stuck build on DEV no matter the state
         if module.state not in (models.BUILD_STATES['failed'],):
             log.error('Module (state=%s) already exists. '
-                        'Only new or failed builds are allowed.'
-                        % module.state)
+                      'Only new or failed builds are allowed.'
+                      % module.state)
             raise Conflict('Module (state=%s) already exists. '
-                            'Only new or failed builds are allowed.'
-                            % module.state)
+                           'Only new or failed builds are allowed.'
+                           % module.state)
         log.debug('Resuming existing module build %r' % module)
         module.username = username
         module.transition(conf, models.BUILD_STATES["init"])
         log.info("Resumed existing module build in previous state %s"
-                    % module.state)
+                 % module.state)
     else:
         log.debug('Creating new module build')
         module = models.ModuleBuild.create(
@@ -339,8 +343,7 @@ def submit_module_build(username, url):
 
             existing_build = models.ComponentBuild.query.filter_by(
                 module_id=module.id, package=pkg.name).first()
-            if (existing_build
-                    and existing_build.state != models.BUILD_STATES['done']):
+            if (existing_build and existing_build.state != models.BUILD_STATES['done']):
                 existing_build.state = models.BUILD_STATES['init']
                 db.session.add(existing_build)
             else:
