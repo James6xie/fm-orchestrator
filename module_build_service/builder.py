@@ -949,7 +949,7 @@ class MockModuleBuilder(GenericBuilder):
         self.tag_name = tag_name
         self.config = config
 
-        self.tag_dir = os.path.join("/tmp/", tag_name)
+        self.tag_dir = os.path.join(self.config.mock_resultsdir, tag_name)
         if not os.path.exists(self.tag_dir):
             os.makedirs(self.tag_dir)
 
@@ -1005,7 +1005,13 @@ class MockModuleBuilder(GenericBuilder):
         ret = subprocess.call(args)
         if ret != 0:
             raise RuntimeError("Command '%s' returned non-zero value %d"
-                               % (cmd, ret))
+                               % (args, ret))
+
+    def _save_log(self, log_name, artifact_name):
+        old_log = os.path.join(self.tag_dir, log_name)
+        new_log = os.path.join(self.tag_dir, artifact_name + "-" + log_name)
+        if os.path.exists(old_log):
+            os.rename(old_log, new_log)
 
     def build_srpm(self, artifact_name, source):
         """
@@ -1014,16 +1020,6 @@ class MockModuleBuilder(GenericBuilder):
         try:
             # Initialize mock.
             self._execute_cmd(["mock", "-r", self.config.mock_config, "--init"])
-
-            # Install all RPMs from our tag_dir to mock.
-            self._execute_cmd(["mock", "-r", self.config.mock_config,
-                               "--copyin", self.tag_dir, "/tmp"])
-            rpms = [os.path.join("/tmp", self.tag_name, rpm) for rpm
-                    in os.listdir(self.tag_dir)
-                    if rpm.endswith(".rpm") and not rpm.endswith(".src.rpm")]
-            if rpms:
-                self._execute_cmd(["mock", "-r", self.config.mock_config,
-                                   "--install"] + rpms)
 
             # Start the build and store results to tag_dir
             # TODO: Maybe this should not block in the future, but for local
@@ -1040,6 +1036,9 @@ class MockModuleBuilder(GenericBuilder):
             self._send_build_change(koji.BUILD_STATES['COMPLETE'], source,
                                     MockModuleBuilder._build_id)
             self._send_repo_done()
+
+            with open(os.path.join(self.tag_dir, "status.log"), 'w') as f:
+                f.write("complete\n")
         except Exception as e:
             log.error("Error while building artifact %s: %s" % (artifact_name,
                       str(e)))
@@ -1052,6 +1051,13 @@ class MockModuleBuilder(GenericBuilder):
             self._send_build_change(koji.BUILD_STATES['FAILED'], source,
                                     MockModuleBuilder._build_id)
             self._send_repo_done()
+            with open(os.path.join(self.tag_dir, "status.log"), 'w') as f:
+                f.write("failed\n")
+
+        self._save_log("state.log", artifact_name)
+        self._save_log("root.log", artifact_name)
+        self._save_log("build.log", artifact_name)
+        self._save_log("status.log", artifact_name)
 
         # Return the "building" state. Real state will be taken by MBS
         # from the messages emitted above.
