@@ -116,6 +116,9 @@ class TestConfiguration(BaseConfiguration):
     NET_TIMEOUT = 5
     NET_RETRY_INTERVAL = 1
 
+    KOJI_PROFILE = 'staging'
+    KOJI_REPOSITORY_URL = 'https://kojipkgs.stg.fedoraproject.org/repos'
+
 
 class ProdConfiguration(BaseConfiguration):
     FAS_USERNAME = 'TODO'
