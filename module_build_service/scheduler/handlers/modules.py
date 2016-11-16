@@ -130,7 +130,7 @@ def wait(config, session, msg):
 
     builder = module_build_service.builder.GenericBuilder.create(
         build.owner, build.name, config.system, config, tag_name=tag)
-    build.buildroot_task_id = builder.buildroot_connect()
+    builder.buildroot_connect()
     log.debug("Adding dependencies %s into buildroot for module %s" % (dependencies, module_info))
     builder.buildroot_add_repos(dependencies)
     # inject dist-tag into buildroot
