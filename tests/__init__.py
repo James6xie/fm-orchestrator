@@ -39,7 +39,7 @@ def init_data():
         build_one.stream = '1'
         build_one.version = 2
         build_one.state = 3
-        build_one.modulemd = '' # Skipping since no tests rely on it
+        build_one.modulemd = ''  # Skipping since no tests rely on it
         build_one.koji_tag = 'module-nginx-1.2'
         build_one.scmurl = ('git://pkgs.domain.local/modules/nginx?'
                             '#ba95886c7a443b36a9ce31abda1f9bef22f2f8c9')
