@@ -140,10 +140,10 @@ class SCM(object):
             raise RuntimeError("checkout: Unhandled SCM scheme.")
         return sourcedir
 
-    def get_latest(self):
+    def get_latest(self, branch='master'):
         """Get the latest commit ID.
 
-        :returns: str -- the latest commit ID, e.g. the git master HEAD
+        :returns: str -- the latest commit ID, e.g. the git $BRANCH HEAD
         :raises: RuntimeError
         """
         if self.scheme == "git":
@@ -151,13 +151,16 @@ class SCM(object):
             proc = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
             output, stderr = proc.communicate()
             if proc.returncode != 0:
-                raise RuntimeError("Cannot get git hash of master HEAD in %s"
-                    % self.repository)
+                raise RuntimeError("Cannot get git hash of %s HEAD in %s"
+                    % (branch, self.repository))
             for line in output.split(os.linesep):
-                if line.endswith("\trefs/heads/master"):
+                if line.endswith("\trefs/heads/%s" % branch):
                     return line.split("\t")[0]
-            raise RuntimeError("Couldn't determine the git master HEAD hash in %s"
-                % self.repository)
+
+            # Hopefully `branch` is really a commit hash.  Code later needs to verify this.
+            log.warn("Couldn't determine the git %s HEAD hash in %s."
+                % (branch, self.repository))
+            return branch
         else:
             raise RuntimeError("get_latest: Unhandled SCM scheme.")
 
