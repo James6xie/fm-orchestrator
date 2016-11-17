@@ -57,46 +57,6 @@ import module_build_service.utils
 
 logging.basicConfig(level=logging.DEBUG)
 
-# TODO: read defaults from module_build_service's config
-KOJI_DEFAULT_GROUPS = {
-    'build': [
-        'bash',
-        'bzip2',
-        'coreutils',
-        'cpio',
-        'diffutils',
-        'fedora-release',
-        'findutils',
-        'gawk',
-        'gcc',
-        'gcc-c++',
-        'grep',
-        'gzip',
-        'info',
-        'make',
-        'patch',
-        'redhat-rpm-config',
-        'rpm-build',
-        'sed',
-        'shadow-utils',
-        'tar',
-        'unzip',
-        'util-linux',
-        'which',
-        'xz',
-    ],
-    'srpm-build': [
-        'bash',
-        'fedora-release',
-        'fedpkg-minimal',
-        'gnupg2',
-        'redhat-rpm-config',
-        'rpm-build',
-        'shadow-utils',
-    ]
-}
-
-
 """
 Example workflows - helps to see the difference in implementations
 Copr workflow:
@@ -194,7 +154,7 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
             raise ValueError("Builder backend='%s' not recognized" % backend)
 
     @abstractmethod
-    def buildroot_connect(self):
+    def buildroot_connect(self, groups):
         """
         This is an idempotent call to create or resume and validate the build
         environment.  .build() should immediately fail if .buildroot_connect()
@@ -456,7 +416,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
 
         return koji_session
 
-    def buildroot_connect(self):
+    def buildroot_connect(self, groups):
         log.info("%r connecting buildroot." % self)
 
         # Create or update individual tags
@@ -466,16 +426,13 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
         self.module_build_tag = self._koji_create_tag(
             self.tag_name + "-build", self.arches, perm="admin")
 
-        # TODO: handle in buildroot_add_artifact(install=true) and track groups as module buildrequires
-        groups = KOJI_DEFAULT_GROUPS
-        if groups:
-            @module_build_service.utils.retry(wait_on=SysCallError, interval=5)
-            def add_groups():
-                return self._koji_add_groups_to_tag(
-                    dest_tag=self.module_build_tag,
-                    groups=groups,
-                )
-            add_groups()
+        @module_build_service.utils.retry(wait_on=SysCallError, interval=5)
+        def add_groups():
+            return self._koji_add_groups_to_tag(
+                dest_tag=self.module_build_tag,
+                groups=groups,
+            )
+        add_groups()
 
         # Add main build target.
         self.module_target = self._koji_add_target(self.tag_name,
@@ -818,7 +775,7 @@ class CoprModuleBuilder(GenericBuilder):
         from copr.client import CoprClient
         return CoprClient.create_from_file_config(config.copr_config)
 
-    def buildroot_connect(self):
+    def buildroot_connect(self, groups):
         """
         This is an idempotent call to create or resume and validate the build
         environment.  .build() should immediately fail if .buildroot_connect()
@@ -978,7 +935,7 @@ class MockModuleBuilder(GenericBuilder):
         log.info("MockModuleBuilder initialized, tag_name=%s, tag_dir=%s" %
                  (tag_name, self.tag_dir))
 
-    def buildroot_connect(self):
+    def buildroot_connect(self, groups):
         pass
 
     def buildroot_prep(self):

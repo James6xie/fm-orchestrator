@@ -120,6 +120,18 @@ def wait(config, session, msg):
             session.commit()
             raise
 
+    try:
+        groups = {
+            'build': build.resolve_profiles(session, 'buildroot'),
+            'srpm-build': build.resolve_profiles(session, 'srpm-buildroot'),
+        }
+    except ValueError:
+        reason = "Failed to gather buildroot groups from SCM."
+        log.exception(reason)
+        build.transition(config, state="failed", state_reason=reason)
+        session.commit()
+        raise
+
     log.debug("Found tag=%s for module %r" % (tag, build))
     # Hang on to this information for later.  We need to know which build is
     # associated with which koji tag, so that when their repos are regenerated
@@ -130,7 +142,7 @@ def wait(config, session, msg):
 
     builder = module_build_service.builder.GenericBuilder.create(
         build.owner, build.name, config.system, config, tag_name=tag)
-    builder.buildroot_connect()
+    builder.buildroot_connect(groups)
     log.debug("Adding dependencies %s into buildroot for module %s" % (dependencies, module_info))
     builder.buildroot_add_repos(dependencies)
     # inject dist-tag into buildroot
