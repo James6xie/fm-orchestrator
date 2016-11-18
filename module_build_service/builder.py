@@ -902,7 +902,9 @@ class CoprModuleBuilder(GenericBuilder):
         log.info(result.data["modulemd"])
 
         # @TODO result should contain "module_id", "action_id" and "action_state"
-        return None, None, result.message, "-".join([m1.name, m1.version, m1.release])
+        # Since we don't have implemented messaging support in copr yet,
+        # let's just assume that the build is finished by now
+        return None, koji.BUILD_STATES["COMPLETE"], result.message, "-".join([m1.name, m1.version, m1.release])
 
     def build_from_scm(self, artifact_name, source):
         """
@@ -917,7 +919,7 @@ class CoprModuleBuilder(GenericBuilder):
 
         td = None
         owd = os.getcwd()
-        ret = 1, koji.BUILD_STATES["FAILED"], "Cannot create SRPM", None
+        ret = 1, koji.BUILD_STATES["COMPLETE"], "COPR BUILD DONE", None
 
         try:
             log.debug('Cloning source URL: %s' % source)

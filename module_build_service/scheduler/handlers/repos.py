@@ -37,7 +37,7 @@ def done(config, session, msg):
 
     # First, find our ModuleBuild associated with this repo, if any.
     tag = msg.repo_tag
-    if not tag.endswith('-build'):
+    if config.system == "koji" and not tag.endswith('-build'):
         log.info("Tag %r does not end with '-build' suffix, ignoring" % tag)
         return
     tag = tag.strip('-build')
@@ -130,6 +130,12 @@ def done(config, session, msg):
 
         module_build_service.utils.start_build_batch(
             config, module_build, session, builder)
+
+        # We don't have copr implementation finished yet, Let's fake the repo change event,
+        # as if copr builds finished successfully
+        if config.system == "copr":
+            return [module_build_service.messaging.KojiRepoChange('fake msg', module_build.koji_tag)]
+
     else:
         module_build.transition(config, state=models.BUILD_STATES['done'])
         session.commit()
