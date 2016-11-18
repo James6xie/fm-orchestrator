@@ -70,7 +70,7 @@ class TestKojiBuilder(unittest.TestCase):
 
         with self.assertRaises(IOError):
             fake_kmb.buildroot_ready()
-        self.assertEquals(mocked_kojiutil.checkForBuilds.call_count, 5)
+        self.assertEquals(mocked_kojiutil.checkForBuilds.call_count, 3)
 
 
 class FakeKojiModuleBuilder(KojiModuleBuilder):

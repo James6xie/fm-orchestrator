@@ -54,7 +54,9 @@ app = Flask(__name__)
 app.config.from_envvar("RIDA_SETTINGS", silent=True)
 
 here = sys.path[0]
-if here not in ('/usr/bin', '/bin', '/usr/local/bin'):
+if any(['nosetests' in arg for arg in sys.argv]):
+    app.config.from_object('config.TestConfiguration')
+elif here not in ('/usr/bin', '/bin', '/usr/local/bin'):
     app.config.from_object('config.DevConfiguration')
 else:
     app.config.from_object('config.ProdConfiguration')
