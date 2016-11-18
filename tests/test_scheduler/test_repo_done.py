@@ -121,7 +121,4 @@ class TestRepoDone(unittest.TestCase):
             'no matches for this...', '2016-some-guid-build')
         self.fn(config=self.config, session=self.session, msg=msg)
         build_fn.assert_called_once_with(artifact_name='foo', source='full_scm_url')
-        module_build.transition.assert_called_once_with(self.config,
-                                                        module_build_service.models.BUILD_STATES["failed"],
-                                                        'Failed to submit artifact foo to Koji')
         self.assertEquals(unbuilt_component_build.state_reason, "Failed to submit artifact foo to Koji")
