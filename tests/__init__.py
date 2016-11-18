@@ -19,11 +19,14 @@
 # SOFTWARE.
 #
 # Written by Matt Prahl <mprahl@redhat.com
+
 from datetime import datetime, timedelta
 from module_build_service import app, db
+from module_build_service.config import from_app_config
 from module_build_service.models import ModuleBuild, ComponentBuild
 
 app.config.from_object('config.TestConfiguration')
+conf = from_app_config()
 
 
 def init_data():
@@ -36,7 +39,7 @@ def init_data():
         build_one.stream = '1'
         build_one.version = 2
         build_one.state = 3
-        build_one.modulemd = '' # Skipping since no tests rely on it
+        build_one.modulemd = ''  # Skipping since no tests rely on it
         build_one.koji_tag = 'module-nginx-1.2'
         build_one.scmurl = ('git://pkgs.domain.local/modules/nginx?'
                             '#ba95886c7a443b36a9ce31abda1f9bef22f2f8c9')

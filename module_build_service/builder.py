@@ -321,7 +321,7 @@ class KojiModuleBuilder(GenericBuilder):
         return "<KojiModuleBuilder module: %s, tag: %s>" % (
             self.module_str, self.tag_name)
 
-    @module_build_service.utils.retry(wait_on=koji.GenericError)
+    @module_build_service.utils.retry(wait_on=(IOError, koji.GenericError))
     def buildroot_ready(self, artifacts=None):
         """
         :param artifacts=None - list of nvrs
