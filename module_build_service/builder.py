@@ -825,6 +825,7 @@ class CoprModuleBuilder(GenericBuilder):
         This function is here to ensure that the buildroot (repo) is ready and
         contains the listed artifacts if specified.
         """
+        # @TODO check whether artifacts are in the buildroot (called from repos.py)
         return True
 
     def buildroot_add_artifacts(self, artifacts, install=False):
