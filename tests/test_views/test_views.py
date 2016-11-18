@@ -29,6 +29,28 @@ from os import path, mkdir
 
 from tests import app, init_data
 
+class MockedSCM(object):
+    def __init__(self, mocked_scm, name, mmd_filename):
+        self.mocked_scm = mocked_scm
+        self.name = name
+        self.mmd_filename = mmd_filename
+
+        self.mocked_scm.return_value.checkout = self.checkout
+        self.mocked_scm.return_value.name = self.name
+        self.mocked_scm.return_value.get_latest = self.get_latest
+
+    def checkout(self, temp_dir):
+        scm_dir = path.join(temp_dir, self.name)
+        mkdir(scm_dir)
+        base_dir = path.abspath(path.dirname(__file__))
+        copyfile(path.join(base_dir, self.mmd_filename),
+                    path.join(scm_dir, self.mmd_filename))
+
+        return scm_dir
+
+    def get_latest(self, branch = 'master'):
+        return branch
+
 
 class TestViews(unittest.TestCase):
 
@@ -163,17 +185,8 @@ class TestViews(unittest.TestCase):
     @patch('module_build_service.scm.SCM')
     def test_submit_build(self, mocked_scm, mocked_assert_is_packager,
                           mocked_get_username):
-        def mocked_scm_checkout(temp_dir):
-            scm_dir = path.join(temp_dir, 'fakemodule')
-            mkdir(scm_dir)
-            base_dir = path.abspath(path.dirname(__file__))
-            copyfile(path.join(base_dir, 'fakemodule.yaml'),
-                     path.join(scm_dir, 'fakemodule.yaml'))
+        mocked_scm_obj = MockedSCM(mocked_scm, "fakemodule", "fakemodule.yaml")
 
-            return scm_dir
-
-        mocked_scm.return_value.checkout = mocked_scm_checkout
-        mocked_scm.return_value.name = 'fakemodule'
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                 'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}))
@@ -200,17 +213,8 @@ class TestViews(unittest.TestCase):
     @patch('module_build_service.scm.SCM')
     def test_submit_componentless_build(self, mocked_scm, mocked_assert_is_packager,
                           mocked_get_username):
-        def mocked_scm_checkout(temp_dir):
-            scm_dir = path.join(temp_dir, 'fakemodule2')
-            mkdir(scm_dir)
-            base_dir = path.abspath(path.dirname(__file__))
-            copyfile(path.join(base_dir, 'fakemodule2.yaml'),
-                     path.join(scm_dir, 'fakemodule2.yaml'))
+        mocked_scm_obj = MockedSCM(mocked_scm, "fakemodule2", "fakemodule2.yaml")
 
-            return scm_dir
-
-        mocked_scm.return_value.checkout = mocked_scm_checkout
-        mocked_scm.return_value.name = 'fakemodule2'
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                 'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}))
@@ -276,27 +280,13 @@ class TestViews(unittest.TestCase):
     def test_submit_build_bad_modulemd(self, mocked_scm,
                                        mocked_assert_is_packager,
                                        mocked_get_username):
-        rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
-            {'scmurl': 'git://badurl.com'}))
-        def mocked_scm_checkout(temp_dir):
-            scm_dir = path.join(temp_dir, 'fakemodule')
-            mkdir(scm_dir)
-            base_dir = path.abspath(path.dirname(__file__))
-            with open(path.join(scm_dir, 'fakemodule.yaml'), 'w+') as file:
-                file.write('Bad YAML')
-                file.write('Some more bad YAML for good luck')
+        mocked_scm_obj = MockedSCM(mocked_scm, "bad", "bad.yaml")
 
-            return scm_dir
-
-        mocked_scm.return_value.checkout = mocked_scm_checkout
-        mocked_scm.return_value.name = 'fakemodule'
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                 'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}))
         data = json.loads(rv.data)
-        self.assertEquals(
-            data['message'], 'Invalid modulemd: The supplied data isn\'t'
-            ' a valid modulemd document')
+        self.assertTrue(data['message'].startswith('Invalid modulemd:'))
         self.assertEquals(data['status'], 422)
         self.assertEquals(data['error'], 'Unprocessable Entity')
 
@@ -305,23 +295,14 @@ class TestViews(unittest.TestCase):
     @patch('module_build_service.scm.SCM')
     def test_submit_build_scm_parallalization(self, mocked_scm,
                           mocked_assert_is_packager, mocked_get_username):
-        def mocked_scm_checkout(temp_dir):
-            scm_dir = path.join(temp_dir, 'base-runtime')
-            mkdir(scm_dir)
-            base_dir = path.abspath(path.dirname(__file__))
-            copyfile(path.join(base_dir, 'base-runtime.yaml'),
-                     path.join(scm_dir, 'base-runtime.yaml'))
-
-            return scm_dir
-
         def mocked_scm_is_available():
             time.sleep(1)
             return True
 
-        start = time.time()
-        mocked_scm.return_value.checkout = mocked_scm_checkout
-        mocked_scm.return_value.name = 'base-runtime'
         mocked_scm.return_value.is_available = mocked_scm_is_available
+        mocked_scm_obj = MockedSCM(mocked_scm, "base-runtime", "base-runtime.yaml")
+
+        start = time.time()
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                 'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}))
@@ -350,26 +331,16 @@ class TestViews(unittest.TestCase):
     @patch('module_build_service.scm.SCM')
     def test_submit_build_scm_non_available(self, mocked_scm,
                           mocked_assert_is_packager, mocked_get_username):
-        def mocked_scm_checkout(temp_dir):
-            scm_dir = path.join(temp_dir, 'base-runtime')
-            mkdir(scm_dir)
-            base_dir = path.abspath(path.dirname(__file__))
-            copyfile(path.join(base_dir, 'base-runtime.yaml'),
-                     path.join(scm_dir, 'base-runtime.yaml'))
-
-            return scm_dir
-
         def mocked_scm_is_available():
             return False
 
-        mocked_scm.return_value.checkout = mocked_scm_checkout
-        mocked_scm.return_value.name = 'base-runtime'
         mocked_scm.return_value.is_available = mocked_scm_is_available
+        mocked_scm_obj = MockedSCM(mocked_scm, "base-runtime", "base-runtime.yaml")
+
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                 'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}))
         data = json.loads(rv.data)
-        print(data)
 
         self.assertEquals(data['status'], 422)
         self.assertEquals(data['message'][:15], "Cannot checkout")

@@ -1,0 +1,34 @@
+document: modulemd
+version: 1
+data:
+    name: fakemodule
+    stream: "4.3.44"
+    version: 5
+    summary: A fake module containing the bash shell
+    description: >
+        A fake module used for testing
+    license:
+        module:
+            - MIT
+        content: []
+    xmd: ~
+    dependencies:
+        buildrequires:
+            base_runtime: 1.0-0
+    references:
+        community: https://fedoraproject.org/wiki/Modularity
+        tracker: https://taiga.fedorainfracloud.org/project/modularity
+    profiles:
+        default:
+            rpms:
+                - bash
+    api:
+        rpms:
+            - bash
+    components:
+        rpms:
+            bash:
+                rationale: It's here to test the whole thing!
+                ref: 70fa7516b83768595a4f3280ae890a7ac957e0c7
+Bad YAML
+Some more bad YAML for good luck
