@@ -801,7 +801,7 @@ class CoprModuleBuilder(GenericBuilder):
     def _get_copr_safe(self):
         from copr.exceptions import CoprRequestException
         # @TODO how the authentication is designed?
-        kwargs = {"ownername": "@copr", "projectname": self.tag_name}
+        kwargs = {"ownername": "@copr", "projectname": CoprModuleBuilder._tag_to_copr_name(self.tag_name)}
         try:
             return self._get_copr(**kwargs)
         except CoprRequestException:
@@ -913,6 +913,9 @@ class CoprModuleBuilder(GenericBuilder):
         the tag with particular name and architecture.
         """
         # @TODO get the correct user
+        # @TODO get the correct project
+        owner, project = "@copr", cls._tag_to_copr_name(tag_name)
+
         # Premise is that tag_name is in name-version-release format
         owner, nvr = "@copr", tag_name
         client = cls._get_client(config)
@@ -924,6 +927,11 @@ class CoprModuleBuilder(GenericBuilder):
 
     def cancel_build(self, task_id):
         pass
+
+    @classmethod
+    def _tag_to_copr_name(cls, koji_tag):
+        return koji_tag.replace("+", "-")
+
 
 class MockModuleBuilder(GenericBuilder):
     """
