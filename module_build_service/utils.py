@@ -294,12 +294,18 @@ def submit_module_build(username, url):
                 if not pkg.cache:
                     pkg.cache = conf.rpms_default_cache + pkgname
                 if not pkg.ref:
-                    try:
-                        pkg.ref = module_build_service.scm.SCM(
-                            pkg.repository).get_latest()
-                    except Exception as e:
-                        raise UnprocessableEntity(
-                            "Failed to get the latest commit: %s" % pkgname)
+                    pkg.ref = 'master'
+                try:
+                    # If the modulemd specifies that the 'f25' branch is what
+                    # we want to pull from, we need to resolve that f25 branch
+                    # to the specific commit available at the time of
+                    # submission (now).
+                    pkg.ref = module_build_service.scm.SCM(
+                        pkg.repository).get_latest(branch=pkg.ref)
+                except Exception as e:
+                    raise UnprocessableEntity(
+                        "Failed to get the latest commit for %s#%s" % (
+                            pkgname, pkg.ref))
             except Exception:
                 module.transition(conf, models.BUILD_STATES["failed"])
                 db.session.add(module)
