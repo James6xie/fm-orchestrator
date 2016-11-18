@@ -116,6 +116,7 @@ class TestConfiguration(BaseConfiguration):
     NET_TIMEOUT = 3
     NET_RETRY_INTERVAL = 1
 
+    KOJI_CONFIG = './koji.conf'
     KOJI_PROFILE = 'staging'
     KOJI_REPOSITORY_URL = 'https://kojipkgs.stg.fedoraproject.org/repos'
 
