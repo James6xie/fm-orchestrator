@@ -872,6 +872,13 @@ class CoprModuleBuilder(GenericBuilder):
         """
         log.info("Copr build")
 
+        # Git sources are treated specially.
+        if source.startswith("git://"):
+            return self.build_from_scm(artifact_name, source)
+        else:
+            return self.build_srpm(artifact_name, source)
+
+    def build_srpm(self, artifact_name, source):
         if not self.__prep:
             raise RuntimeError("Buildroot is not prep-ed")
 
@@ -896,6 +903,52 @@ class CoprModuleBuilder(GenericBuilder):
 
         # @TODO result should contain "module_id", "action_id" and "action_state"
         return None, None, result.message, "-".join([m1.name, m1.version, m1.release])
+
+    def build_from_scm(self, artifact_name, source):
+        """
+        Builds the artifact from the SCM based source.
+        """
+
+        # @FIXME COPR hacks
+        from module_build_service import scm
+        mock = MockModuleBuilder(self.owner, self.module_str, self.config, self.tag_name)
+        self._execute_cmd = mock._execute_cmd
+        # The rest of the method is copy-pasted from MockModuleBuilder
+
+        td = None
+        owd = os.getcwd()
+        ret = 1, koji.BUILD_STATES["FAILED"], "Cannot create SRPM", None
+
+        try:
+            log.debug('Cloning source URL: %s' % source)
+            # Create temp dir and clone the repo there.
+            td = tempfile.mkdtemp()
+            scm = module_build_service.scm.SCM(source)
+            cod = scm.checkout(td)
+
+            # Use configured command to create SRPM out of the SCM repo.
+            log.debug("Creating SRPM")
+            os.chdir(cod)
+            self._execute_cmd(self.config.mock_build_srpm_cmd.split(" "))
+
+            # Find out the built SRPM and build it normally.
+            for f in os.listdir(cod):
+                if f.endswith(".src.rpm"):
+                    log.info("Created SRPM %s" % f)
+                    source = os.path.join(cod, f)
+                    ret = self.build_srpm(artifact_name, source)
+                    break
+        finally:
+            os.chdir(owd)
+            try:
+                if td is not None:
+                    shutil.rmtree(td)
+            except Exception as e:
+                log.warning(
+                    "Failed to remove temporary directory {!r}: {}".format(
+                        td, str(e)))
+
+        return ret
 
     @staticmethod
     def get_disttag_srpm(disttag):
