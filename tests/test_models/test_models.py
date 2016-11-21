@@ -46,4 +46,3 @@ class TestModels(unittest.TestCase):
         build = db.session.query(models.ModuleBuild).filter_by(name='testmodule').one()
         result = build.resolve_profiles(db.session, 'srpm-buildroot')
         eq_(result,  expected)
-
