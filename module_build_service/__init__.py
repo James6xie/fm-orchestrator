@@ -41,27 +41,24 @@ for a number of tasks:
 - Emitting bus messages about all state changes so that other
   infrastructure services can pick up the work.
 """
+
 from flask import Flask, has_app_context, url_for
 from flask_sqlalchemy import SQLAlchemy
-from os import sys
+
 import module_build_service.logger
+
 from logging import getLogger
 from module_build_service.errors import (
     ValidationError, Unauthorized, UnprocessableEntity, Conflict, NotFound,
     Forbidden, json_error)
+from module_build_service.config import init_config
 
 app = Flask(__name__)
-app.config.from_envvar("RIDA_SETTINGS", silent=True)
 
-here = sys.path[0]
-if any(['nosetests' in arg for arg in sys.argv]):
-    app.config.from_object('config.TestConfiguration')
-elif here not in ('/usr/bin', '/bin', '/usr/local/bin'):
-    app.config.from_object('config.DevConfiguration')
-else:
-    app.config.from_object('config.ProdConfiguration')
+conf = init_config(app)
 
 db = SQLAlchemy(app)
+
 
 def get_url_for(*args, **kwargs):
     """
@@ -75,6 +72,7 @@ def get_url_for(*args, **kwargs):
     app.config['SERVER_NAME'] = 'localhost'
     with app.app_context():
         return url_for(*args, **kwargs)
+
 
 @app.errorhandler(ValidationError)
 def validationerror_error(e):
@@ -117,8 +115,6 @@ def notfound_error(e):
     """Flask error handler for Conflict exceptions"""
     return json_error(404, 'Not Found', e.args[0])
 
-import module_build_service.config
-conf = module_build_service.config.from_app_config()
 module_build_service.logger.init_logging(conf)
 log = getLogger(__name__)
 

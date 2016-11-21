@@ -23,21 +23,27 @@
 #
 # Written by Petr Šabata <contyk@redhat.com>
 
-"""Configuration handler functions."""
+from os import sys
 
-from module_build_service import app
 from module_build_service import logger
 
 
-def from_app_config():
-    """ Create the configuration instance from the values in app.config
+def init_config(app):
+    _init_app_config(app)
+    return Config(app)
+
+
+def _init_app_config(app):
+    """ Configure app
     """
-    conf = Config()
-    for key, value in app.config.items():
-        # lower keys
-        key = key.lower()
-        conf.set_item(key, value)
-    return conf
+    app.config.from_envvar("MBS_SETTINGS", silent=True)
+    here = sys.path[0]
+    if any(['nosetests' in arg for arg in sys.argv]):
+        app.config.from_object('config.TestConfiguration')
+    elif here not in ('/usr/bin', '/bin', '/usr/local/bin'):
+        app.config.from_object('config.DevConfiguration')
+    else:
+        app.config.from_object('config.ProdConfiguration')
 
 
 class Config(object):
@@ -217,24 +223,40 @@ class Config(object):
             'desc': 'Global network retry interval for read/write operations, in seconds.'},
     }
 
-    def __init__(self):
-        """Initialize the Config object with defaults."""
+    def __init__(self, app=None):
+        """
+        Initialize the Config object with defaults.
 
+        If Flask app is given, override/enrich the configuration defaults
+        with Flask config values/items.
+        """
+
+        # set defaults
         for name, values in self._defaults.items():
             self.set_item(name, values['default'])
 
+        # we don't check whether app is Flask instance, we simply assume it
+        # so there's no need of import flask
+        if app is not None:
+            # override defaults
+            for key, value in app.config.items():
+                # lower keys
+                key = key.lower()
+                self.set_item(key, value)
+
     def set_item(self, key, value):
+        """Set value for configuration item as self.key = value"""
         if key == 'set_item' or key.startswith('_'):
             raise Exception("Configuration item's name is not allowed: %s" % key)
 
+        # customized check & set if there's a corresponding handler
+        setifok_func = '_setifok_{}'.format(key)
+        if hasattr(self, setifok_func):
+            getattr(self, setifok_func)(value)
+            return
+
         # managed/registered configuration items
         if key in self._defaults:
-            # customized check & set if there's a corresponding handler
-            setifok_func = '_setifok_{}'.format(key)
-            if hasattr(self, setifok_func):
-                getattr(self, setifok_func)(value)
-                return
-
             # type conversion for configuration item
             convert = self._defaults[key]['type']
             if convert in [bool, int, list, str]:
@@ -248,17 +270,16 @@ class Config(object):
             # unknown type/unsupported conversion
             else:
                 raise TypeError("Unsupported type %s for configuration item name: %s" % (convert, key))
+
         # passthrough for unmanaged configuration items
         else:
-            # customized check & set if there's a corresponding handler
-            setifok_func = '_setifok_{}'.format(key)
-            if hasattr(self, setifok_func):
-                getattr(self, setifok_func)(value)
-            # otherwise just transparently set value for a key
-            else:
-                setattr(self, key, value)
+            setattr(self, key, value)
 
         return
+
+    #
+    # Register your _setifok_* handlers here
+    #
 
     def _setifok_system(self, s):
         s = str(s)
