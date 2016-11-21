@@ -30,7 +30,6 @@ from shutil import rmtree
 import getpass
 
 from module_build_service import app, conf, db
-from module_build_service.config import Config
 from module_build_service import models
 from module_build_service.pdc import (
     get_pdc_client_session, get_module, get_module_runtime_dependencies,
@@ -76,7 +75,7 @@ def _establish_ssl_context():
 def testpdc():
     """ A helper function to test pdc interaction
     """
-    cfg = Config()
+    cfg = conf
     cfg.pdc_url = "http://modularity.fedorainfracloud.org:8080/rest_api/v1"
     cfg.pdc_insecure = True
     cfg.pdc_develop = True
