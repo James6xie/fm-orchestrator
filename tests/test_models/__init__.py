@@ -22,14 +22,17 @@
 
 import os
 
+import module_build_service
 import modulemd
+
 from datetime import datetime
-from module_build_service import app, db
-from module_build_service.config import from_app_config
+from module_build_service import db
+from module_build_service.config import init_config
 from module_build_service.models import ModuleBuild, BUILD_STATES
 
-app.config.from_object('config.TestConfiguration')
-conf = from_app_config()
+app = module_build_service.app
+
+conf = init_config(app)
 
 datadir = os.path.dirname(__file__) + '/data/'
 

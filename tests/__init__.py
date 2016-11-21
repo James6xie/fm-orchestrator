@@ -20,13 +20,16 @@
 #
 # Written by Matt Prahl <mprahl@redhat.com
 
+import module_build_service
+
 from datetime import datetime, timedelta
-from module_build_service import app, db
-from module_build_service.config import from_app_config
+from module_build_service import db
+from module_build_service.config import init_config
 from module_build_service.models import ModuleBuild, ComponentBuild
 
-app.config.from_object('config.TestConfiguration')
-conf = from_app_config()
+app = module_build_service.app
+
+conf = init_config(app)
 
 
 def init_data():
