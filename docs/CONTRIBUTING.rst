@@ -65,12 +65,12 @@ At any point you may enter the guest VM with::
 
 To start the frontend manually, run the following inside the guest::
 
-    $ cd /opt/module_build_service/src
+    $ cd /opt/module_build_service
     $ python manage.py runssl --debug
 
 To start the scheduler manually, run the following inside the guest::
 
-    $ cd /opt/module_build_service/src
+    $ cd /opt/module_build_service
     $ python module_build_service_daemon.py
 
 Alternatively, you can restart the Vagrant guest, which inherently starts/restarts the frontend and the scheduler with::
@@ -81,8 +81,8 @@ Logging
 ------
 
 If you're running module_build_service from scm, then the DevConfiguration from
-`config.py` which contains `LOG_LEVEL=debug` should get applied. See more about
-it in `module_build_service/__init__.py`, `config.from_object()`.
+`conf/config.py` which contains `LOG_LEVEL=debug` should get applied. See more about
+it in `module_build_service/config.py`, `app.config.from_object()`.
 
 
 fedmsg Signing for Development
