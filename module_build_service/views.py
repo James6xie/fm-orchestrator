@@ -27,20 +27,20 @@
 This is the implementation of the orchestrator's public RESTful API.
 """
 
-from flask import request, jsonify
-from flask.views import MethodView
 import json
-import modulemd
-import os
 import module_build_service.auth
 import re
-from module_build_service import app, conf, db, log
+
+from flask import request, jsonify
+from flask.views import MethodView
+
+from module_build_service import app, conf, log
 from module_build_service import models
 from module_build_service.utils import pagination_metadata, filter_module_builds, submit_module_build
 from module_build_service.errors import (
-    ValidationError, Unauthorized, UnprocessableEntity, Conflict, NotFound)
+    ValidationError, Unauthorized, NotFound)
 
-api_definition = {
+api_v1 = {
     'module_build_submit': {
         'url': '/module-build-service/1/module-builds/',
         'options': {
@@ -127,13 +127,13 @@ class ModuleBuildAPI(MethodView):
         return jsonify(module.json()), 201
 
 
-def register_v1_api():
+def register_api_v1():
     """ Registers version 1 of Rida API. """
     module_view = ModuleBuildAPI.as_view('module_builds')
-    for key, val in api_definition.items():
+    for key, val in api_v1.items():
         app.add_url_rule(val['url'],
                          endpoint=key,
                          view_func=module_view,
                          **val['options'])
 
-register_v1_api()
+register_api_v1()
