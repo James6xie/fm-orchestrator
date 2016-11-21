@@ -25,5 +25,5 @@ WORKDIR /opt/module_build_service/
 COPY ./requirements.txt /opt/module_build_service/
 RUN pip install --user -r ./requirements.txt
 
-RUN ln -s /opt/module_build_service/koji.conf /etc/module_build_service/koji.conf \
- && ln -s /opt/module_build_service/copr.conf /etc/module_build_service/copr.conf
+RUN ln -s /opt/module_build_service/conf/koji.conf /etc/module_build_service/koji.conf \
+ && ln -s /opt/module_build_service/conf/copr.conf /etc/module_build_service/copr.conf

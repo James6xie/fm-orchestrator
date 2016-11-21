@@ -22,8 +22,8 @@ $script = <<SCRIPT
     pip install -r /opt/module_build_service/test-requirements.txt
     cd /opt/module_build_service
     mkdir -p /etc/module_build_service
-    ln -s /opt/module_build_service/koji.conf /etc/module_build_service/koji.conf
-    ln -s /opt/module_build_service/copr.conf /etc/module_build_service/copr.conf
+    ln -s /opt/module_build_service/conf/koji.conf /etc/module_build_service/koji.conf
+    ln -s /opt/module_build_service/conf/copr.conf /etc/module_build_service/copr.conf
     python manage.py upgradedb
     python manage.py generatelocalhostcert
     systemctl enable fedmsg-relay
