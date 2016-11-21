@@ -96,6 +96,7 @@ def start_build_batch(config, module, session, builder, components=None):
         c for c in module.component_builds
         if (c.state != koji.BUILD_STATES['COMPLETE']
             and c.state != koji.BUILD_STATES['BUILDING']
+            and c.state != koji.BUILD_STATES['FAILED']
             and c.batch == module.batch)
     ]
 
