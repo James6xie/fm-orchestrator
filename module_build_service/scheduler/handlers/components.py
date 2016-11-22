@@ -79,7 +79,20 @@ def _finalize(config, session, msg, state):
         tag = parent.koji_tag
         builder = module_build_service.builder.GenericBuilder.create(
             parent.owner, module_name, config.system, config, tag_name=tag)
-        builder.buildroot_connect()
+
+        try:
+            groups = {
+                'build': parent.resolve_profiles(session, 'buildroot'),
+                'srpm-build': parent.resolve_profiles(session, 'srpm-buildroot'),
+            }
+        except ValueError:
+            reason = "Failed to gather buildroot groups from SCM."
+            log.exception(reason)
+            parent.transition(config, state="failed", state_reason=reason)
+            session.commit()
+            raise
+
+        builder.buildroot_connect(groups)
         # tag && add to srpm-build group
         nvr = "{}-{}-{}".format(msg.build_name, msg.build_version,
                                 msg.build_release)

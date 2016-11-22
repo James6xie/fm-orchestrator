@@ -108,6 +108,7 @@ def cleardb():
 
 @manager.command
 def build_module_locally(url):
+    conf.set_item("system", "mock")
     username = getpass.getuser()
 
     cleardb()
