@@ -107,6 +107,11 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
     """
 
     backend = "generic"
+    backends = {}
+
+    @classmethod
+    def register_backend_class(cls, backend_class):
+        GenericBuilder.backends[backend_class.backend] = backend_class
 
     @classmethod
     def create(cls, owner, module, backend, config, **extra):
@@ -123,14 +128,8 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
         if isinstance(config.system, Mock):
             return KojiModuleBuilder(owner=owner, module=module,
                                      config=config, **extra)
-        elif backend == "koji":
-            return KojiModuleBuilder(owner=owner, module=module,
-                                     config=config, **extra)
-        elif backend == "copr":
-            return CoprModuleBuilder(owner=owner, module=module,
-                                     config=config, **extra)
-        elif backend == "mock":
-            return MockModuleBuilder(owner=owner, module=module,
+        elif backend in GenericBuilder.backends:
+            return GenericBuilder.backends[backend](owner=owner, module=module,
                                      config=config, **extra)
         else:
             raise ValueError("Builder backend='%s' not recognized" % backend)
@@ -146,10 +145,9 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
         Returns URL of repository containing the built artifacts for
         the tag with particular name and architecture.
         """
-        if backend == "koji":
-            return KojiModuleBuilder.repo_from_tag(config, tag_name, arch)
-        if backend == "copr":
-            return CoprModuleBuilder.repo_from_tag(config, tag_name, arch)
+        if backend in GenericBuilder.backends:
+            return GenericBuilder.backends[backend].repo_from_tag(
+                config, tag_name, arch)
         else:
             raise ValueError("Builder backend='%s' not recognized" % backend)
 
@@ -1100,3 +1098,7 @@ class MockModuleBuilder(GenericBuilder):
     def get_disttag_srpm(disttag):
         # @FIXME
         return KojiModuleBuilder.get_disttag_srpm(disttag)
+
+GenericBuilder.register_backend_class(KojiModuleBuilder)
+GenericBuilder.register_backend_class(CoprModuleBuilder)
+GenericBuilder.register_backend_class(MockModuleBuilder)
