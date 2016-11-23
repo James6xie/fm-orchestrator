@@ -900,24 +900,9 @@ class CoprModuleBuilder(GenericBuilder):
         if response.output != "ok":
             log.error(response.error)
 
-        # Create a module from previous project
-        modulemd = tempfile.mktemp()
-        m1 = ModuleBuild.query.filter(ModuleBuild.name == self.module_str).first()
-        m1.mmd().dump(modulemd)
-
-        kwargs = {"username": self.copr.username, "projectname": self.copr.projectname, "modulemd": modulemd}
-        result = self.client.create_new_build_module(**kwargs)
-        if result.output != "ok":
-            log.error(result.error)
-            return
-
-        log.info(result.message)
-        log.info(result.data["modulemd"])
-
-        # @TODO result should contain "module_id", "action_id" and "action_state"
         # Since we don't have implemented messaging support in copr yet,
         # let's just assume that the build is finished by now
-        return None, koji.BUILD_STATES["COMPLETE"], result.message, "-".join([m1.name, m1.version, m1.release])
+        return response.data["ids"][0], koji.BUILD_STATES["COMPLETE"], response.message, None
 
     def build_from_scm(self, artifact_name, source):
         """
@@ -964,6 +949,21 @@ class CoprModuleBuilder(GenericBuilder):
                         td, str(e)))
 
         return ret
+
+    def finalize(self):
+        # Create a module from previous project
+        modulemd = tempfile.mktemp()
+        m1 = ModuleBuild.query.filter(ModuleBuild.name == self.module_str).first()
+        m1.mmd().dump(modulemd)
+
+        kwargs = {"username": self.copr.username, "projectname": self.copr.projectname, "modulemd": modulemd}
+        result = self.client.create_new_build_module(**kwargs)
+        if result.output != "ok":
+            log.error(result.error)
+            return
+
+        log.info(result.message)
+        log.info(result.data["modulemd"])
 
     @staticmethod
     def get_disttag_srpm(disttag):
