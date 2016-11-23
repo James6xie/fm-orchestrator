@@ -240,6 +240,19 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
         """
         raise NotImplementedError()
 
+    def finalize(self):
+        """
+        :return: None
+
+        This method is supposed to be called after all module builds are
+        successfully finished.
+
+        It could be utilized for various purposes such as cleaning or
+        running additional build-system based operations on top of
+        finished builds (e.g. for copr - composing them into module)
+        """
+        pass
+
     @classmethod
     @abstractmethod
     def repo_from_tag(self, config, tag_name, arch):
