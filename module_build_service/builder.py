@@ -951,6 +951,13 @@ class CoprModuleBuilder(GenericBuilder):
         return ret
 
     def finalize(self):
+        # @FIXME
+        # Sleep some amount of time to wait until builds are finished
+        # We are just workarounding missing fedmsg support from copr
+        seconds = 180
+        log.info("Going to sleep for {}s to wait until builds in copr are finished".format(seconds))
+        time.sleep(seconds)
+
         # Create a module from previous project
         modulemd = tempfile.mktemp()
         m1 = ModuleBuild.query.filter(ModuleBuild.name == self.module_str).first()
