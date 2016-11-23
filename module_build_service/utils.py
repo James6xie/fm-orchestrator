@@ -208,7 +208,7 @@ def filter_module_builds(flask_request):
     return query.paginate(page, per_page, False)
 
 
-def submit_module_build(username, url):
+def _fetch_mmd(url):
     # Import it here, because SCM uses utils methods
     # and fails to import them because of dep-chain.
     import module_build_service.scm
@@ -240,50 +240,12 @@ def submit_module_build(username, url):
     except Exception as e:
         log.error('Invalid modulemd: %s' % str(e))
         raise UnprocessableEntity('Invalid modulemd: %s' % str(e))
+    return mmd, scm, yaml
 
-    # If undefined, set the name field to VCS repo name.
-    if not mmd.name and scm:
-        mmd.name = scm.name
-
-    # If undefined, set the stream field to the VCS branch name.
-    if not mmd.stream and scm:
-        mmd.stream = scm.branch
-
-    # If undefined, set the version field to int represenation of VCS commit.
-    if not mmd.version and scm:
-        mmd.version = int(scm.version)
-
-    module = models.ModuleBuild.query.filter_by(name=mmd.name,
-                                                stream=mmd.stream,
-                                                version=mmd.version).first()
-    if module:
-        log.debug('Checking whether module build already exist.')
-        # TODO: make this configurable, we might want to allow
-        # resubmitting any stuck build on DEV no matter the state
-        if module.state not in (models.BUILD_STATES['failed'],):
-            log.error('Module (state=%s) already exists. '
-                      'Only new or failed builds are allowed.'
-                      % module.state)
-            raise Conflict('Module (state=%s) already exists. '
-                           'Only new or failed builds are allowed.'
-                           % module.state)
-        log.debug('Resuming existing module build %r' % module)
-        module.username = username
-        module.transition(conf, models.BUILD_STATES["init"])
-        log.info("Resumed existing module build in previous state %s"
-                 % module.state)
-    else:
-        log.debug('Creating new module build')
-        module = models.ModuleBuild.create(
-            db.session,
-            conf,
-            name=mmd.name,
-            stream=mmd.stream,
-            version=mmd.version,
-            modulemd=yaml,
-            scmurl=url,
-            username=username
-        )
+def record_component_builds(mmd, module, initial_batch = 1):
+    # Import it here, because SCM uses utils methods
+    # and fails to import them because of dep-chain.
+    import module_build_service.scm
 
     # List of (pkg_name, git_url) tuples to be used to check
     # the availability of git URLs paralelly later.
@@ -343,9 +305,19 @@ def submit_module_build(username, url):
         # We do not start with batch = 0 here, because the first batch is
         # reserved for module-build-macros. First real components must be
         # planned for batch 2 and following.
-        batch = 1
+        batch = initial_batch
  
         for pkg in components:
+            # If the pkg is another module, we fetch its modulemd file
+            # and record its components recursively with the initial_batch
+            # set to our current batch, so the components of this module
+            # are built in the right global order.
+            if isinstance(pkg, modulemd.ModuleComponentModule):
+                full_url = pkg.repository + "?#" + pkg.ref
+                mmd = _fetch_mmd(full_url)[0]
+                batch = record_component_builds(mmd, module, batch)
+                continue
+
             if previous_buildorder != pkg.buildorder:
                 previous_buildorder = pkg.buildorder
                 batch += 1
@@ -368,6 +340,61 @@ def submit_module_build(username, url):
                     batch=batch
                 )
                 db.session.add(build)
+
+        return batch
+
+def submit_module_build(username, url):
+    # Import it here, because SCM uses utils methods
+    # and fails to import them because of dep-chain.
+    import module_build_service.scm
+
+    mmd, scm, yaml = _fetch_mmd(url)
+
+    # If undefined, set the name field to VCS repo name.
+    if not mmd.name and scm:
+        mmd.name = scm.name
+
+    # If undefined, set the stream field to the VCS branch name.
+    if not mmd.stream and scm:
+        mmd.stream = scm.branch
+
+    # If undefined, set the version field to int represenation of VCS commit.
+    if not mmd.version and scm:
+        mmd.version = int(scm.version)
+
+    module = models.ModuleBuild.query.filter_by(name=mmd.name,
+                                                stream=mmd.stream,
+                                                version=mmd.version).first()
+    if module:
+        log.debug('Checking whether module build already exist.')
+        # TODO: make this configurable, we might want to allow
+        # resubmitting any stuck build on DEV no matter the state
+        if module.state not in (models.BUILD_STATES['failed'],):
+            log.error('Module (state=%s) already exists. '
+                      'Only new or failed builds are allowed.'
+                      % module.state)
+            raise Conflict('Module (state=%s) already exists. '
+                           'Only new or failed builds are allowed.'
+                           % module.state)
+        log.debug('Resuming existing module build %r' % module)
+        module.username = username
+        module.transition(conf, models.BUILD_STATES["init"])
+        log.info("Resumed existing module build in previous state %s"
+                 % module.state)
+    else:
+        log.debug('Creating new module build')
+        module = models.ModuleBuild.create(
+            db.session,
+            conf,
+            name=mmd.name,
+            stream=mmd.stream,
+            version=mmd.version,
+            modulemd=yaml,
+            scmurl=url,
+            username=username
+        )
+
+    record_component_builds(mmd, module)
 
     module.modulemd = mmd.dumps()
     module.transition(conf, models.BUILD_STATES["wait"])

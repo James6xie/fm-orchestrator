@@ -28,23 +28,42 @@ from shutil import copyfile
 from os import path, mkdir
 
 from tests import app, init_data
+from module_build_service.models import ComponentBuild
 
 class MockedSCM(object):
-    def __init__(self, mocked_scm, name, mmd_filename):
+    def __init__(self, mocked_scm, name, mmd_filenames):
+        """
+        Adds default testing checkout, get_latest and name methods
+        to mocked_scm SCM class.
+
+        :param mmd_filenames: List of ModuleMetadata yaml files which
+        will be checkouted by the SCM class in the same order as they
+        are stored in the list.
+        """
         self.mocked_scm = mocked_scm
         self.name = name
-        self.mmd_filename = mmd_filename
+        if not isinstance(mmd_filenames, list):
+            mmd_filenames = [mmd_filenames]
+        self.mmd_filenames = mmd_filenames
+        self.checkout_id = 0
 
         self.mocked_scm.return_value.checkout = self.checkout
         self.mocked_scm.return_value.name = self.name
         self.mocked_scm.return_value.get_latest = self.get_latest
 
     def checkout(self, temp_dir):
+        try:
+            mmd_filename = self.mmd_filenames[self.checkout_id]
+        except:
+            mmd_filename = self.mmd_filenames[0]
+
         scm_dir = path.join(temp_dir, self.name)
         mkdir(scm_dir)
         base_dir = path.abspath(path.dirname(__file__))
-        copyfile(path.join(base_dir, self.mmd_filename),
-                    path.join(scm_dir, self.mmd_filename))
+        copyfile(path.join(base_dir, mmd_filename),
+                    path.join(scm_dir, self.name + ".yaml"))
+
+        self.checkout_id += 1
 
         return scm_dir
 
@@ -345,4 +364,41 @@ class TestViews(unittest.TestCase):
         self.assertEquals(data['status'], 422)
         self.assertEquals(data['message'][:15], "Cannot checkout")
         self.assertEquals(data['error'], "Unprocessable Entity")
+
+    @patch('module_build_service.auth.get_username', return_value='Homer J. Simpson')
+    @patch('module_build_service.auth.assert_is_packager')
+    @patch('module_build_service.scm.SCM')
+    def test_submit_build_includedmodule(self, mocked_scm, mocked_assert_is_packager,
+                          mocked_get_username):
+        mocked_scm_obj = MockedSCM(mocked_scm, "includedmodules",
+                                   ["includedmodules.yaml", "fakemodule.yaml"])
+
+        rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
+            {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+                'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}))
+        data = json.loads(rv.data)
+
+        self.assertEquals(data['component_builds'], [61, 62])
+        self.assertEquals(data['name'], 'fakemodule')
+        self.assertEquals(data['scmurl'],
+                          ('git://pkgs.stg.fedoraproject.org/modules/testmodule'
+                          '.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'))
+        self.assertEquals(data['version'], '5')
+        self.assertTrue(data['time_submitted'] is not None)
+        self.assertTrue(data['time_modified'] is not None)
+        self.assertEquals(data['version'], '5')
+        self.assertEquals(data['time_completed'], None)
+        self.assertEquals(data['stream'], '4.3.44')
+        self.assertEquals(data['owner'], 'Homer J. Simpson')
+        self.assertEquals(data['id'], 31)
+        self.assertEquals(data['state_name'], 'wait')
+        self.assertEquals(data['state_url'], '/module-build-service/1/module-builds/31')
+
+        batches = {}
+        for build in ComponentBuild.query.filter_by(module_id=31).all():
+            batches[build.package] = build.batch
+
+        self.assertEquals(batches["bash"], 2)
+        self.assertEquals(batches["file"], 3)
+
 

@@ -27,7 +27,12 @@ data:
             - bash
     components:
         rpms:
-            bash:
+            file:
                 rationale: It's here to test the whole thing!
                 ref: 70fa7516b83768595a4f3280ae890a7ac957e0c7
-                buildorder: 20
+                buildorder: 10
+        modules:
+            fakemodule:
+                rationale: foobar
+                repository: git://foo.bar/fakemodule.git
+                ref: master
