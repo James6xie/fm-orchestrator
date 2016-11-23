@@ -997,11 +997,11 @@ class CoprModuleBuilder(GenericBuilder):
         # @TODO get the correct project
         owner, project = "@copr", cls._tag_to_copr_name(tag_name)
 
-        # Premise is that tag_name is in name-version-release format
-        name, version, release = tag_name.rsplit("-", 2)
+        # Premise is that tag_name is in name-stream-version format
+        name, stream, version = tag_name.rsplit("-", 2)
 
         client = cls._get_client(config)
-        response = client.get_module_repo(owner, project, name, version, release, arch).data
+        response = client.get_module_repo(owner, project, name, stream, version, arch).data
 
         if response["output"] == "notok":
             raise ValueError(response["error"])
