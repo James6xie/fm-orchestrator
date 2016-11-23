@@ -977,6 +977,11 @@ class CoprModuleBuilder(GenericBuilder):
         # @FIXME
         return KojiModuleBuilder.get_disttag_srpm(disttag)
 
+    @property
+    def module_build_tag(self):
+        # Workaround koji specific code in modules.py
+        return {"name": self.tag_name}
+
     @classmethod
     def repo_from_tag(cls, config, tag_name, arch):
         """
