@@ -917,7 +917,7 @@ class CoprModuleBuilder(GenericBuilder):
 
         td = None
         owd = os.getcwd()
-        ret = 1, koji.BUILD_STATES["COMPLETE"], "COPR BUILD DONE", None
+        ret = (0, koji.BUILD_STATES["FAILED"], "Cannot create SRPM", None)
 
         try:
             log.debug('Cloning source URL: %s' % source)
