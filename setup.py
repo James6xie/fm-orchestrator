@@ -31,6 +31,7 @@ setup(name='module-build-service',
                                                   'conf/config.py',
                                                   'conf/copr.conf',
                                                   'conf/koji.conf']),
-                  ('/etc/module-build-service/fedmsg.d/', ['fedmsg.d/*.py']),
+                  ('/etc/module-build-service/fedmsg.d/', ['fedmsg.d/logging.py',
+                                                           'fedmsg.d/module_build_service.py']),
                   ],
       )
