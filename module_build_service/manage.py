@@ -251,8 +251,8 @@ def generatelocalhostcert():
     cert_key = crypto.PKey()
     cert_key.generate_key(crypto.TYPE_RSA, 2048)
 
-    with open('/etc/module-build-service/server.key', 'w') as cert_key_file:
-        os.chmod(cert_key_file, 0o600)
+    with open(conf.ssl_certificate_key_file, 'w') as cert_key_file:
+        os.chmod(conf.ssl_certificate_key_file, 0o600)
         cert_key_file.write(
             crypto.dump_privatekey(crypto.FILETYPE_PEM, cert_key))
 
@@ -277,7 +277,7 @@ def generatelocalhostcert():
     cert.add_extensions(cert_extensions)
     cert.sign(cert_key, 'sha256')
 
-    with open('/etc/module-build-service/server.crt', 'w') as cert_file:
+    with open(conf.ssl_certificate_file, 'w') as cert_file:
         cert_file.write(
             crypto.dump_certificate(crypto.FILETYPE_PEM, cert))
 
