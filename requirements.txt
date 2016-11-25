@@ -7,6 +7,7 @@ funcsigs # Python2 only
 kobo
 m2crypto
 m2ext
+mock
 modulemd>=1.0.0,<2.0.0
 munch
 pdc-client
