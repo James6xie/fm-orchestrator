@@ -25,7 +25,8 @@ setup(name='module-build-service',
       tests_require=test_requirements,
       entry_points={
           'console_scripts': ['module_build_service_daemon = module_build_service.scheduler.main:main',
-                              'module_build_service_upgradedb = module_build_service.manage:upgradedb']
+                              'module_build_service_upgradedb = module_build_service.manage:upgradedb',
+                              'module_build_service_gencert = module_build_service.manage:generatelocalhostcert']
       },
       data_files=[('/etc/module-build-service/', ['conf/cacert.pem',
                                                   'conf/config.py',
