@@ -36,7 +36,10 @@ from module_build_service.pdc import (
     get_module_tag, get_module_build_dependencies)
 import module_build_service.auth
 import module_build_service.scheduler.main
-from module_build_service.utils import submit_module_build
+from module_build_service.utils import (
+    submit_module_build,
+    insert_fake_baseruntime,
+)
 from module_build_service.messaging import RidaModule
 
 
@@ -99,6 +102,7 @@ def upgradedb():
     """ Upgrades the database schema to the latest revision
     """
     flask_migrate.upgrade()
+    insert_fake_baseruntime()
 
 
 @manager.command
@@ -110,13 +114,34 @@ def cleardb():
 @manager.command
 def build_module_locally(url):
     conf.set_item("system", "mock")
-    username = getpass.getuser()
 
-    cleardb()
-    submit_module_build(username, url)
+    # Use our own local SQLite3 database.
+    confdir = os.path.abspath(os.path.dirname(__file__))
+    dbdir = os.path.abspath(os.path.join(confdir, '..')) if confdir.endswith('conf') \
+        else confdir
+    dbpath = '/{0}'.format(os.path.join(dbdir, '.mbs_local_build.db'))
+    dburi = 'sqlite://' + dbpath
+    app.config["SQLALCHEMY_DATABASE_URI"] = dburi
+    conf.set_item("sqlalchemy_database_uri", dburi)
+    if os.path.exists(dbpath):
+        os.remove(dbpath)
+
+    # Create the database and insert fake base-runtime module there. This is
+    # normally done by the flask_migrate.upgrade(), but I (jkaluza) do not
+    # call it here, because after that call, all the logged messages are not
+    # printed to stdout/stderr and are ignored... I did not find a way how to
+    # fix that.
+    #
+    # In the future, we should use PDC to get what we need from the fake module,
+    # so it's probably not big problem.
+    db.create_all()
+    insert_fake_baseruntime()
+
+    username = getpass.getuser()
+    submit_module_build(username, url, allow_local_url=True)
 
     msgs = []
-    msgs.append(RidaModule("fake msg", 1, 1))
+    msgs.append(RidaModule("local module build", 2, 1))
     module_build_service.scheduler.main.main(msgs, True)
 
 
