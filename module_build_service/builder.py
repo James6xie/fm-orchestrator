@@ -923,20 +923,130 @@ class MockModuleBuilder(GenericBuilder):
     # Global build_id/task_id we increment when new build is executed.
     _build_id = 1
 
+    MOCK_CONFIG_TEMPLATE = """
+config_opts['root'] = '$root'
+config_opts['target_arch'] = '$arch'
+config_opts['legal_host_arches'] = ('$arch',)
+config_opts['chroot_setup_cmd'] = 'install $group'
+config_opts['dist'] = ''
+config_opts['extra_chroot_dirs'] = [ '/run/lock', ]
+config_opts['releasever'] = ''
+config_opts['package_manager'] = 'dnf'
+
+config_opts['yum.conf'] = \"\"\"
+[main]
+keepcache=1
+debuglevel=2
+reposdir=/dev/null
+logfile=/var/log/yum.log
+retries=20
+obsoletes=1
+gpgcheck=0
+assumeyes=1
+syslog_ident=mock
+syslog_device=
+install_weak_deps=0
+metadata_expire=0
+mdpolicy=group:primary
+
+# repos
+
+$repos
+\"\"\"
+"""
+
     def __init__(self, owner, module, config, tag_name):
         self.module_str = module
         self.tag_name = tag_name
         self.config = config
+        self.groups = []
+        self.arch = "x86_64" # TODO: We may need to change that in the future
+        self.repos = ""
 
+        # Create main directory for this tag
         self.tag_dir = os.path.join(self.config.mock_resultsdir, tag_name)
         if not os.path.exists(self.tag_dir):
             os.makedirs(self.tag_dir)
 
+        # Create "results" sub-directory for this tag to store build results
+        # and local repository.
+        self.resultsdir = os.path.join(self.tag_dir, "results")
+        if not os.path.exists(self.resultsdir):
+            os.makedirs(self.resultsdir)
+
+        # Remove old files from the previous build of this tag but only
+        # before the first build is done, otherwise we would remove files
+        # which we already build in this module build.
+        if MockModuleBuilder._build_id == 1:
+            # Remove all RPMs from the results directory, but keep old logs.
+            for name in os.listdir(self.resultsdir):
+                if name.endswith(".rpm"):
+                    os.remove(os.path.join(self.resultsdir, name))
+
+            # Remove the old RPM repository from the results directory.
+            if os.path.exists(os.path.join(self.resultsdir, "/repodata/repomd.xml")):
+                os.remove(os.path.join(self.resultsdir, "/repodata/repomd.xml"))
+
+        # Create "config" sub-directory.
+        self.configdir = os.path.join(self.tag_dir, "config")
+        if not os.path.exists(self.configdir):
+            os.makedirs(self.configdir)
+
+        # Generate path to mock config and add local repository there.
+        self.mock_config = os.path.join(self.configdir, "mock.cfg")
+        self._add_repo("localrepo", "file://" + self.resultsdir)
+
         log.info("MockModuleBuilder initialized, tag_name=%s, tag_dir=%s" %
                  (tag_name, self.tag_dir))
 
+    def _createrepo(self):
+        """
+        Creates the repository using "createrepo_c" command in the resultsdir.
+        """
+        path = self.resultsdir
+        if os.path.exists(path + '/repodata/repomd.xml'):
+            comm = ['/usr/bin/createrepo_c', '--update', path]
+        else:
+            comm = ['/usr/bin/createrepo_c', path]
+        cmd = subprocess.Popen(
+            comm, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        out, err = cmd.communicate()
+        return out, err
+
+    def _add_repo(self, name, baseurl):
+        """
+        Adds repository to Mock config file. Call _write_mock_config() to
+        actually write the config file to filesystem.
+        """
+        self.repos += "[%s]\n" % name
+        self.repos += "name=%s\n" % name
+        self.repos += "baseurl=%s\n" % baseurl
+        self.repos += "enabled=1\n"
+
+    def _write_mock_config(self):
+        """
+        Writes Mock config file to self.configdir/mock.cfg.
+        """
+
+        # We want to write confing only before the first build, otherwise
+        # we would overwrite it in the middle of module build which would
+        # break the build.
+        if MockModuleBuilder._build_id != 1:
+            return
+
+        config = str(MockModuleBuilder.MOCK_CONFIG_TEMPLATE)
+        config = config.replace("$root", self.tag_name)
+        config = config.replace("$arch", self.arch)
+        config = config.replace("$group", " ".join(self.groups))
+        config = config.replace("$repos", self.repos)
+
+        with open(os.path.join(self.configdir, "mock.cfg"), 'w') as f:
+            f.write(config)
+
     def buildroot_connect(self, groups):
-        pass
+        self.groups = groups["build"]
+        log.debug("Mock builder groups: %s" % self.groups)
+        self._write_mock_config()
 
     def buildroot_prep(self):
         pass
@@ -945,6 +1055,8 @@ class MockModuleBuilder(GenericBuilder):
         pass
 
     def buildroot_ready(self, artifacts=None):
+        log.debug("Creating repository in %s" % self.resultsdir)
+        self._createrepo()
         return True
 
     def buildroot_add_dependency(self, dependencies):
@@ -954,7 +1066,12 @@ class MockModuleBuilder(GenericBuilder):
         pass
 
     def buildroot_add_repos(self, dependencies):
-        pass
+        # TODO: We support only dependencies from Koji here. This should be
+        # extended to Copr in the future.
+        for tag in dependencies:
+            baseurl = KojiModuleBuilder.repo_from_tag(self.config, tag, self.arch)
+            self._add_repo(tag, baseurl)
+        self._write_mock_config()
 
     def _send_repo_done(self):
         msg = module_build_service.messaging.KojiRepoChange(
@@ -998,14 +1115,14 @@ class MockModuleBuilder(GenericBuilder):
         """
         try:
             # Initialize mock.
-            self._execute_cmd(["mock", "-r", self.config.mock_config, "--init"])
+            self._execute_cmd(["mock", "-r", self.mock_config, "--init"])
 
-            # Start the build and store results to tag_dir
+            # Start the build and store results to resultsdir
             # TODO: Maybe this should not block in the future, but for local
             # builds it is not a big problem.
-            self._execute_cmd(["mock", "-r", self.config.mock_config,
+            self._execute_cmd(["mock", "-r", self.mock_config,
                                "--no-clean", "--rebuild", source,
-                               "--resultdir=%s" % self.tag_dir])
+                               "--resultdir=%s" % self.resultsdir])
 
             # Emit messages simulating complete build. These messages
             # are put in the scheduler.main._work_queue and are handled
@@ -1016,7 +1133,7 @@ class MockModuleBuilder(GenericBuilder):
                                     MockModuleBuilder._build_id)
             self._send_repo_done()
 
-            with open(os.path.join(self.tag_dir, "status.log"), 'w') as f:
+            with open(os.path.join(self.resultsdir, "status.log"), 'w') as f:
                 f.write("complete\n")
         except Exception as e:
             log.error("Error while building artifact %s: %s" % (artifact_name,
@@ -1030,7 +1147,7 @@ class MockModuleBuilder(GenericBuilder):
             self._send_build_change(koji.BUILD_STATES['FAILED'], source,
                                     MockModuleBuilder._build_id)
             self._send_repo_done()
-            with open(os.path.join(self.tag_dir, "status.log"), 'w') as f:
+            with open(os.path.join(self.resultsdir, "status.log"), 'w') as f:
                 f.write("failed\n")
 
         self._save_log("state.log", artifact_name)

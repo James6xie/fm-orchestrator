@@ -113,6 +113,7 @@ class DevConfiguration(BaseConfiguration):
     # FAS_PASSWORD = commands.getoutput('pass your_fas_password').strip()
 
     KOJI_ARCHES = ['x86_64']
+    KOJI_REPOSITORY_URL = 'http://kojipkgs.stg.fedoraproject.org/repos'
 
 
 class TestConfiguration(BaseConfiguration):

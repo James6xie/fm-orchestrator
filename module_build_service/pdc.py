@@ -56,7 +56,7 @@ def get_variant_dict(data):
         if not isinstance(data, dict):
             return False
 
-        for attr in ('name', 'version', 'release'):
+        for attr in ('name', 'version'):
             if attr not in data.keys():
                 return False
         return True
@@ -98,7 +98,10 @@ def get_variant_dict(data):
 
 
     elif is_module_dict(data):
-        result = {'variant_id': data['name'], 'variant_version': data['version'], 'variant_release': data['release']}
+        result = {'variant_id': data['name'], 'variant_version': data['version']}
+
+        if 'release' in data:
+            result['variant_release'] = data['release']
 
     if not result:
         raise ValueError("Couldn't get variant_dict from %s" % data)

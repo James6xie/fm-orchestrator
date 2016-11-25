@@ -84,14 +84,37 @@ def wait(config, session, msg):
         pass
 
     tag = None
-    dependencies = None
+    dependencies = []
 
     if conf.system == "mock":
         # In case of mock, we do not try to get anything from pdc,
         # just generate our own koji_tag to identify the module in messages.
         tag = '-'.join(['module', module_info['name'],
             str(module_info['stream']), str(module_info['version'])])
-        # TODO: Dependencies
+
+
+        for name, stream in build.mmd().buildrequires.items():
+
+            pdc_session = module_build_service.pdc.get_pdc_client_session(config)
+            pdc_query = {
+                'name': name,
+                'version': stream
+            }
+
+            @module_build_service.utils.retry(interval=10, timeout=30, wait_on=ValueError)
+            def _get_module():
+                log.info("Getting %s from pdc (query %r)" % (module_info['name'], pdc_query))
+                return module_build_service.pdc.get_module_tag(
+                    pdc_session, pdc_query, strict=True)
+
+            try:
+                dependencies.append(_get_module())
+            except ValueError:
+                reason = "Failed to get module info from PDC. Max retries reached."
+                log.exception(reason)
+                build.transition(config, state="failed", state_reason=reason)
+                session.commit()
+                raise
     else:
         # TODO: Move this to separate func
         pdc_session = module_build_service.pdc.get_pdc_client_session(config)
