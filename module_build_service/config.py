@@ -23,9 +23,17 @@
 #
 # Written by Petr Šabata <contyk@redhat.com>
 
+import imp
+
 from os import sys
 
 from module_build_service import logger
+
+imp.load_source('mbs_runtime_config', '/etc/module-build-service/config.py')
+
+DevConfiguration = mbs_runtime_config.DevConfiguration
+TestConfiguration = mbs_runtime_config.TestConfiguration
+ProdConfiguration = mbs_runtime_config.ProdConfiguration
 
 
 def init_config(app):
@@ -39,11 +47,11 @@ def _init_app_config(app):
     app.config.from_envvar("MBS_SETTINGS", silent=True)
     here = sys.path[0]
     if any(['nosetests' in arg for arg in sys.argv]):
-        app.config.from_object('config.TestConfiguration')
+        app.config.from_object('TestConfiguration')
     elif here not in ('/usr/bin', '/bin', '/usr/local/bin'):
-        app.config.from_object('config.DevConfiguration')
+        app.config.from_object('DevConfiguration')
     else:
-        app.config.from_object('config.ProdConfiguration')
+        app.config.from_object('ProdConfiguration')
 
 
 class Config(object):
