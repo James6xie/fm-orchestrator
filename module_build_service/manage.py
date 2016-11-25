@@ -101,8 +101,9 @@ def testpdc():
 def upgradedb():
     """ Upgrades the database schema to the latest revision
     """
-    flask_migrate.upgrade()
-    insert_fake_baseruntime()
+    with app.app_context():
+        flask_migrate.upgrade()
+        insert_fake_baseruntime()
 
 
 @manager.command
