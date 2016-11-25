@@ -49,9 +49,9 @@ class BaseConfiguration(object):
     RPMS_ALLOW_CACHE = False
 
     SSL_ENABLED = True
-    SSL_CERTIFICATE_FILE = 'server.crt'
-    SSL_CERTIFICATE_KEY_FILE = 'server.key'
-    SSL_CA_CERTIFICATE_FILE = 'cacert.pem'
+    SSL_CERTIFICATE_FILE = '/etc/module-build-service/server.crt'
+    SSL_CERTIFICATE_KEY_FILE = '/etc/module-build-service/server.key'
+    SSL_CA_CERTIFICATE_FILE = '/etc/module-build-service/cacert.pem'
 
     PKGDB_API_URL = 'https://admin.stg.fedoraproject.org/pkgdb/api'
 
