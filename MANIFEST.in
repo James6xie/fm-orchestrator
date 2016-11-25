@@ -1,6 +1,7 @@
 global-exclude *.pyc *.pyo
 include LICENSE
 include README.rst
-recursive-include conf config.py *.conf *.cfg
+recursive-include conf config.py *.pem *.conf *.cfg
 recursive-include docs *.txt *.rst *.md
 recursive-include module_build_service *
+recursive-include fedmsg.d *
