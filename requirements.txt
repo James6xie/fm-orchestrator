@@ -14,4 +14,4 @@ pyOpenSSL
 python-fedora
 six
 sqlalchemy
-systemd
+systemd-python
