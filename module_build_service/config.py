@@ -29,8 +29,12 @@ from os import sys
 
 from module_build_service import logger
 
-mbs_runtime_config = imp.load_source('mbs_runtime_config',
-                                     '/etc/module-build-service/config.py')
+try:
+    conf_module = 'mbs_runtime_config'
+    mbs_runtime_config = imp.load_source(conf_module,
+                                         '/etc/module-build-service/config.py')
+except:
+    conf_module = 'conf.config'
 
 
 def init_config(app):
@@ -44,11 +48,11 @@ def _init_app_config(app):
     app.config.from_envvar("MBS_SETTINGS", silent=True)
     here = sys.path[0]
     if any(['nosetests' in arg for arg in sys.argv]):
-        app.config.from_object('mbs_runtime_config.TestConfiguration')
+        app.config.from_object('%s.TestConfiguration' % conf_module)
     elif here not in ('/usr/bin', '/bin', '/usr/local/bin'):
-        app.config.from_object('mbs_runtime_config.DevConfiguration')
+        app.config.from_object('%s.DevConfiguration' % conf_module)
     else:
-        app.config.from_object('mbs_runtime_config.ProdConfiguration')
+        app.config.from_object('%s.ProdConfiguration' % conf_module)
 
 
 class Config(object):
