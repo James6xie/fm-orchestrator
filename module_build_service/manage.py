@@ -101,9 +101,11 @@ def testpdc():
 def upgradedb():
     """ Upgrades the database schema to the latest revision
     """
-    thisdir = os.path.abspath(os.path.dirname(__file__))
+    # TODO: configurable?
+    migrations_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)),
+                                  'migrations')
     with app.app_context():
-        flask_migrate.upgrade(directory=thisdir)
+        flask_migrate.upgrade(directory=migrations_dir)
         insert_fake_baseruntime()
 
 
