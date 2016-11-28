@@ -65,14 +65,20 @@ def module_build_state_from_msg(msg):
 
 
 class MessageIngest(threading.Thread):
-    def __init__(self, outgoing_work_queue, *args, **kwargs):
+    def __init__(self, outgoing_work_queue, stop_after_build, *args, **kwargs):
         self.outgoing_work_queue = outgoing_work_queue
         super(MessageIngest, self).__init__(*args, **kwargs)
+        self.stop_after_build = stop_after_build
 
 
     def run(self):
         for msg in module_build_service.messaging.listen(conf):
             self.outgoing_work_queue.put(msg)
+
+            if type(msg) == module_build_service.messaging.RidaModule:
+                if (self.stop_after_build and module_build_state_from_msg(msg)
+                        in [models.BUILD_STATES["failed"], models.BUILD_STATES["ready"]]):
+                    break
 
 
 class MessageWorker(threading.Thread):
@@ -130,7 +136,6 @@ class MessageWorker(threading.Thread):
 
             if msg is STOP_WORK:
                 log.info("Worker thread received STOP_WORK, shutting down...")
-                os._exit(0)
                 break
 
             try:
@@ -183,9 +188,10 @@ class Poller(threading.Thread):
     def __init__(self, outgoing_work_queue, *args, **kwargs):
         self.outgoing_work_queue = outgoing_work_queue
         super(Poller, self).__init__(*args, **kwargs)
+        self.stop = False
 
     def run(self):
-        while True:
+        while not self.stop:
             with models.make_session(conf) as session:
                 self.log_summary(session)
                 # XXX: detect whether it's really stucked first
@@ -195,7 +201,10 @@ class Poller(threading.Thread):
                 self.process_paused_module_builds(conf, session)
 
             log.info("Polling thread sleeping, %rs" % conf.polling_interval)
-            time.sleep(conf.polling_interval)
+            for i in range(0, conf.polling_interval):
+                time.sleep(1)
+                if self.stop:
+                    break
 
     def fail_lost_builds(self, session):
         # This function is supposed to be handling only
@@ -244,9 +253,6 @@ class Poller(threading.Thread):
 
         elif conf.system == "mock":
             pass
-
-        else:
-            raise NotImplementedError("Buildsystem %r is not supported." % conf.system)
 
     def log_summary(self, session):
         log.info("Current status:")
@@ -312,7 +318,7 @@ def main(initial_msgs = [], return_after_build = False):
 
     try:
         # This ingest thread puts work on the queue
-        messaging_thread = MessageIngest(_work_queue)
+        messaging_thread = MessageIngest(_work_queue, return_after_build)
         # This poller does other work, but also sometimes puts work in queue.
         polling_thread = Poller(_work_queue)
         # This worker takes work off the queue and handles it.
@@ -321,6 +327,9 @@ def main(initial_msgs = [], return_after_build = False):
         messaging_thread.start()
         polling_thread.start()
         worker_thread.start()
+
+        worker_thread.join()
+        polling_thread.stop = True
 
     except KeyboardInterrupt:
         # FIXME: Make this less brutal
