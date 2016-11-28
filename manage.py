@@ -99,6 +99,7 @@ def upgradedb():
     """ Upgrades the database schema to the latest revision
     """
     flask_migrate.upgrade()
+    _insert_fake_baseruntime()
 
 
 @manager.command
@@ -160,6 +161,17 @@ def _insert_fake_baseruntime():
 
     mmd = modulemd.ModuleMetadata()
     mmd.loads(yaml)
+
+    # Check to see if this thing already exists...
+    query = models.ModuleBuild.query\
+        .filter_by(name=mmd.name)\
+        .filter_by(stream=mmd.stream)\
+        .filter_by(version=mmd.version)
+    if query.count():
+        logging.info('%r exists.  Skipping creation.' % query.first())
+        return
+
+    # Otherwise, it does not exist.  So, create it.
     module = models.ModuleBuild.create(
         db.session,
         conf,
