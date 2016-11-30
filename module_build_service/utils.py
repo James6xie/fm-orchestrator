@@ -208,7 +208,7 @@ def filter_module_builds(flask_request):
     return query.paginate(page, per_page, False)
 
 
-def _fetch_mmd(url):
+def _fetch_mmd(url, allow_local_url = False):
     # Import it here, because SCM uses utils methods
     # and fails to import them because of dep-chain.
     import module_build_service.scm
@@ -219,7 +219,7 @@ def _fetch_mmd(url):
     try:
         log.debug('Verifying modulemd')
         td = tempfile.mkdtemp()
-        scm = module_build_service.scm.SCM(url, conf.scmurls)
+        scm = module_build_service.scm.SCM(url, conf.scmurls, allow_local_url)
         cod = scm.checkout(td)
         cofn = os.path.join(cod, (scm.name + ".yaml"))
 
@@ -343,12 +343,12 @@ def record_component_builds(mmd, module, initial_batch = 1):
 
         return batch
 
-def submit_module_build(username, url):
+def submit_module_build(username, url, allow_local_url = False):
     # Import it here, because SCM uses utils methods
     # and fails to import them because of dep-chain.
     import module_build_service.scm
 
-    mmd, scm, yaml = _fetch_mmd(url)
+    mmd, scm, yaml = _fetch_mmd(url, allow_local_url)
 
     # If undefined, set the name field to VCS repo name.
     if not mmd.name and scm:

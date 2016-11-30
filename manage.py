@@ -201,7 +201,7 @@ def build_module_locally(url):
     _insert_fake_baseruntime()
 
     username = getpass.getuser()
-    submit_module_build(username, url)
+    submit_module_build(username, url, allow_local_url=True)
 
     msgs = []
     msgs.append(RidaModule("local module build", 2, 1))

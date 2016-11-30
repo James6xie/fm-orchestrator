@@ -47,10 +47,10 @@ class SCM(object):
     # Assuming git for HTTP schemas
     types = {
                 "git": ("git://", "git+http://", "git+https://",
-                    "git+rsync://", "http://", "https://")
+                    "git+rsync://", "http://", "https://", "file://")
             }
 
-    def __init__(self, url, allowed_scm=None):
+    def __init__(self, url, allowed_scm=None, allow_local = False):
         """Initialize the SCM object using the specified scmurl.
 
         If url is not in the list of allowed_scm, an error will be raised.
@@ -61,6 +61,7 @@ class SCM(object):
             git+rsync://
             http://
             https://
+            file://
 
         :param str url: The unmodified scmurl
         :param list allowed_scm: The list of allowed SCMs, optional
@@ -69,7 +70,8 @@ class SCM(object):
 
         if allowed_scm:
             for allowed in allowed_scm:
-                if url.startswith(allowed):
+                if (url.startswith(allowed)
+                        or (allow_local and url.startswith("file://"))):
                     break
                 else:
                     raise Unauthorized(

@@ -123,7 +123,7 @@ class ModuleBuildAPI(MethodView):
             log.error("The submitted scmurl %r is not valid" % url)
             raise Unauthorized("The submitted scmurl %s is not valid" % url)
 
-        module = submit_module_build(username, url)
+        module = submit_module_build(username, url, allow_local_url=False)
         return jsonify(module.json()), 201
 
 
