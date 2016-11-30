@@ -77,10 +77,21 @@ class TestModuleBuilder(GenericBuilder):
     # Global build_id/task_id we increment when new build is executed.
     _build_id = 1
 
+    BUILD_STATE = "COMPLETE"
+
+    on_build_cb = None
+    on_cancel_cb = None
+
     def __init__(self, owner, module, config, tag_name):
         self.module_str = module
         self.tag_name = tag_name
         self.config = config
+
+    @classmethod
+    def reset(cls):
+        TestModuleBuilder.BUILD_STATE = "COMPLETE"
+        TestModuleBuilder.on_build_cb = None
+        TestModuleBuilder.on_cancel_cb = None
 
     def buildroot_connect(self, groups):
         pass
@@ -129,10 +140,15 @@ class TestModuleBuilder(GenericBuilder):
 
         TestModuleBuilder._build_id += 1
 
-        self._send_repo_done()
-        self._send_build_change(koji.BUILD_STATES['COMPLETE'], source,
-                                TestModuleBuilder._build_id)
-        self._send_repo_done()
+        if TestModuleBuilder.BUILD_STATE != "BUILDING":
+            self._send_repo_done()
+            self._send_build_change(
+                koji.BUILD_STATES[TestModuleBuilder.BUILD_STATE], source,
+                TestModuleBuilder._build_id)
+            self._send_repo_done()
+
+        if TestModuleBuilder.on_build_cb:
+            TestModuleBuilder.on_build_cb(self, artifact_name, source)
 
         state = koji.BUILD_STATES['BUILDING']
         reason = "Submitted %s to Koji" % (artifact_name)
@@ -142,6 +158,10 @@ class TestModuleBuilder(GenericBuilder):
     def get_disttag_srpm(disttag):
         # @FIXME
         return KojiModuleBuilder.get_disttag_srpm(disttag)
+
+    def cancel_build(self, task_id):
+        if TestModuleBuilder.on_cancel_cb:
+            TestModuleBuilder.on_cancel_cb(self, task_id)
 
 def set_dburi(dburi):
     """
@@ -175,6 +195,7 @@ class TestBuild(unittest.TestCase):
         # Set back the original database URI
         set_dburi(self.orig_dburi)
         conf.set_item("system", "koji")
+        TestModuleBuilder.reset()
 
     @patch('module_build_service.auth.get_username', return_value='Homer J. Simpson')
     @patch('module_build_service.auth.assert_is_packager')
@@ -203,3 +224,53 @@ class TestBuild(unittest.TestCase):
         for build in models.ComponentBuild.query.filter_by(module_id=module_build_id).all():
             self.assertEqual(build.state, koji.BUILD_STATES['COMPLETE'])
             self.assertTrue(build.module_build.state in [models.BUILD_STATES["done"], models.BUILD_STATES["ready"]] )
+
+    @patch('module_build_service.auth.get_username', return_value='Homer J. Simpson')
+    @patch('module_build_service.auth.assert_is_packager')
+    @patch('module_build_service.scm.SCM')
+    def test_submit_build_cancel(self, mocked_scm, mocked_assert_is_packager,
+                          mocked_get_username):
+        """
+        Submit all builds for a module and cancel the module build later.
+        """
+        mocked_scm_obj = MockedSCM(mocked_scm, "testmodule", "testmodule.yaml")
+
+        rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
+            {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+                'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}))
+
+        data = json.loads(rv.data)
+        module_build_id = data['id']
+
+        # This callback is called before return of TestModuleBuilder.build()
+        # method. We just cancel the build here using the web API to simulate
+        # user cancelling the build in the middle of building.
+        def on_build_cb(cls, artifact_name, source):
+            self.client.put('/module-build-service/1/module-builds/cancel/' + str(module_build_id))
+
+        cancelled_tasks = []
+        def on_cancel_cb(cls, task_id):
+            cancelled_tasks.append(task_id)
+
+        # We do not want the builds to COMPLETE, but instead we want them
+        # to be in the BULDING state after the TestModuleBuilder.build().
+        TestModuleBuilder.BUILD_STATE = "BUILDING"
+        TestModuleBuilder.on_build_cb = on_build_cb
+        TestModuleBuilder.on_cancel_cb = on_cancel_cb
+
+        msgs = []
+        msgs.append(RidaModule("fake msg", 1, 1))
+        module_build_service.scheduler.main.main(msgs, True)
+
+        # Because we did not finished single component build and canceled the
+        # module build, all components and even the module itself should be in
+        # failed state with state_reason se to cancellation message.
+        for build in models.ComponentBuild.query.filter_by(module_id=module_build_id).all():
+            self.assertEqual(build.state, koji.BUILD_STATES['FAILED'])
+            self.assertEqual(build.state_reason, "Canceled by Homer J. Simpson.")
+            self.assertEqual(build.module_build.state, models.BUILD_STATES["failed"])
+            self.assertEqual(build.module_build.state_reason, "Canceled by Homer J. Simpson.")
+
+            # Check that cancel_build has been called for this build
+            if build.task_id:
+                self.assertTrue(build.task_id in cancelled_tasks)

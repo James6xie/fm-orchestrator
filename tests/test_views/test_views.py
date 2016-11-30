@@ -401,4 +401,23 @@ class TestViews(unittest.TestCase):
         self.assertEquals(batches["bash"], 2)
         self.assertEquals(batches["file"], 3)
 
+    @patch('module_build_service.auth.get_username', return_value='some_other_user')
+    @patch('module_build_service.auth.assert_is_packager')
+    def test_cancel_build(self, mocked_assert_is_packager,
+                          mocked_get_username):
+        rv = self.client.put('/module-build-service/1/module-builds/cancel/30')
+        data = json.loads(rv.data)
 
+        self.assertEquals(data['state'], 4)
+        self.assertEquals(data['state_reason'], 'Canceled by some_other_user.')
+
+
+    @patch('module_build_service.auth.get_username', return_value='Someone else')
+    @patch('module_build_service.auth.assert_is_packager')
+    def test_cancel_build_unauthorized(self, mocked_assert_is_packager,
+                          mocked_get_username):
+        rv = self.client.put('/module-build-service/1/module-builds/cancel/30')
+        data = json.loads(rv.data)
+
+        self.assertEquals(data['status'], 401)
+        self.assertEquals(data['error'], 'Unauthorized')

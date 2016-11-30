@@ -44,6 +44,57 @@ def get_rpm_release_from_tag(tag):
 def get_artifact_from_srpm(srpm_path):
     return os.path.basename(srpm_path).replace(".src.rpm", "")
 
+def failed(config, session, msg):
+    """
+    Called whenever a module enters the 'failed' state.
+
+    We cancel all the remaining component builds of a module
+    and stop the building.
+    """
+
+    build = models.ModuleBuild.from_module_event(session, msg)
+
+    module_info = build.json()
+    if module_info['state'] != msg.module_build_state:
+        log.warn("Note that retrieved module state %r "
+                 "doesn't match message module state %r" % (
+                     module_info['state'], msg.module_build_state))
+        # This is ok.. it's a race condition we can ignore.
+        pass
+
+    unbuilt_components = [
+        c for c in build.component_builds
+        if (c.state != koji.BUILD_STATES['COMPLETE']
+            and c.state != koji.BUILD_STATES["FAILED"])
+    ]
+
+    try:
+        groups = {
+            'build': build.resolve_profiles(session, 'buildroot'),
+            'srpm-build': build.resolve_profiles(session, 'srpm-buildroot'),
+        }
+    except ValueError:
+        reason = "Failed to gather buildroot groups from SCM."
+        log.exception(reason)
+        build.transition(config, state="failed", state_reason=reason)
+        session.commit()
+        raise
+
+    builder = module_build_service.builder.GenericBuilder.create(
+        build.owner, build.name, config.system, config, tag_name=build.koji_tag)
+    builder.buildroot_connect(groups)
+
+    for component in unbuilt_components:
+        if component.task_id:
+            builder.cancel_build(component.task_id)
+        component.state = koji.BUILD_STATES['FAILED']
+        component.state_reason = build.state_reason
+        session.add(component)
+
+    build.transition(config, state="failed")
+    session.commit()
+
+
 def done(config, session, msg):
     """Called whenever a module enters the 'done' state.
 
