@@ -861,9 +861,16 @@ class CoprModuleBuilder(GenericBuilder):
     def buildroot_add_repos(self, dependencies):
         log.info("%r adding deps on %r" % (self, dependencies))
         # @TODO get architecture from some builder variable
-        # @TODO use the proper backend for each dependency
-        repos = [GenericBuilder.tag_to_repo("copr", self.config, d, "x86_64") for d in dependencies]
+        repos = [self._dependency_repo(d, "x86_64") for d in dependencies]
         self.client.modify_project(self.copr.projectname, username=self.copr.username, repos=repos)
+
+    def _dependency_repo(self, module, arch, backend="copr"):
+        try:
+            repo = GenericBuilder.tag_to_repo(backend, self.config, module, arch)
+            return repo
+        except ValueError:
+            if backend == "copr":
+                return self._dependency_repo(module, arch, "koji")
 
     def build(self, artifact_name, source):
         """
@@ -1000,12 +1007,14 @@ class CoprModuleBuilder(GenericBuilder):
         # Premise is that tag_name is in name-stream-version format
         name, stream, version = tag_name.rsplit("-", 2)
 
-        client = cls._get_client(config)
-        response = client.get_module_repo(owner, project, name, stream, version, arch).data
+        from copr.exceptions import CoprRequestException
+        try:
+            client = cls._get_client(config)
+            response = client.get_module_repo(owner, project, name, stream, version, arch).data
+            return response["repo"]
 
-        if response["output"] == "notok":
-            raise ValueError(response["error"])
-        return response["repo"]
+        except CoprRequestException as e:
+            raise ValueError(e)
 
     def cancel_build(self, task_id):
         pass

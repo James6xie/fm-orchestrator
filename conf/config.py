@@ -28,6 +28,7 @@ class BaseConfiguration(object):
     KOJI_PROFILE = 'koji'
     KOJI_ARCHES = ['i686', 'armv7hl', 'x86_64']
     KOJI_PROXYUSER = True
+    KOJI_REPOSITORY_URL = 'https://kojipkgs.stg.fedoraproject.org/repos'
     COPR_CONFIG = '/etc/module_build_service/copr.conf'
     PDC_URL = 'http://modularity.fedorainfracloud.org:8080/rest_api/v1'
     PDC_INSECURE = True
@@ -128,7 +129,6 @@ class TestConfiguration(BaseConfiguration):
 
     KOJI_CONFIG = './conf/koji.conf'
     KOJI_PROFILE = 'staging'
-    KOJI_REPOSITORY_URL = 'https://kojipkgs.stg.fedoraproject.org/repos'
 
 
 class ProdConfiguration(BaseConfiguration):
