@@ -944,7 +944,7 @@ assumeyes=1
 syslog_ident=mock
 syslog_device=
 install_weak_deps=0
-metadata_expire=0
+metadata_expire=3600
 mdpolicy=group:primary
 
 # repos
@@ -1061,7 +1061,14 @@ $repos
         pass
 
     def buildroot_add_artifacts(self, artifacts, install=False):
-        pass
+        # TODO: This is just hack to install module-build-macros into the
+        # buildroot. We should really install the RPMs belonging to the
+        # right source RPM into the buildroot here, but we do not track
+        # what RPMs are output of particular SRPM build yet.
+        for artifact in artifacts:
+            if artifact.startswith("module-build-macros"):
+                self._execute_cmd(["mock", "-r", self.mock_config, "-i",
+                                   "module-build-macros"])
 
     def buildroot_add_repos(self, dependencies):
         # TODO: We support only dependencies from Koji here. This should be
@@ -1102,8 +1109,8 @@ $repos
                                % (args, ret))
 
     def _save_log(self, log_name, artifact_name):
-        old_log = os.path.join(self.tag_dir, log_name)
-        new_log = os.path.join(self.tag_dir, artifact_name + "-" + log_name)
+        old_log = os.path.join(self.resultsdir, log_name)
+        new_log = os.path.join(self.resultsdir, artifact_name + "-" + log_name)
         if os.path.exists(old_log):
             os.rename(old_log, new_log)
 
