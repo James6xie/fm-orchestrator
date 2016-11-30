@@ -405,7 +405,8 @@ class TestViews(unittest.TestCase):
     @patch('module_build_service.auth.assert_is_packager')
     def test_cancel_build(self, mocked_assert_is_packager,
                           mocked_get_username):
-        rv = self.client.put('/module-build-service/1/module-builds/cancel/30')
+        rv = self.client.patch('/module-build-service/1/module-builds/30',
+                               data=json.dumps({'state': 'failed'}))
         data = json.loads(rv.data)
 
         self.assertEquals(data['state'], 4)
@@ -416,8 +417,35 @@ class TestViews(unittest.TestCase):
     @patch('module_build_service.auth.assert_is_packager')
     def test_cancel_build_unauthorized(self, mocked_assert_is_packager,
                           mocked_get_username):
-        rv = self.client.put('/module-build-service/1/module-builds/cancel/30')
+        rv = self.client.patch('/module-build-service/1/module-builds/30',
+                               data=json.dumps({'state': 'failed'}))
         data = json.loads(rv.data)
 
         self.assertEquals(data['status'], 401)
         self.assertEquals(data['error'], 'Unauthorized')
+
+    @patch('module_build_service.auth.get_username', return_value='some_other_user')
+    @patch('module_build_service.auth.assert_is_packager')
+    def test_cancel_build_wrong_param(self, mocked_assert_is_packager,
+                                      mocked_get_username):
+        rv = self.client.patch('/module-build-service/1/module-builds/30',
+                               data=json.dumps({'some_param': 'value'}))
+        data = json.loads(rv.data)
+
+        self.assertEquals(data['status'], 400)
+        self.assertEquals(data['error'], 'Bad Request')
+        self.assertEquals(
+            data['message'], 'Invalid JSON submitted')
+
+    @patch('module_build_service.auth.get_username', return_value='some_other_user')
+    @patch('module_build_service.auth.assert_is_packager')
+    def test_cancel_build_wrong_state(self, mocked_assert_is_packager,
+                          mocked_get_username):
+        rv = self.client.patch('/module-build-service/1/module-builds/30',
+                               data=json.dumps({'state': 'some_state'}))
+        data = json.loads(rv.data)
+
+        self.assertEquals(data['status'], 400)
+        self.assertEquals(data['error'], 'Bad Request')
+        self.assertEquals(
+            data['message'], 'The provided state change is not supported')

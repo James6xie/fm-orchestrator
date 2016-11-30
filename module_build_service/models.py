@@ -38,9 +38,6 @@ import module_build_service.messaging
 
 from sqlalchemy.orm import lazyload
 
-from flask import url_for
-
-
 # Just like koji.BUILD_STATES, except our own codes for modules.
 BUILD_STATES = {
     # When you parse the modulemd file and know the nvr and you create a
@@ -239,7 +236,7 @@ class ModuleBuild(RidaBase):
             'state': self.state,
             'state_name': INVERSE_BUILD_STATES[self.state],
             'state_reason': self.state_reason,
-            'state_url': get_url_for('module_build_query', id=self.id),
+            'state_url': get_url_for('module_build', id=self.id),
             'scmurl': self.scmurl,
             'owner': self.owner,
             'time_submitted': self.time_submitted,

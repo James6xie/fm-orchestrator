@@ -246,7 +246,9 @@ class TestBuild(unittest.TestCase):
         # method. We just cancel the build here using the web API to simulate
         # user cancelling the build in the middle of building.
         def on_build_cb(cls, artifact_name, source):
-            self.client.put('/module-build-service/1/module-builds/cancel/' + str(module_build_id))
+            self.client.patch(
+                '/module-build-service/1/module-builds/' + str(module_build_id),
+                data=json.dumps({'state': 'failed'}))
 
         cancelled_tasks = []
         def on_cancel_cb(cls, task_id):
