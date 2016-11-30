@@ -35,7 +35,7 @@ from flask import request, jsonify
 from flask.views import MethodView
 
 from module_build_service import app, conf, log
-from module_build_service import models
+from module_build_service import models, db
 from module_build_service.utils import pagination_metadata, filter_module_builds, submit_module_build
 from module_build_service.errors import (
     ValidationError, Unauthorized, NotFound)
@@ -58,6 +58,12 @@ api_v1 = {
         'url': '/module-build-service/1/module-builds/<int:id>',
         'options': {
             'methods': ['GET'],
+        }
+    },
+    'module_build_cancel': {
+        'url': '/module-build-service/1/module-builds/cancel/<int:id>',
+        'options': {
+            'methods': ['PUT']
         }
     },
 }
@@ -126,6 +132,32 @@ class ModuleBuildAPI(MethodView):
         module = submit_module_build(username, url, allow_local_url=False)
         return jsonify(module.json()), 201
 
+    def put(self, id):
+        username = module_build_service.auth.get_username(request.environ)
+
+        if conf.require_packager:
+            module_build_service.auth.assert_is_packager(username, fas_kwargs=dict(
+                base_url=conf.fas_url,
+                username=conf.fas_username,
+                password=conf.fas_password))
+
+        if id is None:
+            raise NotFound('You must provide module build id.')
+
+        module = models.ModuleBuild.query.filter_by(id=id).first()
+        if not module:
+            raise NotFound('No such module found.')
+
+        if module.owner != username:
+            raise Unauthorized("You are not owner of this build and "
+                "therefore cannot cancel it.")
+
+        module.transition(conf, models.BUILD_STATES["failed"],
+                          "Canceled by %s." % username)
+        db.session.add(module)
+        db.session.commit()
+
+        return jsonify(module.api_json()), 200
 
 def register_api_v1():
     """ Registers version 1 of Rida API. """

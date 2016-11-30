@@ -231,6 +231,15 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
         """
         raise NotImplementedError()
 
+    @abstractmethod
+    def cancel_build(self, task_id):
+        """
+        :param task_id: Task ID returned by the build method.
+
+        Cancels the build.
+        """
+        raise NotImplementedError()
+
     @classmethod
     @abstractmethod
     def repo_from_tag(self, config, tag_name, arch):
@@ -567,6 +576,9 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
             state = koji.BUILD_STATES['FAILED']
             reason = "Failed to submit artifact %s to Koji" % (artifact_name)
         return task_id, state, reason, None
+
+    def cancel_build(self, task_id):
+        self.koji_session.cancelTask(task_id)
 
     @classmethod
     def repo_from_tag(cls, config, tag_name, arch):
@@ -910,6 +922,8 @@ class CoprModuleBuilder(GenericBuilder):
             raise ValueError(response["error"])
         return response["repo"]
 
+    def cancel_build(self, task_id):
+        pass
 
 class MockModuleBuilder(GenericBuilder):
     """
@@ -1215,6 +1229,9 @@ $repos
     def get_disttag_srpm(disttag):
         # @FIXME
         return KojiModuleBuilder.get_disttag_srpm(disttag)
+
+    def cancel_build(self, task_id):
+        pass
 
 GenericBuilder.register_backend_class(KojiModuleBuilder)
 GenericBuilder.register_backend_class(CoprModuleBuilder)

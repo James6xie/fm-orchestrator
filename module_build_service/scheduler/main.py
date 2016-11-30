@@ -102,7 +102,7 @@ class MessageWorker(threading.Thread):
             models.BUILD_STATES["init"]: NO_OP,
             models.BUILD_STATES["wait"]: module_build_service.scheduler.handlers.modules.wait,
             models.BUILD_STATES["build"]: NO_OP,
-            models.BUILD_STATES["failed"]: NO_OP,
+            models.BUILD_STATES["failed"]: module_build_service.scheduler.handlers.modules.failed,
             models.BUILD_STATES["done"]: module_build_service.scheduler.handlers.modules.done, # XXX: DIRECT TRANSITION TO READY
             models.BUILD_STATES["ready"]: NO_OP,
         }
