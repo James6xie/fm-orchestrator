@@ -16,6 +16,7 @@ $script = <<SCRIPT
         swig \
         fedmsg-relay \
         rpm-build \
+        fedpkg \
         python-mock \
         krb5-workstation
     pip install -r /opt/module_build_service/requirements.txt

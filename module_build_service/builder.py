@@ -52,6 +52,7 @@ from OpenSSL.SSL import SysCallError
 
 from module_build_service import conf, log, db
 from module_build_service.models import ModuleBuild
+import module_build_service.scm
 import module_build_service.scheduler.main
 import module_build_service.utils
 
@@ -239,6 +240,19 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
         Cancels the build.
         """
         raise NotImplementedError()
+
+    def finalize(self):
+        """
+        :return: None
+
+        This method is supposed to be called after all module builds are
+        successfully finished.
+
+        It could be utilized for various purposes such as cleaning or
+        running additional build-system based operations on top of
+        finished builds (e.g. for copr - composing them into module)
+        """
+        pass
 
     @classmethod
     @abstractmethod
@@ -801,7 +815,7 @@ class CoprModuleBuilder(GenericBuilder):
     def _get_copr_safe(self):
         from copr.exceptions import CoprRequestException
         # @TODO how the authentication is designed?
-        kwargs = {"ownername": "@copr", "projectname": self.tag_name}
+        kwargs = {"ownername": "@copr", "projectname": CoprModuleBuilder._tag_to_copr_name(self.tag_name)}
         try:
             return self._get_copr(**kwargs)
         except CoprRequestException:
@@ -825,6 +839,7 @@ class CoprModuleBuilder(GenericBuilder):
         This function is here to ensure that the buildroot (repo) is ready and
         contains the listed artifacts if specified.
         """
+        # @TODO check whether artifacts are in the buildroot (called from repos.py)
         return True
 
     def buildroot_add_artifacts(self, artifacts, install=False):
@@ -847,9 +862,16 @@ class CoprModuleBuilder(GenericBuilder):
     def buildroot_add_repos(self, dependencies):
         log.info("%r adding deps on %r" % (self, dependencies))
         # @TODO get architecture from some builder variable
-        # @TODO use the proper backend for each dependency
-        repos = [GenericBuilder.tag_to_repo("copr", self.config, d, "x86_64") for d in dependencies]
+        repos = [self._dependency_repo(d, "x86_64") for d in dependencies]
         self.client.modify_project(self.copr.projectname, username=self.copr.username, repos=repos)
+
+    def _dependency_repo(self, module, arch, backend="copr"):
+        try:
+            repo = GenericBuilder.tag_to_repo(backend, self.config, module, arch)
+            return repo
+        except ValueError:
+            if backend == "copr":
+                return self._dependency_repo(module, arch, "koji")
 
     def build(self, artifact_name, source):
         """
@@ -871,6 +893,13 @@ class CoprModuleBuilder(GenericBuilder):
         """
         log.info("Copr build")
 
+        # Git sources are treated specially.
+        if source.startswith("git://"):
+            return build_from_scm(artifact_name, source, self.config, self.build_srpm)
+        else:
+            return self.build_srpm(artifact_name, source)
+
+    def build_srpm(self, artifact_name, source):
         if not self.__prep:
             raise RuntimeError("Buildroot is not prep-ed")
 
@@ -879,11 +908,37 @@ class CoprModuleBuilder(GenericBuilder):
         if response.output != "ok":
             log.error(response.error)
 
-        # Create a module from previous project
+        # Since we don't have implemented messaging support in copr yet,
+        # let's just assume that the build is finished by now
+        return response.data["ids"][0], koji.BUILD_STATES["COMPLETE"], response.message, None
+
+    def _wait_until_all_builds_are_finished(self, module):
+        while True:
+            states = {b: self.client.get_build_details(b.task_id).status for b in module.component_builds}
+            if "failed" in states.values():
+                raise ValueError("Some builds failed")
+
+            if not filter(lambda x: x != "succeeded", states.values()):
+                return
+
+            seconds = 60
+            log.info("Going to sleep for {}s to wait until builds in copr are finished".format(seconds))
+            time.sleep(seconds)
+
+    def finalize(self):
         modulemd = tempfile.mktemp()
         m1 = ModuleBuild.query.filter(ModuleBuild.name == self.module_str).first()
         m1.mmd().dump(modulemd)
 
+        # Wait until all builds are finished
+        # We shouldn't do this once the fedmsg on copr is done
+        from copr.exceptions import CoprRequestException
+        try:
+            self._wait_until_all_builds_are_finished(m1)
+        except (CoprRequestException, ValueError):
+            return log.info("Missing builds, not going to create a module")
+
+        # Create a module from previous project
         kwargs = {"username": self.copr.username, "projectname": self.copr.projectname, "modulemd": modulemd}
         result = self.client.create_new_build_module(**kwargs)
         if result.output != "ok":
@@ -893,13 +948,15 @@ class CoprModuleBuilder(GenericBuilder):
         log.info(result.message)
         log.info(result.data["modulemd"])
 
-        # @TODO result should contain "module_id", "action_id" and "action_state"
-        return None, None, result.message, "-".join([m1.name, m1.version, m1.release])
-
     @staticmethod
     def get_disttag_srpm(disttag):
         # @FIXME
         return KojiModuleBuilder.get_disttag_srpm(disttag)
+
+    @property
+    def module_build_tag(self):
+        # Workaround koji specific code in modules.py
+        return {"name": self.tag_name}
 
     @classmethod
     def repo_from_tag(cls, config, tag_name, arch):
@@ -913,17 +970,28 @@ class CoprModuleBuilder(GenericBuilder):
         the tag with particular name and architecture.
         """
         # @TODO get the correct user
-        # Premise is that tag_name is in name-version-release format
-        owner, nvr = "@copr", tag_name
-        client = cls._get_client(config)
-        response = client.get_module_repo(owner, nvr).data
+        # @TODO get the correct project
+        owner, project = "@copr", cls._tag_to_copr_name(tag_name)
 
-        if response["output"] == "notok":
-            raise ValueError(response["error"])
-        return response["repo"]
+        # Premise is that tag_name is in name-stream-version format
+        name, stream, version = tag_name.rsplit("-", 2)
+
+        from copr.exceptions import CoprRequestException
+        try:
+            client = cls._get_client(config)
+            response = client.get_module_repo(owner, project, name, stream, version, arch).data
+            return response["repo"]
+
+        except CoprRequestException as e:
+            raise ValueError(e)
 
     def cancel_build(self, task_id):
         pass
+
+    @classmethod
+    def _tag_to_copr_name(cls, koji_tag):
+        return koji_tag.replace("+", "-")
+
 
 class MockModuleBuilder(GenericBuilder):
     """
@@ -1115,13 +1183,6 @@ $repos
         )
         module_build_service.scheduler.main.outgoing_work_queue_put(msg)
 
-    def _execute_cmd(self, args):
-        log.debug("Executing command: %s" % args)
-        ret = subprocess.call(args)
-        if ret != 0:
-            raise RuntimeError("Command '%s' returned non-zero value %d"
-                               % (args, ret))
-
     def _save_log(self, log_name, artifact_name):
         old_log = os.path.join(self.resultsdir, log_name)
         new_log = os.path.join(self.resultsdir, artifact_name + "-" + log_name)
@@ -1134,12 +1195,12 @@ $repos
         """
         try:
             # Initialize mock.
-            self._execute_cmd(["mock", "-r", self.mock_config, "--init"])
+            _execute_cmd(["mock", "-r", self.config.mock_config, "--init"])
 
             # Start the build and store results to resultsdir
             # TODO: Maybe this should not block in the future, but for local
             # builds it is not a big problem.
-            self._execute_cmd(["mock", "-r", self.mock_config,
+            _execute_cmd(["mock", "-r", self.config.mock_config,
                                "--no-clean", "--rebuild", source,
                                "--resultdir=%s" % self.resultsdir])
 
@@ -1180,46 +1241,6 @@ $repos
         reason = "Submitted %s to Koji" % (artifact_name)
         return MockModuleBuilder._build_id, state, reason, None
 
-    def build_from_scm(self, artifact_name, source):
-        """
-        Builds the artifact from the SCM based source.
-        """
-        td = None
-        owd = os.getcwd()
-        ret = (MockModuleBuilder._build_id, koji.BUILD_STATES["FAILED"],
-               "Cannot create SRPM", None)
-
-        try:
-            log.debug('Cloning source URL: %s' % source)
-            # Create temp dir and clone the repo there.
-            td = tempfile.mkdtemp()
-            scm = module_build_service.scm.SCM(source)
-            cod = scm.checkout(td)
-
-            # Use configured command to create SRPM out of the SCM repo.
-            log.debug("Creating SRPM")
-            os.chdir(cod)
-            self._execute_cmd(self.config.mock_build_srpm_cmd.split(" "))
-
-            # Find out the built SRPM and build it normally.
-            for f in os.listdir(cod):
-                if f.endswith(".src.rpm"):
-                    log.info("Created SRPM %s" % f)
-                    source = os.path.join(cod, f)
-                    ret = self.build_srpm(artifact_name, source)
-                    break
-        finally:
-            os.chdir(owd)
-            try:
-                if td is not None:
-                    shutil.rmtree(td)
-            except Exception as e:
-                log.warning(
-                    "Failed to remove temporary directory {!r}: {}".format(
-                        td, str(e)))
-
-        return ret
-
     def build(self, artifact_name, source):
         log.info("Starting building artifact %s: %s" % (artifact_name, source))
 
@@ -1227,7 +1248,7 @@ $repos
 
         # Git sources are treated specially.
         if source.startswith("git://"):
-            return self.build_from_scm(artifact_name, source)
+            return build_from_scm(artifact_name, source, self.config, self.build_srpm)
         else:
             return self.build_srpm(artifact_name, source)
 
@@ -1239,6 +1260,55 @@ $repos
 
     def cancel_build(self, task_id):
         pass
+
+
+def build_from_scm(artifact_name, source, config, build_srpm):
+    """
+    Builds the artifact from the SCM based source.
+    """
+    td = None
+    owd = os.getcwd()
+    ret = (0, koji.BUILD_STATES["FAILED"], "Cannot create SRPM", None)
+
+    try:
+        log.debug('Cloning source URL: %s' % source)
+        # Create temp dir and clone the repo there.
+        td = tempfile.mkdtemp()
+        scm = module_build_service.scm.SCM(source)
+        cod = scm.checkout(td)
+
+        # Use configured command to create SRPM out of the SCM repo.
+        log.debug("Creating SRPM")
+        os.chdir(cod)
+        _execute_cmd(config.mock_build_srpm_cmd.split(" "))
+
+        # Find out the built SRPM and build it normally.
+        for f in os.listdir(cod):
+            if f.endswith(".src.rpm"):
+                log.info("Created SRPM %s" % f)
+                source = os.path.join(cod, f)
+                ret = build_srpm(artifact_name, source)
+                break
+    finally:
+        os.chdir(owd)
+        try:
+            if td is not None:
+                shutil.rmtree(td)
+        except Exception as e:
+            log.warning(
+                "Failed to remove temporary directory {!r}: {}".format(
+                    td, str(e)))
+
+    return ret
+
+
+def _execute_cmd(args):
+    log.debug("Executing command: %s" % args)
+    ret = subprocess.call(args)
+    if ret != 0:
+        raise RuntimeError("Command '%s' returned non-zero value %d"
+                           % (args, ret))
+
 
 GenericBuilder.register_backend_class(KojiModuleBuilder)
 GenericBuilder.register_backend_class(CoprModuleBuilder)
