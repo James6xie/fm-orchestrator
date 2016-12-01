@@ -52,6 +52,7 @@ from OpenSSL.SSL import SysCallError
 
 from module_build_service import conf, log, db
 from module_build_service.models import ModuleBuild
+import module_build_service.scm
 import module_build_service.scheduler.main
 import module_build_service.utils
 
@@ -894,7 +895,7 @@ class CoprModuleBuilder(GenericBuilder):
 
         # Git sources are treated specially.
         if source.startswith("git://"):
-            return self.build_from_scm(artifact_name, source)
+            return build_from_scm(artifact_name, source, self.config, self.build_srpm)
         else:
             return self.build_srpm(artifact_name, source)
 
@@ -910,52 +911,6 @@ class CoprModuleBuilder(GenericBuilder):
         # Since we don't have implemented messaging support in copr yet,
         # let's just assume that the build is finished by now
         return response.data["ids"][0], koji.BUILD_STATES["COMPLETE"], response.message, None
-
-    def build_from_scm(self, artifact_name, source):
-        """
-        Builds the artifact from the SCM based source.
-        """
-
-        # @FIXME COPR hacks
-        from module_build_service import scm
-        mock = MockModuleBuilder(self.owner, self.module_str, self.config, self.tag_name)
-        self._execute_cmd = mock._execute_cmd
-        # The rest of the method is copy-pasted from MockModuleBuilder
-
-        td = None
-        owd = os.getcwd()
-        ret = (0, koji.BUILD_STATES["FAILED"], "Cannot create SRPM", None)
-
-        try:
-            log.debug('Cloning source URL: %s' % source)
-            # Create temp dir and clone the repo there.
-            td = tempfile.mkdtemp()
-            scm = module_build_service.scm.SCM(source)
-            cod = scm.checkout(td)
-
-            # Use configured command to create SRPM out of the SCM repo.
-            log.debug("Creating SRPM")
-            os.chdir(cod)
-            self._execute_cmd(self.config.mock_build_srpm_cmd.split(" "))
-
-            # Find out the built SRPM and build it normally.
-            for f in os.listdir(cod):
-                if f.endswith(".src.rpm"):
-                    log.info("Created SRPM %s" % f)
-                    source = os.path.join(cod, f)
-                    ret = self.build_srpm(artifact_name, source)
-                    break
-        finally:
-            os.chdir(owd)
-            try:
-                if td is not None:
-                    shutil.rmtree(td)
-            except Exception as e:
-                log.warning(
-                    "Failed to remove temporary directory {!r}: {}".format(
-                        td, str(e)))
-
-        return ret
 
     def _wait_until_all_builds_are_finished(self, module):
         seconds = 60
@@ -1223,13 +1178,6 @@ $repos
         )
         module_build_service.scheduler.main.outgoing_work_queue_put(msg)
 
-    def _execute_cmd(self, args):
-        log.debug("Executing command: %s" % args)
-        ret = subprocess.call(args)
-        if ret != 0:
-            raise RuntimeError("Command '%s' returned non-zero value %d"
-                               % (args, ret))
-
     def _save_log(self, log_name, artifact_name):
         old_log = os.path.join(self.resultsdir, log_name)
         new_log = os.path.join(self.resultsdir, artifact_name + "-" + log_name)
@@ -1242,12 +1190,12 @@ $repos
         """
         try:
             # Initialize mock.
-            self._execute_cmd(["mock", "-r", self.mock_config, "--init"])
+            _execute_cmd(["mock", "-r", self.config.mock_config, "--init"])
 
             # Start the build and store results to resultsdir
             # TODO: Maybe this should not block in the future, but for local
             # builds it is not a big problem.
-            self._execute_cmd(["mock", "-r", self.mock_config,
+            _execute_cmd(["mock", "-r", self.config.mock_config,
                                "--no-clean", "--rebuild", source,
                                "--resultdir=%s" % self.resultsdir])
 
@@ -1288,46 +1236,6 @@ $repos
         reason = "Submitted %s to Koji" % (artifact_name)
         return MockModuleBuilder._build_id, state, reason, None
 
-    def build_from_scm(self, artifact_name, source):
-        """
-        Builds the artifact from the SCM based source.
-        """
-        td = None
-        owd = os.getcwd()
-        ret = (MockModuleBuilder._build_id, koji.BUILD_STATES["FAILED"],
-               "Cannot create SRPM", None)
-
-        try:
-            log.debug('Cloning source URL: %s' % source)
-            # Create temp dir and clone the repo there.
-            td = tempfile.mkdtemp()
-            scm = module_build_service.scm.SCM(source)
-            cod = scm.checkout(td)
-
-            # Use configured command to create SRPM out of the SCM repo.
-            log.debug("Creating SRPM")
-            os.chdir(cod)
-            self._execute_cmd(self.config.mock_build_srpm_cmd.split(" "))
-
-            # Find out the built SRPM and build it normally.
-            for f in os.listdir(cod):
-                if f.endswith(".src.rpm"):
-                    log.info("Created SRPM %s" % f)
-                    source = os.path.join(cod, f)
-                    ret = self.build_srpm(artifact_name, source)
-                    break
-        finally:
-            os.chdir(owd)
-            try:
-                if td is not None:
-                    shutil.rmtree(td)
-            except Exception as e:
-                log.warning(
-                    "Failed to remove temporary directory {!r}: {}".format(
-                        td, str(e)))
-
-        return ret
-
     def build(self, artifact_name, source):
         log.info("Starting building artifact %s: %s" % (artifact_name, source))
 
@@ -1335,7 +1243,7 @@ $repos
 
         # Git sources are treated specially.
         if source.startswith("git://"):
-            return self.build_from_scm(artifact_name, source)
+            return build_from_scm(artifact_name, source, self.config, self.build_srpm)
         else:
             return self.build_srpm(artifact_name, source)
 
@@ -1347,6 +1255,55 @@ $repos
 
     def cancel_build(self, task_id):
         pass
+
+
+def build_from_scm(artifact_name, source, config, build_srpm):
+    """
+    Builds the artifact from the SCM based source.
+    """
+    td = None
+    owd = os.getcwd()
+    ret = (0, koji.BUILD_STATES["FAILED"], "Cannot create SRPM", None)
+
+    try:
+        log.debug('Cloning source URL: %s' % source)
+        # Create temp dir and clone the repo there.
+        td = tempfile.mkdtemp()
+        scm = module_build_service.scm.SCM(source)
+        cod = scm.checkout(td)
+
+        # Use configured command to create SRPM out of the SCM repo.
+        log.debug("Creating SRPM")
+        os.chdir(cod)
+        _execute_cmd(config.mock_build_srpm_cmd.split(" "))
+
+        # Find out the built SRPM and build it normally.
+        for f in os.listdir(cod):
+            if f.endswith(".src.rpm"):
+                log.info("Created SRPM %s" % f)
+                source = os.path.join(cod, f)
+                ret = build_srpm(artifact_name, source)
+                break
+    finally:
+        os.chdir(owd)
+        try:
+            if td is not None:
+                shutil.rmtree(td)
+        except Exception as e:
+            log.warning(
+                "Failed to remove temporary directory {!r}: {}".format(
+                    td, str(e)))
+
+    return ret
+
+
+def _execute_cmd(args):
+    log.debug("Executing command: %s" % args)
+    ret = subprocess.call(args)
+    if ret != 0:
+        raise RuntimeError("Command '%s' returned non-zero value %d"
+                           % (args, ret))
+
 
 GenericBuilder.register_backend_class(KojiModuleBuilder)
 GenericBuilder.register_backend_class(CoprModuleBuilder)
