@@ -306,7 +306,7 @@ def record_component_builds(mmd, module, initial_batch = 1):
         # reserved for module-build-macros. First real components must be
         # planned for batch 2 and following.
         batch = initial_batch
- 
+
         for pkg in components:
             # If the pkg is another module, we fetch its modulemd file
             # and record its components recursively with the initial_batch
@@ -403,3 +403,92 @@ def submit_module_build(username, url, allow_local_url = False):
     log.info("%s submitted build of %s, stream=%s, version=%s", username,
              mmd.name, mmd.stream, mmd.version)
     return module
+
+
+def insert_fake_baseruntime():
+    """ Insert a fake base-runtime module into our db.
+
+    This is done so that we can reference the build profiles in its modulemd.
+
+    See:
+    - https://pagure.io/fm-orchestrator/pull-request/228
+    - https://pagure.io/fm-orchestrator/pull-request/225
+    """
+
+    import sqlalchemy as sa
+
+    import modulemd
+
+    yaml = """
+    document: modulemd
+    version: 1
+    data:
+        name: base-runtime
+        stream: master
+        version: 3
+        summary: A fake base-runtime module, used to bootstrap the infrastructure.
+        description: ...
+        profiles:
+            buildroot:
+                rpms:
+                    - bash
+                    - bzip2
+                    - coreutils
+                    - cpio
+                    - diffutils
+                    - fedora-release
+                    - findutils
+                    - gawk
+                    - gcc
+                    - gcc-c++
+                    - grep
+                    - gzip
+                    - info
+                    - make
+                    - patch
+                    - redhat-rpm-config
+                    - rpm-build
+                    - sed
+                    - shadow-utils
+                    - tar
+                    - unzip
+                    - util-linux
+                    - which
+                    - xz
+            srpm-buildroot:
+                rpms:
+                    - bash
+                    - fedora-release
+                    - fedpkg-minimal
+                    - gnupg2
+                    - redhat-rpm-config
+                    - rpm-build
+                    - shadow-utils
+    """
+
+    mmd = modulemd.ModuleMetadata()
+    mmd.loads(yaml)
+
+    # Check to see if this thing already exists...
+    query = models.ModuleBuild.query\
+        .filter_by(name=mmd.name)\
+        .filter_by(stream=mmd.stream)\
+        .filter_by(version=mmd.version)
+    if query.count():
+        logging.info('%r exists.  Skipping creation.' % query.first())
+        return
+
+    # Otherwise, it does not exist.  So, create it.
+    module = models.ModuleBuild.create(
+        db.session,
+        conf,
+        name=mmd.name,
+        stream=mmd.stream,
+        version=mmd.version,
+        modulemd=yaml,
+        scmurl='...',
+        username='modularity',
+    )
+    module.state = models.BUILD_STATES['done']
+    module.state_reason = 'Artificially created.'
+    db.session.commit()

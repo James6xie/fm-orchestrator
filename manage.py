@@ -36,7 +36,10 @@ from module_build_service.pdc import (
     get_module_tag, get_module_build_dependencies)
 import module_build_service.auth
 import module_build_service.scheduler.main
-from module_build_service.utils import submit_module_build
+from module_build_service.utils import (
+    submit_module_build,
+    insert_fake_baseruntime,
+)
 from module_build_service.messaging import RidaModule
 
 
@@ -99,6 +102,7 @@ def upgradedb():
     """ Upgrades the database schema to the latest revision
     """
     flask_migrate.upgrade()
+    insert_fake_baseruntime()
 
 
 @manager.command
@@ -106,73 +110,6 @@ def cleardb():
     models.ModuleBuild.query.delete()
     models.ComponentBuild.query.delete()
 
-def _insert_fake_baseruntime():
-    import sqlalchemy as sa
-
-    import modulemd
-
-    yaml = """
-    document: modulemd
-    version: 1
-    data:
-        name: base-runtime
-        stream: master
-        version: 3
-        summary: A fake base-runtime module, used to bootstrap the infrastructure.
-        description: ...
-        profiles:
-            buildroot:
-                rpms:
-                    - bash
-                    - bzip2
-                    - coreutils
-                    - cpio
-                    - diffutils
-                    - fedora-release
-                    - findutils
-                    - gawk
-                    - gcc
-                    - gcc-c++
-                    - grep
-                    - gzip
-                    - info
-                    - make
-                    - patch
-                    - redhat-rpm-config
-                    - rpm-build
-                    - sed
-                    - shadow-utils
-                    - tar
-                    - unzip
-                    - util-linux
-                    - which
-                    - xz
-            srpm-buildroot:
-                rpms:
-                    - bash
-                    - fedora-release
-                    - fedpkg-minimal
-                    - gnupg2
-                    - redhat-rpm-config
-                    - rpm-build
-                    - shadow-utils
-    """
-
-    mmd = modulemd.ModuleMetadata()
-    mmd.loads(yaml)
-    module = models.ModuleBuild.create(
-        db.session,
-        conf,
-        name=mmd.name,
-        stream=mmd.stream,
-        version=mmd.version,
-        modulemd=yaml,
-        scmurl='...',
-        username='modularity',
-    )
-    module.state = models.BUILD_STATES['done']
-    module.state_reason = 'Artificially created.'
-    db.session.commit()
 
 @manager.command
 def build_module_locally(url):
@@ -198,7 +135,7 @@ def build_module_locally(url):
     # In the future, we should use PDC to get what we need from the fake module,
     # so it's probably not big problem.
     db.create_all()
-    _insert_fake_baseruntime()
+    insert_fake_baseruntime()
 
     username = getpass.getuser()
     submit_module_build(username, url, allow_local_url=True)
