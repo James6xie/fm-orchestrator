@@ -957,19 +957,28 @@ class CoprModuleBuilder(GenericBuilder):
 
         return ret
 
-    def finalize(self):
-        # @FIXME
-        # Sleep some amount of time to wait until builds are finished
-        # We are just workarounding missing fedmsg support from copr
-        seconds = 180
-        log.info("Going to sleep for {}s to wait until builds in copr are finished".format(seconds))
-        time.sleep(seconds)
+    def _wait_until_all_builds_are_finished(self, module):
+        seconds = 60
+        unfinished = [b.task_id for b in module.component_builds]
+        while unfinished:
+            unfinished = filter(lambda x: self.client.get_build_details(x).status != "succeeded", unfinished)
+            log.info("Going to sleep for {}s to wait until builds in copr are finished".format(seconds))
+            time.sleep(seconds)
 
-        # Create a module from previous project
+    def finalize(self):
         modulemd = tempfile.mktemp()
         m1 = ModuleBuild.query.filter(ModuleBuild.name == self.module_str).first()
         m1.mmd().dump(modulemd)
 
+        # Wait until all builds are finished
+        # We shouldn't do this once the fedmsg on copr is done
+        from copr.exceptions import CoprRequestException
+        try:
+            self._wait_until_all_builds_are_finished(m1)
+        except CoprRequestException:
+            return log.info("Missing builds, not going to create a module")
+
+        # Create a module from previous project
         kwargs = {"username": self.copr.username, "projectname": self.copr.projectname, "modulemd": modulemd}
         result = self.client.create_new_build_module(**kwargs)
         if result.output != "ok":
