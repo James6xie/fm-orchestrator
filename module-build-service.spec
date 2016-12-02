@@ -70,7 +70,7 @@ tasks:
 %doc README.rst
 %license LICENSE
 %{python2_sitelib}/module_build_service*
-%{_bindir}/module_build_service_*
+%{_bindir}/mbs-*
 %dir %{_sysconfdir}/module-build-service
 %config %{_sysconfdir}/module-build-service/cacert.pem
 %config %{_sysconfdir}/module-build-service/config.py
