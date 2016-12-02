@@ -59,11 +59,11 @@ tasks:
 
 
 %build
-%{__python2} setup.py build
+%py2_build
 
 
 %install
-%{__python2} setup.py install --skip-build --root %{buildroot}
+%py2_install --skip-build --root %{buildroot}
 
 
 %files
