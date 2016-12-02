@@ -11,7 +11,6 @@ Source0:	http://localhost/%{name}-%{version}.tar.gz
 
 BuildArch:	noarch
 
-BuildRequires:	openssl-devel
 BuildRequires:	python-setuptools
 BuildRequires:	python2-devel
 
