@@ -6,8 +6,7 @@ Summary:	The Module Build Service for Modularity
 Group:		Development/Tools
 License:	LGPLv2+
 URL:		https://pagure.io/fm-orchestrator
-# FIXME
-Source0:	http://localhost/%{name}-%{version}.tar.gz
+Source0:	https://files.pythonhosted.org/packages/source/m/%{name}/%{name}-%{version}.tar.gz
 
 BuildArch:	noarch
 
