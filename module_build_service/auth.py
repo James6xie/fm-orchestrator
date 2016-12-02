@@ -26,40 +26,73 @@
 from werkzeug.serving import WSGIRequestHandler
 
 from module_build_service.errors import Unauthorized
+from module_build_service import app, log
 
 import fedora.client
+import httplib2
+import json
+from six.moves.urllib.parse import urlencode
 
+def _json_loads(content):
+    if not isinstance(content, str):
+        content = content.decode('utf-8')
+    return json.loads(content)
 
-class ClientCertRequestHandler(WSGIRequestHandler):
+client_secrets = None
+
+def _load_secrets():
+    global client_secrets
+    if client_secrets:
+        return
+
+    if not "OIDC_CLIENT_SECRETS" in app.config:
+        log.warn("To support authorization, OIDC_CLIENT_SECRETS has to be set.")
+        return
+
+    secrets = _json_loads(open(app.config['OIDC_CLIENT_SECRETS'],
+                                'r').read())
+    client_secrets = list(secrets.values())[0]
+
+def get_token_info(token):
     """
-    WSGIRequestHandler subclass adding SSL_CLIENT_CERT_* variables
-    to `request.environ` dict when the client certificate is set and
-    is signed by CA configured in `conf.ssl_ca_certificate_file`.
+    Asks the token_introspection_uri for the validity of a token.
+    """
+    if not client_secrets:
+        return None
+
+    request = {'token': token,
+                'token_type_hint': 'Bearer',
+                'client_id': client_secrets['client_id'],
+                'client_secret': client_secrets['client_secret']}
+    headers = {'Content-type': 'application/x-www-form-urlencoded'}
+
+    resp, content = httplib2.Http().request(
+        client_secrets['token_introspection_uri'], 'POST',
+        urlencode(request), headers=headers)
+
+    return _json_loads(content)
+
+def get_username(request):
+    """
+    Returns the client's username based on the OIDC token provided.
     """
 
-    def make_environ(self):
-        environ = WSGIRequestHandler.make_environ(self)
+    _load_secrets()
 
-        try:
-            cert = self.request.getpeercert(False)
-        except AttributeError:
-            cert = None
+    if not "oidc_token" in request.cookies:
+        raise Unauthorized("Cannot verify OIDC token.")
 
-        if cert and "subject" in cert:
-            for keyval in cert["subject"]:
-                key, val = keyval[0]
-                environ["SSL_CLIENT_CERT_" + key] = val
-        return environ
+    token = request.cookies["oidc_token"]
+    data = get_token_info(token)
+    if not data:
+        raise Unauthorized("Cannot verify OIDC token.")
 
+    if not "active" in data or not data["active"]:
+        raise Unauthorized("OIDC token invalid or expired.")
 
-def get_username(environ):
-    """ Extract the user's username from the WSGI environment. """
-
-    if not "SSL_CLIENT_CERT_commonName" in environ:
-        raise Unauthorized("No SSL client cert CN could be found to work with")
-
-    return environ["SSL_CLIENT_CERT_commonName"]
-
+    #TODO: Once we will get our own scope registered in Fedora infra,
+    # we can start checking it here.
+    return data["username"]
 
 def assert_is_packager(username, fas_kwargs):
     """ Assert that a user is a packager by consulting FAS.

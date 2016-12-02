@@ -25,6 +25,7 @@ from nose.tools import raises, eq_
 
 import unittest
 import mock
+from mock import patch
 
 import module_build_service.auth
 import module_build_service.errors
@@ -32,14 +33,34 @@ import module_build_service.errors
 
 class TestAuthModule(unittest.TestCase):
     @raises(module_build_service.errors.Unauthorized)
-    def test_get_username_failure(self):
-        module_build_service.auth.get_username({})
+    def test_get_username_no_token(self):
+        request = mock.MagicMock()
+        request.cookies.return_value = {}
+        module_build_service.auth.get_username(request)
 
-    def test_get_username_good(self):
+    @raises(module_build_service.errors.Unauthorized)
+    @patch('module_build_service.auth.get_token_info')
+    def test_get_username_failure(self, get_token_info):
+        def mocked_get_token_info(token):
+            return {"active": False}
+        get_token_info.return_value = mocked_get_token_info
+
+        request = mock.MagicMock()
+        request.cookies.return_value = {"oidc_token", "1234"}
+        module_build_service.auth.get_username(request)
+
+    @raises(module_build_service.errors.Unauthorized)
+    @patch('module_build_service.auth.get_token_info')
+    def test_get_username_good(self, get_token_info):
         # https://www.youtube.com/watch?v=G-LtddOgUCE
         name = "Joey Jo Jo Junior Shabadoo"
-        environ = {'SSL_CLIENT_CERT_commonName': name}
-        result = module_build_service.auth.get_username(environ)
+        def mocked_get_token_info(token):
+            return {"active": True, "username": name}
+        get_token_info.return_value = mocked_get_token_info
+
+        request = mock.MagicMock()
+        request.cookies.return_value = {"oidc_token", "1234"}
+        result = module_build_service.auth.get_username(request)
         eq_(result, name)
 
     @mock.patch('fedora.client.AccountSystem')

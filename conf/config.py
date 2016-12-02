@@ -116,6 +116,8 @@ class DevConfiguration(BaseConfiguration):
     KOJI_ARCHES = ['x86_64']
     KOJI_REPOSITORY_URL = 'http://kojipkgs.stg.fedoraproject.org/repos'
 
+    OIDC_CLIENT_SECRETS = "client_secrets.json"
+
 
 class TestConfiguration(BaseConfiguration):
     LOG_BACKEND = 'console'

@@ -254,14 +254,14 @@ class TestViews(unittest.TestCase):
         self.assertEquals(data['id'], 31)
         self.assertEquals(data['state_name'], 'wait')
 
-    def test_submit_build_cert_error(self):
+    def test_submit_build_auth_error(self):
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                 'testmodule.git?#48932b90de214d9d13feefbd35246a81b6cb8d49'}))
         data = json.loads(rv.data)
         self.assertEquals(
             data['message'],
-            'No SSL client cert CN could be found to work with'
+            'Cannot verify OIDC token.'
         )
         self.assertEquals(data['status'], 401)
         self.assertEquals(data['error'], 'Unauthorized')

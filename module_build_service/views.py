@@ -62,7 +62,6 @@ api_v1 = {
     },
 }
 
-
 class ModuleBuildAPI(MethodView):
 
     def get(self, id):
@@ -93,7 +92,7 @@ class ModuleBuildAPI(MethodView):
                 raise NotFound('No such module found.')
 
     def post(self):
-        username = module_build_service.auth.get_username(request.environ)
+        username = module_build_service.auth.get_username(request)
 
         if conf.require_packager:
             module_build_service.auth.assert_is_packager(username, fas_kwargs=dict(
@@ -127,7 +126,7 @@ class ModuleBuildAPI(MethodView):
         return jsonify(module.json()), 201
 
     def patch(self, id):
-        username = module_build_service.auth.get_username(request.environ)
+        username = module_build_service.auth.get_username(request)
 
         if conf.require_packager:
             module_build_service.auth.assert_is_packager(
