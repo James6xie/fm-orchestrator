@@ -15,6 +15,7 @@ class BaseConfiguration(object):
         dbdir, 'module_build_service.db'))
     SQLALCHEMY_TRACK_MODIFICATIONS = True
     # Where we should run when running "manage.py runssl" directly.
+    SERVER_NAME = 'localhost'
     HOST = '127.0.0.1'
     PORT = 5000
 
