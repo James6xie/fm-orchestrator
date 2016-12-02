@@ -28,6 +28,8 @@ import time
 import shutil
 import tempfile
 import os
+import logging
+
 import modulemd
 
 from flask import request, url_for
