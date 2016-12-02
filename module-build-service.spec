@@ -63,7 +63,7 @@ tasks:
 
 
 %install
-%py2_install --skip-build --root %{buildroot}
+%py2_install
 
 
 %files
