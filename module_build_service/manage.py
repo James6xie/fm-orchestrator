@@ -34,7 +34,6 @@ from module_build_service import models
 from module_build_service.pdc import (
     get_pdc_client_session, get_module, get_module_runtime_dependencies,
     get_module_tag, get_module_build_dependencies)
-import module_build_service.auth
 import module_build_service.scheduler.main
 from module_build_service.utils import (
     submit_module_build,
@@ -295,7 +294,6 @@ def runssl(host=conf.host, port=conf.port, debug=False):
     app.run(
         host=host,
         port=port,
-        request_handler=module_build_service.auth.ClientCertRequestHandler,
         ssl_context=ssl_ctx,
         debug=debug
     )
