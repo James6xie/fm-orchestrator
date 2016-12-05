@@ -25,12 +25,12 @@ class BaseConfiguration(object):
 
     SYSTEM = 'koji'
     MESSAGING = 'fedmsg'  # or amq
-    KOJI_CONFIG = '/etc/module_build_service/koji.conf'
+    KOJI_CONFIG = '/etc/module-build-service/koji.conf'
     KOJI_PROFILE = 'koji'
     KOJI_ARCHES = ['i686', 'armv7hl', 'x86_64']
     KOJI_PROXYUSER = True
     KOJI_REPOSITORY_URL = 'https://kojipkgs.stg.fedoraproject.org/repos'
-    COPR_CONFIG = '/etc/module_build_service/copr.conf'
+    COPR_CONFIG = '/etc/module-build-service/copr.conf'
     PDC_URL = 'http://modularity.fedorainfracloud.org:8080/rest_api/v1'
     PDC_INSECURE = True
     PDC_DEVELOP = True
