@@ -1,19 +1,29 @@
 version: "2"
 services:
 
-  fedmsg-relay:
+  base:
     build: .
-    command: fedmsg-relay
+    command: bash -c "mbs-upgradedb && mbs-gencert"
+    volumes:
+      - ./:/tmp/module_build_service:z
+      - /etc/module-build-service
+
+  fedmsg-relay:
+    depends_on:
+      - base
+    build: .
+    command: bash -c "cd /etc/module-build-service && fedmsg-relay"
     expose:
       - 2001
       - 2003
-    volumes:
-      # module_build_service sources are bind-mounted, so you don't have to rebuild
-      - ./:/opt/module_build_service/:z
+    volumes_from:
+      - base
 
   scheduler:
+    depends_on:
+      - base
     build: .
-    command: python2 /opt/module_build_service/module_build_service_daemon.py
+    command: mbs-daemon
     links:
       - fedmsg-relay
     environment:
@@ -22,34 +32,20 @@ services:
       # Initialize the file before running 'docker-compose up' with:
       # $ KRB5CCNAME=FILE:/var/tmp/krbcc kinit YOUR_USERNAME@FEDORAPROJECT.ORG
       - KRB5CCNAME=FILE:/var/tmp/krbcc
+    volumes_from:
+      - base
     volumes:
-      # module_build_service sources are bind-mounted, so you don't have to rebuild
-      - ./:/opt/module_build_service/:z
       - /var/tmp/krbcc:/var/tmp/krbcc:Z
 
   frontend:
+    depends_on:
+      - base
     build: .
+    command: mbs-frontend
     ports:
       - "5000:5000"
     links:
       - scheduler
       - fedmsg-relay
-    depends_on:
-      - upgradedb
-      - generatelocalhostcert
-    volumes:
-      # module_build_service sources are bind-mounted, so you don't have to rebuild
-      - ./:/opt/module_build_service/:z
-    command: python2 manage.py runssl
-
-  upgradedb:
-    build: .
-    volumes:
-      - ./:/opt/module_build_service/:z
-    command: python2 manage.py upgradedb
-
-  generatelocalhostcert:
-    build: .
-    volumes:
-      - ./:/opt/module_build_service/:z
-    command: python2 manage.py generatelocalhostcert
+    volumes_from:
+      - base
