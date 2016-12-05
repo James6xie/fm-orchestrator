@@ -14,16 +14,19 @@ RUN dnf install -y \
         python-mock \
         git \
         krb5-workstation \
+        systemd-devel \
+        gcc \
+        redhat-rpm-config \
+        python-devel \
+        python-flask \
         # Troubleshooting tools
         telnet \
         nc \
+        procps \
+        findutils \
     && dnf autoremove -y \
     && dnf clean all \
-    && mkdir /opt/module_build_service/ \
-    && mkdir /etc/module_build_service
-WORKDIR /opt/module_build_service/
-COPY ./requirements.txt /opt/module_build_service/
-RUN pip install --user -r ./requirements.txt
-
-RUN ln -s /opt/module_build_service/conf/koji.conf /etc/module_build_service/koji.conf \
- && ln -s /opt/module_build_service/conf/copr.conf /etc/module_build_service/copr.conf
+    && mkdir /tmp/module_build_service/
+COPY . /tmp/module_build_service/
+WORKDIR /tmp/module_build_service/
+RUN python setup.py install
