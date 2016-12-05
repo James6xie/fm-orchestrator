@@ -4,3 +4,5 @@ server.crt
 server.key
 .vagrant
 .idea
+/dist/
+/module_build_service.egg-info/
