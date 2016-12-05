@@ -80,12 +80,14 @@ def get_username(request):
     _load_secrets()
 
     if not "oidc_token" in request.cookies:
-        raise Unauthorized("Cannot verify OIDC token.")
+        raise Unauthorized("Cannot verify OIDC token: No 'oidc_token' "
+            "cookie found.")
 
     token = request.cookies["oidc_token"]
-    data = get_token_info(token)
-    if not data:
-        raise Unauthorized("Cannot verify OIDC token.")
+    try:
+        data = get_token_info(token)
+    except Exception as e:
+        raise Unauthorized("Cannot verify OIDC token: %s" % str(e))
 
     if not "active" in data or not data["active"]:
         raise Unauthorized("OIDC token invalid or expired.")

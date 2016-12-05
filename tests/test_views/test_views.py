@@ -261,7 +261,7 @@ class TestViews(unittest.TestCase):
         data = json.loads(rv.data)
         self.assertEquals(
             data['message'],
-            'Cannot verify OIDC token.'
+            "Cannot verify OIDC token: No 'oidc_token' cookie found."
         )
         self.assertEquals(data['status'], 401)
         self.assertEquals(data['error'], 'Unauthorized')
