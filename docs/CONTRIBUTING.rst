@@ -26,7 +26,7 @@ docs <https://docs.docker.com/docker-for-mac/>`_.
 After your docker engine is set up and running and docker-compose is installed,
 you can start the entire development environment with a single command::
 
-    $ docker-compose up
+    $ sudo docker-compose up
 
 That will start a number of services in containers, including the `frontend`
 and the backend `scheduler`. You can submit a local test build with the
@@ -65,13 +65,11 @@ At any point you may enter the guest VM with::
 
 To start the frontend manually, run the following inside the guest::
 
-    $ cd /opt/module_build_service
-    $ python manage.py runssl --debug
+    $ mbs-frontend
 
 To start the scheduler manually, run the following inside the guest::
 
-    $ cd /opt/module_build_service
-    $ python module_build_service_daemon.py
+    $ mbs-daemon
 
 Alternatively, you can restart the Vagrant guest, which inherently starts/restarts the frontend and the scheduler with::
 
