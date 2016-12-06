@@ -6,3 +6,4 @@ server.key
 .idea
 /dist/
 /module_build_service.egg-info/
+build/
