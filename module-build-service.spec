@@ -1,6 +1,6 @@
 Name:		module-build-service
 Version:	1.0.0
-Release:	1%{?dist}
+Release:	2%{?dist}
 Summary:	The Module Build Service for Modularity
 
 Group:		Development/Tools
@@ -12,6 +12,7 @@ BuildArch:	noarch
 
 BuildRequires:	python-setuptools
 BuildRequires:	python2-devel
+BuildRequires:	systemd
 
 Requires:	fedmsg
 Requires:	git
@@ -66,6 +67,8 @@ tasks:
 
 %install
 %py2_install
+%{__install} -pm644 conf/mbs-scheduler.service \
+    %{buildroot}%{_unitdir}/mbs-scheduler.service
 
 
 %files
@@ -87,5 +90,8 @@ tasks:
 
 
 %changelog
+* Mon Dec 6 2016 Matt Prahl <mprahl@redhat.com> 1.0.0-2
+- Adds systemd unit.
+
 * Fri Nov 25 2016 Filip Valder <fvalder@redhat.com> 1.0.0-1
 - Let's get this party started.
