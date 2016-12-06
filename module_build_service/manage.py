@@ -100,6 +100,7 @@ def testpdc():
 def upgradedb():
     """ Upgrades the database schema to the latest revision
     """
+    app.config["SERVER_NAME"] = 'localhost'
     # TODO: configurable?
     migrations_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)),
                                   'migrations')
