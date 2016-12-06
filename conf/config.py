@@ -15,7 +15,7 @@ class BaseConfiguration(object):
         dbdir, 'module_build_service.db'))
     SQLALCHEMY_TRACK_MODIFICATIONS = True
     # Where we should run when running "manage.py runssl" directly.
-    HOST = '127.0.0.1'
+    HOST = '0.0.0.0'
     PORT = 5000
 
     # Global network-related values, in seconds
@@ -86,7 +86,6 @@ class BaseConfiguration(object):
 class DevConfiguration(BaseConfiguration):
     LOG_BACKEND = 'console'
     LOG_LEVEL = 'debug'
-    HOST = '0.0.0.0'
 
     # Global network-related values, in seconds
     NET_TIMEOUT = 5

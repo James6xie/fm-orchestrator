@@ -51,7 +51,13 @@ command will pull the latest base image and perform a clean build without using 
 Vagrant
 -------
 
-Once your environment is setup, run (depending on your OS, you may need to run it with sudo)::
+If you are using VirtualBox, you will need to install the Vagrant plugin `vagrant-vbguest`.
+This plugin automatically installs guest additions to Vagrant guests that do not have them installed.
+The official Fedora Vagrant box unfortunately does not contain the guest additions, and they are needed for folder syncing::
+
+    $ vagrant plugin install vagrant-vbguest
+
+To launch Vagrant, run (depending on your OS, you may need to run it with sudo)::
 
     $ vagrant up
 
