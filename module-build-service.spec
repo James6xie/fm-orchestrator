@@ -24,6 +24,7 @@ Requires:	pyOpenSSL
 Requires:	python-fedora
 Requires:	python-flask
 Requires:	python-flask-script
+Requires:	python-httplib2
 Requires:	python-m2ext
 Requires:	python-munch
 Requires:	python-six
