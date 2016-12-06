@@ -28,6 +28,8 @@ import xmlrpclib
 from os import path, mkdir
 from shutil import copyfile
 
+from nose.tools import timed
+
 from module_build_service import db
 
 import module_build_service.messaging
@@ -197,6 +199,7 @@ class TestBuild(unittest.TestCase):
         conf.set_item("system", "koji")
         TestModuleBuilder.reset()
 
+    @timed(30)
     @patch('module_build_service.auth.get_username', return_value='Homer J. Simpson')
     @patch('module_build_service.auth.assert_is_packager')
     @patch('module_build_service.scm.SCM')
@@ -225,6 +228,7 @@ class TestBuild(unittest.TestCase):
             self.assertEqual(build.state, koji.BUILD_STATES['COMPLETE'])
             self.assertTrue(build.module_build.state in [models.BUILD_STATES["done"], models.BUILD_STATES["ready"]] )
 
+    @timed(30)
     @patch('module_build_service.auth.get_username', return_value='Homer J. Simpson')
     @patch('module_build_service.auth.assert_is_packager')
     @patch('module_build_service.scm.SCM')
