@@ -117,6 +117,7 @@ def cleardb():
 @manager.command
 def build_module_locally(url):
     conf.set_item("system", "mock")
+    conf.set_item("messaging", "in_memory")
 
     # Use our own local SQLite3 database.
     confdir = os.path.abspath(os.path.dirname(__file__))

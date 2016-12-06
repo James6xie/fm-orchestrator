@@ -125,6 +125,7 @@ class TestConfiguration(BaseConfiguration):
     LOG_LEVEL = 'debug'
     SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
     DEBUG = True
+    MESSAGING = 'in_memory'
 
     # Global network-related values, in seconds
     NET_TIMEOUT = 3
