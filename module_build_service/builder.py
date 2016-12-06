@@ -1149,7 +1149,7 @@ $repos
         # what RPMs are output of particular SRPM build yet.
         for artifact in artifacts:
             if artifact.startswith("module-build-macros"):
-                self._execute_cmd(["mock", "-r", self.mock_config, "-i",
+                _execute_cmd(["mock", "-r", self.mock_config, "-i",
                                    "module-build-macros"])
 
     def buildroot_add_repos(self, dependencies):
