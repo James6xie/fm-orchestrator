@@ -45,7 +45,7 @@ for a number of tasks:
 from flask import Flask, has_app_context, url_for
 from flask_sqlalchemy import SQLAlchemy
 
-import module_build_service.logger
+from module_build_service.logger import init_logging
 
 from logging import getLogger
 from module_build_service.errors import (
@@ -115,7 +115,7 @@ def notfound_error(e):
     """Flask error handler for Conflict exceptions"""
     return json_error(404, 'Not Found', e.args[0])
 
-module_build_service.logger.init_logging(conf)
+init_logging(conf)
 log = getLogger(__name__)
 
 from module_build_service import views

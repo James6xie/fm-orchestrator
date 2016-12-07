@@ -33,7 +33,7 @@ except ImportError:
     from funcsigs import signature
 
 from module_build_service import log
-import queue
+import six.moves.queue as queue
 
 class BaseMessage(object):
     def __init__(self, msg_id):
