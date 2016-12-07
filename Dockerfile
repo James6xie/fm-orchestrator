@@ -2,28 +2,28 @@ FROM fedora:24
 
 # so we don't have to compile those when fetched from PyPI
 RUN dnf install -y \
-        python-pip \
-        python2-setuptools \
-        python2-cffi \
-        python2-zmq \
-        python2-cryptography \
-        koji \
-        python2-pdc-client \
-        python-m2ext \
         fedmsg-relay \
-        python-mock \
-        git \
-        krb5-workstation \
-        systemd-devel \
         gcc \
-        redhat-rpm-config \
+        git \
+        koji \
+        krb5-workstation \
         python-devel \
         python-flask \
+        python-m2ext \
+        python-mock \
+        python-pip \
+        python2-cffi \
+        python2-cryptography \
+        python2-pdc-client \
+        python2-setuptools \
+        python2-zmq \
+        redhat-rpm-config \
+        systemd-devel \
         # Troubleshooting tools
-        telnet \
+        findutils \
         nc \
         procps \
-        findutils \
+        telnet \
     && dnf autoremove -y \
     && dnf clean all \
     && mkdir /tmp/module_build_service/

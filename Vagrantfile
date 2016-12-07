@@ -3,27 +3,27 @@
 
 $script = <<SCRIPT
     dnf install -y \
-        python \
-        python-virtualenv \
-        python-devel \
-        libffi-devel \
-        redhat-rpm-config \
-        openssl-devel \
+        fedmsg-relay \
+        fedpkg \
+        gcc \
         gcc \
         gcc-c++ \
-        koji \
         git \
-        swig \
-        fedmsg-relay \
-        rpm-build \
-        fedpkg \
-        python-mock \
+        koji \
         krb5-workstation \
-        systemd-devel \
-        gcc \
-        redhat-rpm-config \
+        libffi-devel \
+        openssl-devel \
+        python \
         python-devel \
-        python-flask
+        python-devel \
+        python-flask \
+        python-mock \
+        python-virtualenv \
+        redhat-rpm-config \
+        redhat-rpm-config \
+        rpm-build \
+        swig \
+        systemd-devel
     cd /tmp/module_build_service
     python setup.py install
     mbs-upgradedb
