@@ -242,9 +242,9 @@ class ModuleBuild(RidaBase):
             'time_submitted': self.time_submitted,
             'time_modified': self.time_modified,
             'time_completed': self.time_completed,
-
             # TODO, show their entire .json() ?
             'component_builds': [build.id for build in self.component_builds],
+            'modulemd': self.modulemd,
         }
 
     @staticmethod
