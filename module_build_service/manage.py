@@ -151,7 +151,7 @@ def build_module_locally(url):
 
 
 @manager.command
-def gendevfedmsgcert(pki_dir='/opt/module_build_service/pki', force=False):
+def gendevfedmsgcert(pki_dir='/etc/module_build_service', force=False):
     """
     Creates a CA, a certificate signed by that CA, and generates a CRL.
     """

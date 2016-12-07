@@ -28,6 +28,7 @@ RUN dnf install -y \
     && dnf autoremove -y \
     && dnf clean all \
     && mkdir /tmp/module_build_service/
+    && mkdir /etc/module-build-service/
 COPY . /tmp/module_build_service/
 WORKDIR /tmp/module_build_service/
 RUN python setup.py develop

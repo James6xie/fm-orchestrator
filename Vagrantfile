@@ -26,6 +26,7 @@ $script = <<SCRIPT
         systemd-devel
     systemctl enable fedmsg-relay
     systemctl start fedmsg-relay
+    mkdir /etc/module-build-service/
     cd /tmp/module_build_service
     python setup.py develop
     mbs-upgradedb
