@@ -18,6 +18,7 @@ RUN dnf install -y \
         python2-setuptools \
         python2-zmq \
         redhat-rpm-config \
+        rpm-build \
         systemd-devel \
         # Troubleshooting tools
         findutils \
