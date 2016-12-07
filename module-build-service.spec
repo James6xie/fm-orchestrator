@@ -37,6 +37,7 @@ Requires:	python2-mock
 Requires:	python2-modulemd
 Requires:	python3-mock
 Requires:	python3-modulemd
+Requires:	rpm-build
 
 
 %description
