@@ -14,6 +14,7 @@ BuildRequires:	python-setuptools
 BuildRequires:	python2-devel
 
 Requires:	fedmsg
+Requires:	git
 Requires:	kobo
 Requires:	kobo-rpmlib
 Requires:	koji
