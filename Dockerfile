@@ -30,4 +30,4 @@ RUN dnf install -y \
     && mkdir /tmp/module_build_service/
 COPY . /tmp/module_build_service/
 WORKDIR /tmp/module_build_service/
-RUN python setup.py install
+RUN python setup.py develop

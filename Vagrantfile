@@ -27,7 +27,7 @@ $script = <<SCRIPT
     systemctl enable fedmsg-relay
     systemctl start fedmsg-relay
     cd /tmp/module_build_service
-    python setup.py install
+    python setup.py develop
     mbs-upgradedb
     mbs-gencert
     echo "export KRB5CCNAME=FILE:/var/tmp/krbcc" >> ~/.bashrc
