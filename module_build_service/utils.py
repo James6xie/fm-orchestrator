@@ -481,18 +481,20 @@ def insert_fake_baseruntime():
         return
 
     # Otherwise, it does not exist.  So, create it.
-    module = models.ModuleBuild.create(
-        db.session,
-        conf,
-        name=mmd.name,
-        stream=mmd.stream,
-        version=mmd.version,
-        modulemd=yaml,
-        scmurl='...',
-        username='modularity',
-    )
+    now = datetime.utcnow()
+    module = models.ModuleBuild()
+    module.name = mmd.name
+    module.stream = mmd.stream
+    module.version = mmd.version
+    module.modulemd = yaml
+    module.scmurl = '...'
+    module.owner = 'modularity'
     module.state = models.BUILD_STATES['done']
     module.state_reason = 'Artificially created.'
+    module.time_submitted = now
+    module.time_modified = now
+    module.time_completed = now
+    db.session.add(module)
     db.session.commit()
 
 
