@@ -7,3 +7,4 @@ server.key
 /dist/
 /module_build_service.egg-info/
 build/
+test_module_build_service.db

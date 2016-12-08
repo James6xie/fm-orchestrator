@@ -165,13 +165,6 @@ class TestModuleBuilder(GenericBuilder):
         if TestModuleBuilder.on_cancel_cb:
             TestModuleBuilder.on_cancel_cb(self, task_id)
 
-def set_dburi(dburi):
-    """
-    Sets database URI in all places in the middle of test.
-    """
-    conf.set_item("sqlalchemy_database_uri", dburi)
-    test_conf.set_item("sqlalchemy_database_uri", dburi)
-    app.config["SQLALCHEMY_DATABASE_URI"] = dburi
 
 class TestBuild(unittest.TestCase):
 
@@ -180,22 +173,11 @@ class TestBuild(unittest.TestCase):
         self.client = app.test_client()
         conf.set_item("system", "mock")
 
-        # We need to use real database on fileystem for these tests, because
-        # there might be multiple threads and processes accessing it
-        # and in-memory database wouldn't work.
-        self.orig_dburi = app.config["SQLALCHEMY_DATABASE_URI"]
-        dbdir = path.abspath(path.dirname(__file__))
-        dburi =  'sqlite:///{0}'.format(path.join(
-            dbdir, '.test_module_build_service.db'))
-        set_dburi(dburi)
-
         init_data()
         models.ModuleBuild.query.delete()
         models.ComponentBuild.query.delete()
 
     def tearDown(self):
-        # Set back the original database URI
-        set_dburi(self.orig_dburi)
         conf.set_item("system", "koji")
         TestModuleBuilder.reset()
 

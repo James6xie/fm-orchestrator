@@ -130,7 +130,8 @@ class DevConfiguration(BaseConfiguration):
 class TestConfiguration(BaseConfiguration):
     LOG_BACKEND = 'console'
     LOG_LEVEL = 'debug'
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///{0}'.format(
+        path.join(dbdir, 'tests', 'test_module_build_service.db'))
     DEBUG = True
     MESSAGING = 'in_memory'
 
