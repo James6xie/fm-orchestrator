@@ -26,9 +26,9 @@ from datetime import datetime, timedelta
 from module_build_service import db
 from module_build_service.config import init_config
 from module_build_service.models import ModuleBuild, ComponentBuild
+from module_build_service.utils import insert_fake_baseruntime
 
 app = module_build_service.app
-
 conf = init_config(app)
 
 
@@ -36,6 +36,7 @@ def init_data():
     db.session.remove()
     db.drop_all()
     db.create_all()
+    insert_fake_baseruntime()
     for index in range(10):
         build_one = ModuleBuild()
         build_one.name = 'nginx'

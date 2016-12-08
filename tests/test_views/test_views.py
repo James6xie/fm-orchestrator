@@ -80,16 +80,16 @@ class TestViews(unittest.TestCase):
         init_data()
 
     def test_query_build(self):
-        rv = self.client.get('/module-build-service/1/module-builds/1')
+        rv = self.client.get('/module-build-service/1/module-builds/2')
         data = json.loads(rv.data)
-        self.assertEquals(data['id'], 1)
+        self.assertEquals(data['id'], 2)
         self.assertEquals(data['name'], 'nginx')
         self.assertEquals(data['owner'], 'Moe Szyslak')
         self.assertEquals(data['state'], 3)
         self.assertEquals(data['state_reason'], None)
         self.assertEquals(data['tasks'], {
-            'rpms/module-build-macros': '12312321/1',
-            'rpms/nginx': '12312345/1'}
+            'rpms/module-build-macros': '47383993/1',
+            'rpms/postgresql': '2433433/1'}
         )
         self.assertEquals(data['time_completed'], '2016-09-03T11:25:32Z')
         self.assertEquals(data['time_modified'], '2016-09-03T11:25:32Z')
@@ -106,7 +106,7 @@ class TestViews(unittest.TestCase):
             'module-build-service/1/module-builds/?per_page=8&page=4' in meta_data['last'])
         self.assertTrue(
             'module-build-service/1/module-builds/?per_page=8&page=1' in meta_data['first'])
-        self.assertEquals(meta_data['total'], 30)
+        self.assertEquals(meta_data['total'], 31)
         self.assertEquals(meta_data['per_page'], 8)
         self.assertEquals(meta_data['pages'], 4)
         self.assertEquals(meta_data['page'], 2)
@@ -121,17 +121,17 @@ class TestViews(unittest.TestCase):
         rv = self.client.get('/module-build-service/1/module-builds/?per_page=2&verbose=True')
         item = json.loads(rv.data)['items'][1]
         self.assertEquals(item['id'], 2)
-        self.assertEquals(item['name'], 'postgressql')
-        self.assertEquals(item['owner'], 'some_user')
+        self.assertEquals(item['name'], 'nginx')
+        self.assertEquals(item['owner'], 'Moe Szyslak')
         self.assertEquals(item['state'], 3)
         self.assertEquals(item['tasks'], {
                 'rpms/module-build-macros': '47383993/1',
                 'rpms/postgresql': '2433433/1'
             }
         )
-        self.assertEquals(item['time_completed'], '2016-09-03T11:27:19Z')
-        self.assertEquals(item['time_modified'], '2016-09-03T12:27:19Z')
-        self.assertEquals(item['time_submitted'], '2016-09-03T12:25:33Z')
+        self.assertEquals(item['time_completed'], '2016-09-03T11:25:32Z')
+        self.assertEquals(item['time_modified'], '2016-09-03T11:25:32Z')
+        self.assertEquals(item['time_submitted'], '2016-09-03T11:23:20Z')
 
     def test_query_builds_filter_name(self):
         rv = self.client.get('/module-build-service/1/module-builds/?name=nginx')
@@ -148,7 +148,7 @@ class TestViews(unittest.TestCase):
         rv = self.client.get(
             '/module-build-service/1/module-builds/?completed_after=2016-09-03T12:25:00Z')
         data = json.loads(rv.data)
-        self.assertEquals(data['meta']['total'], 8)
+        self.assertEquals(data['meta']['total'], 9)
 
     def test_query_builds_filter_submitted_before(self):
         rv = self.client.get(
@@ -160,7 +160,7 @@ class TestViews(unittest.TestCase):
         rv = self.client.get(
             '/module-build-service/1/module-builds/?submitted_after=2016-09-03T12:25:00Z')
         data = json.loads(rv.data)
-        self.assertEquals(data['meta']['total'], 23)
+        self.assertEquals(data['meta']['total'], 24)
 
     def test_query_builds_filter_modified_before(self):
         rv = self.client.get(
@@ -172,7 +172,7 @@ class TestViews(unittest.TestCase):
         rv = self.client.get(
             '/module-build-service/1/module-builds/?modified_after=2016-09-03T12:25:00Z')
         data = json.loads(rv.data)
-        self.assertEquals(data['meta']['total'], 24)
+        self.assertEquals(data['meta']['total'], 25)
 
     def test_query_builds_filter_owner(self):
         rv = self.client.get(
@@ -184,7 +184,7 @@ class TestViews(unittest.TestCase):
         rv = self.client.get(
             '/module-build-service/1/module-builds/?state=3')
         data = json.loads(rv.data)
-        self.assertEquals(data['meta']['total'], 20)
+        self.assertEquals(data['meta']['total'], 21)
 
     def test_query_builds_two_filters(self):
         rv = self.client.get('/module-build-service/1/module-builds/?owner=Moe%20Szyslak'
@@ -225,9 +225,9 @@ class TestViews(unittest.TestCase):
         self.assertEquals(data['time_completed'], None)
         self.assertEquals(data['stream'], '4.3.44')
         self.assertEquals(data['owner'], 'Homer J. Simpson')
-        self.assertEquals(data['id'], 31)
+        self.assertEquals(data['id'], 32)
         self.assertEquals(data['state_name'], 'wait')
-        self.assertEquals(data['state_url'], '/module-build-service/1/module-builds/31')
+        self.assertEquals(data['state_url'], '/module-build-service/1/module-builds/32')
         mmd = _modulemd.ModuleMetadata()
         mmd.loads(data["modulemd"])
 
@@ -255,7 +255,7 @@ class TestViews(unittest.TestCase):
         self.assertEquals(data['time_completed'], None)
         self.assertEquals(data['stream'], '4.3.44')
         self.assertEquals(data['owner'], 'Homer J. Simpson')
-        self.assertEquals(data['id'], 31)
+        self.assertEquals(data['id'], 32)
         self.assertEquals(data['state_name'], 'wait')
 
     def test_submit_build_auth_error(self):
@@ -340,7 +340,7 @@ class TestViews(unittest.TestCase):
         self.assertTrue(data['time_modified'] is not None)
         self.assertEquals(data['time_completed'], None)
         self.assertEquals(data['owner'], 'Homer J. Simpson')
-        self.assertEquals(data['id'], 31)
+        self.assertEquals(data['id'], 32)
         self.assertEquals(data['state_name'], 'wait')
 
         # SCM availability check is parallelized, so 5 components should not
@@ -394,12 +394,12 @@ class TestViews(unittest.TestCase):
         self.assertEquals(data['time_completed'], None)
         self.assertEquals(data['stream'], '4.3.44')
         self.assertEquals(data['owner'], 'Homer J. Simpson')
-        self.assertEquals(data['id'], 31)
+        self.assertEquals(data['id'], 32)
         self.assertEquals(data['state_name'], 'wait')
-        self.assertEquals(data['state_url'], '/module-build-service/1/module-builds/31')
+        self.assertEquals(data['state_url'], '/module-build-service/1/module-builds/32')
 
         batches = {}
-        for build in ComponentBuild.query.filter_by(module_id=31).all():
+        for build in ComponentBuild.query.filter_by(module_id=32).all():
             batches[build.package] = build.batch
 
         self.assertEquals(batches["bash"], 2)
@@ -409,7 +409,7 @@ class TestViews(unittest.TestCase):
     @patch('module_build_service.auth.assert_is_packager')
     def test_cancel_build(self, mocked_assert_is_packager,
                           mocked_get_username):
-        rv = self.client.patch('/module-build-service/1/module-builds/30',
+        rv = self.client.patch('/module-build-service/1/module-builds/31',
                                data=json.dumps({'state': 'failed'}))
         data = json.loads(rv.data)
 
@@ -432,7 +432,7 @@ class TestViews(unittest.TestCase):
     @patch('module_build_service.auth.assert_is_packager')
     def test_cancel_build_wrong_param(self, mocked_assert_is_packager,
                                       mocked_get_username):
-        rv = self.client.patch('/module-build-service/1/module-builds/30',
+        rv = self.client.patch('/module-build-service/1/module-builds/31',
                                data=json.dumps({'some_param': 'value'}))
         data = json.loads(rv.data)
 
@@ -445,7 +445,7 @@ class TestViews(unittest.TestCase):
     @patch('module_build_service.auth.assert_is_packager')
     def test_cancel_build_wrong_state(self, mocked_assert_is_packager,
                           mocked_get_username):
-        rv = self.client.patch('/module-build-service/1/module-builds/30',
+        rv = self.client.patch('/module-build-service/1/module-builds/31',
                                data=json.dumps({'state': 'some_state'}))
         data = json.loads(rv.data)
 
