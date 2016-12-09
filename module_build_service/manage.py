@@ -288,14 +288,11 @@ def generatelocalhostcert():
 
 
 @manager.command
-def runssl(host=conf.host, port=conf.port, debug=False):
+def runssl(host=conf.host, port=conf.port, debug=conf.debug):
     """ Runs the Flask app with the HTTPS settings configured in config.py
     """
     logging.info('Starting Module Build Service frontend')
     ssl_ctx = _establish_ssl_context()
-    if 'MODULE_BUILD_SERVICE_DEVELOPER_ENV' in os.environ and \
-            os.environ['MODULE_BUILD_SERVICE_DEVELOPER_ENV']:
-        debug = True
     app.run(
         host=host,
         port=port,
