@@ -70,7 +70,6 @@ class MessageIngest(threading.Thread):
         super(MessageIngest, self).__init__(*args, **kwargs)
         self.stop_after_build = stop_after_build
 
-
     def run(self):
         for msg in module_build_service.messaging.listen(conf):
             self.outgoing_work_queue.put(msg)
@@ -103,7 +102,7 @@ class MessageWorker(threading.Thread):
             models.BUILD_STATES["wait"]: module_build_service.scheduler.handlers.modules.wait,
             models.BUILD_STATES["build"]: NO_OP,
             models.BUILD_STATES["failed"]: module_build_service.scheduler.handlers.modules.failed,
-            models.BUILD_STATES["done"]: module_build_service.scheduler.handlers.modules.done, # XXX: DIRECT TRANSITION TO READY
+            models.BUILD_STATES["done"]: module_build_service.scheduler.handlers.modules.done,  # XXX: DIRECT TRANSITION TO READY
             models.BUILD_STATES["ready"]: NO_OP,
         }
         # Only one kind of repo change event, though...
@@ -223,7 +222,7 @@ class Poller(threading.Thread):
             log.info("Checking status for %d tasks." % len(res))
             for component_build in res:
                 log.debug(component_build.json())
-                if not component_build.task_id: # Don't check tasks which has not been triggered yet
+                if not component_build.task_id:  # Don't check tasks which has not been triggered yet
                     continue
 
                 log.info("Checking status of task_id=%s" % component_build.task_id)
@@ -269,7 +268,7 @@ class Poller(threading.Thread):
                     log.info("    * %r" % module_build)
                     for i in range(module_build.batch):
                         n = len([c for c in module_build.component_builds
-                                 if c.batch == i ])
+                                 if c.batch == i])
                         log.info("      * %i components in batch %i" % (n, i))
 
     def process_waiting_module_builds(self, session):
@@ -307,10 +306,12 @@ class Poller(threading.Thread):
 
 _work_queue = queue.Queue()
 
+
 def outgoing_work_queue_put(msg):
     _work_queue.put(msg)
 
-def main(initial_msgs = [], return_after_build = False):
+
+def main(initial_msgs=[], return_after_build=False):
     log.info("Starting module_build_service_daemon.")
 
     for msg in initial_msgs:
