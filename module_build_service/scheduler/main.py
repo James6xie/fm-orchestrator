@@ -317,21 +317,22 @@ def main(initial_msgs=[], return_after_build=False):
     for msg in initial_msgs:
         outgoing_work_queue_put(msg)
 
+    # This ingest thread puts work on the queue
+    messaging_thread = MessageIngest(_work_queue, return_after_build)
+    # This poller does other work, but also sometimes puts work in queue.
+    polling_thread = Poller(_work_queue)
+    # This worker takes work off the queue and handles it.
+    worker_thread = MessageWorker(_work_queue, return_after_build)
+
+    messaging_thread.start()
+    polling_thread.start()
+    worker_thread.start()
+
     try:
-        # This ingest thread puts work on the queue
-        messaging_thread = MessageIngest(_work_queue, return_after_build)
-        # This poller does other work, but also sometimes puts work in queue.
-        polling_thread = Poller(_work_queue)
-        # This worker takes work off the queue and handles it.
-        worker_thread = MessageWorker(_work_queue, return_after_build)
-
-        messaging_thread.start()
-        polling_thread.start()
-        worker_thread.start()
-
-        worker_thread.join()
-        polling_thread.stop = True
-
+        while worker_thread.is_alive():
+            time.sleep(3)
     except KeyboardInterrupt:
         # FIXME: Make this less brutal
         os._exit(0)
+    finally:
+        polling_thread.stop = True
