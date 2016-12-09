@@ -82,12 +82,20 @@ Alternatively, you can restart the Vagrant guest, which inherently starts/restar
     $ vagrant reload
 
 Logging
-------
+-------
 
 If you're running module_build_service from scm, then the DevConfiguration from
 `conf/config.py` which contains `LOG_LEVEL=debug` should get applied. See more about
 it in `module_build_service/config.py`, `app.config.from_object()`.
 
+Environment
+-----------
+
+There's an evironment variable `MODULE_BUILD_SERVICE_DEVELOPER_ENV` which if set to "1" would indicate to various parts of Module Build Service that we want developer's experience. Docker containers/Vagrant box are being run in this mode.
+
+Anytime, you can do::
+
+    $ export MODULE_BUILD_SERVICE_DEVELOPER_ENV=1
 
 fedmsg Signing for Development
 ------------------------------
