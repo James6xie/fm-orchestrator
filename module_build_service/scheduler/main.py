@@ -311,6 +311,12 @@ def outgoing_work_queue_put(msg):
     _work_queue.put(msg)
 
 
+def graceful_stop():
+    log.warning("graceful_stop is not yet implemented...")
+    while True:
+        time.sleep(30)
+
+
 def main(initial_msgs=[], return_after_build=False):
     log.info("Starting module_build_service_daemon.")
 
@@ -332,7 +338,10 @@ def main(initial_msgs=[], return_after_build=False):
         while worker_thread.is_alive():
             time.sleep(3)
     except KeyboardInterrupt:
-        # FIXME: Make this less brutal
-        os._exit(0)
+        log.info("Stopping module_build_service_daemon. Press Ctrl+C again to force.")
+        try:
+            graceful_stop()
+        except KeyboardInterrupt:
+            os._exit(0)
     finally:
         polling_thread.stop = True
