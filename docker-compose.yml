@@ -12,7 +12,7 @@ services:
     depends_on:
       - base
     build: .
-    command: bash -c "cd /etc/module-build-service && fedmsg-relay"
+    command: fedmsg-relay
     expose:
       - 2001
       - 2003
