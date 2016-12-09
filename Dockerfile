@@ -27,8 +27,9 @@ RUN dnf install -y \
         telnet \
     && dnf autoremove -y \
     && dnf clean all \
-    && mkdir /tmp/module_build_service/
+    && mkdir /tmp/module_build_service/ \
     && mkdir /etc/module-build-service/
 COPY . /tmp/module_build_service/
 WORKDIR /tmp/module_build_service/
+ENV MODULE_BUILD_SERVICE_DEVELOPER_ENV=1
 RUN python setup.py develop
