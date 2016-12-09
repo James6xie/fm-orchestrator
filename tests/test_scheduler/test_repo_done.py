@@ -26,18 +26,14 @@ import mock
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.repos
 import module_build_service.models
+from tests import scheduler_init_data
+from tests import conf, db
 
 
 class TestRepoDone(unittest.TestCase):
 
     def setUp(self):
-        self.config = mock.Mock()
-        self.config.rpms_default_repository = 'dist_git_url'
-        self.config.koji_profile = 'staging'  # TODO - point at a fake test config
-
-
-        self.session = mock.Mock()
-        self.fn = module_build_service.scheduler.handlers.repos.done
+        scheduler_init_data()
 
     @mock.patch('module_build_service.models.ModuleBuild.from_repo_done_event')
     def test_no_match(self, from_repo_done_event):
@@ -46,79 +42,47 @@ class TestRepoDone(unittest.TestCase):
         """
         from_repo_done_event.return_value = None
         msg = module_build_service.messaging.KojiRepoChange(
-            'no matches for this...', '2016-some-guid-build')
-        self.fn(config=self.config, session=self.session, msg=msg)
+            'no matches for this...', '2016-some-nonexistent-build')
+        module_build_service.scheduler.handlers.repos.done(
+            config=conf, session=db.session, msg=msg)
 
-    @mock.patch('module_build_service.builder.KojiModuleBuilder.buildroot_ready')
+    @mock.patch('module_build_service.builder.KojiModuleBuilder.buildroot_ready', return_value=True)
     @mock.patch('module_build_service.builder.KojiModuleBuilder.get_session')
     @mock.patch('module_build_service.builder.KojiModuleBuilder.build')
     @mock.patch('module_build_service.builder.KojiModuleBuilder.buildroot_connect')
-    @mock.patch('module_build_service.models.ModuleBuild.from_repo_done_event')
-    @mock.patch('module_build_service.utils.at_concurrent_component_threshold',
-                return_value=False)
-    def test_a_single_match(self, threshold, from_repo_done_event, connect, build_fn, config, ready):
+    def test_a_single_match(self, connect, build_fn, get_session, ready):
         """ Test that when a repo msg hits us and we have a single match.
         """
-        config.return_value = mock.Mock(), "development"
-        unbuilt_component_build = mock.Mock()
-        unbuilt_component_build.package = 'foo'
-        unbuilt_component_build.scmurl = 'full_scm_url'
-        unbuilt_component_build.state = None
-        unbuilt_component_build.batch = 2
-        built_component_build = mock.Mock()
-        built_component_build.package = 'foo2'
-        built_component_build.scmurl = 'full_scm_url'
-        built_component_build.state = 1
-        built_component_build.batch = 2
-        module_build = mock.Mock()
-        module_build.batch = 1
-        module_build.component_builds = [unbuilt_component_build, built_component_build]
-        module_build.current_batch.return_value = [built_component_build]
-        build_fn.return_value = 1234, 1, "", None
-
-        from_repo_done_event.return_value = module_build
-
-        ready.return_value = True
+        get_session.return_value = mock.Mock(), 'development'
+        build_fn.return_value = 1234, 1, '', None
 
         msg = module_build_service.messaging.KojiRepoChange(
-            'no matches for this...', '2016-some-guid-build')
-        self.fn(config=self.config, session=self.session, msg=msg)
-        build_fn.assert_called_once_with(artifact_name='foo', source='full_scm_url')
+            'some_msg_id', 'module-starcommand-1.3-build')
+        module_build_service.scheduler.handlers.repos.done(
+            config=conf, session=db.session, msg=msg)
+        build_fn.assert_called_once_with(
+            artifact_name='communicator',
+            source='git://pkgs.domain.local/rpms/communicator?#da95886c8a443b36a9ce31abda1f9bed22f2f9c2')
 
-    @mock.patch('module_build_service.builder.KojiModuleBuilder.buildroot_ready')
+    @mock.patch('module_build_service.builder.KojiModuleBuilder.buildroot_ready', return_value=True)
     @mock.patch('module_build_service.builder.KojiModuleBuilder.get_session')
     @mock.patch('module_build_service.builder.KojiModuleBuilder.build')
     @mock.patch('module_build_service.builder.KojiModuleBuilder.buildroot_connect')
-    @mock.patch('module_build_service.models.ModuleBuild.from_repo_done_event')
-    @mock.patch('module_build_service.utils.at_concurrent_component_threshold',
-                return_value=False)
-    def test_a_single_match_build_fail(self, threshold, from_repo_done_event, connect, build_fn, config, ready):
+    def test_a_single_match_build_fail(self, connect, build_fn, config, ready):
         """ Test that when a KojiModuleBuilder.build fails, the build is
         marked as failed with proper state_reason.
         """
-        config.return_value = mock.Mock(), "development"
-        unbuilt_component_build = mock.Mock()
-        unbuilt_component_build.package = 'foo'
-        unbuilt_component_build.scmurl = 'full_scm_url'
-        unbuilt_component_build.state = None
-        unbuilt_component_build.batch = 2
-        built_component_build = mock.Mock()
-        built_component_build.package = 'foo2'
-        built_component_build.scmurl = 'full_scm_url'
-        built_component_build.state = 1
-        built_component_build.batch = 2
-        module_build = mock.Mock()
-        module_build.batch = 1
-        module_build.component_builds = [unbuilt_component_build, built_component_build]
-        module_build.current_batch.return_value = [built_component_build]
-        build_fn.return_value = None, 4, "Failed to submit artifact foo to Koji", None
-
-        from_repo_done_event.return_value = module_build
-
-        ready.return_value = True
+        config.return_value = mock.Mock(), 'development'
+        build_fn.return_value = None, 4, 'Failed to submit artifact communicator to Koji', None
 
         msg = module_build_service.messaging.KojiRepoChange(
-            'no matches for this...', '2016-some-guid-build')
-        self.fn(config=self.config, session=self.session, msg=msg)
-        build_fn.assert_called_once_with(artifact_name='foo', source='full_scm_url')
-        self.assertEquals(unbuilt_component_build.state_reason, "Failed to submit artifact foo to Koji")
+            'some_msg_id', 'module-starcommand-1.3-build')
+        module_build_service.scheduler.handlers.repos.done(
+            config=conf, session=db.session, msg=msg)
+        build_fn.assert_called_once_with(
+            artifact_name='communicator',
+            source='git://pkgs.domain.local/rpms/communicator?#da95886c8a443b36a9ce31abda1f9bed22f2f9c2')
+        component_build = module_build_service.models.ComponentBuild.query\
+            .filter_by(package='communicator').one()
+        self.assertEquals(component_build.state_reason,
+                          'Failed to submit artifact communicator to Koji')

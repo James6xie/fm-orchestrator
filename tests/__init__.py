@@ -20,6 +20,7 @@
 #
 # Written by Matt Prahl <mprahl@redhat.com
 
+import os
 import module_build_service
 
 from datetime import datetime, timedelta
@@ -177,3 +178,61 @@ def init_data():
         db.session.add(build_two)
         db.session.add(build_three)
         db.session.commit()
+
+
+def scheduler_init_data():
+    db.session.remove()
+    db.drop_all()
+    db.create_all()
+    insert_fake_baseruntime()
+
+    current_dir = os.path.dirname(__file__)
+    star_command_yml_path = os.path.join(
+        current_dir, 'test_scheduler', 'starcommand.yaml')
+    with open(star_command_yml_path, 'r') as f:
+        yaml = f.read()
+
+    build_one = module_build_service.models.ModuleBuild()
+    build_one.name = 'starcommand'
+    build_one.stream = '1'
+    build_one.version = 3
+    build_one.state = 2
+    build_one.modulemd = yaml
+    build_one.koji_tag = 'module-starcommand-1.3'
+    build_one.scmurl = ('git://pkgs.domain.local/modules/star-command?'
+                        '#da95886b7a443b36a9ce31abda1f9bef22f2f8c6')
+    build_one.batch = 2
+    # https://www.youtube.com/watch?v=iOKymYVSaJE
+    build_one.owner = 'Buzz Lightyear'
+    build_one.time_submitted = datetime(2016, 12, 9, 11, 23, 20)
+    build_one.time_modified = datetime(2016, 12, 9, 11, 25, 32)
+
+    component_one_build_one = module_build_service.models.ComponentBuild()
+    component_one_build_one.package = 'communicator'
+    component_one_build_one.scmurl = \
+        ('git://pkgs.domain.local/rpms/communicator?'
+         '#da95886c8a443b36a9ce31abda1f9bed22f2f9c2')
+    component_one_build_one.format = 'rpms'
+    component_one_build_one.task_id = 12312345
+    component_one_build_one.state = None
+    component_one_build_one.nvr = 'communicator-1.10.1-2.module_starcommand_1_3'
+    component_one_build_one.batch = 2
+    component_one_build_one.module_id = 2
+
+    component_two_build_one = module_build_service.models.ComponentBuild()
+    component_two_build_one.package = 'module-build-macros'
+    component_two_build_one.scmurl = \
+        ('/tmp/module_build_service-build-macrosWZUPeK/SRPMS/'
+         'module-build-macros-0.1-1.module_starcommand_1_3.src.rpm')
+    component_two_build_one.format = 'rpms'
+    component_two_build_one.task_id = 12312321
+    component_two_build_one.state = 1
+    component_two_build_one.nvr = \
+        'module-build-macros-01-1.module_starcommand_1_3'
+    component_two_build_one.batch = 2
+    component_two_build_one.module_id = 2
+
+    db.session.add(build_one)
+    db.session.add(component_one_build_one)
+    db.session.add(component_two_build_one)
+    db.session.commit()

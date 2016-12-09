@@ -1,0 +1,32 @@
+document: modulemd
+version: 1
+data:
+    summary: Buzz Lightyear's Star Command Communicator
+    description: Buzz Lightyear's Star Command Communicator
+    name: starcommand
+    stream: teststream
+    version: 1
+    license:
+        module: [ MIT ]
+    dependencies:
+        buildrequires:
+            base-runtime: master
+        requires:
+            base-runtime: master
+    references:
+        community: https://fedoraproject.org/wiki/Modularity
+        documentation: https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules
+        tracker: https://taiga.fedorainfracloud.org/project/modularity
+    profiles:
+        default:
+            rpms:
+                - communicator
+    api:
+        rpms:
+            - communicator
+    components:
+        rpms:
+            communicator:
+                rationale: Provides the API for this module.
+                buildorder: 10
+                ref: f25
