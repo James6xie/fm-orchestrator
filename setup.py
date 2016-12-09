@@ -27,7 +27,8 @@ setup(name='module-build-service',
           'console_scripts': ['mbs-daemon = module_build_service.scheduler.main:main',
                               'mbs-upgradedb = module_build_service.manage:upgradedb',
                               'mbs-gencert = module_build_service.manage:generatelocalhostcert',
-                              'mbs-frontend = module_build_service.manage:runssl']
+                              'mbs-frontend = module_build_service.manage:runssl',
+                              'mbs-manager = module_build_service.manage:manager_wrapper']
       },
       data_files=[('/etc/module-build-service/', ['conf/cacert.pem',
                                                   'conf/config.py',

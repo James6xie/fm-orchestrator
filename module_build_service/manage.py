@@ -303,5 +303,9 @@ def runssl(host=conf.host, port=conf.port, debug=False):
         debug=debug
     )
 
-if __name__ == "__main__":
+
+def manager_wrapper():
     manager.run()
+
+if __name__ == "__main__":
+    manager_wrapper()
