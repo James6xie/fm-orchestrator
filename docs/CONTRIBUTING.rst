@@ -91,7 +91,7 @@ it in `module_build_service/config.py`, `app.config.from_object()`.
 Environment
 -----------
 
-There's an evironment variable `MODULE_BUILD_SERVICE_DEVELOPER_ENV` which if set to "1" would indicate to various parts of Module Build Service that we want developer's experience. Docker containers/Vagrant box are being run in this mode.
+The environment variable `MODULE_BUILD_SERVICE_DEVELOPER_ENV`, which if set to "1", indicates to the Module Build Service that the development configuration should be used. Docker and Vagrant are being run with this environment variable set. 
 
 Anytime, you can do::
 
