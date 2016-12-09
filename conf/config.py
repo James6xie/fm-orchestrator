@@ -117,6 +117,12 @@ class DevConfiguration(BaseConfiguration):
 
     OIDC_CLIENT_SECRETS = "client_secrets.json"
 
+    SSL_CERTIFICATE_FILE = path.join(confdir, 'server.crt')
+    SSL_CERTIFICATE_KEY_FILE = path.join(confdir, 'server.key')
+    SSL_CA_CERTIFICATE_FILE = path.join(confdir, 'cacert.pem')
+
+    KOJI_CONFIG = path.join(confdir, 'koji.conf')
+    COPR_CONFIG = path.join(confdir, 'copr.conf')
 
 class TestConfiguration(BaseConfiguration):
     LOG_BACKEND = 'console'
