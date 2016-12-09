@@ -49,7 +49,7 @@ def _init_app_config(app):
     """
     app.config.from_envvar("MBS_SETTINGS", silent=True)
     here = sys.path[0]
-    if any(['nosetests' in arg for arg in sys.argv]):
+    if any(['nosetests' in arg or 'noserunner.py' in arg for arg in sys.argv]):
         app.config.from_object('%s.TestConfiguration' % conf_module)
     elif 'MODULE_BUILD_SERVICE_DEVELOPER_ENV' in os.environ and \
          os.environ['MODULE_BUILD_SERVICE_DEVELOPER_ENV'].lower() in (
