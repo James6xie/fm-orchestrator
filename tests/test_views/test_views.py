@@ -453,3 +453,21 @@ class TestViews(unittest.TestCase):
         self.assertEquals(data['error'], 'Bad Request')
         self.assertEquals(
             data['message'], 'The provided state change is not supported')
+
+    @patch('module_build_service.auth.get_username', return_value='Homer J. Simpson')
+    @patch('module_build_service.auth.assert_is_packager')
+    def test_submit_build_unsupported_scm_scheme(self, mocked_assert_is_packager,
+                          mocked_get_username):
+        scmurl = 'unsupported://example.com/modules/'
+        'testmodule.git?#0000000000000000000000000000000000000000'
+        rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
+            {'scmurl': scmurl}))
+        data = json.loads(rv.data)
+        self.assertIn(
+            data['message'], (
+                "The submitted scmurl {} is not allowed".format(scmurl),
+                "The submitted scmurl {} is not valid".format(scmurl),
+            )
+        )
+        self.assertEquals(data['status'], 401)
+        self.assertEquals(data['error'], 'Unauthorized')
