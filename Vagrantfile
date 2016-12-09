@@ -2,6 +2,9 @@
 # vi: set ft=ruby :
 
 $script = <<SCRIPT
+    echo "export KRB5CCNAME=FILE:/var/tmp/krbcc" > /etc/profile.d/module_build_service_developer_env.sh
+    echo "export MODULE_BUILD_SERVICE_DEVELOPER_ENV=1" >> /etc/profile.d/module_build_service_developer_env.sh
+    source /etc/profile.d/module_build_service_developer_env.sh
     dnf install -y \
         fedmsg-relay \
         fedpkg \
@@ -31,7 +34,6 @@ $script = <<SCRIPT
     python setup.py develop
     mbs-upgradedb
     mbs-gencert
-    echo "export KRB5CCNAME=FILE:/var/tmp/krbcc" >> ~/.bashrc
 SCRIPT
 
 Vagrant.configure("2") do |config|
