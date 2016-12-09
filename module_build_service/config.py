@@ -22,8 +22,10 @@
 # SOFTWARE.
 #
 # Written by Petr Šabata <contyk@redhat.com>
+#            Filip Valder <fvalder@redhat.com>
 
 import imp
+import os
 
 from os import sys
 
@@ -49,6 +51,9 @@ def _init_app_config(app):
     here = sys.path[0]
     if any(['nosetests' in arg for arg in sys.argv]):
         app.config.from_object('%s.TestConfiguration' % conf_module)
+    elif 'MODULE_BUILD_SERVICE_DEVELOPER_ENV' in os.environ and \
+         os.environ['MODULE_BUILD_SERVICE_DEVELOPER_ENV']:
+        app.config.from_object('%s.DevConfiguration' % conf_module)
     elif here not in ('/usr/bin', '/bin', '/usr/local/bin'):
         app.config.from_object('%s.DevConfiguration' % conf_module)
     else:
