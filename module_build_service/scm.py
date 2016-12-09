@@ -45,23 +45,12 @@ class SCM(object):
     "SCM abstraction class"
 
     # Assuming git for HTTP schemas
-    types = {
-                "git": ("git://", "git+http://", "git+https://",
-                    "git+rsync://", "http://", "https://", "file://")
-            }
+    types = module_build_service.utils.scm_url_schemes()
 
     def __init__(self, url, allowed_scm=None, allow_local = False):
         """Initialize the SCM object using the specified scmurl.
 
         If url is not in the list of allowed_scm, an error will be raised.
-        NOTE: only git URLs in the following formats are supported atm:
-            git://
-            git+http://
-            git+https://
-            git+rsync://
-            http://
-            https://
-            file://
 
         :param str url: The unmodified scmurl
         :param list allowed_scm: The list of allowed SCMs, optional
@@ -69,16 +58,15 @@ class SCM(object):
         """
 
         if allowed_scm:
-            for allowed in allowed_scm:
-                if (url.startswith(allowed)
-                        or (allow_local and url.startswith("file://"))):
-                    break
-                else:
-                    raise Unauthorized(
-                        '%s is not in the list of allowed SCMs' % url)
+            if not (url.startswith(tuple(allowed_scm)) or
+                    (allow_local and url.startswith("file://"))):
+                raise Unauthorized(
+                    '%s is not in the list of allowed SCMs' % url)
 
         self.url = url
 
+        # once we have more than one SCM provider, we will need some more
+        # sophisticated lookup logic
         for scmtype, schemes in SCM.types.items():
             if self.url.startswith(schemes):
                 self.scheme = scmtype
@@ -86,6 +74,7 @@ class SCM(object):
         else:
             raise ValidationError('Invalid SCM URL: %s' % url)
 
+        # git is the only one supported SCM provider atm
         if self.scheme == "git":
             match = re.search(r"^(?P<repository>.*/(?P<name>[^?]*))(\?#(?P<commit>.*))?", url)
             self.repository = match.group("repository")

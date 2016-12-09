@@ -36,7 +36,7 @@ from flask.views import MethodView
 
 from module_build_service import app, conf, log
 from module_build_service import models, db
-from module_build_service.utils import pagination_metadata, filter_module_builds, submit_module_build
+from module_build_service.utils import pagination_metadata, filter_module_builds, submit_module_build, scm_url_schemes
 from module_build_service.errors import (
     ValidationError, Unauthorized, NotFound)
 
@@ -115,8 +115,9 @@ class ModuleBuildAPI(MethodView):
             log.error("The submitted scmurl %r is not allowed" % url)
             raise Unauthorized("The submitted scmurl %s is not allowed" % url)
 
+        schemes_re = '|'.join(map(re.escape, scm_url_schemes(terse=True)))
         scmurl_re = re.compile(
-            r"(?P<giturl>(?:(?P<scheme>git)://(?P<host>[^/]+))?"
+            r"(?P<giturl>(?:(?P<scheme>(" + schemes_re + r"))://(?P<host>[^/]+))?"
             r"(?P<repopath>/[^\?]+))\?(?P<modpath>[^#]*)#(?P<revision>.+)")
         if not scmurl_re.match(url):
             log.error("The submitted scmurl %r is not valid" % url)
