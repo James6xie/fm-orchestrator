@@ -9,6 +9,7 @@ dbdir = path.abspath(path.join(confdir, '..')) if confdir.endswith('conf') \
 
 
 class BaseConfiguration(object):
+    DEBUG = False
     # Make this random (used to generate session keys)
     SECRET_KEY = '74d9e9f9cd40e66fc6c4c2e9987dce48df3ce98542529fd0'
     SQLALCHEMY_DATABASE_URI = 'sqlite:///{0}'.format(path.join(
@@ -84,6 +85,7 @@ class BaseConfiguration(object):
 
 
 class DevConfiguration(BaseConfiguration):
+    DEBUG = True
     LOG_BACKEND = 'console'
     LOG_LEVEL = 'debug'
 
@@ -123,6 +125,7 @@ class DevConfiguration(BaseConfiguration):
 
     KOJI_CONFIG = path.join(confdir, 'koji.conf')
     COPR_CONFIG = path.join(confdir, 'copr.conf')
+
 
 class TestConfiguration(BaseConfiguration):
     LOG_BACKEND = 'console'

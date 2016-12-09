@@ -52,7 +52,8 @@ def _init_app_config(app):
     if any(['nosetests' in arg for arg in sys.argv]):
         app.config.from_object('%s.TestConfiguration' % conf_module)
     elif 'MODULE_BUILD_SERVICE_DEVELOPER_ENV' in os.environ and \
-         os.environ['MODULE_BUILD_SERVICE_DEVELOPER_ENV']:
+         os.environ['MODULE_BUILD_SERVICE_DEVELOPER_ENV'].lower() in (
+            '1', 'on', 'true', 'y', 'yes'):
         app.config.from_object('%s.DevConfiguration' % conf_module)
     elif here not in ('/usr/bin', '/bin', '/usr/local/bin'):
         app.config.from_object('%s.DevConfiguration' % conf_module)
@@ -63,6 +64,10 @@ def _init_app_config(app):
 class Config(object):
     """Class representing the orchestrator configuration."""
     _defaults = {
+        'debug': {
+            'type': bool,
+            'default': False,
+            'desc': 'Debug mode'},
         'system': {
             'type': str,
             'default': 'koji',
