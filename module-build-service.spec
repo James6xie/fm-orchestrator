@@ -90,7 +90,7 @@ tasks:
 
 
 %changelog
-* Mon Dec 6 2016 Matt Prahl <mprahl@redhat.com> 1.0.0-2
+* Tue Dec  6 2016 Matt Prahl <mprahl@redhat.com> 1.0.0-2
 - Adds systemd unit.
 
 * Fri Nov 25 2016 Filip Valder <fvalder@redhat.com> 1.0.0-1

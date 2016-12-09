@@ -30,7 +30,7 @@ you can start the entire development environment with a single command::
 
 That will start a number of services in containers, including the `frontend`
 and the backend `scheduler`. You can submit a local test build with the
-`submit-build.sh` script, which should submit an HTTP POST to the frontend,
+`submit-build.py` script, which should submit an HTTP POST to the frontend,
 requesting a build.
 
 You may want to wipe your local development database from time to time. Try the
