@@ -312,7 +312,13 @@ def outgoing_work_queue_put(msg):
 
 
 def graceful_stop():
-    log.warning("graceful_stop is not yet implemented...")
+    """
+    Here is the place to perform shutdown actions.
+
+    Do whatever is needed to do except for leaving the main thread, which
+    would result in losing control of POSIX signals handling.
+    """
+    log.warning("graceful_stop is not yet implemented, press Ctrl+C again...")
     while True:
         time.sleep(30)
 
