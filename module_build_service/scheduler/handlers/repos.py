@@ -118,6 +118,7 @@ def done(config, session, msg):
             and c.state != koji.BUILD_STATES["FAILED"])
     ]
 
+    further_work = []
     if unbuilt_components:
         # Increment the build batch when no components are being built and all
         # have at least attempted a build (even failures) in the current batch
@@ -128,15 +129,18 @@ def done(config, session, msg):
         if not unbuilt_components_in_batch:
             module_build.batch += 1
 
-        module_build_service.utils.start_build_batch(
+        further_work += module_build_service.utils.start_build_batch(
             config, module_build, session, builder)
 
         # We don't have copr implementation finished yet, Let's fake the repo change event,
         # as if copr builds finished successfully
         if config.system == "copr":
-            return [module_build_service.messaging.KojiRepoChange('fake msg', module_build.koji_tag)]
+            further_work += [module_build_service.messaging.KojiRepoChange('fake msg', module_build.koji_tag)]
+            return further_work
 
     else:
         module_build.transition(config, state=models.BUILD_STATES['done'])
         session.commit()
         builder.finalize()
+
+    return further_work

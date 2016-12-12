@@ -300,8 +300,11 @@ class Poller(threading.Thread):
             # If there are no components in the build state on the module build,
             # then no possible event will start off new component builds
             if not module_build.current_batch(koji.BUILD_STATES['BUILDING']):
-                module_build_service.utils.start_build_batch(
+                further_work = module_build_service.utils.start_build_batch(
                     config, module_build, session, config.system)
+                for event in further_work:
+                    log.info("  Scheduling faked event %r" % event)
+                    self.outgoing_work_queue.put(event)
 
 
 _work_queue = queue.Queue()
@@ -325,6 +328,8 @@ def graceful_stop():
 
 def main(initial_msgs=[], return_after_build=False):
     log.info("Starting module_build_service_daemon.")
+
+    module_build_service.messaging.init(conf)
 
     for msg in initial_msgs:
         outgoing_work_queue_put(msg)

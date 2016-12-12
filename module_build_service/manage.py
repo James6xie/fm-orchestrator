@@ -40,6 +40,7 @@ from module_build_service.utils import (
     insert_fake_baseruntime,
 )
 from module_build_service.messaging import RidaModule
+import module_build_service.messaging
 
 
 manager = Manager(app)
@@ -292,6 +293,9 @@ def runssl(host=conf.host, port=conf.port, debug=conf.debug):
     """ Runs the Flask app with the HTTPS settings configured in config.py
     """
     logging.info('Starting Module Build Service frontend')
+
+    module_build_service.messaging.init(conf)
+
     ssl_ctx = _establish_ssl_context()
     app.run(
         host=host,

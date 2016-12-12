@@ -39,6 +39,7 @@ from module_build_service import log, models
 from module_build_service.errors import ValidationError, UnprocessableEntity
 from module_build_service import conf, db
 from module_build_service.errors import (Unauthorized, Conflict)
+import module_build_service.messaging
 from multiprocessing.dummy import Pool as ThreadPool
 
 
@@ -84,7 +85,12 @@ def at_concurrent_component_threshold(config, session):
 
 
 def start_build_batch(config, module, session, builder, components=None):
-    """ Starts a round of the build cycle for a module. """
+    """
+    Starts a round of the build cycle for a module.
+
+    Returns list of BaseMessage instances which should be scheduled by the
+    scheduler.
+    """
     import koji  # Placed here to avoid py2/py3 conflicts...
 
     if any([c.state == koji.BUILD_STATES['BUILDING']
@@ -123,8 +129,20 @@ def start_build_batch(config, module, session, builder, components=None):
             c.state_reason = "Failed to submit artifact %s to Koji" % (c.package)
             continue
 
-    session.commit()
+    further_work = []
 
+    # If all components in this batch are already done, it can mean that they
+    # have been built in the past and have been skipped in this module build.
+    # We therefore have to generate fake KojiRepoChange message, because the
+    # repo has been also done in the past and build system will not send us
+    # any message now.
+    if (all(c.state == koji.BUILD_STATES['COMPLETE'] for c in unbuilt_components)
+            and builder.module_build_tag):
+        further_work += [module_build_service.messaging.KojiRepoChange(
+            'start_build_batch: fake msg', builder.module_build_tag['name'])]
+
+    session.commit()
+    return further_work
 
 def pagination_metadata(p_query):
     """

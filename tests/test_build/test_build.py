@@ -80,6 +80,7 @@ class TestModuleBuilder(GenericBuilder):
     _build_id = 1
 
     BUILD_STATE = "COMPLETE"
+    INSTANT_COMPLETE = False
 
     on_build_cb = None
     on_cancel_cb = None
@@ -92,6 +93,7 @@ class TestModuleBuilder(GenericBuilder):
     @classmethod
     def reset(cls):
         TestModuleBuilder.BUILD_STATE = "COMPLETE"
+        TestModuleBuilder.INSTANT_COMPLETE = False
         TestModuleBuilder.on_build_cb = None
         TestModuleBuilder.on_cancel_cb = None
 
@@ -115,6 +117,10 @@ class TestModuleBuilder(GenericBuilder):
 
     def buildroot_add_repos(self, dependencies):
         pass
+
+    @property
+    def module_build_tag(self):
+        return {"name": self.tag_name + "-build"}
 
     def _send_repo_done(self):
         msg = module_build_service.messaging.KojiRepoChange(
@@ -152,7 +158,11 @@ class TestModuleBuilder(GenericBuilder):
         if TestModuleBuilder.on_build_cb:
             TestModuleBuilder.on_build_cb(self, artifact_name, source)
 
-        state = koji.BUILD_STATES['BUILDING']
+        if TestModuleBuilder.INSTANT_COMPLETE:
+            state = koji.BUILD_STATES['COMPLETE']
+        else:
+            state = koji.BUILD_STATES['BUILDING']
+
         reason = "Submitted %s to Koji" % (artifact_name)
         return TestModuleBuilder._build_id, state, reason, None
 
@@ -262,3 +272,35 @@ class TestBuild(unittest.TestCase):
             # Check that cancel_build has been called for this build
             if build.task_id:
                 self.assertTrue(build.task_id in cancelled_tasks)
+
+    @timed(30)
+    @patch('module_build_service.auth.get_username', return_value='Homer J. Simpson')
+    @patch('module_build_service.auth.assert_is_packager')
+    @patch('module_build_service.scm.SCM')
+    def test_submit_build_instant_complete(self, mocked_scm, mocked_assert_is_packager,
+                          mocked_get_username):
+        """
+        Tests the build of testmodule.yaml using TestModuleBuilder which
+        succeeds everytime.
+        """
+        mocked_scm_obj = MockedSCM(mocked_scm, "testmodule", "testmodule.yaml")
+
+        rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
+            {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+                'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}))
+
+        data = json.loads(rv.data)
+        module_build_id = data['id']
+
+        TestModuleBuilder.BUILD_STATE = "BUILDING"
+        TestModuleBuilder.INSTANT_COMPLETE = True
+
+        msgs = []
+        msgs.append(RidaModule("fake msg", 1, 1))
+        module_build_service.scheduler.main.main(msgs, True)
+
+        # All components should be built and module itself should be in "done"
+        # or "ready" state.
+        for build in models.ComponentBuild.query.filter_by(module_id=module_build_id).all():
+            self.assertEqual(build.state, koji.BUILD_STATES['COMPLETE'])
+            self.assertTrue(build.module_build.state in [models.BUILD_STATES["done"], models.BUILD_STATES["ready"]] )

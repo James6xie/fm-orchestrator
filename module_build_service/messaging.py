@@ -228,6 +228,17 @@ class RidaModule(BaseMessage):
         self.module_build_id = module_build_id
         self.module_build_state = module_build_state
 
+def init(conf, **kwargs):
+    """
+    Initialize the messaging backend.
+    :param conf: a Config object from the class in config.py
+    :param kwargs: any additional arguments to pass to the backend handler
+    """
+    try:
+        handler = _messaging_backends[conf.messaging]['init']
+    except KeyError:
+        raise KeyError("No messaging backend found for %r" % conf.messaging)
+    return handler(conf, **kwargs)
 
 def publish(topic, msg, conf, service):
     """
@@ -336,6 +347,15 @@ _in_memory_work_queue = queue.Queue()
 # Message id for "in_memory" messaging.
 _in_memory_msg_id = 0
 
+def _in_memory_init(conf, **kwargs):
+    """
+    Initializes the In Memory messaging backend.
+    """
+    global _in_memory_work_queue
+    global _in_memory_msg_id
+    _in_memory_msg_id = 0
+    _in_memory_work_queue = queue.Queue()
+
 def _in_memory_publish(topic, msg, conf, service):
     """
     Puts the message to _in_memory_work_queue".
@@ -364,16 +384,25 @@ def _in_memory_listen(conf, **kwargs):
     while True:
         yield _in_memory_work_queue.get(True)
 
+def _no_op(conf, **kwargs):
+    """
+    No operation.
+    """
+    pass
+
 _messaging_backends = {
     'fedmsg': {
+        'init': _no_op,
         'publish': _fedmsg_publish,
         'listen': _fedmsg_listen,
     },
     'amq': {
+        'init': _no_op,
         'publish': _amq_publish,
         'listen': _amq_listen,
     },
     'in_memory': {
+        'init': _in_memory_init,
         'publish': _in_memory_publish,
         'listen': _in_memory_listen,
     },

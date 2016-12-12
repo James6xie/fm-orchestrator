@@ -329,9 +329,9 @@ class ModuleBuild(RidaBase):
         return result
 
     def __repr__(self):
-        return "<ModuleBuild %s, stream=%s, version=%s, state %r, batch %r>" % (
+        return "<ModuleBuild %s, stream=%s, version=%s, state %r, batch %r, state_reason %r>" % (
             self.name, self.stream, self.version,
-            INVERSE_BUILD_STATES[self.state], self.batch)
+            INVERSE_BUILD_STATES[self.state], self.batch, self.state_reason)
 
 
 class ComponentBuild(RidaBase):
