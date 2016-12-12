@@ -10,4 +10,4 @@ build/
 test_module_build_service.db
 .mbs_local_build.db
 *.src.rpm
-tests/test_build/.test_module_build_service.db
+.test_module_build_service.db
