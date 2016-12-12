@@ -150,7 +150,6 @@ def get_module(session, module_info, strict=False):
         query['variant_release'] = module_info['variant_release']
 
     retval = session['unreleasedvariants'](page_size=-1, **query) # ordering=variant_release...
-    assert len(retval) <= 1, pprint.pformat(retval)
 
     # Error handling
     if not retval:
@@ -159,7 +158,20 @@ def get_module(session, module_info, strict=False):
         else:
             return None
 
-    return retval[0]
+    module = None
+    # If we specify 'variant_release', we expect only single module to be
+    # returned, but otherwise we have to pick the one with the highest
+    # release ourselves.
+    if 'variant_release' in query:
+        assert len(retval) <= 1, pprint.pformat(retval)
+        module = retval[0]
+    else:
+        module = retval[0]
+        for m in retval:
+            if int(m['variant_release']) > int(module['variant_release']):
+                module = m
+
+    return module
 
 def get_module_tag(session, module_info, strict=False):
     """
