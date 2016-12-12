@@ -4,7 +4,7 @@ Release:	2%{?dist}
 Summary:	The Module Build Service for Modularity
 
 Group:		Development/Tools
-License:	LGPLv2+
+License:	MIT
 URL:		https://pagure.io/fm-orchestrator
 Source0:	https://files.pythonhosted.org/packages/source/m/%{name}/%{name}-%{version}.tar.gz
 
@@ -14,6 +14,7 @@ BuildRequires:	python-setuptools
 BuildRequires:	python2-devel
 BuildRequires:	systemd
 
+Requires:	systemd
 Requires:	fedmsg
 Requires:	git
 Requires:	kobo
@@ -67,24 +68,26 @@ tasks:
 
 %install
 %py2_install
+
+mkdir -p %{buildroot}%{_unitdir}/
 %{__install} -pm644 conf/mbs-scheduler.service \
     %{buildroot}%{_unitdir}/mbs-scheduler.service
-
 
 %files
 %doc README.rst
 %license LICENSE
 %{python2_sitelib}/module_build_service*
 %{_bindir}/mbs-*
+%{_unitdir}/mbs-scheduler.service
 %dir %{_sysconfdir}/module-build-service
-%config %{_sysconfdir}/module-build-service/cacert.pem
-%config %{_sysconfdir}/module-build-service/config.py
-%config %{_sysconfdir}/module-build-service/koji.conf
-%config %{_sysconfdir}/module-build-service/copr.conf
-%config %{_sysconfdir}/module-build-service/fedmsg.d/logging.py
-%config %{_sysconfdir}/module-build-service/fedmsg.d/module_build_service.py
+%config(noreplace) %{_sysconfdir}/module-build-service/config.py
+%config(noreplace) %{_sysconfdir}/module-build-service/koji.conf
+%config(noreplace) %{_sysconfdir}/module-build-service/copr.conf
+%config(noreplace) %{_sysconfdir}/fedmsg.d/mbs-logging.py
+%config(noreplace) %{_sysconfdir}/fedmsg.d/module_build_service.py
+%exclude %{_sysconfdir}/module-build-service/cacert.pem
 %exclude %{_sysconfdir}/module-build-service/*.py[co]
-%exclude %{_sysconfdir}/module-build-service/fedmsg.d/*.py[co]
+%exclude %{_sysconfdir}/fedmsg.d/*.py[co]
 %exclude %{python2_sitelib}/conf/
 %exclude %{python2_sitelib}/tests/
 
