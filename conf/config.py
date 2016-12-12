@@ -114,6 +114,8 @@ class DevConfiguration(BaseConfiguration):
     # FAS_PASSWORD = os.environ('FAS_PASSWORD') # you could store it here
     # FAS_PASSWORD = commands.getoutput('pass your_fas_password').strip()
 
+    KOJI_CONFIG = path.join(confdir, 'koji.conf')
+    KOJI_PROFILE = 'staging'
     KOJI_ARCHES = ['x86_64']
     KOJI_REPOSITORY_URL = 'http://kojipkgs.stg.fedoraproject.org/repos'
 
@@ -123,7 +125,6 @@ class DevConfiguration(BaseConfiguration):
     SSL_CERTIFICATE_KEY_FILE = path.join(confdir, 'server.key')
     SSL_CA_CERTIFICATE_FILE = path.join(confdir, 'cacert.pem')
 
-    KOJI_CONFIG = path.join(confdir, 'koji.conf')
     COPR_CONFIG = path.join(confdir, 'copr.conf')
 
 
