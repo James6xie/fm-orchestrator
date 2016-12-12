@@ -1,6 +1,6 @@
 Name:		module-build-service
-Version:	1.0.0
-Release:	2%{?dist}
+Version:	1.0.1
+Release:	1%{?dist}
 Summary:	The Module Build Service for Modularity
 
 Group:		Development/Tools
@@ -93,8 +93,11 @@ mkdir -p %{buildroot}%{_unitdir}/
 
 
 %changelog
-* Tue Dec 6 2016 Matt Prahl <mprahl@redhat.com> 1.0.0-2
+* Mon Dec 12 2016 Ralph Bean <rbean@redhat.com> - 1.0.1-1
+- Cleanup in preparation for package review.
+
+* Tue Dec 6 2016 Matt Prahl <mprahl@redhat.com> - 1.0.0-2
 - Adds systemd unit.
 
-* Fri Nov 25 2016 Filip Valder <fvalder@redhat.com> 1.0.0-1
+* Fri Nov 25 2016 Filip Valder <fvalder@redhat.com> - 1.0.0-1
 - Let's get this party started.
