@@ -344,7 +344,7 @@ class Config(object):
 
     def _setifok_messaging(self, s):
         s = str(s)
-        if s not in ("fedmsg", "amq", "in_memory"):
+        if s not in ("fedmsg", "amq"):
             raise ValueError("Unsupported messaging system.")
         self.messaging = s
 

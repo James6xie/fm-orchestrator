@@ -118,7 +118,6 @@ def cleardb():
 @manager.command
 def build_module_locally(url):
     conf.set_item("system", "mock")
-    conf.set_item("messaging", "in_memory")
 
     # Use our own local SQLite3 database.
     confdir = os.path.abspath(os.path.dirname(__file__))
@@ -293,8 +292,6 @@ def runssl(host=conf.host, port=conf.port, debug=conf.debug):
     """ Runs the Flask app with the HTTPS settings configured in config.py
     """
     logging.info('Starting Module Build Service frontend')
-
-    module_build_service.messaging.init(conf)
 
     ssl_ctx = _establish_ssl_context()
     app.run(
