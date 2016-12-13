@@ -34,7 +34,6 @@ from module_build_service import models
 from module_build_service.pdc import (
     get_pdc_client_session, get_module, get_module_runtime_dependencies,
     get_module_tag, get_module_build_dependencies)
-import module_build_service.scheduler.main
 from module_build_service.utils import (
     submit_module_build,
     insert_fake_baseruntime,
@@ -146,9 +145,10 @@ def build_module_locally(url):
     username = getpass.getuser()
     submit_module_build(username, url, allow_local_url=True)
 
-    msgs = []
-    msgs.append(RidaModule("local module build", 2, 1))
-    module_build_service.scheduler.main.main(msgs, True)
+    # TODO: Ralph to the rescue
+    # msgs = []
+    # msgs.append(RidaModule("local module build", 2, 1))
+    # module_build_service.scheduler.main.main(msgs, True)
 
 
 @manager.command

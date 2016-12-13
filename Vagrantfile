@@ -6,6 +6,7 @@ $script = <<SCRIPT
     echo "export MODULE_BUILD_SERVICE_DEVELOPER_ENV=1" >> /etc/profile.d/module_build_service_developer_env.sh
     source /etc/profile.d/module_build_service_developer_env.sh
     dnf install -y \
+        fedmsg-hub \
         fedmsg-relay \
         fedpkg \
         gcc \
@@ -45,5 +46,5 @@ Vagrant.configure("2") do |config|
   config.vm.network "forwarded_port", guest: 13747, host: 13747
   config.vm.provision "shell", inline: $script
   config.vm.provision :shell, inline: "mbs-frontend &", run: "always"
-  config.vm.provision :shell, inline: "mbs-daemon &", run: "always"
+  config.vm.provision :shell, inline: "cd /tmp/module_build_service && fedmsg-hub &", run: "always"
 end

@@ -53,8 +53,8 @@ from OpenSSL.SSL import SysCallError
 from module_build_service import conf, log, db
 from module_build_service.models import ModuleBuild
 import module_build_service.scm
-import module_build_service.scheduler.main
 import module_build_service.utils
+import module_build_service.scheduler
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -1165,7 +1165,7 @@ $repos
             msg_id='a faked internal message',
             repo_tag=self.tag_name + "-build",
         )
-        module_build_service.scheduler.main.outgoing_work_queue_put(msg)
+        module_build_service.scheduler.work_queue.put(msg)
 
     def _send_build_change(self, state, source, build_id):
         nvr = kobo.rpmlib.parse_nvr(source)

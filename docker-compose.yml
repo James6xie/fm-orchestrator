@@ -23,7 +23,7 @@ services:
     depends_on:
       - base
     build: .
-    command: mbs-daemon
+    command: fedmsg-hub
     links:
       - fedmsg-relay
     environment:

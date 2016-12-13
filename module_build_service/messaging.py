@@ -255,37 +255,10 @@ def publish(topic, msg, conf, service):
         raise KeyError("No messaging backend found for %r" % conf.messaging)
     return handler(topic, msg, conf, service)
 
-
-def listen(conf, **kwargs):
-    """
-    Yield messages from the messaging backend in conf.messaging.
-    :param conf: a Config object from the class in config.py
-    :param kwargs: any additional arguments to pass to the backend handler
-    :return: yields a message object (child class from BaseMessage)
-    """
-    try:
-        handler = _messaging_backends[conf.messaging]['listen']
-    except KeyError:
-        raise KeyError("No messaging backend found for %r" % conf.messaging)
-
-    for event in handler(conf, **kwargs):
-        yield event
-
-
 def _fedmsg_publish(topic, msg, conf, service):
     # fedmsg doesn't really need access to conf, however other backends do
     import fedmsg
     return fedmsg.publish(topic, msg=msg, modname=service)
-
-def _fedmsg_listen(conf, **kwargs):
-    """
-    Parses a fedmsg event and constructs it into the appropriate message object
-    """
-    import fedmsg
-    for name, endpoint, topic, msg in fedmsg.tail_messages(**kwargs):
-        msg_obj = BaseMessage.from_fedmsg(topic, msg)
-        if msg_obj:
-            yield msg_obj
 
 def _amq_get_messenger(conf):
     import proton
@@ -317,19 +290,6 @@ def _amq_get_messenger(conf):
         log.debug('proton.Messenger: Subscribing to address=%s' % url)
     return msngr
 
-def _amq_listen(conf, **kwargs):
-    import proton
-    msngr = _amq_get_messenger(conf)
-    msg = proton.Message()
-    while True:
-        msngr.recv()
-
-        while msngr.incoming:
-            msngr.get(msg)
-            msg_obj = BaseMessage.from_amq(msg.address, msg)
-            if msg_obj:
-                yield msg_obj
-
 def _amq_publish(topic, msg, conf, service):
     import proton
     msngr = _amq_get_messenger(conf)
@@ -356,6 +316,7 @@ def _in_memory_init(conf, **kwargs):
     _in_memory_msg_id = 0
     _in_memory_work_queue = queue.Queue()
 
+# TODO: Ralph to the rescue
 def _in_memory_publish(topic, msg, conf, service):
     """
     Puts the message to _in_memory_work_queue".
@@ -377,6 +338,7 @@ def _in_memory_publish(topic, msg, conf, service):
     # Put the message to queue.
     _in_memory_work_queue.put(wrapped_msg)
 
+# TODO: Ralph to the rescue
 def _in_memory_listen(conf, **kwargs):
     """
     Yields the message from the _in_memory_work_queue when ready.
@@ -394,16 +356,13 @@ _messaging_backends = {
     'fedmsg': {
         'init': _no_op,
         'publish': _fedmsg_publish,
-        'listen': _fedmsg_listen,
     },
     'amq': {
         'init': _no_op,
         'publish': _amq_publish,
-        'listen': _amq_listen,
     },
     'in_memory': {
         'init': _in_memory_init,
         'publish': _in_memory_publish,
-        'listen': _in_memory_listen,
     },
 }
