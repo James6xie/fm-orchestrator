@@ -389,13 +389,13 @@ def submit_module_build(username, url, allow_local_url = False):
         log.debug('Checking whether module build already exist.')
         # TODO: make this configurable, we might want to allow
         # resubmitting any stuck build on DEV no matter the state
-        if module.state not in (models.BUILD_STATES['failed'],):
-            log.error('Module (state=%s) already exists. '
-                      'Only new or failed builds are allowed.'
-                      % module.state)
-            raise Conflict('Module (state=%s) already exists. '
-                           'Only new or failed builds are allowed.'
-                           % module.state)
+        if module.state not in (models.BUILD_STATES['failed'],
+                                models.BUILD_STATES['init']):
+            err_msg = ('Module (state=%s) already exists. '
+                      'Only new build or resubmission of build in "init" or '
+                      '"failed" state is allowed.' % module.state)
+            log.error(err_msg)
+            raise Conflict(err_msg)
         log.debug('Resuming existing module build %r' % module)
         module.username = username
         module.transition(conf, models.BUILD_STATES["init"])
