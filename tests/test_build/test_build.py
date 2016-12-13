@@ -57,6 +57,7 @@ class MockedSCM(object):
         self.mocked_scm.return_value.checkout = self.checkout
         self.mocked_scm.return_value.name = self.name
         self.mocked_scm.return_value.get_latest = self.get_latest
+        self.mocked_scm.return_value.repository_root = "git://pkgs.stg.fedoraproject.org/modules/"
 
     def checkout(self, temp_dir):
         scm_dir = path.join(temp_dir, self.name)

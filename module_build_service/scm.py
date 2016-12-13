@@ -79,6 +79,7 @@ class SCM(object):
             match = re.search(r"^(?P<repository>.*/(?P<name>[^?]*))(\?#(?P<commit>.*))?", url)
             self.repository = match.group("repository")
             self.name = match.group("name")
+            self.repository_root = self.repository[:-len(self.name)]
             if self.name.endswith(".git"):
                 self.name = self.name[:-4]
             self.commit = match.group("commit")
@@ -86,6 +87,16 @@ class SCM(object):
             self.version = None
         else:
             raise ValidationError("Unhandled SCM scheme: %s" % self.scheme)
+
+    def scm_url_from_name(self, name):
+        """
+        Generates new SCM URL for another module defined by a name. The new URL
+        is based on the root of current SCM URL.
+        """
+        if self.scheme == "git":
+            return self.repository_root + name + ".git"
+
+        return None
 
     @staticmethod
     @module_build_service.utils.retry(wait_on=RuntimeError)

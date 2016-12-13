@@ -31,6 +31,7 @@ import modulemd as _modulemd
 
 from tests import app, init_data
 from module_build_service.models import ComponentBuild
+import module_build_service.scm
 
 class MockedSCM(object):
     def __init__(self, mocked_scm, name, mmd_filenames):
@@ -52,6 +53,7 @@ class MockedSCM(object):
         self.mocked_scm.return_value.checkout = self.checkout
         self.mocked_scm.return_value.name = self.name
         self.mocked_scm.return_value.get_latest = self.get_latest
+        self.mocked_scm.return_value.repository_root = "git://pkgs.stg.fedoraproject.org/modules/"
 
     def checkout(self, temp_dir):
         try:
