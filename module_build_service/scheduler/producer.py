@@ -30,6 +30,7 @@ from datetime import timedelta
 from sqlalchemy.orm import lazyload
 from moksha.hub.api.producer import PollingProducer
 
+import module_build_service.messaging
 import module_build_service.scheduler
 import module_build_service.scheduler.consumer
 from module_build_service import conf, models, log
@@ -131,12 +132,16 @@ class MBSProducer(PollingProducer):
                  .format(len(builds)))
         for build in builds:
             # Fake a message to kickstart the build anew
-            msg = {
-                'topic': '.module.build.state.change',
-                'msg': build.json(),
-            }
-            module_build_service.scheduler.handlers.modules.wait(
-                conf, session, msg)
+            msg = module_build_service.messaging.RidaModule(
+                'fake message',
+                build.id,
+                module_build_service.models.BUILD_STATES['wait']
+            )
+            further_work = module_build_service.scheduler.handlers.modules.wait(
+                conf, session, msg) or []
+            for event in further_work:
+                log.info("  Scheduling faked event %r" % event)
+                module_build_service.scheduler.consumer.work_queue_put(event)
 
     def process_open_component_builds(self, session):
         log.warning('process_open_component_builds is not yet implemented...')
