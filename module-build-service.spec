@@ -1,5 +1,5 @@
 Name:		module-build-service
-Version:	1.0.1
+Version:	1.0.2
 Release:	1%{?dist}
 Summary:	The Module Build Service for Modularity
 
@@ -134,6 +134,10 @@ nosetests-2
 
 
 %changelog
+* Wed Dec 14 2016 Ralph Bean <rbean@redhat.com> - 1.0.2-1
+- Enable test suite in the check section.
+- Add systemd scriptlets, per review feedback.
+
 * Mon Dec 12 2016 Ralph Bean <rbean@redhat.com> - 1.0.1-1
 - Cleanup in preparation for package review.
 

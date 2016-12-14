@@ -8,7 +8,7 @@ with open('test-requirements.txt') as f:
 
 setup(name='module-build-service',
       description='The Module Build Service for Modularity',
-      version='1.0.1',
+      version='1.0.2',
       classifiers=[
           "Programming Language :: Python",
           "Topic :: Software Development :: Build Tools"
