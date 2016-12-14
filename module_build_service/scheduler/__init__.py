@@ -1,3 +1,1 @@
-import six.moves.queue as queue
-
-work_queue = queue.Queue()
+""" This is a sub-module for backend/scheduler functionality. """

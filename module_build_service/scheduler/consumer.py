@@ -35,7 +35,6 @@ import module_build_service.messaging
 import module_build_service.scheduler.handlers.repos
 import module_build_service.scheduler.handlers.components
 import module_build_service.scheduler.handlers.modules
-from module_build_service.scheduler import work_queue
 from module_build_service import models, log, conf
 
 
