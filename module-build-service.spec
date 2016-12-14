@@ -13,6 +13,35 @@ BuildArch:	noarch
 BuildRequires:	python-setuptools
 BuildRequires:	python2-devel
 
+BuildRequires:	python2-nose
+BuildRequires:	python2-mock
+BuildRequires:	fedmsg
+BuildRequires:	git
+BuildRequires:	kobo
+BuildRequires:	kobo-rpmlib
+BuildRequires:	koji
+BuildRequires:	m2crypto
+BuildRequires:	mock
+BuildRequires:	pdc-client
+BuildRequires:	pyOpenSSL
+BuildRequires:	python-fedora
+BuildRequires:	python-flask
+BuildRequires:	python-flask-script
+BuildRequires:	python-httplib2
+BuildRequires:	python-m2ext
+BuildRequires:	python-munch
+BuildRequires:	python-six
+BuildRequires:	python-sqlalchemy
+BuildRequires:	python-systemd
+BuildRequires:	python2-flask-migrate
+BuildRequires:	python2-flask-sqlalchemy
+BuildRequires:	python2-funcsigs
+BuildRequires:	python2-mock
+BuildRequires:	python2-modulemd
+BuildRequires:	python3-mock
+BuildRequires:	python3-modulemd
+BuildRequires:	rpm-build
+
 BuildRequires:	systemd
 %{?systemd_requires}
 
@@ -72,6 +101,9 @@ tasks:
 mkdir -p %{buildroot}%{_unitdir}/
 %{__install} -pm644 conf/mbs-scheduler.service \
     %{buildroot}%{_unitdir}/mbs-scheduler.service
+
+%check
+nosetests-2
 
 %post
 %systemd_post mbs-scheduler.service
