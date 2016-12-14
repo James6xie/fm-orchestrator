@@ -1206,7 +1206,7 @@ $repos
                                "--resultdir=%s" % self.resultsdir])
 
             # Emit messages simulating complete build. These messages
-            # are put in the scheduler.main._work_queue and are handled
+            # are put in the scheduler's work queue and are handled
             # by MBS after the build_srpm() method returns and scope gets
             # back to scheduler.main.main() method.
             self._send_repo_done()
@@ -1221,7 +1221,7 @@ $repos
                       str(e)))
 
             # Emit messages simulating complete build. These messages
-            # are put in the scheduler.main._work_queue and are handled
+            # are put in the scheduler's work queue and are handled
             # by MBS after the build_srpm() method returns and scope gets
             # back to scheduler.main.main() method.
             self._send_repo_done()
