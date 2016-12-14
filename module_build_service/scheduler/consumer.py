@@ -28,6 +28,7 @@ to use.
 import koji
 import inspect
 import fedmsg.consumers
+import moksha.hub
 
 from module_build_service.utils import module_build_state_from_msg
 import module_build_service.messaging
@@ -45,11 +46,15 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
     topic = '*'
     config_key = 'mbsconsumer'
 
-    def __init__(self, hub, initial_msgs=[]):
+    def __init__(self, hub):
         super(MBSConsumer, self).__init__(hub)
 
-        for msg in initial_msgs:
-            work_queue.put(msg)
+        # These two values are typically provided either by the unit tests or
+        # by the local build command.  They are empty in the production environ
+        self.stop_condition = hub.config.get('mbsconsumer.stop_condition')
+        initial_messages = hub.config.get('mbsconsumer.initial_messages', [])
+        for msg in initial_messages:
+            self.incoming.put(msg)
 
         # These are our main lookup tables for figuring out what to run in
         # response to what messaging events.
@@ -80,19 +85,35 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
         self.on_repo_change = module_build_service.scheduler.handlers.repos.done
         self.sanity_check()
 
+    def shutdown(self):
+        log.info("Shutting down..")
+        self.hub.stop()
+        from moksha.hub.reactor import reactor
+        reactor.callFromThread(reactor.stop)
+
     def consume(self, message):
-        # Add the message to the work queue
-        work_queue.put(self.get_abstracted_msg(message['body']))
-        # Process all the messages in the work queue
-        while not work_queue.empty():
-            msg = work_queue.get()
-            try:
-                with models.make_session(conf) as session:
-                    self.process_message(session, msg)
-            except Exception:
-                log.exception('Failed while handling {0!r}'.format(
-                    msg.msg_id))
-                log.info(msg)
+        log.info("Received %r" % message)
+
+        if self.stop_condition and self.stop_condition(message):
+            return self.shutdown()
+
+        # Sometimes, the messages put into our queue are artificially put there
+        # by other parts of our own codebase.  If they are already abstracted
+        # messages, then just use them as-is.  If they are not already
+        # instances of our message abstraction base class, then first transform
+        # them before proceeding.
+        if isinstance(message, module_build_service.messaging.BaseMessage):
+            msg = message
+        else:
+            msg = self.get_abstracted_msg(message['body'])
+
+        # Primary work is done here.
+        try:
+            with models.make_session(conf) as session:
+                self.process_message(session, msg)
+        except Exception:
+            log.exception('Failed while handling {0!r}'.format(msg.msg_id))
+            log.info(msg)
 
     def get_abstracted_msg(self, message):
         # Convert the message to an abstracted message
@@ -142,8 +163,7 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
             return
 
         # Execute our chosen handler
-        idx = "%s: %s, %s" % (handler.__name__, type(msg).__name__,
-                              msg.msg_id)
+        idx = "%s: %s, %s" % (handler.__name__, type(msg).__name__, msg.msg_id)
         if handler is self.NO_OP:
             log.debug("Handler is NO_OP: %s" % idx)
         else:
@@ -159,4 +179,23 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
             # was submitted for real and koji announced its completion.
             for event in further_work:
                 log.info("  Scheduling faked event %r" % event)
-                work_queue.put(event)
+                self.incoming.put(event)
+
+
+def get_global_consumer():
+    """ Return a handle to the active consumer object, if it exists. """
+    hub = moksha.hub._hub
+    if not hub:
+        raise ValueError("No global moksha-hub obj found.")
+
+    for consumer in hub.consumers:
+        if isinstance(consumer, MBSConsumer):
+            return consumer
+
+    raise ValueError("No MBSConsumer found.")
+
+
+def work_queue_put(msg):
+    """ Artificially put a message into the work queue of the consumer. """
+    consumer = get_global_consumer()
+    consumer.incoming.put(msg)

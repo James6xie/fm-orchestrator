@@ -55,6 +55,7 @@ from module_build_service.models import ModuleBuild
 import module_build_service.scm
 import module_build_service.utils
 import module_build_service.scheduler
+import module_build_service.scheduler.consumer
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -1165,7 +1166,7 @@ $repos
             msg_id='a faked internal message',
             repo_tag=self.tag_name + "-build",
         )
-        module_build_service.scheduler.work_queue.put(msg)
+        module_build_service.scheduler.consumer.work_queue_put(msg)
 
     def _send_build_change(self, state, source, build_id):
         nvr = kobo.rpmlib.parse_nvr(source)
@@ -1181,7 +1182,7 @@ $repos
             build_release=nvr["release"],
             build_version=nvr["version"]
         )
-        module_build_service.scheduler.main.outgoing_work_queue_put(msg)
+        module_build_service.scheduler.consumer.work_queue_put(msg)
 
     def _save_log(self, log_name, artifact_name):
         old_log = os.path.join(self.resultsdir, log_name)
