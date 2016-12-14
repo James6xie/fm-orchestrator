@@ -30,8 +30,8 @@ from datetime import timedelta
 from sqlalchemy.orm import lazyload
 from moksha.hub.api.producer import PollingProducer
 
-from module_build_service.scheduler import work_queue
 import module_build_service.scheduler
+import module_build_service.scheduler.consumer
 from module_build_service import conf, models, log
 
 
@@ -94,7 +94,7 @@ class MBSProducer(PollingProducer):
                         build_release=None,
                         build_version=None
                     )
-                    work_queue.put(msg)
+                    module_build_service.scheduler.consumer.work_queue_put(msg)
 
         elif conf.system == 'copr':
             # @TODO
@@ -105,7 +105,8 @@ class MBSProducer(PollingProducer):
 
     def log_summary(self, session):
         log.info('Current status:')
-        backlog = work_queue.qsize()
+        consumer = module_build_service.scheduler.consumer.get_global_consumer()
+        backlog = consumer.incoming.qsize()
         log.info('  * internal queue backlog is {0}'.format(backlog))
         states = sorted(models.BUILD_STATES.items(), key=operator.itemgetter(1))
         for name, code in states:
@@ -157,4 +158,4 @@ class MBSProducer(PollingProducer):
                     config, module_build, session, config.system)
                 for event in further_work:
                     log.info("  Scheduling faked event %r" % event)
-                    work_queue.put(event)
+                    module_build_service.scheduler.consumer.work_queue_put(event)
