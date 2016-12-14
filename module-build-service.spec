@@ -12,7 +12,9 @@ BuildArch:	noarch
 
 BuildRequires:	python-setuptools
 BuildRequires:	python2-devel
+
 BuildRequires:	systemd
+%{?systemd_requires}
 
 Requires:	systemd
 Requires:	fedmsg
@@ -61,10 +63,8 @@ tasks:
 %prep
 %setup -q
 
-
 %build
 %py2_build
-
 
 %install
 %py2_install
@@ -72,6 +72,15 @@ tasks:
 mkdir -p %{buildroot}%{_unitdir}/
 %{__install} -pm644 conf/mbs-scheduler.service \
     %{buildroot}%{_unitdir}/mbs-scheduler.service
+
+%post
+%systemd_post mbs-scheduler.service
+
+%preun
+%systemd_preun mbs-scheduler.service
+
+%postun
+%systemd_postun_with_restart mbs-scheduler.service
 
 %files
 %doc README.rst
