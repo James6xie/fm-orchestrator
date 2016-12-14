@@ -260,9 +260,22 @@ def _fetch_mmd(url, allow_local_url = False):
     except Exception as e:
         log.error('Invalid modulemd: %s' % str(e))
         raise UnprocessableEntity('Invalid modulemd: %s' % str(e))
+
+    # If undefined, set the name field to VCS repo name.
+    if not mmd.name and scm:
+        mmd.name = scm.name
+
+    # If undefined, set the stream field to the VCS branch name.
+    if not mmd.stream and scm:
+        mmd.stream = scm.branch
+
+    # If undefined, set the version field to int represenation of VCS commit.
+    if not mmd.version and scm:
+        mmd.version = int(scm.version)
+
     return mmd, scm, yaml
 
-def record_component_builds(mmd, module, initial_batch = 1):
+def record_component_builds(scm, mmd, module, initial_batch = 1):
     # Import it here, because SCM uses utils methods
     # and fails to import them because of dep-chain.
     import module_build_service.scm
@@ -333,9 +346,11 @@ def record_component_builds(mmd, module, initial_batch = 1):
             # set to our current batch, so the components of this module
             # are built in the right global order.
             if isinstance(pkg, modulemd.ModuleComponentModule):
+                if not pkg.repository:
+                    pkg.repository = scm.scm_url_from_name(pkg.name)
                 full_url = pkg.repository + "?#" + pkg.ref
                 mmd = _fetch_mmd(full_url)[0]
-                batch = record_component_builds(mmd, module, batch)
+                batch = record_component_builds(scm, mmd, module, batch)
                 continue
 
             if previous_buildorder != pkg.buildorder:
@@ -370,18 +385,6 @@ def submit_module_build(username, url, allow_local_url = False):
 
     mmd, scm, yaml = _fetch_mmd(url, allow_local_url)
 
-    # If undefined, set the name field to VCS repo name.
-    if not mmd.name and scm:
-        mmd.name = scm.name
-
-    # If undefined, set the stream field to the VCS branch name.
-    if not mmd.stream and scm:
-        mmd.stream = scm.branch
-
-    # If undefined, set the version field to int represenation of VCS commit.
-    if not mmd.version and scm:
-        mmd.version = int(scm.version)
-
     module = models.ModuleBuild.query.filter_by(name=mmd.name,
                                                 stream=mmd.stream,
                                                 version=mmd.version).first()
@@ -414,7 +417,7 @@ def submit_module_build(username, url, allow_local_url = False):
             username=username
         )
 
-    record_component_builds(mmd, module)
+    record_component_builds(scm, mmd, module)
 
     module.modulemd = mmd.dumps()
     module.transition(conf, models.BUILD_STATES["wait"])
