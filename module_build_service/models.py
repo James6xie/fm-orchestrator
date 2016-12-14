@@ -198,12 +198,13 @@ class ModuleBuild(RidaBase):
             self.state_reason = state_reason
 
         log.debug("%r, state %r->%r" % (self, old_state, self.state))
-        module_build_service.messaging.publish(
-            service='module_build_service',
-            topic='module.state.change',
-            msg=self.json(),  # Note the state is "init" here...
-            conf=conf,
-        )
+        if old_state != self.state:
+            module_build_service.messaging.publish(
+                service='module_build_service',
+                topic='module.state.change',
+                msg=self.json(),  # Note the state is "init" here...
+                conf=conf,
+            )
 
     @classmethod
     def by_state(cls, session, state):
