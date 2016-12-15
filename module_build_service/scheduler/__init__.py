@@ -21,20 +21,13 @@ def main(initial_messages, stop_condition):
     config['mbsconsumer.stop_condition'] = stop_condition
     config['mbsconsumer.initial_messages'] = initial_messages
 
-    consumers = [module_build_service.scheduler.consumer.MBSConsumer]
+    # Moksha requires that we subscribe to *something*, so tell it /dev/null
+    # since we'll just be doing in-memory queue-based messaging for this single
+    # build.
+    config['zmq_enabled'] = True
+    config['zmq_subscribe_endpoints'] = 'ipc:///dev/null'
 
-    # Rephrase the fedmsg-config.py config as moksha *.ini format for
-    # zeromq. If we're not using zeromq (say, we're using STOMP), then just
-    # assume that the moksha configuration is specified correctly already
-    # in /etc/fedmsg.d/
-    if config.get('zmq_enabled', True):
-        moksha_options = dict(
-            # XXX - replace this with a /dev/null endpoint.
-            zmq_subscribe_endpoints=','.join(
-                ','.join(bunch) for bunch in config['endpoints'].values()
-            ),
-        )
-        config.update(moksha_options)
+    consumers = [module_build_service.scheduler.consumer.MBSConsumer]
 
     # Note that the hub we kick off here cannot send any message.  You
     # should use fedmsg.publish(...) still for that.
@@ -46,6 +39,7 @@ def main(initial_messages, stop_condition):
         # Tell moksha to quiet its logging.
         framework=False,
     )
+
 
 def make_simple_stop_condition(session):
     """ Return a simple stop_condition callable.
