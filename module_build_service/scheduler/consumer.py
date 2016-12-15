@@ -91,16 +91,13 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
         self.sanity_check()
 
     def shutdown(self):
-        log.info("Shutting down..")
-        self.hub.stop()
+        log.info("Scheduling shutdown.")
         from moksha.hub.reactor import reactor
+        reactor.callFromThread(self.hub.stop)
         reactor.callFromThread(reactor.stop)
 
     def consume(self, message):
         log.info("Received %r" % message)
-
-        if self.stop_condition and self.stop_condition(message):
-            return self.shutdown()
 
         # Sometimes, the messages put into our queue are artificially put there
         # by other parts of our own codebase.  If they are already abstracted
@@ -119,6 +116,9 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
         except Exception:
             log.exception('Failed while handling {0!r}'.format(msg.msg_id))
             log.info(msg)
+
+        if self.stop_condition and self.stop_condition(message):
+            self.shutdown()
 
     def get_abstracted_msg(self, message):
         # Convert the message to an abstracted message

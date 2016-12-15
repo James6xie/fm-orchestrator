@@ -189,6 +189,7 @@ class TestBuild(unittest.TestCase):
         import sys
         del sys.modules['twisted.internet.reactor']
         del sys.modules['moksha.hub.reactor']
+        del sys.modules['moksha.hub']
         import moksha.hub.reactor
 
     @timed(30)
