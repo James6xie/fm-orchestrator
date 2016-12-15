@@ -3,6 +3,7 @@
 import fedmsg
 import moksha.hub
 
+import module_build_service.models
 import module_build_service.scheduler.consumer
 
 
@@ -14,7 +15,7 @@ def main(initial_messages, stop_condition):
 
     config = fedmsg.config.load_config()
     config['mbsconsumer'] = True
-    config['mbsconsumer.stopcondition'] = stop_condition
+    config['mbsconsumer.stop_condition'] = stop_condition
     config['mbsconsumer.initial_messages'] = initial_messages
 
     consumers = [module_build_service.scheduler.consumer.MBSConsumer]
@@ -56,8 +57,8 @@ def make_simple_stop_condition(session):
         # XXX - We ignore the message here and instead just query the DB.
 
         # Grab the latest module build.
-        module = session.query(models.ModuleBuild)\
-            .order_by(models.ModuleBuild.id.desc())\
+        module = session.query(module_build_service.models.ModuleBuild)\
+            .order_by(module_build_service.models.ModuleBuild.id.desc())\
             .first()
         done = (
             module_build_service.models.BUILD_STATES["failed"],
