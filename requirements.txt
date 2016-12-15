@@ -3,6 +3,7 @@ Flask-Migrate
 Flask-SQLAlchemy
 Flask-Script
 fedmsg
+moksha.hub
 funcsigs # Python2 only
 httplib2
 kobo
