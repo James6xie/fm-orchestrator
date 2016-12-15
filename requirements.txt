@@ -4,6 +4,7 @@ Flask-SQLAlchemy
 Flask-Script
 fedmsg
 moksha.hub
+psutil
 funcsigs # Python2 only
 httplib2
 kobo
