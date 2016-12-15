@@ -73,9 +73,9 @@ To start the frontend manually, run the following inside the guest::
 
     $ mbs-frontend
 
-To start the scheduler manually, run the following inside the guest::
+To start the scheduler manually, run the following at `/tmp/module_build_service` inside the guest::
 
-    $ mbs-daemon
+    $ fedmsg-hub
 
 Alternatively, you can restart the Vagrant guest, which inherently starts/restarts the frontend and the scheduler with::
 

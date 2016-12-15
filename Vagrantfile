@@ -28,6 +28,8 @@ $script = <<SCRIPT
         rpm-build \
         swig \
         systemd-devel
+    mkdir /usr/share/fedmsg
+    chown fedmsg:fedmsg /usr/share/fedmsg
     systemctl enable fedmsg-relay
     systemctl start fedmsg-relay
     mkdir /etc/module-build-service/
