@@ -33,7 +33,7 @@ except ImportError:
     from funcsigs import signature
 
 from module_build_service import log
-import six.moves.queue as queue
+
 
 class BaseMessage(object):
     def __init__(self, msg_id):
@@ -248,6 +248,40 @@ def _fedmsg_publish(topic, msg, conf, service):
     import fedmsg
     return fedmsg.publish(topic, msg=msg, modname=service)
 
+
+# A counter used for in-memory messages.
+_in_memory_msg_id = 0
+_initial_messages = []
+
+
+def _in_memory_publish(topic, msg, conf, service):
+    """ Puts the message into the in memory work queue. """
+    # Increment the message ID.
+    global _in_memory_msg_id
+    _in_memory_msg_id += 1
+
+    # Create fake fedmsg from the message so we can reuse
+    # the BaseMessage.from_fedmsg code to get the particular BaseMessage
+    # class instance.
+    wrapped_msg = BaseMessage.from_fedmsg(
+        service + "." + topic,
+        {"msg_id": str(_in_memory_msg_id), "msg": msg},
+    )
+
+    # Put the message to queue.
+    from module_build_service.scheduler.consumer import work_queue_put
+    try:
+        work_queue_put(wrapped_msg)
+    except ValueError as e:
+        log.warn("No MBSConsumer found.  Shutting down?  %r" % e)
+    except AttributeError as e:
+        # In the event that `moksha.hub._hub` hasn't yet been initialized, we
+        # need to store messages on the side until it becomes available.
+        # As a last-ditch effort, try to hang initial messages in the config.
+        log.warn("Hub not initialized.  Queueing on the side.")
+        _initial_messages.append(wrapped_msg)
+
+
 def _amq_get_messenger(conf):
     import proton
     for attr in ('amq_private_key_file', 'amq_trusted_cert_file', 'amq_cert_file'):
@@ -296,5 +330,8 @@ _messaging_backends = {
     },
     'amq': {
         'publish': _amq_publish,
+    },
+    'memory': {
+        'publish': _in_memory_publish,
     }
 }

@@ -55,6 +55,12 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
         for msg in initial_messages:
             self.incoming.put(msg)
 
+        # Furthermore, extend our initial messages with any that were queued up
+        # in the test environment before our hub was initialized.
+        while module_build_service.messaging._initial_messages:
+            msg = module_build_service.messaging._initial_messages.pop()
+            self.incoming.put(msg)
+
         # These are our main lookup tables for figuring out what to run in
         # response to what messaging events.
         self.NO_OP = NO_OP = lambda config, session, msg: True
@@ -191,7 +197,7 @@ def get_global_consumer():
         if isinstance(consumer, MBSConsumer):
             return consumer
 
-    raise ValueError("No MBSConsumer found.")
+    raise ValueError("No MBSConsumer found among %r." % len(hub.consumers))
 
 
 def work_queue_put(msg):
