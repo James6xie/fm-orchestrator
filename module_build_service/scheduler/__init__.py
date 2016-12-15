@@ -6,6 +6,9 @@ import moksha.hub
 import module_build_service.models
 import module_build_service.scheduler.consumer
 
+import logging
+log = logging.getLogger(__name__)
+
 
 def main(initial_messages, stop_condition):
     """ Run the consumer until some condition is met.
@@ -66,6 +69,8 @@ def make_simple_stop_condition(session):
             # XXX should this one be removed?
             module_build_service.models.BUILD_STATES["done"],
         )
-        return module.state in done
+        result = module.state in done
+        log.debug("stop_condition checking %r, got %r" % (module, result))
+        return result
 
     return stop_condition
