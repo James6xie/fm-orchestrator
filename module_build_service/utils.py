@@ -548,3 +548,11 @@ def scm_url_schemes(terse=False):
         for scm_type, scm_schemes in scm_types.items():
             scheme_list.extend([scheme[:-3] for scheme in scm_schemes])
         return list(set(scheme_list))
+
+def module_build_state_from_msg(msg):
+    state = int(msg.module_build_state)
+    # TODO better handling
+    assert state in models.BUILD_STATES.values(), (
+        'state=%s(%s) is not in %s'
+        % (state, type(state), list(models.BUILD_STATES.values())))
+    return state

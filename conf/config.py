@@ -119,7 +119,7 @@ class DevConfiguration(BaseConfiguration):
     KOJI_ARCHES = ['x86_64']
     KOJI_REPOSITORY_URL = 'http://kojipkgs.stg.fedoraproject.org/repos'
 
-    OIDC_CLIENT_SECRETS = "client_secrets.json"
+    OIDC_CLIENT_SECRETS = path.join(confdir, 'client_secrets.json')
 
     SSL_CERTIFICATE_FILE = path.join(confdir, 'server.crt')
     SSL_CERTIFICATE_KEY_FILE = path.join(confdir, 'server.key')

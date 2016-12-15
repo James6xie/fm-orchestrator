@@ -29,18 +29,23 @@ import ssl
 from shutil import rmtree
 import getpass
 
+import fedmsg.config
+import moksha.hub
+import moksha.hub.hub
+import moksha.hub.reactor
+
 from module_build_service import app, conf, db
 from module_build_service import models
 from module_build_service.pdc import (
     get_pdc_client_session, get_module, get_module_runtime_dependencies,
     get_module_tag, get_module_build_dependencies)
-import module_build_service.scheduler.main
 from module_build_service.utils import (
     submit_module_build,
     insert_fake_baseruntime,
 )
 from module_build_service.messaging import RidaModule
 import module_build_service.messaging
+import module_build_service.scheduler.consumer
 
 
 manager = Manager(app)
@@ -119,7 +124,6 @@ def cleardb():
 @manager.command
 def build_module_locally(url):
     conf.set_item("system", "mock")
-    conf.set_item("messaging", "in_memory")
 
     # Use our own local SQLite3 database.
     confdir = os.path.abspath(os.path.dirname(__file__))
@@ -146,9 +150,11 @@ def build_module_locally(url):
     username = getpass.getuser()
     submit_module_build(username, url, allow_local_url=True)
 
-    msgs = []
-    msgs.append(RidaModule("local module build", 2, 1))
-    module_build_service.scheduler.main.main(msgs, True)
+    stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
+    initial_messages = [RidaModule("local module build", 2, 1)]
+
+    # Run the consumer until stop_condition returns True
+    module_build_service.scheduler.main(initial_messages, stop)
 
 
 @manager.command
@@ -293,8 +299,6 @@ def runssl(host=conf.host, port=conf.port, debug=conf.debug):
     """ Runs the Flask app with the HTTPS settings configured in config.py
     """
     logging.info('Starting Module Build Service frontend')
-
-    module_build_service.messaging.init(conf)
 
     ssl_ctx = _establish_ssl_context()
     app.run(

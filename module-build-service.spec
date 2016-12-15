@@ -47,6 +47,7 @@ BuildRequires:	systemd
 
 Requires:	systemd
 Requires:	fedmsg
+Requires:	fedmsg-hub
 Requires:	git
 Requires:	kobo
 Requires:	kobo-rpmlib
@@ -98,28 +99,14 @@ tasks:
 %install
 %py2_install
 
-mkdir -p %{buildroot}%{_unitdir}/
-%{__install} -pm644 conf/mbs-scheduler.service \
-    %{buildroot}%{_unitdir}/mbs-scheduler.service
-
 %check
 nosetests-2
-
-%post
-%systemd_post mbs-scheduler.service
-
-%preun
-%systemd_preun mbs-scheduler.service
-
-%postun
-%systemd_postun_with_restart mbs-scheduler.service
 
 %files
 %doc README.rst
 %license LICENSE
 %{python2_sitelib}/module_build_service*
 %{_bindir}/mbs-*
-%{_unitdir}/mbs-scheduler.service
 %dir %{_sysconfdir}/module-build-service
 %config(noreplace) %{_sysconfdir}/module-build-service/config.py
 %config(noreplace) %{_sysconfdir}/module-build-service/koji.conf
@@ -134,6 +121,9 @@ nosetests-2
 
 
 %changelog
+* Thu Dec 15 2016 Matt Prahl <mprahl@redhat.com> - 1.0.3-1
+- Replace systemd unit with fedmsg-hub
+
 * Wed Dec 14 2016 Ralph Bean <rbean@redhat.com> - 1.0.2-1
 - Enable test suite in the check section.
 - Add systemd scriptlets, per review feedback.

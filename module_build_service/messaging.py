@@ -33,7 +33,7 @@ except ImportError:
     from funcsigs import signature
 
 from module_build_service import log
-import six.moves.queue as queue
+
 
 class BaseMessage(object):
     def __init__(self, msg_id):
@@ -42,6 +42,18 @@ class BaseMessage(object):
         :param msg_id: the id of the msg (e.g. 2016-SomeGUID)
         """
         self.msg_id = msg_id
+
+        # Moksha calls `consumer.validate` on messages that it receives, and
+        # even though we have validation turned off in the config there's still
+        # a step that tries to access `msg['body']`, `msg['topic']` and
+        # `msg.get('topic')`.
+        # These are here just so that the `validate` method won't raise an
+        # exception when we push our fake messages through.
+        # Note that, our fake message pushing has worked for a while... but the
+        # *latest* version of fedmsg has some code that exercises the bug.  I
+        # didn't hit this until I went to test in jenkins.
+        self.body = {}
+        self.topic = None
 
     def __repr__(self):
         init_sig = signature(self.__init__)
@@ -53,6 +65,18 @@ class BaseMessage(object):
             for name, param in init_sig.parameters.items())
 
         return "{}({})".format(type(self).__name__, ', '.join(args_strs))
+
+    def __getitem__(self, key):
+        """ Used to trick moksha into thinking we are a dict. """
+        return getattr(self, key)
+
+    def __setitem__(self, key, value):
+        """ Used to trick moksha into thinking we are a dict. """
+        return setattr(self, key, value)
+
+    def get(self, key, value=None):
+        """ Used to trick moksha into thinking we are a dict. """
+        return getattr(self, key, value)
 
     @staticmethod
     def from_amq(topic, msg):
@@ -228,18 +252,6 @@ class RidaModule(BaseMessage):
         self.module_build_id = module_build_id
         self.module_build_state = module_build_state
 
-def init(conf, **kwargs):
-    """
-    Initialize the messaging backend.
-    :param conf: a Config object from the class in config.py
-    :param kwargs: any additional arguments to pass to the backend handler
-    """
-    try:
-        handler = _messaging_backends[conf.messaging]['init']
-    except KeyError:
-        raise KeyError("No messaging backend found for %r" % conf.messaging)
-    return handler(conf, **kwargs)
-
 def publish(topic, msg, conf, service):
     """
     Publish a single message to a given backend, and return
@@ -255,37 +267,44 @@ def publish(topic, msg, conf, service):
         raise KeyError("No messaging backend found for %r" % conf.messaging)
     return handler(topic, msg, conf, service)
 
-
-def listen(conf, **kwargs):
-    """
-    Yield messages from the messaging backend in conf.messaging.
-    :param conf: a Config object from the class in config.py
-    :param kwargs: any additional arguments to pass to the backend handler
-    :return: yields a message object (child class from BaseMessage)
-    """
-    try:
-        handler = _messaging_backends[conf.messaging]['listen']
-    except KeyError:
-        raise KeyError("No messaging backend found for %r" % conf.messaging)
-
-    for event in handler(conf, **kwargs):
-        yield event
-
-
 def _fedmsg_publish(topic, msg, conf, service):
     # fedmsg doesn't really need access to conf, however other backends do
     import fedmsg
     return fedmsg.publish(topic, msg=msg, modname=service)
 
-def _fedmsg_listen(conf, **kwargs):
-    """
-    Parses a fedmsg event and constructs it into the appropriate message object
-    """
-    import fedmsg
-    for name, endpoint, topic, msg in fedmsg.tail_messages(**kwargs):
-        msg_obj = BaseMessage.from_fedmsg(topic, msg)
-        if msg_obj:
-            yield msg_obj
+
+# A counter used for in-memory messages.
+_in_memory_msg_id = 0
+_initial_messages = []
+
+
+def _in_memory_publish(topic, msg, conf, service):
+    """ Puts the message into the in memory work queue. """
+    # Increment the message ID.
+    global _in_memory_msg_id
+    _in_memory_msg_id += 1
+
+    # Create fake fedmsg from the message so we can reuse
+    # the BaseMessage.from_fedmsg code to get the particular BaseMessage
+    # class instance.
+    wrapped_msg = BaseMessage.from_fedmsg(
+        service + "." + topic,
+        {"msg_id": str(_in_memory_msg_id), "msg": msg},
+    )
+
+    # Put the message to queue.
+    from module_build_service.scheduler.consumer import work_queue_put
+    try:
+        work_queue_put(wrapped_msg)
+    except ValueError as e:
+        log.warn("No MBSConsumer found.  Shutting down?  %r" % e)
+    except AttributeError as e:
+        # In the event that `moksha.hub._hub` hasn't yet been initialized, we
+        # need to store messages on the side until it becomes available.
+        # As a last-ditch effort, try to hang initial messages in the config.
+        log.warn("Hub not initialized.  Queueing on the side.")
+        _initial_messages.append(wrapped_msg)
+
 
 def _amq_get_messenger(conf):
     import proton
@@ -317,19 +336,6 @@ def _amq_get_messenger(conf):
         log.debug('proton.Messenger: Subscribing to address=%s' % url)
     return msngr
 
-def _amq_listen(conf, **kwargs):
-    import proton
-    msngr = _amq_get_messenger(conf)
-    msg = proton.Message()
-    while True:
-        msngr.recv()
-
-        while msngr.incoming:
-            msngr.get(msg)
-            msg_obj = BaseMessage.from_amq(msg.address, msg)
-            if msg_obj:
-                yield msg_obj
-
 def _amq_publish(topic, msg, conf, service):
     import proton
     msngr = _amq_get_messenger(conf)
@@ -341,69 +347,15 @@ def _amq_publish(topic, msg, conf, service):
     msngr.put(message)
     msngr.send()
 
-# Queue for "in_memory" messaging.
-_in_memory_work_queue = queue.Queue()
-
-# Message id for "in_memory" messaging.
-_in_memory_msg_id = 0
-
-def _in_memory_init(conf, **kwargs):
-    """
-    Initializes the In Memory messaging backend.
-    """
-    global _in_memory_work_queue
-    global _in_memory_msg_id
-    _in_memory_msg_id = 0
-    _in_memory_work_queue = queue.Queue()
-
-def _in_memory_publish(topic, msg, conf, service):
-    """
-    Puts the message to _in_memory_work_queue".
-    """
-
-    # Increment the message ID.
-    global _in_memory_msg_id
-    _in_memory_msg_id += 1
-
-    # Create fake fedmsg from the message so we can reuse
-    # the BaseMessage.from_fedmsg code to get the particular BaseMessage
-    # class instance.
-    topic = service + "." + topic
-    wrapped_msg = {}
-    wrapped_msg["msg_id"] = str(_in_memory_msg_id)
-    wrapped_msg["msg"] = msg
-    wrapped_msg = BaseMessage.from_fedmsg(topic, wrapped_msg)
-
-    # Put the message to queue.
-    _in_memory_work_queue.put(wrapped_msg)
-
-def _in_memory_listen(conf, **kwargs):
-    """
-    Yields the message from the _in_memory_work_queue when ready.
-    """
-    while True:
-        yield _in_memory_work_queue.get(True)
-
-def _no_op(conf, **kwargs):
-    """
-    No operation.
-    """
-    pass
 
 _messaging_backends = {
     'fedmsg': {
-        'init': _no_op,
         'publish': _fedmsg_publish,
-        'listen': _fedmsg_listen,
     },
     'amq': {
-        'init': _no_op,
         'publish': _amq_publish,
-        'listen': _amq_listen,
     },
     'in_memory': {
-        'init': _in_memory_init,
         'publish': _in_memory_publish,
-        'listen': _in_memory_listen,
-    },
+    }
 }

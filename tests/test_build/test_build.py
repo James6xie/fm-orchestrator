@@ -21,31 +21,24 @@
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
 import unittest
-import munch
-import mock
 import koji
-import xmlrpclib
 from os import path, mkdir
 from shutil import copyfile
 
 from nose.tools import timed
 
-from module_build_service import db
-
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.repos
-from module_build_service import models, conf
-from module_build_service.utils import submit_module_build
+from module_build_service import db, models, conf
 from module_build_service.messaging import RidaModule
 
 from mock import patch
 
 from tests import app, init_data
-from tests import conf as test_conf
 import json
 
 from module_build_service.builder import KojiModuleBuilder, GenericBuilder
-import module_build_service.scheduler.main
+import module_build_service.scheduler.consumer
 
 
 class MockedSCM(object):
@@ -128,7 +121,7 @@ class TestModuleBuilder(GenericBuilder):
             msg_id='a faked internal message',
             repo_tag=self.tag_name + "-build",
         )
-        module_build_service.scheduler.main.outgoing_work_queue_put(msg)
+        module_build_service.scheduler.consumer.work_queue_put(msg)
 
     def _send_build_change(self, state, source, build_id):
         # build_id=1 and task_id=1 are OK here, because we are building just
@@ -142,7 +135,7 @@ class TestModuleBuilder(GenericBuilder):
             build_release="1",
             build_version="1"
         )
-        module_build_service.scheduler.main.outgoing_work_queue_put(msg)
+        module_build_service.scheduler.consumer.work_queue_put(msg)
 
     def build(self, artifact_name, source):
         print "Starting building artifact %s: %s" % (artifact_name, source)
@@ -192,6 +185,13 @@ class TestBuild(unittest.TestCase):
         conf.set_item("system", "koji")
         TestModuleBuilder.reset()
 
+        # Necessary to restart the twisted reactor for the next test.
+        import sys
+        del sys.modules['twisted.internet.reactor']
+        del sys.modules['moksha.hub.reactor']
+        del sys.modules['moksha.hub']
+        import moksha.hub.reactor
+
     @timed(30)
     @patch('module_build_service.auth.get_username', return_value='Homer J. Simpson')
     @patch('module_build_service.auth.assert_is_packager')
@@ -202,7 +202,7 @@ class TestBuild(unittest.TestCase):
         Tests the build of testmodule.yaml using TestModuleBuilder which
         succeeds everytime.
         """
-        mocked_scm_obj = MockedSCM(mocked_scm, "testmodule", "testmodule.yaml")
+        MockedSCM(mocked_scm, "testmodule", "testmodule.yaml")
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
@@ -211,9 +211,9 @@ class TestBuild(unittest.TestCase):
         data = json.loads(rv.data)
         module_build_id = data['id']
 
-        msgs = []
-        msgs.append(RidaModule("fake msg", 1, 1))
-        module_build_service.scheduler.main.main(msgs, True)
+        msgs = [RidaModule("fake msg", 1, 1)]
+        stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
+        module_build_service.scheduler.main(msgs, stop)
 
         # All components should be built and module itself should be in "done"
         # or "ready" state.
@@ -230,7 +230,7 @@ class TestBuild(unittest.TestCase):
         """
         Submit all builds for a module and cancel the module build later.
         """
-        mocked_scm_obj = MockedSCM(mocked_scm, "testmodule", "testmodule.yaml")
+        MockedSCM(mocked_scm, "testmodule", "testmodule.yaml")
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
@@ -257,9 +257,9 @@ class TestBuild(unittest.TestCase):
         TestModuleBuilder.on_build_cb = on_build_cb
         TestModuleBuilder.on_cancel_cb = on_cancel_cb
 
-        msgs = []
-        msgs.append(RidaModule("fake msg", 1, 1))
-        module_build_service.scheduler.main.main(msgs, True)
+        msgs = [RidaModule("fake msg", 1, 1)]
+        stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
+        module_build_service.scheduler.main(msgs, stop)
 
         # Because we did not finished single component build and canceled the
         # module build, all components and even the module itself should be in
@@ -284,7 +284,7 @@ class TestBuild(unittest.TestCase):
         Tests the build of testmodule.yaml using TestModuleBuilder which
         succeeds everytime.
         """
-        mocked_scm_obj = MockedSCM(mocked_scm, "testmodule", "testmodule.yaml")
+        MockedSCM(mocked_scm, "testmodule", "testmodule.yaml")
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
@@ -296,9 +296,9 @@ class TestBuild(unittest.TestCase):
         TestModuleBuilder.BUILD_STATE = "BUILDING"
         TestModuleBuilder.INSTANT_COMPLETE = True
 
-        msgs = []
-        msgs.append(RidaModule("fake msg", 1, 1))
-        module_build_service.scheduler.main.main(msgs, True)
+        msgs = [RidaModule("fake msg", 1, 1)]
+        stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
+        module_build_service.scheduler.main(msgs, stop)
 
         # All components should be built and module itself should be in "done"
         # or "ready" state.

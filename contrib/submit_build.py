@@ -8,7 +8,7 @@ def listen_for_token():
     Listens on port 13747 on localhost for a redirect request by OIDC
     server, parses the response and returns the "access_token" value.
     """
-    TCP_IP = '127.0.0.1'
+    TCP_IP = '0.0.0.0'
     TCP_PORT = 13747
     BUFFER_SIZE = 1024
 
