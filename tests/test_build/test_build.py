@@ -185,6 +185,12 @@ class TestBuild(unittest.TestCase):
         conf.set_item("system", "koji")
         TestModuleBuilder.reset()
 
+        # Necessary to restart the twisted reactor for the next test.
+        import sys
+        del sys.modules['twisted.internet.reactor']
+        del sys.modules['moksha.hub.reactor']
+        import moksha.hub.reactor
+
     @timed(30)
     @patch('module_build_service.auth.get_username', return_value='Homer J. Simpson')
     @patch('module_build_service.auth.assert_is_packager')
