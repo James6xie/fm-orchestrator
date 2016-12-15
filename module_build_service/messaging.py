@@ -43,6 +43,10 @@ class BaseMessage(object):
         """
         self.msg_id = msg_id
 
+        # Unused; just placeholder attributes to appear more like JSON.
+        self.body = {}
+        self.topic = None
+
     def __repr__(self):
         init_sig = signature(self.__init__)
 
@@ -53,6 +57,15 @@ class BaseMessage(object):
             for name, param in init_sig.parameters.items())
 
         return "{}({})".format(type(self).__name__, ', '.join(args_strs))
+
+    def __getitem__(self, key):
+        return getattr(self, key)
+
+    def __setitem__(self, key, value):
+        return setattr(self, key, value)
+
+    def get(self, key, value=None):
+        return getattr(self, key, value)
 
     @staticmethod
     def from_amq(topic, msg):
