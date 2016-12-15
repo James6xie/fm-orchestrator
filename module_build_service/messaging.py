@@ -43,7 +43,15 @@ class BaseMessage(object):
         """
         self.msg_id = msg_id
 
-        # Unused; just placeholder attributes to appear more like JSON.
+        # Moksha calls `consumer.validate` on messages that it receives, and
+        # even though we have validation turned off in the config there's still
+        # a step that tries to access `msg['body']`, `msg['topic']` and
+        # `msg.get('topic')`.
+        # These are here just so that the `validate` method won't raise an
+        # exception when we push our fake messages through.
+        # Note that, our fake message pushing has worked for a while... but the
+        # *latest* version of fedmsg has some code that exercises the bug.  I
+        # didn't hit this until I went to test in jenkins.
         self.body = {}
         self.topic = None
 
@@ -59,12 +67,15 @@ class BaseMessage(object):
         return "{}({})".format(type(self).__name__, ', '.join(args_strs))
 
     def __getitem__(self, key):
+        """ Used to trick moksha into thinking we are a dict. """
         return getattr(self, key)
 
     def __setitem__(self, key, value):
+        """ Used to trick moksha into thinking we are a dict. """
         return setattr(self, key, value)
 
     def get(self, key, value=None):
+        """ Used to trick moksha into thinking we are a dict. """
         return getattr(self, key, value)
 
     @staticmethod
