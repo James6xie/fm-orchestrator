@@ -170,7 +170,6 @@ class TestModuleBuilder(GenericBuilder):
             TestModuleBuilder.on_cancel_cb(self, task_id)
 
 
-@unittest.skip("These are disabled until ralph can figure out how to run the reactor in the tests.")
 class TestBuild(unittest.TestCase):
 
     def setUp(self):
