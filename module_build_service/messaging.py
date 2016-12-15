@@ -344,7 +344,7 @@ _messaging_backends = {
     'amq': {
         'publish': _amq_publish,
     },
-    'memory': {
+    'in_memory': {
         'publish': _in_memory_publish,
     }
 }

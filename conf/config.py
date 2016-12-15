@@ -134,7 +134,7 @@ class TestConfiguration(BaseConfiguration):
     SQLALCHEMY_DATABASE_URI = 'sqlite:///{0}'.format(
         path.join(dbdir, 'tests', 'test_module_build_service.db'))
     DEBUG = True
-    MESSAGING = 'memory'
+    MESSAGING = 'in_memory'
 
     # Global network-related values, in seconds
     NET_TIMEOUT = 3
