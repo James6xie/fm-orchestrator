@@ -35,7 +35,7 @@ $script = <<SCRIPT
     mkdir /etc/module-build-service/
     cd /tmp/module_build_service
     python setup.py develop
-    pip install -r /tmp/module_build_service/test-requirements.txt
+    pip install -r test-requirements.txt
     mbs-upgradedb
     mbs-gencert
 SCRIPT

@@ -33,3 +33,4 @@ COPY . /tmp/module_build_service/
 WORKDIR /tmp/module_build_service/
 ENV MODULE_BUILD_SERVICE_DEVELOPER_ENV=1
 RUN python setup.py develop
+RUN pip install -r test-requirements.txt
