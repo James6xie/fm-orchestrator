@@ -12,7 +12,33 @@ starting your development environment, run the following::
 If you have problems in later steps with kerberos reading those credentials
 inside the `scheduler` container, you should check that `/var/tmp/krbcc` exists
 on your machine and that *it is not a directory*.  Try removing it with `$ sudo
-rm -rf /var/tmp/krbcc` and running `kinit` again.
+rm -rf /var/tmp/krbcc` and running `kinit` again. Also, check for permissions
+and SELinux context of the credentials cache file.
+
+PDC and pdc-updater
+-------------------
+
+For communication with PDC, you will need to check accessibility of `PDC_URL`
+(see your local `config.py`).
+
+For communication with pdc-updater, you will need SSH connection to the machine,
+which provides development instance.
+
+Your `ssh_config` should look like this::
+
+    Host MODULARITY-DEV
+        HostName modularity.fedorainfracloud.org
+        User fedora
+        RemoteForward 300x 127.0.0.1:5001  # x is one of 0...9
+
+Provided that this is configuration of endpoints where pdc-updater sits, typically
+`/etc/fedmsg.d/endpoints.py` (on the machine given above)::
+
+    endpoints={
+        "rida.local": [
+            "tcp://127.0.0.1:300%i" % i for i in range(10)
+        ],
+        ...
 
 Docker
 ------
