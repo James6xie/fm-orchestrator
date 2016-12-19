@@ -58,7 +58,7 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
         # Furthermore, extend our initial messages with any that were queued up
         # in the test environment before our hub was initialized.
         while module_build_service.messaging._initial_messages:
-            msg = module_build_service.messaging._initial_messages.pop()
+            msg = module_build_service.messaging._initial_messages.pop(0)
             self.incoming.put(msg)
 
         # These are our main lookup tables for figuring out what to run in
@@ -95,6 +95,10 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
         from moksha.hub.reactor import reactor
         reactor.callFromThread(self.hub.stop)
         reactor.callFromThread(reactor.stop)
+
+    def validate(self, message):
+        if conf.messaging == 'fedmsg':
+            super(MBSConsumer, self).validate(message)
 
     def consume(self, message):
         log.info("Received %r" % message)
