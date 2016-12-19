@@ -9,7 +9,6 @@ import module_build_service.scheduler.consumer
 import logging
 log = logging.getLogger(__name__)
 
-
 def main(initial_messages, stop_condition):
     """ Run the consumer until some condition is met.
 
@@ -36,6 +35,8 @@ def main(initial_messages, stop_condition):
         options=config,
         # Only run the specified consumers if any are so specified.
         consumers=consumers,
+        # Do not run default producers.
+        producers=[],
         # Tell moksha to quiet its logging.
         framework=False,
     )
