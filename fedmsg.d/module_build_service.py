@@ -36,9 +36,10 @@ config = {
     # End of code signing configuration
 }
 
-# Try to figure out if we're running inside a docker-compose container
-# http://stackoverflow.com/questions/20010199
-if os.path.exists('/.dockerenv'):
+# developer's instance (docker/vagrant/...)
+if 'MODULE_BUILD_SERVICE_DEVELOPER_ENV' in os.environ and \
+   os.environ['MODULE_BUILD_SERVICE_DEVELOPER_ENV'].lower() in (
+       '1', 'on', 'true', 'y', 'yes'):
     config['endpoints']['relay_outbound'] = ["tcp://fedmsg-relay:2001"]
     config['relay_inbound'] = ["tcp://fedmsg-relay:2003"]
 else:
