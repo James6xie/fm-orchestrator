@@ -102,6 +102,10 @@ At any point you may enter the guest VM with::
 
     $ vagrant ssh
 
+The outputs of running services can be tailed as follows::
+
+    $ tail -f /tmp/*.out &
+
 To start the frontend manually, run the following inside the guest::
 
     $ mbs-frontend
