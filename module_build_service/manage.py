@@ -22,6 +22,7 @@
 # Written by Matt Prahl <mprahl@redhat.com> except for the test functions
 
 from flask_script import Manager
+from functools import wraps
 import flask_migrate
 import logging
 import os
@@ -49,8 +50,29 @@ import module_build_service.scheduler.consumer
 
 
 manager = Manager(app)
+help_args = ('-?', '--help')
+manager.help_args = help_args
 migrate = flask_migrate.Migrate(app, db)
 manager.add_command('db', flask_migrate.MigrateCommand)
+
+
+def console_script_help(f):
+    @wraps(f)
+    def wrapped(*args, **kwargs):
+        import sys
+        if any([arg in help_args for arg in sys.argv[1:]]):
+            command = os.path.basename(sys.argv[0])
+            print("""{0}
+
+Usage: {0} [{1}]
+
+See also:
+  mbs-manager(1)""".format(command,
+                           '|'.join(help_args)))
+            sys.exit(2)
+        r = f(*args, **kwargs)
+        return r
+    return wrapped
 
 
 def _establish_ssl_context():
@@ -81,7 +103,7 @@ def _establish_ssl_context():
 
 @manager.command
 def testpdc():
-    """ A helper function to test pdc interaction
+    """ A helper function to test PDC interaction
     """
     cfg = conf
     cfg.pdc_url = "http://modularity.fedorainfracloud.org:8080/rest_api/v1"
@@ -102,6 +124,7 @@ def testpdc():
         print('module was not found')
 
 
+@console_script_help
 @manager.command
 def upgradedb():
     """ Upgrades the database schema to the latest revision
@@ -117,12 +140,16 @@ def upgradedb():
 
 @manager.command
 def cleardb():
+    """ Clears the database
+    """
     models.ModuleBuild.query.delete()
     models.ComponentBuild.query.delete()
 
 
 @manager.command
 def build_module_locally(url):
+    """ Performs local module build using Mock
+    """
     conf.set_item("system", "mock")
 
     # Use our own local SQLite3 database.
@@ -159,8 +186,7 @@ def build_module_locally(url):
 
 @manager.command
 def gendevfedmsgcert(pki_dir='/etc/module_build_service', force=False):
-    """
-    Creates a CA, a certificate signed by that CA, and generates a CRL.
+    """ Creates a CA, a certificate signed by that CA, and generates a CRL.
     """
     from OpenSSL import crypto
 
@@ -256,9 +282,11 @@ def gendevfedmsgcert(pki_dir='/etc/module_build_service', force=False):
                                 days=3650, digest='sha256'))
 
 
+@console_script_help
 @manager.command
 def generatelocalhostcert():
-    # Create a key pair for the message signing cert
+    """ Creates a public/private key pair for message signing and the frontend
+    """
     from OpenSSL import crypto
     cert_key = crypto.PKey()
     cert_key.generate_key(crypto.TYPE_RSA, 2048)
@@ -294,6 +322,7 @@ def generatelocalhostcert():
             crypto.dump_certificate(crypto.FILETYPE_PEM, cert))
 
 
+@console_script_help
 @manager.command
 def runssl(host=conf.host, port=conf.port, debug=conf.debug):
     """ Runs the Flask app with the HTTPS settings configured in config.py

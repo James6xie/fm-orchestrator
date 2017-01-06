@@ -17,6 +17,7 @@ BuildRequires:	python2-nose
 BuildRequires:	python2-mock
 BuildRequires:	fedmsg
 BuildRequires:	git
+BuildRequires:	help2man
 BuildRequires:	kobo
 BuildRequires:	kobo-rpmlib
 BuildRequires:	koji
@@ -98,6 +99,12 @@ tasks:
 
 %install
 %py2_install
+export PYTHONPATH=%{buildroot}%{python2_sitelib}
+mkdir -p %{buildroot}/%{_mandir}/man1
+for command in mbs-manager mbs-frontend mbs-gencert mbs-upgradedb ; do
+help2man -N --version-string=%{version} %{buildroot}/%{_bindir}/$command > \
+%{buildroot}/%{_mandir}/man1/$command.1
+done
 
 %check
 nosetests-2
@@ -107,6 +114,7 @@ nosetests-2
 %license LICENSE
 %{python2_sitelib}/module_build_service*
 %{_bindir}/mbs-*
+%{_mandir}/man1/mbs-*.1*
 %dir %{_sysconfdir}/module-build-service
 %config(noreplace) %{_sysconfdir}/module-build-service/config.py
 %config(noreplace) %{_sysconfdir}/module-build-service/koji.conf
