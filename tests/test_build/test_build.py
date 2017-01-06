@@ -78,6 +78,8 @@ class TestModuleBuilder(GenericBuilder):
 
     on_build_cb = None
     on_cancel_cb = None
+    on_buildroot_add_artifacts_cb = None
+    on_tag_artifacts_cb = None
 
     def __init__(self, owner, module, config, tag_name):
         self.module_str = module
@@ -90,6 +92,8 @@ class TestModuleBuilder(GenericBuilder):
         TestModuleBuilder.INSTANT_COMPLETE = False
         TestModuleBuilder.on_build_cb = None
         TestModuleBuilder.on_cancel_cb = None
+        TestModuleBuilder.on_buildroot_add_artifacts_cb = None
+        TestModuleBuilder.on_tag_artifacts_cb = None
 
     def buildroot_connect(self, groups):
         pass
@@ -107,10 +111,16 @@ class TestModuleBuilder(GenericBuilder):
         pass
 
     def buildroot_add_artifacts(self, artifacts, install=False):
-        pass
+        if TestModuleBuilder.on_buildroot_add_artifacts_cb:
+            TestModuleBuilder.on_buildroot_add_artifacts_cb(self, artifacts, install)
 
     def buildroot_add_repos(self, dependencies):
         pass
+
+    def tag_artifacts(self, artifacts):
+        if TestModuleBuilder.on_tag_artifacts_cb:
+            TestModuleBuilder.on_tag_artifacts_cb(self, artifacts)
+        self._send_repo_done()
 
     @property
     def module_build_tag(self):
@@ -130,7 +140,7 @@ class TestModuleBuilder(GenericBuilder):
             msg_id='a faked internal message',
             build_id=build_id,
             task_id=build_id,
-            build_name="name",
+            build_name=path.basename(source),
             build_new_state=state,
             build_release="1",
             build_version="1"
@@ -143,11 +153,9 @@ class TestModuleBuilder(GenericBuilder):
         TestModuleBuilder._build_id += 1
 
         if TestModuleBuilder.BUILD_STATE != "BUILDING":
-            self._send_repo_done()
             self._send_build_change(
                 koji.BUILD_STATES[TestModuleBuilder.BUILD_STATE], source,
                 TestModuleBuilder._build_id)
-            self._send_repo_done()
 
         if TestModuleBuilder.on_build_cb:
             TestModuleBuilder.on_build_cb(self, artifact_name, source)
@@ -175,6 +183,9 @@ class TestBuild(unittest.TestCase):
     def setUp(self):
         GenericBuilder.register_backend_class(TestModuleBuilder)
         self.client = app.test_client()
+        self._prev_system = conf.system
+        self._prev_num_consencutive_builds = conf.num_consecutive_builds
+
         conf.set_item("system", "mock")
 
         init_data()
@@ -182,7 +193,8 @@ class TestBuild(unittest.TestCase):
         models.ComponentBuild.query.delete()
 
     def tearDown(self):
-        conf.set_item("system", "koji")
+        conf.set_item("system", self._prev_system)
+        conf.set_item("num_consecutive_builds", self._prev_num_consencutive_builds)
         TestModuleBuilder.reset()
 
         # Necessary to restart the twisted reactor for the next test.
@@ -211,7 +223,30 @@ class TestBuild(unittest.TestCase):
         data = json.loads(rv.data)
         module_build_id = data['id']
 
-        msgs = [RidaModule("fake msg", 1, 1)]
+        # Check that components are tagged after the batch is built.
+        tag_groups = []
+        tag_groups.append([u'module-build-macros-0.1-1.module_testmodule_teststream_1.src.rpm-1-1'])
+        tag_groups.append([u'perl-Tangerine?#f25-1-1', u'perl-List-Compare?#f25-1-1'])
+        tag_groups.append([u'tangerine?#f25-1-1'])
+
+        def on_tag_artifacts_cb(cls, artifacts):
+            self.assertEqual(tag_groups.pop(0), artifacts)
+
+        TestModuleBuilder.on_tag_artifacts_cb = on_tag_artifacts_cb
+
+        # Check that the components are added to buildroot after the batch
+        # is built.
+        buildroot_groups = []
+        buildroot_groups.append([u'module-build-macros-0.1-1.module_testmodule_teststream_1.src.rpm-1-1'])
+        buildroot_groups.append([u'perl-Tangerine?#f25-1-1', u'perl-List-Compare?#f25-1-1'])
+        buildroot_groups.append([u'tangerine?#f25-1-1'])
+
+        def on_buildroot_add_artifacts_cb(cls, artifacts, install):
+            self.assertEqual(buildroot_groups.pop(0), artifacts)
+
+        TestModuleBuilder.on_buildroot_add_artifacts_cb = on_buildroot_add_artifacts_cb
+
+        msgs = []
         stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
         module_build_service.scheduler.main(msgs, stop)
 
@@ -220,6 +255,10 @@ class TestBuild(unittest.TestCase):
         for build in models.ComponentBuild.query.filter_by(module_id=module_build_id).all():
             self.assertEqual(build.state, koji.BUILD_STATES['COMPLETE'])
             self.assertTrue(build.module_build.state in [models.BUILD_STATES["done"], models.BUILD_STATES["ready"]] )
+
+        # All components has to be tagged, so tag_groups and buildroot_groups are empty...
+        self.assertEqual(tag_groups, [])
+        self.assertEqual(buildroot_groups, [])
 
     @timed(30)
     @patch('module_build_service.auth.get_username', return_value='Homer J. Simpson')
@@ -257,7 +296,7 @@ class TestBuild(unittest.TestCase):
         TestModuleBuilder.on_build_cb = on_build_cb
         TestModuleBuilder.on_cancel_cb = on_cancel_cb
 
-        msgs = [RidaModule("fake msg", 1, 1)]
+        msgs = []
         stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
         module_build_service.scheduler.main(msgs, stop)
 
@@ -296,7 +335,38 @@ class TestBuild(unittest.TestCase):
         TestModuleBuilder.BUILD_STATE = "BUILDING"
         TestModuleBuilder.INSTANT_COMPLETE = True
 
-        msgs = [RidaModule("fake msg", 1, 1)]
+        msgs = []
+        stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
+        module_build_service.scheduler.main(msgs, stop)
+
+        # All components should be built and module itself should be in "done"
+        # or "ready" state.
+        for build in models.ComponentBuild.query.filter_by(module_id=module_build_id).all():
+            self.assertEqual(build.state, koji.BUILD_STATES['COMPLETE'])
+            self.assertTrue(build.module_build.state in [models.BUILD_STATES["done"], models.BUILD_STATES["ready"]] )
+
+    @timed(30)
+    @patch('module_build_service.auth.get_username', return_value='Homer J. Simpson')
+    @patch('module_build_service.auth.assert_is_packager')
+    @patch('module_build_service.scm.SCM')
+    def test_submit_build_concurrent_threshold(
+            self, mocked_scm, mocked_assert_is_packager, mocked_get_username):
+        """
+        Tests the build of testmodule.yaml using TestModuleBuilder with
+        num_consecutive_builds set to 1.
+        """
+        MockedSCM(mocked_scm, "testmodule", "testmodule.yaml")
+
+        conf.set_item("num_consecutive_builds", 1)
+
+        rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
+            {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+                'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}))
+
+        data = json.loads(rv.data)
+        module_build_id = data['id']
+
+        msgs = []
         stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
         module_build_service.scheduler.main(msgs, stop)
 

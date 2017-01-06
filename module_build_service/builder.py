@@ -213,6 +213,15 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
         raise NotImplementedError()
 
     @abstractmethod
+    def tag_artifacts(self, artifacts):
+        """
+        :param artifacts: list of artifacts (NVRs) to be tagged
+
+        Adds the artifacts to tag associated with this module build.
+        """
+        raise NotImplementedError()
+
+    @abstractmethod
     def build(self, artifact_name, source):
         """
         :param artifact_name : A package name. We can't guess it since macros
@@ -282,6 +291,7 @@ class KojiModuleBuilder(GenericBuilder):
         """
         self.owner = owner
         self.module_str = module
+        self.config = config
         self.tag_name = tag_name
         self.__prep = False
         log.debug("Using koji profile %r" % config.koji_profile)
@@ -482,11 +492,11 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
         This method is safe to call multiple times.
         """
         log.info("%r adding artifacts %r" % (self, artifacts))
-        dest_tag = self._get_tag(self.module_build_tag)['id']
+        build_tag = self._get_tag(self.module_build_tag)['id']
 
         for nvr in artifacts:
-            log.info("%r tagging %r into %r" % (self, nvr, dest_tag))
-            self.koji_session.tagBuild(dest_tag, nvr, force=True)
+            log.info("%r tagging %r into %r" % (self, nvr, build_tag))
+            self.koji_session.tagBuild(build_tag, nvr, force=True)
 
             if not install:
                 continue
@@ -494,7 +504,14 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
             for group in ('srpm-build', 'build'):
                 name = kobo.rpmlib.parse_nvr(nvr)['name']
                 log.info("%r adding %s to group %s" % (self, name, group))
-                self.koji_session.groupPackageListAdd(dest_tag, group, name)
+                self.koji_session.groupPackageListAdd(build_tag, group, name)
+
+    def tag_artifacts(self, artifacts):
+        dest_tag = self._get_tag(self.module_tag)['id']
+
+        for nvr in artifacts:
+            log.info("%r tagging %r into %r" % (self, nvr, dest_tag))
+            self.koji_session.tagBuild(dest_tag, nvr, force=True)
 
     def wait_task(self, task_id):
         """
@@ -580,7 +597,19 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
             self.koji_session.uploadWrapper(source, serverdir, callback=callback)
             source = "%s/%s" % (serverdir, os.path.basename(source))
 
-        task_id = self.koji_session.build(source, self.module_target['name'],
+        # When "koji_build_macros_target" is set, we build the
+        # module-build-macros in this target instead of the self.module_target.
+        # The reason is that it is faster to build this RPM in
+        # already existing shared target, because Koji does not need to do
+        # repo-regen.
+        if (artifact_name == "module-build-macros"
+                and self.config.koji_build_macros_target):
+            module_target = self.config.koji_build_macros_target
+        else:
+            module_target = self.module_target['name']
+
+        build_opts = {"skip_tag": True}
+        task_id = self.koji_session.build(source, module_target, build_opts,
                                           priority=self.build_priority)
         log.info("submitted build of %s (task_id=%s), via %s" % (
             source, task_id, self))
@@ -874,6 +903,9 @@ class CoprModuleBuilder(GenericBuilder):
             if backend == "copr":
                 return self._dependency_repo(module, arch, "koji")
 
+    def tag_artifacts(self, artifacts):
+        pass
+
     def build(self, artifact_name, source):
         """
         :param artifact_name : A package name. We can't guess it since macros
@@ -1153,6 +1185,16 @@ $repos
                 _execute_cmd(["mock", "-r", self.mock_config, "-i",
                                    "module-build-macros"])
 
+    def _send_repo_done(self):
+        msg = module_build_service.messaging.KojiRepoChange(
+            msg_id='a faked internal message',
+            repo_tag=self.tag_name + "-build",
+        )
+        module_build_service.scheduler.consumer.work_queue_put(msg)
+
+    def tag_artifacts(self, artifacts):
+        self._send_repo_done()
+
     def buildroot_add_repos(self, dependencies):
         # TODO: We support only dependencies from Koji here. This should be
         # extended to Copr in the future.
@@ -1160,13 +1202,6 @@ $repos
             baseurl = KojiModuleBuilder.repo_from_tag(self.config, tag, self.arch)
             self._add_repo(tag, baseurl)
         self._write_mock_config()
-
-    def _send_repo_done(self):
-        msg = module_build_service.messaging.KojiRepoChange(
-            msg_id='a faked internal message',
-            repo_tag=self.tag_name + "-build",
-        )
-        module_build_service.scheduler.consumer.work_queue_put(msg)
 
     def _send_build_change(self, state, source, build_id):
         nvr = kobo.rpmlib.parse_nvr(source)
@@ -1209,10 +1244,8 @@ $repos
             # are put in the scheduler's work queue and are handled
             # by MBS after the build_srpm() method returns and scope gets
             # back to scheduler.main.main() method.
-            self._send_repo_done()
             self._send_build_change(koji.BUILD_STATES['COMPLETE'], source,
                                     MockModuleBuilder._build_id)
-            self._send_repo_done()
 
             with open(os.path.join(self.resultsdir, "status.log"), 'w') as f:
                 f.write("complete\n")
@@ -1224,10 +1257,8 @@ $repos
             # are put in the scheduler's work queue and are handled
             # by MBS after the build_srpm() method returns and scope gets
             # back to scheduler.main.main() method.
-            self._send_repo_done()
             self._send_build_change(koji.BUILD_STATES['FAILED'], source,
                                     MockModuleBuilder._build_id)
-            self._send_repo_done()
             with open(os.path.join(self.resultsdir, "status.log"), 'w') as f:
                 f.write("failed\n")
 

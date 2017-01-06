@@ -116,6 +116,11 @@ class Config(object):
             'type': str,
             'default': None,
             'desc': 'Koji repository URL.'},
+        'koji_build_macros_target': {
+            'type': str,
+            'default': '',
+            'desc': 'Target to build "module-build-macros" RPM in.'
+            },
         'rpms_default_repository': {
             'type': str,
             'default': 'git://pkgs.fedoraproject.org/rpms/',
