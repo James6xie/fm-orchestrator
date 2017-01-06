@@ -1185,8 +1185,15 @@ $repos
                 _execute_cmd(["mock", "-r", self.mock_config, "-i",
                                    "module-build-macros"])
 
+    def _send_repo_done(self):
+        msg = module_build_service.messaging.KojiRepoChange(
+            msg_id='a faked internal message',
+            repo_tag=self.tag_name + "-build",
+        )
+        module_build_service.scheduler.consumer.work_queue_put(msg)
+
     def tag_artifacts(self, artifacts):
-        pass
+        self._send_repo_done()
 
     def buildroot_add_repos(self, dependencies):
         # TODO: We support only dependencies from Koji here. This should be
@@ -1195,13 +1202,6 @@ $repos
             baseurl = KojiModuleBuilder.repo_from_tag(self.config, tag, self.arch)
             self._add_repo(tag, baseurl)
         self._write_mock_config()
-
-    def _send_repo_done(self):
-        msg = module_build_service.messaging.KojiRepoChange(
-            msg_id='a faked internal message',
-            repo_tag=self.tag_name + "-build",
-        )
-        module_build_service.scheduler.consumer.work_queue_put(msg)
 
     def _send_build_change(self, state, source, build_id):
         nvr = kobo.rpmlib.parse_nvr(source)
@@ -1244,10 +1244,8 @@ $repos
             # are put in the scheduler's work queue and are handled
             # by MBS after the build_srpm() method returns and scope gets
             # back to scheduler.main.main() method.
-            self._send_repo_done()
             self._send_build_change(koji.BUILD_STATES['COMPLETE'], source,
                                     MockModuleBuilder._build_id)
-            self._send_repo_done()
 
             with open(os.path.join(self.resultsdir, "status.log"), 'w') as f:
                 f.write("complete\n")
@@ -1259,10 +1257,8 @@ $repos
             # are put in the scheduler's work queue and are handled
             # by MBS after the build_srpm() method returns and scope gets
             # back to scheduler.main.main() method.
-            self._send_repo_done()
             self._send_build_change(koji.BUILD_STATES['FAILED'], source,
                                     MockModuleBuilder._build_id)
-            self._send_repo_done()
             with open(os.path.join(self.resultsdir, "status.log"), 'w') as f:
                 f.write("failed\n")
 

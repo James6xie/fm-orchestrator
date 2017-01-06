@@ -71,6 +71,27 @@ def _finalize(config, session, msg, state):
         session.commit()
         return
 
+    # Initialize the builder, we will need it later.
+    module_name = parent.name
+    tag = parent.koji_tag
+    builder = module_build_service.builder.GenericBuilder.create(
+        parent.owner, module_name, config.system, config, tag_name=tag)
+
+    try:
+        groups = {
+            'build': parent.resolve_profiles(session, 'buildroot'),
+            'srpm-build': parent.resolve_profiles(session, 'srpm-buildroot'),
+        }
+    except ValueError:
+        reason = "Failed to gather buildroot groups from SCM."
+        log.exception(reason)
+        parent.transition(config, state=models.BUILD_STATES["failed"],
+                            state_reason=reason)
+        session.commit()
+        raise
+
+    builder.buildroot_connect(groups)
+
     # If there are no other components still building in a batch,
     # we can tag all successfully built components in the batch.
     unbuilt_components_in_batch = [
@@ -83,30 +104,20 @@ def _finalize(config, session, msg, state):
             if c.state == koji.BUILD_STATES['COMPLETE']
         ]
 
-        module_name = parent.name
-        tag = parent.koji_tag
-        builder = module_build_service.builder.GenericBuilder.create(
-            parent.owner, module_name, config.system, config, tag_name=tag)
-
-        try:
-            groups = {
-                'build': parent.resolve_profiles(session, 'buildroot'),
-                'srpm-build': parent.resolve_profiles(session, 'srpm-buildroot'),
-            }
-        except ValueError:
-            reason = "Failed to gather buildroot groups from SCM."
-            log.exception(reason)
-            parent.transition(config, state=models.BUILD_STATES["failed"],
-                              state_reason=reason)
-            session.commit()
-            raise
-
-        builder.buildroot_connect(groups)
         # tag && add to srpm-build group if neccessary
         install = bool(component_build.package == 'module-build-macros')
         builder.buildroot_add_artifacts(built_components_in_batch, install=install)
         builder.tag_artifacts(built_components_in_batch)
         session.commit()
+    else:
+        # We have some unbuilt components in this batch. We might hit the
+        # concurrent builds threshold in previous call of start_build_batch
+        # done in repos.py:done(...), but because we have just finished one
+        # build, try to call start_build_batch again so in case we hit the
+        # threshold previously, we will submit another build from this batch.
+        further_work = module_build_service.utils.start_build_batch(
+            config, parent, session, builder)
+        return further_work
 
 
 def complete(config, session, msg):
