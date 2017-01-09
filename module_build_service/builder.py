@@ -1097,8 +1097,8 @@ $repos
                     os.remove(os.path.join(self.resultsdir, name))
 
             # Remove the old RPM repository from the results directory.
-            if os.path.exists(os.path.join(self.resultsdir, "/repodata/repomd.xml")):
-                os.remove(os.path.join(self.resultsdir, "/repodata/repomd.xml"))
+            if os.path.exists(os.path.join(self.resultsdir, "repodata/repomd.xml")):
+                os.remove(os.path.join(self.resultsdir, "repodata/repomd.xml"))
 
         # Create "config" sub-directory.
         self.configdir = os.path.join(self.tag_dir, "config")
@@ -1107,7 +1107,7 @@ $repos
 
         # Generate path to mock config and add local repository there.
         self.mock_config = os.path.join(self.configdir, "mock.cfg")
-        self._add_repo("localrepo", "file://" + self.resultsdir)
+        self._add_repo("localrepo", "file://" + self.resultsdir, "metadata_expire=1\n")
 
         log.info("MockModuleBuilder initialized, tag_name=%s, tag_dir=%s" %
                  (tag_name, self.tag_dir))
@@ -1116,6 +1116,7 @@ $repos
         """
         Creates the repository using "createrepo_c" command in the resultsdir.
         """
+        log.debug("Creating repository in %s" % self.resultsdir)
         path = self.resultsdir
         if os.path.exists(path + '/repodata/repomd.xml'):
             comm = ['/usr/bin/createrepo_c', '--update', path]
@@ -1126,7 +1127,7 @@ $repos
         out, err = cmd.communicate()
         return out, err
 
-    def _add_repo(self, name, baseurl):
+    def _add_repo(self, name, baseurl, extra = ""):
         """
         Adds repository to Mock config file. Call _write_mock_config() to
         actually write the config file to filesystem.
@@ -1134,6 +1135,7 @@ $repos
         self.repos += "[%s]\n" % name
         self.repos += "name=%s\n" % name
         self.repos += "baseurl=%s\n" % baseurl
+        self.repos += extra
         self.repos += "enabled=1\n"
 
     def _write_mock_config(self):
@@ -1168,14 +1170,14 @@ $repos
         pass
 
     def buildroot_ready(self, artifacts=None):
-        log.debug("Creating repository in %s" % self.resultsdir)
-        self._createrepo()
         return True
 
     def buildroot_add_dependency(self, dependencies):
         pass
 
     def buildroot_add_artifacts(self, artifacts, install=False):
+        self._createrepo()
+
         # TODO: This is just hack to install module-build-macros into the
         # buildroot. We should really install the RPMs belonging to the
         # right source RPM into the buildroot here, but we do not track
@@ -1185,6 +1187,8 @@ $repos
                 _execute_cmd(["mock", "-r", self.mock_config, "-i",
                                    "module-build-macros"])
 
+        self._send_repo_done()
+
     def _send_repo_done(self):
         msg = module_build_service.messaging.KojiRepoChange(
             msg_id='a faked internal message',
@@ -1193,7 +1197,7 @@ $repos
         module_build_service.scheduler.consumer.work_queue_put(msg)
 
     def tag_artifacts(self, artifacts):
-        self._send_repo_done()
+        pass
 
     def buildroot_add_repos(self, dependencies):
         # TODO: We support only dependencies from Koji here. This should be
@@ -1231,12 +1235,12 @@ $repos
         """
         try:
             # Initialize mock.
-            _execute_cmd(["mock", "-r", self.config.mock_config, "--init"])
+            _execute_cmd(["mock", "-r", self.mock_config, "--init"])
 
             # Start the build and store results to resultsdir
             # TODO: Maybe this should not block in the future, but for local
             # builds it is not a big problem.
-            _execute_cmd(["mock", "-r", self.config.mock_config,
+            _execute_cmd(["mock", "-r", self.mock_config,
                                "--no-clean", "--rebuild", source,
                                "--resultdir=%s" % self.resultsdir])
 
@@ -1275,7 +1279,6 @@ $repos
 
     def build(self, artifact_name, source):
         log.info("Starting building artifact %s: %s" % (artifact_name, source))
-
         MockModuleBuilder._build_id += 1
 
         # Git sources are treated specially.
