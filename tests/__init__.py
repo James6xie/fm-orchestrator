@@ -28,10 +28,34 @@ from module_build_service import db
 from module_build_service.config import init_config
 from module_build_service.models import ModuleBuild, ComponentBuild
 from module_build_service.utils import insert_fake_baseruntime
+import module_build_service.pdc
 
 app = module_build_service.app
 conf = init_config(app)
 
+def local_resolve_profiles(pdc_session, mmd, keys):
+    """
+    Returns the default srpm-buildroot and "buildroot" groups as they
+    would have been return from PDC.
+
+    We are not using real PDC for resolve_profiles in tests,
+    because it makes tests slower and depending on the remote dev
+    PDC instance which is not ideal.
+    """
+    default_groups = {
+        'srpm-buildroot':
+            set(['shadow-utils', 'fedora-release', 'redhat-rpm-config',
+                    'rpm-build', 'fedpkg-minimal', 'gnupg2', 'bash']),
+        'buildroot':
+            set(['unzip', 'fedora-release', 'tar', 'cpio', 'gawk',
+                    'gcc', 'xz', 'sed', 'findutils', 'util-linux', 'bash',
+                    'info', 'bzip2', 'grep', 'redhat-rpm-config',
+                    'diffutils', 'make', 'patch', 'shadow-utils',
+                    'coreutils', 'which', 'rpm-build', 'gzip', 'gcc-c++'])}
+
+    return default_groups
+
+module_build_service.pdc.resolve_profiles = local_resolve_profiles
 
 def init_data():
     db.session.remove()

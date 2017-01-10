@@ -96,7 +96,18 @@ class TestModuleBuilder(GenericBuilder):
         TestModuleBuilder.on_tag_artifacts_cb = None
 
     def buildroot_connect(self, groups):
-        pass
+        default_groups = {
+            'srpm-build':
+                set(['shadow-utils', 'fedora-release', 'redhat-rpm-config',
+                     'rpm-build', 'fedpkg-minimal', 'gnupg2', 'bash']),
+            'build':
+                set(['unzip', 'fedora-release', 'tar', 'cpio', 'gawk',
+                     'gcc', 'xz', 'sed', 'findutils', 'util-linux', 'bash',
+                     'info', 'bzip2', 'grep', 'redhat-rpm-config',
+                     'diffutils', 'make', 'patch', 'shadow-utils',
+                     'coreutils', 'which', 'rpm-build', 'gzip', 'gcc-c++'])}
+        if groups != default_groups:
+            raise ValueError("Wrong groups in TestModuleBuilder.buildroot_connect()")
 
     def buildroot_prep(self):
         pass

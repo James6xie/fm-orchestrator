@@ -77,18 +77,8 @@ def _finalize(config, session, msg, state):
     builder = module_build_service.builder.GenericBuilder.create(
         parent.owner, module_name, config.system, config, tag_name=tag)
 
-    try:
-        groups = {
-            'build': parent.resolve_profiles(session, 'buildroot'),
-            'srpm-build': parent.resolve_profiles(session, 'srpm-buildroot'),
-        }
-    except ValueError:
-        reason = "Failed to gather buildroot groups from SCM."
-        log.exception(reason)
-        parent.transition(config, state=models.BUILD_STATES["failed"],
-                            state_reason=reason)
-        session.commit()
-        raise
+    groups = module_build_service.builder.GenericBuilder.default_buildroot_groups(
+        session, parent)
 
     builder.buildroot_connect(groups)
 

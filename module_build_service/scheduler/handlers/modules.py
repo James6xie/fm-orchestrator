@@ -68,17 +68,8 @@ def failed(config, session, msg):
             and c.state != koji.BUILD_STATES["FAILED"])
     ]
 
-    try:
-        groups = {
-            'build': build.resolve_profiles(session, 'buildroot'),
-            'srpm-build': build.resolve_profiles(session, 'srpm-buildroot'),
-        }
-    except ValueError:
-        reason = "Failed to gather buildroot groups from SCM."
-        log.exception(reason)
-        build.transition(config, state="failed", state_reason=reason)
-        session.commit()
-        raise
+    groups = module_build_service.builder.GenericBuilder.default_buildroot_groups(
+        session, build)
 
     if build.koji_tag:
         builder = module_build_service.builder.GenericBuilder.create(
@@ -201,17 +192,8 @@ def wait(config, session, msg):
             session.commit()
             raise
 
-    try:
-        groups = {
-            'build': build.resolve_profiles(session, 'buildroot'),
-            'srpm-build': build.resolve_profiles(session, 'srpm-buildroot'),
-        }
-    except ValueError:
-        reason = "Failed to gather buildroot groups from SCM."
-        log.exception(reason)
-        build.transition(config, state="failed", state_reason=reason)
-        session.commit()
-        raise
+    groups = module_build_service.builder.GenericBuilder.default_buildroot_groups(
+        session, build)
 
     log.debug("Found tag=%s for module %r" % (tag, build))
     # Hang on to this information for later.  We need to know which build is

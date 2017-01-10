@@ -79,17 +79,8 @@ def done(config, session, msg):
         log.warn("Odd!  All components in batch failed for %r." % module_build)
         return
 
-    try:
-        groups = {
-            'build': module_build.resolve_profiles(session, 'buildroot'),
-            'srpm-build': module_build.resolve_profiles(session, 'srpm-buildroot'),
-        }
-    except ValueError:
-        reason = "Failed to gather buildroot groups from SCM."
-        log.exception(reason)
-        module_build.transition(config, state="failed", state_reason=reason)
-        session.commit()
-        raise
+    groups = module_build_service.builder.GenericBuilder.default_buildroot_groups(
+        session, module_build)
 
     builder = module_build_service.builder.GenericBuilder.create(
         module_build.owner, module_build.name, config.system, config,
