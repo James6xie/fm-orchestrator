@@ -33,16 +33,4 @@ class TestModels(unittest.TestCase):
     def setUp(self):
         init_data()
 
-    def test_resolve_refs(self):
-        expected = set([
-            'shadow-utils',
-            'fedora-release',
-            'redhat-rpm-config',
-            'rpm-build',
-            'fedpkg-minimal',
-            'gnupg2',
-            'bash',
-        ])
-        build = db.session.query(models.ModuleBuild).filter_by(name='testmodule').one()
-        result = build.resolve_profiles(db.session, 'srpm-buildroot')
-        eq_(result,  expected)
+

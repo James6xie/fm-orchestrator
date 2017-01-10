@@ -27,7 +27,6 @@ from datetime import datetime, timedelta
 from module_build_service import db
 from module_build_service.config import init_config
 from module_build_service.models import ModuleBuild, ComponentBuild
-from module_build_service.utils import insert_fake_baseruntime
 import module_build_service.pdc
 
 app = module_build_service.app
@@ -61,7 +60,6 @@ def init_data():
     db.session.remove()
     db.drop_all()
     db.create_all()
-    insert_fake_baseruntime()
     for index in range(10):
         build_one = ModuleBuild()
         build_one.name = 'nginx'
@@ -208,7 +206,6 @@ def scheduler_init_data():
     db.session.remove()
     db.drop_all()
     db.create_all()
-    insert_fake_baseruntime()
 
     current_dir = os.path.dirname(__file__)
     star_command_yml_path = os.path.join(
@@ -241,7 +238,7 @@ def scheduler_init_data():
     component_one_build_one.state = None
     component_one_build_one.nvr = 'communicator-1.10.1-2.module_starcommand_1_3'
     component_one_build_one.batch = 2
-    component_one_build_one.module_id = 2
+    component_one_build_one.module_id = 1
 
     component_two_build_one = module_build_service.models.ComponentBuild()
     component_two_build_one.package = 'module-build-macros'
@@ -254,7 +251,7 @@ def scheduler_init_data():
     component_two_build_one.nvr = \
         'module-build-macros-01-1.module_starcommand_1_3'
     component_two_build_one.batch = 2
-    component_two_build_one.module_id = 2
+    component_two_build_one.module_id = 1
 
     db.session.add(build_one)
     db.session.add(component_one_build_one)

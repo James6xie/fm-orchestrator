@@ -42,7 +42,6 @@ from module_build_service.pdc import (
     get_module_tag, get_module_build_dependencies)
 from module_build_service.utils import (
     submit_module_build,
-    insert_fake_baseruntime,
 )
 from module_build_service.messaging import RidaModule
 import module_build_service.messaging
@@ -135,7 +134,6 @@ def upgradedb():
                                   'migrations')
     with app.app_context():
         flask_migrate.upgrade(directory=migrations_dir)
-        insert_fake_baseruntime()
 
 
 @manager.command
@@ -172,7 +170,6 @@ def build_module_locally(url):
     # In the future, we should use PDC to get what we need from the fake module,
     # so it's probably not big problem.
     db.create_all()
-    insert_fake_baseruntime()
 
     username = getpass.getuser()
     submit_module_build(username, url, allow_local_url=True)
