@@ -177,7 +177,7 @@ class ModuleBuild(RidaBase):
         session.add(module)
         session.commit()
         module_build_service.messaging.publish(
-            service='module_build_service',
+            service='mbs',
             topic='module.state.change',
             msg=module.json(),  # Note the state is "init" here...
             conf=conf,
@@ -200,7 +200,7 @@ class ModuleBuild(RidaBase):
         log.debug("%r, state %r->%r" % (self, old_state, self.state))
         if old_state != self.state:
             module_build_service.messaging.publish(
-                service='module_build_service',
+                service='mbs',
                 topic='module.state.change',
                 msg=self.json(),  # Note the state is "init" here...
                 conf=conf,

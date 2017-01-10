@@ -87,7 +87,7 @@ class BaseMessage(object):
         properties = json.loads(msg.properties, encoding='utf8')
         service = properties.get('service')
 
-        if service not in ('koji', 'module_build_service'):
+        if service not in ('koji', 'mbs'):
             log.debug('Skipping msg due service=%s which is not related (msg=%r): ' % (service, msg))
             return None
 
@@ -130,8 +130,8 @@ class BaseMessage(object):
                         msg.id, build_id, task_id, build_state, build_name,
                         build_version, build_release)
 
-        elif service == 'module_build_service':
-            log.debug("Found module_build_service related msg: %s" % msg)
+        elif service == 'mbs':
+            log.debug("Found mbs related msg: %s" % msg)
             body = json.loads(msg.body, encoding='utf8')
             if topic == 'module.state.change':
                 msg_obj = RidaModule(
@@ -153,7 +153,7 @@ class BaseMessage(object):
         that the app looks for, otherwise None is returned
         """
         regex_pattern = re.compile(
-            (r'(?P<category>buildsys|module_build_service)(?:\.)'
+            (r'(?P<category>buildsys|mbs)(?:\.)'
              r'(?P<object>build|repo|module)(?:(?:\.)'
              r'(?P<subobject>state))?(?:\.)(?P<event>change|done)$'))
         regex_results = re.search(regex_pattern, topic)
@@ -193,7 +193,7 @@ class BaseMessage(object):
                 repo_tag = msg_inner_msg.get('tag')
                 msg_obj = KojiRepoChange(msg_id, repo_tag)
 
-            elif category == 'module_build_service' and object == 'module' and \
+            elif category == 'mbs' and object == 'module' and \
                     subobject == 'state' and event == 'change':
                 msg_obj = RidaModule(
                     msg_id, msg_inner_msg.get('id'), msg_inner_msg.get('state'))
@@ -258,7 +258,7 @@ def publish(topic, msg, conf, service):
     :param topic: the topic of the message (e.g. module.state.change)
     :param msg: the message contents of the message (typically JSON)
     :param conf: a Config object from the class in config.py
-    :param service: the system that is publishing the message (e.g. module_build_service)
+    :param service: the system that is publishing the message (e.g. mbs)
     :return:
     """
     try:
