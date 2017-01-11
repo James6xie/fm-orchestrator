@@ -226,21 +226,13 @@ def resolve_profiles(session, mmd, keys, seen=None):
             continue
 
         # Find the latest of the dep in our db of built modules.
-        module_info = {}
-        module_info['variant_id'] = name
-        module_info['variant_stream'] = stream
-        dep_mmd = get_module_modulemd(session, module_info, False)
-        # XXX - We may want to make this fatal one day, but warn for now.
-        if not dep_mmd:
-            log.warn("Could not find built dep "
-                        "%s/%s for %r" % (name, stream, mmd.name))
-            continue
+        module_info = {'variant_id': name, 'variant_stream': stream}
+        dep_mmd = get_module_modulemd(session, module_info, True)
 
         # Take note of what rpms are in this dep's profile.
-        profiles = dep_mmd.profiles
         for key in keys:
-            if key in profiles:
-                results[key] |= profiles[key].rpms
+            if key in dep_mmd.profiles:
+                results[key] |= dep_mmd.profiles[key].rpms
 
         # And recurse to all modules that are deps of our dep.
         rec_results = resolve_profiles(session, dep_mmd, keys, seen + [name])
