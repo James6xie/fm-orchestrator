@@ -275,6 +275,18 @@ def _fetch_mmd(url, allow_local_url = False):
 
     return mmd, scm, yaml
 
+def _scm_get_latest(pkg):
+    try:
+        # If the modulemd specifies that the 'f25' branch is what
+        # we want to pull from, we need to resolve that f25 branch
+        # to the specific commit available at the time of
+        # submission (now).
+        pkg.ref = module_build_service.scm.SCM(
+            pkg.repository).get_latest(branch=pkg.ref)
+    except Exception as e:
+        return "Failed to get the latest commit for %s#%s" % (pkg.repository, pkg.ref)
+    return None
+
 def record_component_builds(scm, mmd, module, initial_batch = 1):
     # Import it here, because SCM uses utils methods
     # and fails to import them because of dep-chain.
@@ -286,6 +298,7 @@ def record_component_builds(scm, mmd, module, initial_batch = 1):
 
     # If the modulemd yaml specifies components, then submit them for build
     if mmd.components:
+        # Add missing data in components
         for pkgname, pkg in mmd.components.rpms.items():
             try:
                 if pkg.repository and not conf.rpms_allow_repository:
@@ -299,37 +312,25 @@ def record_component_builds(scm, mmd, module, initial_batch = 1):
                     pkg.cache = conf.rpms_default_cache + pkgname
                 if not pkg.ref:
                     pkg.ref = 'master'
-                try:
-                    # If the modulemd specifies that the 'f25' branch is what
-                    # we want to pull from, we need to resolve that f25 branch
-                    # to the specific commit available at the time of
-                    # submission (now).
-                    pkg.ref = module_build_service.scm.SCM(
-                        pkg.repository).get_latest(branch=pkg.ref)
-                except Exception as e:
-                    raise UnprocessableEntity(
-                        "Failed to get the latest commit for %s#%s" % (
-                            pkgname, pkg.ref))
             except Exception:
                 module.transition(conf, models.BUILD_STATES["failed"])
                 db.session.add(module)
                 db.session.commit()
                 raise
 
-            full_url = "%s?#%s" % (pkg.repository, pkg.ref)
-            full_urls.append((pkgname, full_url))
-
-        log.debug("Checking scm urls")
-        # Checks the availability of SCM urls.
-        pool = ThreadPool(10)
-        err_msgs = pool.map(lambda data: "Cannot checkout {}".format(data[0])
-                            if not module_build_service.scm.SCM(data[1]).is_available()
-                            else None, full_urls)
+        # Check that SCM URL is valid and replace potential branches in
+        # pkg.ref by real SCM hash.
+        pool = ThreadPool(20)
+        err_msgs = pool.map(_scm_get_latest, mmd.components.rpms.values())
         # TODO: only the first error message is raised, perhaps concatenate
         # the messages together?
         for err_msg in err_msgs:
             if err_msg:
                 raise UnprocessableEntity(err_msg)
+
+        for pkgname, pkg in mmd.components.rpms.items():
+            full_url = "%s?#%s" % (pkg.repository, pkg.ref)
+            full_urls.append((pkgname, full_url))
 
         components = mmd.components.all
         components.sort(key=lambda x: x.buildorder)

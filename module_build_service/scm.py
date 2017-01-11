@@ -100,10 +100,10 @@ class SCM(object):
 
     @staticmethod
     @module_build_service.utils.retry(wait_on=RuntimeError)
-    def _run(cmd, chdir=None):
+    def _run(cmd, chdir=None, log_stdout = False):
         proc = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE, cwd=chdir)
         stdout, stderr = proc.communicate()
-        if stdout:
+        if log_stdout and stdout:
             log.debug(stdout)
         if stderr:
             log.warning(stderr)
@@ -149,53 +149,43 @@ class SCM(object):
         :raises: RuntimeError
         """
         if self.scheme == "git":
-            cmd = ["git", "ls-remote", self.repository]
-            proc = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
-            output, stderr = proc.communicate()
-            if proc.returncode != 0:
-                raise RuntimeError("Cannot get git hash of %s HEAD in %s"
-                    % (branch, self.repository))
+            log.debug("Getting/verifying commit hash for %s" % self.repository)
+            output = SCM._run(["git", "ls-remote", self.repository])[1]
             for line in output.split(os.linesep):
                 if line.endswith("\trefs/heads/%s" % branch):
                     return line.split("\t")[0]
 
             # Hopefully `branch` is really a commit hash.  Code later needs to verify this.
-            log.warn("Couldn't determine the git %s HEAD hash in %s."
-                % (branch, self.repository))
+            if self.is_available(True):
+                return branch
             return branch
         else:
             raise RuntimeError("get_latest: Unhandled SCM scheme.")
 
-    def is_available(self):
+    def is_available(self, strict=False):
         """Check whether the scmurl is available for checkout.
 
+        :param bool strict: When True, raise expection on error instead of
+                            returning False.
         :returns: bool -- the scmurl is available for checkout
         """
-        # XXX: If implementing special hacks for pagure.io or github.com, don't
-        # forget about possible forks -- start with self.repository.
-        if self.repository.startswith("-git://pkgs.fedoraproject.org/"):
-            hc = http_client.HTTPConnection("pkgs.fedoraproject.org")
-            hc.request("HEAD",
-                "/cgit/rpms/" + self.name + ".git/commit/?id=" + self.commit)
-            rc = hc.getresponse().code
-            hc.close()
-            return True if rc == 200 else False
-        else:
-            td = None
+        td = None
+        try:
+            td = tempfile.mkdtemp()
+            self.checkout(td)
+            return True
+        except:
+            if strict:
+                raise
+            return False
+        finally:
             try:
-                td = tempfile.mkdtemp()
-                self.checkout(td)
-                return True
-            except:
-                return False
-            finally:
-                try:
-                    if td is not None:
-                        shutil.rmtree(td)
-                except Exception as e:
-                    log.warning(
-                        "Failed to remove temporary directory {!r}: {}".format(
-                            td, str(e)))
+                if td is not None:
+                    shutil.rmtree(td)
+            except Exception as e:
+                log.warning(
+                    "Failed to remove temporary directory {!r}: {}".format(
+                        td, str(e)))
 
     @property
     def url(self):
