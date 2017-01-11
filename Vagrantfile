@@ -29,11 +29,10 @@ $script = <<SCRIPT
         rpm-build \
         swig \
         systemd-devel
-    mkdir /usr/share/fedmsg
-    chown fedmsg:fedmsg /usr/share/fedmsg
     mkdir /etc/module-build-service/
     cd /tmp/module_build_service
     python setup.py develop
+    python setup.py egg_info
     pip install -r test-requirements.txt
 SCRIPT
 

@@ -1,4 +1,4 @@
 config = {
     'mbsconsumer': True,
-    'mbsproducer': True,
+    'mbspoller': True,
 }
