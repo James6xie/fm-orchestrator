@@ -25,6 +25,7 @@ class BaseConfiguration(object):
 
     SYSTEM = 'koji'
     MESSAGING = 'fedmsg'  # or amq
+    MESSAGING_TOPIC_PREFIX = ['org.fedoraproject.prod']
     KOJI_CONFIG = '/etc/module-build-service/koji.conf'
     KOJI_PROFILE = 'koji'
     KOJI_ARCHES = ['i686', 'armv7hl', 'x86_64']
@@ -88,6 +89,8 @@ class DevConfiguration(BaseConfiguration):
     DEBUG = True
     LOG_BACKEND = 'console'
     LOG_LEVEL = 'debug'
+
+    MESSAGING_TOPIC_PREFIX = ['org.fedoraproject.dev', 'org.fedoraproject.stg']
 
     # Global network-related values, in seconds
     NET_TIMEOUT = 5
