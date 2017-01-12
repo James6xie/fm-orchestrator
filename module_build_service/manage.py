@@ -175,7 +175,7 @@ def build_module_locally(url):
     submit_module_build(username, url, allow_local_url=True)
 
     stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
-    initial_messages = [RidaModule("local module build", 2, 1)]
+    initial_messages = [RidaModule("local module build", 1, 1)]
 
     # Run the consumer until stop_condition returns True
     module_build_service.scheduler.main(initial_messages, stop)
