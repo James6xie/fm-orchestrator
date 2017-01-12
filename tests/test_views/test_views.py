@@ -320,12 +320,12 @@ class TestViews(unittest.TestCase):
     @patch('module_build_service.scm.SCM')
     def test_submit_build_scm_parallalization(self, mocked_scm,
                           mocked_assert_is_packager, mocked_get_username):
-        def mocked_scm_is_available():
+        def mocked_scm_get_latest(branch = "master"):
             time.sleep(1)
-            return True
+            return branch
 
-        mocked_scm.return_value.is_available = mocked_scm_is_available
         mocked_scm_obj = MockedSCM(mocked_scm, "base-runtime", "base-runtime.yaml")
+        mocked_scm.return_value.is_available = mocked_scm_get_latest
 
         start = time.time()
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
@@ -356,11 +356,11 @@ class TestViews(unittest.TestCase):
     @patch('module_build_service.scm.SCM')
     def test_submit_build_scm_non_available(self, mocked_scm,
                           mocked_assert_is_packager, mocked_get_username):
-        def mocked_scm_is_available():
-            return False
+        def mocked_scm_get_latest():
+            raise RuntimeError("Failed in mocked_scm_get_latest")
 
-        mocked_scm.return_value.is_available = mocked_scm_is_available
         mocked_scm_obj = MockedSCM(mocked_scm, "base-runtime", "base-runtime.yaml")
+        mocked_scm.return_value.get_latest = mocked_scm_get_latest
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
@@ -368,7 +368,7 @@ class TestViews(unittest.TestCase):
         data = json.loads(rv.data)
 
         self.assertEquals(data['status'], 422)
-        self.assertEquals(data['message'][:15], "Cannot checkout")
+        self.assertEquals(data['message'][:31], "Failed to get the latest commit")
         self.assertEquals(data['error'], "Unprocessable Entity")
 
     @patch('module_build_service.auth.get_username', return_value='Homer J. Simpson')
