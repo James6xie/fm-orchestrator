@@ -19,3 +19,4 @@ python-fedora
 six
 sqlalchemy
 systemd-python
+vcrpy

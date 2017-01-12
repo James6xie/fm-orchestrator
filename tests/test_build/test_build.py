@@ -22,7 +22,9 @@
 
 import unittest
 import koji
+import vcr
 from os import path, mkdir
+from os.path import dirname
 from shutil import copyfile
 
 from nose.tools import timed
@@ -40,6 +42,8 @@ import json
 from module_build_service.builder import KojiModuleBuilder, GenericBuilder
 import module_build_service.scheduler.consumer
 
+base_dir = dirname(dirname(__file__))
+cassette_dir = base_dir + '/vcr-request-data/'
 
 class MockedSCM(object):
     def __init__(self, mocked_scm, name, mmd_filename):
@@ -203,6 +207,10 @@ class TestBuild(unittest.TestCase):
         models.ModuleBuild.query.delete()
         models.ComponentBuild.query.delete()
 
+        filename = cassette_dir + self.id()
+        self.vcr = vcr.use_cassette(filename)
+        self.vcr.__enter__()
+
     def tearDown(self):
         conf.set_item("system", self._prev_system)
         conf.set_item("num_consecutive_builds", self._prev_num_consencutive_builds)
@@ -214,6 +222,7 @@ class TestBuild(unittest.TestCase):
         del sys.modules['moksha.hub.reactor']
         del sys.modules['moksha.hub']
         import moksha.hub.reactor
+        self.vcr.__exit__()
 
     @timed(30)
     @patch('module_build_service.auth.get_username', return_value='Homer J. Simpson')
