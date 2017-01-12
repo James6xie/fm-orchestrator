@@ -48,6 +48,8 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
              in itertools.product(
                 conf.messaging_topic_prefix,
                 module_build_service.messaging._messaging_backends[conf.messaging]['services'])]
+    if not topic:
+        topic = '*'
     log.debug('Setting topics: {}'.format(', '.join(topic)))
     config_key = 'mbsconsumer'
 

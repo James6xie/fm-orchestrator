@@ -364,5 +364,6 @@ _messaging_backends = {
     },
     'in_memory': {
         'publish': _in_memory_publish,
+        'services': []
     }
 }
