@@ -197,6 +197,10 @@ class Config(object):
             'type': str,
             'default': 'fedmsg',
             'desc': 'The messaging system to use.'},
+        'messaging_topic_prefix': {
+            'type': list,
+            'default': 'org.fedoraproject.prod',
+            'desc': 'The messaging system topic prefixes which we are interested in.'},
         'amq_recv_addresses': {
             'type': list,
             'default': [],

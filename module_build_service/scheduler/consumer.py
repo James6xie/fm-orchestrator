@@ -27,6 +27,7 @@ to use.
 
 import koji
 import inspect
+import itertools
 import fedmsg.consumers
 import moksha.hub
 
@@ -42,7 +43,14 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
     """ This is triggered by running fedmsg-hub. This class is responsible for
     ingesting and processing messages from the message bus.
     """
-    topic = '*'
+    topic = ['{}.{}.'.format(pref.rstrip('.'), cat)
+             for pref, cat
+             in itertools.product(
+                conf.messaging_topic_prefix,
+                module_build_service.messaging._messaging_backends[conf.messaging]['services'])]
+    if not topic:
+        topic = '*'
+    log.debug('Setting topics: {}'.format(', '.join(topic)))
     config_key = 'mbsconsumer'
 
     def __init__(self, hub):

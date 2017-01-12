@@ -83,11 +83,11 @@ class BaseMessage(object):
         msg_obj = None
 
         if not hasattr(msg, 'properties'):
-            return None # Unrelated message not identifying service origin
+            return None  # Unrelated message not identifying service origin
         properties = json.loads(msg.properties, encoding='utf8')
         service = properties.get('service')
 
-        if service not in ('koji', 'mbs'):
+        if service not in _messaging_backends['amq']['services']:
             log.debug('Skipping msg due service=%s which is not related (msg=%r): ' % (service, msg))
             return None
 
@@ -135,13 +135,13 @@ class BaseMessage(object):
             body = json.loads(msg.body, encoding='utf8')
             if topic == 'module.state.change':
                 msg_obj = RidaModule(
-                    msg.id, body['id'], body['state'] )
+                    msg.id, body['id'], body['state'])
 
         if msg_obj:
             return msg_obj
 
         log.debug('Skipping unrecognized message: %s' % msg)
-        return  None
+        return None
 
     @staticmethod
     def from_fedmsg(topic, msg):
@@ -152,8 +152,10 @@ class BaseMessage(object):
         :return: an object of BaseMessage descent if the message is a type
         that the app looks for, otherwise None is returned
         """
+        topic_categories = _messaging_backends['fedmsg']['services']
+        categories_re = '|'.join(map(re.escape, topic_categories))
         regex_pattern = re.compile(
-            (r'(?P<category>buildsys|mbs)(?:\.)'
+            (r'(?P<category>' + categories_re + r')(?:\.)'
              r'(?P<object>build|repo|module)(?:(?:\.)'
              r'(?P<subobject>state))?(?:\.)(?P<event>change|done)$'))
         regex_results = re.search(regex_pattern, topic)
@@ -252,6 +254,7 @@ class RidaModule(BaseMessage):
         self.module_build_id = module_build_id
         self.module_build_state = module_build_state
 
+
 def publish(topic, msg, conf, service):
     """
     Publish a single message to a given backend, and return
@@ -266,6 +269,7 @@ def publish(topic, msg, conf, service):
     except KeyError:
         raise KeyError("No messaging backend found for %r" % conf.messaging)
     return handler(topic, msg, conf, service)
+
 
 def _fedmsg_publish(topic, msg, conf, service):
     # fedmsg doesn't really need access to conf, however other backends do
@@ -336,6 +340,7 @@ def _amq_get_messenger(conf):
         log.debug('proton.Messenger: Subscribing to address=%s' % url)
     return msngr
 
+
 def _amq_publish(topic, msg, conf, service):
     import proton
     msngr = _amq_get_messenger(conf)
@@ -351,11 +356,14 @@ def _amq_publish(topic, msg, conf, service):
 _messaging_backends = {
     'fedmsg': {
         'publish': _fedmsg_publish,
+        'services': ['buildsys', 'mbs']
     },
     'amq': {
         'publish': _amq_publish,
+        'services': ['koji', 'mbs']
     },
     'in_memory': {
         'publish': _in_memory_publish,
+        'services': []
     }
 }
