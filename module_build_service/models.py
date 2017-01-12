@@ -287,48 +287,6 @@ class ModuleBuild(RidaBase):
 
         return tasks
 
-    def resolve_profiles(self, session, key, seen=None):
-        """ Gather dependency profiles named `key` of modules we depend on.
-
-        This is used to find the union of all 'buildroot' profiles of a
-        module's dependencies.
-
-        https://pagure.io/fm-orchestrator/issue/181
-        """
-
-        seen = seen or []  # Initialize to an empty list.
-        result = set()
-        for name, stream in self.mmd().buildrequires.items():
-            # First, guard against infinite recursion
-            if name in seen:
-                continue
-
-            # Find the latest of the dep in our db of built modules.
-            dep = session.query(ModuleBuild)\
-                .filter(ModuleBuild.name==name)\
-                .filter(ModuleBuild.stream==stream)\
-                .filter(or_(
-                    ModuleBuild.state==BUILD_STATES["done"],
-                    ModuleBuild.state==BUILD_STATES["ready"],
-                )).order_by('version').first()
-
-            # XXX - We may want to make this fatal one day, but warn for now.
-            if not dep:
-                log.warn("Could not find built dep "
-                         "%s/%s for %r" % (name, stream, self))
-                continue
-
-            # Take note of what rpms are in this dep's profile.
-            profiles = dep.mmd().profiles
-            if key in profiles:
-                result |= profiles[key].rpms
-
-            # And recurse to all modules that are deps of our dep.
-            result |= dep.resolve_profiles(session, key, seen + [name])
-
-        # Return the union of all rpms in all profiles of the given key.
-        return result
-
     def __repr__(self):
         return "<ModuleBuild %s, stream=%s, version=%s, state %r, batch %r, state_reason %r>" % (
             self.name, self.stream, self.version,

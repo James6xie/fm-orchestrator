@@ -24,7 +24,7 @@ import unittest
 import mock
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.modules
-
+import modulemd as _modulemd
 
 class TestModuleWait(unittest.TestCase):
 
@@ -49,6 +49,9 @@ class TestModuleWait(unittest.TestCase):
             'version': 1,
             'state': 'some state',
         }
+
+        mmd = _modulemd.ModuleMetadata()
+        mocked_module_build.mmd.return_value = mmd
 
         from_module_event.return_value = mocked_module_build
 

@@ -20,8 +20,10 @@
 #
 # Written by Ralph Bean <rbean@redhat.com>
 
+from os.path import dirname
 import unittest
 import mock
+import vcr
 
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.repos
@@ -29,11 +31,20 @@ import module_build_service.models
 from tests import scheduler_init_data
 from tests import conf, db
 
+base_dir = dirname(dirname(__file__))
+cassette_dir = base_dir + '/vcr-request-data/'
 
 class TestRepoDone(unittest.TestCase):
 
     def setUp(self):
         scheduler_init_data()
+
+        filename = cassette_dir + self.id()
+        self.vcr = vcr.use_cassette(filename)
+        self.vcr.__enter__()
+
+    def tearDown(self):
+        self.vcr.__exit__()
 
     @mock.patch('module_build_service.models.ModuleBuild.from_repo_done_event')
     def test_no_match(self, from_repo_done_event):

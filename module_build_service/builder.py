@@ -52,6 +52,7 @@ from OpenSSL.SSL import SysCallError
 
 from module_build_service import conf, log, db
 from module_build_service.models import ModuleBuild
+from module_build_service import pdc
 import module_build_service.scm
 import module_build_service.utils
 import module_build_service.scheduler
@@ -276,6 +277,24 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
         the tag with particular name and architecture.
         """
         raise NotImplementedError()
+
+    @classmethod
+    def default_buildroot_groups(cls, session, module):
+        try:
+            pdc_session = pdc.get_pdc_client_session(conf)
+            pdc_groups = pdc.resolve_profiles(pdc_session, module.mmd(),
+                                            ('buildroot', 'srpm-buildroot'))
+            groups = {
+                'build': pdc_groups['buildroot'],
+                'srpm-build': pdc_groups['srpm-buildroot'],
+            }
+        except ValueError:
+            reason = "Failed to gather buildroot groups from SCM."
+            log.exception(reason)
+            module.transition(conf, state="failed", state_reason=reason)
+            session.commit()
+            raise
+        return groups
 
 class KojiModuleBuilder(GenericBuilder):
     """ Koji specific builder class """

@@ -183,6 +183,65 @@ def get_module_tag(session, module_info, strict=False):
     """
     return get_module(session, module_info, strict=strict)['koji_tag']
 
+def get_module_modulemd(session, module_info, strict=False):
+    """
+    :param session : PDCClient instance
+    :param module_info: list of module_info dicts
+    :param strict: Normally this function returns None if no module can be
+           found.  If strict=True, then a ValueError is raised.
+    :return: ModuleMetadata instance
+    """
+    yaml = get_module(session, module_info, strict=strict)['modulemd']
+    if not yaml:
+        if strict:
+            raise ValueError("Failed to find modulemd entry in PDC for "
+                "%r" % module_info)
+        else:
+            return None
+
+    mmd = modulemd.ModuleMetadata()
+    mmd.loads(yaml)
+    return mmd
+
+def resolve_profiles(session, mmd, keys, seen=None):
+    """
+    :param session : PDCClient instance
+    :param mmd: ModuleMetadata instance of module
+    :param keys: list of modulemd installation profiles to include in
+                 the result.
+    :return: Dictionary with keys set according to `keys` param and values
+             set to union of all components defined in all installation
+             profiles matching the key recursively using the buildrequires.
+
+    https://pagure.io/fm-orchestrator/issue/181
+    """
+
+    seen = seen or []  # Initialize to an empty list.
+    results = {}
+    for key in keys:
+        results[key] = set()
+    for name, stream in mmd.buildrequires.items():
+        # First, guard against infinite recursion
+        if name in seen:
+            continue
+
+        # Find the latest of the dep in our db of built modules.
+        module_info = {'variant_id': name, 'variant_stream': stream}
+        dep_mmd = get_module_modulemd(session, module_info, True)
+
+        # Take note of what rpms are in this dep's profile.
+        for key in keys:
+            if key in dep_mmd.profiles:
+                results[key] |= dep_mmd.profiles[key].rpms
+
+        # And recurse to all modules that are deps of our dep.
+        rec_results = resolve_profiles(session, dep_mmd, keys, seen + [name])
+        for rec_key, rec_result in rec_results.items():
+            results[rec_key] |= rec_result
+
+    # Return the union of all rpms in all profiles of the given keys.
+    return results
+
 def module_depsolving_wrapper(session, module_list, strict=True):
     """
     :param session : PDCClient instance

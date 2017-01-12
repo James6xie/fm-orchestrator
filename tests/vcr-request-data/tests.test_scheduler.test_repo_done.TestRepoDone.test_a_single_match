@@ -1,0 +1,58 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.10.0]
+      accept: [application/json]
+      content-type: [application/json]
+    method: GET
+    uri: http://modularity.fedorainfracloud.org:8080/rest_api/v1/unreleasedvariants?variant_version=master&page_size=-1&variant_id=base-runtime
+  response:
+    body: {string: !!python/unicode ''}
+    headers:
+      content-type: [text/html; charset=utf-8]
+      date: ['Thu, 12 Jan 2017 10:42:02 GMT']
+      location: ['http://modularity.fedorainfracloud.org:8080/rest_api/v1/unreleasedvariants/?variant_version=master&page_size=-1&variant_id=base-runtime']
+      server: [WSGIServer/0.1 Python/2.7.12]
+      x-frame-options: [SAMEORIGIN]
+    status: {code: 301, message: MOVED PERMANENTLY}
+- request:
+    body: null
+    headers:
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.10.0]
+      accept: [application/json]
+      content-type: [application/json]
+    method: GET
+    uri: http://modularity.fedorainfracloud.org:8080/rest_api/v1/unreleasedvariants/?variant_version=master&page_size=-1&variant_id=base-runtime
+  response:
+    body: {string: !!python/unicode '[{"variant_id":"base-runtime","variant_uid":"base-runtime-master-3","variant_name":"base-runtime","variant_type":"module","variant_version":"master","variant_release":"3","koji_tag":"module-base-runtime-master-3","modulemd":"document:
+        modulemd\r\nversion: 1\r\ndata:\r\n    name: base-runtime\r\n    stream: master\r\n    version:
+        3\r\n    summary: A fake base-runtime module, used to bootstrap the infrastructure.\r\n    description:
+        ...\r\n    profiles:\r\n        buildroot:\r\n            rpms:\r\n                -
+        bash\r\n                - bzip2\r\n                - coreutils\r\n                -
+        cpio\r\n                - diffutils\r\n                - fedora-release\r\n                -
+        findutils\r\n                - gawk\r\n                - gcc\r\n                -
+        gcc-c++\r\n                - grep\r\n                - gzip\r\n                -
+        info\r\n                - make\r\n                - patch\r\n                -
+        redhat-rpm-config\r\n                - rpm-build\r\n                - sed\r\n                -
+        shadow-utils\r\n                - tar\r\n                - unzip\r\n                -
+        util-linux\r\n                - which\r\n                - xz\r\n        srpm-buildroot:\r\n            rpms:\r\n                -
+        bash\r\n                - fedora-release\r\n                - fedpkg-minimal\r\n                -
+        gnupg2\r\n                - redhat-rpm-config\r\n                - rpm-build\r\n                -
+        shadow-utils","runtime_deps":[],"build_deps":[]}]'}
+    headers:
+      allow: ['GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS']
+      content-type: [application/json]
+      date: ['Thu, 12 Jan 2017 10:42:03 GMT']
+      server: [WSGIServer/0.1 Python/2.7.12]
+      set-cookie: ['csrftoken=F8Q1L8iQTVRIwZt9grZ3P3hvqomRUaK2; expires=Thu, 11-Jan-2018
+          10:42:03 GMT; Max-Age=31449600; Path=/', 'sessionid=9tni9905j6c5ihm5o38onicnpks1glji;
+          expires=Thu, 26-Jan-2017 10:42:03 GMT; httponly; Max-Age=1209600; Path=/']
+      vary: ['Accept, Cookie']
+      x-frame-options: [SAMEORIGIN]
+    status: {code: 200, message: OK}
+version: 1
