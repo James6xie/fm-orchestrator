@@ -50,7 +50,9 @@ def _finalize(config, session, msg, state):
         log.debug("We have no record of %s" % nvr)
         return
 
-    if state != koji.BUILD_STATES['COMPLETE']:
+    if msg.state_reason:
+        state_reason = msg.state_reason
+    elif state != koji.BUILD_STATES['COMPLETE']:
         state_reason = "Failed to build artifact %s in Koji" % (msg.build_name)
     else:
         state_reason = ""

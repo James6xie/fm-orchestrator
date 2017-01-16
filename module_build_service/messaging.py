@@ -219,9 +219,12 @@ class KojiBuildChange(BaseMessage):
     (e.g. golang-googlecode-tools)
     :param build_version: the version of the build (e.g. 6.06.06)
     :param build_release: the release of the build (e.g. 4.fc25)
+    :param module_build_id: the optional id of the module_build in the database
+    :param state_reason: the optional reason as to why the state changed
     """
     def __init__(self, msg_id, build_id, task_id, build_new_state, build_name,
-                 build_version, build_release):
+                 build_version, build_release, module_build_id=None,
+                 state_reason=None):
         super(KojiBuildChange, self).__init__(msg_id)
         self.build_id = build_id
         self.task_id = task_id
@@ -229,6 +232,8 @@ class KojiBuildChange(BaseMessage):
         self.build_name = build_name
         self.build_version = build_version
         self.build_release = build_release
+        self.module_build_id = module_build_id
+        self.state_reason = state_reason
 
 
 class KojiRepoChange(BaseMessage):

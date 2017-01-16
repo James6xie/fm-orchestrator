@@ -30,6 +30,7 @@ import tempfile
 import os
 import logging
 import copy
+import kobo.rpmlib
 from six import iteritems
 
 import modulemd
@@ -139,6 +140,8 @@ def start_build_batch(config, module, session, builder, components=None):
     log.info("Starting build of next batch %d, %s" % (module.batch,
         unbuilt_components))
 
+    further_work = []
+
     def start_build_component(c):
         """
         Submits single component build to builder. Called in thread
@@ -146,9 +149,50 @@ def start_build_batch(config, module, session, builder, components=None):
         """
         try:
             with models.make_session(conf) as s:
-                if at_concurrent_component_threshold(config, s):
+                previous_component_build = None
+                # Check to see if we can reuse a previous component build
+                # instead of rebuilding it if the builder is Koji
+                if conf.system == 'koji':
+                    previous_component_build = get_reusable_component(
+                        s, module, c.package)
+                # If a component build can't be reused, we need to check
+                # the concurrent threshold
+                if not previous_component_build and \
+                        at_concurrent_component_threshold(config, s):
                     log.info('Concurrent build threshold met')
                     return
+
+            if previous_component_build:
+                log.info(
+                    'Reusing component "{0}" from a previous module '
+                    'build with the nvr "{1}"'.format(
+                        c.package, previous_component_build.nvr))
+                c.reused_component_id = previous_component_build.id
+                c.task_id = previous_component_build.task_id
+                c.state = previous_component_build.state
+                c.reused_component_id = previous_component_build.id
+                c.task_id = previous_component_build.task_id
+                c.state = previous_component_build.state
+                c.state_reason = \
+                    'Reused component from previous module build'
+                c.nvr = previous_component_build.nvr
+                nvr_dict = kobo.rpmlib.parse_nvr(c.nvr)
+                # Add this message to further_work so that the reused
+                # component will be tagged properly
+                further_work.append(
+                    module_build_service.messaging.KojiBuildChange(
+                        msg_id='start_build_batch: fake msg',
+                        build_id=None,
+                        task_id=c.task_id,
+                        build_new_state=c.state,
+                        build_name=c.package,
+                        build_version=nvr_dict['version'],
+                        build_release=nvr_dict['release'],
+                        module_build_id=c.module_id,
+                        state_reason=c.state_reason
+                    )
+                )
+                return
 
             c.task_id, c.state, c.state_reason, c.nvr = builder.build(
                 artifact_name=c.package, source=c.scmurl)
@@ -167,8 +211,6 @@ def start_build_batch(config, module, session, builder, components=None):
     with concurrent.futures.ThreadPoolExecutor(max_workers=config.num_consecutive_builds) as executor:
         futures = {executor.submit(start_build_component, c): c for c in unbuilt_components}
         concurrent.futures.wait(futures)
-
-    further_work = []
 
     # If all components in this batch are already done, it can mean that they
     # have been built in the past and have been skipped in this module build.
@@ -476,7 +518,8 @@ def record_component_builds(scm, mmd, module, initial_batch = 1):
                     package=pkg.name,
                     format="rpms",
                     scmurl=full_url,
-                    batch=batch
+                    batch=batch,
+                    ref=pkg.ref
                 )
                 db.session.add(build)
 
@@ -582,3 +625,130 @@ def module_build_state_from_msg(msg):
         'state=%s(%s) is not in %s'
         % (state, type(state), list(models.BUILD_STATES.values())))
     return state
+
+def get_reusable_component(session, module, component_name):
+    """
+    Returns the component (RPM) build of a module that can be reused
+    instead of needing to rebuild it
+    :param session: SQLAlchemy database session
+    :param module: the ModuleBuild object of module being built with a formatted
+    mmd
+    :param component_name: the name of the component (RPM) that you'd like to
+    reuse a previous build of
+    :return: the component (RPM) build SQLAlchemy object, if one is not found,
+    None is returned
+    """
+    mmd = module.mmd()
+    # Find the latest module that is in the done or ready state
+    previous_module_build = session.query(models.ModuleBuild)\
+        .filter_by(name=mmd.name)\
+        .filter(models.ModuleBuild.state.in_([3, 5]))\
+        .order_by(models.ModuleBuild.time_completed.desc())\
+        .first()
+    # The component can't be reused if there isn't a previous build in the done
+    # or ready state
+    if not previous_module_build:
+        return None
+    old_mmd = previous_module_build.mmd()
+
+    # Perform a sanity check to make sure that the buildrequires are the same
+    # as the buildrequires in xmd for the passed in mmd
+    if mmd.buildrequires.keys() != mmd.xmd['mbs']['buildrequires'].keys():
+        log.error(
+            'The submitted module "{0}" has different keys in mmd.buildrequires'
+            ' than in mmd.xmd[\'mbs\'][\'buildrequires\']'.format(mmd.name))
+        return None
+    # Perform a sanity check to make sure that the buildrequires are the same
+    # as the buildrequires in xmd for the mmd of the previous module build
+    if old_mmd.buildrequires.keys() != \
+            old_mmd.xmd['mbs']['buildrequires'].keys():
+        log.error(
+            'Version "{0}" of the module "{1}" has different keys in '
+            'mmd.buildrequires than in mmd.xmd[\'mbs\'][\'buildrequires\']'
+            .format(previous_module_build.version, previous_module_build.name))
+        return None
+
+    # If the module buildrequires are different, then we can't reuse the
+    # component
+    if mmd.buildrequires.keys() != old_mmd.buildrequires.keys():
+        return None
+
+    # Make sure that the module buildrequires commit hashes are exactly the same
+    for br_module_name, br_module in \
+            mmd.xmd['mbs']['buildrequires'].items():
+        # Assumes that the streams have been replaced with commit hashes, so we
+        # can compare to see if they have changed. Since a build is unique to
+        # a commit hash, this is a safe test.
+        if br_module['ref'] != \
+                old_mmd.xmd['mbs']['buildrequires'][br_module_name]['ref']:
+            return None
+
+    # At this point we've determined that both module builds depend(ed) on the
+    # same exact module builds. Now it's time to determine if the batch of the
+    # components have changed
+    #
+    # If the chosen component for some reason was not found in the database,
+    # or the ref is missing, something has gone wrong and the component cannot
+    # be reused
+    new_module_build_component = models.ComponentBuild.from_component_name(
+        session, component_name, module.id)
+    if not new_module_build_component or not new_module_build_component.batch \
+            or not new_module_build_component.ref:
+        return None
+
+    prev_module_build_component = models.ComponentBuild.from_component_name(
+        session, component_name, previous_module_build.id)
+    # If the component to reuse for some reason was not found in the database,
+    # or the ref is missing, something has gone wrong and the component cannot
+    # be reused
+    if not prev_module_build_component or not prev_module_build_component.batch\
+            or not prev_module_build_component.ref:
+        return None
+
+    # Make sure the batch number for the component that is trying to be reused
+    # hasn't changed since the last build
+    if prev_module_build_component.batch != new_module_build_component.batch:
+        return None
+
+    # Make sure the ref for the component that is trying to be reused
+    # hasn't changed since the last build
+    if prev_module_build_component.ref != new_module_build_component.ref:
+        return None
+
+    # Convert the component_builds to a list and sort them by batch
+    new_component_builds = list(module.component_builds)
+    new_component_builds.sort(key=lambda x: x.batch)
+    prev_component_builds = list(previous_module_build.component_builds)
+    prev_component_builds.sort(key=lambda x: x.batch)
+
+    new_module_build_components = []
+    previous_module_build_components = []
+    # Create separate lists for the new and previous module build. These lists
+    # will have an entry for every build batch *before* the component's
+    # batch except for 1, which is reserved for the module-build-macros RPM.
+    # Each batch entry will contain a list of dicts with the name and ref
+    # (commit) of the component.
+    for i in range(new_module_build_component.batch - 1):
+        # This is the first batch which we want to skip since it will always
+        # contain only the module-build-macros RPM and it gets built every time
+        if i == 0:
+            continue
+
+        new_module_build_components.append([
+            {'name': value.package, 'ref': value.ref} for value in
+            new_component_builds if value.batch == i + 1
+        ])
+
+        previous_module_build_components.append([
+            {'name': value.package, 'ref': value.ref} for value in
+            prev_component_builds if value.batch == i + 1
+        ])
+
+    # If the previous batches have the same ordering and hashes, then the
+    # component can be reused
+    if previous_module_build_components == new_module_build_components:
+        reusable_component = models.ComponentBuild.query.filter_by(
+            package=component_name, module_id=previous_module_build.id).one()
+        return reusable_component
+
+    return None

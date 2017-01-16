@@ -294,6 +294,8 @@ class ComponentBuild(RidaBase):
     # XXX: Consider making this a proper ENUM
     format = db.Column(db.String, nullable=False)
     task_id = db.Column(db.Integer)  # This is the id of the build in koji
+    # This is the commit hash that component was built with
+    ref = db.Column(db.String, nullable=True)
     # XXX: Consider making this a proper ENUM (or an int)
     state = db.Column(db.Integer)
     # Reason why the build failed
@@ -309,14 +311,26 @@ class ComponentBuild(RidaBase):
 
     module_id = db.Column(db.Integer, db.ForeignKey('module_builds.id'), nullable=False)
     module_build = db.relationship('ModuleBuild', backref='component_builds', lazy=False)
+    reused_component_id = db.Column(
+        db.Integer, db.ForeignKey('component_builds.id'))
 
     @classmethod
     def from_component_event(cls, session, event):
         if type(event) == module_build_service.messaging.KojiBuildChange:
-            return session.query(cls).filter(
-                cls.task_id == event.task_id).first()
+            if event.module_build_id:
+                return session.query(cls).filter_by(
+                    task_id=event.task_id, module_id=event.module_build_id)\
+                    .one()
+            else:
+                return session.query(cls).filter(
+                    cls.task_id == event.task_id).first()
         else:
             raise ValueError("%r is not a koji message." % event['topic'])
+
+    @classmethod
+    def from_component_name(cls, session, component_name, module_id):
+        return session.query(cls).filter_by(
+            package=component_name, module_id=module_id).first()
 
     def json(self):
         retval = {

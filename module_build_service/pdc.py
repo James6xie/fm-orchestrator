@@ -243,13 +243,16 @@ def resolve_profiles(session, mmd, keys, seen=None):
     results = {}
     for key in keys:
         results[key] = set()
-    for name, stream in mmd.buildrequires.items():
+    for module_name, module_info in mmd.xmd['mbs']['buildrequires'].items():
         # First, guard against infinite recursion
-        if name in seen:
+        if module_name in seen:
             continue
 
-        # Find the latest of the dep in our db of built modules.
-        module_info = {'variant_id': name, 'variant_stream': stream}
+        # Find the dep in the built modules in PDC
+        module_info = {
+            'variant_id': module_name,
+            'variant_stream': module_info['stream'],
+            'variant_release': module_info['version']}
         dep_mmd = get_module_modulemd(session, module_info, True)
 
         # Take note of what rpms are in this dep's profile.
@@ -258,7 +261,7 @@ def resolve_profiles(session, mmd, keys, seen=None):
                 results[key] |= dep_mmd.profiles[key].rpms
 
         # And recurse to all modules that are deps of our dep.
-        rec_results = resolve_profiles(session, dep_mmd, keys, seen + [name])
+        rec_results = resolve_profiles(session, dep_mmd, keys, seen + [module_name])
         for rec_key, rec_result in rec_results.items():
             results[rec_key] |= rec_result
 
@@ -332,11 +335,18 @@ def get_module_build_dependencies(session, module_info, strict=False):
     # XXX get definitive list of modules
 
     deps = []
-    module_info = get_module(session, module_info, strict=strict)
-    if module_info and module_info.get('build_deps', None):
-        deps = [dict(variant_id=x['dependency'], variant_stream=x['stream'])
-                for x in module_info['build_deps']]
-        deps = module_depsolving_wrapper(session, deps, strict=strict)
+    queried_mmd = get_module_modulemd(session, module_info, strict=strict)
+    if not queried_mmd or not queried_mmd.xmd.get('mbs') or not \
+            queried_mmd.xmd['mbs'].get('buildrequires'):
+        raise RuntimeError(
+            'The module "{0!r}" did not contain its modulemd or did not have '
+            'its xmd attribute filled out in PDC'.format(module_info))
+
+    deps = [dict(name=dep_name, version=dep_info['stream'],
+                 release=dep_info['version'])
+            for dep_name, dep_info in
+            queried_mmd.xmd['mbs']['buildrequires'].items()]
+    deps = module_depsolving_wrapper(session, deps, strict=strict)
 
     return deps
 
