@@ -95,7 +95,14 @@ def get_variant_dict(data):
         result = variant_dict_from_str(data)
 
     elif is_modulemd(data):
-        result = {'variant_id': data.name, 'variant_version': data.version, 'variant_release': data.release }
+        result = {'variant_id': data.name}
+        # Check if this is an old modulemd that doesn't use the new nomenclature
+        if hasattr(data, 'release'):
+            result['variant_release'] = data.release
+            result['variant_version'] = data.version
+        else:
+            result['variant_release'] = data.version
+            result['variant_version'] = data.stream
 
     elif is_variant_dict(data):
         result = data.copy()
