@@ -12,6 +12,7 @@ RUN dnf install -y \
         python-m2ext \
         python-mock \
         python-pip \
+        python-qpid \
         python2-cffi \
         python2-cryptography \
         python2-pdc-client \

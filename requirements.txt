@@ -16,5 +16,6 @@ munch
 pdc-client
 pyOpenSSL
 python-fedora
+qpid-python
 six
 sqlalchemy

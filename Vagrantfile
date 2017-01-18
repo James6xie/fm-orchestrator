@@ -23,6 +23,7 @@ $script = <<SCRIPT
         python-devel \
         python-flask \
         python-mock \
+        python-qpid \
         python-virtualenv \
         redhat-rpm-config \
         redhat-rpm-config \
