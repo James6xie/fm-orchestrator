@@ -1343,6 +1343,9 @@ def build_from_scm(artifact_name, source, config, build_srpm):
                 source = os.path.join(cod, f)
                 ret = build_srpm(artifact_name, source)
                 break
+    except Exception as e:
+        log.error("Error while generating SRPM for artifact %s: %s" % (
+            artifact_name, str(e)))
     finally:
         os.chdir(owd)
         try:
