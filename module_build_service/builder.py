@@ -1047,6 +1047,11 @@ config_opts['releasever'] = ''
 config_opts['package_manager'] = 'dnf'
 
 config_opts['yum.conf'] = \"\"\"
+$yum_conf
+\"\"\"
+"""
+
+    MOCK_YUM_CONF_TEMPLATE = """
 [main]
 keepcache=1
 debuglevel=2
@@ -1064,8 +1069,6 @@ mdpolicy=group:primary
 
 # repos
 
-$repos
-\"\"\"
 """
 
     def __init__(self, owner, module, config, tag_name):
@@ -1074,7 +1077,7 @@ $repos
         self.config = config
         self.groups = []
         self.arch = "x86_64" # TODO: We may need to change that in the future
-        self.repos = ""
+        self.yum_conf = MockModuleBuilder.MOCK_YUM_CONF_TEMPLATE
 
         # Create main directory for this tag
         self.tag_dir = os.path.join(self.config.mock_resultsdir, tag_name)
@@ -1132,34 +1135,54 @@ $repos
         Adds repository to Mock config file. Call _write_mock_config() to
         actually write the config file to filesystem.
         """
-        self.repos += "[%s]\n" % name
-        self.repos += "name=%s\n" % name
-        self.repos += "baseurl=%s\n" % baseurl
-        self.repos += extra
-        self.repos += "enabled=1\n"
+        self.yum_conf += "[%s]\n" % name
+        self.yum_conf += "name=%s\n" % name
+        self.yum_conf += "baseurl=%s\n" % baseurl
+        self.yum_conf += extra
+        self.yum_conf += "enabled=1\n"
+
+    def _load_mock_config(self):
+        """
+        Loads the variables which are generated only during the first
+        initialization of mock config. This should be called before
+        every _write_mock_config otherwise we overwrite Mock
+        repositories or groups ...
+        """
+
+        # We do not want to load old file from previous builds here, so if
+        # this is the first build in this module, skip the load completely.
+        if MockModuleBuilder._build_id == 1:
+            return
+
+        infile = os.path.join(self.configdir, "mock.cfg")
+        with open(infile, 'r') as f:
+            # This looks scary, but it is the way how mock itself loads the
+            # config file ...
+            config_opts = {}
+            code = compile(f.read(), infile, 'exec')
+            # pylint: disable=exec-used
+            exec(code)
+
+            self.groups = config_opts["chroot_setup_cmd"].split(" ")[1:]
+            self.yum_conf = config_opts['yum.conf']            
 
     def _write_mock_config(self):
         """
         Writes Mock config file to self.configdir/mock.cfg.
         """
 
-        # We want to write confing only before the first build, otherwise
-        # we would overwrite it in the middle of module build which would
-        # break the build.
-        if MockModuleBuilder._build_id != 1:
-            return
-
         config = str(MockModuleBuilder.MOCK_CONFIG_TEMPLATE)
         config = config.replace("$root", self.tag_name)
         config = config.replace("$arch", self.arch)
         config = config.replace("$group", " ".join(self.groups))
-        config = config.replace("$repos", self.repos)
+        config = config.replace("$yum_conf", self.yum_conf)
 
         with open(os.path.join(self.configdir, "mock.cfg"), 'w') as f:
             f.write(config)
 
     def buildroot_connect(self, groups):
-        self.groups = groups["build"]
+        self._load_mock_config()
+        self.groups = list(set().union(groups["build"], self.groups))
         log.debug("Mock builder groups: %s" % self.groups)
         self._write_mock_config()
 
@@ -1184,8 +1207,9 @@ $repos
         # what RPMs are output of particular SRPM build yet.
         for artifact in artifacts:
             if artifact.startswith("module-build-macros"):
-                _execute_cmd(["mock", "-r", self.mock_config, "-i",
-                                   "module-build-macros"])
+                self._load_mock_config()
+                self.groups.append("module-build-macros")
+                self._write_mock_config()
 
         self._send_repo_done()
 
@@ -1202,6 +1226,7 @@ $repos
     def buildroot_add_repos(self, dependencies):
         # TODO: We support only dependencies from Koji here. This should be
         # extended to Copr in the future.
+        self._load_mock_config()
         for tag in dependencies:
             baseurl = KojiModuleBuilder.repo_from_tag(self.config, tag, self.arch)
             self._add_repo(tag, baseurl)
