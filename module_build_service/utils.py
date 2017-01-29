@@ -83,7 +83,6 @@ def at_concurrent_component_threshold(config, session):
 
     return False
 
-
 def start_build_batch(config, module, session, builder, components=None):
     """
     Starts a round of the build cycle for a module.
@@ -95,7 +94,14 @@ def start_build_batch(config, module, session, builder, components=None):
 
     if any([c.state == koji.BUILD_STATES['BUILDING']
             for c in module.component_builds]):
-        raise ValueError("Cannot start a batch when another is in flight.")
+        err_msg = "Cannot start a batch when another is in flight."
+        log.error(err_msg)
+        unbuilt_components = [
+            c for c in module.component_builds
+            if (c.state == koji.BUILD_STATES['BUILDING'])
+        ]
+        log.error("Components in building state: %s" % str(unbuilt_components))
+        raise ValueError(err_msg)
 
     # The user can either pass in a list of components to 'seed' the batch, or
     # if none are provided then we just select everything that hasn't
@@ -111,23 +117,33 @@ def start_build_batch(config, module, session, builder, components=None):
     log.info("Starting build of next batch %d, %s" % (module.batch,
         unbuilt_components))
 
-    for c in unbuilt_components:
-        if at_concurrent_component_threshold(config, session):
-            log.info('Concurrent build threshold met')
-            break
+    def start_build_component(c):
+        """
+        Submits single component build to builder. Called in thread
+        by ThreadPool later.
+        """
+        with models.make_session(conf) as s:
+            if at_concurrent_component_threshold(config, s):
+                log.info('Concurrent build threshold met')
+                return
 
         try:
             c.task_id, c.state, c.state_reason, c.nvr = builder.build(
                 artifact_name=c.package, source=c.scmurl)
         except Exception as e:
             c.state = koji.BUILD_STATES['FAILED']
-            c.state_reason = "Failed to submit artifact %s to Koji: %s" % (c.package, str(e))
-            continue
+            c.state_reason = "Failed to build artifact %s: %s" % (c.package, str(e))
+            return
 
         if not c.task_id and c.state == koji.BUILD_STATES['BUILDING']:
             c.state = koji.BUILD_STATES['FAILED']
-            c.state_reason = "Failed to submit artifact %s to Koji" % (c.package)
-            continue
+            c.state_reason = ("Failed to build artifact %s: "
+                "Builder did not return task ID" % (c.package))
+            return
+
+    # Start build of components in this batch.
+    pool = ThreadPool(config.num_consecutive_builds)
+    pool.map(start_build_component, unbuilt_components)
 
     further_work = []
 
