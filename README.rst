@@ -1,7 +1,7 @@
-The module build service for Modularity
-=======================================
+The Module Build Service (MBS) for Modularity
+=============================================
 
-The orchestrator coordinates module builds and is responsible for a number of
+The MBS coordinates module builds and is responsible for a number of
 tasks:
 
 - Providing an interface for module client-side tooling via which module build
@@ -17,7 +17,7 @@ tasks:
 Development
 ===========
 
-For help on setting up a development environment, see `docs/HACKING.rst`.
+For help on setting up a development environment, see `docs/CONTRIBUTING.rst`.
 
 Client-side API
 ===============
@@ -89,14 +89,20 @@ their states.
 Listing all module builds
 -------------------------
 
-The list of all tracked builds and their states can be obtained by querying the "module-builds" resource.
-There are a number of configurable GET parameters to change how the module builds are displayed. These parameters are:
+The list of all tracked builds and their states can be obtained by
+querying the "module-builds" resource.
+There are a number of configurable GET parameters to change how the
+module builds are displayed. These parameters are:
 
-- verbose - Shows the builds with the same amount of detail as querying them individually (i.e. verbose=True). This value defaults to False.
-- page - Specifies which page should be displayed (e.g. page=3). This value defaults to 1.
-- per_page - Specifies how many items per page should be displayed (e.g. per_page=20). This value defaults to 10.
+- `verbose` - Shows the builds with the same amount of detail as querying
+  them individually (i.e. verbose=True). This value defaults to False.
+- `page` - Specifies which page should be displayed (e.g. page=3). This
+  value defaults to 1.
+- `per_page` - Specifies how many items per page should be displayed
+  (e.g. per_page=20). This value defaults to 10.
 
-An example of querying the "module-builds" resource without any additional parameters::
+An example of querying the "module-builds" resource without any additional
+parameters::
 
     GET /module-build-service/1/module-builds/
 
@@ -161,7 +167,8 @@ An example of querying the "module-builds" resource without any additional param
     }
 
 
-An example of querying the "module-builds" resource with the "verbose", "per_page", and the "page" parameters::
+An example of querying the "module-builds" resource with the "verbose",
+"per_page", and the "page" parameters::
 
     GET /module-build-service/1/module-builds/?verbose=true&per_page=3&page=1
 
@@ -228,18 +235,27 @@ An example of querying the "module-builds" resource with the "verbose", "per_pag
 Filtering module builds
 -----------------------
 
-The module-builds can be filtered by a variety of GET parameters. These paramters are:
+The module-builds can be filtered by a variety of GET parameters. These
+paramters are:
 
 - owner - Shows builds submitted by a particular user (e.g. owner=mprahl)
-- state - Shows builds in a particular state (can be the state name or the state ID) (e.g. state=done)
-- submitted_before - Shows builds that were submitted before a particular Zulu ISO 8601 timestamp (e.g. submitted_before=2016-08-23T09:40:07Z)
-- submitted_after - Shows builds that were submitted after a particular Zulu ISO 8601 timestamp (e.g. submitted_after=2016-08-22T09:40:07Z)
-- modified_before - Shows builds that were modified before a particular Zulu ISO 8601 timestamp (e.g. modified_before=2016-08-23T09:40:07Z)
-- modified_after - Shows builds that were modified after a particular Zulu ISO 8601 timestamp (e.g. modified_after=2016-08-22T09:40:07Z)
-- completed_before - Shows builds that were completed before a particular Zulu ISO 8601 timestamp (e.g. completed_before=2016-08-22T09:40:07Z)
-- completed_after - Shows builds that were completed after a particular Zulu ISO 8601 timestamp (e.g. completed_after=2016-08-23T09:40:07Z)
+- state - Shows builds in a particular state (can be the state name or
+  the state ID) (e.g. state=done)
+- submitted_before - Shows builds that were submitted before a particular
+  Zulu ISO 8601 timestamp (e.g. submitted_before=2016-08-23T09:40:07Z)
+- submitted_after - Shows builds that were submitted after a particular
+  Zulu ISO 8601 timestamp (e.g. submitted_after=2016-08-22T09:40:07Z)
+- modified_before - Shows builds that were modified before a particular
+  Zulu ISO 8601 timestamp (e.g. modified_before=2016-08-23T09:40:07Z)
+- modified_after - Shows builds that were modified after a particular
+  Zulu ISO 8601 timestamp (e.g. modified_after=2016-08-22T09:40:07Z)
+- completed_before - Shows builds that were completed before a particular
+  Zulu ISO 8601 timestamp (e.g. completed_before=2016-08-22T09:40:07Z)
+- completed_after - Shows builds that were completed after a particular
+  Zulu ISO 8601 timestamp (e.g. completed_after=2016-08-23T09:40:07Z)
 
-An example of querying the "module-builds" resource with the "state", and the "submitted_before" parameters::
+An example of querying the "module-builds" resource with the "state",
+and the "submitted_before" parameters::
 
     GET /module-build-service/1/module-builds/?state=done&submitted_before=2016-08-23T08:10:07Z
 
@@ -318,7 +334,8 @@ wait
 ~~~~
 
 Here, the scheduler picks up tasks in wait and switches to build immediately.
-Eventually, we'll add throttling logic here so we don't submit too many builds for the build system to handle.
+Eventually, we'll add throttling logic here so we don't submit too many
+builds for the build system to handle.
 
 build
 ~~~~~
@@ -334,7 +351,8 @@ Once all components have succeeded, we set the top-level module build to 'done'.
 failed
 ~~~~~~
 
-If any of the component builds fail, then we set the top-level module build to 'failed' also.
+If any of the component builds fail, then we set the top-level module
+build to 'failed' also.
 
 ready
 ~~~~~
@@ -351,8 +369,8 @@ Message Topic
 
 The suffix for message topics concerning changes in module state is
 ``module.state.change``. Currently, it is expected that these messages are sent
-from koji or module_build_service_daemon, i.e. the topic is prefixed with ``*.buildsys.`` or
-``*.module_build_service.``, respectively.
+from koji or module_build_service_daemon, i.e. the topic is prefixed with
+``*.buildsys.`` or ``*.module_build_service.``, respectively.
 
 Message Body
 ------------
