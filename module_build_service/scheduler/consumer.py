@@ -126,8 +126,7 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
             with models.make_session(conf) as session:
                 self.process_message(session, msg)
         except Exception:
-            log.exception('Failed while handling {0!r}'.format(msg.msg_id))
-            log.info(msg)
+            log.exception('Failed while handling {0!r}'.format(msg))
 
         if self.stop_condition and self.stop_condition(message):
             self.shutdown()
