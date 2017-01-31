@@ -36,6 +36,7 @@ setup(name='module-build-service',
                                                   'conf/copr.conf',
                                                   'conf/koji.conf']),
                   ('/etc/fedmsg.d/', ['fedmsg.d/mbs-logging.py',
+                                      'fedmsg.d/mbs-scheduler.py',
                                       'fedmsg.d/module_build_service.py']),
                   ],
       )
