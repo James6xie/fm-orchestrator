@@ -133,9 +133,11 @@ Environment
 The environment variable `MODULE_BUILD_SERVICE_DEVELOPER_ENV`, which if
 set to "1", indicates to the Module Build Service that the development
 configuration should be used. Docker and Vagrant are being run with this
-environment variable set.
+environment variable set. This overrides all configuration settings and forces
+usage of DevConfiguration section in `conf/config.py` from MBS's develop
+instance.
 
-Anytime, you can do::
+Prior to starting MBS, you can force development mode::
 
     $ export MODULE_BUILD_SERVICE_DEVELOPER_ENV=1
 

@@ -31,34 +31,77 @@ from os import sys
 
 from module_build_service import logger
 
-try:
-    conf_module = 'mbs_runtime_config'
-    mbs_runtime_config = imp.load_source(conf_module,
-                                         '/etc/module-build-service/config.py')
-except:
-    conf_module = 'conf.config'
-
 
 def init_config(app):
-    _init_app_config(app)
-    return Config(app)
-
-
-def _init_app_config(app):
-    """ Configure app
+    """ Configure MBS and the Flask app
     """
-    app.config.from_envvar("MBS_SETTINGS", silent=True)
-    here = sys.path[0]
+    config_module = None
+    config_file = '/etc/module-build-service/config.py'
+    config_section = 'DevConfiguration'
+
+    # automagically detect production environment:
+    #   - existing and readable config_file presets ProdConfiguration
+    try:
+        with open(config_file):
+            config_section = 'ProdConfiguration'
+    except:
+        pass
+    #   - Flask app within mod_wsgi presets ProdConfiguration
+    flask_app_env = hasattr(app, 'request') and hasattr(app.request, 'environ')
+    if flask_app_env and any([var.startswith('mod_wsgi.')
+                              for var in app.request.environ]):
+        config_section = 'ProdConfiguration'
+    # try getting config_file from os.environ
+    if 'MBS_CONFIG_FILE' in os.environ:
+        config_file = os.environ['MBS_CONFIG_FILE']
+    # try getting config_section from os.environ
+    if 'MBS_CONFIG_SECTION' in os.environ:
+        config_section = os.environ['MBS_CONFIG_SECTION']
+    # preferably get these values from Flask app
+    if flask_app_env:
+        # try getting config_file from Flask app
+        if 'MBS_CONFIG_FILE' in app.request.environ:
+            config_file = app.request.environ['MBS_CONFIG_FILE']
+        # try getting config_section from Flask app
+        if 'MBS_CONFIG_SECTION' in app.request.environ:
+            config_section = app.request.environ['MBS_CONFIG_SECTION']
+    # TestConfiguration shall only be used for running tests, otherwise...
     if any(['nosetests' in arg or 'noserunner.py' in arg for arg in sys.argv]):
-        app.config.from_object('%s.TestConfiguration' % conf_module)
-    elif 'MODULE_BUILD_SERVICE_DEVELOPER_ENV' in os.environ and \
-         os.environ['MODULE_BUILD_SERVICE_DEVELOPER_ENV'].lower() in (
-            '1', 'on', 'true', 'y', 'yes'):
-        app.config.from_object('%s.DevConfiguration' % conf_module)
-    elif here not in ('/usr/bin', '/bin', '/usr/local/bin'):
-        app.config.from_object('%s.DevConfiguration' % conf_module)
-    else:
-        app.config.from_object('%s.ProdConfiguration' % conf_module)
+        config_section = 'TestConfiguration'
+        from conf import config
+        config_module = config
+    # ...MODULE_BUILD_SERVICE_DEVELOPER_ENV has always the last word
+    # and overrides anything previously set before!
+    # Again, check Flask app (preferably) or fallback to os.environ.
+    # In any of the following cases, use configuration directly from MBS package
+    # -> /conf/config.py.
+    elif (flask_app_env and
+          'MODULE_BUILD_SERVICE_DEVELOPER_ENV' in app.request.environ):
+        if app.request.environ['MODULE_BUILD_SERVICE_DEVELOPER_ENV'].lower() in (
+                '1', 'on', 'true', 'y', 'yes'):
+            config_section = 'DevConfiguration'
+            from conf import config
+            config_module = config
+    elif ('MODULE_BUILD_SERVICE_DEVELOPER_ENV' in os.environ and
+          os.environ['MODULE_BUILD_SERVICE_DEVELOPER_ENV'].lower() in (
+            '1', 'on', 'true', 'y', 'yes')):
+        config_section = 'DevConfiguration'
+        from conf import config
+        config_module = config
+    # try loading configuration from file
+    if not config_module:
+        try:
+            config_module = imp.load_source('mbs_runtime_config',
+                                            config_file)
+        except:
+            raise SystemError("Configuration file {} was not found."
+                              .format(config_file))
+
+    # finally configure MBS and the Flask app
+    config_section_obj = getattr(config_module, config_section)
+    conf = Config(config_section_obj)
+    app.config.from_object(config_section_obj)
+    return conf
 
 
 class Config(object):
@@ -199,7 +242,7 @@ class Config(object):
             'desc': 'The messaging system to use.'},
         'messaging_topic_prefix': {
             'type': list,
-            'default': 'org.fedoraproject.prod',
+            'default': ['org.fedoraproject.prod'],
             'desc': 'The messaging system topic prefixes which we are interested in.'},
         'amq_recv_addresses': {
             'type': list,
@@ -251,26 +294,23 @@ class Config(object):
             'desc': 'Global network retry interval for read/write operations, in seconds.'},
     }
 
-    def __init__(self, app=None):
+    def __init__(self, conf_section_obj):
         """
-        Initialize the Config object with defaults.
-
-        If Flask app is given, override/enrich the configuration defaults
-        with Flask config values/items.
+        Initialize the Config object with defaults and then override them
+        with runtime values.
         """
 
         # set defaults
         for name, values in self._defaults.items():
             self.set_item(name, values['default'])
 
-        # we don't check whether app is Flask instance, we simply assume it
-        # so there's no need of import flask
-        if app is not None:
-            # override defaults
-            for key, value in app.config.items():
-                # lower keys
-                key = key.lower()
-                self.set_item(key, value)
+        # override defaults
+        for key in dir(conf_section_obj):
+            # skip keys starting with underscore
+            if key.startswith('_'):
+                continue
+            # set item (lower key)
+            self.set_item(key.lower(), getattr(conf_section_obj, key))
 
     def set_item(self, key, value):
         """Set value for configuration item as self.key = value"""

@@ -383,3 +383,31 @@ E.g. ``"scmurl": "git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#020ea
 The toplevel directory containing the trees for each architecture of a module.
 This field is only present when a module finished building, i.e. with the
 states 'done' or 'ready'.
+
+Configuration
+=============
+
+MBS configures itself according to the environment where it runs + according to
+the following rules (all of them are evaluated from top to bottom):
+
+- DevConfiguration is the initial configuration chosen.
+- If configuration file is found within its final installation location,
+  ProdConfiguration is assumed.
+- If Flask app running within mod_wsgi is detected,
+  ProdConfiguration is assumed.
+- If environment variables determining configuration file/section are found,
+  they are used for configuration. Following environment variables are
+  recognized:
+
+    - `MBS_CONFIG_FILE`: Overrides default configuration file location,
+      typically `/etc/module-build-service/config.py`.
+    - `MBS_CONFIG_SECTION`: Overrides configuration section.
+
+  It is possible to set these values in httpd using `SetEnv`,
+  anywhere in `/etc/profile.d/` etc.
+
+- If test-runtime environment is detected,
+  TestConfiguration is used, otherwise...
+- if `MODULE_BUILD_SERVICE_DEVELOPER_ENV` is set to some reasonable
+  value, DevConfiguration is forced and `config.py` is used directly from the
+  MBS's develop instance. For more information see `docs/CONTRIBUTING.rst`.
