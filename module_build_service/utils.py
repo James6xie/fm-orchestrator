@@ -29,6 +29,8 @@ import shutil
 import tempfile
 import os
 import logging
+import copy
+from six import iteritems
 
 import modulemd
 
@@ -41,6 +43,8 @@ from module_build_service import conf, db
 from module_build_service.errors import (Unauthorized, Conflict)
 import module_build_service.messaging
 from multiprocessing.dummy import Pool as ThreadPool
+import module_build_service.pdc
+from module_build_service.pdc import get_module_commit_hash_and_version
 
 import concurrent.futures
 
@@ -328,7 +332,62 @@ def _scm_get_latest(pkg):
         return "Failed to get the latest commit for %s#%s" % (pkg.repository, pkg.ref)
     return None
 
-def format_mmd(mmd):
+def format_mmd(mmd, scmurl):
+    """
+    Prepares the modulemd for the MBS. This does things such as replacing the
+    branches of components with commit hashes and adding metadata in the xmd
+    dictionary.
+    :param mmd: the ModuleMetadata object to format
+    :param scmurl: the url to the modulemd
+    """
+    # Import it here, because SCM uses utils methods and fails to import
+    # them because of dep-chain.
+    from module_build_service.scm import SCM
+
+    mmd.xmd['mbs'] = {'scmurl': scmurl}
+
+    scm = SCM(scmurl)
+    # If a commit hash is provided, add that information to the modulemd
+    if scm.commit:
+        # We want to make sure we have the full commit hash for consistency
+        if SCM.is_full_commit_hash(scm.scheme, scm.commit):
+            full_scm_hash = scm.commit
+        else:
+            full_scm_hash = scm.get_full_commit_hash()
+
+        mmd.xmd['mbs']['commit'] = full_scm_hash
+    # If a commit hash wasn't provided then just get the latest from master
+    else:
+        scm = SCM(scmurl)
+        mmd.xmd['mbs']['commit'] = scm.get_latest()
+
+
+    # If the modulemd yaml specifies module buildrequires, replace the streams
+    # with commit hashes
+    if mmd.buildrequires:
+        mmd.xmd['mbs']['buildrequires'] = copy.deepcopy(mmd.buildrequires)
+        pdc = module_build_service.pdc.get_pdc_client_session(conf)
+        for module_name, module_stream in \
+                mmd.xmd['mbs']['buildrequires'].items():
+            # Assumes that module_stream is the stream and not the commit hash
+            module_info = {
+                'name': module_name,
+                'version': module_stream}
+            commit_hash, version = get_module_commit_hash_and_version(
+                pdc, module_info)
+            if commit_hash and version:
+                mmd.xmd['mbs']['buildrequires'][module_name] = {
+                    'ref': commit_hash,
+                    'stream': mmd.buildrequires[module_name],
+                    'version': version
+                }
+            else:
+                raise RuntimeError(
+                    'The module "{0}" didn\'t contain either a commit hash or a'
+                    ' version in PDC'.format(module_name))
+    else:
+        mmd.xmd['mbs']['buildrequires'] = {}
+
     if mmd.components:
         # Add missing data in components
         for pkgname, pkg in mmd.components.rpms.items():
@@ -353,13 +412,12 @@ def format_mmd(mmd):
         for err_msg in err_msgs:
             if err_msg:
                 raise UnprocessableEntity(err_msg)
-    return mmd
 
 def record_component_builds(scm, mmd, module, initial_batch = 1):
     # Format the modulemd by putting in defaults and replacing streams that
     # are branches with commit hashes
     try:
-        mmd = format_mmd(mmd)
+        format_mmd(mmd, module.scmurl)
     except Exception:
         module.transition(conf, models.BUILD_STATES["failed"])
         db.session.add(module)
@@ -510,6 +568,12 @@ def scm_url_schemes(terse=False):
         for scm_type, scm_schemes in scm_types.items():
             scheme_list.extend([scheme[:-3] for scheme in scm_schemes])
         return list(set(scheme_list))
+
+def get_scm_url_re():
+    schemes_re = '|'.join(map(re.escape, scm_url_schemes(terse=True)))
+    return re.compile(
+        r"(?P<giturl>(?:(?P<scheme>(" + schemes_re + r"))://(?P<host>[^/]+))?"
+        r"(?P<repopath>/[^\?]+))\?(?P<modpath>[^#]*)#(?P<revision>.+)")
 
 def module_build_state_from_msg(msg):
     state = int(msg.module_build_state)

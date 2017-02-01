@@ -162,6 +162,58 @@ class SCM(object):
         else:
             raise RuntimeError("get_latest: Unhandled SCM scheme.")
 
+    def get_full_commit_hash(self, commit_hash=None):
+        """
+        Takes a shortened commit hash and returns the full hash
+        :param commit_hash: a shortened commit hash. If not specified, the
+        one in the URL will be used
+        :return: string of the full commit hash
+        """
+        if commit_hash:
+            commit_to_check = commit_hash
+        elif self.commit:
+            commit_to_check = self.commit
+        else:
+            raise RuntimeError('No commit hash was specified for "{0}"'.format(
+                self.url))
+
+        if self.scheme == 'git':
+            log.debug('Getting the full commit hash for "{0}"'
+                      .format(self.repository))
+            td = None
+            try:
+                td = tempfile.mkdtemp()
+                SCM._run(['git', 'clone', '-q', self.repository, td])
+                output = SCM._run(
+                    ['git', 'rev-parse', commit_to_check], chdir=td)[1]
+            finally:
+                if td and os.path.exists(td):
+                    shutil.rmtree(td)
+
+            if output:
+                return str(output.strip('\n'))
+
+            raise RuntimeError(
+                'The full commit hash of "{0}" for "{1}" could not be found'
+                .format(commit_hash, self.repository))
+        else:
+            raise RuntimeError('get_full_commit_hash: Unhandled SCM scheme.')
+
+    @staticmethod
+    def is_full_commit_hash(scheme, commit):
+        """
+        Determines if a commit hash is the full commit hash. For instance, if
+        the scheme is git, it will determine if the commit is a full SHA1 hash
+        :param scheme: a string containing the SCM type (e.g. git)
+        :param commit: a string containing the commit
+        :return: boolean
+        """
+        if scheme == 'git':
+            sha1_pattern = re.compile(r'^[0-9a-f]{40}$')
+            return bool(re.match(sha1_pattern, commit))
+        else:
+            raise RuntimeError('is_full_commit_hash: Unhandled SCM scheme.')
+
     def is_available(self, strict=False):
         """Check whether the scmurl is available for checkout.
 

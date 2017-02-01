@@ -339,3 +339,34 @@ def get_module_build_dependencies(session, module_info, strict=False):
         deps = module_depsolving_wrapper(session, deps, strict=strict)
 
     return deps
+
+def get_module_commit_hash_and_version(session, module_info):
+    """
+    Gets the commit hash and version of a module stored in PDC
+    :param module_info: a dict containing filters for PDC
+    :param session: a PDC session instance
+    :return: a tuple containing the string of the commit hash and the version
+    of the module stored in PDC. If a value is not found, None is
+    returned for the values that aren't found.
+    """
+    commit_hash = None
+    version = None
+    module = get_module(session, module_info)
+    if module:
+        if module.get('modulemd'):
+            mmd = modulemd.ModuleMetadata()
+            mmd.loads(module['modulemd'])
+            if mmd.xmd.get('mbs') and mmd.xmd['mbs'].get('commit'):
+                commit_hash = mmd.xmd['mbs']['commit']
+        if module.get('variant_release'):
+            version = module['variant_release']
+    if not commit_hash:
+        # TODO: Should this eventually be an exception?
+        log.warn(
+            'The commit hash for {0!r} was not part of the modulemd in PDC'
+            .format(module_info))
+    if not version:
+        # TODO: Should this eventually be an exception?
+        log.warn(
+            'The version for {0!r} was not in PDC'.format(module_info))
+    return commit_hash, version
