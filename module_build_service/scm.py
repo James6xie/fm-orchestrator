@@ -152,15 +152,13 @@ class SCM(object):
         """
         if self.scheme == "git":
             log.debug("Getting/verifying commit hash for %s" % self.repository)
-            output = SCM._run(["git", "ls-remote", self.repository])[1]
-            for line in output.split(os.linesep):
-                if line.endswith("\trefs/heads/%s" % branch):
-                    return line.split("\t")[0]
+            output = SCM._run(["git", "ls-remote", self.repository, branch])[1]
+            if output:
+                return output.split("\t")[0]
 
             # Hopefully `branch` is really a commit hash.  Code later needs to verify this.
             if self.is_available(True):
                 return branch
-            return branch
         else:
             raise RuntimeError("get_latest: Unhandled SCM scheme.")
 
