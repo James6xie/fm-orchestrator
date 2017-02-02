@@ -165,7 +165,7 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
 
     def process_message(self, session, msg):
         log.debug('Received a message with an ID of "{0}" and of type "{1}"'
-                  .format(getattr(msg, 'msg_id'), type(msg).__name__))
+                  .format(getattr(msg, 'msg_id', None), type(msg).__name__))
 
         # Choose a handler for this message
         if type(msg) == module_build_service.messaging.KojiBuildChange:
