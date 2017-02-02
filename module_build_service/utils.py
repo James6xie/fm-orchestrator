@@ -328,36 +328,21 @@ def _scm_get_latest(pkg):
         return "Failed to get the latest commit for %s#%s" % (pkg.repository, pkg.ref)
     return None
 
-def record_component_builds(scm, mmd, module, initial_batch = 1):
-    # Import it here, because SCM uses utils methods
-    # and fails to import them because of dep-chain.
-    import module_build_service.scm
-
-    # List of (pkg_name, git_url) tuples to be used to check
-    # the availability of git URLs paralelly later.
-    full_urls = []
-
-    # If the modulemd yaml specifies components, then submit them for build
+def format_mmd(mmd):
     if mmd.components:
         # Add missing data in components
         for pkgname, pkg in mmd.components.rpms.items():
-            try:
-                if pkg.repository and not conf.rpms_allow_repository:
-                    raise Unauthorized(
-                        "Custom component repositories aren't allowed")
-                if pkg.cache and not conf.rpms_allow_cache:
-                    raise Unauthorized("Custom component caches aren't allowed")
-                if not pkg.repository:
-                    pkg.repository = conf.rpms_default_repository + pkgname
-                if not pkg.cache:
-                    pkg.cache = conf.rpms_default_cache + pkgname
-                if not pkg.ref:
-                    pkg.ref = 'master'
-            except Exception:
-                module.transition(conf, models.BUILD_STATES["failed"])
-                db.session.add(module)
-                db.session.commit()
-                raise
+            if pkg.repository and not conf.rpms_allow_repository:
+                raise Unauthorized(
+                    "Custom component repositories aren't allowed")
+            if pkg.cache and not conf.rpms_allow_cache:
+                raise Unauthorized("Custom component caches aren't allowed")
+            if not pkg.repository:
+                pkg.repository = conf.rpms_default_repository + pkgname
+            if not pkg.cache:
+                pkg.cache = conf.rpms_default_cache + pkgname
+            if not pkg.ref:
+                pkg.ref = 'master'
 
         # Check that SCM URL is valid and replace potential branches in
         # pkg.ref by real SCM hash.
@@ -368,7 +353,25 @@ def record_component_builds(scm, mmd, module, initial_batch = 1):
         for err_msg in err_msgs:
             if err_msg:
                 raise UnprocessableEntity(err_msg)
+    return mmd
 
+def record_component_builds(scm, mmd, module, initial_batch = 1):
+    # Format the modulemd by putting in defaults and replacing streams that
+    # are branches with commit hashes
+    try:
+        mmd = format_mmd(mmd)
+    except Exception:
+        module.transition(conf, models.BUILD_STATES["failed"])
+        db.session.add(module)
+        db.session.commit()
+        raise
+
+    # List of (pkg_name, git_url) tuples to be used to check
+    # the availability of git URLs in parallel later.
+    full_urls = []
+
+    # If the modulemd yaml specifies components, then submit them for build
+    if mmd.components:
         for pkgname, pkg in mmd.components.rpms.items():
             full_url = "%s?#%s" % (pkg.repository, pkg.ref)
             full_urls.append((pkgname, full_url))
@@ -403,7 +406,8 @@ def record_component_builds(scm, mmd, module, initial_batch = 1):
 
             existing_build = models.ComponentBuild.query.filter_by(
                 module_id=module.id, package=pkg.name).first()
-            if (existing_build and existing_build.state != models.BUILD_STATES['done']):
+            if existing_build and \
+                    existing_build.state != models.BUILD_STATES['done']:
                 existing_build.state = models.BUILD_STATES['init']
                 db.session.add(existing_build)
             else:
