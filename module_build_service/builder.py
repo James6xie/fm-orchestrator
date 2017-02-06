@@ -841,6 +841,7 @@ class CoprModuleBuilder(GenericBuilder):
 
         self.copr = None
         self.client = CoprModuleBuilder._get_client(config)
+        self.client.username = self.owner
         self.__prep = False
 
     @classmethod
@@ -863,8 +864,7 @@ class CoprModuleBuilder(GenericBuilder):
 
     def _get_copr_safe(self):
         from copr.exceptions import CoprRequestException
-        # @TODO how the authentication is designed?
-        kwargs = {"ownername": "@copr", "projectname": CoprModuleBuilder._tag_to_copr_name(self.tag_name)}
+        kwargs = {"ownername": self.owner, "projectname": CoprModuleBuilder._tag_to_copr_name(self.tag_name)}
         try:
             return self._get_copr(**kwargs)
         except CoprRequestException:
