@@ -299,6 +299,19 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
             raise
         return groups
 
+    @abstractmethod
+    def list_tasks_for_components(self, component_builds=None, state='active'):
+        """
+        :param component_builds: list of component builds which we want to check
+        :param state: limit the check only for tasks in the given state
+        :return: list of tasks
+
+        This method is supposed to list tasks ('active' by default)
+        for component builds.
+        """
+        raise NotImplementedError()
+
+
 class KojiModuleBuilder(GenericBuilder):
     """ Koji specific builder class """
 
@@ -634,7 +647,10 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
             else:
                 module_target = self.module_target['name']
 
-            build_opts = {"skip_tag": True}
+            build_opts = {"skip_tag": True,
+                          "mbs_artifact_name": artifact_name,
+                          "mbs_module_name": module_target}
+
             task_id = self.koji_session.build(source, module_target, build_opts,
                                             priority=self.build_priority)
             log.info("submitted build of %s (task_id=%s), via %s" % (
@@ -829,6 +845,45 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
                 raise SystemError("Target references unexpected dest_tag_name. Got '%s', expected '%s'. Please contact administrator." % (target_info['dest_tag_name'], dest_tag['name']))
 
         return self.koji_session.getBuildTarget(name)
+
+    def list_tasks_for_components(self, component_builds=None, state='active'):
+        """
+        :param component_builds: list of component builds which we want to check
+        :param state: limit the check only for Koji tasks in the given state
+        :return: list of Koji tasks
+
+        List Koji tasks ('active' by default) for component builds.
+        """
+
+        component_builds = component_builds or []
+        if state == 'active':
+            states = [koji.TASK_STATES['FREE'],
+                      koji.TASK_STATES['OPEN'],
+                      koji.TASK_STATES['ASSIGNED']]
+        elif state.upper() in koji.TASK_STATES:
+            states = [koji.TASK_STATES[state.upper()]]
+        else:
+            raise ValueError("State {} is not valid within Koji task states."
+                             .format(state))
+
+        tasks = []
+        for task in self.koji_session.listTasks(opts={'state': states,
+                                                      'decode': True,
+                                                      'method': 'build'}):
+            task_opts = task['request'][-1]
+            assert isinstance(task_opts, dict), "Task options shall be a dict."
+            if 'scratch' in task_opts and task_opts['scratch']:
+                continue
+            if 'mbs_artifact_name' not in task_opts:
+                task_opts['mbs_artifact_name'] = None
+            if 'mbs_module_name' not in task_opts:
+                task_opts['mbs_module_name'] = None
+            for c in component_builds:
+                if (c.name == task_opts['mbs_artifact_name'] and
+                   c.tag == task_opts['mbs_module_name']):
+                    tasks.append(task)
+
+        return tasks
 
 
 class CoprModuleBuilder(GenericBuilder):
@@ -1413,6 +1468,10 @@ mdpolicy=group:primary
 
     def cancel_build(self, task_id):
         pass
+
+    def list_tasks_for_components(self, component_builds=None, state='active'):
+        pass
+
 
 def build_from_scm(artifact_name, source, config, build_srpm,
                         data = None, stdout=None, stderr=None):

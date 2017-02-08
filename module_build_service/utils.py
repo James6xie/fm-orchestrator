@@ -92,6 +92,7 @@ def start_build_batch(config, module, session, builder, components=None):
     """
     import koji  # Placed here to avoid py2/py3 conflicts...
 
+    # Local check for component relicts
     if any([c.state == koji.BUILD_STATES['BUILDING']
             for c in module.component_builds]):
         err_msg = "Cannot start a batch when another is in flight."
@@ -102,6 +103,22 @@ def start_build_batch(config, module, session, builder, components=None):
         ]
         log.error("Components in building state: %s" % str(unbuilt_components))
         raise ValueError(err_msg)
+
+    # Identify active tasks which might contain relicts of previous builds
+    # and fail the module build if this^ happens.
+    active_tasks = builder.list_tasks_for_components(module.component_builds,
+                                                     state='active')
+    if isinstance(active_tasks, list) and active_tasks:
+        state_reason = "Cannot start a batch, because some components are already in 'building' state."
+        state_reason += " See tasks (ID): {}".format(', '.join([str(t['id']) for t in active_tasks]))
+        module.transition(config, state=models.BUILD_STATES['failed'],
+                          state_reason=state_reason)
+        session.commit()
+        return
+
+    else:
+        log.debug("Builder {} doesn't provide information about active tasks."
+                  .format(builder))
 
     # The user can either pass in a list of components to 'seed' the batch, or
     # if none are provided then we just select everything that hasn't

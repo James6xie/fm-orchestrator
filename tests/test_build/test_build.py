@@ -192,6 +192,9 @@ class TestModuleBuilder(GenericBuilder):
         if TestModuleBuilder.on_cancel_cb:
             TestModuleBuilder.on_cancel_cb(self, task_id)
 
+    def list_tasks_for_components(self, component_builds=None, state='active'):
+        pass
+
 
 class TestBuild(unittest.TestCase):
 

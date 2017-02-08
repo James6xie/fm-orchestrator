@@ -57,11 +57,12 @@ class TestRepoDone(unittest.TestCase):
         module_build_service.scheduler.handlers.repos.done(
             config=conf, session=db.session, msg=msg)
 
+    @mock.patch('module_build_service.builder.KojiModuleBuilder.list_tasks_for_components', return_value=[])
     @mock.patch('module_build_service.builder.KojiModuleBuilder.buildroot_ready', return_value=True)
     @mock.patch('module_build_service.builder.KojiModuleBuilder.get_session')
     @mock.patch('module_build_service.builder.KojiModuleBuilder.build')
     @mock.patch('module_build_service.builder.KojiModuleBuilder.buildroot_connect')
-    def test_a_single_match(self, connect, build_fn, get_session, ready):
+    def test_a_single_match(self, connect, build_fn, get_session, ready, list_tasks_fn):
         """ Test that when a repo msg hits us and we have a single match.
         """
         get_session.return_value = mock.Mock(), 'development'
@@ -75,11 +76,12 @@ class TestRepoDone(unittest.TestCase):
             artifact_name='communicator',
             source='git://pkgs.domain.local/rpms/communicator?#da95886c8a443b36a9ce31abda1f9bed22f2f9c2')
 
+    @mock.patch('module_build_service.builder.KojiModuleBuilder.list_tasks_for_components', return_value=[])
     @mock.patch('module_build_service.builder.KojiModuleBuilder.buildroot_ready', return_value=True)
     @mock.patch('module_build_service.builder.KojiModuleBuilder.get_session')
     @mock.patch('module_build_service.builder.KojiModuleBuilder.build')
     @mock.patch('module_build_service.builder.KojiModuleBuilder.buildroot_connect')
-    def test_a_single_match_build_fail(self, connect, build_fn, config, ready):
+    def test_a_single_match_build_fail(self, connect, build_fn, config, ready, list_tasks_fn):
         """ Test that when a KojiModuleBuilder.build fails, the build is
         marked as failed with proper state_reason.
         """
