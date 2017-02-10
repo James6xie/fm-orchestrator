@@ -39,7 +39,7 @@ class TestAuthModule(unittest.TestCase):
         module_build_service.auth.get_user(request)
 
     @raises(module_build_service.errors.Unauthorized)
-    @patch('module_build_service.auth.get_token_info')
+    @patch('module_build_service.auth._get_token_info')
     def test_get_user_failure(self, get_token_info):
         def mocked_get_token_info(token):
             return {"active": False}
@@ -50,7 +50,7 @@ class TestAuthModule(unittest.TestCase):
         module_build_service.auth.get_user(request)
 
     @raises(module_build_service.errors.Unauthorized)
-    @patch('module_build_service.auth.get_token_info')
+    @patch('module_build_service.auth._get_token_info')
     def test_get_user_good(self, get_token_info):
         # https://www.youtube.com/watch?v=G-LtddOgUCE
         name = "Joey Jo Jo Junior Shabadoo"

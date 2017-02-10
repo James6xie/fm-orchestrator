@@ -51,7 +51,7 @@ def _load_secrets():
                                 'r').read())
     client_secrets = list(secrets.values())[0]
 
-def get_token_info(token):
+def _get_token_info(token):
     """
     Asks the token_introspection_uri for the validity of a token.
     """
@@ -71,7 +71,7 @@ def get_token_info(token):
     return _json_loads(content)
 
 
-def get_user_info(token):
+def _get_user_info(token):
     """
     Asks the userinfo_uri for more information on a user.
     """
@@ -100,7 +100,7 @@ def get_user(request):
 
     token = request.cookies["oidc_token"]
     try:
-        data = get_token_info(token)
+        data = _get_token_info(token)
     except Exception as e:
         error = "Cannot verify OIDC token: %s" % str(e)
         log.exception(error)
@@ -110,7 +110,7 @@ def get_user(request):
         raise Unauthorized("OIDC token invalid or expired.")
 
     try:
-        extended_data = get_user_info(token)
+        extended_data = _get_user_info(token)
     except Exception as e:
         error = "Cannot verify determine user groups:  %s" % str(e)
         log.exception(error)
