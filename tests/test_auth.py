@@ -33,25 +33,25 @@ import module_build_service.errors
 
 class TestAuthModule(unittest.TestCase):
     @raises(module_build_service.errors.Unauthorized)
-    def test_get_username_no_token(self):
+    def test_get_user_no_token(self):
         request = mock.MagicMock()
         request.cookies.return_value = {}
-        module_build_service.auth.get_username(request)
+        module_build_service.auth.get_user(request)
 
     @raises(module_build_service.errors.Unauthorized)
     @patch('module_build_service.auth.get_token_info')
-    def test_get_username_failure(self, get_token_info):
+    def test_get_user_failure(self, get_token_info):
         def mocked_get_token_info(token):
             return {"active": False}
         get_token_info.return_value = mocked_get_token_info
 
         request = mock.MagicMock()
         request.cookies.return_value = {"oidc_token", "1234"}
-        module_build_service.auth.get_username(request)
+        module_build_service.auth.get_user(request)
 
     @raises(module_build_service.errors.Unauthorized)
     @patch('module_build_service.auth.get_token_info')
-    def test_get_username_good(self, get_token_info):
+    def test_get_user_good(self, get_token_info):
         # https://www.youtube.com/watch?v=G-LtddOgUCE
         name = "Joey Jo Jo Junior Shabadoo"
         def mocked_get_token_info(token):
@@ -60,34 +60,5 @@ class TestAuthModule(unittest.TestCase):
 
         request = mock.MagicMock()
         request.cookies.return_value = {"oidc_token", "1234"}
-        result = module_build_service.auth.get_username(request)
+        result = module_build_service.auth.get_user(request)
         eq_(result, name)
-
-    @mock.patch('fedora.client.AccountSystem')
-    def test_assert_is_packager(self, AccountSystem):
-        FAS = mock.MagicMock()
-        FAS.person_by_username.return_value = {
-            'group_roles': {
-                'packager': {
-                    'role_status': 'approved',
-                },
-            },
-        }
-        AccountSystem.return_value = FAS
-        # This should not raise an exception
-        module_build_service.auth.assert_is_packager('ralph', dict())
-
-    @raises(module_build_service.errors.Unauthorized)
-    @mock.patch('fedora.client.AccountSystem')
-    def test_assert_is_packager_failure(self, AccountSystem):
-        FAS = mock.MagicMock()
-        FAS.person_by_username.return_value = {
-            'group_roles': {
-                'packager': {
-                    'role_status': 'FAILLLL',
-                },
-            },
-        }
-        AccountSystem.return_value = FAS
-        # This should not raise an exception
-        module_build_service.auth.assert_is_packager('ralph', dict())

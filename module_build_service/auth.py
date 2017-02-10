@@ -23,15 +23,13 @@
 
 """Auth system based on the client certificate and FAS account"""
 
-from werkzeug.serving import WSGIRequestHandler
-
 from module_build_service.errors import Unauthorized
 from module_build_service import app, log
 
-import fedora.client
 import httplib2
 import json
 from six.moves.urllib.parse import urlencode
+
 
 def _json_loads(content):
     if not isinstance(content, str):
@@ -72,9 +70,26 @@ def get_token_info(token):
 
     return _json_loads(content)
 
-def get_username(request):
+
+def get_user_info(token):
     """
-    Returns the client's username based on the OIDC token provided.
+    Asks the userinfo_uri for more information on a user.
+    """
+    if not client_secrets:
+        return None
+
+    headers = {'authorization': 'Bearer ' + token}
+
+    resp, content = httplib2.Http().request(
+        client_secrets['userinfo_uri'], 'GET',
+        headers=headers)
+
+    return _json_loads(content)
+
+
+def get_user(request):
+    """
+    Returns the client's username and groups based on the OIDC token provided.
     """
 
     _load_secrets()
@@ -87,33 +102,19 @@ def get_username(request):
     try:
         data = get_token_info(token)
     except Exception as e:
-        raise Unauthorized("Cannot verify OIDC token: %s" % str(e))
+        error = "Cannot verify OIDC token: %s" % str(e)
+        log.exception(error)
+        raise Unauthorized(error)
 
     if not "active" in data or not data["active"]:
         raise Unauthorized("OIDC token invalid or expired.")
 
-    #TODO: Once we will get our own scope registered in Fedora infra,
-    # we can start checking it here.
-    return data["username"]
+    try:
+        extended_data = get_user_info(token)
+    except Exception as e:
+        error = "Cannot verify determine user groups:  %s" % str(e)
+        log.exception(error)
+        raise Unauthorized(error)
 
-def assert_is_packager(username, fas_kwargs):
-    """ Assert that a user is a packager by consulting FAS.
-
-    When user is not a packager (is not in the packager FAS group), an
-    exception is raised.
-
-    Note that `fas_kwargs` must contain values for `base_url`, `username`, and
-    `password`.  These are required arguments for authenticating with FAS.
-    (Rida needs its own service account/password to talk to FAS).
-    """
-
-    FAS = fedora.client.AccountSystem(**fas_kwargs)
-    person = FAS.person_by_username(username)
-
-    # Check that they have even applied in the first place...
-    if not 'packager' in person['group_roles']:
-        raise Unauthorized("%s is not in the packager group" % username)
-
-    # Check more closely to make sure they're approved.
-    if person['group_roles']['packager']['role_status'] != 'approved':
-        raise Unauthorized("%s is not approved in the packager group" % username)
+    groups = set(extended_data['groups'])
+    return data["username"], groups

@@ -3,6 +3,11 @@ import socket
 import os
 import sys
 
+try:
+    from urllib.parse import urlencode  # py3
+except ImportError:
+    from urllib import urlencode  # py2
+
 def listen_for_token():
     """
     Listens on port 13747 on localhost for a redirect request by OIDC
@@ -65,7 +70,21 @@ print "Usage: submit_build.py [mbs_host] [oidc_token]"
 print ""
 if not token:
     print "Provide token as command line argument or visit following URL to obtain the token:"
-    print "https://id.stg.fedoraproject.org/openidc/Authorization?response_type=token&response_mode=form_post&nonce=1234&scope=openid%20profile%20email&client_id=mbs-authorizer&state=af0ifjsldkj&redirect_uri=http://localhost:13747/"
+
+    query = urlencode({
+        'response_type': 'token',
+        'response_mode': 'form_post',
+        'nonce': '1234',
+        'scope': ' '.join([
+            'openid',
+            'profile',
+            'email',
+            'https://id.fedoraproject.org/scope/groups',
+        ]),
+        'client_id': 'mbs-authorizer',
+        'state': 'blahblahblah',
+    }) + "&redirect_uri=http://localhost:13747/"
+    print "https://id.stg.fedoraproject.org/openidc/Authorization?" + query
     print "We are waiting for you to finish the token generation..."
 
 if not token:

@@ -91,13 +91,11 @@ class ModuleBuildAPI(MethodView):
                 raise NotFound('No such module found.')
 
     def post(self):
-        username = module_build_service.auth.get_username(request)
+        username, groups = module_build_service.auth.get_user(request)
 
-        if conf.require_packager:
-            module_build_service.auth.assert_is_packager(username, fas_kwargs=dict(
-                base_url=conf.fas_url,
-                username=conf.fas_username,
-                password=conf.fas_password))
+        if conf.allowed_groups and not (conf.allowed_groups & groups):
+            raise Unauthorized("%s is not in any of  %r, only %r" % (
+                username, conf.allowed_groups, groups))
 
         try:
             r = json.loads(request.get_data().decode("utf-8"))
@@ -126,17 +124,11 @@ class ModuleBuildAPI(MethodView):
         return jsonify(module.json()), 201
 
     def patch(self, id):
-        username = module_build_service.auth.get_username(request)
+        username, groups = module_build_service.auth.get_user(request)
 
-        if conf.require_packager:
-            module_build_service.auth.assert_is_packager(
-                username,
-                fas_kwargs=dict(
-                    base_url=conf.fas_url,
-                    username=conf.fas_username,
-                    password=conf.fas_password
-                )
-            )
+        if conf.allowed_groups and not (conf.allowed_groups & groups):
+            raise Unauthorized("%s is not in any of  %r, only %r" % (
+                username, conf.allowed_groups, groups))
 
         module = models.ModuleBuild.query.filter_by(id=id).first()
         if not module:
