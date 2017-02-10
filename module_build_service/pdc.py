@@ -211,7 +211,10 @@ def get_module_modulemd(session, module_info, strict=False):
            found.  If strict=True, then a ValueError is raised.
     :return: ModuleMetadata instance
     """
-    yaml = get_module(session, module_info, strict=strict)['modulemd']
+    yaml = None
+    module = get_module(session, module_info, strict=strict)
+    if module:
+        yaml = module['modulemd']
     if not yaml:
         if strict:
             raise ValueError("Failed to find modulemd entry in PDC for "
