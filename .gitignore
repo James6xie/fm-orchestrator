@@ -11,3 +11,4 @@ test_module_build_service.db
 .mbs_local_build.db
 *.src.rpm
 .test_module_build_service.db
+.eggs

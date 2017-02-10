@@ -32,7 +32,6 @@ from nose.tools import timed
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.repos
 from module_build_service import db, models, conf
-from module_build_service.messaging import RidaModule
 
 from mock import patch
 
@@ -44,6 +43,8 @@ import module_build_service.scheduler.consumer
 
 base_dir = dirname(dirname(__file__))
 cassette_dir = base_dir + '/vcr-request-data/'
+
+user = ('Homer J. Simpson', set(['packager']))
 
 class MockedSCM(object):
     def __init__(self, mocked_scm, name, mmd_filename):
@@ -228,11 +229,9 @@ class TestBuild(unittest.TestCase):
         self.vcr.__exit__()
 
     @timed(30)
-    @patch('module_build_service.auth.get_username', return_value='Homer J. Simpson')
-    @patch('module_build_service.auth.assert_is_packager')
+    @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build(self, mocked_scm, mocked_assert_is_packager,
-                          mocked_get_username):
+    def test_submit_build(self, mocked_scm, mocked_get_user):
         """
         Tests the build of testmodule.yaml using TestModuleBuilder which
         succeeds everytime.
@@ -284,11 +283,9 @@ class TestBuild(unittest.TestCase):
         self.assertEqual(buildroot_groups, [])
 
     @timed(30)
-    @patch('module_build_service.auth.get_username', return_value='Homer J. Simpson')
-    @patch('module_build_service.auth.assert_is_packager')
+    @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build_cancel(self, mocked_scm, mocked_assert_is_packager,
-                          mocked_get_username):
+    def test_submit_build_cancel(self, mocked_scm, mocked_get_user):
         """
         Submit all builds for a module and cancel the module build later.
         """
@@ -337,11 +334,9 @@ class TestBuild(unittest.TestCase):
                 self.assertTrue(build.task_id in cancelled_tasks)
 
     @timed(30)
-    @patch('module_build_service.auth.get_username', return_value='Homer J. Simpson')
-    @patch('module_build_service.auth.assert_is_packager')
+    @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build_instant_complete(self, mocked_scm, mocked_assert_is_packager,
-                          mocked_get_username):
+    def test_submit_build_instant_complete(self, mocked_scm, mocked_get_user):
         """
         Tests the build of testmodule.yaml using TestModuleBuilder which
         succeeds everytime.
@@ -369,11 +364,9 @@ class TestBuild(unittest.TestCase):
             self.assertTrue(build.module_build.state in [models.BUILD_STATES["done"], models.BUILD_STATES["ready"]] )
 
     @timed(30)
-    @patch('module_build_service.auth.get_username', return_value='Homer J. Simpson')
-    @patch('module_build_service.auth.assert_is_packager')
+    @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build_concurrent_threshold(
-            self, mocked_scm, mocked_assert_is_packager, mocked_get_username):
+    def test_submit_build_concurrent_threshold(self, mocked_scm, mocked_get_user):
         """
         Tests the build of testmodule.yaml using TestModuleBuilder with
         num_consecutive_builds set to 1.

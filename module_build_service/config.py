@@ -196,22 +196,10 @@ class Config(object):
             'type': str,
             'default': '',
             'desc': ''},
-        'fas_url': {
-            'type': str,
-            'default': '',
-            'desc': 'FAS URL'},
-        'fas_username': {
-            'type': str,
-            'default': '',
-            'desc': 'FAS username'},
-        'fas_password': {
-            'type': str,
-            'default': '',
-            'desc': 'FAS password'},
-        'require_packager': {
-            'type': bool,
-            'default': True,
-            'desc': 'Turn on authorization against FAS'},
+        'allowed_groups': {
+            'type': set,
+            'default': set(['packager']),
+            'desc': 'The set of groups allowed to submit builds.'},
         'log_backend': {
             'type': str,
             'default': None,
@@ -327,7 +315,7 @@ class Config(object):
         if key in self._defaults:
             # type conversion for configuration item
             convert = self._defaults[key]['type']
-            if convert in [bool, int, list, str]:
+            if convert in [bool, int, list, str, set]:
                 try:
                     setattr(self, key, convert(value))
                 except:

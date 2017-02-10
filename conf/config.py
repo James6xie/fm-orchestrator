@@ -57,8 +57,10 @@ class BaseConfiguration(object):
 
     PKGDB_API_URL = 'https://admin.stg.fedoraproject.org/pkgdb/api'
 
-    FAS_URL = 'https://admin.stg.fedoraproject.org/accounts'
-    REQUIRE_PACKAGER = True
+    ALLOWED_GROUPS = set([
+        'packager',
+        #'modularity-wg',
+    ])
 
     # Available backends are: console, file, journal.
     LOG_BACKEND = 'journal'
@@ -92,6 +94,13 @@ class DevConfiguration(BaseConfiguration):
 
     MESSAGING_TOPIC_PREFIX = ['org.fedoraproject.dev', 'org.fedoraproject.stg']
 
+    ALLOWED_GROUPS = set([
+        'packager',
+        # Make this convenient for f2.0 developers
+        'factory2',
+        'modularity-wg',
+    ])
+
     # Global network-related values, in seconds
     NET_TIMEOUT = 5
     NET_RETRY_INTERVAL = 1
@@ -108,14 +117,6 @@ class DevConfiguration(BaseConfiguration):
         # ProxyPrincipals, and that is only true for our modularity system
         # user.  See:   https://infrastructure.fedoraproject.org/cgit/ansible.git/commit/?id=a28a93dad75248c30c1792ec35f588c8e317c067
         KOJI_PROXYUSER = False
-
-    REQUIRE_PACKAGER = False
-    # You only need these FAS options if you turn on authorization
-    # with REQUIRE_PACKAGER=True
-    # FAS_USERNAME = 'put your fas username here'
-    # FAS_PASSWORD = 'put your fas password here....'
-    # FAS_PASSWORD = os.environ('FAS_PASSWORD') # you could store it here
-    # FAS_PASSWORD = commands.getoutput('pass your_fas_password').strip()
 
     KOJI_CONFIG = path.join(confdir, 'koji.conf')
     KOJI_PROFILE = 'staging'
@@ -148,5 +149,4 @@ class TestConfiguration(BaseConfiguration):
 
 
 class ProdConfiguration(BaseConfiguration):
-    FAS_USERNAME = 'TODO'
-    # FAS_PASSWORD = 'another password'
+    pass

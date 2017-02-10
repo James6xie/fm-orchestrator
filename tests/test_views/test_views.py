@@ -33,6 +33,11 @@ from tests import app, init_data
 from module_build_service.models import ComponentBuild
 import module_build_service.scm
 
+
+user = ('Homer J. Simpson', set(['packager']))
+other_user = ('some_other_user', set(['packager']))
+
+
 class MockedSCM(object):
     def __init__(self, mocked_scm, name, mmd_filenames):
         """
@@ -204,11 +209,9 @@ class TestViews(unittest.TestCase):
                           ' was provided for the \"modified_after\" parameter')
         self.assertEquals(data['status'], 400)
 
-    @patch('module_build_service.auth.get_username', return_value='Homer J. Simpson')
-    @patch('module_build_service.auth.assert_is_packager')
+    @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build(self, mocked_scm, mocked_assert_is_packager,
-                          mocked_get_username):
+    def test_submit_build(self, mocked_scm, mocked_get_user):
         mocked_scm_obj = MockedSCM(mocked_scm, "fakemodule", "fakemodule.yaml")
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
@@ -234,11 +237,9 @@ class TestViews(unittest.TestCase):
         mmd = _modulemd.ModuleMetadata()
         mmd.loads(data["modulemd"])
 
-    @patch('module_build_service.auth.get_username', return_value='Homer J. Simpson')
-    @patch('module_build_service.auth.assert_is_packager')
+    @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_componentless_build(self, mocked_scm, mocked_assert_is_packager,
-                          mocked_get_username):
+    def test_submit_componentless_build(self, mocked_scm, mocked_get_user):
         mocked_scm_obj = MockedSCM(mocked_scm, "fakemodule2", "fakemodule2.yaml")
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
@@ -273,10 +274,8 @@ class TestViews(unittest.TestCase):
         self.assertEquals(data['status'], 401)
         self.assertEquals(data['error'], 'Unauthorized')
 
-    @patch('module_build_service.auth.get_username', return_value='Homer J. Simpson')
-    @patch('module_build_service.auth.assert_is_packager')
-    def test_submit_build_scm_url_error(self, mocked_assert_is_packager,
-                                        mocked_get_username):
+    @patch('module_build_service.auth.get_user', return_value=user)
+    def test_submit_build_scm_url_error(self, mocked_get_user):
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'scmurl': 'git://badurl.com'}))
         data = json.loads(rv.data)
@@ -285,11 +284,8 @@ class TestViews(unittest.TestCase):
         self.assertEquals(data['status'], 401)
         self.assertEquals(data['error'], 'Unauthorized')
 
-    @patch('module_build_service.auth.get_username', return_value='Homer J. Simpson')
-    @patch('module_build_service.auth.assert_is_packager')
-    def test_submit_build_scm_url_without_hash(self,
-                                               mocked_assert_is_packager,
-                                               mocked_get_username):
+    @patch('module_build_service.auth.get_user', return_value=user)
+    def test_submit_build_scm_url_without_hash(self, mocked_get_user):
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                 'testmodule.git'}))
@@ -300,12 +296,9 @@ class TestViews(unittest.TestCase):
         self.assertEquals(data['status'], 401)
         self.assertEquals(data['error'], 'Unauthorized')
 
-    @patch('module_build_service.auth.get_username', return_value='Homer J. Simpson')
-    @patch('module_build_service.auth.assert_is_packager')
+    @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build_bad_modulemd(self, mocked_scm,
-                                       mocked_assert_is_packager,
-                                       mocked_get_username):
+    def test_submit_build_bad_modulemd(self, mocked_scm, mocked_get_user):
         mocked_scm_obj = MockedSCM(mocked_scm, "bad", "bad.yaml")
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
@@ -316,11 +309,10 @@ class TestViews(unittest.TestCase):
         self.assertEquals(data['status'], 422)
         self.assertEquals(data['error'], 'Unprocessable Entity')
 
-    @patch('module_build_service.auth.get_username', return_value='Homer J. Simpson')
-    @patch('module_build_service.auth.assert_is_packager')
+    @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     def test_submit_build_scm_parallalization(self, mocked_scm,
-                          mocked_assert_is_packager, mocked_get_username):
+                                              mocked_get_user):
         def mocked_scm_get_latest(branch = "master"):
             time.sleep(1)
             return branch
@@ -352,11 +344,10 @@ class TestViews(unittest.TestCase):
         # max to complete.
         self.assertTrue(time.time() - start < 3)
 
-    @patch('module_build_service.auth.get_username', return_value='Homer J. Simpson')
-    @patch('module_build_service.auth.assert_is_packager')
+    @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     def test_submit_build_scm_non_available(self, mocked_scm,
-                          mocked_assert_is_packager, mocked_get_username):
+                                            mocked_get_user):
         def mocked_scm_get_latest():
             raise RuntimeError("Failed in mocked_scm_get_latest")
 
@@ -372,11 +363,10 @@ class TestViews(unittest.TestCase):
         self.assertEquals(data['message'][:31], "Failed to get the latest commit")
         self.assertEquals(data['error'], "Unprocessable Entity")
 
-    @patch('module_build_service.auth.get_username', return_value='Homer J. Simpson')
-    @patch('module_build_service.auth.assert_is_packager')
+    @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build_includedmodule(self, mocked_scm, mocked_assert_is_packager,
-                          mocked_get_username):
+    def test_submit_build_includedmodule(self, mocked_scm,
+                                         mocked_get_user):
         mocked_scm_obj = MockedSCM(mocked_scm, "includedmodules",
                                    ["includedmodules.yaml", "fakemodule.yaml"])
 
@@ -408,10 +398,8 @@ class TestViews(unittest.TestCase):
         self.assertEquals(batches["bash"], 2)
         self.assertEquals(batches["file"], 3)
 
-    @patch('module_build_service.auth.get_username', return_value='some_other_user')
-    @patch('module_build_service.auth.assert_is_packager')
-    def test_cancel_build(self, mocked_assert_is_packager,
-                          mocked_get_username):
+    @patch('module_build_service.auth.get_user', return_value=other_user)
+    def test_cancel_build(self, mocked_get_user):
         rv = self.client.patch('/module-build-service/1/module-builds/30',
                                data=json.dumps({'state': 'failed'}))
         data = json.loads(rv.data)
@@ -420,10 +408,8 @@ class TestViews(unittest.TestCase):
         self.assertEquals(data['state_reason'], 'Canceled by some_other_user.')
 
 
-    @patch('module_build_service.auth.get_username', return_value='Someone else')
-    @patch('module_build_service.auth.assert_is_packager')
-    def test_cancel_build_unauthorized(self, mocked_assert_is_packager,
-                          mocked_get_username):
+    @patch('module_build_service.auth.get_user', return_value=('sammy', set()))
+    def test_cancel_build_unauthorized(self, mocked_get_user):
         rv = self.client.patch('/module-build-service/1/module-builds/30',
                                data=json.dumps({'state': 'failed'}))
         data = json.loads(rv.data)
@@ -431,10 +417,8 @@ class TestViews(unittest.TestCase):
         self.assertEquals(data['status'], 401)
         self.assertEquals(data['error'], 'Unauthorized')
 
-    @patch('module_build_service.auth.get_username', return_value='some_other_user')
-    @patch('module_build_service.auth.assert_is_packager')
-    def test_cancel_build_wrong_param(self, mocked_assert_is_packager,
-                                      mocked_get_username):
+    @patch('module_build_service.auth.get_user', return_value=other_user)
+    def test_cancel_build_wrong_param(self, mocked_get_user):
         rv = self.client.patch('/module-build-service/1/module-builds/30',
                                data=json.dumps({'some_param': 'value'}))
         data = json.loads(rv.data)
@@ -444,10 +428,8 @@ class TestViews(unittest.TestCase):
         self.assertEquals(
             data['message'], 'Invalid JSON submitted')
 
-    @patch('module_build_service.auth.get_username', return_value='some_other_user')
-    @patch('module_build_service.auth.assert_is_packager')
-    def test_cancel_build_wrong_state(self, mocked_assert_is_packager,
-                          mocked_get_username):
+    @patch('module_build_service.auth.get_user', return_value=other_user)
+    def test_cancel_build_wrong_state(self, mocked_get_user):
         rv = self.client.patch('/module-build-service/1/module-builds/30',
                                data=json.dumps({'state': 'some_state'}))
         data = json.loads(rv.data)
@@ -457,10 +439,8 @@ class TestViews(unittest.TestCase):
         self.assertEquals(
             data['message'], 'The provided state change is not supported')
 
-    @patch('module_build_service.auth.get_username', return_value='Homer J. Simpson')
-    @patch('module_build_service.auth.assert_is_packager')
-    def test_submit_build_unsupported_scm_scheme(self, mocked_assert_is_packager,
-                          mocked_get_username):
+    @patch('module_build_service.auth.get_user', return_value=user)
+    def test_submit_build_unsupported_scm_scheme(self, mocked_get_user):
         scmurl = 'unsupported://example.com/modules/'
         'testmodule.git?#0000000000000000000000000000000000000000'
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
