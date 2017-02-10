@@ -94,6 +94,13 @@ class DevConfiguration(BaseConfiguration):
 
     MESSAGING_TOPIC_PREFIX = ['org.fedoraproject.dev', 'org.fedoraproject.stg']
 
+    ALLOWED_GROUPS = set([
+        'packager',
+        # Make this convenient for f2.0 developers
+        'factory2',
+        'modularity-wg',
+    ])
+
     # Global network-related values, in seconds
     NET_TIMEOUT = 5
     NET_RETRY_INTERVAL = 1
