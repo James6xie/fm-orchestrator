@@ -419,9 +419,8 @@ def submit_module_build(username, url, allow_local_url = False):
 
     mmd, scm, yaml = _fetch_mmd(url, allow_local_url)
 
-    module = models.ModuleBuild.query.filter_by(name=mmd.name,
-                                                stream=mmd.stream,
-                                                version=mmd.version).first()
+    module = models.ModuleBuild.query.filter_by(
+        name=mmd.name, stream=mmd.stream, version=str(mmd.version)).first()
     if module:
         log.debug('Checking whether module build already exist.')
         # TODO: make this configurable, we might want to allow
@@ -445,7 +444,7 @@ def submit_module_build(username, url, allow_local_url = False):
             conf,
             name=mmd.name,
             stream=mmd.stream,
-            version=mmd.version,
+            version=str(mmd.version),
             modulemd=yaml,
             scmurl=url,
             username=username
