@@ -25,6 +25,12 @@ import mock
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.modules
 import modulemd as _modulemd
+import os
+import vcr
+
+base_dir = os.path.dirname(os.path.dirname(__file__))
+cassette_dir = base_dir + '/vcr-request-data/'
+
 
 class TestModuleWait(unittest.TestCase):
 
@@ -32,6 +38,13 @@ class TestModuleWait(unittest.TestCase):
         self.config = mock.Mock()
         self.session = mock.Mock()
         self.fn = module_build_service.scheduler.handlers.modules.wait
+
+        filename = cassette_dir + self.id()
+        self.vcr = vcr.use_cassette(filename)
+        self.vcr.__enter__()
+
+    def tearDown(self):
+        self.vcr.__exit__()
 
     @mock.patch('module_build_service.builder.KojiModuleBuilder')
     @mock.patch('module_build_service.models.ModuleBuild.from_module_event')
@@ -51,6 +64,11 @@ class TestModuleWait(unittest.TestCase):
         }
 
         mmd = _modulemd.ModuleMetadata()
+        formatted_testmodule_yml_path = os.path.join(
+            base_dir, 'staged_data', 'formatted_testmodule.yaml')
+        with open(formatted_testmodule_yml_path, 'r') as f:
+            mmd.loads(f)
+
         mocked_module_build.mmd.return_value = mmd
 
         from_module_event.return_value = mocked_module_build

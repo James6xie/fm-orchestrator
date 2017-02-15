@@ -8,13 +8,13 @@ interactions:
       accept: [application/json]
       content-type: [application/json]
     method: GET
-    uri: http://modularity.fedorainfracloud.org:8080/rest_api/v1/unreleasedvariants?variant_release=3&variant_version=master&page_size=-1&variant_id=base-runtime
+    uri: http://modularity.fedorainfracloud.org:8080/rest_api/v1/unreleasedvariants?variant_version=master&page_size=-1&variant_id=base-runtime
   response:
     body: {string: !!python/unicode ''}
     headers:
       content-type: [text/html; charset=utf-8]
-      date: ['Thu, 16 Feb 2017 22:57:00 GMT']
-      location: ['http://modularity.fedorainfracloud.org:8080/rest_api/v1/unreleasedvariants/?variant_release=3&variant_version=master&page_size=-1&variant_id=base-runtime']
+      date: ['Thu, 16 Feb 2017 22:57:05 GMT']
+      location: ['http://modularity.fedorainfracloud.org:8080/rest_api/v1/unreleasedvariants/?variant_version=master&page_size=-1&variant_id=base-runtime']
       server: [WSGIServer/0.1 Python/2.7.13]
       x-frame-options: [SAMEORIGIN]
     status: {code: 301, message: MOVED PERMANENTLY}
@@ -27,7 +27,7 @@ interactions:
       accept: [application/json]
       content-type: [application/json]
     method: GET
-    uri: http://modularity.fedorainfracloud.org:8080/rest_api/v1/unreleasedvariants/?variant_release=3&variant_version=master&page_size=-1&variant_id=base-runtime
+    uri: http://modularity.fedorainfracloud.org:8080/rest_api/v1/unreleasedvariants/?variant_version=master&page_size=-1&variant_id=base-runtime
   response:
     body: {string: !!python/unicode '[{"variant_id":"base-runtime","variant_uid":"base-runtime-master-3","variant_name":"base-runtime","variant_type":"module","variant_version":"master","variant_release":"3","koji_tag":"module-base-runtime-master-3","modulemd":"document:
         modulemd\r\nversion: 1\r\ndata:\r\n    name: base-runtime\r\n    stream: master\r\n    version:
@@ -49,11 +49,11 @@ interactions:
     headers:
       allow: ['GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS']
       content-type: [application/json]
-      date: ['Thu, 16 Feb 2017 22:57:01 GMT']
+      date: ['Thu, 16 Feb 2017 22:57:05 GMT']
       server: [WSGIServer/0.1 Python/2.7.13]
-      set-cookie: ['csrftoken=MzlJfHUtUOaMM8cYLpQ0do6PVb3w83Ky; expires=Thu, 15-Feb-2018
-          22:57:01 GMT; Max-Age=31449600; Path=/', 'sessionid=73zufsozrq3sbl6ei5j0kroz5bsnpmmv;
-          expires=Thu, 02-Mar-2017 22:57:01 GMT; httponly; Max-Age=1209600; Path=/']
+      set-cookie: ['csrftoken=vS8RKrOHHhsuoysgdRUc1Gv01vtxWVFm; expires=Thu, 15-Feb-2018
+          22:57:05 GMT; Max-Age=31449600; Path=/', 'sessionid=sosczw5lw532mv6kvs58ld76aarwn02t;
+          expires=Thu, 02-Mar-2017 22:57:05 GMT; httponly; Max-Age=1209600; Path=/']
       vary: ['Accept, Cookie']
       x-frame-options: [SAMEORIGIN]
     status: {code: 200, message: OK}

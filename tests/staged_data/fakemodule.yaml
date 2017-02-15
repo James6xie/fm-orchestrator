@@ -1,8 +1,7 @@
 document: modulemd
 version: 1
 data:
-    name: fakemodule2
-    stream: "4.3.44"
+    name: fakemodule
     version: 5
     summary: A fake module containing the bash shell
     description: >

@@ -1,11 +1,8 @@
 document: modulemd
 version: 1
 data:
-    summary: Buzz Lightyear's Star Command Communicator
-    description: Buzz Lightyear's Star Command Communicator
-    name: starcommand
-    stream: teststream
-    version: 1
+    summary: A test module in all its beauty
+    description: This module demonstrates how to write simple modulemd files And can be used for testing the build and release pipeline.
     license:
         module: [ MIT ]
     dependencies:
@@ -20,13 +17,20 @@ data:
     profiles:
         default:
             rpms:
-                - communicator
+                - tangerine
     api:
         rpms:
-            - communicator
+            - perl-Tangerine
+            - tangerine
     components:
         rpms:
-            communicator:
-                rationale: Provides the API for this module.
+            perl-List-Compare:
+                rationale: A dependency of tangerine.
+                ref: f25
+            perl-Tangerine:
+                rationale: Provides API for this module and is a dependency of tangerine.
+                ref: f25
+            tangerine:
+                rationale: Provides API for this module.
                 buildorder: 10
                 ref: f25

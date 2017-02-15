@@ -1,9 +1,9 @@
 document: modulemd
 version: 1
 data:
-    summary: A test module in all its beauty
-    description: This module demonstrates how to write simple modulemd files And can be used for testing the build and release pipeline.
-    name: testmodule
+    summary: Buzz Lightyear's Star Command Communicator
+    description: Buzz Lightyear's Star Command Communicator
+    name: starcommand
     stream: teststream
     version: 1
     license:
@@ -13,6 +13,11 @@ data:
             base-runtime: master
         requires:
             base-runtime: master
+    xmd:
+        mbs:
+          buildrequires: {base-runtime: {ref: ae993ba84f4bce554471382ccba917ef16265f11, stream: master, version: 3}}
+          commit: 7fea453bc362cc8e5aa41e129e689baea853653d
+          scmurl: git://pkgs.stg.fedoraproject.org/modules/starcommand.git?#7fea453
     references:
         community: https://fedoraproject.org/wiki/Modularity
         documentation: https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules
@@ -20,20 +25,13 @@ data:
     profiles:
         default:
             rpms:
-                - tangerine
+                - communicator
     api:
         rpms:
-            - perl-Tangerine
-            - tangerine
+            - communicator
     components:
         rpms:
-            perl-List-Compare:
-                rationale: A dependency of tangerine.
-                ref: f25
-            perl-Tangerine:
-                rationale: Provides API for this module and is a dependency of tangerine.
-                ref: f25
-            tangerine:
-                rationale: Provides API for this module.
+            communicator:
+                rationale: Provides the API for this module.
                 buildorder: 10
                 ref: f25

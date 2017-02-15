@@ -21,12 +21,14 @@
 # Written by Matt Prahl <mprahl@redhat.com
 
 import os
+import copy
 import module_build_service
 
 from datetime import datetime, timedelta
 from module_build_service import db
 from module_build_service.config import init_config
 from module_build_service.models import ModuleBuild, ComponentBuild
+from module_build_service.utils import get_scm_url_re
 import module_build_service.pdc
 
 app = module_build_service.app
@@ -185,7 +187,7 @@ def scheduler_init_data():
 
     current_dir = os.path.dirname(__file__)
     star_command_yml_path = os.path.join(
-        current_dir, 'test_scheduler', 'starcommand.yaml')
+        current_dir, 'staged_data', 'formatted_starcommand.yaml')
     with open(star_command_yml_path, 'r') as f:
         yaml = f.read()
 

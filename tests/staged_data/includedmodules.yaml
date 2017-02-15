@@ -11,9 +11,6 @@ data:
         module:
             - MIT
         content: []
-    dependencies:
-        buildrequires:
-            base_runtime: 1.0-0
     references:
         community: https://fedoraproject.org/wiki/Modularity
         tracker: https://taiga.fedorainfracloud.org/project/modularity

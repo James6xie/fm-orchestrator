@@ -23,9 +23,11 @@
 import unittest
 import json
 import time
-from mock import patch
+import vcr
+from mock import patch, Mock
 from shutil import copyfile
 from os import path, mkdir
+from os.path import dirname
 
 import modulemd as _modulemd
 
@@ -36,10 +38,11 @@ import module_build_service.scm
 
 user = ('Homer J. Simpson', set(['packager']))
 other_user = ('some_other_user', set(['packager']))
-
+base_dir = dirname(dirname(__file__))
+cassette_dir = base_dir + '/vcr-request-data/'
 
 class MockedSCM(object):
-    def __init__(self, mocked_scm, name, mmd_filenames):
+    def __init__(self, mocked_scm, name, mmd_filenames, commit=None):
         """
         Adds default testing checkout, get_latest and name methods
         to mocked_scm SCM class.
@@ -50,6 +53,7 @@ class MockedSCM(object):
         """
         self.mocked_scm = mocked_scm
         self.name = name
+        self.commit = commit
         if not isinstance(mmd_filenames, list):
             mmd_filenames = [mmd_filenames]
         self.mmd_filenames = mmd_filenames
@@ -57,8 +61,10 @@ class MockedSCM(object):
 
         self.mocked_scm.return_value.checkout = self.checkout
         self.mocked_scm.return_value.name = self.name
+        self.mocked_scm.return_value.commit = self.commit
         self.mocked_scm.return_value.get_latest = self.get_latest
         self.mocked_scm.return_value.repository_root = "git://pkgs.stg.fedoraproject.org/modules/"
+        self.mocked_scm.return_value.branch = 'master'
 
     def checkout(self, temp_dir):
         try:
@@ -69,14 +75,14 @@ class MockedSCM(object):
         scm_dir = path.join(temp_dir, self.name)
         mkdir(scm_dir)
         base_dir = path.abspath(path.dirname(__file__))
-        copyfile(path.join(base_dir, mmd_filename),
+        copyfile(path.join(base_dir, '..', 'staged_data', mmd_filename),
                     path.join(scm_dir, self.name + ".yaml"))
 
         self.checkout_id += 1
 
         return scm_dir
 
-    def get_latest(self, branch = 'master'):
+    def get_latest(self, branch='master'):
         return branch
 
 
@@ -85,6 +91,13 @@ class TestViews(unittest.TestCase):
     def setUp(self):
         self.client = app.test_client()
         init_data()
+
+        filename = cassette_dir + self.id()
+        self.vcr = vcr.use_cassette(filename)
+        self.vcr.__enter__()
+
+    def tearDown(self):
+        self.vcr.__exit__()
 
     def test_query_build(self):
         rv = self.client.get('/module-build-service/1/module-builds/1')
@@ -212,7 +225,8 @@ class TestViews(unittest.TestCase):
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     def test_submit_build(self, mocked_scm, mocked_get_user):
-        mocked_scm_obj = MockedSCM(mocked_scm, "fakemodule", "fakemodule.yaml")
+        MockedSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
+                  '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
@@ -220,17 +234,16 @@ class TestViews(unittest.TestCase):
         data = json.loads(rv.data)
 
         assert 'component_builds' in data, data
-        self.assertEquals(data['component_builds'], [61])
-        self.assertEquals(data['name'], 'fakemodule')
+        self.assertEquals(data['component_builds'], [61, 62, 63])
+        self.assertEquals(data['name'], 'testmodule')
         self.assertEquals(data['scmurl'],
                           ('git://pkgs.stg.fedoraproject.org/modules/testmodule'
                           '.git?#68931c90de214d9d13feefbd35246a81b6cb8d49'))
-        self.assertEquals(data['version'], '5')
+        self.assertEquals(data['version'], '1')
         self.assertTrue(data['time_submitted'] is not None)
         self.assertTrue(data['time_modified'] is not None)
-        self.assertEquals(data['version'], '5')
         self.assertEquals(data['time_completed'], None)
-        self.assertEquals(data['stream'], '4.3.44')
+        self.assertEquals(data['stream'], 'master')
         self.assertEquals(data['owner'], 'Homer J. Simpson')
         self.assertEquals(data['id'], 31)
         self.assertEquals(data['state_name'], 'wait')
@@ -241,7 +254,8 @@ class TestViews(unittest.TestCase):
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     def test_submit_componentless_build(self, mocked_scm, mocked_get_user):
-        mocked_scm_obj = MockedSCM(mocked_scm, "fakemodule2", "fakemodule2.yaml")
+        MockedSCM(mocked_scm, 'fakemodule', 'fakemodule.yaml',
+                  '3da541559918a808c2402bba5012f6c60b27661c')
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
@@ -249,7 +263,7 @@ class TestViews(unittest.TestCase):
         data = json.loads(rv.data)
 
         self.assertEquals(data['component_builds'], [])
-        self.assertEquals(data['name'], 'fakemodule2')
+        self.assertEquals(data['name'], 'fakemodule')
         self.assertEquals(data['scmurl'],
                           ('git://pkgs.stg.fedoraproject.org/modules/testmodule'
                           '.git?#68931c90de214d9d13feefbd35246a81b6cb8d49'))
@@ -258,7 +272,7 @@ class TestViews(unittest.TestCase):
         self.assertTrue(data['time_modified'] is not None)
         self.assertEquals(data['version'], '5')
         self.assertEquals(data['time_completed'], None)
-        self.assertEquals(data['stream'], '4.3.44')
+        self.assertEquals(data['stream'], 'master')
         self.assertEquals(data['owner'], 'Homer J. Simpson')
         self.assertEquals(data['id'], 31)
         self.assertEquals(data['state_name'], 'wait')
@@ -321,7 +335,8 @@ class TestViews(unittest.TestCase):
             time.sleep(1)
             return branch
 
-        mocked_scm_obj = MockedSCM(mocked_scm, "base-runtime", "base-runtime.yaml")
+        MockedSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
+                  '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
         mocked_scm.return_value.is_available = mocked_scm_get_latest
 
         start = time.time()
@@ -330,8 +345,8 @@ class TestViews(unittest.TestCase):
                 'testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49'}))
         data = json.loads(rv.data)
 
-        self.assertEquals(len(data['component_builds']), 5)
-        self.assertEquals(data['name'], 'base-runtime')
+        self.assertEquals(len(data['component_builds']), 3)
+        self.assertEquals(data['name'], 'testmodule')
         self.assertEquals(data['scmurl'],
                           ('git://pkgs.stg.fedoraproject.org/modules/testmodule'
                           '.git?#68931c90de214d9d13feefbd35246a81b6cb8d49'))
@@ -350,12 +365,13 @@ class TestViews(unittest.TestCase):
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build_scm_non_available(self, mocked_scm,
-                                            mocked_get_user):
+    def test_submit_build_scm_non_available(self, mocked_scm, mocked_get_user):
+
         def mocked_scm_get_latest():
             raise RuntimeError("Failed in mocked_scm_get_latest")
 
-        mocked_scm_obj = MockedSCM(mocked_scm, "base-runtime", "base-runtime.yaml")
+        MockedSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
+                  '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
         mocked_scm.return_value.get_latest = mocked_scm_get_latest
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
@@ -369,18 +385,16 @@ class TestViews(unittest.TestCase):
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build_includedmodule(self, mocked_scm,
-                                         mocked_get_user):
+    def test_submit_build_includedmodule(self, mocked_scm, mocked_get_user):
         mocked_scm_obj = MockedSCM(mocked_scm, "includedmodules",
-                                   ["includedmodules.yaml", "fakemodule.yaml"])
-
+                                   ["includedmodules.yaml", "testmodule.yaml"])
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                 'testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49'}))
         data = json.loads(rv.data)
 
         assert 'component_builds' in data, data
-        self.assertEquals(data['component_builds'], [61, 62])
+        self.assertEquals(data['component_builds'], [61, 62, 63, 64])
         self.assertEquals(data['name'], 'fakemodule')
         self.assertEquals(data['scmurl'],
                           ('git://pkgs.stg.fedoraproject.org/modules/testmodule'
@@ -400,8 +414,10 @@ class TestViews(unittest.TestCase):
         for build in ComponentBuild.query.filter_by(module_id=31).all():
             batches[build.package] = build.batch
 
-        self.assertEquals(batches["bash"], 2)
-        self.assertEquals(batches["file"], 3)
+        self.assertEquals(batches['perl-List-Compare'], 2)
+        self.assertEquals(batches['perl-Tangerine'], 2)
+        self.assertEquals(batches['tangerine'], 3)
+        self.assertEquals(batches["file"], 4)
 
     @patch('module_build_service.auth.get_user', return_value=other_user)
     def test_cancel_build(self, mocked_get_user):
@@ -411,7 +427,6 @@ class TestViews(unittest.TestCase):
 
         self.assertEquals(data['state'], 4)
         self.assertEquals(data['state_reason'], 'Canceled by some_other_user.')
-
 
     @patch('module_build_service.auth.get_user', return_value=('sammy', set()))
     def test_cancel_build_unauthorized(self, mocked_get_user):

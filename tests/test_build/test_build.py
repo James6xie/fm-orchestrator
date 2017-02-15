@@ -48,21 +48,24 @@ cassette_dir = base_dir + '/vcr-request-data/'
 user = ('Homer J. Simpson', set(['packager']))
 
 class MockedSCM(object):
-    def __init__(self, mocked_scm, name, mmd_filename):
+    def __init__(self, mocked_scm, name, mmd_filename, commit=None):
         self.mocked_scm = mocked_scm
         self.name = name
+        self.commit = commit
         self.mmd_filename = mmd_filename
 
         self.mocked_scm.return_value.checkout = self.checkout
         self.mocked_scm.return_value.name = self.name
+        self.mocked_scm.return_value.branch = 'master'
         self.mocked_scm.return_value.get_latest = self.get_latest
+        self.mocked_scm.return_value.commit = self.commit
         self.mocked_scm.return_value.repository_root = "git://pkgs.stg.fedoraproject.org/modules/"
 
     def checkout(self, temp_dir):
         scm_dir = path.join(temp_dir, self.name)
         mkdir(scm_dir)
         base_dir = path.abspath(path.dirname(__file__))
-        copyfile(path.join(base_dir, self.mmd_filename),
+        copyfile(path.join(base_dir, '..', 'staged_data', self.mmd_filename),
                     path.join(scm_dir, self.mmd_filename))
 
         return scm_dir
@@ -237,7 +240,8 @@ class TestBuild(unittest.TestCase):
         Tests the build of testmodule.yaml using TestModuleBuilder which
         succeeds everytime.
         """
-        MockedSCM(mocked_scm, "testmodule", "testmodule.yaml")
+        MockedSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
+                  '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
@@ -248,7 +252,7 @@ class TestBuild(unittest.TestCase):
 
         # Check that components are tagged after the batch is built.
         tag_groups = []
-        tag_groups.append([u'module-build-macros-0.1-1.module_testmodule_teststream_1.src.rpm-1-1'])
+        tag_groups.append([u'module-build-macros-0.1-1.module_testmodule_master_1.src.rpm-1-1'])
         tag_groups.append([u'perl-Tangerine?#f25-1-1', u'perl-List-Compare?#f25-1-1'])
         tag_groups.append([u'tangerine?#f25-1-1'])
 
@@ -260,7 +264,7 @@ class TestBuild(unittest.TestCase):
         # Check that the components are added to buildroot after the batch
         # is built.
         buildroot_groups = []
-        buildroot_groups.append([u'module-build-macros-0.1-1.module_testmodule_teststream_1.src.rpm-1-1'])
+        buildroot_groups.append([u'module-build-macros-0.1-1.module_testmodule_master_1.src.rpm-1-1'])
         buildroot_groups.append([u'perl-Tangerine?#f25-1-1', u'perl-List-Compare?#f25-1-1'])
         buildroot_groups.append([u'tangerine?#f25-1-1'])
 
@@ -289,8 +293,7 @@ class TestBuild(unittest.TestCase):
     def test_submit_build_from_yaml(self, mocked_scm, mocked_get_user):
         MockedSCM(mocked_scm, "testmodule", "testmodule.yaml")
 
-        here = os.path.dirname(os.path.abspath(__file__))
-        testmodule = os.path.join(here, 'testmodule.yaml')
+        testmodule = os.path.join(base_dir, 'staged_data', 'testmodule.yaml')
         with open(testmodule) as f:
             yaml = f.read()
 
@@ -316,7 +319,8 @@ class TestBuild(unittest.TestCase):
         """
         Submit all builds for a module and cancel the module build later.
         """
-        MockedSCM(mocked_scm, "testmodule", "testmodule.yaml")
+        MockedSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
+                  '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
@@ -368,7 +372,8 @@ class TestBuild(unittest.TestCase):
         Tests the build of testmodule.yaml using TestModuleBuilder which
         succeeds everytime.
         """
-        MockedSCM(mocked_scm, "testmodule", "testmodule.yaml")
+        MockedSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
+                  '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
@@ -398,7 +403,8 @@ class TestBuild(unittest.TestCase):
         Tests the build of testmodule.yaml using TestModuleBuilder with
         num_consecutive_builds set to 1.
         """
-        MockedSCM(mocked_scm, "testmodule", "testmodule.yaml")
+        MockedSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
+                  '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
         conf.set_item("num_consecutive_builds", 1)
 

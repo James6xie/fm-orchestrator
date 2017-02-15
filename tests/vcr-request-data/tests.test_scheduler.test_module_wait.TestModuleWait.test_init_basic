@@ -13,7 +13,7 @@ interactions:
     body: {string: !!python/unicode ''}
     headers:
       content-type: [text/html; charset=utf-8]
-      date: ['Thu, 16 Feb 2017 22:57:00 GMT']
+      date: ['Thu, 16 Feb 2017 22:56:59 GMT']
       location: ['http://modularity.fedorainfracloud.org:8080/rest_api/v1/unreleasedvariants/?variant_release=3&variant_version=master&page_size=-1&variant_id=base-runtime']
       server: [WSGIServer/0.1 Python/2.7.13]
       x-frame-options: [SAMEORIGIN]
@@ -49,11 +49,11 @@ interactions:
     headers:
       allow: ['GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS']
       content-type: [application/json]
-      date: ['Thu, 16 Feb 2017 22:57:01 GMT']
+      date: ['Thu, 16 Feb 2017 22:56:59 GMT']
       server: [WSGIServer/0.1 Python/2.7.13]
-      set-cookie: ['csrftoken=MzlJfHUtUOaMM8cYLpQ0do6PVb3w83Ky; expires=Thu, 15-Feb-2018
-          22:57:01 GMT; Max-Age=31449600; Path=/', 'sessionid=73zufsozrq3sbl6ei5j0kroz5bsnpmmv;
-          expires=Thu, 02-Mar-2017 22:57:01 GMT; httponly; Max-Age=1209600; Path=/']
+      set-cookie: ['csrftoken=9nhuBn2Olmq2wV8fYav0Q2jVNL3eIGrG; expires=Thu, 15-Feb-2018
+          22:56:59 GMT; Max-Age=31449600; Path=/', 'sessionid=vpldkg6r099y53d6g5ouvtgn5zedt17f;
+          expires=Thu, 02-Mar-2017 22:56:59 GMT; httponly; Max-Age=1209600; Path=/']
       vary: ['Accept, Cookie']
       x-frame-options: [SAMEORIGIN]
     status: {code: 200, message: OK}
