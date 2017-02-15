@@ -219,6 +219,7 @@ class TestViews(unittest.TestCase):
                 'testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49'}))
         data = json.loads(rv.data)
 
+        assert 'component_builds' in data, data
         self.assertEquals(data['component_builds'], [61])
         self.assertEquals(data['name'], 'fakemodule')
         self.assertEquals(data['scmurl'],
@@ -375,6 +376,7 @@ class TestViews(unittest.TestCase):
                 'testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49'}))
         data = json.loads(rv.data)
 
+        assert 'component_builds' in data, data
         self.assertEquals(data['component_builds'], [61, 62])
         self.assertEquals(data['name'], 'fakemodule')
         self.assertEquals(data['scmurl'],
