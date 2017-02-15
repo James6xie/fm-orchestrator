@@ -61,9 +61,12 @@ api_v1 = {
     },
 }
 
+
 class ModuleBuildAPI(MethodView):
 
     def get(self, id):
+        verbose_flag = request.args.get('verbose', 'false')
+
         if id is None:
             # Lists all tracked module builds
             p_query = filter_module_builds(request)
@@ -71,8 +74,6 @@ class ModuleBuildAPI(MethodView):
             json_data = {
                 'meta': pagination_metadata(p_query)
             }
-
-            verbose_flag = request.args.get('verbose', 'false')
 
             if verbose_flag.lower() == 'true' or verbose_flag == '1':
                 json_data['items'] = [item.api_json() for item in p_query.items]
@@ -86,7 +87,10 @@ class ModuleBuildAPI(MethodView):
             module = models.ModuleBuild.query.filter_by(id=id).first()
 
             if module:
-                return jsonify(module.api_json()), 200
+                if verbose_flag.lower() == 'true' or verbose_flag == '1':
+                    return jsonify(module.json()), 200
+                else:
+                    return jsonify(module.api_json()), 200
             else:
                 raise NotFound('No such module found.')
 

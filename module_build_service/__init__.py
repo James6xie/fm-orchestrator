@@ -42,10 +42,10 @@ for a number of tasks:
 
 from flask import Flask, has_app_context, url_for
 from flask_sqlalchemy import SQLAlchemy
+from logging import getLogger
 
 from module_build_service.logger import init_logging
 
-from logging import getLogger
 from module_build_service.errors import (
     ValidationError, Unauthorized, UnprocessableEntity, Conflict, NotFound,
     Forbidden, json_error)

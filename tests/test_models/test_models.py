@@ -20,17 +20,38 @@
 #
 # Written by Ralph Bean <rbean@redhat.com>
 
-from nose.tools import eq_
-
 import unittest
 
-from tests.test_models import init_data, db
-
-from module_build_service import models
+from tests.test_models import init_data
+from module_build_service import conf
+from module_build_service.models import ComponentBuild, make_session
 
 
 class TestModels(unittest.TestCase):
     def setUp(self):
         init_data()
 
+    def test_app_sqlalchemy_events(self):
+        with make_session(conf) as session:
+            component_build = ComponentBuild()
+            component_build.package = 'before_models_committed'
+            component_build.scmurl = \
+                ('git://pkgs.domain.local/rpms/before_models_committed?'
+                 '#9999999999999999999999999999999999999999')
+            component_build.format = 'rpms'
+            component_build.task_id = 999999999
+            component_build.state = 1
+            component_build.nvr = 'before_models_committed-0.0.0-0.module_before_models_committed_0_0'
+            component_build.batch = 1
+            component_build.module_id = 1
 
+            session.add(component_build)
+            session.commit()
+
+        with make_session(conf) as session:
+            c = session.query(ComponentBuild).filter(ComponentBuild.id == 1).one()
+            self.assertEquals(c.component_builds_trace[0].id, 1)
+            self.assertEquals(c.component_builds_trace[0].component_id, 1)
+            self.assertEquals(c.component_builds_trace[0].state, 1)
+            self.assertEquals(c.component_builds_trace[0].state_reason, None)
+            self.assertEquals(c.component_builds_trace[0].task_id, 999999999)

@@ -29,7 +29,7 @@
 import contextlib
 
 from datetime import datetime
-from sqlalchemy import engine_from_config, or_
+from sqlalchemy import engine_from_config, event
 from sqlalchemy.orm import validates, scoped_session, sessionmaker
 import modulemd as _modulemd
 
@@ -75,6 +75,7 @@ def make_session(conf):
         'sqlalchemy.url': conf.sqlalchemy_database_uri,
     })
     session = scoped_session(sessionmaker(bind=engine))()
+    event.listen(session, "before_commit", session_before_commit_handlers)
     try:
         yield session
         session.commit()
@@ -86,12 +87,12 @@ def make_session(conf):
         session.close()
 
 
-class RidaBase(db.Model):
+class MBSBase(db.Model):
     # TODO -- we can implement functionality here common to all our model classes
     __abstract__ = True
 
 
-class ModuleBuild(RidaBase):
+class ModuleBuild(MBSBase):
     __tablename__ = "module_builds"
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String, nullable=False)
@@ -195,6 +196,12 @@ class ModuleBuild(RidaBase):
         if state_reason:
             self.state_reason = state_reason
 
+        # record module's state change
+        mbt = ModuleBuildTrace(state_time=now,
+                               state=self.state,
+                               state_reason=state_reason)
+        self.module_builds_trace.append(mbt)
+
         log.debug("%r, state %r->%r" % (self, old_state, self.state))
         if old_state != self.state:
             module_build_service.messaging.publish(
@@ -217,8 +224,8 @@ class ModuleBuild(RidaBase):
         """
         tag = event.repo_tag.strip('-build')
         query = session.query(cls)\
-            .filter(cls.koji_tag==tag)\
-            .filter(cls.state==BUILD_STATES["build"])
+            .filter(cls.koji_tag == tag)\
+            .filter(cls.state == BUILD_STATES["build"])
 
         count = query.count()
         if count > 1:
@@ -241,9 +248,16 @@ class ModuleBuild(RidaBase):
             'time_submitted': self.time_submitted,
             'time_modified': self.time_modified,
             'time_completed': self.time_completed,
+            "tasks": self.tasks(),
             # TODO, show their entire .json() ?
             'component_builds': [build.id for build in self.component_builds],
             'modulemd': self.modulemd,
+            'state_trace': [{'time': record.state_time,
+                             'state': record.state,
+                             'state_name': INVERSE_BUILD_STATES[record.state],
+                             'reason': record.state_reason}
+                            for record
+                            in self.state_trace(self.id)]
         }
 
     @staticmethod
@@ -285,13 +299,43 @@ class ModuleBuild(RidaBase):
 
         return tasks
 
+    def state_trace(self, module_id):
+        return ModuleBuildTrace.query.filter_by(
+            module_id=module_id).order_by(ModuleBuildTrace.state_time).all()
+
     def __repr__(self):
         return "<ModuleBuild %s, stream=%s, version=%s, state %r, batch %r, state_reason %r>" % (
             self.name, self.stream, self.version,
             INVERSE_BUILD_STATES[self.state], self.batch, self.state_reason)
 
 
-class ComponentBuild(RidaBase):
+class ModuleBuildTrace(MBSBase):
+    __tablename__ = "module_builds_trace"
+    id = db.Column(db.Integer, primary_key=True)
+    module_id = db.Column(db.Integer, db.ForeignKey('module_builds.id'), nullable=False)
+    state_time = db.Column(db.DateTime, nullable=False)
+    state = db.Column(db.Integer, nullable=True)
+    state_reason = db.Column(db.String, nullable=True)
+
+    module_build = db.relationship('ModuleBuild', backref='module_builds_trace', lazy=False)
+
+    def json(self):
+        retval = {
+            'id': self.id,
+            'module_id': self.module_id,
+            'state_time': self.state_time,
+            'state': self.state,
+            'state_reason': self.state_reason,
+        }
+
+        return retval
+
+    def __repr__(self):
+        return "<ModuleBuildTrace %s, module_id: %s, state_time: %r, state: %s, state_reason: %s>" % (
+            self.id, self.module_id, self.state_time, self.state, self.state_reason)
+
+
+class ComponentBuild(MBSBase):
     __tablename__ = "component_builds"
     id = db.Column(db.Integer, primary_key=True)
     package = db.Column(db.String, nullable=False)
@@ -361,3 +405,53 @@ class ComponentBuild(RidaBase):
     def __repr__(self):
         return "<ComponentBuild %s, %r, state: %r, task_id: %r, batch: %r, state_reason: %s>" % (
             self.package, self.module_id, self.state, self.task_id, self.batch, self.state_reason)
+
+
+class ComponentBuildTrace(MBSBase):
+    __tablename__ = "component_builds_trace"
+    id = db.Column(db.Integer, primary_key=True)
+    component_id = db.Column(db.Integer, db.ForeignKey('component_builds.id'), nullable=False)
+    state_time = db.Column(db.DateTime, nullable=False)
+    state = db.Column(db.Integer, nullable=True)
+    state_reason = db.Column(db.String, nullable=True)
+    task_id = db.Column(db.Integer, nullable=True)
+
+    component_build = db.relationship('ComponentBuild', backref='component_builds_trace', lazy=False)
+
+    def json(self):
+        retval = {
+            'id': self.id,
+            'component_id': self.component_id,
+            'state_time': self.state_time,
+            'state': self.state,
+            'state_reason': self.state_reason,
+            'task_id': self.task_id,
+        }
+
+        return retval
+
+    def __repr__(self):
+        return "<ComponentBuildTrace %s, component_id: %s, state_time: %r, state: %s, state_reason: %s, task_id: %s>" % (
+            self.id, self.component_id, self.state_time, self.state, self.state_reason, self.task_id)
+
+
+def session_before_commit_handlers(session):
+    # new and updated items
+    for item in (set(session.new) | set(session.dirty)):
+
+        # handlers for module builds
+        if isinstance(item, ModuleBuild):
+            mbt = ModuleBuildTrace(
+                state_time=datetime.utcnow(),
+                state=item.state,
+                state_reason=item.state_reason)
+            item.module_builds_trace.append(mbt)
+
+        # handlers for component builds
+        elif isinstance(item, ComponentBuild):
+            cbt = ComponentBuildTrace(
+                state_time=datetime.utcnow(),
+                state=item.state,
+                state_reason=item.state_reason,
+                task_id=item.task_id)
+            item.component_builds_trace.append(cbt)

@@ -27,7 +27,7 @@ import module_build_service
 from datetime import datetime, timedelta
 from module_build_service import db
 from module_build_service.config import init_config
-from module_build_service.models import ModuleBuild, ComponentBuild
+from module_build_service.models import ModuleBuild, ComponentBuild, make_session
 import modulemd
 from module_build_service.utils import get_scm_url_re
 import module_build_service.pdc
@@ -39,6 +39,7 @@ def init_data():
     db.session.remove()
     db.drop_all()
     db.create_all()
+    db.session.commit()
     for index in range(10):
         build_one = ModuleBuild()
         build_one.name = 'nginx'
@@ -169,22 +170,24 @@ def init_data():
         component_two_build_three.batch = 1
         component_two_build_three.module_id = 3 + index * 3
 
-        db.session.add(build_one)
-        db.session.add(component_one_build_one)
-        db.session.add(component_two_build_one)
-        db.session.add(component_one_build_two)
-        db.session.add(component_two_build_two)
-        db.session.add(component_one_build_three)
-        db.session.add(component_two_build_three)
-        db.session.add(build_two)
-        db.session.add(build_three)
-        db.session.commit()
+        with make_session(conf) as session:
+            session.add(build_one)
+            session.add(component_one_build_one)
+            session.add(component_two_build_one)
+            session.add(component_one_build_two)
+            session.add(component_two_build_two)
+            session.add(component_one_build_three)
+            session.add(component_two_build_three)
+            session.add(build_two)
+            session.add(build_three)
+            session.commit()
 
 
 def scheduler_init_data():
     db.session.remove()
     db.drop_all()
     db.create_all()
+    db.session.commit()
 
     current_dir = os.path.dirname(__file__)
     star_command_yml_path = os.path.join(
@@ -232,16 +235,18 @@ def scheduler_init_data():
     component_two_build_one.batch = 2
     component_two_build_one.module_id = 1
 
-    db.session.add(build_one)
-    db.session.add(component_one_build_one)
-    db.session.add(component_two_build_one)
-    db.session.commit()
+    with make_session(conf) as session:
+        session.add(build_one)
+        session.add(component_one_build_one)
+        session.add(component_two_build_one)
+        session.commit()
 
 
 def test_resuse_component_init_data():
     db.session.remove()
     db.drop_all()
     db.create_all()
+    db.session.commit()
 
     current_dir = os.path.dirname(__file__)
     formatted_testmodule_yml_path = os.path.join(
@@ -379,14 +384,15 @@ def test_resuse_component_init_data():
     component_four_build_two.batch = 1
     component_four_build_two.module_id = 2
 
-    db.session.add(build_one)
-    db.session.add(component_one_build_one)
-    db.session.add(component_two_build_one)
-    db.session.add(component_three_build_one)
-    db.session.add(component_four_build_one)
-    db.session.add(build_two)
-    db.session.add(component_one_build_two)
-    db.session.add(component_two_build_two)
-    db.session.add(component_three_build_two)
-    db.session.add(component_four_build_two)
-    db.session.commit()
+    with make_session(conf) as session:
+        session.add(build_one)
+        session.add(component_one_build_one)
+        session.add(component_two_build_one)
+        session.add(component_three_build_one)
+        session.add(component_four_build_one)
+        session.add(build_two)
+        session.add(component_one_build_two)
+        session.add(component_two_build_two)
+        session.add(component_three_build_two)
+        session.add(component_four_build_two)
+        session.commit()

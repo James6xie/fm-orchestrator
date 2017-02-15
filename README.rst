@@ -81,7 +81,8 @@ about the referenced build task.
         "tasks": {
             "rpms/foo" : "6378/closed",
             "rpms/bar : "6379/open"
-        }
+        },
+        ...
     }
 
 "id" is the ID of the task.  "state" refers to the orchestrator module
@@ -89,6 +90,13 @@ build state and might be one of "init", "wait", "build", "done", "failed" or
 "ready".  "tasks" is a dictionary of component names in the format of
 "type/NVR" and related koji or other supported buildsystem tasks and
 their states.
+
+By adding ``?verbose=1`` to the request, additional detailed information
+about the module can be obtained.
+
+::
+
+    GET /module-build-service/1/module-builds/42?verbose=1
 
 Listing all module builds
 -------------------------

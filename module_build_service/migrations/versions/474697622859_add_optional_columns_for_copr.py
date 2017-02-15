@@ -1,7 +1,7 @@
 """Add optional columns for copr
 
 Revision ID: 474697622859
-Revises: 0ef60c3ed440
+Revises: a1fc0736bca8
 Create Date: 2017-02-21 11:18:22.304038
 
 """

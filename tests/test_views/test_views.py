@@ -116,6 +116,36 @@ class TestViews(unittest.TestCase):
         self.assertEquals(data['time_modified'], '2016-09-03T11:25:32Z')
         self.assertEquals(data['time_submitted'], '2016-09-03T11:23:20Z')
 
+    def test_query_build_with_verbose_mode(self):
+        rv = self.client.get('/module-build-service/1/module-builds/1?verbose=1')
+        data = json.loads(rv.data)
+        self.assertEquals(data['component_builds'], [1, 2])
+        self.assertEquals(data['id'], 1)
+        self.assertEquals(data['modulemd'], '')
+        self.assertEquals(data['name'], 'nginx')
+        self.assertEquals(data['owner'], 'Moe Szyslak')
+        self.assertEquals(data['scmurl'],
+                          ('git://pkgs.domain.local/modules/nginx'
+                           '?#ba95886c7a443b36a9ce31abda1f9bef22f2f8c9'))
+        self.assertEquals(data['state'], 3)
+        self.assertEquals(data['state_name'], 'done')
+        self.assertEquals(data['state_reason'], None)
+        self.assertEquals(data['state_trace'][0]['reason'], None)
+        self.assertTrue(data['state_trace'][0]['time'] is not None)
+        self.assertEquals(data['state_trace'][0]['state'], 3)
+        self.assertEquals(data['state_trace'][0]['state_name'], 'done')
+        self.assertEquals(data['state_url'], '/module-build-service/1/module-builds/1')
+        self.assertEquals(data['stream'], '1')
+        self.assertEquals(data['tasks'], {
+                'rpms/module-build-macros': '12312321/1',
+                'rpms/nginx': '12312345/1'
+            }
+        )
+        self.assertEquals(data['time_completed'], u'Sat, 03 Sep 2016 11:25:32 GMT')
+        self.assertEquals(data['time_modified'], u'Sat, 03 Sep 2016 11:25:32 GMT')
+        self.assertEquals(data['time_submitted'], u'Sat, 03 Sep 2016 11:23:20 GMT')
+        self.assertEquals(data['version'], '2')
+
     def test_pagination_metadata(self):
         rv = self.client.get('/module-build-service/1/module-builds/?per_page=8&page=2')
         meta_data = json.loads(rv.data)['meta']
@@ -248,6 +278,16 @@ class TestViews(unittest.TestCase):
         self.assertEquals(data['id'], 31)
         self.assertEquals(data['state_name'], 'wait')
         self.assertEquals(data['state_url'], '/module-build-service/1/module-builds/31')
+        self.assertEquals(data['state_trace'][0]['reason'], None)
+        self.assertTrue(data['state_trace'][0]['time'] is not None)
+        self.assertEquals(data['state_trace'][0]['state'], 1)
+        self.assertEquals(data['state_trace'][0]['state_name'], 'wait')
+        self.assertEquals(data['tasks'], {
+                u'rpms/perl-List-Compare': u'None/None',
+                u'rpms/perl-Tangerine': u'None/None',
+                u'rpms/tangerine': u'None/None'
+            }
+        )
         mmd = _modulemd.ModuleMetadata()
         mmd.loads(data["modulemd"])
 
