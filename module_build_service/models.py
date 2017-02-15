@@ -91,15 +91,10 @@ class RidaBase(db.Model):
     __abstract__ = True
 
 
-class Module(RidaBase):
-    __tablename__ = "modules"
-    name = db.Column(db.String, primary_key=True)
-
-
 class ModuleBuild(RidaBase):
     __tablename__ = "module_builds"
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String, db.ForeignKey('modules.name'), nullable=False)
+    name = db.Column(db.String, nullable=False)
     stream = db.Column(db.String, nullable=False)
     version = db.Column(db.String, nullable=False)
     state = db.Column(db.Integer, nullable=False)
@@ -116,8 +111,6 @@ class ModuleBuild(RidaBase):
     # iteration this module is currently on for successive rebuilds of its
     # components.  Think like 'mockchain --recurse'
     batch = db.Column(db.Integer, default=0)
-
-    module = db.relationship('Module', backref='module_builds', lazy=False)
 
     def current_batch(self, state=None):
         """ Returns all components of this module in the current batch. """
