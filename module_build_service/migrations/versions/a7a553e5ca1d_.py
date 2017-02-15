@@ -15,10 +15,6 @@ import sqlalchemy as sa
 
 
 def upgrade():
-    op.create_table('modules',
-    sa.Column('name', sa.String(), nullable=False),
-    sa.PrimaryKeyConstraint('name')
-    )
     op.create_table('module_builds',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(), nullable=False),
@@ -29,7 +25,6 @@ def upgrade():
     sa.Column('koji_tag', sa.String(), nullable=True),
     sa.Column('scmurl', sa.String(), nullable=True),
     sa.Column('batch', sa.Integer(), nullable=True),
-    sa.ForeignKeyConstraint(['name'], ['modules.name'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('component_builds',
@@ -50,4 +45,3 @@ def upgrade():
 def downgrade():
     op.drop_table('component_builds')
     op.drop_table('module_builds')
-    op.drop_table('modules')
