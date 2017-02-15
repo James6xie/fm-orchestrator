@@ -28,6 +28,7 @@ from datetime import datetime, timedelta
 from module_build_service import db
 from module_build_service.config import init_config
 from module_build_service.models import ModuleBuild, ComponentBuild
+import modulemd
 from module_build_service.utils import get_scm_url_re
 import module_build_service.pdc
 
@@ -234,4 +235,158 @@ def scheduler_init_data():
     db.session.add(build_one)
     db.session.add(component_one_build_one)
     db.session.add(component_two_build_one)
+    db.session.commit()
+
+
+def test_resuse_component_init_data():
+    db.session.remove()
+    db.drop_all()
+    db.create_all()
+
+    current_dir = os.path.dirname(__file__)
+    formatted_testmodule_yml_path = os.path.join(
+        current_dir, 'staged_data', 'formatted_testmodule.yaml')
+    with open(formatted_testmodule_yml_path, 'r') as f:
+        yaml = f.read()
+
+    build_one = module_build_service.models.ModuleBuild()
+    build_one.name = 'testmodule'
+    build_one.stream = 'master'
+    build_one.version = 20170109091357
+    build_one.state = 5
+    build_one.modulemd = yaml
+    build_one.koji_tag = 'module-testmodule-master-20170109091357'
+    build_one.scmurl = ('git://pkgs.stg.fedoraproject.org/modules/testmodule.'
+                        'git?#7fea453')
+    build_one.batch = 3
+    build_one.owner = 'Tom Brady'
+    build_one.time_submitted = datetime(2017, 2, 15, 16, 8, 18)
+    build_one.time_modified = datetime(2017, 2, 15, 16, 19, 35)
+    build_one.time_completed = datetime(2017, 2, 15, 16, 19, 35)
+
+    component_one_build_one = module_build_service.models.ComponentBuild()
+    component_one_build_one.package = 'perl-Tangerine'
+    component_one_build_one.scmurl = \
+        ('git://pkgs.fedoraproject.org/rpms/perl-Tangerine'
+         '?#4ceea43add2366d8b8c5a622a2fb563b625b9abf')
+    component_one_build_one.format = 'rpms'
+    component_one_build_one.task_id = 90276227
+    component_one_build_one.state = 1
+    component_one_build_one.nvr = \
+        'perl-Tangerine-0.23-1.module_testmodule_master_20170109091357'
+    component_one_build_one.batch = 2
+    component_one_build_one.module_id = 1
+    component_one_build_one.ref = '4ceea43add2366d8b8c5a622a2fb563b625b9abf'
+
+    component_two_build_one = module_build_service.models.ComponentBuild()
+    component_two_build_one.package = 'perl-List-Compare'
+    component_two_build_one.scmurl = \
+        ('git://pkgs.fedoraproject.org/rpms/perl-List-Compare'
+         '?#76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb')
+    component_two_build_one.format = 'rpms'
+    component_two_build_one.task_id = 90276228
+    component_two_build_one.state = 1
+    component_two_build_one.nvr = \
+        'perl-List-Compare-0.53-5.module_testmodule_master_20170109091357'
+    component_two_build_one.batch = 2
+    component_two_build_one.module_id = 1
+    component_two_build_one.ref = '76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb'
+
+    component_three_build_one = module_build_service.models.ComponentBuild()
+    component_three_build_one.package = 'tangerine'
+    component_three_build_one.scmurl = \
+        ('git://pkgs.fedoraproject.org/rpms/tangerine'
+         '?#fbed359411a1baa08d4a88e0d12d426fbf8f602c')
+    component_three_build_one.format = 'rpms'
+    component_three_build_one.task_id = 90276315
+    component_three_build_one.state = 1
+    component_three_build_one.nvr = \
+        'tangerine-0.22-3.module_testmodule_master_20170109091357'
+    component_three_build_one.batch = 3
+    component_three_build_one.module_id = 1
+    component_three_build_one.ref = 'fbed359411a1baa08d4a88e0d12d426fbf8f602c'
+
+    component_four_build_one = module_build_service.models.ComponentBuild()
+    component_four_build_one.package = 'module-build-macros'
+    component_four_build_one.scmurl = \
+        ('/tmp/module_build_service-build-macrosqr4AWH/SRPMS/module-build-'
+         'macros-0.1-1.module_testmodule_master_20170109091357.src.rpm')
+    component_four_build_one.format = 'rpms'
+    component_four_build_one.task_id = 90276181
+    component_four_build_one.state = 1
+    component_four_build_one.nvr = \
+        'module-build-macros-0.1-1.module_testmodule_master_20170109091357'
+    component_four_build_one.batch = 1
+    component_four_build_one.module_id = 1
+
+    mmd = modulemd.ModuleMetadata()
+    mmd.loads(yaml)
+    mmd.xmd['mbs']['commit'] = '55f4a0a2e6cc255c88712a905157ab39315b8fd8'
+    build_two = module_build_service.models.ModuleBuild()
+    build_two.name = 'testmodule'
+    build_two.stream = 'master'
+    build_two.version = 20170219191323
+    build_two.state = 2
+    build_two.modulemd = mmd.dumps()
+    build_two.koji_tag = 'module-testmodule'
+    build_two.scmurl = ('git://pkgs.stg.fedoraproject.org/modules/testmodule.'
+                        'git?#55f4a0a')
+    build_two.batch = 0
+    build_two.owner = 'Tom Brady'
+    build_two.time_submitted = datetime(2017, 2, 19, 16, 8, 18)
+    build_two.time_modified = datetime(2017, 2, 19, 16, 8, 18)
+
+    component_one_build_two = module_build_service.models.ComponentBuild()
+    component_one_build_two.package = 'perl-Tangerine'
+    component_one_build_two.scmurl = \
+        ('git://pkgs.fedoraproject.org/rpms/perl-Tangerine'
+         '?#4ceea43add2366d8b8c5a622a2fb563b625b9abf')
+    component_one_build_two.format = 'rpms'
+    component_one_build_two.batch = 2
+    component_one_build_two.module_id = 2
+    component_one_build_two.ref = '4ceea43add2366d8b8c5a622a2fb563b625b9abf'
+
+    component_two_build_two = module_build_service.models.ComponentBuild()
+    component_two_build_two.package = 'perl-List-Compare'
+    component_two_build_two.scmurl = \
+        ('git://pkgs.fedoraproject.org/rpms/perl-List-Compare'
+         '?#76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb')
+    component_two_build_two.format = 'rpms'
+    component_two_build_two.batch = 2
+    component_two_build_two.module_id = 2
+    component_two_build_two.ref = '76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb'
+
+    component_three_build_two = module_build_service.models.ComponentBuild()
+    component_three_build_two.package = 'tangerine'
+    component_three_build_two.scmurl = \
+        ('git://pkgs.fedoraproject.org/rpms/tangerine'
+         '?#fbed359411a1baa08d4a88e0d12d426fbf8f602c')
+    component_three_build_two.format = 'rpms'
+    component_three_build_two.batch = 3
+    component_three_build_two.module_id = 2
+    component_three_build_two.ref = 'fbed359411a1baa08d4a88e0d12d426fbf8f602c'
+
+    component_four_build_two = module_build_service.models.ComponentBuild()
+    component_four_build_two.package = 'module-build-macros'
+    component_four_build_two.scmurl = \
+        ('/tmp/module_build_service-build-macrosqr4AWH/SRPMS/module-build-'
+         'macros-0.1-1.module_testmodule_master_20170219191323.src.rpm')
+    component_four_build_two.format = 'rpms'
+    component_four_build_two.task_id = 90276186
+    component_four_build_two.state = 1
+    component_four_build_two.nvr = \
+        'module-build-macros-0.1-1.module_testmodule_master_20170219191323'
+    component_four_build_two.batch = 1
+    component_four_build_two.module_id = 2
+
+    db.session.add(build_one)
+    db.session.add(component_one_build_one)
+    db.session.add(component_two_build_one)
+    db.session.add(component_three_build_one)
+    db.session.add(component_four_build_one)
+    db.session.add(build_two)
+    db.session.add(component_one_build_two)
+    db.session.add(component_two_build_two)
+    db.session.add(component_three_build_two)
+    db.session.add(component_four_build_two)
     db.session.commit()
