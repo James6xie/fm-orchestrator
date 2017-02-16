@@ -34,7 +34,6 @@ import logging
 log = logging.getLogger()
 
 import six
-import module_build_service
 
 
 def get_pdc_client_session(config):
