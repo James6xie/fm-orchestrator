@@ -26,7 +26,7 @@
 from module_build_service.errors import Unauthorized
 from module_build_service import app, log
 
-import httplib2
+import requests
 import json
 from six.moves.urllib.parse import urlencode
 
@@ -64,11 +64,8 @@ def _get_token_info(token):
                 'client_secret': client_secrets['client_secret']}
     headers = {'Content-type': 'application/x-www-form-urlencoded'}
 
-    resp, content = httplib2.Http().request(
-        client_secrets['token_introspection_uri'], 'POST',
-        urlencode(request), headers=headers)
-
-    return _json_loads(content)
+    resp = requests.post(client_secrets['token_introspection_uri'], data=request, headers=headers)
+    return resp.json()
 
 
 def _get_user_info(token):
@@ -79,12 +76,8 @@ def _get_user_info(token):
         return None
 
     headers = {'authorization': 'Bearer ' + token}
-
-    resp, content = httplib2.Http().request(
-        client_secrets['userinfo_uri'], 'GET',
-        headers=headers)
-
-    return _json_loads(content)
+    resp = requests.get(client_secrets['userinfo_uri'], headers=headers)
+    return resp.json()
 
 
 def get_user(request):
