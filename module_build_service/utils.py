@@ -287,12 +287,7 @@ def _fetch_mmd(url, allow_local_url = False):
                 "Failed to remove temporary directory {!r}: {}".format(
                     td, str(e)))
 
-    mmd = modulemd.ModuleMetadata()
-    try:
-        mmd.loads(yaml)
-    except Exception as e:
-        log.error('Invalid modulemd: %s' % str(e))
-        raise UnprocessableEntity('Invalid modulemd: %s' % str(e))
+    mmd = load_mmd(yaml)
 
     # If undefined, set the name field to VCS repo name.
     if not mmd.name and scm:
@@ -307,6 +302,17 @@ def _fetch_mmd(url, allow_local_url = False):
         mmd.version = int(scm.version)
 
     return mmd, scm, yaml
+
+
+def load_mmd(yaml):
+    mmd = modulemd.ModuleMetadata()
+    try:
+        mmd.loads(yaml)
+    except Exception as e:
+        log.error('Invalid modulemd: %s' % str(e))
+        raise UnprocessableEntity('Invalid modulemd: %s' % str(e))
+    return mmd
+
 
 def _scm_get_latest(pkg):
     try:
