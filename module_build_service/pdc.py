@@ -49,7 +49,7 @@ def get_pdc_client_session(config):
             ssl_verify=not config.pdc_insecure,
         )
     else:
-        # New API
+        # Old API
         return PDCClient(
             server=config.pdc_url,
             develop=config.pdc_develop,
