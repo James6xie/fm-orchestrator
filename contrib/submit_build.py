@@ -2,6 +2,7 @@
 import socket
 import os
 import sys
+import random
 
 try:
     from urllib.parse import urlencode  # py3
@@ -74,7 +75,7 @@ if not token:
     query = urlencode({
         'response_type': 'token',
         'response_mode': 'form_post',
-        'nonce': '1234',
+        'nonce': random.randint(100, 10000),
         'scope': ' '.join([
             'openid',
             'profile',
@@ -82,7 +83,6 @@ if not token:
             'https://id.fedoraproject.org/scope/groups',
         ]),
         'client_id': 'mbs-authorizer',
-        'state': 'blahblahblah',
     }) + "&redirect_uri=http://localhost:13747/"
     print "https://id.stg.fedoraproject.org/openidc/Authorization?" + query
     print "We are waiting for you to finish the token generation..."
