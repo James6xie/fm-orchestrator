@@ -35,7 +35,8 @@ from flask.views import MethodView
 
 from module_build_service import app, conf, log
 from module_build_service import models, db
-from module_build_service.utils import pagination_metadata, filter_module_builds, submit_module_build, scm_url_schemes
+from module_build_service.utils import pagination_metadata, filter_module_builds, submit_module_build_from_scm, \
+                                       submit_module_build_from_yaml, scm_url_schemes
 from module_build_service.errors import (
     ValidationError, Unauthorized, NotFound)
 
@@ -97,6 +98,14 @@ class ModuleBuildAPI(MethodView):
             raise Unauthorized("%s is not in any of  %r, only %r" % (
                 username, conf.allowed_groups, groups))
 
+        if "multipart/form-data" in request.headers.get("Content-Type"):
+            module = self.post_file(username)
+        else:
+            module = self.post_scm(username)
+
+        return jsonify(module.json()), 201
+
+    def post_scm(self, username):
         try:
             r = json.loads(request.get_data().decode("utf-8"))
         except:
@@ -120,8 +129,16 @@ class ModuleBuildAPI(MethodView):
             log.error("The submitted scmurl %r is not valid" % url)
             raise Unauthorized("The submitted scmurl %s is not valid" % url)
 
-        module = submit_module_build(username, url, allow_local_url=False)
-        return jsonify(module.json()), 201
+        return submit_module_build_from_scm(username, url, allow_local_url=False)
+
+    def post_file(self, username):
+        try:
+            r = request.files["yaml"]
+        except:
+            log.error('Invalid file submitted')
+            raise ValidationError('Invalid file submitted')
+
+        return submit_module_build_from_yaml(username, r.read())
 
     def patch(self, id):
         username, groups = module_build_service.auth.get_user(request)

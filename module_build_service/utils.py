@@ -418,12 +418,21 @@ def record_component_builds(scm, mmd, module, initial_batch = 1):
 
         return batch
 
-def submit_module_build(username, url, allow_local_url = False):
+
+def submit_module_build_from_yaml(username, yaml):
+    mmd = load_mmd(yaml)
+    return submit_module_build(username, None, mmd, None, yaml)
+
+
+def submit_module_build_from_scm(username, url, allow_local_url=False):
+    mmd, scm, yaml = _fetch_mmd(url, allow_local_url)
+    return submit_module_build(username, url, mmd, scm, yaml)
+
+
+def submit_module_build(username, url, mmd, scm, yaml):
     # Import it here, because SCM uses utils methods
     # and fails to import them because of dep-chain.
     import module_build_service.scm
-
-    mmd, scm, yaml = _fetch_mmd(url, allow_local_url)
 
     module = models.ModuleBuild.query.filter_by(
         name=mmd.name, stream=mmd.stream, version=str(mmd.version)).first()
