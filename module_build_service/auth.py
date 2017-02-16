@@ -116,5 +116,11 @@ def get_user(request):
         log.exception(error)
         raise Unauthorized(error)
 
-    groups = set(extended_data['groups'])
+    try:
+        groups = set(extended_data['groups'])
+    except Exception as e:
+        error = "Could not find groups in UserInfo from OIDC %s" % str(e)
+        log.exception(extended_data)
+        raise Unauthorized(error)
+
     return data["username"], groups
