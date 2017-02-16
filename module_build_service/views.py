@@ -98,7 +98,7 @@ class ModuleBuildAPI(MethodView):
             raise Unauthorized("%s is not in any of  %r, only %r" % (
                 username, conf.allowed_groups, groups))
 
-        if "multipart/form-data" in request.headers.get("Content-Type"):
+        if "multipart/form-data" in request.headers.get("Content-Type") and conf.submitting_yaml:
             module = self.post_file(username)
         else:
             module = self.post_scm(username)
