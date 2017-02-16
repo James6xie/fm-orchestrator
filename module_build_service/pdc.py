@@ -28,6 +28,7 @@
 import modulemd
 from pdc_client import PDCClient
 
+import inspect
 import pprint
 import logging
 log = logging.getLogger()
@@ -41,11 +42,20 @@ def get_pdc_client_session(config):
     :param config: instance of module_build_service.config.Config
     :return pdc_client.PDCClient instance
     """
-    return PDCClient(
-        server=config.pdc_url,
-        develop=config.pdc_develop,
-        insecure=config.pdc_insecure,
-    )
+    if 'ssl_verify' in inspect.getargspec(PDCClient.__init__).args:
+        # New API
+        return PDCClient(
+            server=config.pdc_url,
+            develop=config.pdc_develop,
+            ssl_verify=not config.pdc_insecure,
+        )
+    else:
+        # New API
+        return PDCClient(
+            server=config.pdc_url,
+            develop=config.pdc_develop,
+            insecure=config.pdc_insecure,
+        )
 
 def get_variant_dict(data):
     """
