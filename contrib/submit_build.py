@@ -79,6 +79,7 @@ if not token:
         'scope': ' '.join([
             'openid',
             'https://id.fedoraproject.org/scope/groups',
+            'https://mbs.fedoraproject.org/oidc/submit-build',
         ]),
         'client_id': 'mbs-authorizer',
     }) + "&redirect_uri=http://localhost:13747/"
