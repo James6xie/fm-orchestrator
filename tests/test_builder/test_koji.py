@@ -73,6 +73,26 @@ class TestKojiBuilder(unittest.TestCase):
         self.assertEquals(mocked_kojiutil.checkForBuilds.call_count, 3)
 
 
+class TestGetKojiClientSession(unittest.TestCase):
+
+    def setUp(self):
+        self.config = mock.Mock()
+        self.config.koji_profile = conf.koji_profile
+        self.config.koji_config = conf.koji_config
+        self.owner = 'Matt Jia'
+        self.module = 'fool'
+        self.tag_name = 'module-fool-1.2'
+
+    @patch.object(koji.ClientSession, 'krb_login')
+    def test_proxyuser(self, mocked_krb_login):
+        KojiModuleBuilder(owner=self.owner,
+                          module=self.module,
+                          config=self.config,
+                          tag_name=self.tag_name)
+        args, kwargs = mocked_krb_login.call_args
+        self.assertTrue(set([('proxyuser', self.owner)]).issubset(set(kwargs.items())))
+
+
 class FakeKojiModuleBuilder(KojiModuleBuilder):
 
     @module_build_service.utils.retry(wait_on=(xmlrpclib.ProtocolError, koji.GenericError))
