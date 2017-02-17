@@ -38,7 +38,7 @@ services:
     volumes_from:
       - base
     volumes:
-      - /var/tmp/krbcc:/var/tmp/krbcc:Z
+      - /tmp/mbs-krbcc:/var/tmp/krbcc:Z
 
   frontend:
     depends_on:

@@ -8,7 +8,7 @@ In order to to setup a development environment, it is required that you have
 your Fedora kerberos credentials generated in a *special location*. Before
 starting your development environment, run the following::
 
-    $ KRB5CCNAME=FILE:/var/tmp/krbcc kinit YOUR_USERNAME@STG.FEDORAPROJECT.ORG
+    $ KRB5CCNAME=FILE:/tmp/mbs-krbcc kinit YOUR_USERNAME@STG.FEDORAPROJECT.ORG
 
 If you have problems in later steps with kerberos reading those credentials
 inside the `scheduler` container, you should check that `/var/tmp/krbcc` exists
