@@ -41,12 +41,7 @@ from module_build_service import conf, db
 from module_build_service.errors import (Unauthorized, Conflict)
 import module_build_service.messaging
 from multiprocessing.dummy import Pool as ThreadPool
-
-try:
-    from Queue import Queue
-except:
-    from queue import Queue
-
+from six.moves.queue import Queue
 from threading import Thread
 
 class Worker(Thread):
