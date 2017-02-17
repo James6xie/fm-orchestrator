@@ -78,8 +78,6 @@ if not token:
         'nonce': random.randint(100, 10000),
         'scope': ' '.join([
             'openid',
-            'profile',
-            'email',
             'https://id.fedoraproject.org/scope/groups',
         ]),
         'client_id': 'mbs-authorizer',
