@@ -1,0 +1,12 @@
+{
+  "variant_uid": "base-runtime-master-3", 
+  "variant_release": "3", 
+  "variant_name": "base-runtime", 
+  "build_deps": [], 
+  "variant_type": "module", 
+  "modulemd": "document: modulemd\r\nversion: 1\r\ndata:\r\n    name: base-runtime\r\n    stream: master\r\n    version: 3\r\n    summary: A fake base-runtime module, used to bootstrap the infrastructure.\r\n    description: ...\r\n    xmd:\r\n        mbs_commit: ae993ba84f4bce554471382ccba917ef16265f11\r\n        mbs_buildrequires:\r\n            base-runtime:\r\n                ref: ae993ba84f4bce554471382ccba917ef16265f11\r\n                stream: master\r\n                version: 3\r\n    profiles:\r\n        buildroot:\r\n            rpms:\r\n                - bash\r\n                - bzip2\r\n                - coreutils\r\n                - cpio\r\n                - diffutils\r\n                - fedora-release\r\n                - findutils\r\n                - gawk\r\n                - gcc\r\n                - gcc-c++\r\n                - grep\r\n                - gzip\r\n                - info\r\n                - make\r\n                - patch\r\n                - redhat-rpm-config\r\n                - rpm-build\r\n                - sed\r\n                - shadow-utils\r\n                - tar\r\n                - unzip\r\n                - util-linux\r\n                - which\r\n                - xz\r\n        srpm-buildroot:\r\n            rpms:\r\n                - bash\r\n                - fedora-release\r\n                - fedpkg-minimal\r\n                - gnupg2\r\n                - redhat-rpm-config\r\n                - rpm-build\r\n                - shadow-utils", 
+  "koji_tag": "module-base-runtime-master-3", 
+  "runtime_deps": [], 
+  "variant_id": "base-runtime", 
+  "variant_version": "master"
+}
