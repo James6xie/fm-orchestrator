@@ -1124,6 +1124,7 @@ class MockModuleBuilder(GenericBuilder):
     # Global build_id/task_id we increment when new build is executed.
     _build_id_lock = threading.Lock()
     _build_id = 1
+    _config_lock = threading.Lock()
 
     MOCK_CONFIG_TEMPLATE = """
 config_opts['root'] = '$root'
@@ -1134,6 +1135,7 @@ config_opts['dist'] = ''
 config_opts['extra_chroot_dirs'] = [ '/run/lock', ]
 config_opts['releasever'] = ''
 config_opts['package_manager'] = 'dnf'
+config_opts['nosync'] = True
 
 config_opts['yum.conf'] = \"\"\"
 $yum_conf
@@ -1251,41 +1253,43 @@ mdpolicy=group:primary
         if MockModuleBuilder._build_id == 1:
             return
 
-        infile = os.path.join(self.configdir, "mock.cfg")
-        with open(infile, 'r') as f:
-            # This looks scary, but it is the way how mock itself loads the
-            # config file ...
-            config_opts = {}
-            code = compile(f.read(), infile, 'exec')
-            # pylint: disable=exec-used
-            exec(code)
+        with MockModuleBuilder._config_lock:
+            infile = os.path.join(self.configdir, "mock.cfg")
+            with open(infile, 'r') as f:
+                # This looks scary, but it is the way how mock itself loads the
+                # config file ...
+                config_opts = {}
+                code = compile(f.read(), infile, 'exec')
+                # pylint: disable=exec-used
+                exec(code)
 
-            self.groups = config_opts["chroot_setup_cmd"].split(" ")[1:]
-            self.yum_conf = config_opts['yum.conf']            
+                self.groups = config_opts["chroot_setup_cmd"].split(" ")[1:]
+                self.yum_conf = config_opts['yum.conf']
 
     def _write_mock_config(self):
         """
         Writes Mock config file to local file.
         """
 
-        config = str(MockModuleBuilder.MOCK_CONFIG_TEMPLATE)
-        config = config.replace("$root", "%s-%s" % (self.tag_name,
-            str(threading.current_thread().name)))
-        config = config.replace("$arch", self.arch)
-        config = config.replace("$group", " ".join(self.groups))
-        config = config.replace("$yum_conf", self.yum_conf)
+        with MockModuleBuilder._config_lock:
+            config = str(MockModuleBuilder.MOCK_CONFIG_TEMPLATE)
+            config = config.replace("$root", "%s-%s" % (self.tag_name,
+                str(threading.current_thread().name)))
+            config = config.replace("$arch", self.arch)
+            config = config.replace("$group", " ".join(self.groups))
+            config = config.replace("$yum_conf", self.yum_conf)
 
-        # We write the most recent config to "mock.cfg", so thread-related
-        # configs can be later (re-)generated from it using _load_mock_config.
-        outfile = os.path.join(self.configdir, "mock.cfg")
-        with open(outfile, 'w') as f:
-            f.write(config)
+            # We write the most recent config to "mock.cfg", so thread-related
+            # configs can be later (re-)generated from it using _load_mock_config.
+            outfile = os.path.join(self.configdir, "mock.cfg")
+            with open(outfile, 'w') as f:
+                f.write(config)
 
-        # Write the config to thread-related configuration file.
-        outfile = os.path.join(self.configdir, "mock-%s.cfg" %
-                              str(threading.current_thread().name))
-        with open(outfile, 'w') as f:
-            f.write(config)
+            # Write the config to thread-related configuration file.
+            outfile = os.path.join(self.configdir, "mock-%s.cfg" %
+                                str(threading.current_thread().name))
+            with open(outfile, 'w') as f:
+                f.write(config)
 
     def buildroot_connect(self, groups):
         self._load_mock_config()
@@ -1525,6 +1529,7 @@ def build_from_scm(artifact_name, source, config, build_srpm,
     except Exception as e:
         log.error("Error while generating SRPM for artifact %s: %s" % (
             artifact_name, str(e)))
+        ret = (0, koji.BUILD_STATES["FAILED"], "Cannot create SRPM %s" % str(e), None)
     finally:
         try:
             if td is not None:

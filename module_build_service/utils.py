@@ -42,6 +42,53 @@ from module_build_service.errors import (Unauthorized, Conflict)
 import module_build_service.messaging
 from multiprocessing.dummy import Pool as ThreadPool
 
+try:
+    from Queue import Queue
+except:
+    from queue import Queue
+
+from threading import Thread
+
+class Worker(Thread):
+    """ Thread executing tasks from a given tasks queue """
+    def __init__(self, tasks):
+        Thread.__init__(self)
+        self.tasks = tasks
+        self.daemon = True
+        self.start()
+
+    def run(self):
+        while True:
+            func, args, kargs = self.tasks.get()
+            try:
+                func(*args, **kargs)
+            except Exception as e:
+                # An exception happened in this thread
+                log.error(str(e))
+            finally:
+                # Mark this task as done, whether an exception happened or not
+                self.tasks.task_done()
+
+
+class QueueBasedThreadPool:
+    """ Pool of threads consuming tasks from a queue. """
+    def __init__(self, num_threads):
+        self.tasks = Queue(num_threads)
+        for _ in range(num_threads):
+            Worker(self.tasks)
+
+    def add_task(self, func, *args, **kargs):
+        """ Add a task to the queue """
+        self.tasks.put((func, args, kargs))
+
+    def map(self, func, args_list):
+        """ Add a list of tasks to the queue """
+        for args in args_list:
+            self.add_task(func, args)
+
+    def wait_completion(self):
+        """ Wait for completion of all the tasks in the queue """
+        self.tasks.join()
 
 def retry(timeout=conf.net_timeout, interval=conf.net_retry_interval, wait_on=Exception):
     """ A decorator that allows to retry a section of code...
@@ -137,14 +184,14 @@ def start_build_batch(config, module, session, builder, components=None):
     def start_build_component(c):
         """
         Submits single component build to builder. Called in thread
-        by ThreadPool later.
+        by QueueBasedThreadPool later.
         """
-        with models.make_session(conf) as s:
-            if at_concurrent_component_threshold(config, s):
-                log.info('Concurrent build threshold met')
-                return
-
         try:
+            with models.make_session(conf) as s:
+                if at_concurrent_component_threshold(config, s):
+                    log.info('Concurrent build threshold met')
+                    return
+
             c.task_id, c.state, c.state_reason, c.nvr = builder.build(
                 artifact_name=c.package, source=c.scmurl)
         except Exception as e:
@@ -159,8 +206,9 @@ def start_build_batch(config, module, session, builder, components=None):
             return
 
     # Start build of components in this batch.
-    pool = ThreadPool(config.num_consecutive_builds)
+    pool = QueueBasedThreadPool(config.num_consecutive_builds)
     pool.map(start_build_component, unbuilt_components)
+    pool.wait_completion()
 
     further_work = []
 
