@@ -988,6 +988,9 @@ class CoprModuleBuilder(GenericBuilder):
     def tag_artifacts(self, artifacts):
         pass
 
+    def list_tasks_for_components(self, component_builds=None, state='active'):
+        pass
+
     def build(self, artifact_name, source):
         """
         :param artifact_name : A package name. We can't guess it since macros
