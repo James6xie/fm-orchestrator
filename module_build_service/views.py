@@ -98,7 +98,7 @@ class ModuleBuildAPI(MethodView):
             raise Unauthorized("%s is not in any of  %r, only %r" % (
                 username, conf.allowed_groups, groups))
 
-        if "multipart/form-data" in request.headers.get("Content-Type") and conf.yaml_submit_allowed:
+        if "multipart/form-data" in request.headers.get("Content-Type"):
             module = self.post_file(username)
         else:
             module = self.post_scm(username)
@@ -132,6 +132,8 @@ class ModuleBuildAPI(MethodView):
         return submit_module_build_from_scm(username, url, allow_local_url=False)
 
     def post_file(self, username):
+        if not conf.yaml_submit_allowed:
+            raise Unauthorized("YAML submission is not enabled")
         try:
             r = request.files["yaml"]
         except:
