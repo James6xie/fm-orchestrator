@@ -268,6 +268,10 @@ class Config(object):
             'type': list,
             'default': [],
             'desc': 'Allowed SCM URLs.'},
+        'yaml_submit_allowed': {
+            'type': bool,
+            'default': False,
+            'desc': 'Is it allowed to directly submit modulemd yaml file?'},
         'num_consecutive_builds': {
             'type': int,
             'default': 0,

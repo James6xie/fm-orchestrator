@@ -36,7 +36,7 @@ class BaseConfiguration(object):
     PDC_INSECURE = True
     PDC_DEVELOP = True
     SCMURLS = ["git://pkgs.stg.fedoraproject.org/modules/"]
-    SUBMITTING_YAML = False
+    YAML_SUBMIT_ALLOWED = False
 
     # How often should we resort to polling, in seconds
     # Set to zero to disable polling
