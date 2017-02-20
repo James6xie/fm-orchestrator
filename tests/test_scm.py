@@ -65,3 +65,13 @@ class TestSCMModule(unittest.TestCase):
         fname = tempfile.mktemp(suffix='mbs-scm-test')
         scm.get_latest(branch='master; touch %s' % fname)
         assert not os.path.exists(fname), "%r exists!  Vulnerable." % fname
+
+    def test_local_extract_name(self):
+        scm = module_build_service.scm.SCM(repo_path)
+        target = 'testrepo'
+        assert scm.name == target, '%r != %r' % (scm.name, target)
+
+    def test_local_extract_name_trailing_slash(self):
+        scm = module_build_service.scm.SCM(repo_path + '/')
+        target = 'testrepo'
+        assert scm.name == target, '%r != %r' % (scm.name, target)

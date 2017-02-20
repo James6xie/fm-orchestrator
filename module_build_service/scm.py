@@ -63,6 +63,8 @@ class SCM(object):
                 raise Unauthorized(
                     '%s is not in the list of allowed SCMs' % url)
 
+        url = url.rstrip('/')
+
         self.url = url
 
         # once we have more than one SCM provider, we will need some more
