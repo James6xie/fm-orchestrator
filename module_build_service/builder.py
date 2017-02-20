@@ -1433,8 +1433,17 @@ mdpolicy=group:primary
         for name in os.listdir(resultsdir):
             shutil.copyfile(os.path.join(resultsdir, name), os.path.join(self.resultsdir, name))
 
-        reason = "Built %s in Mock" % (artifact_name)
-        return build_id, state, reason, None
+        # We return BUILDING state here even when we know it is already
+        # completed or failed, because otherwise utils.start_build_batch
+        # would think this component is already built and also tagged, but
+        # we have just built it - tagging will happen as result of build
+        # change message we are sending above using _send_build_change.
+        # It is just to make this backend compatible with other backends,
+        # which return COMPLETE here only in case the resulting build is
+        # already in repository ready to be used. This is not a case for Mock
+        # backend in the time we return here.
+        reason = "Building %s in Mock" % (artifact_name)
+        return build_id, koji.BUILD_STATES['BUILDING'], reason, None
 
     def build(self, artifact_name, source):
         log.info("Starting building artifact %s: %s" % (artifact_name, source))

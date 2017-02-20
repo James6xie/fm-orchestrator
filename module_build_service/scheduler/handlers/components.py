@@ -99,8 +99,10 @@ def _finalize(config, session, msg, state):
         builder.buildroot_add_artifacts(built_components_in_batch, install=install)
         builder.tag_artifacts(built_components_in_batch)
         session.commit()
-    else:
-        # We have some unbuilt components in this batch. We might hit the
+    elif (not any([c.state == koji.BUILD_STATES['BUILDING']
+            for c in unbuilt_components_in_batch])):
+        # We are not in the middle of the batch building and
+        # we have some unbuilt components in this batch. We might hit the
         # concurrent builds threshold in previous call of start_build_batch
         # done in repos.py:done(...), but because we have just finished one
         # build, try to call start_build_batch again so in case we hit the
