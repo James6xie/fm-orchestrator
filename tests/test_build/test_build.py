@@ -36,7 +36,10 @@ from module_build_service import db, models, conf
 from mock import patch
 
 from tests import app, init_data
+import os
 import json
+import requests
+from tempfile import mkdtemp
 
 from module_build_service.builder import KojiModuleBuilder, GenericBuilder
 import module_build_service.scheduler.consumer
@@ -281,6 +284,35 @@ class TestBuild(unittest.TestCase):
         # All components has to be tagged, so tag_groups and buildroot_groups are empty...
         self.assertEqual(tag_groups, [])
         self.assertEqual(buildroot_groups, [])
+
+    @timed(30)
+    @patch('module_build_service.auth.get_user', return_value=user)
+    @patch('module_build_service.scm.SCM')
+    def test_submit_build_from_yaml(self, mocked_scm, mocked_get_user):
+        MockedSCM(mocked_scm, "testmodule", "testmodule.yaml")
+
+        tmp = mkdtemp()
+        url = 'http://pkgs.stg.fedoraproject.org/cgit/modules/testmodule.git/plain/testmodule.yaml'
+        yaml = requests.get(url).content
+
+        testmodule = os.path.join(tmp, 'testmodule.yaml')
+        with open(testmodule, 'w') as f:
+            f.write(yaml)
+
+        def submit():
+            rv = self.client.post('/module-build-service/1/module-builds/',
+                                  content_type='multipart/form-data',
+                                  data={'yaml': (testmodule, yaml)})
+            return json.loads(rv.data)
+
+        conf.set_item("yaml_submit_allowed", True)
+        data = submit()
+        self.assertEqual(data['id'], 1)
+
+        conf.set_item("yaml_submit_allowed", False)
+        data = submit()
+        self.assertEqual(data['status'], 401)
+        self.assertEqual(data['message'], 'YAML submission is not enabled')
 
     @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
