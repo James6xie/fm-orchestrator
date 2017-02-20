@@ -102,6 +102,17 @@ def get_user(request):
     if not "active" in data or not data["active"]:
         raise Unauthorized("OIDC token invalid or expired.")
 
+    presented_scopes = data['scope'].split(' ')
+    required_scopes = [
+        'openid',
+        'https://id.fedoraproject.org/scope/groups',
+        'https://mbs.fedoraproject.org/oidc/submit-build',
+    ]
+    for scope in required_scopes:
+        if scope not in presented_scopes:
+            raise Unauthorized("Required OIDC scope %r not present: %r" % (
+                scope, presented_scopes))
+
     try:
         extended_data = _get_user_info(token)
     except Exception as e:

@@ -78,9 +78,8 @@ if not token:
         'nonce': random.randint(100, 10000),
         'scope': ' '.join([
             'openid',
-            'profile',
-            'email',
             'https://id.fedoraproject.org/scope/groups',
+            'https://mbs.fedoraproject.org/oidc/submit-build',
         ]),
         'client_id': 'mbs-authorizer',
     }) + "&redirect_uri=http://localhost:13747/"
