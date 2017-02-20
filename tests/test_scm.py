@@ -28,14 +28,14 @@ import unittest
 
 import module_build_service.scm
 
-this_repo_path = 'file://' + os.path.abspath(os.path.dirname(__file__) + "/..")
+repo_path = 'file://' + os.path.dirname(__file__) + "/scm_data/testrepo"
 
 
 class TestSCMModule(unittest.TestCase):
 
     def setUp(self):
         self.tempdir = tempfile.mkdtemp()
-        self.repodir = self.tempdir + '/module-build-service'
+        self.repodir = self.tempdir + '/testrepo'
 
     def tearDown(self):
         if os.path.exists(self.tempdir):
@@ -43,24 +43,24 @@ class TestSCMModule(unittest.TestCase):
 
     def test_simple_local_checkout(self):
         """ See if we can clone a local git repo. """
-        scm = module_build_service.scm.SCM(this_repo_path)
+        scm = module_build_service.scm.SCM(repo_path)
         scm.checkout(self.tempdir)
         files = os.listdir(self.repodir)
-        assert 'LICENSE' in files, "LICENSE not in %r" % files
+        assert 'foo' in files, "foo not in %r" % files
 
     def test_local_get_latest_is_sane(self):
         """ See that a hash is returned by scm.get_latest. """
-        scm = module_build_service.scm.SCM(this_repo_path)
+        scm = module_build_service.scm.SCM(repo_path)
         latest = scm.get_latest(branch='master')
-        error = "%r is %i chars long, not 40" % (latest, len(latest))
-        assert len(latest) == 40, error
+        target = '5481faa232d66589e660cc301179867fb00842c9'
+        assert latest == target, "%r != %r" % (latest, target)
 
     def test_local_get_latest_unclean_input(self):
         """ Ensure that shell characters aren't handled poorly.
 
         https://pagure.io/fm-orchestrator/issue/329
         """
-        scm = module_build_service.scm.SCM(this_repo_path)
+        scm = module_build_service.scm.SCM(repo_path)
         assert scm.scheme == 'git', scm.scheme
         fname = tempfile.mktemp(suffix='mbs-scm-test')
         scm.get_latest(branch='master; touch %s' % fname)
