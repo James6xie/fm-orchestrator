@@ -92,6 +92,10 @@ def get_user(request):
     Returns the client's username and groups based on the OIDC token provided.
     """
 
+    if app.config['NO_AUTH']:
+        log.debug("Authorization is disabled.")
+        return
+
     _load_secrets()
 
     if not "oidc_token" in request.cookies:

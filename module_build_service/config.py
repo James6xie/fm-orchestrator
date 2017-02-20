@@ -280,6 +280,10 @@ class Config(object):
             'type': int,
             'default': 30,
             'desc': 'Global network retry interval for read/write operations, in seconds.'},
+        'no_auth': {
+            'type': bool,
+            'default': False,
+            'desc': 'Disable client authentication.'},
     }
 
     def __init__(self, conf_section_obj):
