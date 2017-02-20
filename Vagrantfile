@@ -25,6 +25,7 @@ $script = <<SCRIPT
         python-mock \
         python-qpid \
         python-virtualenv \
+        python-futures \
         redhat-rpm-config \
         redhat-rpm-config \
         rpm-build \

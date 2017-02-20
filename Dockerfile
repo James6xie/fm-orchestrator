@@ -13,6 +13,7 @@ RUN dnf install -y \
         python-mock \
         python-pip \
         python-qpid \
+        python-futures \
         python2-cffi \
         python2-cryptography \
         python2-pdc-client \
