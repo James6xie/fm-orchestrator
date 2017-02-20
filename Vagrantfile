@@ -49,7 +49,7 @@ SCRIPT_SERVICES
 Vagrant.configure("2") do |config|
   config.vm.box = "fedora/24-cloud-base"
   config.vm.synced_folder "./", "/tmp/module_build_service"
-  config.vm.provision "file", source: "/var/tmp/krbcc", destination: "/var/tmp/krbcc", run: "always"
+  config.vm.provision "file", source: "/tmp/mbs-krbcc", destination: "/var/tmp/krbcc", run: "always"
   config.vm.network "forwarded_port", guest_ip: "0.0.0.0", guest: 5000, host: 5000
   config.vm.network "forwarded_port", guest_ip: "0.0.0.0", guest: 2001, host: 5001
   config.vm.network "forwarded_port", guest_ip: "0.0.0.0", guest: 13747, host: 13747
