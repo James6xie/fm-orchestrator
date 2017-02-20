@@ -28,7 +28,6 @@ from module_build_service import app, log
 
 import requests
 import json
-from six.moves.urllib.parse import urlencode
 
 
 def _json_loads(content):
