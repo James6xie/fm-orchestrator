@@ -38,8 +38,6 @@ from mock import patch
 from tests import app, init_data
 import os
 import json
-import requests
-from tempfile import mkdtemp
 
 from module_build_service.builder import KojiModuleBuilder, GenericBuilder
 import module_build_service.scheduler.consumer
@@ -291,13 +289,10 @@ class TestBuild(unittest.TestCase):
     def test_submit_build_from_yaml(self, mocked_scm, mocked_get_user):
         MockedSCM(mocked_scm, "testmodule", "testmodule.yaml")
 
-        tmp = mkdtemp()
-        url = 'http://pkgs.stg.fedoraproject.org/cgit/modules/testmodule.git/plain/testmodule.yaml'
-        yaml = requests.get(url).content
-
-        testmodule = os.path.join(tmp, 'testmodule.yaml')
-        with open(testmodule, 'w') as f:
-            f.write(yaml)
+        here = os.path.dirname(os.path.abspath(__file__))
+        testmodule = os.path.join(here, 'testmodule.yaml')
+        with open(testmodule) as f:
+            yaml = f.read()
 
         def submit():
             rv = self.client.post('/module-build-service/1/module-builds/',
