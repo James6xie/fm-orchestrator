@@ -44,8 +44,7 @@ def _load_secrets():
         return
 
     if not "OIDC_CLIENT_SECRETS" in app.config:
-        log.warn("To support authorization, OIDC_CLIENT_SECRETS has to be set.")
-        return
+        raise Unauthorized("OIDC_CLIENT_SECRETS must be set in server config.")
 
     secrets = _json_loads(open(app.config['OIDC_CLIENT_SECRETS'],
                                 'r').read())

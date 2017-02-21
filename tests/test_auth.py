@@ -67,3 +67,8 @@ class TestAuthModule(unittest.TestCase):
         with patch.dict('module_build_service.app.config', {'NO_AUTH': True}, clear=True):
             request = mock.MagicMock()
             eq_(module_build_service.auth.get_user(request), None)
+
+    @raises(module_build_service.errors.Unauthorized)
+    def test_misconfiguring_oidc_client_secrets_should_be_failed(self):
+        request = mock.MagicMock()
+        module_build_service.auth.get_user(request)
