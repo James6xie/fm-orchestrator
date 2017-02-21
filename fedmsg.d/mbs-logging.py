@@ -7,6 +7,11 @@ config = dict(
                 "propagate": True,
                 "handlers": ["console"],
             },
+            module_build_service={
+                "level": "INFO",
+                "propagate": True,
+                "handlers": ["console"],
+            },
         ),
     ),
 )
