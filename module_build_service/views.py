@@ -124,18 +124,28 @@ class ModuleBuildAPI(MethodView):
             log.error("The submitted scmurl %r is not valid" % url)
             raise Unauthorized("The submitted scmurl %s is not valid" % url)
 
-        return submit_module_build_from_scm(username, url, allow_local_url=False)
+        forbidden_params = [k for k in r if not hasattr(models.ModuleBuild, k)]
+        if forbidden_params:
+            raise ValidationError('The request contains unspecified parameters: {}'.format(", ".join(forbidden_params)))
+
+        optional_params = {k: v for k, v in r.items() if k != "scmurl"}
+        return submit_module_build_from_scm(username, url, allow_local_url=False, optional_params=optional_params)
 
     def post_file(self, username):
         if not conf.yaml_submit_allowed:
             raise Unauthorized("YAML submission is not enabled")
+
+        forbidden_params = [k for k in request.form if not hasattr(models.ModuleBuild, k)]
+        if forbidden_params:
+            raise ValidationError('The request contains unspecified parameters: {}'.format(", ".join(forbidden_params)))
+
         try:
             r = request.files["yaml"]
         except:
             log.error('Invalid file submitted')
             raise ValidationError('Invalid file submitted')
 
-        return submit_module_build_from_yaml(username, r.read())
+        return submit_module_build_from_yaml(username, r.read(), optional_params=dict(request.form.items()))
 
     def patch(self, id):
         username, groups = module_build_service.auth.get_user(request)

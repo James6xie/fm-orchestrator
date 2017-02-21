@@ -101,6 +101,8 @@ class ModuleBuild(RidaBase):
     state_reason = db.Column(db.String)
     modulemd = db.Column(db.String, nullable=False)
     koji_tag = db.Column(db.String)  # This gets set after 'wait'
+    copr_owner = db.Column(db.String)
+    copr_project = db.Column(db.String)
     scmurl = db.Column(db.String)
     owner = db.Column(db.String, nullable=False)
     time_submitted = db.Column(db.DateTime, nullable=False)
@@ -155,7 +157,8 @@ class ModuleBuild(RidaBase):
                              % type(event).__name__)
 
     @classmethod
-    def create(cls, session, conf, name, stream, version, modulemd, scmurl, username):
+    def create(cls, session, conf, name, stream, version, modulemd, scmurl, username,
+               copr_owner=None, copr_project=None):
         now = datetime.utcnow()
         module = cls(
             name=name,
@@ -165,7 +168,9 @@ class ModuleBuild(RidaBase):
             modulemd=modulemd,
             scmurl=scmurl,
             owner=username,
-            time_submitted=now
+            time_submitted=now,
+            copr_owner=copr_owner,
+            copr_project=copr_project,
         )
         session.add(module)
         session.commit()
