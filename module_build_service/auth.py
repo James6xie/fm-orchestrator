@@ -89,12 +89,12 @@ def get_user(request):
     if not "authorization" in request.headers:
         raise Unauthorized("No 'authorization' header found.")
 
-    header = request.headers['authorization']
+    header = request.headers['authorization'].strip()
     prefix = 'Bearer '
     if not header.startswith(prefix):
         raise Unauthorized("Authorization headers must start with %r" % prefix)
 
-    token = header[len(prefix):]
+    token = header[len(prefix):].strip()
     try:
         data = _get_token_info(token)
     except Exception as e:
