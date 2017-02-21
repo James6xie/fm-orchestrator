@@ -927,7 +927,15 @@ class CoprModuleBuilder(GenericBuilder):
 
     def _get_copr_safe(self):
         from copr.exceptions import CoprRequestException
-        kwargs = {"ownername": self.owner, "projectname": CoprModuleBuilder._tag_to_copr_name(self.tag_name)}
+
+        # @TODO it would be nice if the module build object was passed to Builder __init__
+        module = ModuleBuild.query.filter(ModuleBuild.name == self.module_str).first()
+
+        kwargs = {
+            "ownername": module.copr_owner or self.owner,
+            "projectname": module.copr_project or CoprModuleBuilder._tag_to_copr_name(self.tag_name)
+        }
+
         try:
             return self._get_copr(**kwargs)
         except CoprRequestException:
