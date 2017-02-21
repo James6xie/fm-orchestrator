@@ -52,6 +52,10 @@ The response, in case of a successful submission, would include the task ID.
         id: 42
     }
 
+
+When ``YAML_SUBMIT_ALLOWED`` is enabled, it is also possible to submit raw modulemd yaml file by sending
+``multipart/form-data`` request with input file named as ``yaml``.
+
 Module build state query
 ------------------------
 
