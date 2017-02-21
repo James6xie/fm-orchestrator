@@ -105,7 +105,7 @@ def get_user(request):
         log.exception(error)
         raise Unauthorized(error)
 
-    if not "active" in data or not data["active"]:
+    if not data or not "active" in data or not data["active"]:
         raise Unauthorized("OIDC token invalid or expired.")
 
     presented_scopes = data['scope'].split(' ')
