@@ -28,7 +28,6 @@ from module_build_service import app, log
 
 import requests
 import json
-from six.moves.urllib.parse import urlencode
 
 
 def _json_loads(content):
@@ -90,11 +89,15 @@ def get_user(request):
 
     _load_secrets()
 
-    if not "oidc_token" in request.cookies:
-        raise Unauthorized("Cannot verify OIDC token: No 'oidc_token' "
-            "cookie found.")
+    if not "authorization" in request.headers:
+        raise Unauthorized("No 'authorization' header found.")
 
-    token = request.cookies["oidc_token"]
+    header = request.headers['authorization'].strip()
+    prefix = 'Bearer '
+    if not header.startswith(prefix):
+        raise Unauthorized("Authorization headers must start with %r" % prefix)
+
+    token = header[len(prefix):].strip()
     try:
         data = _get_token_info(token)
     except Exception as e:

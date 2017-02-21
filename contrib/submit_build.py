@@ -99,4 +99,4 @@ print "Using https://%s/module_build_service/module-builds/" % mbs_host
 print "NOTE: You need to be a Fedora packager for this to work"
 print
 
-os.system("curl -b 'oidc_token=%s' -k -H 'Content-Type: text/json' --data @submit-build.json https://%s/module-build-service/1/module-builds/ -v" % (token, mbs_host))
+os.system("curl -k -H 'Authorization: Bearer %s' -H 'Content-Type: text/json' --data @submit-build.json https://%s/module-build-service/1/module-builds/ -v" % (token, mbs_host))
