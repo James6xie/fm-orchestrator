@@ -62,3 +62,13 @@ class TestAuthModule(unittest.TestCase):
         request.cookies.return_value = {"oidc_token", "1234"}
         result = module_build_service.auth.get_user(request)
         eq_(result, name)
+
+    def test_disable_authentication(self):
+        with patch.dict('module_build_service.app.config', {'NO_AUTH': True}, clear=True):
+            request = mock.MagicMock()
+            eq_(module_build_service.auth.get_user(request), None)
+
+    @raises(module_build_service.errors.Unauthorized)
+    def test_misconfiguring_oidc_client_secrets_should_be_failed(self):
+        request = mock.MagicMock()
+        module_build_service.auth.get_user(request)

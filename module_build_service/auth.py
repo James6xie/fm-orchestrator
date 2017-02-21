@@ -44,8 +44,7 @@ def _load_secrets():
         return
 
     if not "OIDC_CLIENT_SECRETS" in app.config:
-        log.warn("To support authorization, OIDC_CLIENT_SECRETS has to be set.")
-        return
+        raise Unauthorized("OIDC_CLIENT_SECRETS must be set in server config.")
 
     secrets = _json_loads(open(app.config['OIDC_CLIENT_SECRETS'],
                                 'r').read())
@@ -84,6 +83,10 @@ def get_user(request):
     """
     Returns the client's username and groups based on the OIDC token provided.
     """
+
+    if app.config['NO_AUTH']:
+        log.debug("Authorization is disabled.")
+        return
 
     _load_secrets()
 
