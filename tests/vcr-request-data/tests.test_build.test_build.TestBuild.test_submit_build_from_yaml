@@ -1,0 +1,46 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.10.0]
+    method: GET
+    uri: http://pkgs.stg.fedoraproject.org/cgit/modules/testmodule.git/plain/testmodule.yaml
+  response:
+    body: {string: !!python/unicode "document: modulemd\nversion: 1\ndata:\n    summary:\
+        \ A test module in all its beautiful beauty\n    description: This module\
+        \ demonstrates how to write simple modulemd files And can be used for testing\
+        \ the build and release pipeline.\n    license:\n        module: [ MIT ]\n\
+        \    dependencies:\n        buildrequires:\n            base-runtime: master\n\
+        \        requires:\n            base-runtime: master\n    references:\n  \
+        \      community: https://fedoraproject.org/wiki/Modularity\n        documentation:\
+        \ https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules\n\
+        \        tracker: https://taiga.fedorainfracloud.org/project/modularity\n\
+        \    profiles:\n        default:\n            rpms:\n                - tangerine\n\
+        \    api:\n        rpms:\n            - perl-Tangerine\n            - tangerine\n\
+        \    components:\n        rpms:\n            perl-List-Compare:\n        \
+        \        rationale: A dependency of tangerine.\n                ref: f25\n\
+        \            perl-Tangerine:\n                rationale: Provides API for\
+        \ this module and is a dependency of tangerine.\n                ref: f25\n\
+        \            tangerine:\n                rationale: Provides API for this\
+        \ module.\n                buildorder: 10\n                ref: f25\n"}
+    headers:
+      appserver: [pkgs01.stg.phx2.fedoraproject.org]
+      apptime: [D=736979]
+      connection: [Keep-Alive]
+      content-disposition: [inline; filename="testmodule.yaml"]
+      content-length: ['1204']
+      content-security-policy: [default-src 'none']
+      content-type: [text/plain; charset=UTF-8]
+      date: ['Mon, 20 Feb 2017 19:18:02 GMT']
+      etag: ['"4a3ac897696788dde43baefec432690e102ec0ad"']
+      expires: ['Mon, 20 Feb 2017 19:21:35 GMT']
+      keep-alive: ['timeout=5, max=100']
+      last-modified: ['Mon, 20 Feb 2017 19:16:35 GMT']
+      server: [Apache/2.4.6 (Red Hat Enterprise Linux) OpenSSL/1.0.1e-fips mod_auth_gssapi/1.4.0
+          mod_wsgi/3.4 Python/2.7.5]
+      x-content-type-options: [nosniff]
+    status: {code: 200, message: OK}
+version: 1
