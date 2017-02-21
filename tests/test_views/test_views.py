@@ -264,16 +264,19 @@ class TestViews(unittest.TestCase):
         self.assertEquals(data['state_name'], 'wait')
 
     def test_submit_build_auth_error(self):
-        rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
-            {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
-                'testmodule.git?#48931b90de214d9d13feefbd35246a81b6cb8d49'}))
-        data = json.loads(rv.data)
-        self.assertEquals(
-            data['message'],
-            "No 'authorization' header found."
-        )
-        self.assertEquals(data['status'], 401)
-        self.assertEquals(data['error'], 'Unauthorized')
+        base_dir = path.abspath(path.dirname(__file__))
+        client_secrets = path.join(base_dir, "client_secrets.json")
+        with patch.dict('module_build_service.app.config', {'OIDC_CLIENT_SECRETS': client_secrets}):
+            rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
+                {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+                    'testmodule.git?#48931b90de214d9d13feefbd35246a81b6cb8d49'}))
+            data = json.loads(rv.data)
+            self.assertEquals(
+                data['message'],
+                "No 'authorization' header found."
+            )
+            self.assertEquals(data['status'], 401)
+            self.assertEquals(data['error'], 'Unauthorized')
 
     @patch('module_build_service.auth.get_user', return_value=user)
     def test_submit_build_scm_url_error(self, mocked_get_user):
