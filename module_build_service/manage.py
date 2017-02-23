@@ -41,7 +41,7 @@ from module_build_service.pdc import (
     get_pdc_client_session, get_module, get_module_runtime_dependencies,
     get_module_tag, get_module_build_dependencies)
 from module_build_service.utils import (
-    submit_module_build,
+    submit_module_build_from_scm,
 )
 from module_build_service.messaging import RidaModule
 import module_build_service.messaging
@@ -172,7 +172,7 @@ def build_module_locally(url):
     db.create_all()
 
     username = getpass.getuser()
-    submit_module_build(username, url, allow_local_url=True)
+    submit_module_build_from_scm(username, url, allow_local_url=True)
 
     stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
     initial_messages = [RidaModule("local module build", 1, 1)]
