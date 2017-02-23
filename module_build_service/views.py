@@ -97,14 +97,18 @@ class ModuleBuildAPI(MethodView):
             raise Unauthorized("%s is not in any of  %r, only %r" % (
                 username, conf.allowed_groups, groups))
 
-        if "multipart/form-data" in request.headers.get("Content-Type"):
-            module = self.post_file(username)
-        else:
-            module = self.post_scm(username)
+        def validate_optional_params(params):
+            forbidden_params = [k for k in params if k not in models.ModuleBuild.__table__.columns]
+            if forbidden_params:
+                raise ValidationError('The request contains unspecified parameters: {}'.format(", ".join(forbidden_params)))
+
+        kwargs = {"username": username, "validate_optional_params": validate_optional_params}
+        module = (self.post_file(**kwargs) if "multipart/form-data" in request.headers.get("Content-Type") else
+                  self.post_scm(**kwargs))
 
         return jsonify(module.json()), 201
 
-    def post_scm(self, username):
+    def post_scm(self, username, validate_optional_params):
         try:
             r = json.loads(request.get_data().decode("utf-8"))
         except:
@@ -124,20 +128,14 @@ class ModuleBuildAPI(MethodView):
             log.error("The submitted scmurl %r is not valid" % url)
             raise Unauthorized("The submitted scmurl %s is not valid" % url)
 
-        forbidden_params = [k for k in r if k not in models.ModuleBuild.__table__.columns]
-        if forbidden_params:
-            raise ValidationError('The request contains unspecified parameters: {}'.format(", ".join(forbidden_params)))
-
+        validate_optional_params(r)
         optional_params = {k: v for k, v in r.items() if k != "scmurl"}
         return submit_module_build_from_scm(username, url, allow_local_url=False, optional_params=optional_params)
 
-    def post_file(self, username):
+    def post_file(self, username, validate_optional_params):
         if not conf.yaml_submit_allowed:
             raise Unauthorized("YAML submission is not enabled")
-
-        forbidden_params = [k for k in request.form if k not in models.ModuleBuild.__table__.columns]
-        if forbidden_params:
-            raise ValidationError('The request contains unspecified parameters: {}'.format(", ".join(forbidden_params)))
+        validate_optional_params(request.form)
 
         try:
             r = request.files["yaml"]
