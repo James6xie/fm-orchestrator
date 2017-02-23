@@ -145,7 +145,7 @@ class ModuleBuildAPI(MethodView):
             log.error('Invalid file submitted')
             raise ValidationError('Invalid file submitted')
 
-        return submit_module_build_from_yaml(username, r.read(), optional_params=dict(request.form.items()))
+        return submit_module_build_from_yaml(username, r.read(), optional_params=request.form.to_dict())
 
     def patch(self, id):
         username, groups = module_build_service.auth.get_user(request)
