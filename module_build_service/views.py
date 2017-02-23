@@ -124,7 +124,7 @@ class ModuleBuildAPI(MethodView):
             log.error("The submitted scmurl %r is not valid" % url)
             raise Unauthorized("The submitted scmurl %s is not valid" % url)
 
-        forbidden_params = [k for k in r if not hasattr(models.ModuleBuild, k)]
+        forbidden_params = [k for k in r if k not in models.ModuleBuild.__table__.columns]
         if forbidden_params:
             raise ValidationError('The request contains unspecified parameters: {}'.format(", ".join(forbidden_params)))
 
@@ -135,7 +135,7 @@ class ModuleBuildAPI(MethodView):
         if not conf.yaml_submit_allowed:
             raise Unauthorized("YAML submission is not enabled")
 
-        forbidden_params = [k for k in request.form if not hasattr(models.ModuleBuild, k)]
+        forbidden_params = [k for k in request.form if k not in models.ModuleBuild.__table__.columns]
         if forbidden_params:
             raise ValidationError('The request contains unspecified parameters: {}'.format(", ".join(forbidden_params)))
 
