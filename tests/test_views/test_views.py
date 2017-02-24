@@ -267,10 +267,9 @@ class TestViews(unittest.TestCase):
         self.assertEquals(data['scmurl'],
                           ('git://pkgs.stg.fedoraproject.org/modules/testmodule'
                           '.git?#68931c90de214d9d13feefbd35246a81b6cb8d49'))
-        self.assertEquals(data['version'], '5')
+        self.assertEquals(data['version'], '1')
         self.assertTrue(data['time_submitted'] is not None)
         self.assertTrue(data['time_modified'] is not None)
-        self.assertEquals(data['version'], '5')
         self.assertEquals(data['time_completed'], None)
         self.assertEquals(data['stream'], 'master')
         self.assertEquals(data['owner'], 'Homer J. Simpson')
@@ -395,16 +394,15 @@ class TestViews(unittest.TestCase):
 
         assert 'component_builds' in data, data
         self.assertEquals(data['component_builds'], [61, 62, 63, 64])
-        self.assertEquals(data['name'], 'fakemodule')
+        self.assertEquals(data['name'], 'includedmodules')
         self.assertEquals(data['scmurl'],
                           ('git://pkgs.stg.fedoraproject.org/modules/testmodule'
                           '.git?#68931c90de214d9d13feefbd35246a81b6cb8d49'))
-        self.assertEquals(data['version'], '5')
+        self.assertEquals(data['version'], '1')
         self.assertTrue(data['time_submitted'] is not None)
         self.assertTrue(data['time_modified'] is not None)
-        self.assertEquals(data['version'], '5')
         self.assertEquals(data['time_completed'], None)
-        self.assertEquals(data['stream'], '4.3.44')
+        self.assertEquals(data['stream'], 'master')
         self.assertEquals(data['owner'], 'Homer J. Simpson')
         self.assertEquals(data['id'], 31)
         self.assertEquals(data['state_name'], 'wait')
@@ -474,3 +472,38 @@ class TestViews(unittest.TestCase):
         )
         self.assertEquals(data['status'], 401)
         self.assertEquals(data['error'], 'Unauthorized')
+
+    @patch('module_build_service.auth.get_user', return_value=user)
+    @patch('module_build_service.scm.SCM')
+    def test_submit_build_version_set_error(self, mocked_scm, mocked_get_user):
+        MockedSCM(mocked_scm, 'testmodule', 'testmodule-version-set.yaml',
+                  '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+
+        rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
+            {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+                'testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49'}))
+        data = json.loads(rv.data)
+        self.assertEquals(data['status'], 400)
+        self.assertEquals(
+            data['message'],
+            'The version "123456789" is already defined in the modulemd but '
+            'it shouldn\'t be since the version is generated based on the '
+            'commit time')
+        self.assertEquals(data['error'], 'Bad Request')
+
+    @patch('module_build_service.auth.get_user', return_value=user)
+    @patch('module_build_service.scm.SCM')
+    def test_submit_build_wrong_stream(self, mocked_scm, mocked_get_user):
+        MockedSCM(mocked_scm, 'testmodule', 'testmodule-wrong-stream.yaml',
+                  '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+
+        rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
+            {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+                'testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49'}))
+        data = json.loads(rv.data)
+        self.assertEquals(data['status'], 400)
+        self.assertEquals(
+            data['message'],
+            'The stream "wrong_stream" that is stored in the modulemd does not '
+            'match the branch "master"')
+        self.assertEquals(data['error'], 'Bad Request')
