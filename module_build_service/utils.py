@@ -583,6 +583,12 @@ def submit_module_build(username, url, mmd, scm, yaml, optional_params=None):
              mmd.name, mmd.stream, mmd.version)
     return module
 
+
+def validate_optional_params(params):
+    forbidden_params = [k for k in params if k not in models.ModuleBuild.__table__.columns]
+    if forbidden_params:
+        raise ValidationError('The request contains unspecified parameters: {}'.format(", ".join(forbidden_params)))
+
 def scm_url_schemes(terse=False):
     """
     Definition of URL schemes supported by both frontend and scheduler.

@@ -35,7 +35,7 @@ from module_build_service import app, conf, log
 from module_build_service import models, db
 from module_build_service.utils import (
     pagination_metadata, filter_module_builds, submit_module_build_from_scm,
-    submit_module_build_from_yaml, scm_url_schemes, get_scm_url_re)
+    submit_module_build_from_yaml, scm_url_schemes, get_scm_url_re, validate_optional_params)
 from module_build_service.errors import (
     ValidationError, Unauthorized, NotFound)
 
@@ -97,18 +97,13 @@ class ModuleBuildAPI(MethodView):
             raise Unauthorized("%s is not in any of  %r, only %r" % (
                 username, conf.allowed_groups, groups))
 
-        def validate_optional_params(params):
-            forbidden_params = [k for k in params if k not in models.ModuleBuild.__table__.columns]
-            if forbidden_params:
-                raise ValidationError('The request contains unspecified parameters: {}'.format(", ".join(forbidden_params)))
-
-        kwargs = {"username": username, "validate_optional_params": validate_optional_params}
+        kwargs = {"username": username}
         module = (self.post_file(**kwargs) if "multipart/form-data" in request.headers.get("Content-Type") else
                   self.post_scm(**kwargs))
 
         return jsonify(module.json()), 201
 
-    def post_scm(self, username, validate_optional_params):
+    def post_scm(self, username):
         try:
             r = json.loads(request.get_data().decode("utf-8"))
         except:
@@ -132,7 +127,7 @@ class ModuleBuildAPI(MethodView):
         optional_params = {k: v for k, v in r.items() if k != "scmurl"}
         return submit_module_build_from_scm(username, url, allow_local_url=False, optional_params=optional_params)
 
-    def post_file(self, username, validate_optional_params):
+    def post_file(self, username):
         if not conf.yaml_submit_allowed:
             raise Unauthorized("YAML submission is not enabled")
         validate_optional_params(request.form)
