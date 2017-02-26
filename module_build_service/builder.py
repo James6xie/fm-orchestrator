@@ -929,7 +929,7 @@ class CoprModuleBuilder(GenericBuilder):
         from copr.exceptions import CoprRequestException
 
         # @TODO it would be nice if the module build object was passed to Builder __init__
-        module = ModuleBuild.query.filter(ModuleBuild.name == self.module_str).first()
+        module = ModuleBuild.query.filter(ModuleBuild.name == self.module_str).one()
 
         kwargs = {
             "ownername": module.copr_owner or self.owner,
@@ -1056,7 +1056,7 @@ class CoprModuleBuilder(GenericBuilder):
 
     def finalize(self):
         modulemd = tempfile.mktemp()
-        m1 = ModuleBuild.query.filter(ModuleBuild.name == self.module_str).first()
+        m1 = ModuleBuild.query.filter(ModuleBuild.name == self.module_str).one()
         m1.mmd().dump(modulemd)
 
         # Wait until all builds are finished
