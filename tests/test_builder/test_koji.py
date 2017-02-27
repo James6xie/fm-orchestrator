@@ -66,7 +66,7 @@ class TestKojiBuilder(unittest.TestCase):
                                          module='nginx',
                                          config=conf,
                                          tag_name='module-nginx-1.2')
-        fake_kmb.module_target = {'build_tag': 'fake_tag'}
+        fake_kmb.module_target = {'build_tag': 'module-fake_tag'}
 
         with self.assertRaises(IOError):
             fake_kmb.buildroot_ready()
@@ -117,5 +117,6 @@ class FakeKojiSession(koji.ClientSession):
     def _setup_connection(self):
         pass
 
+    @module_build_service.utils.validate_koji_tag('tag')
     def getRepo(self, tag):
         return {'create_event': 'fake event'}

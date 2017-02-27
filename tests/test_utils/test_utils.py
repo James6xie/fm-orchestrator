@@ -26,6 +26,7 @@ from mock import patch
 import module_build_service.utils
 import module_build_service.scm
 from module_build_service import models
+from module_build_service.errors import ProgrammingError, ValidationError
 from tests import test_resuse_component_init_data, db
 
 BASE_DIR = path.abspath(path.dirname(__file__))
@@ -165,3 +166,50 @@ class TestUtils(unittest.TestCase):
         tangerine_rv = module_build_service.utils.get_reusable_component(
             db.session, second_module_build, 'tangerine')
         self.assertEqual(tangerine_rv, None)
+
+    def test_validate_koji_tag_wrong_tag_arg_during_programming(self):
+
+        @module_build_service.utils.validate_koji_tag('wrong_tag_arg')
+        def validate_koji_tag_programming_error(good_tag_arg, other_arg):
+            pass
+
+        with self.assertRaises(ProgrammingError):
+            validate_koji_tag_programming_error('dummy', 'other_val')
+
+    def test_validate_koji_tag_bad_tag_value(self):
+
+        @module_build_service.utils.validate_koji_tag('tag_arg')
+        def validate_koji_tag_bad_tag_value(tag_arg):
+            pass
+
+        with self.assertRaises(ValidationError):
+            validate_koji_tag_bad_tag_value('forbiddentagprefix-foo')
+
+    def test_validate_koji_tag_bad_tag_value_in_list(self):
+
+        @module_build_service.utils.validate_koji_tag('tag_arg')
+        def validate_koji_tag_bad_tag_value_in_list(tag_arg):
+            pass
+
+        with self.assertRaises(ValidationError):
+            validate_koji_tag_bad_tag_value_in_list([
+                'module-foo', 'forbiddentagprefix-bar'])
+
+    def test_validate_koji_tag_good_tag_value(self):
+
+        @module_build_service.utils.validate_koji_tag('tag_arg')
+        def validate_koji_tag_good_tag_value(tag_arg):
+            return True
+
+        self.assertEquals(
+            validate_koji_tag_good_tag_value('module-foo'), True)
+
+    def test_validate_koji_tag_good_tag_values_in_list(self):
+
+        @module_build_service.utils.validate_koji_tag('tag_arg')
+        def validate_koji_tag_good_tag_values_in_list(tag_arg):
+            return True
+
+        self.assertEquals(
+            validate_koji_tag_good_tag_values_in_list(['module-foo',
+                                                       'module-bar']), True)
