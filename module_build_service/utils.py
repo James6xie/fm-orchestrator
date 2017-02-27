@@ -589,6 +589,12 @@ def validate_optional_params(params):
     if forbidden_params:
         raise ValidationError('The request contains unspecified parameters: {}'.format(", ".join(forbidden_params)))
 
+    forbidden_params = [k for k in params if k.startswith("copr_")]
+    if conf.system != "copr" and forbidden_params:
+        raise ValidationError('The request contains parameters specific to Copr builder: {} even though {} is used'
+                              .format(", ".join(forbidden_params), conf.system))
+
+
 def scm_url_schemes(terse=False):
     """
     Definition of URL schemes supported by both frontend and scheduler.
