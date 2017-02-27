@@ -31,6 +31,7 @@ import os
 import logging
 import copy
 import kobo.rpmlib
+import inspect
 from six import iteritems
 
 import modulemd
@@ -39,7 +40,8 @@ from flask import request, url_for
 from datetime import datetime
 
 from module_build_service import log, models
-from module_build_service.errors import ValidationError, UnprocessableEntity
+from module_build_service.errors import (ValidationError, UnprocessableEntity,
+                                         ProgrammingError)
 from module_build_service import conf, db
 from module_build_service.errors import (Unauthorized, Conflict)
 import module_build_service.messaging
@@ -767,3 +769,36 @@ def get_reusable_component(session, module, component_name):
         return reusable_component
 
     return None
+
+
+def validate_koji_tag(tag_arg_name, pre='', post='-'):
+    """
+    Used as a decorator validates koji tag arg value (which may be str or list)
+    against configurable list of koji tag prefixes.
+    :param pre: Prepend this optional string (e.g. '.' in case of disttag
+    validation) to each koji tag prefix.
+    :param post: Append this string/delimiter ('-' by default) to each koji
+    tag prefix.
+    """
+    def validation_decorator(function):
+        def wrapper(*args, **kwargs):
+            call_args = inspect.getcallargs(function, *args, **kwargs)
+            if tag_arg_name not in call_args:
+                raise ProgrammingError(
+                    'Koji tag validation: Inspected argument {} is not within function args.'
+                    .format(tag_arg_name))
+            if isinstance(call_args[tag_arg_name], list):
+                tag_list = call_args[tag_arg_name]
+            else:
+                tag_list = [call_args[tag_arg_name]]
+            for tag_prefix in conf.koji_tag_prefixes:
+                if all([t.startswith(pre + tag_prefix + post) for t in tag_list]):
+                    break
+            else:
+                raise ValidationError(
+                    'Koji tag validation: {} does not satisfy any of allowed prefixes: {}'
+                    .format(tag_list,
+                            [pre + p + post for p in conf.koji_tag_prefixes]))
+            return function(*args, **kwargs)
+        return wrapper
+    return validation_decorator

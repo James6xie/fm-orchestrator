@@ -162,8 +162,11 @@ class Config(object):
         'koji_build_macros_target': {
             'type': str,
             'default': '',
-            'desc': 'Target to build "module-build-macros" RPM in.'
-            },
+            'desc': 'Target to build "module-build-macros" RPM in.'},
+        'koji_tag_prefixes': {
+            'type': list,
+            'default': ['module'],
+            'desc': 'List of allowed koji tag prefixes.'},
         'rpms_default_repository': {
             'type': str,
             'default': 'git://pkgs.fedoraproject.org/rpms/',

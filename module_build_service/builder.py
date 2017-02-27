@@ -318,6 +318,7 @@ class KojiModuleBuilder(GenericBuilder):
     backend = "koji"
     _build_lock = threading.Lock()
 
+    @module_build_service.utils.validate_koji_tag('tag_name')
     def __init__(self, owner, module, config, tag_name):
         """
         :param owner: a string representing who kicked off the builds
@@ -378,6 +379,7 @@ class KojiModuleBuilder(GenericBuilder):
 
 
     @staticmethod
+    @module_build_service.utils.validate_koji_tag('disttag', pre='.', post='_')
     def get_disttag_srpm(disttag):
 
         #Taken from Karsten's create-distmacro-pkg.sh
@@ -667,6 +669,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
         self.koji_session.cancelTask(task_id)
 
     @classmethod
+    @module_build_service.utils.validate_koji_tag('tag_name')
     def repo_from_tag(cls, config, tag_name, arch):
         """
         :param config: instance of rida.config.Config
@@ -678,6 +681,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
         """
         return "%s/%s/latest/%s" % (config.koji_repository_url, tag_name, arch)
 
+    @module_build_service.utils.validate_koji_tag('tag')
     def _get_tag(self, tag, strict=True):
         if isinstance(tag, dict):
             tag = tag['name']
@@ -687,6 +691,8 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
                 raise SystemError("Unknown tag: %s" % tag)
         return taginfo
 
+    @module_build_service.utils.validate_koji_tag('tag_name')
+    @module_build_service.utils.validate_koji_tag('parent_tags')
     def _koji_add_many_tag_inheritance(self, tag_name, parent_tags):
         tag = self._get_tag(tag_name)
         # highest priority num is at the end
@@ -719,6 +725,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
         if inheritance_data:
             self.koji_session.setInheritanceData(tag['id'], inheritance_data)
 
+    @module_build_service.utils.validate_koji_tag('dest_tag')
     def _koji_add_groups_to_tag(self, dest_tag, groups=None):
         """
         :param build_tag_name
@@ -748,6 +755,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
                 self.koji_session.groupPackageListAdd(dest_tag, group, pkg)
 
 
+    @module_build_service.utils.validate_koji_tag('tag_name')
     def _koji_create_tag(self, tag_name, arches=None, perm=None):
         """
         :param tag_name: name of koji tag
@@ -818,6 +826,8 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
 
             self.koji_session.packageListAdd(self.module_tag['name'], package, owner)
 
+    @module_build_service.utils.validate_koji_tag('build_tag')
+    @module_build_service.utils.validate_koji_tag('dest_tag')
     def _koji_add_target(self, name, build_tag, dest_tag):
         """
         :param name: target name
@@ -896,6 +906,7 @@ class CoprModuleBuilder(GenericBuilder):
     backend = "copr"
     _build_lock = threading.Lock()
 
+    @module_build_service.utils.validate_koji_tag('tag_name')
     def __init__(self, owner, module, config, tag_name):
         self.owner = owner
         self.config = config
@@ -1070,6 +1081,7 @@ class CoprModuleBuilder(GenericBuilder):
         log.info(result.data["modulemd"])
 
     @staticmethod
+    @module_build_service.utils.validate_koji_tag('disttag', pre='.', post='_')
     def get_disttag_srpm(disttag):
         # @FIXME
         return KojiModuleBuilder.get_disttag_srpm(disttag)
@@ -1080,6 +1092,7 @@ class CoprModuleBuilder(GenericBuilder):
         return {"name": self.tag_name}
 
     @classmethod
+    @module_build_service.utils.validate_koji_tag('tag_name')
     def repo_from_tag(cls, config, tag_name, arch):
         """
         :param backend: a string representing the backend e.g. 'koji'.
@@ -1110,6 +1123,7 @@ class CoprModuleBuilder(GenericBuilder):
         pass
 
     @classmethod
+    @module_build_service.utils.validate_koji_tag('koji_tag')
     def _tag_to_copr_name(cls, koji_tag):
         return koji_tag.replace("+", "-")
 
@@ -1162,6 +1176,7 @@ mdpolicy=group:primary
 
 """
 
+    @module_build_service.utils.validate_koji_tag('tag_name')
     def __init__(self, owner, module, config, tag_name):
         self.module_str = module
         self.tag_name = tag_name
@@ -1478,6 +1493,7 @@ mdpolicy=group:primary
             return self.build_srpm(artifact_name, source, build_id)
 
     @staticmethod
+    @module_build_service.utils.validate_koji_tag('disttag', pre='.', post='_')
     def get_disttag_srpm(disttag):
         # @FIXME
         return KojiModuleBuilder.get_disttag_srpm(disttag)

@@ -47,6 +47,10 @@ class NotFound(ValueError):
     pass
 
 
+class ProgrammingError(ValueError):
+    pass
+
+
 def json_error(status, error, message):
     response = jsonify(
         {'status': status,

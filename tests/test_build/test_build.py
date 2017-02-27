@@ -90,6 +90,7 @@ class TestModuleBuilder(GenericBuilder):
     on_buildroot_add_artifacts_cb = None
     on_tag_artifacts_cb = None
 
+    @module_build_service.utils.validate_koji_tag('tag_name')
     def __init__(self, owner, module, config, tag_name):
         self.module_str = module
         self.tag_name = tag_name
@@ -189,6 +190,7 @@ class TestModuleBuilder(GenericBuilder):
         return TestModuleBuilder._build_id, state, reason, None
 
     @staticmethod
+    @module_build_service.utils.validate_koji_tag('disttag', pre='.', post='_')
     def get_disttag_srpm(disttag):
         # @FIXME
         return KojiModuleBuilder.get_disttag_srpm(disttag)
