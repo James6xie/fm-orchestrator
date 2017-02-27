@@ -98,7 +98,7 @@ class ModuleBuildAPI(MethodView):
                 username, conf.allowed_groups, groups))
 
         kwargs = {"username": username}
-        module = (self.post_file(**kwargs) if "multipart/form-data" in request.headers.get("Content-Type") else
+        module = (self.post_file(**kwargs) if "multipart/form-data" in request.headers.get("Content-Type", "") else
                   self.post_scm(**kwargs))
 
         return jsonify(module.json()), 201
