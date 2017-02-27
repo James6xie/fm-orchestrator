@@ -444,23 +444,23 @@ def format_mmd(mmd, scmurl):
     # them because of dep-chain.
     from module_build_service.scm import SCM
 
-    mmd.xmd['mbs'] = {'scmurl': scmurl}
+    mmd.xmd['mbs'] = {'scmurl': scmurl, 'commit': None}
 
-    scm = SCM(scmurl)
-    # If a commit hash is provided, add that information to the modulemd
-    if scm.commit:
-        # We want to make sure we have the full commit hash for consistency
-        if SCM.is_full_commit_hash(scm.scheme, scm.commit):
-            full_scm_hash = scm.commit
-        else:
-            full_scm_hash = scm.get_full_commit_hash()
-
-        mmd.xmd['mbs']['commit'] = full_scm_hash
-    # If a commit hash wasn't provided then just get the latest from master
-    else:
+    # If module build was submitted via yaml file, there is no scmurl
+    if scmurl:
         scm = SCM(scmurl)
-        mmd.xmd['mbs']['commit'] = scm.get_latest()
+        # If a commit hash is provided, add that information to the modulemd
+        if scm.commit:
+            # We want to make sure we have the full commit hash for consistency
+            if SCM.is_full_commit_hash(scm.scheme, scm.commit):
+                full_scm_hash = scm.commit
+            else:
+                full_scm_hash = scm.get_full_commit_hash()
 
+            mmd.xmd['mbs']['commit'] = full_scm_hash
+        # If a commit hash wasn't provided then just get the latest from master
+        else:
+            mmd.xmd['mbs']['commit'] = scm.get_latest()
 
     # If the modulemd yaml specifies module buildrequires, replace the streams
     # with commit hashes

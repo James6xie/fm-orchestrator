@@ -115,6 +115,35 @@ class TestUtils(unittest.TestCase):
         }
         self.assertEqual(mmd.xmd, xmd)
 
+    @vcr.use_cassette(
+        path.join(CASSETTES_DIR, 'tests.test_utils.TestUtils.test_format_mmd'))
+    @patch('module_build_service.scm.SCM')
+    def test_format_mmd_empty_scmurl(self, mocked_scm):
+        # For all the RPMs in testmodule, get_latest is called
+        mocked_scm.return_value.get_latest.side_effect = [
+             '4ceea43add2366d8b8c5a622a2fb563b625b9abf',
+             'fbed359411a1baa08d4a88e0d12d426fbf8f602c',
+             '76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb']
+
+        mmd = modulemd.ModuleMetadata()
+        with open(path.join(BASE_DIR, '..', 'staged_data', 'testmodule.yaml')) \
+                as mmd_file:
+            mmd.loads(mmd_file)
+
+        module_build_service.utils.format_mmd(mmd, scmurl=None)
+        xmd = {
+            'mbs': {
+                'commit': None,
+                'buildrequires': {
+                    'base-runtime': {
+                        'ref': 'ae993ba84f4bce554471382ccba917ef16265f11',
+                        'stream': 'master',
+                        'version': '3'}},
+                'scmurl': None,
+            }
+        }
+        self.assertEqual(mmd.xmd, xmd)
+
     def test_get_reusable_component_same(self):
         test_reuse_component_init_data()
         new_module = models.ModuleBuild.query.filter_by(id=2).one()
