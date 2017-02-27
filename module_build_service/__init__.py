@@ -50,8 +50,10 @@ from module_build_service.errors import (
     ValidationError, Unauthorized, UnprocessableEntity, Conflict, NotFound,
     Forbidden, json_error)
 from module_build_service.config import init_config
+from module_build_service.proxy import ReverseProxy
 
 app = Flask(__name__)
+app.wsgi_app = ReverseProxy(app.wsgi_app)
 
 conf = init_config(app)
 
