@@ -35,7 +35,7 @@ from module_build_service import app, conf, log
 from module_build_service import models, db
 from module_build_service.utils import (
     pagination_metadata, filter_module_builds, submit_module_build_from_scm,
-    submit_module_build_from_yaml, scm_url_schemes, get_scm_url_re)
+    submit_module_build_from_yaml, scm_url_schemes, get_scm_url_re, validate_optional_params)
 from module_build_service.errors import (
     ValidationError, Unauthorized, NotFound)
 
@@ -97,10 +97,9 @@ class ModuleBuildAPI(MethodView):
             raise Unauthorized("%s is not in any of  %r, only %r" % (
                 username, conf.allowed_groups, groups))
 
-        if "multipart/form-data" in request.headers.get("Content-Type"):
-            module = self.post_file(username)
-        else:
-            module = self.post_scm(username)
+        kwargs = {"username": username}
+        module = (self.post_file(**kwargs) if "multipart/form-data" in request.headers.get("Content-Type", "") else
+                  self.post_scm(**kwargs))
 
         return jsonify(module.json()), 201
 
@@ -124,18 +123,22 @@ class ModuleBuildAPI(MethodView):
             log.error("The submitted scmurl %r is not valid" % url)
             raise Unauthorized("The submitted scmurl %s is not valid" % url)
 
-        return submit_module_build_from_scm(username, url, allow_local_url=False)
+        validate_optional_params(r)
+        optional_params = {k: v for k, v in r.items() if k != "scmurl"}
+        return submit_module_build_from_scm(username, url, allow_local_url=False, optional_params=optional_params)
 
     def post_file(self, username):
         if not conf.yaml_submit_allowed:
             raise Unauthorized("YAML submission is not enabled")
+        validate_optional_params(request.form)
+
         try:
             r = request.files["yaml"]
         except:
             log.error('Invalid file submitted')
             raise ValidationError('Invalid file submitted')
 
-        return submit_module_build_from_yaml(username, r.read())
+        return submit_module_build_from_yaml(username, r.read(), optional_params=request.form.to_dict())
 
     def patch(self, id):
         username, groups = module_build_service.auth.get_user(request)

@@ -543,17 +543,17 @@ def record_component_builds(scm, mmd, module, initial_batch = 1):
         return batch
 
 
-def submit_module_build_from_yaml(username, yaml):
+def submit_module_build_from_yaml(username, yaml, optional_params=None):
     mmd = load_mmd(yaml)
-    return submit_module_build(username, None, mmd, None, yaml)
+    return submit_module_build(username, None, mmd, None, yaml, optional_params)
 
 
-def submit_module_build_from_scm(username, url, allow_local_url=False):
+def submit_module_build_from_scm(username, url, allow_local_url=False, optional_params=None):
     mmd, scm, yaml = _fetch_mmd(url, allow_local_url)
-    return submit_module_build(username, url, mmd, scm, yaml)
+    return submit_module_build(username, url, mmd, scm, yaml, optional_params)
 
 
-def submit_module_build(username, url, mmd, scm, yaml):
+def submit_module_build(username, url, mmd, scm, yaml, optional_params=None):
     # Import it here, because SCM uses utils methods
     # and fails to import them because of dep-chain.
     import module_build_service.scm
@@ -586,7 +586,8 @@ def submit_module_build(username, url, mmd, scm, yaml):
             version=str(mmd.version),
             modulemd=yaml,
             scmurl=url,
-            username=username
+            username=username,
+            **(optional_params or {})
         )
 
     record_component_builds(scm, mmd, module)
@@ -598,6 +599,18 @@ def submit_module_build(username, url, mmd, scm, yaml):
     log.info("%s submitted build of %s, stream=%s, version=%s", username,
              mmd.name, mmd.stream, mmd.version)
     return module
+
+
+def validate_optional_params(params):
+    forbidden_params = [k for k in params if k not in models.ModuleBuild.__table__.columns]
+    if forbidden_params:
+        raise ValidationError('The request contains unspecified parameters: {}'.format(", ".join(forbidden_params)))
+
+    forbidden_params = [k for k in params if k.startswith("copr_")]
+    if conf.system != "copr" and forbidden_params:
+        raise ValidationError('The request contains parameters specific to Copr builder: {} even though {} is used'
+                              .format(", ".join(forbidden_params), conf.system))
+
 
 def scm_url_schemes(terse=False):
     """
