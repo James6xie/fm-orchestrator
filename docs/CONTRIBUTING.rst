@@ -37,7 +37,7 @@ Your `ssh_config` should look like this::
 
 The configuration above assumes that the development instance with
 pdc-updater has the following endpoints configured (typically in
-`/etc/fedmsg.d/endpoints.py`).
+`/etc/fedmsg.d/endpoints.py`)::
 
     endpoints={
         "rida.local": [
@@ -179,3 +179,9 @@ Create a directory to house the fedmsg cache::
 
 Then uncomment the fedmsg signing configuration in
 `fedmsg.d/module_build_service.py`.
+
+Historical Names of Module Build Service
+----------------------------------------
+
+- Rida
+- The Orchestrator

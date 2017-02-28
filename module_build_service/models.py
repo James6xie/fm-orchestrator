@@ -150,7 +150,7 @@ class ModuleBuild(MBSBase):
 
     @classmethod
     def from_module_event(cls, session, event):
-        if type(event) == module_build_service.messaging.RidaModule:
+        if type(event) == module_build_service.messaging.MBSModule:
             return session.query(cls).filter(
                 cls.id == event.module_build_id).first()
         else:

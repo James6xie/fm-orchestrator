@@ -184,7 +184,7 @@ class ModuleBuildAPI(MethodView):
 
 
 def register_api_v1():
-    """ Registers version 1 of Rida API. """
+    """ Registers version 1 of MBS API. """
     module_view = ModuleBuildAPI.as_view('module_builds')
     for key, val in api_v1.items():
         app.add_url_rule(val['url'],

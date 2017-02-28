@@ -172,7 +172,7 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
             handler = self.on_build_change[msg.build_new_state]
         elif type(msg) == module_build_service.messaging.KojiRepoChange:
             handler = self.on_repo_change
-        elif type(msg) == module_build_service.messaging.RidaModule:
+        elif type(msg) == module_build_service.messaging.MBSModule:
             handler = self.on_module_change[module_build_state_from_msg(msg)]
         else:
             log.debug("Unhandled message...")

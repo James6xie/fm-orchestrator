@@ -73,6 +73,6 @@ class TestModuleWait(unittest.TestCase):
 
         from_module_event.return_value = mocked_module_build
 
-        msg = module_build_service.messaging.RidaModule(msg_id=None, module_build_id=1,
+        msg = module_build_service.messaging.MBSModule(msg_id=None, module_build_id=1,
                                                         module_build_state='some state')
         self.fn(config=self.config, session=self.session, msg=msg)

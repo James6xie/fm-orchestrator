@@ -26,7 +26,7 @@
 """
 Logging functions.
 
-At the beginning of the Rida flow, init_logging(conf) must be called.
+At the beginning of the MBS flow, init_logging(conf) must be called.
 
 After that, logging from any module is possible using Python's "logging"
 module as showed at

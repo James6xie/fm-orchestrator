@@ -132,7 +132,7 @@ class MBSProducer(PollingProducer):
                  .format(len(builds)))
         for build in builds:
             # Fake a message to kickstart the build anew
-            msg = module_build_service.messaging.RidaModule(
+            msg = module_build_service.messaging.MBSModule(
                 'fake message',
                 build.id,
                 module_build_service.models.BUILD_STATES['wait']
