@@ -233,3 +233,25 @@ class TestUtils(unittest.TestCase):
         self.assertEquals(
             validate_koji_tag_good_tag_value_in_dict_nondefault_key(
                {'nondefault': 'module-foo'}), True)
+
+    def test_validate_koji_tag_double_trouble_good(self):
+        """ Test that we pass on a list of tags that are good. """
+
+        expected = 'foo'
+
+        @module_build_service.utils.validate_koji_tag(['tag_arg1', 'tag_arg2'])
+        def validate_koji_tag_double_trouble(tag_arg1, tag_arg2):
+            return expected
+
+        actual = validate_koji_tag_double_trouble('module-1', 'module-2')
+        self.assertEquals(actual, expected)
+
+    def test_validate_koji_tag_double_trouble_bad(self):
+        """ Test that we fail on a list of tags that are bad. """
+
+        @module_build_service.utils.validate_koji_tag(['tag_arg1', 'tag_arg2'])
+        def validate_koji_tag_double_trouble(tag_arg1, tag_arg2):
+            pass
+
+        with self.assertRaises(ValidationError):
+            validate_koji_tag_double_trouble('module-1', 'BADNEWS-2')

@@ -784,7 +784,7 @@ def get_reusable_component(session, module, component_name):
     return None
 
 
-def validate_koji_tag(tag_arg_name, pre='', post='-', dict_key='name'):
+def validate_koji_tag(tag_arg_names, pre='', post='-', dict_key='name'):
     """
     Used as a decorator validates koji tag arg value (which may be str or list)
     against configurable list of koji tag prefixes.
@@ -794,33 +794,56 @@ def validate_koji_tag(tag_arg_name, pre='', post='-', dict_key='name'):
     tag prefix.
     :param dict_key: In case of a dict arg, inspect this key ('name' by default).
     """
+
+    if not isinstance(tag_arg_names, list):
+        tag_arg_names = [tag_arg_names]
+
     def validation_decorator(function):
         def wrapper(*args, **kwargs):
             call_args = inspect.getcallargs(function, *args, **kwargs)
-            if tag_arg_name not in call_args:
-                raise ProgrammingError(
-                    'Koji tag validation: Inspected argument {} is not within function args.'
-                    ' The function was: {}.'
-                    .format(tag_arg_name, function.__name__))
-            if isinstance(call_args[tag_arg_name], dict):
-                if dict_key not in call_args[tag_arg_name]:
+
+            for tag_arg_name in tag_arg_names:
+
+                # If any of them don't appear in the function, then fail.
+                if tag_arg_name not in call_args:
                     raise ProgrammingError(
-                        'Koji tag validation: Inspected dict arg {} does not contain {} key.'
+                        'Koji tag validation: Inspected argument {} is not within function args.'
                         ' The function was: {}.'
-                        .format(call_args[tag_arg_name], dict_key, function.__name__))
-                tag_list = [call_args[tag_arg_name][dict_key]]
-            elif isinstance(call_args[tag_arg_name], list):
-                tag_list = call_args[tag_arg_name]
-            else:
-                tag_list = [call_args[tag_arg_name]]
-            for tag_prefix in conf.koji_tag_prefixes:
-                if all([t.startswith(pre + tag_prefix + post) for t in tag_list]):
-                    break
-            else:
-                raise ValidationError(
-                    'Koji tag validation: {} does not satisfy any of allowed prefixes: {}'
-                    .format(tag_list,
-                            [pre + p + post for p in conf.koji_tag_prefixes]))
+                        .format(tag_arg_name, function.__name__))
+
+                # If any of them are a dict, then use the provided dict_key
+                if isinstance(call_args[tag_arg_name], dict):
+                    if dict_key not in call_args[tag_arg_name]:
+                        raise ProgrammingError(
+                            'Koji tag validation: Inspected dict arg {} does not contain {} key.'
+                            ' The function was: {}.'
+                            .format(call_args[tag_arg_name], dict_key, function.__name__))
+                    tag_list = [call_args[tag_arg_name][dict_key]]
+                elif isinstance(call_args[tag_arg_name], list):
+                    tag_list = call_args[tag_arg_name]
+                else:
+                    tag_list = [call_args[tag_arg_name]]
+
+                # Check to make sure the provided values match our whitelist.
+                for allowed_prefix in conf.koji_tag_prefixes:
+                    if all([t.startswith(pre + allowed_prefix + post) for t in tag_list]):
+                        break
+                else:
+                    # Only raise this error if the given tags don't start with
+                    # *any* of our allowed prefixes.
+                    raise ValidationError(
+                        'Koji tag validation: {} does not satisfy any of allowed prefixes: {}'
+                        .format(tag_list,
+                                [pre + p + post for p in conf.koji_tag_prefixes]))
+
+            # Finally.. after all that validation, call the original function
+            # and return its value.
             return function(*args, **kwargs)
+
+        # We're replacing the original function with our synthetic wrapper,
+        # but dress it up to make it look more like the original function.
+        wrapper.__name__ = function.__name__
+        wrapper.__doc__ = function.__doc__
         return wrapper
+
     return validation_decorator

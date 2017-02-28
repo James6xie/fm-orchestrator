@@ -691,8 +691,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
                 raise SystemError("Unknown tag: %s" % tag)
         return taginfo
 
-    @module_build_service.utils.validate_koji_tag('tag_name')
-    @module_build_service.utils.validate_koji_tag('parent_tags')
+    @module_build_service.utils.validate_koji_tag(['tag_name', 'parent_tags'])
     def _koji_add_many_tag_inheritance(self, tag_name, parent_tags):
         tag = self._get_tag(tag_name)
         # highest priority num is at the end
@@ -826,8 +825,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
 
             self.koji_session.packageListAdd(self.module_tag['name'], package, owner)
 
-    @module_build_service.utils.validate_koji_tag('build_tag')
-    @module_build_service.utils.validate_koji_tag('dest_tag')
+    @module_build_service.utils.validate_koji_tag(['build_tag', 'dest_tag'])
     def _koji_add_target(self, name, build_tag, dest_tag):
         """
         :param name: target name
