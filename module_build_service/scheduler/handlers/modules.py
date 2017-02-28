@@ -154,7 +154,7 @@ def wait(config, session, msg):
     tag = None
     dependencies = []
 
-    if conf.system == "mock":
+    if conf.system in ["mock", "copr"]:
         # In case of mock, we do not try to get anything from pdc,
         # just generate our own koji_tag to identify the module in messages.
         tag = '-'.join(['module', module_info['name'],
