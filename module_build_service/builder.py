@@ -534,7 +534,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
 
         for nvr in artifacts:
             log.info("%r tagging %r into %r" % (self, nvr, build_tag))
-            self.koji_session.tagBuild(build_tag, nvr, force=True)
+            self.koji_session.tagBuild(build_tag, nvr)
 
             if not install:
                 continue
@@ -549,7 +549,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
 
         for nvr in artifacts:
             log.info("%r tagging %r into %r" % (self, nvr, dest_tag))
-            self.koji_session.tagBuild(dest_tag, nvr, force=True)
+            self.koji_session.tagBuild(dest_tag, nvr)
 
     def wait_task(self, task_id):
         """
@@ -768,8 +768,9 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
         log.debug("Ensuring existence of tag='%s'." % tag_name)
         taginfo = self.koji_session.getTag(tag_name)
 
-        if not taginfo: # Existing tag, need to check whether settings is correct
-            self.koji_session.createTag(tag_name, {})
+        if not taginfo:
+            self.koji_session.createTag(
+                tag_name, parent=conf.koji_tag_inherit_from)
             taginfo = self._get_tag(tag_name)
 
         opts = {}
