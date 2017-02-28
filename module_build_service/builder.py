@@ -1038,7 +1038,7 @@ class CoprModuleBuilder(GenericBuilder):
             else:
                 return self.build_srpm(artifact_name, source)
 
-    def build_srpm(self, artifact_name, source):
+    def build_srpm(self, artifact_name, source, build_id=None):
         if not self.__prep:
             raise RuntimeError("Buildroot is not prep-ed")
 
