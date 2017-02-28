@@ -784,7 +784,7 @@ def get_reusable_component(session, module, component_name):
     return None
 
 
-def validate_koji_tag(tag_arg_name, pre='', post='-'):
+def validate_koji_tag(tag_arg_name, pre='', post='-', dict_key='name'):
     """
     Used as a decorator validates koji tag arg value (which may be str or list)
     against configurable list of koji tag prefixes.
@@ -792,6 +792,7 @@ def validate_koji_tag(tag_arg_name, pre='', post='-'):
     validation) to each koji tag prefix.
     :param post: Append this string/delimiter ('-' by default) to each koji
     tag prefix.
+    :param dict_key: In case of a dict arg, inspect this key ('name' by default).
     """
     def validation_decorator(function):
         def wrapper(*args, **kwargs):
@@ -799,8 +800,16 @@ def validate_koji_tag(tag_arg_name, pre='', post='-'):
             if tag_arg_name not in call_args:
                 raise ProgrammingError(
                     'Koji tag validation: Inspected argument {} is not within function args.'
-                    .format(tag_arg_name))
-            if isinstance(call_args[tag_arg_name], list):
+                    ' The function was: {}.'
+                    .format(tag_arg_name, function.__name__))
+            if isinstance(call_args[tag_arg_name], dict):
+                if dict_key not in call_args[tag_arg_name]:
+                    raise ProgrammingError(
+                        'Koji tag validation: Inspected dict arg {} does not contain {} key.'
+                        ' The function was: {}.'
+                        .format(call_args[tag_arg_name], dict_key, function.__name__))
+                tag_list = [call_args[tag_arg_name][dict_key]]
+            elif isinstance(call_args[tag_arg_name], list):
                 tag_list = call_args[tag_arg_name]
             else:
                 tag_list = [call_args[tag_arg_name]]

@@ -213,3 +213,23 @@ class TestUtils(unittest.TestCase):
         self.assertEquals(
             validate_koji_tag_good_tag_values_in_list(['module-foo',
                                                        'module-bar']), True)
+
+    def test_validate_koji_tag_good_tag_value_in_dict(self):
+
+        @module_build_service.utils.validate_koji_tag('tag_arg')
+        def validate_koji_tag_good_tag_value_in_dict(tag_arg):
+            return True
+
+        self.assertEquals(
+            validate_koji_tag_good_tag_value_in_dict({'name': 'module-foo'}), True)
+
+    def test_validate_koji_tag_good_tag_value_in_dict_nondefault_key(self):
+
+        @module_build_service.utils.validate_koji_tag('tag_arg',
+                                                      dict_key='nondefault')
+        def validate_koji_tag_good_tag_value_in_dict_nondefault_key(tag_arg):
+            return True
+
+        self.assertEquals(
+            validate_koji_tag_good_tag_value_in_dict_nondefault_key(
+               {'nondefault': 'module-foo'}), True)
