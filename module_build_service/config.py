@@ -163,6 +163,10 @@ class Config(object):
             'type': str,
             'default': '',
             'desc': 'Target to build "module-build-macros" RPM in.'},
+        'koji_tag_inherit_from': {
+            'type': str,
+            'default': 'module-package-list',
+            'desc': 'Tag that new module tags inherit from.'},
         'koji_tag_prefixes': {
             'type': list,
             'default': ['module'],
