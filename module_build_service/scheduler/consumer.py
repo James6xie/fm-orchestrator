@@ -183,9 +183,9 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
         if handler is self.NO_OP:
             log.debug("Handler is NO_OP: %s" % idx)
         else:
-            log.info("Calling %s" % idx)
+            log.debug("Calling %s" % idx)
             further_work = handler(conf, session, msg) or []
-            log.info("Done with %s" % idx)
+            log.debug("Done with %s" % idx)
 
             # Handlers can *optionally* return a list of fake messages that
             # should be re-inserted back into the main work queue. We can use
