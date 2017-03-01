@@ -83,7 +83,7 @@ if not token:
         ]),
         'client_id': 'mbs-authorizer',
     }) + "&redirect_uri=http://localhost:13747/"
-    print "https://id.stg.fedoraproject.org/openidc/Authorization?" + query
+    print "https://id.fedoraproject.org/openidc/Authorization?" + query
     print "We are waiting for you to finish the token generation..."
 
 if not token:
