@@ -187,6 +187,10 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
             log.debug("Unhandled message...")
             return
 
+        if not build:
+            log.debug("No module associated with msg {}".format(msg.msg_id))
+            return
+
         # Execute our chosen handler
         idx = "%s: %s, %s" % (handler.__name__, type(msg).__name__, msg.msg_id)
         if handler is self.NO_OP:
@@ -194,11 +198,7 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
         else:
             log.debug("Calling %s" % idx)
             try:
-                if build:
-                    further_work = handler(conf, session, msg) or []
-                else:
-                    log.warn("There's no module associated with message ID {}"
-                             .format(msg.msg_id))
+                further_work = handler(conf, session, msg) or []
             except ValidationError as e:
                 if build:
                     build.transition(conf, state=models.BUILD_STATES['failed'],
