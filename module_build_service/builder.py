@@ -887,7 +887,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
             if 'mbs_module_name' not in task_opts:
                 task_opts['mbs_module_name'] = None
             for c in component_builds:
-                if (c.name == task_opts['mbs_artifact_name'] and
+                if (c.package == task_opts['mbs_artifact_name'] and
                    c.tag == task_opts['mbs_module_name']):
                     tasks.append(task)
 
