@@ -680,7 +680,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
         """
         return "%s/%s/latest/%s" % (config.koji_repository_url, tag_name, arch)
 
-    @module_build_service.utils.validate_koji_tag('tag')
+    @module_build_service.utils.validate_koji_tag('tag', post='')
     def _get_tag(self, tag, strict=True):
         if isinstance(tag, dict):
             tag = tag['name']
@@ -690,7 +690,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
                 raise SystemError("Unknown tag: %s" % tag)
         return taginfo
 
-    @module_build_service.utils.validate_koji_tag(['tag_name', 'parent_tags'])
+    @module_build_service.utils.validate_koji_tag(['tag_name', 'parent_tags'], post='')
     def _koji_add_many_tag_inheritance(self, tag_name, parent_tags):
         tag = self._get_tag(tag_name)
         # highest priority num is at the end
