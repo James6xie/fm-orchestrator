@@ -28,6 +28,7 @@
 import modulemd
 from pdc_client import PDCClient
 
+import copy
 import inspect
 import pprint
 import logging
@@ -160,6 +161,7 @@ def get_module(session, module_info, strict=False):
     :return final list of module_info which pass repoclosure
     """
 
+    log.debug("get_module(%r, strict=%r)" % (module_info, strict))
     module_info = get_variant_dict(module_info)
 
     query = dict(
@@ -268,42 +270,56 @@ def resolve_profiles(session, mmd, keys, seen=None):
     # Return the union of all rpms in all profiles of the given keys.
     return results
 
-def module_depsolving_wrapper(session, module_list, strict=True):
+def module_depsolving_wrapper(session, modules, strict=True):
     """
     :param session : PDCClient instance
-    :param module_list: list of module_info dicts
-    :return final list of module_info which pass repoclosure
+    :param modules: list of module_info dicts
+    :return final list of the names of tags.
     """
-    log.debug("module_depsolving_wrapper(%r, strict=%r)" % (module_list, strict))
-    # TODO: implement this
+    log.debug("module_depsolving_wrapper(%r, strict=%r)" % (modules, strict))
 
-    # Make sure that these are dicts from PDC ... ensures all values
-    module_list = set([get_module_tag(session, x, strict) for x in module_list])
-    # pdc-updater adds "module-" prefix to koji_tag, but here we expect koji_tag
-    # is just NVR of a module, so remove the "module-" prefix.
-    module_list = set([x[len("module-"):] if x.startswith("module-") else x
-                       for x in module_list])
-    seen = set() # don't query pdc for the same items all over again
+    # We're going to modify this list, so don't screw with the passed in value.
+    module_list = copy.deepcopy(modules)
+    # Name this, just for readability...
+    original_modules = modules
 
-    while True:
-        if seen == module_list:
-                break
+    # Keep track of which modules we've queried for before, to avoid that.
+    seen = list()
 
-        for module in module_list:
-            if module in seen:
+    # This is the set we're going to build up and return.
+    module_tags = set()
+
+    while not all([d in seen for d in module_list]):
+        for module_dict in module_list:
+            # Make sure not to spam PDC with unnecessary queries.
+            if module_dict in seen:
                 continue
-            info = get_module(session, module, strict)
-            assert info, "Module '%s' not found in PDC" % module
-            module_list.update([x['dependency'] for x in info['build_deps']])
-            seen.add(module)
-            module_list.update(info['build_deps'])
+            seen.append(module_dict)
 
-    return list(module_list)
+            # Get enhanced info on this module from pdc.
+            info = get_module(session, module_dict, strict)
+
+            # Take note of the tag of this module, but only if it is a dep and
+            # not in the original list.
+            if module_dict not in original_modules:
+                module_tags.add(info['koji_tag'])
+
+            # Queue up the next tier of deps that we should look at..
+            for pdc_dep in info['build_deps']:
+                modified_dep = {
+                    'name': pdc_dep['dependency'],
+                    'version': pdc_dep['stream'],
+                    #'release': ...
+                }
+                module_list.append(modified_dep)
+
+    return list(module_tags)
+
 
 def get_module_runtime_dependencies(session, module_info, strict=False):
     """
     :param session : PDCClient instance
-    :param module_infos : a dict containing filters for pdc
+    :param module_info : a dict containing filters for pdc
     :param strict: Normally this function returns None if no module can be
            found.  If strict=True, then a ValueError is raised.
 
@@ -327,7 +343,7 @@ def get_module_build_dependencies(session, module_info, strict=False):
     :param module_info : a dict containing filters for pdc
     :param strict: Normally this function returns None if no module can be
            found.  If strict=True, then a ValueError is raised.
-    :return final list of module_infos which pass repoclosure
+    :return final list of koji tags
 
     Example minimal module_info {'variant_id': module_name, 'variant_version': module_version, 'variant_type': 'module'}
     """

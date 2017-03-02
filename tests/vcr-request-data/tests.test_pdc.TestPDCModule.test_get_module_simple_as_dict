@@ -1,0 +1,933 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.10.0]
+      accept: [application/json]
+      content-type: [application/json]
+    method: GET
+    uri: http://modularity.fedorainfracloud.org:8080/rest_api/v1/unreleasedvariants?variant_version=master&page_size=-1&variant_id=testmodule
+  response:
+    body: {string: !!python/unicode ''}
+    headers:
+      content-type: [text/html; charset=utf-8]
+      date: ['Thu, 02 Mar 2017 15:59:01 GMT']
+      location: ['http://modularity.fedorainfracloud.org:8080/rest_api/v1/unreleasedvariants/?variant_version=master&page_size=-1&variant_id=testmodule']
+      server: [WSGIServer/0.1 Python/2.7.13]
+      x-frame-options: [SAMEORIGIN]
+    status: {code: 301, message: MOVED PERMANENTLY}
+- request:
+    body: null
+    headers:
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.10.0]
+      accept: [application/json]
+      content-type: [application/json]
+    method: GET
+    uri: http://modularity.fedorainfracloud.org:8080/rest_api/v1/unreleasedvariants/?variant_version=master&page_size=-1&variant_id=testmodule
+  response:
+    body: {string: !!python/unicode '[{"variant_id":"testmodule","variant_uid":"testmodule-master-20161110120639","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20161110120639","koji_tag":"module-testmodule","modulemd":"","runtime_deps":[{"dependency":"base-runtime","stream":"0.25"}],"build_deps":[{"dependency":"base-runtime","stream":"0.25"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20161115001755","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20161115001755","koji_tag":"module-testmodule","modulemd":"","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20161117200557","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20161117200557","koji_tag":"module-testmodule","modulemd":"","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20161207155603","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20161207155603","koji_tag":"module-testmodule","modulemd":"document:
+        modulemd\nversion: 1\ndata:\n    summary: A test module in all its beautiful
+        beauty\n    description: This module demonstrates how to write simple modulemd
+        files And can be used for testing the build and release pipeline.\n    license:\n        module:
+        [ MIT ]\n    dependencies:\n        buildrequires:\n            base-runtime:
+        master\n        requires:\n            base-runtime: master\n    references:\n        community:
+        https://fedoraproject.org/wiki/Modularity\n        documentation: https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules\n        tracker:
+        https://taiga.fedorainfracloud.org/project/modularity\n    profiles:\n        default:\n            rpms:\n                -
+        tangerine\n    api:\n        rpms:\n            - perl-Tangerine\n            -
+        tangerine\n    components:\n        rpms:\n            perl-List-Compare:\n                rationale:
+        A dependency of tangerine.\n                ref: f25\n            perl-Tangerine:\n                rationale:
+        Provides API for this module and is a dependency of tangerine.\n                ref:
+        f25\n            tangerine:\n                rationale: Provides API for this
+        module.\n                buildorder: 10\n                ref: f25","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20161214213232","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20161214213232","koji_tag":"module-testmodule","modulemd":"document:
+        modulemd\nversion: 1\ndata:\n    summary: A test module in all its beautiful
+        superbeauty which is undoubtable\n    description: This module demonstrates
+        how to write simple modulemd files And can be used for testing the build and
+        release pipeline.\n    license:\n        module: [ MIT ]\n    dependencies:\n        buildrequires:\n            base-runtime:
+        master\n        requires:\n            base-runtime: master\n    references:\n        community:
+        https://fedoraproject.org/wiki/Modularity\n        documentation: https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules\n        tracker:
+        https://taiga.fedorainfracloud.org/project/modularity\n    profiles:\n        default:\n            rpms:\n                -
+        tangerine\n    api:\n        rpms:\n            - perl-Tangerine\n            -
+        tangerine\n    components:\n        rpms:\n            perl-List-Compare:\n                rationale:
+        A dependency of tangerine.\n                ref: f25\n            perl-Tangerine:\n                rationale:
+        Provides API for this module and is a dependency of tangerine.\n                ref:
+        f25\n            tangerine:\n                rationale: Provides API for this
+        module.\n                buildorder: 10\n                ref: f25","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20161214215925","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20161214215925","koji_tag":"module-testmodule","modulemd":"data:\n  api:\n    rpms:
+        [tangerine, perl-Tangerine]\n  components:\n    rpms:\n      perl-List-Compare:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-List-Compare'',\n        rationale:
+        A dependency of tangerine., ref: 76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/perl-List-Compare''}\n      perl-Tangerine:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-Tangerine'',\n        rationale:
+        Provides API for this module and is a dependency of tangerine.,\n        ref:
+        4ceea43add2366d8b8c5a622a2fb563b625b9abf, repository: ''git://pkgs.fedoraproject.org/rpms/perl-Tangerine''}\n      tangerine:
+        {buildorder: 10, cache: ''http://pkgs.fedoraproject.org/repo/pkgs/tangerine'',\n        rationale:
+        Provides API for this module., ref: fbed359411a1baa08d4a88e0d12d426fbf8f602c,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/tangerine''}\n  dependencies:\n    buildrequires:
+        {base-runtime: master}\n    requires: {base-runtime: master}\n  description:
+        This module demonstrates how to write simple modulemd files And can\n    be
+        used for testing the build and release pipeline.\n  filter: {}\n  license:\n    module:
+        [MIT]\n  name: testmodule\n  profiles:\n    default:\n      rpms: [tangerine]\n  references:
+        {community: ''https://fedoraproject.org/wiki/Modularity'', documentation:
+        ''https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules'',\n    tracker:
+        ''https://taiga.fedorainfracloud.org/project/modularity''}\n  stream: master\n  summary:
+        A test module in all its beautiful superbeauty which is undoubtable like\n    the
+        sun and heaven and ...\n  version: 20161214215925\ndocument: modulemd\nversion:
+        1","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20161214220958","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20161214220958","koji_tag":"module-testmodule","modulemd":"data:\n  api:\n    rpms:
+        [tangerine, perl-Tangerine]\n  components:\n    rpms:\n      perl-List-Compare:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-List-Compare'',\n        rationale:
+        A dependency of tangerine., ref: 76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/perl-List-Compare''}\n      perl-Tangerine:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-Tangerine'',\n        rationale:
+        Provides API for this module and is a dependency of tangerine.,\n        ref:
+        4ceea43add2366d8b8c5a622a2fb563b625b9abf, repository: ''git://pkgs.fedoraproject.org/rpms/perl-Tangerine''}\n      tangerine:
+        {buildorder: 10, cache: ''http://pkgs.fedoraproject.org/repo/pkgs/tangerine'',\n        rationale:
+        Provides API for this module., ref: fbed359411a1baa08d4a88e0d12d426fbf8f602c,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/tangerine''}\n  dependencies:\n    buildrequires:
+        {base-runtime: master}\n    requires: {base-runtime: master}\n  description:
+        This module demonstrates how to write simple modulemd files And can\n    be
+        used for testing the build and release pipeline.\n  filter: {}\n  license:\n    module:
+        [MIT]\n  name: testmodule\n  profiles:\n    default:\n      rpms: [tangerine]\n  references:
+        {community: ''https://fedoraproject.org/wiki/Modularity'', documentation:
+        ''https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules'',\n    tracker:
+        ''https://taiga.fedorainfracloud.org/project/modularity''}\n  stream: master\n  summary:
+        A test module in all its beautiful superbeauty which is undoubtable like\n    the
+        sun and heaven and whatever ...\n  version: 20161214220958\ndocument: modulemd\nversion:
+        1","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20161215084706","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20161215084706","koji_tag":"module-testmodule","modulemd":"data:\n  api:\n    rpms:
+        [tangerine, perl-Tangerine]\n  components:\n    rpms:\n      perl-List-Compare:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-List-Compare'',\n        rationale:
+        A dependency of tangerine., ref: 76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/perl-List-Compare''}\n      perl-Tangerine:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-Tangerine'',\n        rationale:
+        Provides API for this module and is a dependency of tangerine.,\n        ref:
+        4ceea43add2366d8b8c5a622a2fb563b625b9abf, repository: ''git://pkgs.fedoraproject.org/rpms/perl-Tangerine''}\n      tangerine:
+        {buildorder: 10, cache: ''http://pkgs.fedoraproject.org/repo/pkgs/tangerine'',\n        rationale:
+        Provides API for this module., ref: fbed359411a1baa08d4a88e0d12d426fbf8f602c,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/tangerine''}\n  dependencies:\n    buildrequires:
+        {base-runtime: master}\n    requires: {base-runtime: master}\n  description:
+        This module demonstrates how to write simple modulemd files And can\n    be
+        used for testing the build and release pipeline.\n  filter: {}\n  license:\n    module:
+        [MIT]\n  name: testmodule\n  profiles:\n    default:\n      rpms: [tangerine]\n  references:
+        {community: ''https://fedoraproject.org/wiki/Modularity'', documentation:
+        ''https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules'',\n    tracker:
+        ''https://taiga.fedorainfracloud.org/project/modularity''}\n  stream: master\n  summary:
+        A test module in all its beautiful superbeauty which is undoubtable like\n    the
+        sun and heaven and whatever in the morning ...\n  version: 20161215084706\ndocument:
+        modulemd\nversion: 1","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20161215091033","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20161215091033","koji_tag":"module-testmodule","modulemd":"document:
+        modulemd\nversion: 1\ndata:\n    summary: A test module in all its beautiful
+        superbeauty which is undoubtable like the sun and heaven and whatever in the
+        morning XYZ ...\n    description: This module demonstrates how to write simple
+        modulemd files And can be used for testing the build and release pipeline.\n    license:\n        module:
+        [ MIT ]\n    dependencies:\n        buildrequires:\n            base-runtime:
+        master\n        requires:\n            base-runtime: master\n    references:\n        community:
+        https://fedoraproject.org/wiki/Modularity\n        documentation: https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules\n        tracker:
+        https://taiga.fedorainfracloud.org/project/modularity\n    profiles:\n        default:\n            rpms:\n                -
+        tangerine\n    api:\n        rpms:\n            - perl-Tangerine\n            -
+        tangerine\n    components:\n        rpms:\n            perl-List-Compare:\n                rationale:
+        A dependency of tangerine.\n                ref: f25\n            perl-Tangerine:\n                rationale:
+        Provides API for this module and is a dependency of tangerine.\n                ref:
+        f25\n            tangerine:\n                rationale: Provides API for this
+        module.\n                buildorder: 10\n                ref: f25","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20161215100400","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20161215100400","koji_tag":"module-testmodule-master-20161215100400","modulemd":"data:\n  api:\n    rpms:
+        [tangerine, perl-Tangerine]\n  components:\n    rpms:\n      perl-List-Compare:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-List-Compare'',\n        rationale:
+        A dependency of tangerine., ref: 76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/perl-List-Compare''}\n      perl-Tangerine:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-Tangerine'',\n        rationale:
+        Provides API for this module and is a dependency of tangerine.,\n        ref:
+        4ceea43add2366d8b8c5a622a2fb563b625b9abf, repository: ''git://pkgs.fedoraproject.org/rpms/perl-Tangerine''}\n      tangerine:
+        {buildorder: 10, cache: ''http://pkgs.fedoraproject.org/repo/pkgs/tangerine'',\n        rationale:
+        Provides API for this module., ref: fbed359411a1baa08d4a88e0d12d426fbf8f602c,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/tangerine''}\n  dependencies:\n    buildrequires:
+        {base-runtime: master}\n    requires: {base-runtime: master}\n  description:
+        This module demonstrates how to write simple modulemd files And can\n    be
+        used for testing the build and release pipeline.\n  filter: {}\n  license:\n    module:
+        [MIT]\n  name: testmodule\n  profiles:\n    default:\n      rpms: [tangerine]\n  references:
+        {community: ''https://fedoraproject.org/wiki/Modularity'', documentation:
+        ''https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules'',\n    tracker:
+        ''https://taiga.fedorainfracloud.org/project/modularity''}\n  stream: master\n  summary:
+        A test module AAA\n  version: 20161215100400\ndocument: modulemd\nversion:
+        1","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20161216091544","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20161216091544","koji_tag":"module-testmodule-master-20161216091544","modulemd":"document:
+        modulemd\nversion: 1\ndata:\n    summary: A test module AAA BBB-notfound CCC\n    description:
+        This module demonstrates how to write simple modulemd files And can be used
+        for testing the build and release pipeline.\n    license:\n        module:
+        [ MIT ]\n    dependencies:\n        buildrequires:\n            base-runtime:
+        master\n        requires:\n            base-runtime: master\n    references:\n        community:
+        https://fedoraproject.org/wiki/Modularity\n        documentation: https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules\n        tracker:
+        https://taiga.fedorainfracloud.org/project/modularity\n    profiles:\n        default:\n            rpms:\n                -
+        tangerine\n    api:\n        rpms:\n            - perl-Tangerine\n            -
+        tangerine\n    components:\n        rpms:\n            perl-List-Compare:\n                rationale:
+        A dependency of tangerine.\n                ref: f25\n            perl-Tangerine:\n                rationale:
+        Provides API for this module and is a dependency of tangerine.\n                ref:
+        f25\n            tangerine:\n                rationale: Provides API for this
+        module.\n                buildorder: 10\n                ref: f25","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20161216133013","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20161216133013","koji_tag":"module-testmodule-master-20161216133013","modulemd":"document:
+        modulemd\nversion: 1\ndata:\n    summary: A test module AAA BBB-notfound CCC
+        DDD EEE\n    description: This module demonstrates how to write simple modulemd
+        files And can be used for testing the build and release pipeline.\n    license:\n        module:
+        [ MIT ]\n    dependencies:\n        buildrequires:\n            base-runtime:
+        master\n        requires:\n            base-runtime: master\n    references:\n        community:
+        https://fedoraproject.org/wiki/Modularity\n        documentation: https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules\n        tracker:
+        https://taiga.fedorainfracloud.org/project/modularity\n    profiles:\n        default:\n            rpms:\n                -
+        tangerine\n    api:\n        rpms:\n            - perl-Tangerine\n            -
+        tangerine\n    components:\n        rpms:\n            perl-List-Compare:\n                rationale:
+        A dependency of tangerine.\n                ref: f25\n            perl-Tangerine:\n                rationale:
+        Provides API for this module and is a dependency of tangerine.\n                ref:
+        f25\n            tangerine:\n                rationale: Provides API for this
+        module.\n                buildorder: 10\n                ref: f25","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20161219142438","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20161219142438","koji_tag":"module-testmodule-master-20161219142438","modulemd":"document:
+        modulemd\nversion: 1\ndata:\n    summary: A test module in all its beautiful
+        superbeauty\n    description: This module demonstrates how to write simple
+        modulemd files And can be used for testing the build and release pipeline.\n    license:\n        module:
+        [ MIT ]\n    dependencies:\n        buildrequires:\n            base-runtime:
+        master\n        requires:\n            base-runtime: master\n    references:\n        community:
+        https://fedoraproject.org/wiki/Modularity\n        documentation: https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules\n        tracker:
+        https://taiga.fedorainfracloud.org/project/modularity\n    profiles:\n        default:\n            rpms:\n                -
+        tangerine\n    api:\n        rpms:\n            - perl-Tangerine\n            -
+        tangerine\n    components:\n        rpms:\n            perl-List-Compare:\n                rationale:
+        A dependency of tangerine.\n                ref: f25\n            perl-Tangerine:\n                rationale:
+        Provides API for this module and is a dependency of tangerine.\n                ref:
+        f25\n            tangerine:\n                rationale: Provides API for this
+        module.\n                buildorder: 10\n                ref: f25","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20161223082240","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20161223082240","koji_tag":"module-testmodule-master-20161223082240","modulemd":"document:
+        modulemd\nversion: 1\ndata:\n    summary: A test module in all its beautiful
+        and powerful superbeauty, just say wow!\n    description: This module demonstrates
+        how to write simple modulemd files And can be used for testing the build and
+        release pipeline.\n    license:\n        module: [ MIT ]\n    dependencies:\n        buildrequires:\n            base-runtime:
+        master\n        requires:\n            base-runtime: master\n    references:\n        community:
+        https://fedoraproject.org/wiki/Modularity\n        documentation: https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules\n        tracker:
+        https://taiga.fedorainfracloud.org/project/modularity\n    profiles:\n        default:\n            rpms:\n                -
+        tangerine\n    api:\n        rpms:\n            - perl-Tangerine\n            -
+        tangerine\n    components:\n        rpms:\n            perl-List-Compare:\n                rationale:
+        A dependency of tangerine.\n                ref: f25\n            perl-Tangerine:\n                rationale:
+        Provides API for this module and is a dependency of tangerine.\n                ref:
+        f25\n            tangerine:\n                rationale: Provides API for this
+        module.\n                buildorder: 10\n                ref: f25","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20170102133258","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20170102133258","koji_tag":"module-testmodule-master-20170102133258","modulemd":"document:
+        modulemd\nversion: 1\ndata:\n    summary: A test module in all its beautiful
+        superbeauty\n    description: This module demonstrates how to write simple
+        modulemd files And can be used for testing the build and release pipeline.\n    license:\n        module:
+        [ MIT ]\n    dependencies:\n        buildrequires:\n            base-runtime:
+        master\n        requires:\n            base-runtime: master\n    references:\n        community:
+        https://fedoraproject.org/wiki/Modularity\n        documentation: https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules\n        tracker:
+        https://taiga.fedorainfracloud.org/project/modularity\n    profiles:\n        default:\n            rpms:\n                -
+        tangerine\n    api:\n        rpms:\n            - perl-Tangerine\n            -
+        tangerine\n    components:\n        rpms:\n            perl-List-Compare:\n                rationale:
+        A dependency of tangerine.\n                ref: f25\n            perl-Tangerine:\n                rationale:
+        Provides API for this module and is a dependency of tangerine.\n                ref:
+        f25\n            tangerine:\n                rationale: Provides API for this
+        module.\n                buildorder: 10\n                ref: f25","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20170104123414","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20170104123414","koji_tag":"module-testmodule-master-20170104123414","modulemd":"document:
+        modulemd\nversion: 1\ndata:\n    summary: A test module in all its beautiful
+        beauty\n    description: This module demonstrates how to write simple modulemd
+        files And can be used for testing the build and release pipeline.\n    license:\n        module:
+        [ MIT ]\n    dependencies:\n        buildrequires:\n            base-runtime:
+        master\n        requires:\n            base-runtime: master\n    references:\n        community:
+        https://fedoraproject.org/wiki/Modularity\n        documentation: https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules\n        tracker:
+        https://taiga.fedorainfracloud.org/project/modularity\n    profiles:\n        default:\n            rpms:\n                -
+        tangerine\n    api:\n        rpms:\n            - perl-Tangerine\n            -
+        tangerine\n    components:\n        rpms:\n            perl-List-Compare:\n                rationale:
+        A dependency of tangerine.\n                ref: f25\n            perl-Tangerine:\n                rationale:
+        Provides API for this module and is a dependency of tangerine.\n                ref:
+        f25\n            tangerine:\n                rationale: Provides API for this
+        module.\n                buildorder: 10\n                ref: f25","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20170104124607","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20170104124607","koji_tag":"module-testmodule-master-20170104124607","modulemd":"document:
+        modulemd\nversion: 1\ndata:\n    summary: A test module in all its beautiful
+        beauty\n    description: This module demonstrates how to write simple modulemd
+        files And can be used for testing the build and release pipeline.\n    license:\n        module:
+        [ MIT ]\n    dependencies:\n        buildrequires:\n            base-runtime:
+        master\n        requires:\n            base-runtime: master\n    references:\n        community:
+        https://fedoraproject.org/wiki/Modularity\n        documentation: https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules\n        tracker:
+        https://taiga.fedorainfracloud.org/project/modularity\n    profiles:\n        default:\n            rpms:\n                -
+        tangerine\n    api:\n        rpms:\n            - perl-Tangerine\n            -
+        tangerine\n    components:\n        rpms:\n            perl-List-Compare:\n                rationale:
+        A dependency of tangerine.\n                ref: f25\n            perl-Tangerine:\n                rationale:
+        Provides API for this module and is a dependency of tangerine.\n                ref:
+        f25\n            tangerine:\n                rationale: Provides API for this
+        module.\n                buildorder: 10\n                ref: f25","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20170104131147","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20170104131147","koji_tag":"module-testmodule-master-20170104131147","modulemd":"document:
+        modulemd\nversion: 1\ndata:\n    summary: A test module in all its beautiful
+        beauty\n    description: This module demonstrates how to write simple modulemd
+        files And can be used for testing the build and release pipeline.\n    license:\n        module:
+        [ MIT ]\n    dependencies:\n        buildrequires:\n            base-runtime:
+        master\n        requires:\n            base-runtime: master\n    references:\n        community:
+        https://fedoraproject.org/wiki/Modularity\n        documentation: https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules\n        tracker:
+        https://taiga.fedorainfracloud.org/project/modularity\n    profiles:\n        default:\n            rpms:\n                -
+        tangerine\n    api:\n        rpms:\n            - perl-Tangerine\n            -
+        tangerine\n    components:\n        rpms:\n            perl-List-Compare:\n                rationale:
+        A dependency of tangerine.\n                ref: f25\n            perl-Tangerine:\n                rationale:
+        Provides API for this module and is a dependency of tangerine.\n                ref:
+        f25\n            tangerine:\n                rationale: Provides API for this
+        module.\n                buildorder: 10\n                ref: f25","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20170104132430","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20170104132430","koji_tag":"module-testmodule-master-20170104132430","modulemd":"document:
+        modulemd\nversion: 1\ndata:\n    summary: A test module in all its beautiful
+        beauty\n    description: This module demonstrates how to write simple modulemd
+        files And can be used for testing the build and release pipeline.\n    license:\n        module:
+        [ MIT ]\n    dependencies:\n        buildrequires:\n            base-runtime:
+        master\n        requires:\n            base-runtime: master\n    references:\n        community:
+        https://fedoraproject.org/wiki/Modularity\n        documentation: https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules\n        tracker:
+        https://taiga.fedorainfracloud.org/project/modularity\n    profiles:\n        default:\n            rpms:\n                -
+        tangerine\n    api:\n        rpms:\n            - perl-Tangerine\n            -
+        tangerine\n    components:\n        rpms:\n            perl-List-Compare:\n                rationale:
+        A dependency of tangerine.\n                ref: f25\n            perl-Tangerine:\n                rationale:
+        Provides API for this module and is a dependency of tangerine.\n                ref:
+        f25\n            tangerine:\n                rationale: Provides API for this
+        module.\n                buildorder: 10\n                ref: f25","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20170104133014","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20170104133014","koji_tag":"module-testmodule-master-20170104133014","modulemd":"document:
+        modulemd\nversion: 1\ndata:\n    summary: A test module in all its beautiful
+        beauty\n    description: This module demonstrates how to write simple modulemd
+        files And can be used for testing the build and release pipeline.\n    license:\n        module:
+        [ MIT ]\n    dependencies:\n        buildrequires:\n            base-runtime:
+        master\n        requires:\n            base-runtime: master\n    references:\n        community:
+        https://fedoraproject.org/wiki/Modularity\n        documentation: https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules\n        tracker:
+        https://taiga.fedorainfracloud.org/project/modularity\n    profiles:\n        default:\n            rpms:\n                -
+        tangerine\n    api:\n        rpms:\n            - perl-Tangerine\n            -
+        tangerine\n    components:\n        rpms:\n            perl-List-Compare:\n                rationale:
+        A dependency of tangerine.\n                ref: f25\n            perl-Tangerine:\n                rationale:
+        Provides API for this module and is a dependency of tangerine.\n                ref:
+        f25\n            tangerine:\n                rationale: Provides API for this
+        module.\n                buildorder: 10\n                ref: f25","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20170104133801","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20170104133801","koji_tag":"module-testmodule-master-20170104133801","modulemd":"document:
+        modulemd\nversion: 1\ndata:\n    summary: A test module in all its beautiful
+        beauty\n    description: This module demonstrates how to write simple modulemd
+        files And can be used for testing the build and release pipeline.\n    license:\n        module:
+        [ MIT ]\n    dependencies:\n        buildrequires:\n            base-runtime:
+        master\n        requires:\n            base-runtime: master\n    references:\n        community:
+        https://fedoraproject.org/wiki/Modularity\n        documentation: https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules\n        tracker:
+        https://taiga.fedorainfracloud.org/project/modularity\n    profiles:\n        default:\n            rpms:\n                -
+        tangerine\n    api:\n        rpms:\n            - perl-Tangerine\n            -
+        tangerine\n    components:\n        rpms:\n            perl-List-Compare:\n                rationale:
+        A dependency of tangerine.\n                ref: f25\n            perl-Tangerine:\n                rationale:
+        Provides API for this module and is a dependency of tangerine.\n                ref:
+        f25\n            tangerine:\n                rationale: Provides API for this
+        module.\n                buildorder: 10\n                ref: f25","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20170104134157","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20170104134157","koji_tag":"module-testmodule-master-20170104134157","modulemd":"document:
+        modulemd\nversion: 1\ndata:\n    summary: A test module in all its beautiful
+        beauty3\n    description: This module demonstrates how to write simple modulemd
+        files And can be used for testing the build and release pipeline.\n    license:\n        module:
+        [ MIT ]\n    dependencies:\n        buildrequires:\n            base-runtime:
+        master\n        requires:\n            base-runtime: master\n    references:\n        community:
+        https://fedoraproject.org/wiki/Modularity\n        documentation: https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules\n        tracker:
+        https://taiga.fedorainfracloud.org/project/modularity\n    profiles:\n        default:\n            rpms:\n                -
+        tangerine\n    api:\n        rpms:\n            - perl-Tangerine\n            -
+        tangerine\n    components:\n        rpms:\n            perl-List-Compare:\n                rationale:
+        A dependency of tangerine.\n                ref: f25\n            perl-Tangerine:\n                rationale:
+        Provides API for this module and is a dependency of tangerine.\n                ref:
+        f25\n            tangerine:\n                rationale: Provides API for this
+        module.\n                buildorder: 10\n                ref: f25","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20170104162810","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20170104162810","koji_tag":"module-testmodule-master-20170104162810","modulemd":"document:
+        modulemd\nversion: 1\ndata:\n    summary: A test module in all its beautiful
+        beauty5\n    description: This module demonstrates how to write simple modulemd
+        files And can be used for testing the build and release pipeline.\n    license:\n        module:
+        [ MIT ]\n    dependencies:\n        buildrequires:\n            base-runtime:
+        master\n        requires:\n            base-runtime: master\n    references:\n        community:
+        https://fedoraproject.org/wiki/Modularity\n        documentation: https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules\n        tracker:
+        https://taiga.fedorainfracloud.org/project/modularity\n    profiles:\n        default:\n            rpms:\n                -
+        tangerine\n    api:\n        rpms:\n            - perl-Tangerine\n            -
+        tangerine\n    components:\n        rpms:\n            perl-List-Compare:\n                rationale:
+        A dependency of tangerine.\n                ref: f25\n            perl-Tangerine:\n                rationale:
+        Provides API for this module and is a dependency of tangerine.\n                ref:
+        f25\n            tangerine:\n                rationale: Provides API for this
+        module.\n                buildorder: 10\n                ref: f25","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20170104163143","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20170104163143","koji_tag":"module-testmodule-master-20170104163143","modulemd":"document:
+        modulemd\nversion: 1\ndata:\n    summary: A test module in all its beautiful
+        beauty6\n    description: This module demonstrates how to write simple modulemd
+        files And can be used for testing the build and release pipeline.\n    license:\n        module:
+        [ MIT ]\n    dependencies:\n        buildrequires:\n            base-runtime:
+        master\n        requires:\n            base-runtime: master\n    references:\n        community:
+        https://fedoraproject.org/wiki/Modularity\n        documentation: https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules\n        tracker:
+        https://taiga.fedorainfracloud.org/project/modularity\n    profiles:\n        default:\n            rpms:\n                -
+        tangerine\n    api:\n        rpms:\n            - perl-Tangerine\n            -
+        tangerine\n    components:\n        rpms:\n            perl-List-Compare:\n                rationale:
+        A dependency of tangerine.\n                ref: f25\n            perl-Tangerine:\n                rationale:
+        Provides API for this module and is a dependency of tangerine.\n                ref:
+        f25\n            tangerine:\n                rationale: Provides API for this
+        module.\n                buildorder: 10\n                ref: f25","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20170104165352","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20170104165352","koji_tag":"module-testmodule-master-20170104165352","modulemd":"document:
+        modulemd\nversion: 1\ndata:\n    summary: A test module in all its beautiful
+        beauty7\n    description: This module demonstrates how to write simple modulemd
+        files And can be used for testing the build and release pipeline.\n    license:\n        module:
+        [ MIT ]\n    dependencies:\n        buildrequires:\n            base-runtime:
+        master\n        requires:\n            base-runtime: master\n    references:\n        community:
+        https://fedoraproject.org/wiki/Modularity\n        documentation: https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules\n        tracker:
+        https://taiga.fedorainfracloud.org/project/modularity\n    profiles:\n        default:\n            rpms:\n                -
+        tangerine\n    api:\n        rpms:\n            - perl-Tangerine\n            -
+        tangerine\n    components:\n        rpms:\n            perl-List-Compare:\n                rationale:
+        A dependency of tangerine.\n                ref: f25\n            perl-Tangerine:\n                rationale:
+        Provides API for this module and is a dependency of tangerine.\n                ref:
+        f25\n            tangerine:\n                rationale: Provides API for this
+        module.\n                buildorder: 10\n                ref: f25","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20170105084017","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20170105084017","koji_tag":"module-testmodule-master-20170105084017","modulemd":"document:
+        modulemd\nversion: 1\ndata:\n    summary: A test module in all its beautiful
+        beauty\n    description: This module demonstrates how to write simple modulemd
+        files And can be used for testing the build and release pipeline.\n    license:\n        module:
+        [ MIT ]\n    dependencies:\n        buildrequires:\n            base-runtime:
+        master\n        requires:\n            base-runtime: master\n    references:\n        community:
+        https://fedoraproject.org/wiki/Modularity\n        documentation: https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules\n        tracker:
+        https://taiga.fedorainfracloud.org/project/modularity\n    profiles:\n        default:\n            rpms:\n                -
+        tangerine\n    api:\n        rpms:\n            - perl-Tangerine\n            -
+        tangerine\n    components:\n        rpms:\n            perl-List-Compare:\n                rationale:
+        A dependency of tangerine.\n                ref: f25\n            perl-Tangerine:\n                rationale:
+        Provides API for this module and is a dependency of tangerine.\n                ref:
+        f25\n            tangerine:\n                rationale: Provides API for this
+        module.\n                buildorder: 10\n                ref: f25","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20170105092008","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20170105092008","koji_tag":"module-testmodule-master-20170105092008","modulemd":"document:
+        modulemd\nversion: 1\ndata:\n    summary: A test module in all its beautiful
+        beauty\n    description: This module demonstrates how to write simple modulemd
+        files And can be used for testing the build and release pipeline.\n    license:\n        module:
+        [ MIT ]\n    dependencies:\n        buildrequires:\n            base-runtime:
+        master\n        requires:\n            base-runtime: master\n    references:\n        community:
+        https://fedoraproject.org/wiki/Modularity\n        documentation: https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules\n        tracker:
+        https://taiga.fedorainfracloud.org/project/modularity\n    profiles:\n        default:\n            rpms:\n                -
+        tangerine\n    api:\n        rpms:\n            - perl-Tangerine\n            -
+        tangerine\n    components:\n        rpms:\n            perl-List-Compare:\n                rationale:
+        A dependency of tangerine.\n                ref: f25\n            perl-Tangerine:\n                rationale:
+        Provides API for this module and is a dependency of tangerine.\n                ref:
+        f25\n            tangerine:\n                rationale: Provides API for this
+        module.\n                buildorder: 10\n                ref: f25","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20170105093127","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20170105093127","koji_tag":"module-testmodule-master-20170105093127","modulemd":"document:
+        modulemd\nversion: 1\ndata:\n    summary: A test module in all its beautiful
+        beauty\n    description: This module demonstrates how to write simple modulemd
+        files And can be used for testing the build and release pipeline.\n    license:\n        module:
+        [ MIT ]\n    dependencies:\n        buildrequires:\n            base-runtime:
+        master\n        requires:\n            base-runtime: master\n    references:\n        community:
+        https://fedoraproject.org/wiki/Modularity\n        documentation: https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules\n        tracker:
+        https://taiga.fedorainfracloud.org/project/modularity\n    profiles:\n        default:\n            rpms:\n                -
+        tangerine\n    api:\n        rpms:\n            - perl-Tangerine\n            -
+        tangerine\n    components:\n        rpms:\n            perl-List-Compare:\n                rationale:
+        A dependency of tangerine.\n                ref: f25\n            perl-Tangerine:\n                rationale:
+        Provides API for this module and is a dependency of tangerine.\n                ref:
+        f25\n            tangerine:\n                rationale: Provides API for this
+        module.\n                buildorder: 10\n                ref: f25","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20170105095103","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20170105095103","koji_tag":"module-testmodule-master-20170105095103","modulemd":"document:
+        modulemd\nversion: 1\ndata:\n    summary: A test module in all its beautiful
+        beauty\n    description: This module demonstrates how to write simple modulemd
+        files And can be used for testing the build and release pipeline.\n    license:\n        module:
+        [ MIT ]\n    dependencies:\n        buildrequires:\n            base-runtime:
+        master\n        requires:\n            base-runtime: master\n    references:\n        community:
+        https://fedoraproject.org/wiki/Modularity\n        documentation: https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules\n        tracker:
+        https://taiga.fedorainfracloud.org/project/modularity\n    profiles:\n        default:\n            rpms:\n                -
+        tangerine\n    api:\n        rpms:\n            - perl-Tangerine\n            -
+        tangerine\n    components:\n        rpms:\n            perl-List-Compare:\n                rationale:
+        A dependency of tangerine.\n                ref: f25\n            perl-Tangerine:\n                rationale:
+        Provides API for this module and is a dependency of tangerine.\n                ref:
+        f25\n            tangerine:\n                rationale: Provides API for this
+        module.\n                buildorder: 10\n                ref: f25","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20170105135335","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20170105135335","koji_tag":"module-testmodule-master-20170105135335","modulemd":"document:
+        modulemd\nversion: 1\ndata:\n    summary: A test module in all its beautiful
+        beauty\n    description: This module demonstrates how to write simple modulemd
+        files And can be used for testing the build and release pipeline.\n    license:\n        module:
+        [ MIT ]\n    dependencies:\n        buildrequires:\n            base-runtime:
+        master\n        requires:\n            base-runtime: master\n    references:\n        community:
+        https://fedoraproject.org/wiki/Modularity\n        documentation: https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules\n        tracker:
+        https://taiga.fedorainfracloud.org/project/modularity\n    profiles:\n        default:\n            rpms:\n                -
+        tangerine\n    api:\n        rpms:\n            - perl-Tangerine\n            -
+        tangerine\n    components:\n        rpms:\n            perl-List-Compare:\n                rationale:
+        A dependency of tangerine.\n                ref: f25\n            perl-Tangerine:\n                rationale:
+        Provides API for this module and is a dependency of tangerine.\n                ref:
+        f25\n            tangerine:\n                rationale: Provides API for this
+        module.\n                buildorder: 10\n                ref: f25","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20170105135736","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20170105135736","koji_tag":"module-testmodule-master-20170105135736","modulemd":"document:
+        modulemd\nversion: 1\ndata:\n    summary: A test module in all its beautiful
+        beauty\n    description: This module demonstrates how to write simple modulemd
+        files And can be used for testing the build and release pipeline.\n    license:\n        module:
+        [ MIT ]\n    dependencies:\n        buildrequires:\n            base-runtime:
+        master\n        requires:\n            base-runtime: master\n    references:\n        community:
+        https://fedoraproject.org/wiki/Modularity\n        documentation: https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules\n        tracker:
+        https://taiga.fedorainfracloud.org/project/modularity\n    profiles:\n        default:\n            rpms:\n                -
+        tangerine\n    api:\n        rpms:\n            - perl-Tangerine\n            -
+        tangerine\n    components:\n        rpms:\n            perl-List-Compare:\n                rationale:
+        A dependency of tangerine.\n                ref: f25\n            perl-Tangerine:\n                rationale:
+        Provides API for this module and is a dependency of tangerine.\n                ref:
+        f25\n            tangerine:\n                rationale: Provides API for this
+        module.\n                buildorder: 10\n                ref: f25","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20170105140524","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20170105140524","koji_tag":"module-testmodule-master-20170105140524","modulemd":"document:
+        modulemd\nversion: 1\ndata:\n    summary: A test module in all its beautiful
+        beauty\n    description: This module demonstrates how to write simple modulemd
+        files And can be used for testing the build and release pipeline.\n    license:\n        module:
+        [ MIT ]\n    dependencies:\n        buildrequires:\n            base-runtime:
+        master\n        requires:\n            base-runtime: master\n    references:\n        community:
+        https://fedoraproject.org/wiki/Modularity\n        documentation: https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules\n        tracker:
+        https://taiga.fedorainfracloud.org/project/modularity\n    profiles:\n        default:\n            rpms:\n                -
+        tangerine\n    api:\n        rpms:\n            - perl-Tangerine\n            -
+        tangerine\n    components:\n        rpms:\n            perl-List-Compare:\n                rationale:
+        A dependency of tangerine.\n                ref: f25\n            perl-Tangerine:\n                rationale:
+        Provides API for this module and is a dependency of tangerine.\n                ref:
+        f25\n            tangerine:\n                rationale: Provides API for this
+        module.\n                buildorder: 10\n                ref: f25","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20170109084224","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20170109084224","koji_tag":"module-testmodule-master-20170109084224","modulemd":"document:
+        modulemd\nversion: 1\ndata:\n    summary: A trst module in all its beautiful
+        beauty\n    description: This module demonstrates how to write simple modulemd
+        files And can be used for testing the build and release pipeline.\n    license:\n        module:
+        [ MIT ]\n    dependencies:\n        buildrequires:\n            base-runtime:
+        master\n        requires:\n            base-runtime: master\n    references:\n        community:
+        https://fedoraproject.org/wiki/Modularity\n        documentation: https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules\n        tracker:
+        https://taiga.fedorainfracloud.org/project/modularity\n    profiles:\n        default:\n            rpms:\n                -
+        tangerine\n    api:\n        rpms:\n            - perl-Tangerine\n            -
+        tangerine\n    components:\n        rpms:\n            perl-List-Compare:\n                rationale:
+        A dependency of tangerine.\n                ref: f25\n            perl-Tangerine:\n                rationale:
+        Provides API for this module and is a dependency of tangerine.\n                ref:
+        f25\n            tangerine:\n                rationale: Provides API for this
+        module.\n                buildorder: 10\n                ref: f25","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20170109084937","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20170109084937","koji_tag":"module-testmodule-master-20170109084937","modulemd":"document:
+        modulemd\nversion: 1\ndata:\n    summary: A tryt module in all its beautiful
+        beauty\n    description: This module demonstrates how to write simple modulemd
+        files And can be used for testing the build and release pipeline.\n    license:\n        module:
+        [ MIT ]\n    dependencies:\n        buildrequires:\n            base-runtime:
+        master\n        requires:\n            base-runtime: master\n    references:\n        community:
+        https://fedoraproject.org/wiki/Modularity\n        documentation: https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules\n        tracker:
+        https://taiga.fedorainfracloud.org/project/modularity\n    profiles:\n        default:\n            rpms:\n                -
+        tangerine\n    api:\n        rpms:\n            - perl-Tangerine\n            -
+        tangerine\n    components:\n        rpms:\n            perl-List-Compare:\n                rationale:
+        A dependency of tangerine.\n                ref: f25\n            perl-Tangerine:\n                rationale:
+        Provides API for this module and is a dependency of tangerine.\n                ref:
+        f25\n            tangerine:\n                rationale: Provides API for this
+        module.\n                buildorder: 10\n                ref: f25","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20170109085242","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20170109085242","koji_tag":"module-testmodule-master-20170109085242","modulemd":"document:
+        modulemd\nversion: 1\ndata:\n    summary: A trst module in all its beautiful
+        beauty\n    description: This module demonstrates how to write simple modulemd
+        files And can be used for testing the build and release pipeline.\n    license:\n        module:
+        [ MIT ]\n    dependencies:\n        buildrequires:\n            base-runtime:
+        master\n        requires:\n            base-runtime: master\n    references:\n        community:
+        https://fedoraproject.org/wiki/Modularity\n        documentation: https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules\n        tracker:
+        https://taiga.fedorainfracloud.org/project/modularity\n    profiles:\n        default:\n            rpms:\n                -
+        tangerine\n    api:\n        rpms:\n            - perl-Tangerine\n            -
+        tangerine\n    components:\n        rpms:\n            perl-List-Compare:\n                rationale:
+        A dependency of tangerine.\n                ref: f25\n            perl-Tangerine:\n                rationale:
+        Provides API for this module and is a dependency of tangerine.\n                ref:
+        f25\n            tangerine:\n                rationale: Provides API for this
+        module.\n                buildorder: 10\n                ref: f25","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20170109085507","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20170109085507","koji_tag":"module-testmodule-master-20170109085507","modulemd":"document:
+        modulemd\nversion: 1\ndata:\n    summary: A trrt module in all its beautiful
+        beauty\n    description: This module demonstrates how to write simple modulemd
+        files And can be used for testing the build and release pipeline.\n    license:\n        module:
+        [ MIT ]\n    dependencies:\n        buildrequires:\n            base-runtime:
+        master\n        requires:\n            base-runtime: master\n    references:\n        community:
+        https://fedoraproject.org/wiki/Modularity\n        documentation: https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules\n        tracker:
+        https://taiga.fedorainfracloud.org/project/modularity\n    profiles:\n        default:\n            rpms:\n                -
+        tangerine\n    api:\n        rpms:\n            - perl-Tangerine\n            -
+        tangerine\n    components:\n        rpms:\n            perl-List-Compare:\n                rationale:
+        A dependency of tangerine.\n                ref: f25\n            perl-Tangerine:\n                rationale:
+        Provides API for this module and is a dependency of tangerine.\n                ref:
+        f25\n            tangerine:\n                rationale: Provides API for this
+        module.\n                buildorder: 10\n                ref: f25","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20170109090420","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20170109090420","koji_tag":"module-testmodule-master-20170109090420","modulemd":"data:\n  api:\n    rpms:
+        [tangerine, perl-Tangerine]\n  components:\n    rpms:\n      perl-List-Compare:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-List-Compare'',\n        rationale:
+        A dependency of tangerine., ref: 76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/perl-List-Compare''}\n      perl-Tangerine:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-Tangerine'',\n        rationale:
+        Provides API for this module and is a dependency of tangerine.,\n        ref:
+        4ceea43add2366d8b8c5a622a2fb563b625b9abf, repository: ''git://pkgs.fedoraproject.org/rpms/perl-Tangerine''}\n      tangerine:
+        {buildorder: 10, cache: ''http://pkgs.fedoraproject.org/repo/pkgs/tangerine'',\n        rationale:
+        Provides API for this module., ref: fbed359411a1baa08d4a88e0d12d426fbf8f602c,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/tangerine''}\n  dependencies:\n    buildrequires:
+        {base-runtime: master}\n    requires: {base-runtime: master}\n  description:
+        This module demonstrates how to write simple modulemd files And can\n    be
+        used for testing the build and release pipeline.\n  filter: {}\n  license:\n    module:
+        [MIT]\n  name: testmodule\n  profiles:\n    default:\n      rpms: [tangerine]\n  references:
+        {community: ''https://fedoraproject.org/wiki/Modularity'', documentation:
+        ''https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules'',\n    tracker:
+        ''https://taiga.fedorainfracloud.org/project/modularity''}\n  stream: master\n  summary:
+        A trst module in all its beautiful beauty\n  version: 20170109090420\ndocument:
+        modulemd\nversion: 1","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20170109091357","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20170109091357","koji_tag":"module-testmodule-master-20170109091357","modulemd":"data:\n  api:\n    rpms:
+        [tangerine, perl-Tangerine]\n  components:\n    rpms:\n      perl-List-Compare:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-List-Compare'',\n        rationale:
+        A dependency of tangerine., ref: 76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/perl-List-Compare''}\n      perl-Tangerine:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-Tangerine'',\n        rationale:
+        Provides API for this module and is a dependency of tangerine.,\n        ref:
+        4ceea43add2366d8b8c5a622a2fb563b625b9abf, repository: ''git://pkgs.fedoraproject.org/rpms/perl-Tangerine''}\n      tangerine:
+        {buildorder: 10, cache: ''http://pkgs.fedoraproject.org/repo/pkgs/tangerine'',\n        rationale:
+        Provides API for this module., ref: fbed359411a1baa08d4a88e0d12d426fbf8f602c,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/tangerine''}\n  dependencies:\n    buildrequires:
+        {base-runtime: master}\n    requires: {base-runtime: master}\n  description:
+        This module demonstrates how to write simple modulemd files And can\n    be
+        used for testing the build and release pipeline.\n  filter: {}\n  license:\n    module:
+        [MIT]\n  name: testmodule\n  profiles:\n    default:\n      rpms: [tangerine]\n  references:
+        {community: ''https://fedoraproject.org/wiki/Modularity'', documentation:
+        ''https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules'',\n    tracker:
+        ''https://taiga.fedorainfracloud.org/project/modularity''}\n  stream: master\n  summary:
+        A test module in all its beautiful beauty\n  version: 20170109091357\ndocument:
+        modulemd\nversion: 1","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20170111114712","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20170111114712","koji_tag":"module-testmodule-master-20170111114712","modulemd":"data:\n  api:\n    rpms:
+        [tangerine, perl-Tangerine]\n  components:\n    rpms:\n      perl-List-Compare:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-List-Compare'',\n        rationale:
+        A dependency of tangerine., ref: 76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/perl-List-Compare''}\n      perl-Tangerine:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-Tangerine'',\n        rationale:
+        Provides API for this module and is a dependency of tangerine.,\n        ref:
+        4ceea43add2366d8b8c5a622a2fb563b625b9abf, repository: ''git://pkgs.fedoraproject.org/rpms/perl-Tangerine''}\n      tangerine:
+        {buildorder: 10, cache: ''http://pkgs.fedoraproject.org/repo/pkgs/tangerine'',\n        rationale:
+        Provides API for this module., ref: fbed359411a1baa08d4a88e0d12d426fbf8f602c,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/tangerine''}\n  dependencies:\n    buildrequires:
+        {base-runtime: master}\n    requires: {base-runtime: master}\n  description:
+        This module demonstrates how to write simple modulemd files And can\n    be
+        used for testing the build and release pipeline.\n  filter: {}\n  license:\n    module:
+        [MIT]\n  name: testmodule\n  profiles:\n    default:\n      rpms: [tangerine]\n  references:
+        {community: ''https://fedoraproject.org/wiki/Modularity'', documentation:
+        ''https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules'',\n    tracker:
+        ''https://taiga.fedorainfracloud.org/project/modularity''}\n  stream: master\n  summary:
+        A test module in all its beautiful beauty 2017-01-01 12:45\n  version: 20170111114712\ndocument:
+        modulemd\nversion: 1","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20170113165607","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20170113165607","koji_tag":"module-testmodule-master-20170113165607","modulemd":"data:\n  api:\n    rpms:
+        [tangerine, perl-Tangerine]\n  components:\n    rpms:\n      perl-List-Compare:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-List-Compare'',\n        rationale:
+        A dependency of tangerine., ref: 76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/perl-List-Compare''}\n      perl-Tangerine:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-Tangerine'',\n        rationale:
+        Provides API for this module and is a dependency of tangerine.,\n        ref:
+        4ceea43add2366d8b8c5a622a2fb563b625b9abf, repository: ''git://pkgs.fedoraproject.org/rpms/perl-Tangerine''}\n      tangerine:
+        {buildorder: 10, cache: ''http://pkgs.fedoraproject.org/repo/pkgs/tangerine'',\n        rationale:
+        Provides API for this module., ref: fbed359411a1baa08d4a88e0d12d426fbf8f602c,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/tangerine''}\n  dependencies:\n    buildrequires:
+        {base-runtime: master}\n    requires: {base-runtime: master}\n  description:
+        This module demonstrates how to write simple modulemd files And can\n    be
+        used for testing the build and release pipeline.\n  filter: {}\n  license:\n    module:
+        [MIT]\n  name: testmodule\n  profiles:\n    default:\n      rpms: [tangerine]\n  references:
+        {community: ''https://fedoraproject.org/wiki/Modularity'', documentation:
+        ''https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules'',\n    tracker:
+        ''https://taiga.fedorainfracloud.org/project/modularity''}\n  stream: master\n  summary:
+        A test module in all its beautiful beauty 2017-01-13 02\n  version: 20170113165607\ndocument:
+        modulemd\nversion: 1","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20170117105847","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20170117105847","koji_tag":"module-testmodule-master-20170117105847","modulemd":"data:\n  api:\n    rpms:
+        [tangerine, perl-Tangerine]\n  components:\n    rpms:\n      perl-List-Compare:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-List-Compare'',\n        rationale:
+        A dependency of tangerine., ref: 76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/perl-List-Compare''}\n      perl-Tangerine:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-Tangerine'',\n        rationale:
+        Provides API for this module and is a dependency of tangerine.,\n        ref:
+        4ceea43add2366d8b8c5a622a2fb563b625b9abf, repository: ''git://pkgs.fedoraproject.org/rpms/perl-Tangerine''}\n      tangerine:
+        {buildorder: 10, cache: ''http://pkgs.fedoraproject.org/repo/pkgs/tangerine'',\n        rationale:
+        Provides API for this module., ref: fbed359411a1baa08d4a88e0d12d426fbf8f602c,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/tangerine''}\n  dependencies:\n    buildrequires:
+        {base-runtime: master}\n    requires: {base-runtime: master}\n  description:
+        This module demonstrates how to write simple modulemd files And can\n    be
+        used for testing the build and release pipeline.\n  filter: {}\n  license:\n    module:
+        [MIT]\n  name: testmodule\n  profiles:\n    default:\n      rpms: [tangerine]\n  references:
+        {community: ''https://fedoraproject.org/wiki/Modularity'', documentation:
+        ''https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules'',\n    tracker:
+        ''https://taiga.fedorainfracloud.org/project/modularity''}\n  stream: master\n  summary:
+        A test module in all its beautiful beauty 2017-01-17\n  version: 20170117105847\ndocument:
+        modulemd\nversion: 1","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20170117132535","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20170117132535","koji_tag":"module-testmodule-master-20170117132535","modulemd":"data:\n  api:\n    rpms:
+        [tangerine, perl-Tangerine]\n  components:\n    rpms:\n      perl-List-Compare:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-List-Compare'',\n        rationale:
+        A dependency of tangerine., ref: 76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/perl-List-Compare''}\n      perl-Tangerine:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-Tangerine'',\n        rationale:
+        Provides API for this module and is a dependency of tangerine.,\n        ref:
+        4ceea43add2366d8b8c5a622a2fb563b625b9abf, repository: ''git://pkgs.fedoraproject.org/rpms/perl-Tangerine''}\n      tangerine:
+        {buildorder: 10, cache: ''http://pkgs.fedoraproject.org/repo/pkgs/tangerine'',\n        rationale:
+        Provides API for this module., ref: fbed359411a1baa08d4a88e0d12d426fbf8f602c,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/tangerine''}\n  dependencies:\n    buildrequires:
+        {base-runtime: master}\n    requires: {base-runtime: master}\n  description:
+        This module demonstrates how to write simple modulemd files And can\n    be
+        used for testing the build and release pipeline.\n  filter: {}\n  license:\n    module:
+        [MIT]\n  name: testmodule\n  profiles:\n    default:\n      rpms: [tangerine]\n  references:
+        {community: ''https://fedoraproject.org/wiki/Modularity'', documentation:
+        ''https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules'',\n    tracker:
+        ''https://taiga.fedorainfracloud.org/project/modularity''}\n  stream: master\n  summary:
+        A test module in all its beautiful beauty 2017-01-17 02\n  version: 20170117132535\ndocument:
+        modulemd\nversion: 1","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20170118171227","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20170118171227","koji_tag":"module-testmodule-master-20170118171227","modulemd":"data:\n  api:\n    rpms:
+        [tangerine, perl-Tangerine]\n  components:\n    rpms:\n      perl-List-Compare:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-List-Compare'',\n        rationale:
+        A dependency of tangerine., ref: 76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/perl-List-Compare''}\n      perl-Tangerine:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-Tangerine'',\n        rationale:
+        Provides API for this module and is a dependency of tangerine.,\n        ref:
+        4ceea43add2366d8b8c5a622a2fb563b625b9abf, repository: ''git://pkgs.fedoraproject.org/rpms/perl-Tangerine''}\n      tangerine:
+        {buildorder: 10, cache: ''http://pkgs.fedoraproject.org/repo/pkgs/tangerine'',\n        rationale:
+        Provides API for this module., ref: fbed359411a1baa08d4a88e0d12d426fbf8f602c,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/tangerine''}\n  dependencies:\n    buildrequires:
+        {base-runtime: master}\n    requires: {base-runtime: master}\n  description:
+        This module demonstrates how to write simple modulemd files And can\n    be
+        used for testing the build and release pipeline.\n  filter: {}\n  license:\n    module:
+        [MIT]\n  name: testmodule\n  profiles:\n    default:\n      rpms: [tangerine]\n  references:
+        {community: ''https://fedoraproject.org/wiki/Modularity'', documentation:
+        ''https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules'',\n    tracker:
+        ''https://taiga.fedorainfracloud.org/project/modularity''}\n  stream: master\n  summary:
+        A test module in all its beautiful beauty.\n  version: 20170118171227\n  xmd:\n    mbs:\n      buildrequires:\n        base-runtime:
+        {ref: ae993ba84f4bce554471382ccba917ef16265f11, stream: master,\n          version:
+        ''3''}\n      commit: 55f4a0a2e6cc255c88712a905157ab39315b8fd8\n      scmurl:
+        git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#55f4a0a2e6cc255c88712a905157ab39315b8fd8\ndocument:
+        modulemd\nversion: 1","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20170118172054","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20170118172054","koji_tag":"module-testmodule-master-20170118172054","modulemd":"data:\n  api:\n    rpms:
+        [tangerine, perl-Tangerine]\n  components:\n    rpms:\n      perl-List-Compare:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-List-Compare'',\n        rationale:
+        A dependency of tangerine., ref: 76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/perl-List-Compare''}\n      perl-Tangerine:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-Tangerine'',\n        rationale:
+        Provides API for this module and is a dependency of tangerine.,\n        ref:
+        4ceea43add2366d8b8c5a622a2fb563b625b9abf, repository: ''git://pkgs.fedoraproject.org/rpms/perl-Tangerine''}\n      tangerine:
+        {buildorder: 10, cache: ''http://pkgs.fedoraproject.org/repo/pkgs/tangerine'',\n        rationale:
+        Provides API for this module., ref: fbed359411a1baa08d4a88e0d12d426fbf8f602c,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/tangerine''}\n  dependencies:\n    buildrequires:
+        {base-runtime: master}\n    requires: {base-runtime: master}\n  description:
+        This module demonstrates how to write simple modulemd files And can\n    be
+        used for testing the build and release pipeline.\n  filter: {}\n  license:\n    module:
+        [MIT]\n  name: testmodule\n  profiles:\n    default:\n      rpms: [tangerine]\n  references:
+        {community: ''https://fedoraproject.org/wiki/Modularity'', documentation:
+        ''https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules'',\n    tracker:
+        ''https://taiga.fedorainfracloud.org/project/modularity''}\n  stream: master\n  summary:
+        A test module in all its beautiful beauty\n  version: 20170118172054\n  xmd:\n    mbs:\n      buildrequires:\n        base-runtime:
+        {ref: ae993ba84f4bce554471382ccba917ef16265f11, stream: master,\n          version:
+        ''3''}\n      commit: 14a4381f0677c24a8395df76b432369e3f617831\n      scmurl:
+        git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#14a4381f0677c24a8395df76b432369e3f617831\ndocument:
+        modulemd\nversion: 1","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20170118172436","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20170118172436","koji_tag":"module-testmodule-master-20170118172436","modulemd":"data:\n  api:\n    rpms:
+        [tangerine, perl-Tangerine]\n  components:\n    rpms:\n      perl-List-Compare:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-List-Compare'',\n        rationale:
+        A dependency of tangerine., ref: 76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/perl-List-Compare''}\n      perl-Tangerine:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-Tangerine'',\n        rationale:
+        Provides API for this module and is a dependency of tangerine.,\n        ref:
+        4ceea43add2366d8b8c5a622a2fb563b625b9abf, repository: ''git://pkgs.fedoraproject.org/rpms/perl-Tangerine''}\n      tangerine:
+        {buildorder: 10, cache: ''http://pkgs.fedoraproject.org/repo/pkgs/tangerine'',\n        rationale:
+        Provides API for this module., ref: fbed359411a1baa08d4a88e0d12d426fbf8f602c,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/tangerine''}\n  dependencies:\n    buildrequires:
+        {base-runtime: master}\n    requires: {base-runtime: master}\n  description:
+        This module demonstrates how to write simple modulemd files And can\n    be
+        used for testing the build and release pipeline.\n  filter: {}\n  license:\n    module:
+        [MIT]\n  name: testmodule\n  profiles:\n    default:\n      rpms: [tangerine]\n  references:
+        {community: ''https://fedoraproject.org/wiki/Modularity'', documentation:
+        ''https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules'',\n    tracker:
+        ''https://taiga.fedorainfracloud.org/project/modularity''}\n  stream: master\n  summary:
+        A test module in all its beautiful beauty.\n  version: 20170118172436\n  xmd:\n    mbs:\n      buildrequires:\n        base-runtime:
+        {ref: ae993ba84f4bce554471382ccba917ef16265f11, stream: master,\n          version:
+        ''3''}\n      commit: 255100ae6111d422c5199da2861ee251574823e0\n      scmurl:
+        git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#255100ae6111d422c5199da2861ee251574823e0\ndocument:
+        modulemd\nversion: 1","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20170118173650","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20170118173650","koji_tag":"module-testmodule-master-20170118173650","modulemd":"data:\n  api:\n    rpms:
+        [tangerine, perl-Tangerine]\n  components:\n    rpms:\n      perl-List-Compare:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-List-Compare'',\n        rationale:
+        A dependency of tangerine., ref: 76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/perl-List-Compare''}\n      perl-Tangerine:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-Tangerine'',\n        rationale:
+        Provides API for this module and is a dependency of tangerine.,\n        ref:
+        4ceea43add2366d8b8c5a622a2fb563b625b9abf, repository: ''git://pkgs.fedoraproject.org/rpms/perl-Tangerine''}\n      tangerine:
+        {buildorder: 10, cache: ''http://pkgs.fedoraproject.org/repo/pkgs/tangerine'',\n        rationale:
+        Provides API for this module., ref: fbed359411a1baa08d4a88e0d12d426fbf8f602c,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/tangerine''}\n  dependencies:\n    buildrequires:
+        {base-runtime: master}\n    requires: {base-runtime: master}\n  description:
+        This module demonstrates how to write simple modulemd files And can\n    be
+        used for testing the build and release pipeline.\n  filter: {}\n  license:\n    module:
+        [MIT]\n  name: testmodule\n  profiles:\n    default:\n      rpms: [tangerine]\n  references:
+        {community: ''https://fedoraproject.org/wiki/Modularity'', documentation:
+        ''https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules'',\n    tracker:
+        ''https://taiga.fedorainfracloud.org/project/modularity''}\n  stream: master\n  summary:
+        A test module in all its beautiful beauty\n  version: 20170118173650\n  xmd:\n    mbs:\n      buildrequires:\n        base-runtime:
+        {ref: ae993ba84f4bce554471382ccba917ef16265f11, stream: master,\n          version:
+        ''3''}\n      commit: d8f947caf8f07873f57b7d4425c0d8e65b2caca2\n      scmurl:
+        git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#d8f947caf8f07873f57b7d4425c0d8e65b2caca2\ndocument:
+        modulemd\nversion: 1","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20170119014039","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20170119014039","koji_tag":"module-testmodule-master-20170119014039","modulemd":"data:\n  api:\n    rpms:
+        [tangerine, perl-Tangerine]\n  components:\n    rpms:\n      perl-List-Compare:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-List-Compare'',\n        rationale:
+        A dependency of tangerine., ref: 76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/perl-List-Compare''}\n      perl-Tangerine:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-Tangerine'',\n        rationale:
+        Provides API for this module and is a dependency of tangerine.,\n        ref:
+        4ceea43add2366d8b8c5a622a2fb563b625b9abf, repository: ''git://pkgs.fedoraproject.org/rpms/perl-Tangerine''}\n      tangerine:
+        {buildorder: 10, cache: ''http://pkgs.fedoraproject.org/repo/pkgs/tangerine'',\n        rationale:
+        Provides API for this module., ref: fbed359411a1baa08d4a88e0d12d426fbf8f602c,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/tangerine''}\n  dependencies:\n    buildrequires:
+        {base-runtime: master}\n    requires: {base-runtime: master}\n  description:
+        This module demonstrates how to write simple modulemd files And can\n    be
+        used for testing the build and release pipeline.\n  filter: {}\n  license:\n    module:
+        [MIT]\n  name: testmodule\n  profiles:\n    default:\n      rpms: [tangerine]\n  references:
+        {community: ''https://fedoraproject.org/wiki/Modularity'', documentation:
+        ''https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules'',\n    tracker:
+        ''https://taiga.fedorainfracloud.org/project/modularity''}\n  stream: master\n  summary:
+        A test module in all its beautiful beauty\n  version: 20170119014039\n  xmd:\n    mbs:\n      buildrequires:\n        base-runtime:
+        {ref: ae993ba84f4bce554471382ccba917ef16265f11, stream: master,\n          version:
+        ''3''}\n      commit: 6e93010df4fdfbae079a5a9d700ad7e3ce9798af\n      scmurl:
+        git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#6e93010\ndocument:
+        modulemd\nversion: 1","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20170119014604","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20170119014604","koji_tag":"module-testmodule-master-20170119014604","modulemd":"data:\n  api:\n    rpms:
+        [tangerine, perl-Tangerine]\n  components:\n    rpms:\n      perl-List-Compare:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-List-Compare'',\n        rationale:
+        A dependency of tangerine., ref: 76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/perl-List-Compare''}\n      perl-Tangerine:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-Tangerine'',\n        rationale:
+        Provides API for this module and is a dependency of tangerine.,\n        ref:
+        4ceea43add2366d8b8c5a622a2fb563b625b9abf, repository: ''git://pkgs.fedoraproject.org/rpms/perl-Tangerine''}\n      tangerine:
+        {buildorder: 10, cache: ''http://pkgs.fedoraproject.org/repo/pkgs/tangerine'',\n        rationale:
+        Provides API for this module., ref: fbed359411a1baa08d4a88e0d12d426fbf8f602c,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/tangerine''}\n  dependencies:\n    buildrequires:
+        {base-runtime: master}\n    requires: {base-runtime: master}\n  description:
+        This module demonstrates how to write simple modulemd files And can\n    be
+        used for testing the build and release pipeline.\n  filter: {}\n  license:\n    module:
+        [MIT]\n  name: testmodule\n  profiles:\n    default:\n      rpms: [tangerine]\n  references:
+        {community: ''https://fedoraproject.org/wiki/Modularity'', documentation:
+        ''https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules'',\n    tracker:
+        ''https://taiga.fedorainfracloud.org/project/modularity''}\n  stream: master\n  summary:
+        A test module in all its beautiful beauty.\n  version: 20170119014604\n  xmd:\n    mbs:\n      buildrequires:\n        base-runtime:
+        {ref: ae993ba84f4bce554471382ccba917ef16265f11, stream: master,\n          version:
+        ''3''}\n      commit: ac07f44e78e695fe14312280d444a636f0aec055\n      scmurl:
+        git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#ac07f44\ndocument:
+        modulemd\nversion: 1","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20170119015035","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20170119015035","koji_tag":"module-testmodule-master-20170119015035","modulemd":"data:\n  api:\n    rpms:
+        [tangerine, perl-Tangerine]\n  components:\n    rpms:\n      perl-List-Compare:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-List-Compare'',\n        rationale:
+        A dependency of tangerine., ref: 76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/perl-List-Compare''}\n      perl-Tangerine:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-Tangerine'',\n        rationale:
+        Provides API for this module and is a dependency of tangerine.,\n        ref:
+        4ceea43add2366d8b8c5a622a2fb563b625b9abf, repository: ''git://pkgs.fedoraproject.org/rpms/perl-Tangerine''}\n      tangerine:
+        {buildorder: 10, cache: ''http://pkgs.fedoraproject.org/repo/pkgs/tangerine'',\n        rationale:
+        Provides API for this module., ref: fbed359411a1baa08d4a88e0d12d426fbf8f602c,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/tangerine''}\n  dependencies:\n    buildrequires:
+        {base-runtime: master}\n    requires: {base-runtime: master}\n  description:
+        This module demonstrates how to write simple modulemd files And can\n    be
+        used for testing the build and release pipeline.\n  filter: {}\n  license:\n    module:
+        [MIT]\n  name: testmodule\n  profiles:\n    default:\n      rpms: [tangerine]\n  references:
+        {community: ''https://fedoraproject.org/wiki/Modularity'', documentation:
+        ''https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules'',\n    tracker:
+        ''https://taiga.fedorainfracloud.org/project/modularity''}\n  stream: master\n  summary:
+        A test module in all its beautiful beauty\n  version: 20170119015035\n  xmd:\n    mbs:\n      buildrequires:\n        base-runtime:
+        {ref: ae993ba84f4bce554471382ccba917ef16265f11, stream: master,\n          version:
+        ''3''}\n      commit: 720267ce405b9a7d003ee4005e4440b67f71b530\n      scmurl:
+        git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#720267ce405b9a7d003ee4005e4440b67f71b530\ndocument:
+        modulemd\nversion: 1","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20170119182327","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20170119182327","koji_tag":"module-testmodule-master-20170119182327","modulemd":"data:\n  api:\n    rpms:
+        [tangerine, perl-Tangerine]\n  components:\n    rpms:\n      perl-List-Compare:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-List-Compare'',\n        rationale:
+        A dependency of tangerine., ref: 76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/perl-List-Compare''}\n      perl-Tangerine:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-Tangerine'',\n        rationale:
+        Provides API for this module and is a dependency of tangerine.,\n        ref:
+        4ceea43add2366d8b8c5a622a2fb563b625b9abf, repository: ''git://pkgs.fedoraproject.org/rpms/perl-Tangerine''}\n      tangerine:
+        {buildorder: 10, cache: ''http://pkgs.fedoraproject.org/repo/pkgs/tangerine'',\n        rationale:
+        Provides API for this module., ref: fbed359411a1baa08d4a88e0d12d426fbf8f602c,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/tangerine''}\n  dependencies:\n    buildrequires:
+        {base-runtime: master}\n    requires: {base-runtime: master}\n  description:
+        This module demonstrates how to write simple modulemd files And can\n    be
+        used for testing the build and release pipeline.\n  filter: {}\n  license:\n    module:
+        [MIT]\n  name: testmodule\n  profiles:\n    default:\n      rpms: [tangerine]\n  references:
+        {community: ''https://fedoraproject.org/wiki/Modularity'', documentation:
+        ''https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules'',\n    tracker:
+        ''https://taiga.fedorainfracloud.org/project/modularity''}\n  stream: master\n  summary:
+        A test module in all its beautiful beauty.\n  version: 20170119182327\n  xmd:\n    mbs:\n      buildrequires:\n        base-runtime:
+        {ref: ae993ba84f4bce554471382ccba917ef16265f11, stream: master,\n          version:
+        ''3''}\n      commit: 2dd234018c65acac8bf69a7090692281965c9939\n      scmurl:
+        git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#2dd234018c65acac8bf69a7090692281965c9939\ndocument:
+        modulemd\nversion: 1","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20170123140147","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20170123140147","koji_tag":"module-testmodule-master-20170123140147","modulemd":"data:\n  api:\n    rpms:
+        [tangerine, perl-Tangerine]\n  components:\n    rpms:\n      perl-List-Compare:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-List-Compare'',\n        rationale:
+        A dependency of tangerine., ref: 76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/perl-List-Compare''}\n      perl-Tangerine:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-Tangerine'',\n        rationale:
+        Provides API for this module and is a dependency of tangerine.,\n        ref:
+        4ceea43add2366d8b8c5a622a2fb563b625b9abf, repository: ''git://pkgs.fedoraproject.org/rpms/perl-Tangerine''}\n      tangerine:
+        {buildorder: 10, cache: ''http://pkgs.fedoraproject.org/repo/pkgs/tangerine'',\n        rationale:
+        Provides API for this module., ref: fbed359411a1baa08d4a88e0d12d426fbf8f602c,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/tangerine''}\n  dependencies:\n    buildrequires:
+        {base-runtime: master}\n    requires: {base-runtime: master}\n  description:
+        This module demonstrates how to write simple modulemd files And can\n    be
+        used for testing the build and release pipeline.\n  filter: {}\n  license:\n    module:
+        [MIT]\n  name: testmodule\n  profiles:\n    default:\n      rpms: [tangerine]\n  references:
+        {community: ''https://fedoraproject.org/wiki/Modularity'', documentation:
+        ''https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules'',\n    tracker:
+        ''https://taiga.fedorainfracloud.org/project/modularity''}\n  stream: master\n  summary:
+        A test module in all its beautiful beauty 2017-01-23\n  version: 20170123140147\ndocument:
+        modulemd\nversion: 1","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20170213141103","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20170213141103","koji_tag":"module-testmodule-master-20170213141103","modulemd":"data:\n  api:\n    rpms:
+        [tangerine, perl-Tangerine]\n  components:\n    rpms:\n      perl-List-Compare:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-List-Compare'',\n        rationale:
+        A dependency of tangerine., ref: 76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/perl-List-Compare''}\n      perl-Tangerine:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-Tangerine'',\n        rationale:
+        Provides API for this module and is a dependency of tangerine.,\n        ref:
+        4ceea43add2366d8b8c5a622a2fb563b625b9abf, repository: ''git://pkgs.fedoraproject.org/rpms/perl-Tangerine''}\n      tangerine:
+        {buildorder: 10, cache: ''http://pkgs.fedoraproject.org/repo/pkgs/tangerine'',\n        rationale:
+        Provides API for this module., ref: fbed359411a1baa08d4a88e0d12d426fbf8f602c,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/tangerine''}\n  dependencies:\n    buildrequires:
+        {base-runtime: master}\n    requires: {base-runtime: master}\n  description:
+        This module demonstrates how to write simple modulemd files And can\n    be
+        used for testing the build and release pipeline.\n  filter: {}\n  license:\n    module:
+        [MIT]\n  name: testmodule\n  profiles:\n    default:\n      rpms: [tangerine]\n  references:
+        {community: ''https://fedoraproject.org/wiki/Modularity'', documentation:
+        ''https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules'',\n    tracker:
+        ''https://taiga.fedorainfracloud.org/project/modularity''}\n  stream: master\n  summary:
+        A test module in all its beautiful beauty\n  version: 20170213141103\n  xmd:\n    mbs:\n      buildrequires:\n        base-runtime:
+        {ref: ae993ba84f4bce554471382ccba917ef16265f11, stream: master,\n          version:
+        ''3''}\n      commit: a2c837e53269a044748605067932d69e9bde56b2\n      scmurl:
+        git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#a2c837e53269a044748605067932d69e9bde56b2\ndocument:
+        modulemd\nversion: 1","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20170215160217","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20170215160217","koji_tag":"module-testmodule-master-20170215160217","modulemd":"data:\n  api:\n    rpms:
+        [tangerine, perl-Tangerine]\n  components:\n    rpms:\n      perl-List-Compare:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-List-Compare'',\n        rationale:
+        A dependency of tangerine., ref: 76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/perl-List-Compare''}\n      perl-Tangerine:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-Tangerine'',\n        rationale:
+        Provides API for this module and is a dependency of tangerine.,\n        ref:
+        4ceea43add2366d8b8c5a622a2fb563b625b9abf, repository: ''git://pkgs.fedoraproject.org/rpms/perl-Tangerine''}\n      tangerine:
+        {buildorder: 10, cache: ''http://pkgs.fedoraproject.org/repo/pkgs/tangerine'',\n        rationale:
+        Provides API for this module., ref: fbed359411a1baa08d4a88e0d12d426fbf8f602c,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/tangerine''}\n  dependencies:\n    buildrequires:
+        {base-runtime: master}\n    requires: {base-runtime: master}\n  description:
+        This module demonstrates how to write simple modulemd files And can\n    be
+        used for testing the build and release pipeline.\n  filter: {}\n  license:\n    module:
+        [MIT]\n  name: testmodule\n  profiles:\n    default:\n      rpms: [tangerine]\n  references:
+        {community: ''https://fedoraproject.org/wiki/Modularity'', documentation:
+        ''https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules'',\n    tracker:
+        ''https://taiga.fedorainfracloud.org/project/modularity''}\n  stream: master\n  summary:
+        A test module in all its beautiful beauty 2017-02-15\n  version: 20170215160217\ndocument:
+        modulemd\nversion: 1","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20170222124627","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20170222124627","koji_tag":"module-testmodule-master-20170222124627","modulemd":"data:\n  api:\n    rpms:
+        [tangerine, perl-Tangerine]\n  components:\n    rpms:\n      perl-List-Compare:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-List-Compare'',\n        rationale:
+        A dependency of tangerine., ref: 76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/perl-List-Compare''}\n      perl-Tangerine:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-Tangerine'',\n        rationale:
+        Provides API for this module and is a dependency of tangerine.,\n        ref:
+        4ceea43add2366d8b8c5a622a2fb563b625b9abf, repository: ''git://pkgs.fedoraproject.org/rpms/perl-Tangerine''}\n      tangerine:
+        {buildorder: 10, cache: ''http://pkgs.fedoraproject.org/repo/pkgs/tangerine'',\n        rationale:
+        Provides API for this module., ref: fbed359411a1baa08d4a88e0d12d426fbf8f602c,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/tangerine''}\n  dependencies:\n    buildrequires:
+        {base-runtime: master}\n    requires: {base-runtime: master}\n  description:
+        This module demonstrates how to write simple modulemd files And can\n    be
+        used for testing the build and release pipeline.\n  filter: {}\n  license:\n    module:
+        [MIT]\n  name: testmodule\n  profiles:\n    default:\n      rpms: [tangerine]\n  references:
+        {community: ''https://fedoraproject.org/wiki/Modularity'', documentation:
+        ''https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules'',\n    tracker:
+        ''https://taiga.fedorainfracloud.org/project/modularity''}\n  stream: master\n  summary:
+        A test module in all its beautiful beauty 2017-02-22\n  version: 20170222124627\ndocument:
+        modulemd\nversion: 1","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20170223094601","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20170223094601","koji_tag":"module-testmodule-master-20170223094601","modulemd":"data:\n  api:\n    rpms:
+        [tangerine, perl-Tangerine]\n  components:\n    rpms:\n      perl-List-Compare:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-List-Compare'',\n        rationale:
+        A dependency of tangerine., ref: 76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/perl-List-Compare''}\n      perl-Tangerine:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-Tangerine'',\n        rationale:
+        Provides API for this module and is a dependency of tangerine.,\n        ref:
+        4ceea43add2366d8b8c5a622a2fb563b625b9abf, repository: ''git://pkgs.fedoraproject.org/rpms/perl-Tangerine''}\n      tangerine:
+        {buildorder: 10, cache: ''http://pkgs.fedoraproject.org/repo/pkgs/tangerine'',\n        rationale:
+        Provides API for this module., ref: fbed359411a1baa08d4a88e0d12d426fbf8f602c,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/tangerine''}\n  dependencies:\n    buildrequires:
+        {base-runtime: master}\n    requires: {base-runtime: master}\n  description:
+        This module demonstrates how to write simple modulemd files And can\n    be
+        used for testing the build and release pipeline.\n  filter: {}\n  license:\n    module:
+        [MIT]\n  name: testmodule\n  profiles:\n    default:\n      rpms: [tangerine]\n  references:
+        {community: ''https://fedoraproject.org/wiki/Modularity'', documentation:
+        ''https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules'',\n    tracker:
+        ''https://taiga.fedorainfracloud.org/project/modularity''}\n  stream: master\n  summary:
+        A test module in all its beautiful beauty 2017-02-23\n  version: 20170223094601\ndocument:
+        modulemd\nversion: 1","runtime_deps":[{"dependency":"base-runtime","stream":"master"}],"build_deps":[{"dependency":"base-runtime","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20170223123453","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20170223123453","koji_tag":"module-testmodule-master-20170223123453","modulemd":"data:\n  api:\n    rpms:
+        [tangerine, perl-Tangerine]\n  components:\n    rpms:\n      perl-List-Compare:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-List-Compare'',\n        rationale:
+        A dependency of tangerine., ref: 76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/perl-List-Compare''}\n      perl-Tangerine:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-Tangerine'',\n        rationale:
+        Provides API for this module and is a dependency of tangerine.,\n        ref:
+        4ceea43add2366d8b8c5a622a2fb563b625b9abf, repository: ''git://pkgs.fedoraproject.org/rpms/perl-Tangerine''}\n      tangerine:
+        {buildorder: 10, cache: ''http://pkgs.fedoraproject.org/repo/pkgs/tangerine'',\n        rationale:
+        Provides API for this module., ref: fbed359411a1baa08d4a88e0d12d426fbf8f602c,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/tangerine''}\n  dependencies:\n    buildrequires:
+        {bootstrap: master}\n    requires: {bootstrap: master}\n  description: This
+        module demonstrates how to write simple modulemd files And can\n    be used
+        for testing the build and release pipeline.\n  filter: {}\n  license:\n    module:
+        [MIT]\n  name: testmodule\n  profiles:\n    default:\n      rpms: [tangerine]\n  references:
+        {community: ''https://fedoraproject.org/wiki/Modularity'', documentation:
+        ''https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules'',\n    tracker:
+        ''https://taiga.fedorainfracloud.org/project/modularity''}\n  stream: master\n  summary:
+        A test module in all its beautiful beauty\n  version: 20170223123453\n  xmd:\n    mbs:\n      buildrequires:\n        bootstrap:
+        {ref: 4d12d3a40589fdb4e6f0ad19f8cc8dffc255f21e, stream: master,\n          version:
+        ''1''}\n      commit: 4cef8cb549990f094a05b0fff3f46f224462ddaf\n      scmurl:
+        git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#4cef8cb\ndocument:
+        modulemd\nversion: 1","runtime_deps":[{"dependency":"bootstrap","stream":"master"}],"build_deps":[{"dependency":"bootstrap","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20170228215102","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20170228215102","koji_tag":"module-testmodule-master-20170228215102","modulemd":"data:\n  api:\n    rpms:
+        [tangerine, perl-Tangerine]\n  components:\n    rpms:\n      perl-List-Compare:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-List-Compare'',\n        rationale:
+        A dependency of tangerine., ref: 76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/perl-List-Compare''}\n      perl-Tangerine:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-Tangerine'',\n        rationale:
+        Provides API for this module and is a dependency of tangerine.,\n        ref:
+        4ceea43add2366d8b8c5a622a2fb563b625b9abf, repository: ''git://pkgs.fedoraproject.org/rpms/perl-Tangerine''}\n      tangerine:
+        {buildorder: 10, cache: ''http://pkgs.fedoraproject.org/repo/pkgs/tangerine'',\n        rationale:
+        Provides API for this module., ref: fbed359411a1baa08d4a88e0d12d426fbf8f602c,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/tangerine''}\n  dependencies:\n    buildrequires:
+        {bootstrap: master}\n    requires: {bootstrap: master}\n  description: This
+        module demonstrates how to write simple modulemd files And can\n    be used
+        for testing the build and release pipeline.\n  filter: {}\n  license:\n    module:
+        [MIT]\n  name: testmodule\n  profiles:\n    default:\n      rpms: [tangerine]\n  references:
+        {community: ''https://fedoraproject.org/wiki/Modularity'', documentation:
+        ''https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules'',\n    tracker:
+        ''https://taiga.fedorainfracloud.org/project/modularity''}\n  stream: master\n  summary:
+        A test module in all its beautiful beauty.\n  version: 20170228215102\n  xmd:\n    mbs:\n      buildrequires:\n        bootstrap:
+        {ref: 4d12d3a40589fdb4e6f0ad19f8cc8dffc255f21e, stream: master,\n          version:
+        ''1''}\n      commit: 789dc7bedd98cf5b0a30092c06a5897f7f8aa675\n      scmurl:
+        git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#789dc7b\ndocument:
+        modulemd\nversion: 1","runtime_deps":[{"dependency":"bootstrap","stream":"master"}],"build_deps":[{"dependency":"bootstrap","stream":"master"}]}]'}
+    headers:
+      allow: ['GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS']
+      content-type: [application/json]
+      date: ['Thu, 02 Mar 2017 15:59:01 GMT']
+      server: [WSGIServer/0.1 Python/2.7.13]
+      set-cookie: ['csrftoken=CNYdjcp5WmAK9bgWrCO61h5yk1lmIbxX; expires=Thu, 01-Mar-2018
+          15:59:01 GMT; Max-Age=31449600; Path=/', 'sessionid=vhes9lbr9hqhvsd52v8nrsyjdpuda0ec;
+          expires=Thu, 16-Mar-2017 15:59:01 GMT; httponly; Max-Age=1209600; Path=/']
+      vary: ['Accept, Cookie']
+      x-frame-options: [SAMEORIGIN]
+    status: {code: 200, message: OK}
+version: 1
