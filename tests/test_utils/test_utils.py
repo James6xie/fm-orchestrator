@@ -169,6 +169,8 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(tangerine_rv, None)
 
     def test_validate_koji_tag_wrong_tag_arg_during_programming(self):
+        """ Test that we fail on a wrong param name (non-existing one) due to
+        programming error. """
 
         @module_build_service.utils.validate_koji_tag('wrong_tag_arg')
         def validate_koji_tag_programming_error(good_tag_arg, other_arg):
@@ -178,6 +180,7 @@ class TestUtils(unittest.TestCase):
             validate_koji_tag_programming_error('dummy', 'other_val')
 
     def test_validate_koji_tag_bad_tag_value(self):
+        """ Test that we fail on a bad tag value. """
 
         @module_build_service.utils.validate_koji_tag('tag_arg')
         def validate_koji_tag_bad_tag_value(tag_arg):
@@ -187,6 +190,7 @@ class TestUtils(unittest.TestCase):
             validate_koji_tag_bad_tag_value('forbiddentagprefix-foo')
 
     def test_validate_koji_tag_bad_tag_value_in_list(self):
+        """ Test that we fail on a list containing bad tag value. """
 
         @module_build_service.utils.validate_koji_tag('tag_arg')
         def validate_koji_tag_bad_tag_value_in_list(tag_arg):
@@ -197,6 +201,7 @@ class TestUtils(unittest.TestCase):
                 'module-foo', 'forbiddentagprefix-bar'])
 
     def test_validate_koji_tag_good_tag_value(self):
+        """ Test that we pass on a good tag value. """
 
         @module_build_service.utils.validate_koji_tag('tag_arg')
         def validate_koji_tag_good_tag_value(tag_arg):
@@ -206,6 +211,7 @@ class TestUtils(unittest.TestCase):
             validate_koji_tag_good_tag_value('module-foo'), True)
 
     def test_validate_koji_tag_good_tag_values_in_list(self):
+        """ Test that we pass on a list of good tag values. """
 
         @module_build_service.utils.validate_koji_tag('tag_arg')
         def validate_koji_tag_good_tag_values_in_list(tag_arg):
@@ -216,6 +222,8 @@ class TestUtils(unittest.TestCase):
                                                        'module-bar']), True)
 
     def test_validate_koji_tag_good_tag_value_in_dict(self):
+        """ Test that we pass on a dict arg with default key
+        and a good value. """
 
         @module_build_service.utils.validate_koji_tag('tag_arg')
         def validate_koji_tag_good_tag_value_in_dict(tag_arg):
@@ -225,6 +233,8 @@ class TestUtils(unittest.TestCase):
             validate_koji_tag_good_tag_value_in_dict({'name': 'module-foo'}), True)
 
     def test_validate_koji_tag_good_tag_value_in_dict_nondefault_key(self):
+        """ Test that we pass on a dict arg with non-default key
+        and a good value. """
 
         @module_build_service.utils.validate_koji_tag('tag_arg',
                                                       dict_key='nondefault')
@@ -256,3 +266,15 @@ class TestUtils(unittest.TestCase):
 
         with self.assertRaises(ValidationError):
             validate_koji_tag_double_trouble('module-1', 'BADNEWS-2')
+
+    def test_validate_koji_tag_is_None(self):
+        """ Test that we fail on a tag which is None. """
+
+        @module_build_service.utils.validate_koji_tag('tag_arg')
+        def validate_koji_tag_is_None(tag_arg):
+            pass
+
+        with self.assertRaises(ValidationError) as cm:
+            validate_koji_tag_is_None(None)
+
+        self.assertTrue(str(cm.exception).endswith(' No value provided.'))

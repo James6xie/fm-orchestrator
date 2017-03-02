@@ -786,8 +786,11 @@ def get_reusable_component(session, module, component_name):
 
 def validate_koji_tag(tag_arg_names, pre='', post='-', dict_key='name'):
     """
-    Used as a decorator validates koji tag arg value (which may be str or list)
+    Used as a decorator validates koji tag arg(s)' value(s)
     against configurable list of koji tag prefixes.
+    Supported arg value types are: dict, list, str
+
+    :param tag_arg_names: Str or list of parameters to validate.
     :param pre: Prepend this optional string (e.g. '.' in case of disttag
     validation) to each koji tag prefix.
     :param post: Append this string/delimiter ('-' by default) to each koji
@@ -803,26 +806,34 @@ def validate_koji_tag(tag_arg_names, pre='', post='-', dict_key='name'):
             call_args = inspect.getcallargs(function, *args, **kwargs)
 
             for tag_arg_name in tag_arg_names:
+                err_subject = "Koji tag validation:"
 
                 # If any of them don't appear in the function, then fail.
                 if tag_arg_name not in call_args:
                     raise ProgrammingError(
-                        'Koji tag validation: Inspected argument {} is not within function args.'
+                        '{} Inspected argument {} is not within function args.'
                         ' The function was: {}.'
-                        .format(tag_arg_name, function.__name__))
+                        .format(err_subject, tag_arg_name, function.__name__))
+
+                tag_arg_val = call_args[tag_arg_name]
+
+                # First, check that we have some value
+                if not tag_arg_val:
+                    raise ValidationError('{} Can not validate {}. No value provided.'
+                                          .format(err_subject, tag_arg_name))
 
                 # If any of them are a dict, then use the provided dict_key
-                if isinstance(call_args[tag_arg_name], dict):
-                    if dict_key not in call_args[tag_arg_name]:
+                if isinstance(tag_arg_val, dict):
+                    if dict_key not in tag_arg_val:
                         raise ProgrammingError(
-                            'Koji tag validation: Inspected dict arg {} does not contain {} key.'
+                            '{} Inspected dict arg {} does not contain {} key.'
                             ' The function was: {}.'
-                            .format(call_args[tag_arg_name], dict_key, function.__name__))
-                    tag_list = [call_args[tag_arg_name][dict_key]]
-                elif isinstance(call_args[tag_arg_name], list):
-                    tag_list = call_args[tag_arg_name]
+                            .format(err_subject, tag_arg_name, dict_key, function.__name__))
+                    tag_list = [tag_arg_val[dict_key]]
+                elif isinstance(tag_arg_val, list):
+                    tag_list = tag_arg_val
                 else:
-                    tag_list = [call_args[tag_arg_name]]
+                    tag_list = [tag_arg_val]
 
                 # Check to make sure the provided values match our whitelist.
                 for allowed_prefix in conf.koji_tag_prefixes:
