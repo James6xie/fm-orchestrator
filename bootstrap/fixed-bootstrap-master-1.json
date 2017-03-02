@@ -1,0 +1,12 @@
+{
+  "variant_uid": "bootstrap-master-1", 
+  "variant_release": "1", 
+  "build_deps": [], 
+  "variant_name": "bootstrap", 
+  "variant_type": "module", 
+  "modulemd": "data:\n  description: '...'\n  name: bootstrap\n  profiles:\n    buildroot:\n      rpms: [bash, bzip2, coreutils, cpio, diffutils, fedora-release, findutils, gawk,\n        gcc, gcc-c++, grep, gzip, info, make, patch, redhat-rpm-config, rpm-build,\n        sed, shadow-utils, tar, unzip, util-linux, which, xz]\n    srpm-buildroot:\n      rpms: [bash, fedora-release, fedpkg-minimal, gnupg2, redhat-rpm-config, rpm-build,\n        shadow-utils]\n  stream: master\n  summary: A fake bootstrap module, used to bootstrap the infrastructure.\n  version: 1\n  xmd:\n    mbs:\n      buildrequires:\n        bootstrap: {ref: ae993ba84f4bce554471382ccba917ef16265f11, stream: master,\n          version: 1}\n      commit: ae993ba84f4bce554471382ccba917ef16265f11\ndocument: modulemd\nversion: 1\n", 
+  "koji_tag": "f26-modularity", 
+  "runtime_deps": [], 
+  "variant_id": "bootstrap", 
+  "variant_version": "master"
+}
