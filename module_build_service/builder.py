@@ -518,9 +518,8 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
         log.info("%r buildroot sucessfully connected." % self)
 
     def buildroot_add_repos(self, dependencies):
-        tags = [self._get_tag("module-" + d)['name'] for d in dependencies]
-        log.info("%r adding deps on %r" % (self, tags))
-        self._koji_add_many_tag_inheritance(self.module_build_tag, tags)
+        log.info("%r adding deps on %r" % (self, dependencies))
+        self._koji_add_many_tag_inheritance(self.module_build_tag, dependencies)
 
     def buildroot_add_artifacts(self, artifacts, install=False):
         """
