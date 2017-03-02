@@ -31,6 +31,7 @@ import itertools
 import fedmsg.consumers
 import moksha.hub
 
+from module_build_service.errors import ValidationError
 from module_build_service.utils import module_build_state_from_msg
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.repos
@@ -167,13 +168,21 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
         log.debug('Received a message with an ID of "{0}" and of type "{1}"'
                   .format(getattr(msg, 'msg_id', None), type(msg).__name__))
 
+        # set module build to None and let's populate it later
+        build = None
+
         # Choose a handler for this message
         if type(msg) == module_build_service.messaging.KojiBuildChange:
             handler = self.on_build_change[msg.build_new_state]
+            build = models.ComponentBuild.from_component_event(session, msg)
+            if build:
+                build = build.module_build
         elif type(msg) == module_build_service.messaging.KojiRepoChange:
             handler = self.on_repo_change
+            build = models.ModuleBuild.from_repo_done_event(session, msg)
         elif type(msg) == module_build_service.messaging.MBSModule:
             handler = self.on_module_change[module_build_state_from_msg(msg)]
+            build = models.ModuleBuild.from_module_event(session, msg)
         else:
             log.debug("Unhandled message...")
             return
@@ -184,7 +193,20 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
             log.debug("Handler is NO_OP: %s" % idx)
         else:
             log.debug("Calling %s" % idx)
-            further_work = handler(conf, session, msg) or []
+            try:
+                if build:
+                    further_work = handler(conf, session, msg) or []
+                else:
+                    log.error("There's no module associated with message ID {}"
+                              .format(msg.msg_id))
+            except ValidationError as e:
+                if build:
+                    build.transition(conf, state=models.BUILD_STATES['failed'],
+                                     state_reason=str(e))
+                msg = 'Could not process message handler. See the traceback.'
+                log.exception(msg)
+                session.commit()
+
             log.debug("Done with %s" % idx)
 
             # Handlers can *optionally* return a list of fake messages that
