@@ -301,8 +301,11 @@ def module_depsolving_wrapper(session, modules, strict=True):
 
             # Take note of the tag of this module, but only if it is a dep and
             # not in the original list.
-            if module_dict not in original_modules:
-                module_tags.add(info['koji_tag'])
+            #if module_dict not in original_modules:
+            #    module_tags.add(info['koji_tag'])
+            # XXX - But, for now go ahead and include it because that's how this
+            # code used to work.
+            module_tags.add(info['koji_tag'])
 
             # Queue up the next tier of deps that we should look at..
             for pdc_dep in info['build_deps']:

@@ -57,7 +57,8 @@ class TestPDCModule(unittest.TestCase):
         result = mbs_pdc.module_depsolving_wrapper(self.pdc, query)
         expected = [
             u'module-bootstrap-master-1',
-            # The list of deps should not include the original tag.
-            #u'module-testmodule-master-20170228215102',
+            # Should the list of deps should not include the original tag?
+            # Probably not.
+            u'module-testmodule-master-20170228215102',
         ]
         self.assertEqual(result, expected)
