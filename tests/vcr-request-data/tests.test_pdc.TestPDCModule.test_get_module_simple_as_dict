@@ -13,7 +13,7 @@ interactions:
     body: {string: !!python/unicode ''}
     headers:
       content-type: [text/html; charset=utf-8]
-      date: ['Thu, 02 Mar 2017 15:59:01 GMT']
+      date: ['Thu, 02 Mar 2017 16:58:44 GMT']
       location: ['http://modularity.fedorainfracloud.org:8080/rest_api/v1/unreleasedvariants/?variant_version=master&page_size=-1&variant_id=testmodule']
       server: [WSGIServer/0.1 Python/2.7.13]
       x-frame-options: [SAMEORIGIN]
@@ -918,15 +918,37 @@ interactions:
         {ref: 4d12d3a40589fdb4e6f0ad19f8cc8dffc255f21e, stream: master,\n          version:
         ''1''}\n      commit: 789dc7bedd98cf5b0a30092c06a5897f7f8aa675\n      scmurl:
         git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#789dc7b\ndocument:
+        modulemd\nversion: 1","runtime_deps":[{"dependency":"bootstrap","stream":"master"}],"build_deps":[{"dependency":"bootstrap","stream":"master"}]},{"variant_id":"testmodule","variant_uid":"testmodule-master-20170302163057","variant_name":"testmodule","variant_type":"module","variant_version":"master","variant_release":"20170302163057","koji_tag":"module-testmodule-master-20170302163057","modulemd":"data:\n  api:\n    rpms:
+        [tangerine, perl-Tangerine]\n  components:\n    rpms:\n      perl-List-Compare:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-List-Compare'',\n        rationale:
+        A dependency of tangerine., ref: 76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/perl-List-Compare''}\n      perl-Tangerine:
+        {cache: ''http://pkgs.fedoraproject.org/repo/pkgs/perl-Tangerine'',\n        rationale:
+        Provides API for this module and is a dependency of tangerine.,\n        ref:
+        4ceea43add2366d8b8c5a622a2fb563b625b9abf, repository: ''git://pkgs.fedoraproject.org/rpms/perl-Tangerine''}\n      tangerine:
+        {buildorder: 10, cache: ''http://pkgs.fedoraproject.org/repo/pkgs/tangerine'',\n        rationale:
+        Provides API for this module., ref: fbed359411a1baa08d4a88e0d12d426fbf8f602c,\n        repository:
+        ''git://pkgs.fedoraproject.org/rpms/tangerine''}\n  dependencies:\n    buildrequires:
+        {bootstrap: master}\n    requires: {bootstrap: master}\n  description: This
+        module demonstrates how to write simple modulemd files And can\n    be used
+        for testing the build and release pipeline.\n  filter: {}\n  license:\n    module:
+        [MIT]\n  name: testmodule\n  profiles:\n    default:\n      rpms: [tangerine]\n  references:
+        {community: ''https://fedoraproject.org/wiki/Modularity'', documentation:
+        ''https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules'',\n    tracker:
+        ''https://taiga.fedorainfracloud.org/project/modularity''}\n  stream: master\n  summary:
+        A test module in all its beautiful beauty\n  version: 20170302163057\n  xmd:\n    mbs:\n      buildrequires:\n        bootstrap:
+        {ref: 4d12d3a40589fdb4e6f0ad19f8cc8dffc255f21e, stream: master,\n          version:
+        ''1''}\n      commit: b746a044bdcee933bbe292c57dcf31e227645d74\n      scmurl:
+        git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#b746a04\ndocument:
         modulemd\nversion: 1","runtime_deps":[{"dependency":"bootstrap","stream":"master"}],"build_deps":[{"dependency":"bootstrap","stream":"master"}]}]'}
     headers:
       allow: ['GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS']
       content-type: [application/json]
-      date: ['Thu, 02 Mar 2017 15:59:01 GMT']
+      date: ['Thu, 02 Mar 2017 16:58:44 GMT']
       server: [WSGIServer/0.1 Python/2.7.13]
-      set-cookie: ['csrftoken=CNYdjcp5WmAK9bgWrCO61h5yk1lmIbxX; expires=Thu, 01-Mar-2018
-          15:59:01 GMT; Max-Age=31449600; Path=/', 'sessionid=vhes9lbr9hqhvsd52v8nrsyjdpuda0ec;
-          expires=Thu, 16-Mar-2017 15:59:01 GMT; httponly; Max-Age=1209600; Path=/']
+      set-cookie: ['csrftoken=LnCLeWx1Tp54wLAcK4wzserbfYRtFaPt; expires=Thu, 01-Mar-2018
+          16:58:44 GMT; Max-Age=31449600; Path=/', 'sessionid=moxv2qo65ozjiamyeanf1l2rg4zk82zy;
+          expires=Thu, 16-Mar-2017 16:58:44 GMT; httponly; Max-Age=1209600; Path=/']
       vary: ['Accept, Cookie']
       x-frame-options: [SAMEORIGIN]
     status: {code: 200, message: OK}

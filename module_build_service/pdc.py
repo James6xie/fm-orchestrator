@@ -217,6 +217,7 @@ def get_module_modulemd(session, module_info, strict=False):
     module = get_module(session, module_info, strict=strict)
     if module:
         yaml = module['modulemd']
+
     if not yaml:
         if strict:
             raise ValueError("Failed to find modulemd entry in PDC for "
@@ -224,6 +225,9 @@ def get_module_modulemd(session, module_info, strict=False):
         else:
             return None
 
+    return _extract_modulemd(yaml, strict=strict)
+
+def _extract_modulemd(yaml, strict=False):
     mmd = modulemd.ModuleMetadata()
     mmd.loads(yaml)
     return mmd
@@ -307,12 +311,20 @@ def module_depsolving_wrapper(session, modules, strict=True):
             # code used to work.
             module_tags.add(info['koji_tag'])
 
+            # Now, when we look for the deps of this module, use the mmd.xmd
+            # attributes because they contain the promise of *exactly* which
+            # versions of which deps we say we're going to build *this* module
+            # against.
+            if not info['modulemd']:
+                raise ValueError("No PDC modulemd found for %r" % info)
+            mmd = _extract_modulemd(info['modulemd'])
+
             # Queue up the next tier of deps that we should look at..
-            for pdc_dep in info['build_deps']:
+            for name, details in mmd.xmd['mbs']['buildrequires'].items():
                 modified_dep = {
-                    'name': pdc_dep['dependency'],
-                    'version': pdc_dep['stream'],
-                    #'release': ...
+                    'name': name,
+                    'version': details['stream'],
+                    'release': details['version'],
                 }
                 module_list.append(modified_dep)
 

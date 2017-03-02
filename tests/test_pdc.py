@@ -53,7 +53,11 @@ class TestPDCModule(unittest.TestCase):
         assert 'build_deps' in result
 
     def test_get_module_depsolving_wrapper(self):
-        query = [{'name': 'testmodule', 'version': 'master'}]
+        query = [{
+            'name': 'testmodule',
+            'version': 'master',
+            'release': '20170228215102',
+        }]
         result = mbs_pdc.module_depsolving_wrapper(self.pdc, query)
         expected = [
             u'module-bootstrap-master-1',
@@ -61,4 +65,4 @@ class TestPDCModule(unittest.TestCase):
             # Probably not.
             u'module-testmodule-master-20170228215102',
         ]
-        self.assertEqual(result, expected)
+        self.assertEqual(set(result), set(expected))
