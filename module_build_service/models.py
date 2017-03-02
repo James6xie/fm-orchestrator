@@ -278,6 +278,7 @@ class ModuleBuild(MBSBase):
         return {
             "id": self.id,
             "state": self.state,
+            'state_name': INVERSE_BUILD_STATES[self.state],
             'state_reason': self.state_reason,
             "owner": self.owner,
             "name": self.name,
