@@ -197,8 +197,8 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
                 if build:
                     further_work = handler(conf, session, msg) or []
                 else:
-                    log.error("There's no module associated with message ID {}"
-                              .format(msg.msg_id))
+                    log.warn("There's no module associated with message ID {}"
+                             .format(msg.msg_id))
             except ValidationError as e:
                 if build:
                     build.transition(conf, state=models.BUILD_STATES['failed'],
