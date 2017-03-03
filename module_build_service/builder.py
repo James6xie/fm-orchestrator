@@ -886,6 +886,8 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
             if 'mbs_module_target' not in task_opts:
                 task_opts['mbs_module_target'] = None
             for c in component_builds:
+                # TODO: https://pagure.io/fm-orchestrator/issue/397
+                # Subj: Do not mix target/tag when looking for component builds
                 if (c.package == task_opts['mbs_artifact_name'] and
                     c.module_build.koji_tag == task_opts['mbs_module_target']):
                     tasks.append(task)
