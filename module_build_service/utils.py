@@ -448,7 +448,7 @@ def format_mmd(mmd, scmurl):
         mmd.xmd['mbs']['buildrequires'] = {}
 
     if mmd.components:
-        # Add missing data in components
+        # Add missing data in RPM components
         for pkgname, pkg in mmd.components.rpms.items():
             if pkg.repository and not conf.rpms_allow_repository:
                 raise Unauthorized(
@@ -461,6 +461,16 @@ def format_mmd(mmd, scmurl):
                 pkg.cache = conf.rpms_default_cache + pkgname
             if not pkg.ref:
                 pkg.ref = 'master'
+
+        # Add missing data in included modules components
+        for modname, mod in mmd.components.modules.items():
+            if mod.repository and not conf.modules_allow_repository:
+                raise Unauthorized(
+                    "Custom component repositories aren't allowed")
+            if not mod.repository:
+                mod.repository = conf.modules_default_repository + modname
+            if not mod.ref:
+                mod.ref = 'master'
 
         # Check that SCM URL is valid and replace potential branches in
         # pkg.ref by real SCM hash.
@@ -508,8 +518,6 @@ def record_component_builds(scm, mmd, module, initial_batch = 1):
             # set to our current batch, so the components of this module
             # are built in the right global order.
             if isinstance(pkg, modulemd.ModuleComponentModule):
-                if not pkg.repository:
-                    pkg.repository = scm.scm_url_from_name(pkg.name)
                 full_url = pkg.repository + "?#" + pkg.ref
                 mmd = _fetch_mmd(full_url)[0]
                 batch = record_component_builds(scm, mmd, module, batch)

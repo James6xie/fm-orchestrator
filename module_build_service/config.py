@@ -187,6 +187,14 @@ class Config(object):
             'type': bool,
             'default': False,
             'desc': 'Allow custom RPMs cache.'},
+        'modules_default_repository': {
+            'type': str,
+            'default': 'git://pkgs.fedoraproject.org/modules/',
+            'desc': 'Included modules default repository URL.'},
+        'modules_allow_repository': {
+            'type': bool,
+            'default': False,
+            'desc': 'Allow custom included modules repositories.'},
         'ssl_certificate_file': {
             'type': str,
             'default': '',
@@ -274,7 +282,7 @@ class Config(object):
         'scmurls': {
             'type': list,
             'default': [],
-            'desc': 'Allowed SCM URLs.'},
+            'desc': 'Allowed SCM URLs for submitted module.'},
         'yaml_submit_allowed': {
             'type': bool,
             'default': False,
