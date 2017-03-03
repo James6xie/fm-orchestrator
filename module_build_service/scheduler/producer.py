@@ -82,7 +82,7 @@ class MBSProducer(PollingProducer):
                     koji.TASK_STATES['FAILED'],
                 )
 
-                log.info('  task {0!r} is in state {0!r}'.format(
+                log.info('  task {0!r} is in state {1!r}'.format(
                     component_build.task_id, task_info['state']))
                 if task_info['state'] in dead_states:
                     # Fake a fedmsg message on our internal queue
