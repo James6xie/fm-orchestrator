@@ -649,7 +649,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
 
             build_opts = {"skip_tag": True,
                           "mbs_artifact_name": artifact_name,
-                          "mbs_module_name": module_target}
+                          "mbs_module_target": module_target}
 
             task_id = self.koji_session.build(source, module_target, build_opts,
                                             priority=self.build_priority)
@@ -883,11 +883,11 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
                 continue
             if 'mbs_artifact_name' not in task_opts:
                 task_opts['mbs_artifact_name'] = None
-            if 'mbs_module_name' not in task_opts:
-                task_opts['mbs_module_name'] = None
+            if 'mbs_module_target' not in task_opts:
+                task_opts['mbs_module_target'] = None
             for c in component_builds:
                 if (c.package == task_opts['mbs_artifact_name'] and
-                    c.module_build.koji_tag == task_opts['mbs_module_name']):
+                    c.module_build.koji_tag == task_opts['mbs_module_target']):
                     tasks.append(task)
 
         return tasks
