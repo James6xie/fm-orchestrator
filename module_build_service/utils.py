@@ -678,7 +678,9 @@ def get_reusable_component(session, module, component_name):
     # The component can't be reused if there isn't a previous build in the done
     # or ready state
     if not previous_module_build:
+        log.info("Cannot re-use.  %r is the first module build." % module)
         return None
+
     old_mmd = previous_module_build.mmd()
 
     # Perform a sanity check to make sure that the buildrequires are the same
