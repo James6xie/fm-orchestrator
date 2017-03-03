@@ -107,6 +107,12 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
 
     def validate(self, message):
         if conf.messaging == 'fedmsg':
+            # If this is a faked internal message, don't bother.
+            if isinstance(message, module_build_service.messaging.BaseMessage):
+                log.info("Skipping crypto validation for %r" % message)
+                return
+            # Otherwise, if it is a real message from the network, pass it
+            # through crypto validation.
             super(MBSConsumer, self).validate(message)
 
     def consume(self, message):
