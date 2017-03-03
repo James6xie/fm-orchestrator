@@ -274,7 +274,6 @@ class ModuleBuild(MBSBase):
         return None
 
     def api_json(self):
-
         return {
             "id": self.id,
             "state": self.state,
@@ -294,9 +293,19 @@ class ModuleBuild(MBSBase):
         """
         tasks = dict()
         if self.id and self.state != 'init':
-
-            for build in ComponentBuild.query.filter_by(module_id=self.id).options(lazyload('module_build')).all():
-                tasks["%s/%s" % (build.format, build.package)] = "%s/%s" % (build.task_id, build.state)
+            for build in ComponentBuild.query\
+                    .filter_by(module_id=self.id)\
+                    .options(lazyload('module_build'))\
+                    .all():
+                tasks[build.format] = tasks.get(build.format, {})
+                tasks[build.format][build.package] = dict(
+                    task_id=build.task_id,
+                    state=build.state,
+                    state_reason=build.state_reason,
+                    nvr=build.nvr,
+                    # TODO -- it would be really nice from a UX PoV to get a
+                    # link to the remote task here.
+                )
 
         return tasks
 

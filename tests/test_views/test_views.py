@@ -88,6 +88,7 @@ class MockedSCM(object):
 
 
 class TestViews(unittest.TestCase):
+    maxDiff = None
 
     def setUp(self):
         self.client = app.test_client()
@@ -108,11 +109,22 @@ class TestViews(unittest.TestCase):
         self.assertEquals(data['owner'], 'Moe Szyslak')
         self.assertEquals(data['state'], 3)
         self.assertEquals(data['state_reason'], None)
-        self.assertEquals(data['tasks'], {
-                'rpms/module-build-macros': '12312321/1',
-                'rpms/nginx': '12312345/1'
-            }
-        )
+        self.assertDictEqual(data['tasks'], {
+            'rpms': {
+                'module-build-macros': {
+                    'task_id': 12312321,
+                    'state': 1,
+                    'state_reason': None,
+                    'nvr': 'module-build-macros-01-1.module_nginx_1_2',
+                },
+                'nginx': {
+                    'task_id': 12312345,
+                    'state': 1,
+                    'state_reason': None,
+                    'nvr': 'nginx-1.10.1-2.module_nginx_1_2',
+                },
+            },
+        })
         self.assertEquals(data['time_completed'], '2016-09-03T11:25:32Z')
         self.assertEquals(data['time_modified'], '2016-09-03T11:25:32Z')
         self.assertEquals(data['time_submitted'], '2016-09-03T11:23:20Z')
@@ -137,11 +149,22 @@ class TestViews(unittest.TestCase):
         self.assertEquals(data['state_trace'][0]['state_name'], 'done')
         self.assertEquals(data['state_url'], '/module-build-service/1/module-builds/1')
         self.assertEquals(data['stream'], '1')
-        self.assertEquals(data['tasks'], {
-                'rpms/module-build-macros': '12312321/1',
-                'rpms/nginx': '12312345/1'
-            }
-        )
+        self.assertDictEqual(data['tasks'], {
+            'rpms': {
+                'module-build-macros': {
+                    'task_id': 12312321,
+                    'state': 1,
+                    'state_reason': None,
+                    'nvr': 'module-build-macros-01-1.module_nginx_1_2',
+                },
+                'nginx': {
+                    'task_id': 12312345,
+                    'state': 1,
+                    'state_reason': None,
+                    'nvr': 'nginx-1.10.1-2.module_nginx_1_2',
+                },
+            },
+        })
         self.assertEquals(data['time_completed'], u'Sat, 03 Sep 2016 11:25:32 GMT')
         self.assertEquals(data['time_modified'], u'Sat, 03 Sep 2016 11:25:32 GMT')
         self.assertEquals(data['time_submitted'], u'Sat, 03 Sep 2016 11:23:20 GMT')
@@ -176,11 +199,22 @@ class TestViews(unittest.TestCase):
         self.assertEquals(item['name'], 'nginx')
         self.assertEquals(item['owner'], 'Moe Szyslak')
         self.assertEquals(item['state'], 3)
-        self.assertEquals(item['tasks'], {
-                'rpms/module-build-macros': '12312321/1',
-                'rpms/nginx': '12312345/1'
-            }
-        )
+        self.assertDictEqual(item['tasks'], {
+            'rpms': {
+                'module-build-macros': {
+                    'task_id': 12312321,
+                    'state': 1,
+                    'state_reason': None,
+                    'nvr': 'module-build-macros-01-1.module_nginx_1_2',
+                },
+                'nginx': {
+                    'task_id': 12312345,
+                    'state': 1,
+                    'state_reason': None,
+                    'nvr': 'nginx-1.10.1-2.module_nginx_1_2',
+                },
+            },
+        })
         self.assertEquals(item['time_completed'], '2016-09-03T11:25:32Z')
         self.assertEquals(item['time_modified'], '2016-09-03T11:25:32Z')
         self.assertEquals(item['time_submitted'], '2016-09-03T11:23:20Z')
@@ -283,12 +317,28 @@ class TestViews(unittest.TestCase):
         self.assertTrue(data['state_trace'][0]['time'] is not None)
         self.assertEquals(data['state_trace'][0]['state'], 1)
         self.assertEquals(data['state_trace'][0]['state_name'], 'wait')
-        self.assertEquals(data['tasks'], {
-                u'rpms/perl-List-Compare': u'None/None',
-                u'rpms/perl-Tangerine': u'None/None',
-                u'rpms/tangerine': u'None/None'
-            }
-        )
+        self.assertDictEqual(data['tasks'], {
+            'rpms': {
+                'perl-List-Compare': {
+                    'task_id': None,
+                    'state': None,
+                    'state_reason': None,
+                    'nvr': None,
+                },
+                'perl-Tangerine': {
+                    'task_id': None,
+                    'state': None,
+                    'state_reason': None,
+                    'nvr': None,
+                },
+                'tangerine': {
+                    'task_id': None,
+                    'state': None,
+                    'state_reason': None,
+                    'nvr': None,
+                },
+            },
+        })
         mmd = _modulemd.ModuleMetadata()
         mmd.loads(data["modulemd"])
 
