@@ -180,6 +180,13 @@ class BaseMessage(object):
 
             msg_obj = None
 
+            # Ignore all messages from the secondary koji instances.
+            if category == 'buildsys':
+                instance = msg_inner_msg.get('instance', 'primary')
+                if instance != 'primary':
+                    log.debug("Ignoring message from %r koji hub." % instance)
+                    return
+
             if category == 'buildsys' and object == 'build' and \
                     subobject == 'state' and event == 'change':
                 build_id = msg_inner_msg.get('build_id')
@@ -188,6 +195,10 @@ class BaseMessage(object):
                 build_name = msg_inner_msg.get('name')
                 build_version = msg_inner_msg.get('version')
                 build_release = msg_inner_msg.get('release')
+
+                if task_id is None:
+                    log.debug("Saw a koji build change with no task_id.")
+                    return
 
                 msg_obj = KojiBuildChange(
                     msg_id, build_id, task_id, build_new_state, build_name,
@@ -228,6 +239,8 @@ class KojiBuildChange(BaseMessage):
     def __init__(self, msg_id, build_id, task_id, build_new_state, build_name,
                  build_version, build_release, module_build_id=None,
                  state_reason=None):
+        if task_id is None:
+            raise ValueError("KojiBuildChange with a null task_id is invalid.")
         super(KojiBuildChange, self).__init__(msg_id)
         self.build_id = build_id
         self.task_id = task_id
