@@ -52,6 +52,9 @@ class BaseConfiguration(object):
     RPMS_DEFAULT_CACHE = 'http://pkgs.fedoraproject.org/repo/pkgs/'
     RPMS_ALLOW_CACHE = False
 
+    MODULES_DEFAULT_REPOSITORY = 'git://pkgs.fedoraproject.org/modules/'
+    MODULES_ALLOW_REPOSITORY = False
+
     SSL_ENABLED = True
     SSL_CERTIFICATE_FILE = '/etc/module-build-service/server.crt'
     SSL_CERTIFICATE_KEY_FILE = '/etc/module-build-service/server.key'

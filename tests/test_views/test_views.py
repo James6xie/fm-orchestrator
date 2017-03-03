@@ -34,6 +34,7 @@ import modulemd as _modulemd
 from tests import app, init_data
 from module_build_service.models import ComponentBuild
 import module_build_service.scm
+from module_build_service import conf
 
 
 user = ('Homer J. Simpson', set(['packager']))
@@ -425,11 +426,18 @@ class TestViews(unittest.TestCase):
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     def test_submit_build_includedmodule(self, mocked_scm, mocked_get_user):
+        _prev_modules_allow_repository = conf.modules_allow_repository
+        conf.set_item("modules_allow_repository", True)
         mocked_scm_obj = MockedSCM(mocked_scm, "includedmodules",
-                                   ["includedmodules.yaml", "testmodule.yaml"])
-        rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
-            {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
-                'testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49'}))
+                                ["includedmodules.yaml", "testmodule.yaml"])
+        try:
+            rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
+                {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+                    'testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49'}))
+        except e:
+            raise
+        finally:
+            conf.set_item("modules_allow_repository", _prev_modules_allow_repository)
         data = json.loads(rv.data)
 
         assert 'component_builds' in data, data
@@ -456,6 +464,20 @@ class TestViews(unittest.TestCase):
         self.assertEquals(batches['perl-Tangerine'], 2)
         self.assertEquals(batches['tangerine'], 3)
         self.assertEquals(batches["file"], 4)
+
+    @patch('module_build_service.auth.get_user', return_value=user)
+    @patch('module_build_service.scm.SCM')
+    def test_submit_build_includedmodule_custom_repo_not_allowed(self,
+            mocked_scm, mocked_get_user):
+        mocked_scm_obj = MockedSCM(mocked_scm, "includedmodules",
+                                ["includedmodules.yaml", "testmodule.yaml"])
+        rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
+            {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+                'testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49'}))
+        data = json.loads(rv.data)
+
+        self.assertEquals(data['status'], 401)
+        self.assertEquals(data['error'], 'Unauthorized')
 
     @patch('module_build_service.auth.get_user', return_value=other_user)
     def test_cancel_build(self, mocked_get_user):
