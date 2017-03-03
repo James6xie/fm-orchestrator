@@ -121,7 +121,19 @@ def wait(config, session, msg):
     The kicking off of individual component builds is handled elsewhere,
     in module_build_service.schedulers.handlers.repos.
     """
-    build = models.ModuleBuild.from_module_event(session, msg)
+
+    # Wait for the db on the frontend to catch up to the message, otherwise the
+    # xmd information won't be present when we need it.
+    # See https://pagure.io/fm-orchestrator/issue/386
+    @module_build_service.utils.retry(interval=2, timeout=30, wait_on=RuntimeError)
+    def _get_build_containing_xmd_for_mbs():
+        build = models.ModuleBuild.from_module_event(session, msg)
+        if 'mbs' in build.mmd().xmd:
+            return build
+        raise RuntimeError("{!r} doesn't contain xmd information for MBS."
+                           .format(build))
+
+    build = _get_build_containing_xmd_for_mbs()
     log.info("Found build=%r from message" % build)
 
     module_info = build.json()
