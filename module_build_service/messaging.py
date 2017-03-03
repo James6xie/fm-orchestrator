@@ -78,6 +78,9 @@ class BaseMessage(object):
         """ Used to trick moksha into thinking we are a dict. """
         return getattr(self, key, value)
 
+    def __json__(self):
+        return dict(msg_id=self.msg_id, topic=self.topic, body=self.body)
+
     @staticmethod
     def from_amq(topic, msg):
         msg_obj = None
