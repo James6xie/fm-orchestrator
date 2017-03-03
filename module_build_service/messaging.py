@@ -177,6 +177,13 @@ class BaseMessage(object):
 
             msg_obj = None
 
+            # Ignore all messages from the secondary koji instances.
+            if category == 'buildsys':
+                instance = msg_inner_msg.get('instance', 'primary')
+                if instance != 'primary':
+                    log.debug("Ignoring message from %r koji hub." % instance)
+                    return
+
             if category == 'buildsys' and object == 'build' and \
                     subobject == 'state' and event == 'change':
                 build_id = msg_inner_msg.get('build_id')
