@@ -50,6 +50,8 @@ def _finalize(config, session, msg, state):
         log.debug("We have no record of %s" % nvr)
         return
 
+    log.info("Saw relevant component build of %r from %r." % (nvr, msg.msg_id))
+
     if msg.state_reason:
         state_reason = msg.state_reason
     elif state != koji.BUILD_STATES['COMPLETE']:
