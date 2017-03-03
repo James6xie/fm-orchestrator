@@ -97,6 +97,9 @@ def _finalize(config, session, msg, state):
         ]
 
         # tag && add to srpm-build group if neccessary
+        log.info("Batch done.  Tagging %i components." % len(
+            built_components_in_batch))
+        log.debug("%r" % built_components_in_batch)
         install = bool(component_build.package == 'module-build-macros')
         builder.buildroot_add_artifacts(built_components_in_batch, install=install)
         builder.tag_artifacts(built_components_in_batch)

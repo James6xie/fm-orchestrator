@@ -202,7 +202,7 @@ class ModuleBuild(MBSBase):
                                state_reason=state_reason)
         self.module_builds_trace.append(mbt)
 
-        log.debug("%r, state %r->%r" % (self, old_state, self.state))
+        log.info("%r, state %r->%r" % (self, old_state, self.state))
         if old_state != self.state:
             module_build_service.messaging.publish(
                 service='mbs',
