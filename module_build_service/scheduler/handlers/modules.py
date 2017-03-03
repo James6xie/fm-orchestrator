@@ -38,6 +38,13 @@ logging.basicConfig(level=logging.DEBUG)
 
 
 def get_rpm_release_from_tag(tag):
+    # Remove the 'module-' prefix, because the disttag is too long
+    # otherwise. We for example hit that limit for KERNELRELEASE, which
+    # must be maximally 64 bytes long.
+    # See https://pagure.io/fm-orchestrator/issue/373 for more info.
+    if tag.startswith("module-"):
+        tag = tag[len("module-"):]
+
     return tag.replace("-", "_")
 
 

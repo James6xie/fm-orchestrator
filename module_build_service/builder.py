@@ -379,7 +379,6 @@ class KojiModuleBuilder(GenericBuilder):
 
 
     @staticmethod
-    @module_build_service.utils.validate_koji_tag('disttag', pre='.', post='_')
     def get_disttag_srpm(disttag):
 
         #Taken from Karsten's create-distmacro-pkg.sh
@@ -1087,7 +1086,6 @@ class CoprModuleBuilder(GenericBuilder):
         log.info(result.data["modulemd"])
 
     @staticmethod
-    @module_build_service.utils.validate_koji_tag('disttag', pre='.', post='_')
     def get_disttag_srpm(disttag):
         # @FIXME
         return KojiModuleBuilder.get_disttag_srpm(disttag)
@@ -1499,7 +1497,6 @@ mdpolicy=group:primary
             return self.build_srpm(artifact_name, source, build_id)
 
     @staticmethod
-    @module_build_service.utils.validate_koji_tag('disttag', pre='.', post='_')
     def get_disttag_srpm(disttag):
         # @FIXME
         return KojiModuleBuilder.get_disttag_srpm(disttag)
