@@ -38,12 +38,12 @@ def done(config, session, msg):
     # First, find our ModuleBuild associated with this repo, if any.
     tag = msg.repo_tag
     if config.system == "koji" and not tag.endswith('-build'):
-        log.info("Tag %r does not end with '-build' suffix, ignoring" % tag)
+        log.debug("Tag %r does not end with '-build' suffix, ignoring" % tag)
         return
     tag = tag.strip('-build')
     module_build = models.ModuleBuild.from_repo_done_event(session, msg)
     if not module_build:
-        log.info("No module build found associated with koji tag %r" % tag)
+        log.debug("No module build found associated with koji tag %r" % tag)
         return
 
     # It is possible that we have already failed.. but our repo is just being
