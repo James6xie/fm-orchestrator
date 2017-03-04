@@ -320,7 +320,7 @@ def filter_module_builds(flask_request):
     return query.paginate(page, per_page, False)
 
 
-def _fetch_mmd(url, branch = None, allow_local_url = False):
+def _fetch_mmd(url, branch=None, allow_local_url=False, whitelist_url=False):
     # Import it here, because SCM uses utils methods
     # and fails to import them because of dep-chain.
     import module_build_service.scm
@@ -331,7 +331,10 @@ def _fetch_mmd(url, branch = None, allow_local_url = False):
     try:
         log.debug('Verifying modulemd')
         td = tempfile.mkdtemp()
-        scm = module_build_service.scm.SCM(url, branch, conf.scmurls, allow_local_url)
+        if whitelist_url:
+            scm = module_build_service.scm.SCM(url, branch, [url], allow_local_url)
+        else:
+            scm = module_build_service.scm.SCM(url, branch, conf.scmurls, allow_local_url)
         cod = scm.checkout(td)
         scm.verify(cod)
         cofn = os.path.join(cod, (scm.name + ".yaml"))
@@ -529,7 +532,9 @@ def record_component_builds(scm, mmd, module, initial_batch = 1):
             # are built in the right global order.
             if isinstance(pkg, modulemd.ModuleComponentModule):
                 full_url = pkg.repository + "?#" + pkg.ref
-                mmd = _fetch_mmd(full_url)[0]
+                # It is OK to whitelist all URLs here, because the validity
+                # of every URL have been already checked in format_mmd(...).
+                mmd = _fetch_mmd(full_url, whitelist_url=True)[0]
                 batch = record_component_builds(scm, mmd, module, batch)
                 continue
 
