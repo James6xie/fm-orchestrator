@@ -108,11 +108,14 @@ def get_user(request):
     if not data or not "active" in data or not data["active"]:
         raise Unauthorized("OIDC token invalid or expired.")
 
+    if not "OIDC_REQUIRED_SCOPE" in app.config:
+        raise Unauthorized("OIDC_REQUIRED_SCOPE must be set in server config.")
+
     presented_scopes = data['scope'].split(' ')
     required_scopes = [
         'openid',
         'https://id.fedoraproject.org/scope/groups',
-        'https://mbs.fedoraproject.org/oidc/submit-build',
+        app.config["OIDC_REQUIRED_SCOPE"],
     ]
     for scope in required_scopes:
         if scope not in presented_scopes:
