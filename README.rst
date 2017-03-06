@@ -79,17 +79,30 @@ about the referenced build task.
         "id": 42,
         "state": "build",
         "tasks": {
-            "rpms/foo" : "6378/closed",
-            "rpms/bar : "6379/open"
+            "rpms": {
+                "foo": {
+                    "task_id": 6378,
+                    "state": 1,
+                    "state_reason": None,
+                    "nvr": "foo-1.2.3-1...",
+                },
+                "bar": {
+                    "task_id": 6379,
+                    "state": 0,
+                    "state_reason": None,
+                    "nvr": None,
+                }
+
+            }
         },
         ...
     }
 
 "id" is the ID of the task.  "state" refers to the orchestrator module
 build state and might be one of "init", "wait", "build", "done", "failed" or
-"ready".  "tasks" is a dictionary of component names in the format of
-"type/NVR" and related koji or other supported buildsystem tasks and
-their states.
+"ready".  "tasks" is a dictionary of information about the individual component
+builds including their IDs in the backend buildsystem, their state, a reason
+for their state, and the NVR (if known).
 
 By adding ``?verbose=1`` to the request, additional detailed information
 about the module can be obtained.
@@ -198,8 +211,18 @@ An example of querying the "module-builds" resource with the "verbose",
           "owner": "mprahl",
           "state": 3,
           "tasks": {
-            "rpms/bash": "90109464/1",
-            "rpms/module-build-macros": "90109446/1"
+            "rpms": {
+              "bash": {
+                "task_id": 90109464,
+                "state": 1,
+                ...
+              },
+              "module-build-macros": {
+                "task_id": 90109446,
+                "state": 1,
+                ...
+              }
+            }
           },
           "time_completed": "2016-08-22T09:44:11Z",
           "time_modified": "2016-08-22T09:44:11Z",
@@ -211,8 +234,18 @@ An example of querying the "module-builds" resource with the "verbose",
           "owner": "ralph",
           "state": 3,
           "tasks": {
-            "rpms/bash": "90109465/1",
-            "rpms/module-build-macros": "90109450/1"
+            "rpms": {
+              "bash": {
+                "task_id": 90109465,
+                "state": 1,
+                ...
+              },
+              "module-build-macros": {
+                "task_id": 90109450,
+                "state": 1,
+                ...
+              }
+            }
           },
           "time_completed": "2016-08-22T09:54:04Z",
           "time_modified": "2016-08-22T09:54:04Z",
@@ -224,8 +257,18 @@ An example of querying the "module-builds" resource with the "verbose",
           "owner": "mprahl",
           "state": 3,
           "tasks": {
-            "rpms/bash": "90109497/1",
-            "rpms/module-build-macros": "90109480/1"
+            "rpms": {
+              "bash": {
+                "task_id": 90109497,
+                "state": 1,
+                ...
+              },
+              "module-build-macros": {
+                "task_id": 90109480,
+                "state": 1,
+                ...
+              }
+            }
           },
           "time_completed": "2016-08-22T10:05:08Z",
           "time_modified": "2016-08-22T10:05:08Z",
