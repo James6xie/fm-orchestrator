@@ -52,3 +52,38 @@ class TestFedmsgMessaging(unittest.TestCase):
 
         self.assertEqual(msg.build_id, 614503)
         self.assertEqual(msg.build_new_state, 1)
+
+    def test_copr_build_end(self):
+        # http://fedora-fedmsg.readthedocs.io/en/latest/topics.html#copr-build-end
+        copr_build_end_msg = {
+            'msg': {
+                'build': 100,
+                'chroot': 'fedora-20-x86_64',
+                'copr': 'mutt-kz',
+                'ip': '172.16.3.3',
+                'pid': 12010,
+                'pkg': 'mutt-kz-1.5.23.1-1.20150203.git.c8504a8a.fc21',
+                'status': 1,
+                'user': 'fatka',
+                'version': '1.5.23.1-1.20150203.git.c8504a8a.fc21',
+                'what': 'build end: user:fatka copr:mutt-kz build:100 ip:172.16.3.3  pid:12010 status:1',
+                'who': 'worker-2'
+            },
+            'msg_id': '2013-b05a323d-37ee-4396-9635-7b5dfaf5441b',
+            'timestamp': 1383956707.634,
+            'topic': 'org.fedoraproject.prod.copr.build.end',
+            'username': 'copr'
+        }
+
+        topic = 'org.fedoraproject.prod.copr.build.end'
+        msg = messaging.BaseMessage.from_fedmsg(topic, copr_build_end_msg)
+        self.assertIsInstance(msg, messaging.KojiBuildChange)
+        self.assertEqual(msg.msg_id, '2013-b05a323d-37ee-4396-9635-7b5dfaf5441b')
+        self.assertEqual(msg.build_id, 100)
+        self.assertEqual(msg.task_id, 100)
+        self.assertEqual(msg.build_new_state, 1)
+        self.assertEqual(msg.build_name, 'mutt-kz')
+        self.assertEqual(msg.build_version, '1.5.23.1')
+        self.assertEqual(msg.build_release, '1.20150203.git.c8504a8a.fc21')
+        self.assertEqual(msg.state_reason,
+                         'build end: user:fatka copr:mutt-kz build:100 ip:172.16.3.3  pid:12010 status:1')

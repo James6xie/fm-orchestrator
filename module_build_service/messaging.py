@@ -32,6 +32,7 @@ try:
 except ImportError:
     from funcsigs import signature
 
+from rpmUtils.miscutils import splitFilename
 from module_build_service import log
 
 
@@ -160,7 +161,7 @@ class BaseMessage(object):
         regex_pattern = re.compile(
             (r'(?P<category>' + categories_re + r')(?:\.)'
              r'(?P<object>build|repo|module)(?:(?:\.)'
-             r'(?P<subobject>state))?(?:\.)(?P<event>change|done)$'))
+             r'(?P<subobject>state|build))?(?:\.)(?P<event>change|done|end)$'))
         regex_results = re.search(regex_pattern, topic)
 
         if regex_results:
@@ -214,6 +215,13 @@ class BaseMessage(object):
                 msg_obj = MBSModule(
                     msg_id, msg_inner_msg.get('id'), msg_inner_msg.get('state'))
 
+            elif category == 'copr' and object == 'build':
+                build = msg_inner_msg.get('build')
+                status = msg_inner_msg.get('status')
+                pkg = msg_inner_msg.get('pkg')
+                what = msg_inner_msg.get('what')
+                msg_obj = CoprBuildEnd(msg_id, build, status, pkg, what)
+
             # If the message matched the regex and is important to the app,
             # it will be returned
             if msg_obj:
@@ -261,6 +269,31 @@ class KojiRepoChange(BaseMessage):
     def __init__(self, msg_id, repo_tag):
         super(KojiRepoChange, self).__init__(msg_id)
         self.repo_tag = repo_tag
+
+
+class CoprBuildEnd(object):
+    """ A wrapper class that transforms copr message attributes
+    to a KojiBuildChange message object
+    :param msg_id: the id of the msg (e.g. 2016-SomeGUID)
+    :param build_id: the id of the build (e.g. 264382)
+    :param status: the new build state
+    (see http://copr-backend.readthedocs.io/package/constants.html#backend.constants.BuildStatus )
+    :param pkg: the full name of what is being built
+    (e.g. mutt-kz-1.5.23.1-1.20150203.git.c8504a8a.fc21)
+    :param state_reason: the optional reason as to why the state changed
+    """
+    def __new__(cls, msg_id, build_id, status, pkg, what=None):
+        name, version, release, epoch, arch = splitFilename(pkg)
+        return KojiBuildChange(
+            msg_id=msg_id,
+            build_id=build_id,
+            task_id=build_id,
+            build_new_state=status,
+            build_name=name,
+            build_version=version,
+            build_release=".".join(s for s in [release, epoch, arch] if s),
+            state_reason=what,
+        )
 
 
 class MBSModule(BaseMessage):
@@ -377,7 +410,7 @@ def _amq_publish(topic, msg, conf, service):
 _messaging_backends = {
     'fedmsg': {
         'publish': _fedmsg_publish,
-        'services': ['buildsys', 'mbs']
+        'services': ['buildsys', 'mbs', 'copr']
     },
     'amq': {
         'publish': _amq_publish,
