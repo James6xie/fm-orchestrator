@@ -1047,9 +1047,7 @@ class CoprModuleBuilder(GenericBuilder):
         if response.output != "ok":
             log.error(response.error)
 
-        # Since we don't have implemented messaging support in copr yet,
-        # let's just assume that the build is finished by now
-        return response.data["ids"][0], koji.BUILD_STATES["COMPLETE"], response.message, None
+        return response.data["ids"][0], koji.BUILD_STATES["BUILDING"], response.message, None
 
     def _wait_until_all_builds_are_finished(self, module):
         while True:
