@@ -25,8 +25,10 @@ import shutil
 import tempfile
 
 import unittest
+from nose.tools import raises
 
 import module_build_service.scm
+from module_build_service.errors import ValidationError
 
 repo_path = 'file://' + os.path.dirname(__file__) + "/scm_data/testrepo"
 
@@ -75,3 +77,34 @@ class TestSCMModule(unittest.TestCase):
         scm = module_build_service.scm.SCM(repo_path + '/')
         target = 'testrepo'
         assert scm.name == target, '%r != %r' % (scm.name, target)
+
+    def test_verify(self):
+        scm = module_build_service.scm.SCM(repo_path)
+        sourcedir = scm.checkout(self.tempdir)
+        scm.verify(sourcedir)
+
+    @raises(RuntimeError)
+    def test_verify_unknown_branch(self):
+        scm = module_build_service.scm.SCM(repo_path, "unknown")
+        sourcedir = scm.checkout(self.tempdir)
+        scm.verify(sourcedir)
+
+    def test_verify_commit_in_branch(self):
+        target = '7035bd33614972ac66559ac1fdd019ff6027ad21'
+        scm = module_build_service.scm.SCM(repo_path + "?#" + target, "dev")
+        sourcedir = scm.checkout(self.tempdir)
+        scm.verify(sourcedir)
+
+    @raises(ValidationError)
+    def test_verify_commit_not_in_branch(self):
+        target = '7035bd33614972ac66559ac1fdd019ff6027ad21'
+        scm = module_build_service.scm.SCM(repo_path + "?#" + target, "master")
+        sourcedir = scm.checkout(self.tempdir)
+        scm.verify(sourcedir)
+
+    @raises(RuntimeError)
+    def test_verify_unknown_hash(self):
+        target = '7035bd33614972ac66559ac1fdd019ff6027ad22'
+        scm = module_build_service.scm.SCM(repo_path + "?#" + target, "master")
+        sourcedir = scm.checkout(self.tempdir)
+        scm.verify(sourcedir)

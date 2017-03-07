@@ -127,9 +127,15 @@ class ModuleBuildAPI(MethodView):
             log.error("The submitted scmurl %r is not valid" % url)
             raise Unauthorized("The submitted scmurl %s is not valid" % url)
 
+        if "branch" not in r:
+            log.error('Missing branch')
+            raise ValidationError('Missing branch')
+
+        branch = r["branch"]
+
         validate_optional_params(r)
-        optional_params = {k: v for k, v in r.items() if k != "scmurl"}
-        return submit_module_build_from_scm(username, url, allow_local_url=False, optional_params=optional_params)
+        optional_params = {k: v for k, v in r.items() if k != "scmurl" and k != 'branch'}
+        return submit_module_build_from_scm(username, url, branch, allow_local_url=False, optional_params=optional_params)
 
     def post_file(self, username):
         if not conf.yaml_submit_allowed:

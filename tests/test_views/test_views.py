@@ -260,7 +260,7 @@ class TestViews(unittest.TestCase):
                   '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
-            {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+            {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                 'testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49'}))
         data = json.loads(rv.data)
 
@@ -299,7 +299,7 @@ class TestViews(unittest.TestCase):
                   '3da541559918a808c2402bba5012f6c60b27661c')
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
-            {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+            {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                 'testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49'}))
         data = json.loads(rv.data)
 
@@ -322,7 +322,7 @@ class TestViews(unittest.TestCase):
         client_secrets = path.join(base_dir, "client_secrets.json")
         with patch.dict('module_build_service.app.config', {'OIDC_CLIENT_SECRETS': client_secrets}):
             rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
-                {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+                {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                     'testmodule.git?#48931b90de214d9d13feefbd35246a81b6cb8d49'}))
             data = json.loads(rv.data)
             self.assertEquals(
@@ -335,7 +335,7 @@ class TestViews(unittest.TestCase):
     @patch('module_build_service.auth.get_user', return_value=user)
     def test_submit_build_scm_url_error(self, mocked_get_user):
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
-            {'scmurl': 'git://badurl.com'}))
+            {'branch': 'master', 'scmurl': 'git://badurl.com'}))
         data = json.loads(rv.data)
         self.assertEquals(data['message'], 'The submitted scmurl '
             'git://badurl.com is not allowed')
@@ -345,7 +345,7 @@ class TestViews(unittest.TestCase):
     @patch('module_build_service.auth.get_user', return_value=user)
     def test_submit_build_scm_url_without_hash(self, mocked_get_user):
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
-            {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+            {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                 'testmodule.git'}))
         data = json.loads(rv.data)
         self.assertEquals(data['message'], 'The submitted scmurl '
@@ -360,7 +360,7 @@ class TestViews(unittest.TestCase):
         mocked_scm_obj = MockedSCM(mocked_scm, "bad", "bad.yaml")
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
-            {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+            {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                 'testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49'}))
         data = json.loads(rv.data)
         self.assertTrue(data['message'].startswith('Invalid modulemd:'))
@@ -381,7 +381,7 @@ class TestViews(unittest.TestCase):
 
         start = time.time()
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
-            {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+            {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                 'testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49'}))
         data = json.loads(rv.data)
 
@@ -415,7 +415,7 @@ class TestViews(unittest.TestCase):
         mocked_scm.return_value.get_latest = mocked_scm_get_latest
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
-            {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+            {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                 'testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49'}))
         data = json.loads(rv.data)
 
@@ -432,7 +432,7 @@ class TestViews(unittest.TestCase):
                                 ["includedmodules.yaml", "testmodule.yaml"])
         try:
             rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
-                {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+                {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                     'testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49'}))
         except e:
             raise
@@ -472,7 +472,7 @@ class TestViews(unittest.TestCase):
         mocked_scm_obj = MockedSCM(mocked_scm, "includedmodules",
                                 ["includedmodules.yaml", "testmodule.yaml"])
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
-            {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+            {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                 'testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49'}))
         data = json.loads(rv.data)
 
@@ -524,7 +524,7 @@ class TestViews(unittest.TestCase):
         scmurl = 'unsupported://example.com/modules/'
         'testmodule.git?#0000000000000000000000000000000000000000'
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
-            {'scmurl': scmurl}))
+            {'branch': 'master', 'scmurl': scmurl}))
         data = json.loads(rv.data)
         self.assertIn(
             data['message'], (
@@ -542,7 +542,7 @@ class TestViews(unittest.TestCase):
                   '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
-            {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+            {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                 'testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49'}))
         data = json.loads(rv.data)
         self.assertEquals(data['status'], 400)
@@ -560,7 +560,7 @@ class TestViews(unittest.TestCase):
                   '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
-            {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+            {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                 'testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49'}))
         data = json.loads(rv.data)
         self.assertEquals(data['status'], 400)

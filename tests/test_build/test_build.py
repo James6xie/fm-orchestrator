@@ -245,7 +245,7 @@ class TestBuild(unittest.TestCase):
                   '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
-            {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+            {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                 'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}))
 
         data = json.loads(rv.data)
@@ -316,7 +316,7 @@ class TestBuild(unittest.TestCase):
     @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
     def test_submit_build_with_optional_params(self, mocked_get_user):
-        params = {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+        params = {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                             'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}
 
         def submit(data):
@@ -342,7 +342,7 @@ class TestBuild(unittest.TestCase):
                   '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
-            {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+            {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                 'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}))
 
         data = json.loads(rv.data)
@@ -395,7 +395,7 @@ class TestBuild(unittest.TestCase):
                   '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
-            {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+            {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                 'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}))
 
         data = json.loads(rv.data)
@@ -428,7 +428,7 @@ class TestBuild(unittest.TestCase):
         conf.set_item("num_consecutive_builds", 1)
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
-            {'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+            {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                 'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}))
 
         data = json.loads(rv.data)

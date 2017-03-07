@@ -47,7 +47,7 @@ class SCM(object):
     # Assuming git for HTTP schemas
     types = module_build_service.utils.scm_url_schemes()
 
-    def __init__(self, url, allowed_scm=None, allow_local = False):
+    def __init__(self, url, branch = None, allowed_scm=None, allow_local = False):
         """Initialize the SCM object using the specified scmurl.
 
         If url is not in the list of allowed_scm, an error will be raised.
@@ -85,10 +85,32 @@ class SCM(object):
             if self.name.endswith(".git"):
                 self.name = self.name[:-4]
             self.commit = match.group("commit")
-            self.branch = "master"
+            self.branch = branch if branch else "master"
+            if not self.commit:
+                self.commit = self.get_latest(self.branch)
             self.version = None
         else:
             raise ValidationError("Unhandled SCM scheme: %s" % self.scheme)
+
+    def verify(self, sourcedir):
+        """
+        Verifies that the information provided by a user in SCM URL and branch
+        matches the information in SCM repository. For example verifies that
+        the commit hash really belongs to the provided branch.
+
+        :param str sourcedir: Directory with SCM repo as returned by checkout().
+        :raises ValidationError
+        """
+
+        found = False
+        branches = SCM._run(["git", "branch", "-r", "--contains", self.commit], chdir=sourcedir)[1]
+        for branch in branches.split("\n"):
+            branch = branch.strip()
+            if branch[len("origin/"):] == self.branch:
+                found = True
+                break
+        if not found:
+            raise ValidationError("Commit %s is not in branch %s." % (self.commit, self.branch))
 
     def scm_url_from_name(self, name):
         """
@@ -154,7 +176,8 @@ class SCM(object):
             log.debug("Getting/verifying commit hash for %s" % self.repository)
             output = SCM._run(["git", "ls-remote", self.repository, branch])[1]
             if output:
-                return output.split("\t")[0]
+                self.commit = output.split("\t")[0]
+                return self.commit
 
             # Hopefully `branch` is really a commit hash.  Code later needs to verify this.
             if self.is_available(True):
