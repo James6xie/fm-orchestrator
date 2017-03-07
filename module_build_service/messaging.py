@@ -27,12 +27,12 @@
 import json
 import os
 import re
+import kobo.rpmlib
 try:
     from inspect import signature
 except ImportError:
     from funcsigs import signature
 
-from rpmUtils.miscutils import splitFilename
 from module_build_service import log, conf
 
 
@@ -283,15 +283,15 @@ class CoprBuildEnd(object):
     :param state_reason: the optional reason as to why the state changed
     """
     def __new__(cls, msg_id, build_id, status, pkg, what=None):
-        name, version, release, epoch, arch = splitFilename(pkg)
+        nvr = kobo.rpmlib.parse_nvra(pkg)
         return KojiBuildChange(
             msg_id=msg_id,
             build_id=build_id,
             task_id=build_id,
             build_new_state=status,
-            build_name=name,
-            build_version=version,
-            build_release=".".join(s for s in [release, epoch, arch] if s),
+            build_name=nvr["name"],
+            build_version=nvr["version"],
+            build_release=".".join(s for s in [nvr["release"], nvr["epoch"], nvr["arch"]] if s),
             state_reason=what,
         )
 
