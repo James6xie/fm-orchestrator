@@ -33,7 +33,7 @@ except ImportError:
     from funcsigs import signature
 
 from rpmUtils.miscutils import splitFilename
-from module_build_service import log
+from module_build_service import log, conf
 
 
 class BaseMessage(object):
@@ -215,7 +215,7 @@ class BaseMessage(object):
                 msg_obj = MBSModule(
                     msg_id, msg_inner_msg.get('id'), msg_inner_msg.get('state'))
 
-            elif category == 'copr' and object == 'build':
+            elif conf.system == category == 'copr' and object == 'build':
                 build = msg_inner_msg.get('build')
                 status = msg_inner_msg.get('status')
                 pkg = msg_inner_msg.get('pkg')
