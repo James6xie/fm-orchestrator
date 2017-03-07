@@ -132,6 +132,7 @@ class DevConfiguration(BaseConfiguration):
     KOJI_REPOSITORY_URL = 'http://kojipkgs.stg.fedoraproject.org/repos'
 
     OIDC_CLIENT_SECRETS = path.join(confdir, 'client_secrets.json')
+    OIDC_REQUIRED_SCOPE = 'https://mbs.fedoraproject.org/oidc/submit-build'
 
     SSL_CERTIFICATE_FILE = path.join(confdir, 'server.crt')
     SSL_CERTIFICATE_KEY_FILE = path.join(confdir, 'server.key')
