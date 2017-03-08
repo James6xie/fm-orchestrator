@@ -77,21 +77,24 @@ class MBSProducer(PollingProducer):
                          .format(component_build.task_id))
                 task_info = koji_session.getTaskInfo(component_build.task_id)
 
-                dead_states = (
-                    koji.TASK_STATES['CANCELED'],
-                    koji.TASK_STATES['FAILED'],
-                )
+                state_mapping = {
+                    # Cancelled and failed builds should be marked as failed.
+                    koji.TASK_STATES['CANCELED']: koji.BUILD_STATES['FAILED'],
+                    koji.TASK_STATES['FAILED']: koji.BUILD_STATES['FAILED'],
+                    # Completed tasks should be marked as complete.
+                    koji.TASK_STATES['CLOSED']: koji.BUILD_STATES['COMPLETE'],
+                }
 
                 log.info('  task {0!r} is in state {1!r}'.format(
                     component_build.task_id, task_info['state']))
-                if task_info['state'] in dead_states:
+                if task_info['state'] in state_mapping:
                     # Fake a fedmsg message on our internal queue
                     msg = module_build_service.messaging.KojiBuildChange(
                         msg_id='a faked internal message',
                         build_id=component_build.task_id,
                         task_id=component_build.task_id,
                         build_name=component_build.package,
-                        build_new_state=koji.BUILD_STATES['FAILED'],
+                        build_new_state=state_mapping[task_info['state']],
                         build_release=None,
                         build_version=None
                     )
