@@ -22,7 +22,7 @@
 
 
 import unittest
-from module_build_service import messaging
+from module_build_service import messaging, conf
 
 
 class TestFedmsgMessaging(unittest.TestCase):
@@ -75,6 +75,7 @@ class TestFedmsgMessaging(unittest.TestCase):
             'username': 'copr'
         }
 
+        conf.set_item("system", "copr")
         topic = 'org.fedoraproject.prod.copr.build.end'
         msg = messaging.BaseMessage.from_fedmsg(topic, copr_build_end_msg)
         self.assertIsInstance(msg, messaging.KojiBuildChange)
