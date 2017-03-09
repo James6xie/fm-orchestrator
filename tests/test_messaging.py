@@ -23,6 +23,7 @@
 
 import unittest
 from module_build_service import messaging, conf
+from mock import patch, PropertyMock
 
 
 class TestFedmsgMessaging(unittest.TestCase):
@@ -53,7 +54,9 @@ class TestFedmsgMessaging(unittest.TestCase):
         self.assertEqual(msg.build_id, 614503)
         self.assertEqual(msg.build_new_state, 1)
 
-    def test_copr_build_end(self):
+    @patch("module_build_service.config.Config.system",
+            new_callable=PropertyMock, return_value = "copr")
+    def test_copr_build_end(self, conf_system):
         # http://fedora-fedmsg.readthedocs.io/en/latest/topics.html#copr-build-end
         copr_build_end_msg = {
             'msg': {
@@ -75,7 +78,6 @@ class TestFedmsgMessaging(unittest.TestCase):
             'username': 'copr'
         }
 
-        conf.set_item("system", "copr")
         topic = 'org.fedoraproject.prod.copr.build.end'
         msg = messaging.BaseMessage.from_fedmsg(topic, copr_build_end_msg)
         self.assertIsInstance(msg, messaging.KojiBuildChange)

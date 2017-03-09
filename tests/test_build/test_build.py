@@ -34,7 +34,7 @@ import module_build_service.scheduler.handlers.repos
 import module_build_service.utils
 from module_build_service import db, models, conf
 
-from mock import patch
+from mock import patch, PropertyMock
 
 from tests import app, init_data
 import os
@@ -203,15 +203,13 @@ class TestModuleBuilder(GenericBuilder):
         pass
 
 
+@patch("module_build_service.config.Config.system", 
+        new_callable=PropertyMock, return_value = "mock")
 class TestBuild(unittest.TestCase):
 
     def setUp(self):
         GenericBuilder.register_backend_class(TestModuleBuilder)
         self.client = app.test_client()
-        self._prev_system = conf.system
-        self._prev_num_consecutive_builds = conf.num_consecutive_builds
-
-        conf.set_item("system", "mock")
 
         init_data()
         models.ModuleBuild.query.delete()
@@ -222,8 +220,6 @@ class TestBuild(unittest.TestCase):
         self.vcr.__enter__()
 
     def tearDown(self):
-        conf.set_item("system", self._prev_system)
-        conf.set_item("num_consecutive_builds", self._prev_num_consecutive_builds)
         TestModuleBuilder.reset()
 
         # Necessary to restart the twisted reactor for the next test.
@@ -237,7 +233,7 @@ class TestBuild(unittest.TestCase):
     @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build(self, mocked_scm, mocked_get_user):
+    def test_submit_build(self, mocked_scm, mocked_get_user, conf_system):
         """
         Tests the build of testmodule.yaml using TestModuleBuilder which
         succeeds everytime.
@@ -292,7 +288,7 @@ class TestBuild(unittest.TestCase):
     @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build_from_yaml(self, mocked_scm, mocked_get_user):
+    def test_submit_build_from_yaml(self, mocked_scm, mocked_get_user, conf_system):
         MockedSCM(mocked_scm, "testmodule", "testmodule.yaml")
 
         testmodule = os.path.join(base_dir, 'staged_data', 'testmodule.yaml')
@@ -305,18 +301,21 @@ class TestBuild(unittest.TestCase):
                                   data={'yaml': (testmodule, yaml)})
             return json.loads(rv.data)
 
-        conf.set_item("yaml_submit_allowed", True)
-        data = submit()
-        self.assertEqual(data['id'], 1)
+        with patch("module_build_service.config.Config.yaml_submit_allowed",
+                new_callable=PropertyMock, return_value = True):
+            conf.set_item("yaml_submit_allowed", True)
+            data = submit()
+            self.assertEqual(data['id'], 1)
 
-        conf.set_item("yaml_submit_allowed", False)
-        data = submit()
-        self.assertEqual(data['status'], 401)
-        self.assertEqual(data['message'], 'YAML submission is not enabled')
+        with patch("module_build_service.config.Config.yaml_submit_allowed",
+                new_callable=PropertyMock, return_value = False):
+            data = submit()
+            self.assertEqual(data['status'], 401)
+            self.assertEqual(data['message'], 'YAML submission is not enabled')
 
     @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
-    def test_submit_build_with_optional_params(self, mocked_get_user):
+    def test_submit_build_with_optional_params(self, mocked_get_user, conf_system):
         params = {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                             'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}
 
@@ -335,7 +334,7 @@ class TestBuild(unittest.TestCase):
     @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build_cancel(self, mocked_scm, mocked_get_user):
+    def test_submit_build_cancel(self, mocked_scm, mocked_get_user, conf_system):
         """
         Submit all builds for a module and cancel the module build later.
         """
@@ -387,7 +386,7 @@ class TestBuild(unittest.TestCase):
     @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build_instant_complete(self, mocked_scm, mocked_get_user):
+    def test_submit_build_instant_complete(self, mocked_scm, mocked_get_user, conf_system):
         """
         Tests the build of testmodule.yaml using TestModuleBuilder which
         succeeds everytime.
@@ -418,15 +417,17 @@ class TestBuild(unittest.TestCase):
     @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build_concurrent_threshold(self, mocked_scm, mocked_get_user):
+    @patch("module_build_service.config.Config.num_consecutive_builds", 
+           new_callable=PropertyMock, return_value = 1)
+    def test_submit_build_concurrent_threshold(self, conf_num_consecutive_builds,
+                                               mocked_scm, mocked_get_user,
+                                               conf_system):
         """
         Tests the build of testmodule.yaml using TestModuleBuilder with
         num_consecutive_builds set to 1.
         """
         MockedSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
                   '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
-
-        conf.set_item("num_consecutive_builds", 1)
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'

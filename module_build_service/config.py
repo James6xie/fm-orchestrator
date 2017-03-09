@@ -324,15 +324,26 @@ class Config(object):
             self.set_item(key.lower(), getattr(conf_section_obj, key))
 
     def set_item(self, key, value):
-        """Set value for configuration item as self.key = value"""
+        """
+        Set value for configuration item. Creates the self._key = value
+        attribute and self.key property to set/get/del the attribute.
+        """
         if key == 'set_item' or key.startswith('_'):
             raise Exception("Configuration item's name is not allowed: %s" % key)
 
-        # customized check & set if there's a corresponding handler
+        # Create the empty self._key attribute, so we can assign to it.
+        setattr(self, "_" + key, None)
+
+        # Create self.key property to access the self._key attribute.
+        # Use the setifok_func if available for the attribute.
         setifok_func = '_setifok_{}'.format(key)
         if hasattr(self, setifok_func):
-            getattr(self, setifok_func)(value)
-            return
+            setx = lambda self, val: getattr(self, setifok_func)(val)
+        else:
+            setx = lambda self, val: setattr(self, "_" + key, val)
+        getx = lambda self: getattr(self, "_" + key)
+        delx = lambda self: delattr(self, "_" + key)
+        setattr(Config, key, property(getx, setx, delx))
 
         # managed/registered configuration items
         if key in self._defaults:
@@ -340,21 +351,17 @@ class Config(object):
             convert = self._defaults[key]['type']
             if convert in [bool, int, list, str, set]:
                 try:
-                    setattr(self, key, convert(value))
+                    # Do no try to convert None...
+                    if value is not None:
+                        value = convert(value)
                 except:
                     raise TypeError("Configuration value conversion failed for name: %s" % key)
-            # if type is None, do not perform any conversion
-            elif convert is None:
-                setattr(self, key, value)
             # unknown type/unsupported conversion
-            else:
+            elif convert is not None:
                 raise TypeError("Unsupported type %s for configuration item name: %s" % (convert, key))
 
-        # passthrough for unmanaged configuration items
-        else:
-            setattr(self, key, value)
-
-        return
+        # Set the attribute to the correct value
+        setattr(self, key, value)
 
     #
     # Register your _setifok_* handlers here
@@ -364,62 +371,62 @@ class Config(object):
         s = str(s)
         if s not in ("koji", "copr", "mock"):
             raise ValueError("Unsupported buildsystem: %s." % s)
-        self.system = s
+        self._system = s
 
     def _setifok_polling_interval(self, i):
         if not isinstance(i, int):
             raise TypeError("polling_interval needs to be an int")
         if i < 0:
             raise ValueError("polling_interval must be >= 0")
-        self.polling_interval = i
+        self._polling_interval = i
 
     def _setifok_rpms_default_repository(self, s):
         rpm_repo = str(s)
         if rpm_repo[-1] != '/':
             rpm_repo = rpm_repo + '/'
-        self.rpms_default_repository = rpm_repo
+        self._rpms_default_repository = rpm_repo
 
     def _setifok_rpms_default_cache(self, s):
         rpm_cache = str(s)
         if rpm_cache[-1] != '/':
             rpm_cache = rpm_cache + '/'
-        self.rpms_default_cache = rpm_cache
+        self._rpms_default_cache = rpm_cache
 
     def _setifok_log_backend(self, s):
         if s is None:
-            self.log_backend = "console"
+            self._log_backend = "console"
         elif s not in logger.supported_log_backends():
             raise ValueError("Unsupported log backend")
-        self.log_backend = str(s)
+        self._log_backend = str(s)
 
     def _setifok_log_file(self, s):
         if s is None:
-            self.log_file = ""
+            self._log_file = ""
         else:
-            self.log_file = str(s)
+            self._log_file = str(s)
 
     def _setifok_log_level(self, s):
         level = str(s).lower()
-        self.log_level = logger.str_to_log_level(level)
+        self._log_level = logger.str_to_log_level(level)
 
     def _setifok_messaging(self, s):
         s = str(s)
         if s not in ("fedmsg", "amq", "in_memory"):
             raise ValueError("Unsupported messaging system.")
-        self.messaging = s
+        self._messaging = s
 
     def _setifok_amq_recv_addresses(self, l):
         assert isinstance(l, list) or isinstance(l, tuple)
-        self.amq_recv_addresses = list(l)
+        self._amq_recv_addresses = list(l)
 
     def _setifok_scmurls(self, l):
         if not isinstance(l, list):
             raise TypeError("scmurls needs to be a list.")
-        self.scmurls = [str(x) for x in l]
+        self._scmurls = [str(x) for x in l]
 
     def _setifok_num_consecutive_builds(self, i):
         if not isinstance(i, int):
             raise TypeError('NUM_CONSECUTIVE_BUILDS needs to be an int')
         if i < 0:
             raise ValueError('NUM_CONSECUTIVE_BUILDS must be >= 0')
-        self.num_consecutive_builds = i
+        self._num_consecutive_builds = i
