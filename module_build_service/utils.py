@@ -311,7 +311,7 @@ def filter_module_builds(flask_request):
     return query.paginate(page, per_page, False)
 
 
-def _fetch_mmd(url, allow_local_url = False):
+def _fetch_mmd(url, branch = None, allow_local_url = False):
     # Import it here, because SCM uses utils methods
     # and fails to import them because of dep-chain.
     import module_build_service.scm
@@ -322,8 +322,9 @@ def _fetch_mmd(url, allow_local_url = False):
     try:
         log.debug('Verifying modulemd')
         td = tempfile.mkdtemp()
-        scm = module_build_service.scm.SCM(url, conf.scmurls, allow_local_url)
+        scm = module_build_service.scm.SCM(url, branch, conf.scmurls, allow_local_url)
         cod = scm.checkout(td)
+        scm.verify(cod)
         cofn = os.path.join(cod, (scm.name + ".yaml"))
 
         with open(cofn, "r") as mmdfile:
@@ -556,8 +557,9 @@ def submit_module_build_from_yaml(username, yaml, optional_params=None):
     return submit_module_build(username, None, mmd, None, yaml, optional_params)
 
 
-def submit_module_build_from_scm(username, url, allow_local_url=False, optional_params=None):
-    mmd, scm, yaml = _fetch_mmd(url, allow_local_url)
+def submit_module_build_from_scm(username, url, branch, allow_local_url=False,
+                                 optional_params=None):
+    mmd, scm, yaml = _fetch_mmd(url, branch, allow_local_url)
     return submit_module_build(username, url, mmd, scm, yaml, optional_params)
 
 
@@ -610,7 +612,7 @@ def submit_module_build(username, url, mmd, scm, yaml, optional_params=None):
 
 
 def validate_optional_params(params):
-    forbidden_params = [k for k in params if k not in models.ModuleBuild.__table__.columns]
+    forbidden_params = [k for k in params if k not in models.ModuleBuild.__table__.columns and k not in ["branch"]]
     if forbidden_params:
         raise ValidationError('The request contains unspecified parameters: {}'.format(", ".join(forbidden_params)))
 
