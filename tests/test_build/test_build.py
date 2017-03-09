@@ -31,6 +31,7 @@ from nose.tools import timed
 
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.repos
+import module_build_service.utils
 from module_build_service import db, models, conf
 
 from mock import patch
@@ -208,7 +209,7 @@ class TestBuild(unittest.TestCase):
         GenericBuilder.register_backend_class(TestModuleBuilder)
         self.client = app.test_client()
         self._prev_system = conf.system
-        self._prev_num_consencutive_builds = conf.num_consecutive_builds
+        self._prev_num_consecutive_builds = conf.num_consecutive_builds
 
         conf.set_item("system", "mock")
 
@@ -222,7 +223,7 @@ class TestBuild(unittest.TestCase):
 
     def tearDown(self):
         conf.set_item("system", self._prev_system)
-        conf.set_item("num_consecutive_builds", self._prev_num_consencutive_builds)
+        conf.set_item("num_consecutive_builds", self._prev_num_consecutive_builds)
         TestModuleBuilder.reset()
 
         # Necessary to restart the twisted reactor for the next test.
@@ -434,12 +435,24 @@ class TestBuild(unittest.TestCase):
         data = json.loads(rv.data)
         module_build_id = data['id']
 
+        def stop(message):
+            """
+            Stop the scheduler when the module is built or when we try to build
+            more components than the num_consecutive_builds.
+            """
+            main_stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
+            over_threshold = conf.num_consecutive_builds < \
+                db.session.query(models.ComponentBuild).filter_by(
+                state=koji.BUILD_STATES['BUILDING']).count()
+            return main_stop(message) or over_threshold
+
         msgs = []
-        stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
         module_build_service.scheduler.main(msgs, stop)
 
         # All components should be built and module itself should be in "done"
         # or "ready" state.
         for build in models.ComponentBuild.query.filter_by(module_id=module_build_id).all():
             self.assertEqual(build.state, koji.BUILD_STATES['COMPLETE'])
+            # When this fails, it can mean that num_consecutive_builds
+            # threshold has been met.
             self.assertTrue(build.module_build.state in [models.BUILD_STATES["done"], models.BUILD_STATES["ready"]] )
