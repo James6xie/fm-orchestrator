@@ -70,6 +70,7 @@ class TestModuleWait(unittest.TestCase):
             mmd.loads(f)
 
         mocked_module_build.mmd.return_value = mmd
+        mocked_module_build.component_builds = []
 
         from_module_event.return_value = mocked_module_build
 

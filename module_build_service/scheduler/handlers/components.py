@@ -79,7 +79,8 @@ def _finalize(config, session, msg, state):
     module_name = parent.name
     tag = parent.koji_tag
     builder = module_build_service.builder.GenericBuilder.create(
-        parent.owner, module_name, config.system, config, tag_name=tag)
+        parent.owner, module_name, config.system, config, tag_name=tag,
+        components=[c.package for c in parent.component_builds])
 
     groups = module_build_service.builder.GenericBuilder.default_buildroot_groups(
         session, parent)
