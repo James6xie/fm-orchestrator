@@ -172,7 +172,7 @@ def build_module_locally(url):
     db.create_all()
 
     username = getpass.getuser()
-    submit_module_build_from_scm(username, url, allow_local_url=True)
+    submit_module_build_from_scm(username, url, "master", allow_local_url=True)
 
     stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
     initial_messages = [MBSModule("local module build", 1, 1)]
