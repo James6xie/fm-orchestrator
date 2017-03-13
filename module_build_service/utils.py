@@ -43,7 +43,7 @@ from module_build_service import log, models
 from module_build_service.errors import (ValidationError, UnprocessableEntity,
                                          ProgrammingError)
 from module_build_service import conf, db
-from module_build_service.errors import (Unauthorized, Conflict)
+from module_build_service.errors import (Forbidden, Conflict)
 import module_build_service.messaging
 from multiprocessing.dummy import Pool as ThreadPool
 import module_build_service.pdc
@@ -461,10 +461,10 @@ def format_mmd(mmd, scmurl):
         # Add missing data in RPM components
         for pkgname, pkg in mmd.components.rpms.items():
             if pkg.repository and not conf.rpms_allow_repository:
-                raise Unauthorized(
+                raise Forbidden(
                     "Custom component repositories aren't allowed")
             if pkg.cache and not conf.rpms_allow_cache:
-                raise Unauthorized("Custom component caches aren't allowed")
+                raise Forbidden("Custom component caches aren't allowed")
             if not pkg.repository:
                 pkg.repository = conf.rpms_default_repository + pkgname
             if not pkg.cache:
@@ -475,7 +475,7 @@ def format_mmd(mmd, scmurl):
         # Add missing data in included modules components
         for modname, mod in mmd.components.modules.items():
             if mod.repository and not conf.modules_allow_repository:
-                raise Unauthorized(
+                raise Forbidden(
                     "Custom component repositories aren't allowed")
             if not mod.repository:
                 mod.repository = conf.modules_default_repository + modname

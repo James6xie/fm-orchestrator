@@ -37,7 +37,7 @@ import shutil
 import datetime
 
 from module_build_service import log
-from module_build_service.errors import Unauthorized, ValidationError
+from module_build_service.errors import Forbidden, ValidationError
 import module_build_service.utils
 
 
@@ -54,13 +54,13 @@ class SCM(object):
 
         :param str url: The unmodified scmurl
         :param list allowed_scm: The list of allowed SCMs, optional
-        :raises: Unauthorized or ValidationError
+        :raises: Forbidden or ValidationError
         """
 
         if allowed_scm:
             if not (url.startswith(tuple(allowed_scm)) or
                     (allow_local and url.startswith("file://"))):
-                raise Unauthorized(
+                raise Forbidden(
                     '%s is not in the list of allowed SCMs' % url)
 
         url = url.rstrip('/')
