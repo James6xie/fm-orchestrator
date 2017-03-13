@@ -1,0 +1,205 @@
+#!/usr/bin/env python
+from __future__ import print_function
+import os
+import sys
+import fedora.client.openidcclient
+import argparse
+import logging
+import subprocess
+import requests
+import koji
+import time
+
+DEFAULT_ID_PROVIDER = "https://id.fedoraproject.org/openidc/"
+DEFAULT_MBS_SERVER = "https://mbs.fedoraproject.org"
+
+fedora.client.openidcclient.WEB_PORTS = [13747]
+
+def watch_build(server, build_id):
+    if not server:
+        server = DEFAULT_MBS_SERVER
+
+    done = False
+    while not done:
+        # Clear the screen
+        print(chr(27) + "[2J")
+
+        state_names = dict([(v, k) for k, v in koji.BUILD_STATES.items()])
+        state_names[None] = "undefined"
+
+        idx = int(build_id)
+
+        response = requests.get(server + '/module-build-service/1/module-builds/%i?verbose=true' % idx)
+        data = response.json()
+
+        tasks = data['tasks']['rpms']
+        states = list(set([task['state'] for task in tasks.values()]))
+        inverted = dict()
+        for name, task in tasks.items():
+            state = task['state']
+            inverted[state] = inverted.get(state, [])
+            inverted[state].append(name)
+
+        if 0 in inverted:
+            print("Still building:")
+            for name in inverted[0]:
+                task = tasks[name]
+                print("  ", name, "https://koji.fedoraproject.org/koji/taskinfo?taskID=%s" % task['task_id'])
+
+        if 3 in inverted:
+            print("Failed:")
+            for name in inverted[3]:
+                task = tasks[name]
+                print("  ", name, "https://koji.fedoraproject.org/koji/taskinfo?taskID=%s" % task['task_id'])
+
+        print()
+        print("Summary:")
+        for state in states:
+            print("  ", len(inverted[state]), "components in the", state_names[state], "state")
+
+        done = data["state_name"] in ["failed", "done", "ready"]
+
+        print('Module {name} is in state {state_name} (reason {state_reason})'.format(**data))
+        time.sleep(30)
+
+def send_authorized_request(server, id_provider, url, body, **kwargs):
+    """
+    Sends authorized request to server.
+    """
+    if not server:
+        server = DEFAULT_MBS_SERVER
+    if not id_provider:
+        id_provider = DEFAULT_ID_PROVIDER
+
+    logging.info("Trying to get the token from %s", id_provider)
+
+    # Get the auth token using the OpenID client.
+    oidc = fedora.client.openidcclient.OpenIDCBaseClient(
+        server, 'mbs-authorizer',
+        id_provider=id_provider,
+        client_id="mbs-authorizer",
+        client_secret="notsecret")
+
+    scopes = ['openid', 'https://id.fedoraproject.org/scope/groups',
+              'https://mbs.fedoraproject.org/oidc/submit-build']
+    logging.debug("Sending body: %s", body)
+    return oidc.send_request(url, scopes, json=body, **kwargs)
+
+def submit_module_build(scm_url, branch, server, id_provider, pyrpkg):
+    """
+    Submits the module defined by `scm_url` to MBS instance defined
+    by `server`.
+    """
+
+    if not scm_url or not branch:
+        logging.info("You have not provided SCM URL or branch. Trying to get "
+            "it from current working directory")
+        process = subprocess.Popen([pyrpkg, 'giturl'], stdout=subprocess.PIPE,
+                                   stderr=subprocess.PIPE)
+        out, err = process.communicate()
+        if process.returncode != 0 and len(err) != 0:
+            logging.error("Cannot get the giturl from current "
+                "working directory using the %s", pyrpkg)
+            logging.error(err)
+            return -2
+        scm_url = out[:-1] # remove new-line
+
+        process = subprocess.Popen(['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        out, err = process.communicate()
+        if process.returncode != 0 and len(err) != 0:
+            logging.error("Cannot get the branch name from current "
+                "working directory.")
+            logging.error(err)
+            return -2
+        branch = out[:-1] # remove new-line
+
+    logging.info("Submitting module build %s", scm_url)
+    body = {'scmurl': scm_url, 'branch': branch}
+    resp = send_authorized_request(
+        server, id_provider, "/module-build-service/1/module-builds/",
+        body)
+    logging.info(resp.text)
+
+    data = resp.json()
+    if 'id' in data:
+        return data['id']
+    return -3
+
+def cancel_module_build(server, id_provider, build_id):
+    """
+    Cancels the module build.
+    """
+    logging.info("Cancelling module build %s", build_id)
+    resp = send_authorized_request(
+        server, id_provider,
+        "/module-build-service/1/module-builds/" + str(build_id),
+        {'state': 'failed'}, verb="PATCH")
+    logging.info(resp.text)
+
+def main():
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="Submits module build. When "
+        "'scm_url' is not set, it submits the cloned module git repository in "
+        "the current working directory.")
+    subparsers = parser.add_subparsers(dest="cmd_name")
+    parser.add_argument('-v', dest='verbose', action='store_true',
+                        help="shows verbose output")
+    parser.add_argument('-q', dest='quiet', action='store_true',
+                        help="shows only warnings and errors")
+    parser.add_argument('-s', dest='server', action='store',
+                        help="defines the hostname[:port] of the Module Build Service")
+    parser.add_argument('-i', dest='idprovider', action='store',
+                        help="defines the OpenID Connect identity provider")
+    parser.add_argument('-p', dest='pyrpkg_client', action='store',
+                        help="defines the name of pyrpkg client executable",
+                        default="fedpkg")
+
+    parser_submit = subparsers.add_parser('submit',
+                                          help="submit module build")
+    parser_submit.add_argument("scm_url", nargs='?')
+    parser_submit.add_argument("branch", nargs='?')
+    parser_submit.add_argument('-w', dest="watch", action='store_true',
+                               help="watch the build progress")
+
+    parser_watch = subparsers.add_parser('watch',
+                                          help="watch module build")
+    parser_watch.add_argument("build_id")
+
+    parser_cancel = subparsers.add_parser('cancel',
+                                          help="cancel module build")
+    parser_cancel.add_argument("build_id")
+
+    args = parser.parse_args()
+
+
+    # Initialize the logging.
+    if args.verbose:
+        loglevel = logging.DEBUG
+    elif args.quiet:
+        loglevel = logging.WARNING
+    else:
+        loglevel = logging.INFO
+    logging.basicConfig(level=loglevel, format="%(levelname)s: %(message)s")
+
+    if args.cmd_name == "submit":
+        # Submit the module build.
+        build_id = submit_module_build(args.scm_url, args.branch, args.server,
+                                    args.idprovider, args.pyrpkg_client)
+        if build_id < 0:
+            sys.exit(build_id)
+
+        if args.watch:
+            watch_build(args.server, build_id)
+    elif args.cmd_name == "watch":
+        # Watch the module build.
+        try:
+            watch_build(args.server, args.build_id)
+        except KeyboardInterrupt:
+            pass
+    elif args.cmd_name == "cancel":
+        # Cancel the module build
+        cancel_module_build(args.server, args.idprovider, args.build_id)
+
+if __name__ == "__main__":
+    main()
