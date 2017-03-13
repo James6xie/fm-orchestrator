@@ -133,6 +133,10 @@ class ModuleBuildAPI(MethodView):
 
         branch = r["branch"]
 
+        # python-modulemd expects this to be bytes, not unicode.
+        if isinstance(branch, unicode):
+            branch = branch.encode('utf-8')
+
         validate_optional_params(r)
         optional_params = {k: v for k, v in r.items() if k != "scmurl" and k != 'branch'}
         return submit_module_build_from_scm(username, url, branch, allow_local_url=False, optional_params=optional_params)
