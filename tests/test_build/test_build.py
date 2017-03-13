@@ -250,7 +250,7 @@ class TestBuild(unittest.TestCase):
 
         # Check that components are tagged after the batch is built.
         tag_groups = []
-        tag_groups.append([u'module-build-macros-0.1-1.testmodule_master_1.src.rpm-1-1'])
+        tag_groups.append([u'module-build-macros-0.1-1.module_fc4ed5f7.src.rpm-1-1'])
         tag_groups.append([u'perl-Tangerine?#f25-1-1', u'perl-List-Compare?#f25-1-1'])
         tag_groups.append([u'tangerine?#f25-1-1'])
 
@@ -262,7 +262,7 @@ class TestBuild(unittest.TestCase):
         # Check that the components are added to buildroot after the batch
         # is built.
         buildroot_groups = []
-        buildroot_groups.append([u'module-build-macros-0.1-1.testmodule_master_1.src.rpm-1-1'])
+        buildroot_groups.append([u'module-build-macros-0.1-1.module_fc4ed5f7.src.rpm-1-1'])
         buildroot_groups.append([u'perl-Tangerine?#f25-1-1', u'perl-List-Compare?#f25-1-1'])
         buildroot_groups.append([u'tangerine?#f25-1-1'])
 

@@ -30,6 +30,7 @@ import module_build_service.utils
 import module_build_service.messaging
 
 import koji
+import hashlib
 
 import logging
 import os
@@ -37,16 +38,14 @@ import os
 logging.basicConfig(level=logging.DEBUG)
 
 
-def get_rpm_release_from_tag(tag):
-    # Remove the 'module-' prefix, because the disttag is too long
-    # otherwise. We for example hit that limit for KERNELRELEASE, which
-    # must be maximally 64 bytes long.
-    # See https://pagure.io/fm-orchestrator/issue/373 for more info.
-    if tag.startswith("module-"):
-        tag = tag[len("module-"):]
+def get_rpm_release_from_mmd(mmd):
+    """
+    Returns the dist tag based on the modulemd metadata and MBS configuration.
+    """
 
-    return tag.replace("-", "_")
-
+    dist_str = '.'.join([mmd.name, mmd.stream, str(mmd.version)])
+    dist_hash = hashlib.sha1(dist_str).hexdigest()[:8]
+    return conf.default_dist_tag_prefix + dist_hash
 
 def get_artifact_from_srpm(srpm_path):
     return os.path.basename(srpm_path).replace(".src.rpm", "")
@@ -228,7 +227,7 @@ def wait(config, session, msg):
     log.debug("Adding dependencies %s into buildroot for module %s" % (dependencies, module_info))
     builder.buildroot_add_repos(dependencies)
     # inject dist-tag into buildroot
-    srpm = builder.get_disttag_srpm(disttag=".%s" % get_rpm_release_from_tag(tag))
+    srpm = builder.get_disttag_srpm(disttag=".%s" % get_rpm_release_from_mmd(build.mmd()))
 
     log.debug("Starting build batch 1")
     build.batch = 1
