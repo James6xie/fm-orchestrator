@@ -373,10 +373,13 @@ def get_module_build_dependencies(session, module_info, strict=False):
             'The module "{0!r}" did not contain its modulemd or did not have '
             'its xmd attribute filled out in PDC'.format(module_info))
 
-    deps = [dict(name=dep_name, version=dep_info['stream'],
-                 release=dep_info['version'])
-            for dep_name, dep_info in
-            queried_mmd.xmd['mbs']['buildrequires'].items()]
+    buildrequires = queried_mmd.xmd['mbs']['buildrequires']
+    deps = [dict(
+        name=dep_name,
+        version=dep_info['stream'],
+        release=dep_info['version'],
+    ) for dep_name, dep_info in buildrequires.items()]
+
     deps = module_depsolving_wrapper(session, deps, strict=strict)
 
     return deps
