@@ -73,9 +73,10 @@ class MBSProducer(PollingProducer):
                 if not component_build.task_id:
                     continue
 
-                log.info('Checking status of task_id "{0}"'
-                         .format(component_build.task_id))
-                task_info = koji_session.getTaskInfo(component_build.task_id)
+                task_id = component_build.task_id
+
+                log.info('Checking status of task_id "{0}"'.format(task_id))
+                task_info = koji_session.getTaskInfo(task_id)
 
                 state_mapping = {
                     # Cancelled and failed builds should be marked as failed.
@@ -85,8 +86,22 @@ class MBSProducer(PollingProducer):
                     koji.TASK_STATES['CLOSED']: koji.BUILD_STATES['COMPLETE'],
                 }
 
+                # If it is a closed/completed task, then we can extract the NVR
+                build_version, build_release = None, None  # defaults
+                if task_info['state'] == koji.TASK_STATES['CLOSED']:
+                    builds = koji_session.listBuilds(taskID=task_id)
+                    if not builds:
+                        log.warn("Task ID %r is closed, but we found no "
+                                 "builds in koji." % task_id)
+                    elif len(builds) > 1:
+                        log.warn("Task ID %r is closed, but more than one "
+                                 "build is present!" % task_id)
+                    else:
+                        build_version = builds[0]['version']
+                        build_release = builds[0]['release']
+
                 log.info('  task {0!r} is in state {1!r}'.format(
-                    component_build.task_id, task_info['state']))
+                    task_id, task_info['state']))
                 if task_info['state'] in state_mapping:
                     # Fake a fedmsg message on our internal queue
                     msg = module_build_service.messaging.KojiBuildChange(
@@ -95,8 +110,8 @@ class MBSProducer(PollingProducer):
                         task_id=component_build.task_id,
                         build_name=component_build.package,
                         build_new_state=state_mapping[task_info['state']],
-                        build_release=None,
-                        build_version=None
+                        build_release=build_release,
+                        build_version=build_version,
                     )
                     module_build_service.scheduler.consumer.work_queue_put(msg)
 
