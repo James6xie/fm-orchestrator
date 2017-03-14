@@ -331,27 +331,6 @@ def module_depsolving_wrapper(session, modules, strict=True):
     return list(module_tags)
 
 
-def get_module_runtime_dependencies(session, module_info, strict=False):
-    """
-    :param session : PDCClient instance
-    :param module_info : a dict containing filters for pdc
-    :param strict: Normally this function returns None if no module can be
-           found.  If strict=True, then a ValueError is raised.
-
-    Example minimal module_info {'variant_id': module_name, 'variant_version': module_version, 'variant_type': 'module'}
-    """
-    log.debug("get_module_runtime_dependencies(%r, strict=%r)" % (module_info, strict))
-    # XXX get definitive list of modules
-
-    deps = []
-    module_info = get_module(session, module_info, strict=strict)
-    if module_info and module_info.get('runtime_deps', None):
-        deps = [dict(variant_id=x['dependency'], variant_stream=x['stream'])
-                for x in module_info['runtime_deps']]
-        deps = module_depsolving_wrapper(session, deps, strict=strict)
-
-    return deps
-
 def get_module_build_dependencies(session, module_info, strict=False):
     """
     :param session : PDCClient instance
