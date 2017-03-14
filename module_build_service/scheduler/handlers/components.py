@@ -106,7 +106,7 @@ def _finalize(config, session, msg, state):
         builder.buildroot_add_artifacts(built_components_in_batch, install=install)
         builder.tag_artifacts(built_components_in_batch)
         session.commit()
-    elif (not any([c.state == koji.BUILD_STATES['BUILDING']
+    elif (any([c.state != koji.BUILD_STATES['BUILDING']
             for c in unbuilt_components_in_batch])):
         # We are not in the middle of the batch building and
         # we have some unbuilt components in this batch. We might hit the

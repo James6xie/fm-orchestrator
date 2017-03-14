@@ -121,6 +121,7 @@ def start_build_batch(config, module, session, builder, components=None):
 
     # Local check for component relicts
     if any([c.state == koji.BUILD_STATES['BUILDING']
+            and c.batch != module.batch
             for c in module.component_builds]):
         err_msg = "Cannot start a batch when another is in flight."
         log.error(err_msg)

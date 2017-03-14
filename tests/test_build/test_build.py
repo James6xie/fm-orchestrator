@@ -39,6 +39,7 @@ from mock import patch, PropertyMock
 from tests import app, init_data
 import os
 import json
+import itertools
 
 from module_build_service.builder import KojiModuleBuilder, GenericBuilder
 import module_build_service.scheduler.consumer
@@ -206,6 +207,9 @@ class TestModuleBuilder(GenericBuilder):
 @patch("module_build_service.config.Config.system", 
         new_callable=PropertyMock, return_value = "mock")
 class TestBuild(unittest.TestCase):
+
+    # Global variable used for tests if needed
+    _global_var = None
 
     def setUp(self):
         GenericBuilder.register_backend_class(TestModuleBuilder)
@@ -457,3 +461,58 @@ class TestBuild(unittest.TestCase):
             # When this fails, it can mean that num_consecutive_builds
             # threshold has been met.
             self.assertTrue(build.module_build.state in [models.BUILD_STATES["done"], models.BUILD_STATES["ready"]] )
+
+    @timed(30)
+    @patch('module_build_service.auth.get_user', return_value=user)
+    @patch('module_build_service.scm.SCM')
+    @patch("module_build_service.config.Config.num_consecutive_builds",
+           new_callable=PropertyMock, return_value = 2)
+    def test_try_to_reach_concurrent_threshold(self, conf_num_consecutive_builds,
+                                               mocked_scm, mocked_get_user,
+                                               conf_system):
+        """
+        Tests that we try to submit new component build right after
+        the previous one finished without waiting for all 
+        the num_consecutive_builds to finish.
+        """
+        MockedSCM(mocked_scm, 'testmodule-more-components', 'testmodule-more-components.yaml',
+                  '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+
+        rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
+            {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+                'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}))
+
+        data = json.loads(rv.data)
+        module_build_id = data['id']
+
+        # Holds the number of concurrent component builds during
+        # the module build.
+        TestBuild._global_var = []
+
+        def stop(message):
+            """
+            Stop the scheduler when the module is built or when we try to build
+            more components than the num_consecutive_builds.
+            """
+            main_stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
+            num_building = db.session.query(models.ComponentBuild).filter_by(
+                state=koji.BUILD_STATES['BUILDING']).count()
+            over_threshold = conf.num_consecutive_builds < num_building
+            TestBuild._global_var.append(num_building)
+            return main_stop(message) or over_threshold
+
+        msgs = []
+        module_build_service.scheduler.main(msgs, stop)
+
+        # _global_var looks similar to this: [0, 1, 0, 0, 2, 2, 1, 0, 0, 0]
+        # It shows the number of concurrent builds in the time. At first we
+        # want to remove adjacent duplicate entries, because we only care
+        # about changes.
+        # We are building two batches, so there should be just two situations
+        # when we should be building just single component:
+        #   1) module-base-macros in first batch.
+        #   2) The last component of second batch.
+        # If we are building single component more often, num_consecutive_builds
+        # does not work correctly.
+        num_builds = [k for k, g in itertools.groupby(TestBuild._global_var)]
+        self.assertEqual(num_builds.count(1), 2)
