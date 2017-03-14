@@ -1,0 +1,38 @@
+document: modulemd
+version: 1
+data:
+    summary: A test module in all its beauty
+    description: This module demonstrates how to write simple modulemd files And can be used for testing the build and release pipeline.
+    license:
+        module: [ MIT ]
+    dependencies:
+        buildrequires:
+            bootstrap: master
+        requires:
+            bootstrap: master
+    references:
+        community: https://fedoraproject.org/wiki/Modularity
+        documentation: https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules
+        tracker: https://taiga.fedorainfracloud.org/project/modularity
+    profiles:
+        default:
+            rpms:
+                - tangerine
+    api:
+        rpms:
+            - perl-Tangerine
+            - tangerine
+    components:
+        rpms:
+            perl-List-Compare:
+                rationale: A dependency of tangerine.
+                ref: f25
+            perl-Tangerine:
+                rationale: Provides API for this module and is a dependency of tangerine.
+                ref: f25
+            perl-List-Compare1:
+                rationale: A dependency of tangerine.
+                ref: f25
+            perl-Tangerine1:
+                rationale: Provides API for this module and is a dependency of tangerine.
+                ref: f25
