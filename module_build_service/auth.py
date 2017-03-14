@@ -109,7 +109,7 @@ def get_user(request):
         raise Unauthorized("OIDC token invalid or expired.")
 
     if not "OIDC_REQUIRED_SCOPE" in app.config:
-        raise Unauthorized("OIDC_REQUIRED_SCOPE must be set in server config.")
+        raise Forbidden("OIDC_REQUIRED_SCOPE must be set in server config.")
 
     presented_scopes = data['scope'].split(' ')
     required_scopes = [
@@ -119,7 +119,7 @@ def get_user(request):
     ]
     for scope in required_scopes:
         if scope not in presented_scopes:
-            raise Forbidden("Required OIDC scope %r not present: %r" % (
+            raise Unauthorized("Required OIDC scope %r not present: %r" % (
                 scope, presented_scopes))
 
     try:

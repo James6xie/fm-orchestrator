@@ -389,8 +389,8 @@ class TestViews(unittest.TestCase):
         data = json.loads(rv.data)
         self.assertEquals(data['message'], 'The submitted scmurl '
             'git://badurl.com is not allowed')
-        self.assertEquals(data['status'], 401)
-        self.assertEquals(data['error'], 'Unauthorized')
+        self.assertEquals(data['status'], 403)
+        self.assertEquals(data['error'], 'Forbidden')
 
     @patch('module_build_service.auth.get_user', return_value=user)
     def test_submit_build_scm_url_without_hash(self, mocked_get_user):
@@ -401,8 +401,8 @@ class TestViews(unittest.TestCase):
         self.assertEquals(data['message'], 'The submitted scmurl '
             'git://pkgs.stg.fedoraproject.org/modules/testmodule.git '
             'is not valid')
-        self.assertEquals(data['status'], 401)
-        self.assertEquals(data['error'], 'Unauthorized')
+        self.assertEquals(data['status'], 403)
+        self.assertEquals(data['error'], 'Forbidden')
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
@@ -521,8 +521,8 @@ class TestViews(unittest.TestCase):
                 'testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49'}))
         data = json.loads(rv.data)
 
-        self.assertEquals(data['status'], 401)
-        self.assertEquals(data['error'], 'Unauthorized')
+        self.assertEquals(data['status'], 403)
+        self.assertEquals(data['error'], 'Forbidden')
 
     @patch('module_build_service.auth.get_user', return_value=other_user)
     def test_cancel_build(self, mocked_get_user):
@@ -539,8 +539,8 @@ class TestViews(unittest.TestCase):
                                data=json.dumps({'state': 'failed'}))
         data = json.loads(rv.data)
 
-        self.assertEquals(data['status'], 401)
-        self.assertEquals(data['error'], 'Unauthorized')
+        self.assertEquals(data['status'], 403)
+        self.assertEquals(data['error'], 'Forbidden')
 
     @patch('module_build_service.auth.get_user', return_value=other_user)
     def test_cancel_build_wrong_param(self, mocked_get_user):
@@ -577,8 +577,8 @@ class TestViews(unittest.TestCase):
                 "The submitted scmurl {} is not valid".format(scmurl),
             )
         )
-        self.assertEquals(data['status'], 401)
-        self.assertEquals(data['error'], 'Unauthorized')
+        self.assertEquals(data['status'], 403)
+        self.assertEquals(data['error'], 'Forbidden')
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')

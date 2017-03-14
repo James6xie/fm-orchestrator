@@ -109,7 +109,7 @@ class TestAuthModule(unittest.TestCase):
     @patch('module_build_service.auth.client_secrets', None)
     def test_misconfiguring_oidc_client_secrets_should_be_failed(self):
         request = mock.MagicMock()
-        with self.assertRaises(module_build_service.errors.Unauthorized) as cm:
+        with self.assertRaises(module_build_service.errors.Forbidden) as cm:
             module_build_service.auth.get_user(request)
 
         self.assertEquals(str(cm.exception),
@@ -165,7 +165,7 @@ class TestAuthModule(unittest.TestCase):
             request.headers.__setitem__.side_effect = headers.__setitem__
             request.headers.__contains__.side_effect = headers.__contains__
 
-            with self.assertRaises(module_build_service.errors.Unauthorized) as cm:
+            with self.assertRaises(module_build_service.errors.Forbidden) as cm:
                 result = module_build_service.auth.get_user(request)
 
             self.assertEquals(str(cm.exception),
