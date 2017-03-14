@@ -319,7 +319,7 @@ class KojiModuleBuilder(GenericBuilder):
     _build_lock = threading.Lock()
 
     @module_build_service.utils.validate_koji_tag('tag_name')
-    def __init__(self, owner, module, config, tag_name, **kwargs):
+    def __init__(self, owner, module, config, tag_name, components):
         """
         :param owner: a string representing who kicked off the builds
         :param module: string representing module
@@ -345,7 +345,7 @@ class KojiModuleBuilder(GenericBuilder):
         self.module_target = None # A koji target dict
 
         self.build_priority = config.koji_build_priority
-        self.components = kwargs["components"] if "components" in kwargs else []
+        self.components = components
 
     def __repr__(self):
         return "<KojiModuleBuilder module: %s, tag: %s>" % (
@@ -806,6 +806,8 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
 
     def _get_component_owner(self, package):
         user = self.koji_session.getLoggedInUser()['name']
+        if not self.koji_session.getUser(user):
+            raise ValueError("Unknown user %s" % user)
         return user
 
     def _koji_whitelist_packages(self, packages, tags = None):
@@ -816,8 +818,6 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
         # to pass the `packages` to it depending on the result of
         # issue #337.
         owner = self._get_component_owner(packages[0])
-        if not self.koji_session.getUser(owner):
-            raise ValueError("Unknown user %s" % owner)
 
         # This will help with potential resubmiting of failed builds
         pkglists = {}
@@ -829,8 +829,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
             pkglist = pkglists[tag['id']]
             to_add = []
             for package in packages:
-                package_id = pkglist.get(package, None)
-                if not package_id is None:
+                if pkglist.get(package, None):
                     log.debug("%s Package %s is already whitelisted." % (self, package))
                     continue
 
@@ -919,7 +918,7 @@ class CoprModuleBuilder(GenericBuilder):
     _build_lock = threading.Lock()
 
     @module_build_service.utils.validate_koji_tag('tag_name')
-    def __init__(self, owner, module, config, tag_name, **kwargs):
+    def __init__(self, owner, module, config, tag_name, components):
         self.owner = owner
         self.config = config
         self.tag_name = tag_name
@@ -1194,7 +1193,7 @@ mdpolicy=group:primary
 """
 
     @module_build_service.utils.validate_koji_tag('tag_name')
-    def __init__(self, owner, module, config, tag_name, **kwargs):
+    def __init__(self, owner, module, config, tag_name, components):
         self.module_str = module
         self.tag_name = tag_name
         self.config = config

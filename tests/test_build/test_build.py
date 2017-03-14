@@ -92,7 +92,7 @@ class TestModuleBuilder(GenericBuilder):
     on_tag_artifacts_cb = None
 
     @module_build_service.utils.validate_koji_tag('tag_name')
-    def __init__(self, owner, module, config, tag_name, **kwargs):
+    def __init__(self, owner, module, config, tag_name, components):
         self.module_str = module
         self.tag_name = tag_name
         self.config = config
