@@ -131,7 +131,7 @@ def wait(config, session, msg):
     # Wait for the db on the frontend to catch up to the message, otherwise the
     # xmd information won't be present when we need it.
     # See https://pagure.io/fm-orchestrator/issue/386
-    @module_build_service.utils.retry(interval=2, timeout=30, wait_on=RuntimeError)
+    @module_build_service.utils.retry(interval=10, timeout=120, wait_on=RuntimeError)
     def _get_build_containing_xmd_for_mbs():
         build = models.ModuleBuild.from_module_event(session, msg)
         if 'mbs' in build.mmd().xmd:
