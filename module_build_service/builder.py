@@ -667,7 +667,6 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
         self.koji_session.cancelTask(task_id)
 
     @classmethod
-    @module_build_service.utils.validate_koji_tag('tag_name')
     def repo_from_tag(cls, config, tag_name, arch):
         """
         :param config: instance of module_build_service.config.Config
@@ -1096,7 +1095,6 @@ class CoprModuleBuilder(GenericBuilder):
         return {"name": self.tag_name}
 
     @classmethod
-    @module_build_service.utils.validate_koji_tag('tag_name')
     def repo_from_tag(cls, config, tag_name, arch):
         """
         :param backend: a string representing the backend e.g. 'koji'.
