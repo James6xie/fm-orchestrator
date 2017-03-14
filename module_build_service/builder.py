@@ -978,6 +978,7 @@ class CoprModuleBuilder(GenericBuilder):
         Koji Example: create tag, targets, set build tag inheritance...
         """
         self.copr = self._get_copr_safe()
+        self._create_module_safe()
         if self.copr and self.copr.projectname and self.copr.username:
             self.__prep = True
         log.info("%r buildroot sucessfully connected." % self)
@@ -1005,6 +1006,27 @@ class CoprModuleBuilder(GenericBuilder):
     def _create_copr(self, ownername, projectname):
         # @TODO fix issues with custom-1-x86_64 and custom-1-i386 chroot and use it
         return self.client.create_project(ownername, projectname, ["fedora-24-x86_64"])
+
+    def _create_module_safe(self):
+        from copr.exceptions import CoprRequestException
+
+        # @TODO it would be nice if the module build object was passed to Builder __init__
+        module = ModuleBuild.query.filter(ModuleBuild.name == self.module_str).one()
+        modulemd = tempfile.mktemp()
+        module.mmd().dump(modulemd)
+
+        kwargs = {
+            "username": module.copr_owner or self.owner,
+            "projectname": module.copr_project or CoprModuleBuilder._tag_to_copr_name(self.tag_name),
+            "modulemd": modulemd,
+            "create": True,
+            "build": False,
+        }
+        try:
+            self.client.make_module(**kwargs)
+        except CoprRequestException as ex:
+            if "already exists" not in ex.message.get("nsv", [""])[0]:
+                raise RuntimeError("Buildroot is not prep-ed")
 
     def buildroot_ready(self, artifacts=None):
         """
@@ -1123,8 +1145,8 @@ class CoprModuleBuilder(GenericBuilder):
             return log.info("Missing builds, not going to create a module")
 
         # Create a module from previous project
-        kwargs = {"username": self.copr.username, "projectname": self.copr.projectname, "modulemd": modulemd}
-        result = self.client.create_new_build_module(**kwargs)
+        result = self.client.make_module(username=self.copr.username, projectname=self.copr.projectname,
+                                         modulemd=modulemd, create=False, build=True)
         if result.output != "ok":
             log.error(result.error)
             return
