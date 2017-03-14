@@ -79,7 +79,8 @@ def failed(config, session, msg):
 
     if build.koji_tag:
         builder = module_build_service.builder.GenericBuilder.create(
-            build.owner, build.name, config.system, config, tag_name=build.koji_tag)
+            build.owner, build.name, config.system, config, tag_name=build.koji_tag,
+            components=[c.package for c in build.component_builds])
         builder.buildroot_connect(groups)
 
         for component in unbuilt_components:
@@ -222,7 +223,8 @@ def wait(config, session, msg):
     build.koji_tag = tag
 
     builder = module_build_service.builder.GenericBuilder.create(
-        build.owner, build.name, config.system, config, tag_name=tag)
+        build.owner, build.name, config.system, config, tag_name=tag,
+        components=[c.package for c in build.component_builds])
     builder.buildroot_connect(groups)
     log.debug("Adding dependencies %s into buildroot for module %s" % (dependencies, module_info))
     builder.buildroot_add_repos(dependencies)

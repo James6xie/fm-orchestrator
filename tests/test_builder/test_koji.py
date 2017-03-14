@@ -65,7 +65,8 @@ class TestKojiBuilder(unittest.TestCase):
         fake_kmb = FakeKojiModuleBuilder(owner='Moe Szyslak',
                                          module='nginx',
                                          config=conf,
-                                         tag_name='module-nginx-1.2')
+                                         tag_name='module-nginx-1.2',
+                                         components=[])
         fake_kmb.module_target = {'build_tag': 'module-fake_tag'}
 
         with self.assertRaises(IOError):
@@ -88,7 +89,8 @@ class TestGetKojiClientSession(unittest.TestCase):
         KojiModuleBuilder(owner=self.owner,
                           module=self.module,
                           config=self.config,
-                          tag_name=self.tag_name)
+                          tag_name=self.tag_name,
+                          components=[])
         args, kwargs = mocked_krb_login.call_args
         self.assertTrue(set([('proxyuser', self.owner)]).issubset(set(kwargs.items())))
 

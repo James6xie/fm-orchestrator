@@ -84,7 +84,7 @@ def done(config, session, msg):
 
     builder = module_build_service.builder.GenericBuilder.create(
         module_build.owner, module_build.name, config.system, config,
-        tag_name=tag)
+        tag_name=tag, components=[c.package for c in module_build.component_builds])
     builder.buildroot_connect(groups)
 
     # Ok, for the subset of builds that did complete successfully, check to

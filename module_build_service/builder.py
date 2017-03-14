@@ -319,7 +319,7 @@ class KojiModuleBuilder(GenericBuilder):
     _build_lock = threading.Lock()
 
     @module_build_service.utils.validate_koji_tag('tag_name')
-    def __init__(self, owner, module, config, tag_name):
+    def __init__(self, owner, module, config, tag_name, components):
         """
         :param owner: a string representing who kicked off the builds
         :param module: string representing module
@@ -345,6 +345,7 @@ class KojiModuleBuilder(GenericBuilder):
         self.module_target = None # A koji target dict
 
         self.build_priority = config.koji_build_priority
+        self.components = components
 
     def __repr__(self):
         return "<KojiModuleBuilder module: %s, tag: %s>" % (
@@ -494,6 +495,8 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
 
         self.module_build_tag = self._koji_create_tag(
             self.tag_name + "-build", self.arches, perm="admin")
+
+        self._koji_whitelist_packages(self.components)
 
         @module_build_service.utils.retry(wait_on=SysCallError, interval=5)
         def add_groups():
@@ -765,8 +768,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
         taginfo = self.koji_session.getTag(tag_name)
 
         if not taginfo:
-            self.koji_session.createTag(
-                tag_name, parent=conf.koji_tag_inherit_from)
+            self.koji_session.createTag(tag_name)
             taginfo = self._get_tag(tag_name)
 
         opts = {}
@@ -803,25 +805,35 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
 
     def _get_component_owner(self, package):
         user = self.koji_session.getLoggedInUser()['name']
+        if not self.koji_session.getUser(user):
+            raise ValueError("Unknown user %s" % user)
         return user
 
-    def _koji_whitelist_packages(self, packages):
+    def _koji_whitelist_packages(self, packages, tags = None):
+        if not tags:
+            tags = [self.module_tag, self.module_build_tag]
+
+        # TODO: This has to be done per-package or just without the need
+        # to pass the `packages` to it depending on the result of
+        # issue #337.
+        owner = self._get_component_owner(packages[0])
+
         # This will help with potential resubmiting of failed builds
-        pkglist = dict([(p['package_name'], p['package_id']) for p in self.koji_session.listPackages(tagID=self.module_tag['id'])])
-        to_add = []
-        for package in packages:
-            package_id = pkglist.get(package, None)
-            if not package_id is None:
-                log.debug("%s Package %s is already whitelisted." % (self, package))
-                continue
-            to_add.append(package)
+        pkglists = {}
+        for tag in tags:
+            pkglists[tag['id']] = dict([(p['package_name'], p['package_id']) for p in self.koji_session.listPackages(tagID=tag['id'])])
 
-        for package in to_add:
-            owner = self._get_component_owner(package)
-            if not self.koji_session.getUser(owner):
-                raise ValueError("Unknown user %s" % owner)
+        self.koji_session.multicall = True
+        for tag in tags:
+            pkglist = pkglists[tag['id']]
+            to_add = []
+            for package in packages:
+                if pkglist.get(package, None):
+                    log.debug("%s Package %s is already whitelisted." % (self, package))
+                    continue
 
-            self.koji_session.packageListAdd(self.module_tag['name'], package, owner)
+                self.koji_session.packageListAdd(tag['name'], package, owner)
+        self.koji_session.multiCall(strict=True)
 
     @module_build_service.utils.validate_koji_tag(['build_tag', 'dest_tag'])
     def _koji_add_target(self, name, build_tag, dest_tag):
@@ -905,7 +917,7 @@ class CoprModuleBuilder(GenericBuilder):
     _build_lock = threading.Lock()
 
     @module_build_service.utils.validate_koji_tag('tag_name')
-    def __init__(self, owner, module, config, tag_name):
+    def __init__(self, owner, module, config, tag_name, components):
         self.owner = owner
         self.config = config
         self.tag_name = tag_name
@@ -1179,7 +1191,7 @@ mdpolicy=group:primary
 """
 
     @module_build_service.utils.validate_koji_tag('tag_name')
-    def __init__(self, owner, module, config, tag_name):
+    def __init__(self, owner, module, config, tag_name, components):
         self.module_str = module
         self.tag_name = tag_name
         self.config = config
