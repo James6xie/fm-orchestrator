@@ -37,7 +37,7 @@ from module_build_service.utils import (
     pagination_metadata, filter_module_builds, submit_module_build_from_scm,
     submit_module_build_from_yaml, scm_url_schemes, get_scm_url_re, validate_optional_params)
 from module_build_service.errors import (
-    ValidationError, Unauthorized, NotFound)
+    ValidationError, Forbidden, NotFound)
 
 api_v1 = {
     'module_builds': {
@@ -98,7 +98,7 @@ class ModuleBuildAPI(MethodView):
         username, groups = module_build_service.auth.get_user(request)
 
         if conf.allowed_groups and not (conf.allowed_groups & groups):
-            raise Unauthorized("%s is not in any of  %r, only %r" % (
+            raise Forbidden("%s is not in any of  %r, only %r" % (
                 username, conf.allowed_groups, groups))
 
         kwargs = {"username": username}
@@ -121,11 +121,11 @@ class ModuleBuildAPI(MethodView):
         url = r["scmurl"]
         if not any(url.startswith(prefix) for prefix in conf.scmurls):
             log.error("The submitted scmurl %r is not allowed" % url)
-            raise Unauthorized("The submitted scmurl %s is not allowed" % url)
+            raise Forbidden("The submitted scmurl %s is not allowed" % url)
 
         if not get_scm_url_re().match(url):
             log.error("The submitted scmurl %r is not valid" % url)
-            raise Unauthorized("The submitted scmurl %s is not valid" % url)
+            raise Forbidden("The submitted scmurl %s is not valid" % url)
 
         if "branch" not in r:
             log.error('Missing branch')
@@ -143,7 +143,7 @@ class ModuleBuildAPI(MethodView):
 
     def post_file(self, username):
         if not conf.yaml_submit_allowed:
-            raise Unauthorized("YAML submission is not enabled")
+            raise Forbidden("YAML submission is not enabled")
         validate_optional_params(request.form)
 
         try:
@@ -158,7 +158,7 @@ class ModuleBuildAPI(MethodView):
         username, groups = module_build_service.auth.get_user(request)
 
         if conf.allowed_groups and not (conf.allowed_groups & groups):
-            raise Unauthorized("%s is not in any of  %r, only %r" % (
+            raise Forbidden("%s is not in any of  %r, only %r" % (
                 username, conf.allowed_groups, groups))
 
         module = models.ModuleBuild.query.filter_by(id=id).first()
@@ -166,8 +166,8 @@ class ModuleBuildAPI(MethodView):
             raise NotFound('No such module found.')
 
         if module.owner != username:
-            raise Unauthorized('You are not owner of this build and '
-                               'therefore cannot modify it.')
+            raise Forbidden('You are not owner of this build and '
+                            'therefore cannot modify it.')
 
         try:
             r = json.loads(request.get_data().decode("utf-8"))

@@ -314,7 +314,7 @@ class TestBuild(unittest.TestCase):
         with patch("module_build_service.config.Config.yaml_submit_allowed",
                 new_callable=PropertyMock, return_value = False):
             data = submit()
-            self.assertEqual(data['status'], 401)
+            self.assertEqual(data['status'], 403)
             self.assertEqual(data['message'], 'YAML submission is not enabled')
 
     @timed(30)

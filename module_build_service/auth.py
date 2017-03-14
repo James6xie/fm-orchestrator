@@ -23,7 +23,7 @@
 
 """Auth system based on the client certificate and FAS account"""
 
-from module_build_service.errors import Unauthorized
+from module_build_service.errors import Unauthorized, Forbidden
 from module_build_service import app, log
 
 import requests
@@ -43,7 +43,7 @@ def _load_secrets():
         return
 
     if not "OIDC_CLIENT_SECRETS" in app.config:
-        raise Unauthorized("OIDC_CLIENT_SECRETS must be set in server config.")
+        raise Forbidden("OIDC_CLIENT_SECRETS must be set in server config.")
 
     secrets = _json_loads(open(app.config['OIDC_CLIENT_SECRETS'],
                                 'r').read())
@@ -103,13 +103,13 @@ def get_user(request):
     except Exception as e:
         error = "Cannot verify OIDC token: %s" % str(e)
         log.exception(error)
-        raise Unauthorized(error)
+        raise Exception(error)
 
     if not data or not "active" in data or not data["active"]:
         raise Unauthorized("OIDC token invalid or expired.")
 
     if not "OIDC_REQUIRED_SCOPE" in app.config:
-        raise Unauthorized("OIDC_REQUIRED_SCOPE must be set in server config.")
+        raise Forbidden("OIDC_REQUIRED_SCOPE must be set in server config.")
 
     presented_scopes = data['scope'].split(' ')
     required_scopes = [
@@ -127,13 +127,13 @@ def get_user(request):
     except Exception as e:
         error = "Cannot verify determine user groups:  %s" % str(e)
         log.exception(error)
-        raise Unauthorized(error)
+        raise Exception(error)
 
     try:
         groups = set(extended_data['groups'])
     except Exception as e:
         error = "Could not find groups in UserInfo from OIDC %s" % str(e)
         log.exception(extended_data)
-        raise Unauthorized(error)
+        raise Exception(error)
 
     return data["username"], groups
