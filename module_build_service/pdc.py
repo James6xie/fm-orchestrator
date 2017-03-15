@@ -170,6 +170,8 @@ def get_module(session, module_info, strict=False):
     )
     if module_info.get('variant_release'):
         query['variant_release'] = module_info['variant_release']
+    if module_info.get('active'):
+        query['active'] = module_info['active']
 
     retval = session['unreleasedvariants'](page_size=-1, **query) # ordering=variant_release...
 
@@ -325,6 +327,8 @@ def module_depsolving_wrapper(session, modules, strict=True):
                     'name': name,
                     'version': details['stream'],
                     'release': details['version'],
+                    # Only return details about module builds that finished
+                    'active': True,
                 }
                 module_list.append(modified_dep)
 
