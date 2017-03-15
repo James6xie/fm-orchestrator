@@ -229,35 +229,6 @@ def start_next_batch_build(config, module, session, builder, components=None):
         return continue_batch_build(
             config, module, session, builder, components)
 
-    module.batch += 1
-
-    # The user can either pass in a list of components to 'seed' the batch, or
-    # if none are provided then we just select everything that hasn't
-    # successfully built yet or isn't currently being built.
-    unbuilt_components = components or [
-        c for c in module.component_builds
-        if (c.state != koji.BUILD_STATES['COMPLETE']
-            and c.state != koji.BUILD_STATES['BUILDING']
-            and c.state != koji.BUILD_STATES['FAILED']
-            and c.batch == module.batch)
-    ]
-
-    log.info("Starting build of next batch %d, %s" % (module.batch,
-        unbuilt_components))
-
-    # Local check for component relicts
-    if any([c.state == koji.BUILD_STATES['BUILDING']
-            and c.batch != module.batch
-            for c in module.component_builds]):
-        err_msg = "Cannot start a batch when another is in flight."
-        log.error(err_msg)
-        unbuilt_components = [
-            c for c in module.component_builds
-            if (c.state == koji.BUILD_STATES['BUILDING'])
-        ]
-        log.error("Components in building state: %s" % str(unbuilt_components))
-        raise ValueError(err_msg)
-
     # Identify active tasks which might contain relicts of previous builds
     # and fail the module build if this^ happens.
     active_tasks = builder.list_tasks_for_components(module.component_builds,
@@ -273,6 +244,22 @@ def start_next_batch_build(config, module, session, builder, components=None):
     else:
         log.debug("Builder {} doesn't provide information about active tasks."
                   .format(builder))
+
+    module.batch += 1
+
+    # The user can either pass in a list of components to 'seed' the batch, or
+    # if none are provided then we just select everything that hasn't
+    # successfully built yet or isn't currently being built.
+    unbuilt_components = components or [
+        c for c in module.component_builds
+        if (c.state != koji.BUILD_STATES['COMPLETE']
+            and c.state != koji.BUILD_STATES['BUILDING']
+            and c.state != koji.BUILD_STATES['FAILED']
+            and c.batch == module.batch)
+    ]
+
+    log.info("Starting build of next batch %d, %s" % (module.batch,
+        unbuilt_components))
 
     return continue_batch_build(
         config, module, session, builder, unbuilt_components)
