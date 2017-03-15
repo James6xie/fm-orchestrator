@@ -94,7 +94,7 @@ def at_concurrent_component_threshold(config, session):
 def start_build_component(builder, c):
     """
     Submits single component build to builder. Called in thread
-    by QueueBasedThreadPool in start_build_batch.
+    by QueueBasedThreadPool in continue_batch_build.
     """
     try:
         c.task_id, c.state, c.state_reason, c.nvr = builder.build(
@@ -110,14 +110,140 @@ def start_build_component(builder, c):
             "Builder did not return task ID" % (c.package))
         return
 
-def start_build_batch(config, module, session, builder, components=None):
+def continue_batch_build(config, module, session, builder, components=None):
     """
-    Starts a round of the build cycle for a module.
+    Continues building current batch. Submits next components in the batch
+    until it hits concurrent builds limit.
 
     Returns list of BaseMessage instances which should be scheduled by the
     scheduler.
     """
     import koji  # Placed here to avoid py2/py3 conflicts...
+
+    # The user can either pass in a list of components to 'seed' the batch, or
+    # if none are provided then we just select everything that hasn't
+    # successfully built yet or isn't currently being built.
+    unbuilt_components = components or [
+        c for c in module.component_builds
+        if (c.state != koji.BUILD_STATES['COMPLETE']
+            and c.state != koji.BUILD_STATES['BUILDING']
+            and c.state != koji.BUILD_STATES['FAILED']
+            and c.batch == module.batch)
+    ]
+
+    # Get the list of components to be build in this batch. We are not
+    # building all `unbuilt_components`, because we can a) meet
+    # the num_consecutive_builds threshold or b) reuse previous build.
+    further_work = []
+    components_to_build = []
+    for c in unbuilt_components:
+        previous_component_build = None
+        # Check to see if we can reuse a previous component build
+        # instead of rebuilding it if the builder is Koji
+        if conf.system == 'koji':
+            previous_component_build = get_reusable_component(
+                session, module, c.package)
+        # If a component build can't be reused, we need to check
+        # the concurrent threshold
+        if not previous_component_build and \
+                at_concurrent_component_threshold(config, session):
+            log.info('Concurrent build threshold met')
+            break
+
+        if previous_component_build:
+            log.info(
+                'Reusing component "{0}" from a previous module '
+                'build with the nvr "{1}"'.format(
+                    c.package, previous_component_build.nvr))
+            c.reused_component_id = previous_component_build.id
+            c.task_id = previous_component_build.task_id
+            # Use BUILDING state here, because we want the state to change to
+            # COMPLETE by the fake KojiBuildChange message we are generating
+            # few lines below. If we would set it to the right state right
+            # here, we would miss the code path handling the KojiBuildChange
+            # which works only when switching from BUILDING to COMPLETE.
+            c.state = koji.BUILD_STATES['BUILDING']
+            c.state_reason = \
+                'Reused component from previous module build'
+            c.nvr = previous_component_build.nvr
+            nvr_dict = kobo.rpmlib.parse_nvr(c.nvr)
+            # Add this message to further_work so that the reused
+            # component will be tagged properly
+            further_work.append(
+                module_build_service.messaging.KojiBuildChange(
+                    msg_id='start_build_batch: fake msg',
+                    build_id=None,
+                    task_id=c.task_id,
+                    build_new_state=previous_component_build.state,
+                    build_name=c.package,
+                    build_version=nvr_dict['version'],
+                    build_release=nvr_dict['release'],
+                    module_build_id=c.module_id,
+                    state_reason=c.state_reason
+                )
+            )
+            continue
+
+        # We set state to BUILDING here, because we are going to build the
+        # component anyway and at_concurrent_component_threshold() works
+        # by counting components in BUILDING state.
+        c.state = koji.BUILD_STATES['BUILDING']
+        components_to_build.append(c)
+
+    # Start build of components in this batch.
+    with concurrent.futures.ThreadPoolExecutor(max_workers=config.num_consecutive_builds) as executor:
+        futures = {executor.submit(start_build_component, builder, c): c for c in components_to_build}
+        concurrent.futures.wait(futures)
+
+    # If all components in this batch are already done, it can mean that they
+    # have been built in the past and have been skipped in this module build.
+    # We therefore have to generate fake KojiRepoChange message, because the
+    # repo has been also done in the past and build system will not send us
+    # any message now.
+    if (all(c.state in [koji.BUILD_STATES['COMPLETE'], koji.BUILD_STATES['FAILED']]
+            or c.reused_component_id
+            for c in unbuilt_components) and builder.module_build_tag):
+        further_work += [module_build_service.messaging.KojiRepoChange(
+            'start_build_batch: fake msg', builder.module_build_tag['name'])]
+
+    session.commit()
+    return further_work
+
+def start_next_batch_build(config, module, session, builder, components=None):
+    """
+    Tries to start the build of next batch. In case there are still unbuilt
+    components in a batch, tries to submit more components until it hits 
+    concurrent builds limit. Otherwise Increments module.batch and submits component
+    builds from the next batch.
+
+    :return: a list of BaseMessage instances to be handled by the MBSConsumer.
+    """
+
+    import koji  # Placed here to avoid py2/py3 conflicts...
+
+    unbuilt_components_in_batch = [
+        c for c in module.current_batch()
+        if c.state == koji.BUILD_STATES['BUILDING'] or not c.state
+    ]
+    if unbuilt_components_in_batch:
+        return continue_batch_build(
+            config, module, session, builder, components)
+
+    module.batch += 1
+
+    # The user can either pass in a list of components to 'seed' the batch, or
+    # if none are provided then we just select everything that hasn't
+    # successfully built yet or isn't currently being built.
+    unbuilt_components = components or [
+        c for c in module.component_builds
+        if (c.state != koji.BUILD_STATES['COMPLETE']
+            and c.state != koji.BUILD_STATES['BUILDING']
+            and c.state != koji.BUILD_STATES['FAILED']
+            and c.batch == module.batch)
+    ]
+
+    log.info("Starting build of next batch %d, %s" % (module.batch,
+        unbuilt_components))
 
     # Local check for component relicts
     if any([c.state == koji.BUILD_STATES['BUILDING']
@@ -148,94 +274,8 @@ def start_build_batch(config, module, session, builder, components=None):
         log.debug("Builder {} doesn't provide information about active tasks."
                   .format(builder))
 
-    # The user can either pass in a list of components to 'seed' the batch, or
-    # if none are provided then we just select everything that hasn't
-    # successfully built yet or isn't currently being built.
-    unbuilt_components = components or [
-        c for c in module.component_builds
-        if (c.state != koji.BUILD_STATES['COMPLETE']
-            and c.state != koji.BUILD_STATES['BUILDING']
-            and c.state != koji.BUILD_STATES['FAILED']
-            and c.batch == module.batch)
-    ]
-
-    log.info("Starting build of next batch %d, %s" % (module.batch,
-        unbuilt_components))
-
-    # Get the list of components to be build in this batch. We are not
-    # building all `unbuilt_components`, because we can a) meet
-    # the num_consecutive_builds threshold or b) reuse previous build.
-    further_work = []
-    components_to_build = []
-    for c in unbuilt_components:
-        previous_component_build = None
-        # Check to see if we can reuse a previous component build
-        # instead of rebuilding it if the builder is Koji
-        if conf.system == 'koji':
-            previous_component_build = get_reusable_component(
-                session, module, c.package)
-        # If a component build can't be reused, we need to check
-        # the concurrent threshold
-        if not previous_component_build and \
-                at_concurrent_component_threshold(config, session):
-            log.info('Concurrent build threshold met')
-            break
-
-        if previous_component_build:
-            log.info(
-                'Reusing component "{0}" from a previous module '
-                'build with the nvr "{1}"'.format(
-                    c.package, previous_component_build.nvr))
-            c.reused_component_id = previous_component_build.id
-            c.task_id = previous_component_build.task_id
-            c.state = previous_component_build.state
-            c.reused_component_id = previous_component_build.id
-            c.task_id = previous_component_build.task_id
-            c.state = previous_component_build.state
-            c.state_reason = \
-                'Reused component from previous module build'
-            c.nvr = previous_component_build.nvr
-            nvr_dict = kobo.rpmlib.parse_nvr(c.nvr)
-            # Add this message to further_work so that the reused
-            # component will be tagged properly
-            further_work.append(
-                module_build_service.messaging.KojiBuildChange(
-                    msg_id='start_build_batch: fake msg',
-                    build_id=None,
-                    task_id=c.task_id,
-                    build_new_state=c.state,
-                    build_name=c.package,
-                    build_version=nvr_dict['version'],
-                    build_release=nvr_dict['release'],
-                    module_build_id=c.module_id,
-                    state_reason=c.state_reason
-                )
-            )
-            continue
-
-        # We set state to BUILDING here, because we are going to build the
-        # component anyway and at_concurrent_component_threshold() works
-        # by counting components in BUILDING state.
-        c.state = koji.BUILD_STATES['BUILDING']
-        components_to_build.append(c)
-
-    # Start build of components in this batch.
-    with concurrent.futures.ThreadPoolExecutor(max_workers=config.num_consecutive_builds) as executor:
-        futures = {executor.submit(start_build_component, builder, c): c for c in components_to_build}
-        concurrent.futures.wait(futures)
-
-    # If all components in this batch are already done, it can mean that they
-    # have been built in the past and have been skipped in this module build.
-    # We therefore have to generate fake KojiRepoChange message, because the
-    # repo has been also done in the past and build system will not send us
-    # any message now.
-    if (all(c.state == koji.BUILD_STATES['COMPLETE'] for c in unbuilt_components)
-            and builder.module_build_tag):
-        further_work += [module_build_service.messaging.KojiRepoChange(
-            'start_build_batch: fake msg', builder.module_build_tag['name'])]
-
-    session.commit()
-    return further_work
+    return continue_batch_build(
+        config, module, session, builder, unbuilt_components)
 
 def pagination_metadata(p_query):
     """

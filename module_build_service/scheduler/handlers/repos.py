@@ -28,6 +28,7 @@ import module_build_service.pdc
 import logging
 import koji
 from module_build_service import models, log
+from module_build_service.utils import start_next_batch_build
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -111,16 +112,9 @@ def done(config, session, msg):
 
     further_work = []
     if unbuilt_components:
-        # Increment the build batch when no components are being built and all
-        # have at least attempted a build (even failures) in the current batch
-        unbuilt_components_in_batch = [
-            c for c in module_build.current_batch()
-            if c.state == koji.BUILD_STATES['BUILDING'] or not c.state
-        ]
-        if not unbuilt_components_in_batch:
-            module_build.batch += 1
-
-        further_work += module_build_service.utils.start_build_batch(
+        # Try to start next batch build, because there are still unbuilt
+        # components in a module.
+        further_work += start_next_batch_build(
             config, module_build, session, builder)
 
         # We don't have copr implementation finished yet, Let's fake the repo change event,

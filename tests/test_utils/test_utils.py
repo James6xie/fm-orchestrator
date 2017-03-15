@@ -25,9 +25,14 @@ import modulemd
 from mock import patch
 import module_build_service.utils
 import module_build_service.scm
-from module_build_service import models
+from module_build_service import models, conf
 from module_build_service.errors import ProgrammingError, ValidationError
-from tests import test_resuse_component_init_data, db
+from tests import test_resuse_component_init_data, init_data, db
+import mock
+from mock import PropertyMock
+import koji
+import module_build_service.scheduler.handlers.components
+from module_build_service.builder import GenericBuilder, KojiModuleBuilder
 
 BASE_DIR = path.abspath(path.dirname(__file__))
 CASSETTES_DIR = path.join(
@@ -278,3 +283,113 @@ class TestUtils(unittest.TestCase):
             validate_koji_tag_is_None(None)
 
         self.assertTrue(str(cm.exception).endswith(' No value provided.'))
+
+
+class DummyModuleBuilder(GenericBuilder):
+    """
+    Dummy module builder
+    """
+
+    backend = "koji"
+    _build_id = 0
+
+    TAGGED_COMPONENTS = []
+
+    @module_build_service.utils.validate_koji_tag('tag_name')
+    def __init__(self, owner, module, config, tag_name, components):
+        self.module_str = module
+        self.tag_name = tag_name
+        self.config = config
+
+
+    def buildroot_connect(self, groups):
+        pass
+
+    def buildroot_prep(self):
+        pass
+
+    def buildroot_resume(self):
+        pass
+
+    def buildroot_ready(self, artifacts=None):
+        return True
+
+    def buildroot_add_dependency(self, dependencies):
+        pass
+
+    def buildroot_add_artifacts(self, artifacts, install=False):
+        DummyModuleBuilder.TAGGED_COMPONENTS += artifacts
+
+    def buildroot_add_repos(self, dependencies):
+        pass
+
+    def tag_artifacts(self, artifacts):
+        pass
+
+    @property
+    def module_build_tag(self):
+        return {"name": self.tag_name + "-build"}
+
+    def build(self, artifact_name, source):
+        DummyModuleBuilder._build_id += 1
+        state = koji.BUILD_STATES['COMPLETE']
+        reason = "Submitted %s to Koji" % (artifact_name)
+        return DummyModuleBuilder._build_id, state, reason, None
+
+    @staticmethod
+    def get_disttag_srpm(disttag):
+        # @FIXME
+        return KojiModuleBuilder.get_disttag_srpm(disttag)
+
+    def cancel_build(self, task_id):
+        pass
+
+    def list_tasks_for_components(self, component_builds=None, state='active'):
+        pass
+
+@patch("module_build_service.builder.GenericBuilder.default_buildroot_groups", return_value = {'build': [], 'srpm-build': []})
+class TestBatches(unittest.TestCase):
+
+    def setUp(self):
+        test_resuse_component_init_data()
+        GenericBuilder.register_backend_class(DummyModuleBuilder)
+
+    def tearDown(self):
+        init_data()
+        DummyModuleBuilder.TAGGED_COMPONENTS = []
+        GenericBuilder.register_backend_class(KojiModuleBuilder)
+
+    def test_start_next_batch_build_reuse(self, default_buildroot_groups):
+        module_build = models.ModuleBuild.query.filter_by(id=2).one()
+        module_build.batch = 1
+
+        builder = mock.MagicMock()
+        further_work = module_build_service.utils.start_next_batch_build(
+            conf, module_build, db.session, builder)
+
+        # Batch number should increase.
+        self.assertEqual(module_build.batch, 2)
+
+        # KojiBuildChange messages in further_work should have build_new_state
+        # set to COMPLETE, but the current component build state should be set
+        # to BUILDING, so KojiBuildChange message handler handles the change
+        # properly.
+        for msg in further_work:
+            if type(msg) == module_build_service.messaging.KojiBuildChange:
+                self.assertEqual(msg.build_new_state, koji.BUILD_STATES['COMPLETE'])
+                component_build = models.ComponentBuild.from_component_event(db.session, msg)
+                self.assertEqual(component_build.state, koji.BUILD_STATES['BUILDING'])
+
+        # When we handle these KojiBuildChange messages, MBS should tag all
+        # the components just once.
+        for msg in further_work:
+            if type(msg) == module_build_service.messaging.KojiBuildChange:
+                module_build_service.scheduler.handlers.components.complete(
+                    conf, db.session, msg)
+
+        # Since we have reused all the components in the batch, there should
+        # be fake KojiRepoChange message.
+        self.assertEqual(type(further_work[-1]), module_build_service.messaging.KojiRepoChange)
+
+        # Check that packages have been tagged just once.
+        self.assertEqual(len(DummyModuleBuilder.TAGGED_COMPONENTS), 2)

@@ -111,11 +111,11 @@ def _finalize(config, session, msg, state):
             for c in unbuilt_components_in_batch])):
         # We are not in the middle of the batch building and
         # we have some unbuilt components in this batch. We might hit the
-        # concurrent builds threshold in previous call of start_build_batch
+        # concurrent builds threshold in previous call of continue_batch_build
         # done in repos.py:done(...), but because we have just finished one
-        # build, try to call start_build_batch again so in case we hit the
+        # build, try to call continue_batch_build again so in case we hit the
         # threshold previously, we will submit another build from this batch.
-        further_work = module_build_service.utils.start_build_batch(
+        further_work = module_build_service.utils.continue_batch_build(
             config, parent, session, builder)
         return further_work
 
