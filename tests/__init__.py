@@ -33,6 +33,7 @@ from module_build_service.utils import get_scm_url_re
 import module_build_service.pdc
 
 app = module_build_service.app
+app.config['SERVER_NAME'] = 'localhost'
 conf = init_config(app)
 
 def init_data():
