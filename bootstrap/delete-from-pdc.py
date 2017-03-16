@@ -5,7 +5,7 @@ import sys
 
 import pdc_client
 
-servername, token = sys.argv[-2], sys.argv[-1]
+servername, token, variant_uid = sys.argv[-3], sys.argv[-2], sys.argv[-1]
 
 if os.path.basename(__file__) in (servername, token,):
     raise ValueError("Provide a PDC server name defined in /etc/pdc.d/ and a token")
@@ -14,5 +14,5 @@ print("Connecting to PDC server %r with token %r" % (servername, token))
 pdc = pdc_client.PDCClient(servername, token=token)
 
 print("Submitting DELETE.")
-del pdc['unreleasedvariants']['bootstrap']
+del pdc['unreleasedvariants'][variant_uid]
 print("Done.")
