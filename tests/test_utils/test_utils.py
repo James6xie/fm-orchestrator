@@ -19,7 +19,8 @@
 # SOFTWARE.
 
 import unittest
-from os import path
+from os import path, mkdir
+from shutil import copyfile
 import vcr
 import modulemd
 from mock import patch
@@ -27,19 +28,51 @@ import module_build_service.utils
 import module_build_service.scm
 from module_build_service import models, conf
 from module_build_service.errors import ProgrammingError, ValidationError
-from tests import test_resuse_component_init_data, init_data, db
+from tests import test_reuse_component_init_data, init_data, db
 import mock
 from mock import PropertyMock
 import koji
 import module_build_service.scheduler.handlers.components
 from module_build_service.builder import GenericBuilder, KojiModuleBuilder
+from tests import app
 
 BASE_DIR = path.abspath(path.dirname(__file__))
 CASSETTES_DIR = path.join(
     path.abspath(path.dirname(__file__)), '..', 'vcr-request-data')
 
+class MockedSCM(object):
+    def __init__(self, mocked_scm, name, mmd_filename, commit=None):
+        self.mocked_scm = mocked_scm
+        self.name = name
+        self.commit = commit
+        self.mmd_filename = mmd_filename
+
+        self.mocked_scm.return_value.checkout = self.checkout
+        self.mocked_scm.return_value.name = self.name
+        self.mocked_scm.return_value.branch = 'master'
+        self.mocked_scm.return_value.get_latest = self.get_latest
+        self.mocked_scm.return_value.commit = self.commit
+        self.mocked_scm.return_value.repository_root = "git://pkgs.stg.fedoraproject.org/modules/"
+
+    def checkout(self, temp_dir):
+        scm_dir = path.join(temp_dir, self.name)
+        mkdir(scm_dir)
+        base_dir = path.abspath(path.dirname(__file__))
+        copyfile(path.join(base_dir, '..', 'staged_data', self.mmd_filename),
+                    path.join(scm_dir, self.name + ".yaml"))
+
+        return scm_dir
+
+    def get_latest(self, branch = 'master'):
+        return self.commit if self.commit else branch
 
 class TestUtils(unittest.TestCase):
+
+    def setUp(self):
+        pass
+
+    def tearDown(self):
+        init_data()
 
     @vcr.use_cassette(
         path.join(CASSETTES_DIR, 'tests.test_utils.TestUtils.test_format_mmd'))
@@ -83,14 +116,14 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(mmd.xmd, xmd)
 
     def test_get_reusable_component_same(self):
-        test_resuse_component_init_data()
+        test_reuse_component_init_data()
         new_module = models.ModuleBuild.query.filter_by(id=2).one()
         rv = module_build_service.utils.get_reusable_component(
             db.session, new_module, 'tangerine')
         self.assertEqual(rv.package, 'tangerine')
 
     def test_get_reusable_component_different_perl_tangerine(self):
-        test_resuse_component_init_data()
+        test_reuse_component_init_data()
         second_module_build = models.ModuleBuild.query.filter_by(id=2).one()
         mmd = second_module_build.mmd()
         mmd.components.rpms['perl-Tangerine'].ref = \
@@ -120,7 +153,7 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(tangerine_rv, None)
 
     def test_get_reusable_component_different_buildrequires_hash(self):
-        test_resuse_component_init_data()
+        test_reuse_component_init_data()
         second_module_build = models.ModuleBuild.query.filter_by(id=2).one()
         mmd = second_module_build.mmd()
         mmd.xmd['mbs']['buildrequires']['base-runtime']['ref'] = \
@@ -144,7 +177,7 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(tangerine_rv, None)
 
     def test_get_reusable_component_different_buildrequires(self):
-        test_resuse_component_init_data()
+        test_reuse_component_init_data()
         second_module_build = models.ModuleBuild.query.filter_by(id=2).one()
         mmd = second_module_build.mmd()
         mmd.buildrequires = {'some_module': 'master'}
@@ -284,6 +317,43 @@ class TestUtils(unittest.TestCase):
 
         self.assertTrue(str(cm.exception).endswith(' No value provided.'))
 
+    @patch('module_build_service.scm.SCM')
+    def test_resubmit(self, mocked_scm):
+        """
+        Tests that the module resubmit reintializes the module state and
+        component states properly.
+        """
+        MockedSCM(mocked_scm, 'testmodule', 'testmodule-bootstrap.yaml',
+                        '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+        with app.app_context():
+            test_reuse_component_init_data()
+            # Mark the module build as failed, so we can resubmit it.
+            module_build = models.ModuleBuild.query.filter_by(id=2).one()
+            module_build.batch = 2
+            module_build.state = models.BUILD_STATES['failed']
+            module_build.state_reason = "Cancelled"
+            module_build.version = 1
+
+            # Mark the components as COMPLETE/FAILED/CANCELED
+            components = module_build.component_builds
+            complete_component = components[0]
+            complete_component.state = koji.BUILD_STATES['COMPLETE']
+            failed_component = components[1]
+            failed_component.state = koji.BUILD_STATES['FAILED']
+            canceled_component = components[2]
+            canceled_component.state = koji.BUILD_STATES['CANCELED']
+            db.session.commit()
+
+            module_build_service.utils.submit_module_build_from_scm(
+                "Tom Brady", 'git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#8fea453',
+                'master')
+
+            self.assertEqual(module_build.state, models.BUILD_STATES['wait'])
+            self.assertEqual(module_build.batch, 0)
+            self.assertEqual(module_build.state_reason, "Resubmitted by Tom Brady")
+            self.assertEqual(complete_component.state, koji.BUILD_STATES['COMPLETE'])
+            self.assertEqual(failed_component.state, None)
+            self.assertEqual(canceled_component.state, None)
 
 class DummyModuleBuilder(GenericBuilder):
     """
@@ -351,7 +421,7 @@ class DummyModuleBuilder(GenericBuilder):
 class TestBatches(unittest.TestCase):
 
     def setUp(self):
-        test_resuse_component_init_data()
+        test_reuse_component_init_data()
         GenericBuilder.register_backend_class(DummyModuleBuilder)
 
     def tearDown(self):
@@ -360,6 +430,15 @@ class TestBatches(unittest.TestCase):
         GenericBuilder.register_backend_class(KojiModuleBuilder)
 
     def test_start_next_batch_build_reuse(self, default_buildroot_groups):
+        """
+        Tests that start_next_batch_build:
+           1) Increments module.batch.
+           2) Can reuse all components in batch
+           3) Returns proper further_work messages for reused components.
+           4) Returns the fake Repo change message
+           5) Handling the further_work messages lead to proper tagging of
+              reused components.
+        """
         module_build = models.ModuleBuild.query.filter_by(id=2).one()
         module_build.batch = 1
 
@@ -393,3 +472,31 @@ class TestBatches(unittest.TestCase):
 
         # Check that packages have been tagged just once.
         self.assertEqual(len(DummyModuleBuilder.TAGGED_COMPONENTS), 2)
+
+    def test_start_next_batch_continue(self, default_buildroot_groups):
+        """
+        Tests that start_next_batch_build does not start new batch when
+        there are unbuilt components in the current one.
+        """
+        module_build = models.ModuleBuild.query.filter_by(id=2).one()
+        module_build.batch = 2
+
+        # Mark the component as BUILDING.
+        building_component = module_build.current_batch()[0]
+        building_component.state = koji.BUILD_STATES['BUILDING']
+        db.session.commit()
+
+        builder = mock.MagicMock()
+        further_work = module_build_service.utils.start_next_batch_build(
+            conf, module_build, db.session, builder)
+
+        # Batch number should not increase.
+        self.assertEqual(module_build.batch, 2)
+
+        # Single component should be reused this time, second message is fake
+        # KojiRepoChange.
+        self.assertEqual(len(further_work), 2)
+        self.assertEqual(further_work[0].build_name, "perl-List-Compare")
+
+
+

@@ -242,7 +242,7 @@ def scheduler_init_data():
         session.commit()
 
 
-def test_resuse_component_init_data():
+def test_reuse_component_init_data():
     db.session.remove()
     db.drop_all()
     db.create_all()

@@ -524,6 +524,8 @@ def format_mmd(mmd, scmurl):
                 raise UnprocessableEntity(err_msg)
 
 def record_component_builds(scm, mmd, module, initial_batch = 1):
+    import koji  # Placed here to avoid py2/py3 conflicts...
+
     # Format the modulemd by putting in defaults and replacing streams that
     # are branches with commit hashes
     try:
@@ -574,10 +576,10 @@ def record_component_builds(scm, mmd, module, initial_batch = 1):
 
             existing_build = models.ComponentBuild.query.filter_by(
                 module_id=module.id, package=pkg.name).first()
-            if existing_build and \
-                    existing_build.state != models.BUILD_STATES['done']:
-                existing_build.state = models.BUILD_STATES['init']
-                db.session.add(existing_build)
+            if existing_build:
+                if existing_build.state != koji.BUILD_STATES['COMPLETE']:
+                    existing_build.state = None
+                    db.session.add(existing_build)
             else:
                 # XXX: what about components that were present in previous
                 # builds but are gone now (component reduction)?
@@ -625,7 +627,9 @@ def submit_module_build(username, url, mmd, scm, yaml, optional_params=None):
             raise Conflict(err_msg)
         log.debug('Resuming existing module build %r' % module)
         module.username = username
-        module.transition(conf, models.BUILD_STATES["init"])
+        module.transition(conf, models.BUILD_STATES["init"],
+                          "Resubmitted by %s" % username)
+        module.batch = 0
         log.info("Resumed existing module build in previous state %s"
                  % module.state)
     else:

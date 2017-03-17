@@ -59,21 +59,6 @@ conf = init_config(app)
 
 db = SQLAlchemy(app)
 
-
-def get_url_for(*args, **kwargs):
-    """
-    flask.url_for wrapper which creates the app_context on-the-fly.
-    """
-    if has_app_context():
-        return url_for(*args, **kwargs)
-
-    # Localhost is right URL only when the scheduler runs on the same
-    # system as the web views.
-    app.config['SERVER_NAME'] = 'localhost'
-    with app.app_context():
-        return url_for(*args, **kwargs)
-
-
 @app.errorhandler(ValidationError)
 def validationerror_error(e):
     """Flask error handler for ValidationError exceptions"""
@@ -117,5 +102,21 @@ def notfound_error(e):
 
 init_logging(conf)
 log = getLogger(__name__)
+
+def get_url_for(*args, **kwargs):
+    """
+    flask.url_for wrapper which creates the app_context on-the-fly.
+    """
+    if has_app_context():
+        return url_for(*args, **kwargs)
+
+    # Localhost is right URL only when the scheduler runs on the same
+    # system as the web views.
+    app.config['SERVER_NAME'] = 'localhost'
+    with app.app_context():
+        log.debug("WARNING: get_url_for() has been called without the Flask "
+            "app_context. That can lead to SQLAlchemy errors caused by "
+            "multiple session being used in the same time.")
+        return url_for(*args, **kwargs)
 
 from module_build_service import views
