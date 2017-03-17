@@ -183,7 +183,7 @@ def init_data():
             session.commit()
 
 
-def scheduler_init_data():
+def scheduler_init_data(communicator_state = None):
     db.session.remove()
     db.drop_all()
     db.create_all()
@@ -217,7 +217,7 @@ def scheduler_init_data():
          '#da95886c8a443b36a9ce31abda1f9bed22f2f9c2')
     component_one_build_one.format = 'rpms'
     component_one_build_one.task_id = 12312345
-    component_one_build_one.state = None
+    component_one_build_one.state = communicator_state
     component_one_build_one.nvr = 'communicator-1.10.1-2.module_starcommand_1_3'
     component_one_build_one.batch = 2
     component_one_build_one.module_id = 1
