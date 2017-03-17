@@ -136,6 +136,7 @@ class TestModuleBuilder(GenericBuilder):
     def buildroot_add_artifacts(self, artifacts, install=False):
         if TestModuleBuilder.on_buildroot_add_artifacts_cb:
             TestModuleBuilder.on_buildroot_add_artifacts_cb(self, artifacts, install)
+        self._send_repo_done()
 
     def buildroot_add_repos(self, dependencies):
         pass
@@ -143,7 +144,6 @@ class TestModuleBuilder(GenericBuilder):
     def tag_artifacts(self, artifacts):
         if TestModuleBuilder.on_tag_artifacts_cb:
             TestModuleBuilder.on_tag_artifacts_cb(self, artifacts)
-        self._send_repo_done()
 
     @property
     def module_build_tag(self):
@@ -254,7 +254,6 @@ class TestBuild(unittest.TestCase):
 
         # Check that components are tagged after the batch is built.
         tag_groups = []
-        tag_groups.append([u'module-build-macros-0.1-1.module_fc4ed5f7.src.rpm-1-1'])
         tag_groups.append([u'perl-Tangerine?#f25-1-1', u'perl-List-Compare?#f25-1-1'])
         tag_groups.append([u'tangerine?#f25-1-1'])
 
