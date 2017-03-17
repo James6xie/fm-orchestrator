@@ -106,7 +106,8 @@ def done(config, session, msg):
     unbuilt_components = [
         c for c in module_build.component_builds
         if (c.state != koji.BUILD_STATES['COMPLETE']
-            and c.state != koji.BUILD_STATES["FAILED"])
+            and c.state != koji.BUILD_STATES["FAILED"]
+            and c.state != koji.BUILD_STATES["CANCELED"])
     ]
 
     further_work = []
@@ -130,7 +131,20 @@ def done(config, session, msg):
             return further_work
 
     else:
-        module_build.transition(config, state=models.BUILD_STATES['done'])
+        # We know that there are no unbuilt components in this module build,
+        # so we can mark the state as "done" or "failed (in case there are
+        # some failed or canceled components in a build).
+        failed_component_present = False
+        for c in module_build.component_builds:
+            if c.state in (koji.BUILD_STATES['FAILED'],
+                           koji.BUILD_STATES["CANCELED"]):
+                failed_component_present = True
+                break
+        if failed_component_present:
+            module_build.transition(config, state=models.BUILD_STATES['failed'],
+                                    state_reason="Some components failed to build.")
+        else:
+            module_build.transition(config, state=models.BUILD_STATES['done'])
         session.commit()
         builder.finalize()
 
