@@ -331,6 +331,7 @@ class TestUtils(unittest.TestCase):
             module_build = models.ModuleBuild.query.filter_by(id=2).one()
             module_build.batch = 2
             module_build.state = models.BUILD_STATES['failed']
+            module_build.state_reason = "Cancelled"
             module_build.version = 1
 
             # Mark the components as COMPLETE/FAILED/CANCELED
@@ -348,6 +349,8 @@ class TestUtils(unittest.TestCase):
                 'master')
 
             self.assertEqual(module_build.state, models.BUILD_STATES['wait'])
+            self.assertEqual(module_build.batch, 0)
+            self.assertEqual(module_build.state_reason, "Resubmitted by Tom Brady")
             self.assertEqual(complete_component.state, koji.BUILD_STATES['COMPLETE'])
             self.assertEqual(failed_component.state, None)
             self.assertEqual(canceled_component.state, None)

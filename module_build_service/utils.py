@@ -627,7 +627,9 @@ def submit_module_build(username, url, mmd, scm, yaml, optional_params=None):
             raise Conflict(err_msg)
         log.debug('Resuming existing module build %r' % module)
         module.username = username
-        module.transition(conf, models.BUILD_STATES["init"])
+        module.transition(conf, models.BUILD_STATES["init"],
+                          "Resubmitted by %s" % username)
+        module.batch = 0
         log.info("Resumed existing module build in previous state %s"
                  % module.state)
     else:
