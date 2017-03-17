@@ -121,7 +121,7 @@ class ModuleBuild(MBSBase):
         if not self.batch:
             raise ValueError("No batch is in progress: %r" % self.batch)
 
-        if state:
+        if state != None:
             return [
                 component for component in self.component_builds
                 if component.batch == self.batch and component.state == state
