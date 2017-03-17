@@ -31,12 +31,32 @@ import module_build_service.scheduler.handlers.repos
 import module_build_service.models
 import module_build_service.builder
 
-from mock import patch
+from mock import patch, MagicMock
 
 from tests import conf
 
 from module_build_service.builder import KojiModuleBuilder
 
+class FakeKojiModuleBuilder(KojiModuleBuilder):
+
+    @module_build_service.utils.retry(wait_on=(xmlrpclib.ProtocolError, koji.GenericError))
+    def get_session(self, config, owner):
+        koji_config = munch.Munch(koji.read_config(
+            profile_name=config.koji_profile,
+            user_config=config.koji_config,
+        ))
+
+        address = koji_config.server
+
+        koji_session = MagicMock()
+        koji_session.getRepo.return_value = {'create_event': 'fake event'}
+
+        def _get_tag(name):
+            _id = 2 if name.endswith("build") else 1
+            return {"name": name, "id": _id}
+        koji_session.getTag = _get_tag
+
+        return koji_session
 
 class TestKojiBuilder(unittest.TestCase):
 
@@ -73,6 +93,39 @@ class TestKojiBuilder(unittest.TestCase):
             fake_kmb.buildroot_ready()
         self.assertEquals(mocked_kojiutil.checkForBuilds.call_count, 3)
 
+    def test_tagging_already_tagged_artifacts(self):
+        """
+        Tests that buildroot_add_artifacts and tag_artifacts do not try to
+        tag already tagged artifacts
+        """
+        builder = FakeKojiModuleBuilder(owner='Moe Szyslak',
+                                         module='nginx',
+                                         config=conf,
+                                         tag_name='module-nginx-1.2',
+                                         components=[])
+
+        builder.module_tag = {"name": "module-foo", "id": 1}
+        builder.module_build_tag = {"name": "module-foo-build", "id": 2}
+
+        # Set listTagged to return test data
+        tagged = [{"nvr": "foo-1.0-1.module_x"},
+                  {"nvr": "bar-1.0-1.module_x"}]
+        builder.koji_session.listTagged.return_value = tagged
+
+        # Try to tag one artifact which is already tagged and one new ...
+        to_tag = ["foo-1.0-1.module_x", "new-1.0-1.module_x"]
+        builder.buildroot_add_artifacts(to_tag)
+
+        # ... only new one should be added.
+        builder.koji_session.tagBuild.assert_called_once_with(
+            builder.module_build_tag["id"], "new-1.0-1.module_x")
+
+        # Try the same for tag_artifacts(...).
+        builder.koji_session.tagBuild.reset_mock()
+        builder.tag_artifacts(to_tag)
+        builder.koji_session.tagBuild.assert_called_once_with(
+            builder.module_tag["id"], "new-1.0-1.module_x")
+
 
 class TestGetKojiClientSession(unittest.TestCase):
 
@@ -94,31 +147,3 @@ class TestGetKojiClientSession(unittest.TestCase):
         args, kwargs = mocked_krb_login.call_args
         self.assertTrue(set([('proxyuser', self.owner)]).issubset(set(kwargs.items())))
 
-
-class FakeKojiModuleBuilder(KojiModuleBuilder):
-
-    @module_build_service.utils.retry(wait_on=(xmlrpclib.ProtocolError, koji.GenericError))
-    def get_session(self, config, owner):
-        koji_config = munch.Munch(koji.read_config(
-            profile_name=config.koji_profile,
-            user_config=config.koji_config,
-        ))
-
-        address = koji_config.server
-
-        koji_session = FakeKojiSession(address, opts=koji_config)
-
-        return koji_session
-
-
-class FakeKojiSession(koji.ClientSession):
-
-    def _callMethod(self, name, args, kwargs=None):
-        pass
-
-    def _setup_connection(self):
-        pass
-
-    @module_build_service.utils.validate_koji_tag('tag')
-    def getRepo(self, tag):
-        return {'create_event': 'fake event'}

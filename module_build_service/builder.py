@@ -533,7 +533,13 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
         log.info("%r adding artifacts %r" % (self, artifacts))
         build_tag = self._get_tag(self.module_build_tag)['id']
 
+        tagged = self.koji_session.listTagged(self.module_build_tag['name'])
+        tagged_nvrs = [build["nvr"] for build in tagged]
+
         for nvr in artifacts:
+            if nvr in tagged_nvrs:
+                continue
+
             log.info("%r tagging %r into %r" % (self, nvr, build_tag))
             self.koji_session.tagBuild(build_tag, nvr)
 
@@ -548,7 +554,13 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
     def tag_artifacts(self, artifacts):
         dest_tag = self._get_tag(self.module_tag)['id']
 
+        tagged = self.koji_session.listTagged(self.module_tag['name'])
+        tagged_nvrs = [build["nvr"] for build in tagged]
+
         for nvr in artifacts:
+            if nvr in tagged_nvrs:
+                continue
+
             log.info("%r tagging %r into %r" % (self, nvr, dest_tag))
             self.koji_session.tagBuild(dest_tag, nvr)
 
