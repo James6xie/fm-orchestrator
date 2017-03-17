@@ -105,7 +105,11 @@ def _finalize(config, session, msg, state):
         log.debug("%r" % built_components_in_batch)
         install = bool(component_build.package == 'module-build-macros')
         builder.buildroot_add_artifacts(built_components_in_batch, install=install)
-        builder.tag_artifacts(built_components_in_batch)
+
+        # Do not tag packages which belong to -build tag to final tag.
+        if not install:
+            builder.tag_artifacts(built_components_in_batch)
+
         session.commit()
     elif (any([c.state != koji.BUILD_STATES['BUILDING']
             for c in unbuilt_components_in_batch])):

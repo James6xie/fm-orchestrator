@@ -523,6 +523,14 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
         log.info("%r adding deps on %r" % (self, dependencies))
         self._koji_add_many_tag_inheritance(self.module_build_tag, dependencies)
 
+    def _get_tagged_nvrs(self, tag):
+        """
+        Returns set of NVR strings tagged in tag `tag`.
+        """
+        tagged = self.koji_session.listTagged(tag)
+        tagged_nvrs = set(build["nvr"] for build in tagged)
+        return tagged_nvrs
+
     def buildroot_add_artifacts(self, artifacts, install=False):
         """
         :param artifacts - list of artifacts to add to buildroot
@@ -533,7 +541,12 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
         log.info("%r adding artifacts %r" % (self, artifacts))
         build_tag = self._get_tag(self.module_build_tag)['id']
 
+        tagged_nvrs = self._get_tagged_nvrs(self.module_build_tag['name'])
+
         for nvr in artifacts:
+            if nvr in tagged_nvrs:
+                continue
+
             log.info("%r tagging %r into %r" % (self, nvr, build_tag))
             self.koji_session.tagBuild(build_tag, nvr)
 
@@ -548,7 +561,12 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
     def tag_artifacts(self, artifacts):
         dest_tag = self._get_tag(self.module_tag)['id']
 
+        tagged_nvrs = self._get_tagged_nvrs(self.module_tag['name'])
+
         for nvr in artifacts:
+            if nvr in tagged_nvrs:
+                continue
+
             log.info("%r tagging %r into %r" % (self, nvr, dest_tag))
             self.koji_session.tagBuild(dest_tag, nvr)
 
