@@ -34,6 +34,7 @@ import module_build_service.messaging
 import module_build_service.scheduler
 import module_build_service.scheduler.consumer
 from module_build_service import conf, models, log
+from module_build_service.builder import GenericBuilder
 
 
 class MBSProducer(PollingProducer):
@@ -137,7 +138,8 @@ class MBSProducer(PollingProducer):
             if name == 'build':
                 for module_build in query.all():
                     log.info('    * {0!r}'.format(module_build))
-                    for i in range(module_build.batch):
+                    # First batch is number '1'.
+                    for i in range(1, module_build.batch + 1):
                         n = len([c for c in module_build.component_builds
                                  if c.batch == i ])
                         log.info('      * {0} components in batch {1}'
@@ -170,6 +172,7 @@ class MBSProducer(PollingProducer):
             log.debug('Will not attempt to start paused module builds due to '
                       'the concurrent build threshold being met')
             return
+
         # Check to see if module builds that are in build state but don't have
         # any component builds being built can be worked on
         for module_build in session.query(models.ModuleBuild).filter_by(
@@ -177,8 +180,17 @@ class MBSProducer(PollingProducer):
             # If there are no components in the build state on the module build,
             # then no possible event will start off new component builds
             if not module_build.current_batch(koji.BUILD_STATES['BUILDING']):
-                further_work = module_build_service.utils.start_build_batch(
-                    config, module_build, session, config.system)
+                # Initialize the builder...
+                builder = GenericBuilder.create_from_module(
+                    session, module_build, config)
+
+                further_work = module_build_service.utils.start_next_batch_build(
+                    config, module_build, session, builder)
                 for event in further_work:
                     log.info("  Scheduling faked event %r" % event)
                     module_build_service.scheduler.consumer.work_queue_put(event)
+
+            # Check if we have met the threshold.
+            if module_build_service.utils.at_concurrent_component_threshold(
+                    config, session):
+                break

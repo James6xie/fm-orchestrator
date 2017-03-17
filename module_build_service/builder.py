@@ -139,6 +139,24 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
             raise ValueError("Builder backend='%s' not recognized" % backend)
 
     @classmethod
+    def create_from_module(cls, session, module, config):
+        """
+        Creates new GenericBuilder instance based on the data from module
+        and config and connects it to buildroot.
+
+        :param session: SQLAlchemy databa session.
+        :param module: module_build_service.models.ModuleBuild instance.
+        :param config: module_build_service.config.Config instance.
+        """
+        components = [c.package for c in module.component_builds]
+        builder = GenericBuilder.create(
+            module.owner, module.name, config.system, config,
+            tag_name=module.koji_tag, components=components)
+        groups = GenericBuilder.default_buildroot_groups(session, module)
+        builder.buildroot_connect(groups)
+        return builder
+
+    @classmethod
     def tag_to_repo(cls, backend, config, tag_name, arch):
         """
         :param backend: a string representing the backend e.g. 'koji'.
