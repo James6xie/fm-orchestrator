@@ -155,6 +155,7 @@ class TestConfiguration(BaseConfiguration):
 
     KOJI_CONFIG = './conf/koji.conf'
     KOJI_PROFILE = 'staging'
+    SERVER_NAME = 'localhost'
 
 
 class ProdConfiguration(BaseConfiguration):

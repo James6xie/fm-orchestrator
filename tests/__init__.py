@@ -33,7 +33,6 @@ from module_build_service.utils import get_scm_url_re
 import module_build_service.pdc
 
 app = module_build_service.app
-app.config['SERVER_NAME'] = 'localhost'
 conf = init_config(app)
 
 def init_data():
@@ -243,7 +242,7 @@ def scheduler_init_data():
         session.commit()
 
 
-def test_resuse_component_init_data():
+def test_reuse_component_init_data():
     db.session.remove()
     db.drop_all()
     db.create_all()

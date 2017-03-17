@@ -28,7 +28,7 @@ import module_build_service.utils
 import module_build_service.scm
 from module_build_service import models, conf
 from module_build_service.errors import ProgrammingError, ValidationError
-from tests import test_resuse_component_init_data, init_data, db
+from tests import test_reuse_component_init_data, init_data, db
 import mock
 from mock import PropertyMock
 import koji
@@ -64,7 +64,7 @@ class MockedSCM(object):
         return scm_dir
 
     def get_latest(self, branch = 'master'):
-        return branch
+        return self.commit if self.commit else branch
 
 class TestUtils(unittest.TestCase):
 
@@ -116,14 +116,14 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(mmd.xmd, xmd)
 
     def test_get_reusable_component_same(self):
-        test_resuse_component_init_data()
+        test_reuse_component_init_data()
         new_module = models.ModuleBuild.query.filter_by(id=2).one()
         rv = module_build_service.utils.get_reusable_component(
             db.session, new_module, 'tangerine')
         self.assertEqual(rv.package, 'tangerine')
 
     def test_get_reusable_component_different_perl_tangerine(self):
-        test_resuse_component_init_data()
+        test_reuse_component_init_data()
         second_module_build = models.ModuleBuild.query.filter_by(id=2).one()
         mmd = second_module_build.mmd()
         mmd.components.rpms['perl-Tangerine'].ref = \
@@ -153,7 +153,7 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(tangerine_rv, None)
 
     def test_get_reusable_component_different_buildrequires_hash(self):
-        test_resuse_component_init_data()
+        test_reuse_component_init_data()
         second_module_build = models.ModuleBuild.query.filter_by(id=2).one()
         mmd = second_module_build.mmd()
         mmd.xmd['mbs']['buildrequires']['base-runtime']['ref'] = \
@@ -177,7 +177,7 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(tangerine_rv, None)
 
     def test_get_reusable_component_different_buildrequires(self):
-        test_resuse_component_init_data()
+        test_reuse_component_init_data()
         second_module_build = models.ModuleBuild.query.filter_by(id=2).one()
         mmd = second_module_build.mmd()
         mmd.buildrequires = {'some_module': 'master'}
@@ -326,7 +326,7 @@ class TestUtils(unittest.TestCase):
         MockedSCM(mocked_scm, 'testmodule', 'testmodule-bootstrap.yaml',
                         '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
         with app.app_context():
-            test_resuse_component_init_data()
+            test_reuse_component_init_data()
             # Mark the module build as failed, so we can resubmit it.
             module_build = models.ModuleBuild.query.filter_by(id=2).one()
             module_build.batch = 2
@@ -418,7 +418,7 @@ class DummyModuleBuilder(GenericBuilder):
 class TestBatches(unittest.TestCase):
 
     def setUp(self):
-        test_resuse_component_init_data()
+        test_reuse_component_init_data()
         GenericBuilder.register_backend_class(DummyModuleBuilder)
 
     def tearDown(self):
