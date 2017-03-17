@@ -137,6 +137,7 @@ def wait(config, session, msg):
         build = models.ModuleBuild.from_module_event(session, msg)
         if 'mbs' in build.mmd().xmd:
             return build
+        session.expire(build)
         raise RuntimeError("{!r} doesn't contain xmd information for MBS."
                            .format(build))
 
