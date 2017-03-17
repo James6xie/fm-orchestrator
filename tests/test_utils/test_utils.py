@@ -151,6 +151,19 @@ class TestUtils(unittest.TestCase):
             db.session, new_module, 'tangerine')
         self.assertEqual(rv.package, 'tangerine')
 
+    def test_get_reusable_component_empty_scmurl(self):
+        test_reuse_component_init_data()
+
+        new_module = models.ModuleBuild.query.filter_by(id=2).one()
+        mmd = new_module.mmd()
+        mmd.xmd['mbs']['buildrequires'] = {'base-runtime': {}}
+        new_module.modulemd = mmd.dumps()
+        db.session.commit()
+
+        rv = module_build_service.utils.get_reusable_component(
+            db.session, new_module, 'tangerine')
+        self.assertEqual(rv, None)
+
     def test_get_reusable_component_different_perl_tangerine(self):
         test_reuse_component_init_data()
         second_module_build = models.ModuleBuild.query.filter_by(id=2).one()

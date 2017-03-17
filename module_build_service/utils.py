@@ -767,8 +767,9 @@ def get_reusable_component(session, module, component_name):
         # Assumes that the streams have been replaced with commit hashes, so we
         # can compare to see if they have changed. Since a build is unique to
         # a commit hash, this is a safe test.
-        if br_module['ref'] != \
-                old_mmd.xmd['mbs']['buildrequires'][br_module_name]['ref']:
+        ref1 = br_module.get('ref')
+        ref2 = old_mmd.xmd['mbs']['buildrequires'][br_module_name].get('ref')
+        if not (ref1 and ref2) or ref1 != ref2:
             return None
 
     # At this point we've determined that both module builds depend(ed) on the
