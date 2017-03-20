@@ -729,6 +729,7 @@ def get_reusable_component(session, module, component_name):
     previous_module_build = session.query(models.ModuleBuild)\
         .filter_by(name=mmd.name)\
         .filter(models.ModuleBuild.state.in_([3, 5]))\
+        .filter(models.ModuleBuild.scmurl.isnot(None))\
         .order_by(models.ModuleBuild.time_completed.desc())\
         .first()
     # The component can't be reused if there isn't a previous build in the done
