@@ -178,7 +178,7 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
         build = None
 
         # Choose a handler for this message
-        if type(msg) == module_build_service.messaging.KojiBuildChange:
+        if isinstance(msg, module_build_service.messaging.KojiBuildChange):
             handler = self.on_build_change[msg.build_new_state]
             build = models.ComponentBuild.from_component_event(session, msg)
             if build:

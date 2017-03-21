@@ -375,7 +375,7 @@ class ComponentBuild(MBSBase):
 
     @classmethod
     def from_component_event(cls, session, event):
-        if type(event) == module_build_service.messaging.KojiBuildChange:
+        if isinstance(event, module_build_service.messaging.KojiBuildChange):
             if event.module_build_id:
                 return session.query(cls).filter_by(
                     task_id=event.task_id, module_id=event.module_build_id)\
