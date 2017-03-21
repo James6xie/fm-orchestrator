@@ -106,9 +106,9 @@ class TestUtils(unittest.TestCase):
                 'commit': '620ec77321b2ea7b0d67d82992dda3e1d67055b4',
                 'buildrequires': {
                     'base-runtime': {
-                        'ref': 'ae993ba84f4bce554471382ccba917ef16265f11',
+                        'ref': 'abffed45ca33d7fe94fff8253b5bfe1d87e786b2',
                         'stream': 'master',
-                        'version': '3'}},
+                        'version': '20170315134803'}},
                 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/testmodule'
                           '.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4',
             }

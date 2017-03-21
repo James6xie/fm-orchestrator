@@ -54,15 +54,15 @@ class TestPDCModule(unittest.TestCase):
 
     def test_get_module_depsolving_wrapper(self):
         query = [{
-            'name': 'testmodule',
+            'name': 'base-runtime',
             'version': 'master',
-            'release': '20170228215102',
+            'release': '20170315134803',
         }]
         result = mbs_pdc.module_depsolving_wrapper(self.pdc, query)
         expected = [
-            u'module-bootstrap-master-1',
+            u'f26-modularity',
             # Should the list of deps should not include the original tag?
             # Probably not.
-            u'module-testmodule-master-20170228215102',
+            u'module-base-runtime-master-20170315134803',
         ]
         self.assertEqual(set(result), set(expected))

@@ -148,6 +148,7 @@ class TestConfiguration(BaseConfiguration):
         path.join(dbdir, 'tests', 'test_module_build_service.db'))
     DEBUG = True
     MESSAGING = 'in_memory'
+    PDC_URL = 'http://pdc.fedoraproject.org/rest_api/v1'
 
     # Global network-related values, in seconds
     NET_TIMEOUT = 3

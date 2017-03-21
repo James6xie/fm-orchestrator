@@ -206,6 +206,17 @@ class TestModuleBuilder(GenericBuilder):
 
 @patch("module_build_service.config.Config.system", 
         new_callable=PropertyMock, return_value = "mock")
+@patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
+       return_value={
+            'srpm-build':
+                set(['shadow-utils', 'fedora-release', 'redhat-rpm-config',
+                     'rpm-build', 'fedpkg-minimal', 'gnupg2', 'bash']),
+            'build':
+                set(['unzip', 'fedora-release', 'tar', 'cpio', 'gawk',
+                     'gcc', 'xz', 'sed', 'findutils', 'util-linux', 'bash',
+                     'info', 'bzip2', 'grep', 'redhat-rpm-config',
+                     'diffutils', 'make', 'patch', 'shadow-utils',
+                     'coreutils', 'which', 'rpm-build', 'gzip', 'gcc-c++'])})
 class TestBuild(unittest.TestCase):
 
     # Global variable used for tests if needed
@@ -237,7 +248,7 @@ class TestBuild(unittest.TestCase):
     @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build(self, mocked_scm, mocked_get_user, conf_system):
+    def test_submit_build(self, mocked_scm, mocked_get_user, conf_system, dbg):
         """
         Tests the build of testmodule.yaml using TestModuleBuilder which
         succeeds everytime.
@@ -291,7 +302,7 @@ class TestBuild(unittest.TestCase):
     @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build_from_yaml(self, mocked_scm, mocked_get_user, conf_system):
+    def test_submit_build_from_yaml(self, mocked_scm, mocked_get_user, conf_system, dbg):
         MockedSCM(mocked_scm, "testmodule", "testmodule.yaml")
 
         testmodule = os.path.join(base_dir, 'staged_data', 'testmodule.yaml')
@@ -318,7 +329,7 @@ class TestBuild(unittest.TestCase):
 
     @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
-    def test_submit_build_with_optional_params(self, mocked_get_user, conf_system):
+    def test_submit_build_with_optional_params(self, mocked_get_user, conf_system, dbg):
         params = {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                             'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}
 
@@ -337,7 +348,7 @@ class TestBuild(unittest.TestCase):
     @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build_cancel(self, mocked_scm, mocked_get_user, conf_system):
+    def test_submit_build_cancel(self, mocked_scm, mocked_get_user, conf_system, dbg):
         """
         Submit all builds for a module and cancel the module build later.
         """
@@ -389,7 +400,7 @@ class TestBuild(unittest.TestCase):
     @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build_instant_complete(self, mocked_scm, mocked_get_user, conf_system):
+    def test_submit_build_instant_complete(self, mocked_scm, mocked_get_user, conf_system, dbg):
         """
         Tests the build of testmodule.yaml using TestModuleBuilder which
         succeeds everytime.
@@ -424,7 +435,7 @@ class TestBuild(unittest.TestCase):
            new_callable=PropertyMock, return_value = 1)
     def test_submit_build_concurrent_threshold(self, conf_num_consecutive_builds,
                                                mocked_scm, mocked_get_user,
-                                               conf_system):
+                                               conf_system, dbg):
         """
         Tests the build of testmodule.yaml using TestModuleBuilder with
         num_consecutive_builds set to 1.
@@ -468,7 +479,7 @@ class TestBuild(unittest.TestCase):
            new_callable=PropertyMock, return_value = 2)
     def test_try_to_reach_concurrent_threshold(self, conf_num_consecutive_builds,
                                                mocked_scm, mocked_get_user,
-                                               conf_system):
+                                               conf_system, dbg):
         """
         Tests that we try to submit new component build right after
         the previous one finished without waiting for all 

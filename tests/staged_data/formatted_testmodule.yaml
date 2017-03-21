@@ -31,7 +31,7 @@ data:
   version: 20170109091357
   xmd:
     mbs:
-      buildrequires: {base-runtime: {ref: ae993ba84f4bce554471382ccba917ef16265f11, stream: master, version: 3}}
+      buildrequires: {base-runtime: {ref: ae993ba84f4bce554471382ccba917ef16265f11, stream: master, version: 20170315134803}}
       commit: 7fea453bc362cc8e5aa41e129e689baea853653d
       scmurl: git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#7fea453
 document: modulemd
