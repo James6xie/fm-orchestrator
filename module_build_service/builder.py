@@ -1118,31 +1118,10 @@ class CoprModuleBuilder(GenericBuilder):
 
         return response.data["ids"][0], koji.BUILD_STATES["BUILDING"], response.message, None
 
-    def _wait_until_all_builds_are_finished(self, module):
-        while True:
-            states = {b: self.client.get_build_details(b.task_id).status for b in module.component_builds}
-            if "failed" in states.values():
-                raise ValueError("Some builds failed")
-
-            if not filter(lambda x: x != "succeeded", states.values()):
-                return
-
-            seconds = 60
-            log.info("Going to sleep for {}s to wait until builds in copr are finished".format(seconds))
-            time.sleep(seconds)
-
     def finalize(self):
         modulemd = tempfile.mktemp()
         m1 = ModuleBuild.query.filter(ModuleBuild.name == self.module_str).one()
         m1.mmd().dump(modulemd)
-
-        # Wait until all builds are finished
-        # We shouldn't do this once the fedmsg on copr is done
-        from copr.exceptions import CoprRequestException
-        try:
-            self._wait_until_all_builds_are_finished(m1)
-        except (CoprRequestException, ValueError):
-            return log.info("Missing builds, not going to create a module")
 
         # Create a module from previous project
         result = self.client.make_module(username=self.copr.username, projectname=self.copr.projectname,
