@@ -145,6 +145,9 @@ class TestModuleBuilder(GenericBuilder):
         if TestModuleBuilder.on_tag_artifacts_cb:
             TestModuleBuilder.on_tag_artifacts_cb(self, artifacts)
 
+    def is_waiting_for_repo_regen(self):
+        return False
+
     @property
     def module_build_tag(self):
         return {"name": self.tag_name + "-build"}
@@ -526,3 +529,59 @@ class TestBuild(unittest.TestCase):
         # does not work correctly.
         num_builds = [k for k, g in itertools.groupby(TestBuild._global_var)]
         self.assertEqual(num_builds.count(1), 2)
+
+    @timed(30)
+    @patch('module_build_service.auth.get_user', return_value=user)
+    @patch('module_build_service.scm.SCM')
+    @patch("module_build_service.config.Config.num_consecutive_builds",
+           new_callable=PropertyMock, return_value = 1)
+    def test_build_in_batch_fails(self, conf_num_consecutive_builds, mocked_scm,
+                                  mocked_get_user, conf_system, dbg):
+        """
+        Tests that if the build in batch fails, other components in a batch
+        are still build, but next batch is not started.
+        """
+        MockedSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
+                  '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+
+        rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
+            {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+                'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}))
+
+        data = json.loads(rv.data)
+        module_build_id = data['id']
+
+        def on_build_cb(cls, artifact_name, source):
+            # Next component *after* the module-build-macros will fail
+            # to build.
+            if artifact_name.startswith("module-build-macros"):
+                TestModuleBuilder.BUILD_STATE = "FAILED"
+            else:
+                TestModuleBuilder.BUILD_STATE = "COMPLETE"
+            print artifact_name
+
+        TestModuleBuilder.on_build_cb = on_build_cb
+
+        msgs = []
+        stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
+        module_build_service.scheduler.main(msgs, stop)
+
+        for c in models.ComponentBuild.query.filter_by(module_id=module_build_id).all():
+            # perl-Tangerine is expected to fail as configured in on_build_cb.
+            if c.package == "perl-Tangerine":
+                self.assertEqual(c.state, koji.BUILD_STATES['FAILED'])
+            # tangerine is expected to fail, because it is in batch 3, but
+            # we had a failing component in batch 2.
+            elif c.package == "tangerine":
+                self.assertEqual(c.state, koji.BUILD_STATES['FAILED'])
+                self.assertEqual(c.state_reason, "Some components failed to build.")
+            else:
+                self.assertEqual(c.state, koji.BUILD_STATES['COMPLETE'])
+
+            # Whole module should be failed.
+            self.assertEqual(c.module_build.state, models.BUILD_STATES['failed'])
+            self.assertEqual(c.module_build.state_reason, "Some components failed to build.")
+
+            # We should end up with batch 2 and never start batch 3, because
+            # there were failed components in batch 2.
+            self.assertEqual(c.module_build.batch, 2)

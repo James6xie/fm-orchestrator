@@ -59,6 +59,8 @@ import module_build_service.utils
 import module_build_service.scheduler
 import module_build_service.scheduler.consumer
 
+from requests.exceptions import ConnectionError
+
 logging.basicConfig(level=logging.DEBUG)
 
 """
@@ -300,6 +302,7 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
         raise NotImplementedError()
 
     @classmethod
+    @module_build_service.utils.retry(wait_on=(ConnectionError))
     def default_buildroot_groups(cls, session, module):
         try:
             pdc_session = pdc.get_pdc_client_session(conf)
@@ -329,6 +332,12 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
         """
         raise NotImplementedError()
 
+    @abstractmethod
+    def is_waiting_for_repo_regen(self):
+        """
+        :return: True if there is repo regeneration pending for a module.
+        """
+        raise NotImplementedError()
 
 class KojiModuleBuilder(GenericBuilder):
     """ Koji specific builder class """
@@ -368,6 +377,20 @@ class KojiModuleBuilder(GenericBuilder):
     def __repr__(self):
         return "<KojiModuleBuilder module: %s, tag: %s>" % (
             self.module_str, self.tag_name)
+
+    def is_waiting_for_repo_regen(self):
+        """
+        Returns true when there is 'newRepo' task for our tag.
+        """
+        tasks = []
+        state = [koji.TASK_STATES[s] for s in ('FREE', 'OPEN', 'ASSIGNED')]
+        for task in self.koji_session.listTasks(opts={'state': state,
+                                                      'decode': True,
+                                                      'method': 'newRepo'}):
+            tag = task['request'][0]
+            if tag == self.tag_name:
+                return True
+        return False
 
     @module_build_service.utils.retry(wait_on=(IOError, koji.GenericError))
     def buildroot_ready(self, artifacts=None):
@@ -1056,6 +1079,9 @@ class CoprModuleBuilder(GenericBuilder):
     def list_tasks_for_components(self, component_builds=None, state='active'):
         pass
 
+    def is_waiting_for_repo_regen(self):
+        return False
+
     def build(self, artifact_name, source):
         """
         :param artifact_name : A package name. We can't guess it since macros
@@ -1552,6 +1578,9 @@ mdpolicy=group:primary
 
     def list_tasks_for_components(self, component_builds=None, state='active'):
         pass
+
+    def is_waiting_for_repo_regen(self):
+        return True
 
 
 def build_from_scm(artifact_name, source, config, build_srpm,
