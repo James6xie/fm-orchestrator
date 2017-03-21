@@ -475,7 +475,7 @@ def format_mmd(mmd, scmurl):
                 'version': module_stream}
             commit_hash, version = get_module_commit_hash_and_version(
                 pdc, module_info)
-            if commit_hash and version:
+            if version and (commit_hash or not scmurl):
                 mmd.xmd['mbs']['buildrequires'][module_name] = {
                     'ref': commit_hash,
                     'stream': mmd.buildrequires[module_name],
