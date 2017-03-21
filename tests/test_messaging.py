@@ -23,7 +23,7 @@
 
 import unittest
 from module_build_service import messaging, conf
-from mock import patch, PropertyMock
+from mock import patch, PropertyMock, ANY
 
 
 class TestFedmsgMessaging(unittest.TestCase):
@@ -90,3 +90,10 @@ class TestFedmsgMessaging(unittest.TestCase):
         self.assertEqual(msg.build_release, '1.20150203.git.c8504a8a.fc21')
         self.assertEqual(msg.state_reason,
                          'build end: user:fatka copr:mutt-kz build:100 ip:172.16.3.3  pid:12010 status:1')
+
+    @patch("module_build_service.messaging.publish")
+    def test_copr_repo_done(self, publish):
+        messaging.CoprRepoDone('someprojectname').publish()
+        self.assertTrue(publish.called)
+        repo_change_msg = {'tag': 'someprojectname-build'}
+        publish.assert_called_with("repo.done", repo_change_msg, ANY, "buildsys")
