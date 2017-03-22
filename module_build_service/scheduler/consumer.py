@@ -203,6 +203,7 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
             log.debug("Handler is NO_OP: %s" % idx)
         else:
             log.debug("Calling %s" % idx)
+            further_work = []
             try:
                 further_work = handler(conf, session, msg) or []
             except ValidationError as e:
