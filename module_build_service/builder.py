@@ -332,12 +332,6 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
         """
         raise NotImplementedError()
 
-    @abstractmethod
-    def is_waiting_for_repo_regen(self):
-        """
-        :return: True if there is repo regeneration pending for a module.
-        """
-        raise NotImplementedError()
 
 class KojiModuleBuilder(GenericBuilder):
     """ Koji specific builder class """
@@ -377,20 +371,6 @@ class KojiModuleBuilder(GenericBuilder):
     def __repr__(self):
         return "<KojiModuleBuilder module: %s, tag: %s>" % (
             self.module_str, self.tag_name)
-
-    def is_waiting_for_repo_regen(self):
-        """
-        Returns true when there is 'newRepo' task for our tag.
-        """
-        tasks = []
-        state = [koji.TASK_STATES[s] for s in ('FREE', 'OPEN', 'ASSIGNED')]
-        for task in self.koji_session.listTasks(opts={'state': state,
-                                                      'decode': True,
-                                                      'method': 'newRepo'}):
-            tag = task['request'][0]
-            if tag == self.tag_name:
-                return True
-        return False
 
     @module_build_service.utils.retry(wait_on=(IOError, koji.GenericError))
     def buildroot_ready(self, artifacts=None):
@@ -750,7 +730,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
                 raise SystemError("Unknown tag: %s" % tag)
         return taginfo
 
-    @module_build_service.utils.validate_koji_tag(['tag_name', 'parent_tags'], post='')
+    @module_build_service.utils.validate_koji_tag(['tag_name'], post='')
     def _koji_add_many_tag_inheritance(self, tag_name, parent_tags):
         tag = self._get_tag(tag_name)
         # highest priority num is at the end
@@ -1078,9 +1058,6 @@ class CoprModuleBuilder(GenericBuilder):
 
     def list_tasks_for_components(self, component_builds=None, state='active'):
         pass
-
-    def is_waiting_for_repo_regen(self):
-        return False
 
     def build(self, artifact_name, source):
         """
@@ -1579,8 +1556,6 @@ mdpolicy=group:primary
     def list_tasks_for_components(self, component_builds=None, state='active'):
         pass
 
-    def is_waiting_for_repo_regen(self):
-        return True
 
 
 def build_from_scm(artifact_name, source, config, build_srpm,

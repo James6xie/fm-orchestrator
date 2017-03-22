@@ -274,53 +274,39 @@ def module_depsolving_wrapper(session, modules, strict=True):
     """
     log.debug("module_depsolving_wrapper(%r, strict=%r)" % (modules, strict))
 
-    # We're going to modify this list, so don't screw with the passed in value.
-    module_list = copy.deepcopy(modules)
-    # Name this, just for readability...
-    original_modules = modules
-
-    # Keep track of which modules we've queried for before, to avoid that.
-    seen = list()
-
     # This is the set we're going to build up and return.
     module_tags = set()
 
-    while not all([d in seen for d in module_list]):
-        for module_dict in module_list:
-            # Make sure not to spam PDC with unnecessary queries.
-            if module_dict in seen:
-                continue
-            seen.append(module_dict)
+    # We want to take only single 
+    for module_dict in modules:
+        # Get enhanced info on this module from pdc.
+        info = get_module(session, module_dict, strict)
 
-            # Get enhanced info on this module from pdc.
-            info = get_module(session, module_dict, strict)
+        # Take note of the tag of this module, but only if it is a dep and
+        # not in the original list.
+         # XXX - But, for now go ahead and include it because that's how this
+        # code used to work.
+        module_tags.add(info['koji_tag'])
 
-            # Take note of the tag of this module, but only if it is a dep and
-            # not in the original list.
-            #if module_dict not in original_modules:
-            #    module_tags.add(info['koji_tag'])
-            # XXX - But, for now go ahead and include it because that's how this
-            # code used to work.
+        # Now, when we look for the deps of this module, use the mmd.xmd
+        # attributes because they contain the promise of *exactly* which
+        # versions of which deps we say we're going to build *this* module
+        # against.
+        if not info['modulemd']:
+            raise ValueError("No PDC modulemd found for %r" % info)
+        mmd = _extract_modulemd(info['modulemd'])
+
+        # Queue up the next tier of deps that we should look at..
+        for name, details in mmd.xmd['mbs']['buildrequires'].items():
+            modified_dep = {
+                'name': name,
+                'version': details['stream'],
+                'release': details['version'],
+                # Only return details about module builds that finished
+                'active': True,
+            }
+            info = get_module(session, modified_dep, strict)
             module_tags.add(info['koji_tag'])
-
-            # Now, when we look for the deps of this module, use the mmd.xmd
-            # attributes because they contain the promise of *exactly* which
-            # versions of which deps we say we're going to build *this* module
-            # against.
-            if not info['modulemd']:
-                raise ValueError("No PDC modulemd found for %r" % info)
-            mmd = _extract_modulemd(info['modulemd'])
-
-            # Queue up the next tier of deps that we should look at..
-            for name, details in mmd.xmd['mbs']['buildrequires'].items():
-                modified_dep = {
-                    'name': name,
-                    'version': details['stream'],
-                    'release': details['version'],
-                    # Only return details about module builds that finished
-                    'active': True,
-                }
-                module_list.append(modified_dep)
 
     return list(module_tags)
 

@@ -145,9 +145,6 @@ class TestModuleBuilder(GenericBuilder):
         if TestModuleBuilder.on_tag_artifacts_cb:
             TestModuleBuilder.on_tag_artifacts_cb(self, artifacts)
 
-    def is_waiting_for_repo_regen(self):
-        return False
-
     @property
     def module_build_tag(self):
         return {"name": self.tag_name + "-build"}
