@@ -234,7 +234,7 @@ def _extract_modulemd(yaml, strict=False):
     mmd.loads(yaml)
     return mmd
 
-def resolve_profiles(session, mmd, keys, seen=None):
+def resolve_profiles(session, mmd, keys):
     """
     :param session : PDCClient instance
     :param mmd: ModuleMetadata instance of module
@@ -242,20 +242,15 @@ def resolve_profiles(session, mmd, keys, seen=None):
                  the result.
     :return: Dictionary with keys set according to `keys` param and values
              set to union of all components defined in all installation
-             profiles matching the key recursively using the buildrequires.
+             profiles matching the key using the buildrequires.
 
     https://pagure.io/fm-orchestrator/issue/181
     """
 
-    seen = seen or []  # Initialize to an empty list.
     results = {}
     for key in keys:
         results[key] = set()
     for module_name, module_info in mmd.xmd['mbs']['buildrequires'].items():
-        # First, guard against infinite recursion
-        if module_name in seen:
-            continue
-
         # Find the dep in the built modules in PDC
         module_info = {
             'variant_id': module_name,
@@ -267,11 +262,6 @@ def resolve_profiles(session, mmd, keys, seen=None):
         for key in keys:
             if key in dep_mmd.profiles:
                 results[key] |= dep_mmd.profiles[key].rpms
-
-        # And recurse to all modules that are deps of our dep.
-        rec_results = resolve_profiles(session, dep_mmd, keys, seen + [module_name])
-        for rec_key, rec_result in rec_results.items():
-            results[rec_key] |= rec_result
 
     # Return the union of all rpms in all profiles of the given keys.
     return results

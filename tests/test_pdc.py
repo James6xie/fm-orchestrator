@@ -28,6 +28,7 @@ import vcr
 import module_build_service.pdc as mbs_pdc
 
 import tests
+import modulemd
 
 
 base_dir = os.path.dirname(__file__)
@@ -66,3 +67,25 @@ class TestPDCModule(unittest.TestCase):
             u'module-base-runtime-master-20170315134803',
         ]
         self.assertEqual(set(result), set(expected))
+
+    def test_resolve_profiles(self):
+        current_dir = os.path.dirname(__file__)
+        yaml_path = os.path.join(
+            current_dir, 'staged_data', 'formatted_testmodule.yaml')
+        mmd = modulemd.ModuleMetadata()
+        mmd.load(yaml_path)
+        result = mbs_pdc.resolve_profiles(self.pdc, mmd,
+                                          ('buildroot', 'srpm-buildroot'))
+        expected = {
+            'buildroot':
+                set(['unzip', 'tar', 'cpio', 'gawk', 'gcc', 'xz', 'sed',
+                     'findutils', 'util-linux', 'bash', 'info', 'bzip2',
+                     'grep', 'redhat-rpm-config', 'fedora-modular-release',
+                     'diffutils', 'make', 'patch', 'shadow-utils', 'coreutils',
+                     'which', 'rpm-build', 'gzip', 'gcc-c++']),
+            'srpm-buildroot':
+                set(['shadow-utils', 'redhat-rpm-config', 'rpm-build',
+                     'fedora-modular-release', 'fedpkg-minimal', 'gnupg2',
+                     'bash'])
+                }
+        self.assertEqual(result, expected)
