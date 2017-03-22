@@ -290,9 +290,10 @@ def start_next_batch_build(config, module, session, builder, components=None):
     # Find out if there is repo regeneration in progress for this module.
     # If there is, wait until the repo is regenerated before starting a new
     # batch.
-    if builder.is_waiting_for_repo_regen():
-        log.debug("Not starting new batch, repo regeneration is in progress "
-                  "for module %s" % module)
+    artifacts = [c.nvr for c in module.current_batch()]
+    if not builder.buildroot_ready(artifacts):
+        log.info("Not starting new batch, not all of %r are in the buildroot. "
+                 "Waiting." % artifacts)
         return []
 
     module.batch += 1

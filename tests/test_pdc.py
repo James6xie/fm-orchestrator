@@ -68,6 +68,22 @@ class TestPDCModule(unittest.TestCase):
         ]
         self.assertEqual(set(result), set(expected))
 
+    def test_get_module_depsolving_wrapper_recursive(self):
+        query = [{
+            'name': 'testmodule',
+            'version': 'master',
+            'release': '20170322155247',
+            'active': False,
+        }]
+        result = mbs_pdc.module_depsolving_wrapper(self.pdc, query)
+        expected = [
+            u'module-base-runtime-master-20170315134803',
+            # Should the list of deps should not include the original tag?
+            # Probably not.
+            u'module-testmodule-master-20170322155247'
+        ]
+        self.assertEqual(set(result), set(expected))
+
     def test_resolve_profiles(self):
         current_dir = os.path.dirname(__file__)
         yaml_path = os.path.join(
