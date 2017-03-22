@@ -104,15 +104,17 @@ def done(config, session, msg):
     # So now we can either start a new batch if there are still some to build
     # or, if everything is built successfully, then we can bless the module as
     # complete.
-    unbuilt_components = [
-        c for c in module_build.component_builds
-        if (c.state != koji.BUILD_STATES['COMPLETE']
-            and c.state != koji.BUILD_STATES["FAILED"]
-            and c.state != koji.BUILD_STATES["CANCELED"])
-    ]
+    has_unbuilt_components = False
+    has_failed_components = False
+    for c in module_build.component_builds:
+        if c.state in [None, koji.BUILD_STATES['BUILDING']]:
+            has_unbuilt_components = True
+        elif (c.state in [koji.BUILD_STATES['FAILED'],
+                          koji.BUILD_STATES['CANCELED']]):
+            has_failed_components = True
 
     further_work = []
-    if unbuilt_components:
+    if has_unbuilt_components and not has_failed_components:
         # Try to start next batch build, because there are still unbuilt
         # components in a module.
         further_work += start_next_batch_build(
@@ -125,16 +127,7 @@ def done(config, session, msg):
             return further_work
 
     else:
-        # We know that there are no unbuilt components in this module build,
-        # so we can mark the state as "done" or "failed (in case there are
-        # some failed or canceled components in a build).
-        failed_component_present = False
-        for c in module_build.component_builds:
-            if c.state in (koji.BUILD_STATES['FAILED'],
-                           koji.BUILD_STATES["CANCELED"]):
-                failed_component_present = True
-                break
-        if failed_component_present:
+        if has_failed_components:
             module_build.transition(config, state=models.BUILD_STATES['failed'],
                                     state_reason="Some components failed to build.")
         else:

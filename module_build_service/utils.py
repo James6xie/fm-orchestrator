@@ -131,6 +131,10 @@ def continue_batch_build(config, module, session, builder, components=None):
             and c.batch == module.batch)
     ]
 
+    if not unbuilt_components:
+        log.debug("Cannot continue building module %s. No component to build." % module)
+        return []
+
     # Get the list of components to be build in this batch. We are not
     # building all `unbuilt_components`, because we can a) meet
     # the num_consecutive_builds threshold or b) reuse previous build.
@@ -221,13 +225,51 @@ def start_next_batch_build(config, module, session, builder, components=None):
 
     import koji  # Placed here to avoid py2/py3 conflicts...
 
-    unbuilt_components_in_batch = [
-        c for c in module.current_batch()
-        if c.state == koji.BUILD_STATES['BUILDING'] or not c.state
-    ]
-    if unbuilt_components_in_batch:
+    # Check the status of the module build and current batch so we can
+    # later decide if we can start new batch or not.
+    has_unbuilt_components = False
+    has_unbuilt_components_in_batch = False
+    has_building_components_in_batch = False
+    has_failed_components = False
+    for c in module.component_builds:
+        if c.state in [None, koji.BUILD_STATES['BUILDING']]:
+            has_unbuilt_components = True
+
+            if c.batch == module.batch:
+                if not c.state:
+                    has_unbuilt_components_in_batch = True
+                elif c.state == koji.BUILD_STATES['BUILDING']:
+                    has_building_components_in_batch = True
+        elif (c.state in [koji.BUILD_STATES['FAILED'],
+                          koji.BUILD_STATES['CANCELED']]):
+            has_failed_components = True
+
+    # Do not start new batch if there are no components to build.
+    if not has_unbuilt_components:
+        log.debug("Not starting new batch, there is no component to build "
+                  "for module %s" % module)
+        return []
+
+    # Check that there is something to build in current batch before starting
+    # the new one. If there is, continue building current batch.
+    if has_unbuilt_components_in_batch:
+        log.info("Continuing building batch %d", module.batch)
         return continue_batch_build(
             config, module, session, builder, components)
+
+    # Check that there are no components in BUILDING state in current batch.
+    # If there are, wait until they are built.
+    if has_building_components_in_batch:
+        log.debug("Not starting new batch, there are still components in "
+                  "BUILDING state in current batch for module %s", module)
+        return []
+
+    # Check that there are no failed components in this batch. If there are,
+    # do not start the new batch.
+    if has_failed_components:
+        log.info("Not starting new batch, there are failed components for "
+                 "module %s", module)
+        return []
 
     # Identify active tasks which might contain relicts of previous builds
     # and fail the module build if this^ happens.
@@ -239,11 +281,19 @@ def start_next_batch_build(config, module, session, builder, components=None):
         module.transition(config, state=models.BUILD_STATES['failed'],
                           state_reason=state_reason)
         session.commit()
-        return
+        return []
 
     else:
         log.debug("Builder {} doesn't provide information about active tasks."
                   .format(builder))
+
+    # Find out if there is repo regeneration in progress for this module.
+    # If there is, wait until the repo is regenerated before starting a new
+    # batch.
+    if builder.is_waiting_for_repo_regen():
+        log.debug("Not starting new batch, repo regeneration is in progress "
+                  "for module %s" % module)
+        return []
 
     module.batch += 1
 

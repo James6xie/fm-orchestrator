@@ -396,6 +396,9 @@ class DummyModuleBuilder(GenericBuilder):
     def tag_artifacts(self, artifacts):
         pass
 
+    def is_waiting_for_repo_regen(self):
+        return False
+
     @property
     def module_build_tag(self):
         return {"name": self.tag_name + "-build"}
@@ -443,6 +446,7 @@ class TestBatches(unittest.TestCase):
         module_build.batch = 1
 
         builder = mock.MagicMock()
+        builder.is_waiting_for_repo_regen.return_value = False
         further_work = module_build_service.utils.start_next_batch_build(
             conf, module_build, db.session, builder)
 
@@ -498,5 +502,18 @@ class TestBatches(unittest.TestCase):
         self.assertEqual(len(further_work), 2)
         self.assertEqual(further_work[0].build_name, "perl-List-Compare")
 
+    def test_start_next_batch_build_repo_building(self, default_buildroot_groups):
+        """
+        Test that start_next_batch_build does not start new batch when
+        builder.is_waiting_for_repo_regen() returns True.
+        """
+        module_build = models.ModuleBuild.query.filter_by(id=2).one()
+        module_build.batch = 1
 
+        builder = mock.MagicMock()
+        builder.is_waiting_for_repo_regen.return_value = True
+        further_work = module_build_service.utils.start_next_batch_build(
+            conf, module_build, db.session, builder)
 
+        # Batch number should not increase.
+        self.assertEqual(module_build.batch, 1)

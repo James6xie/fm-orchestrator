@@ -179,15 +179,7 @@ class MBSProducer(PollingProducer):
                     state=models.BUILD_STATES['build']).all():
             # If there are no components in the build state on the module build,
             # then no possible event will start off new component builds
-            unbuilt_components = [
-                c for c in module_build.component_builds
-                if (c.state != koji.BUILD_STATES['COMPLETE']
-                    and c.state != koji.BUILD_STATES["FAILED"]
-                    and c.state != koji.BUILD_STATES["CANCELED"])
-            ]
-
-            if (not module_build.current_batch(koji.BUILD_STATES['BUILDING'])
-                and unbuilt_components):
+            if not module_build.current_batch(koji.BUILD_STATES['BUILDING']):
                 # Initialize the builder...
                 builder = GenericBuilder.create_from_module(
                     session, module_build, config)
