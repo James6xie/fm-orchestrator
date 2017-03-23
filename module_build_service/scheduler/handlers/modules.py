@@ -193,7 +193,7 @@ def wait(config, session, msg):
             'release': module_info['version'],
         }
 
-        @module_build_service.utils.retry(interval=10, timeout=30, wait_on=ValueError)
+        @module_build_service.utils.retry(interval=10, timeout=120, wait_on=(ValueError, RuntimeError))
         def _get_deps_and_tag():
             log.info("Getting %s deps from pdc (query %r)" % (module_info['name'], pdc_query))
             dependencies = module_build_service.pdc.get_module_build_dependencies(
