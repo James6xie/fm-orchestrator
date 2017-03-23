@@ -53,13 +53,17 @@ class TestPDCModule(unittest.TestCase):
         assert result['variant_version'] == 'master'
         assert 'build_deps' in result
 
-    def test_get_module_depsolving_wrapper(self):
-        query = [{
+    def test_get_module_build_dependencies(self):
+        """
+        Tests that we return proper koji_tags with base-runtime
+        build-time dependencies.
+        """
+        query = {
             'name': 'base-runtime',
             'version': 'master',
             'release': '20170315134803',
-        }]
-        result = mbs_pdc.module_depsolving_wrapper(self.pdc, query)
+        }
+        result = mbs_pdc.get_module_build_dependencies(self.pdc, query)
         expected = [
             u'f26-modularity',
             # Should the list of deps should not include the original tag?
@@ -68,14 +72,18 @@ class TestPDCModule(unittest.TestCase):
         ]
         self.assertEqual(set(result), set(expected))
 
-    def test_get_module_depsolving_wrapper_recursive(self):
-        query = [{
+    def test_get_module_build_dependencies_single_level(self):
+        """
+        Tests that we return just direct build-time dependencies of testmodule.
+        It means just testmodule itself and base-runtime, but no f26-modularity
+        (koji tag of bootstrap module which is build-require of base-runtime).
+        """
+        query = {
             'name': 'testmodule',
             'version': 'master',
-            'release': '20170322155247',
-            'active': False,
-        }]
-        result = mbs_pdc.module_depsolving_wrapper(self.pdc, query)
+            'release': '20170322155247'
+        }
+        result = mbs_pdc.get_module_build_dependencies(self.pdc, query)
         expected = [
             u'module-base-runtime-master-20170315134803',
             # Should the list of deps should not include the original tag?
