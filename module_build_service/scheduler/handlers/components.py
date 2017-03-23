@@ -75,18 +75,6 @@ def _finalize(config, session, msg, state):
         session.commit()
         return
 
-    # Initialize the builder, we will need it later.
-    module_name = parent.name
-    tag = parent.koji_tag
-    builder = module_build_service.builder.GenericBuilder.create(
-        parent.owner, module_name, config.system, config, tag_name=tag,
-        components=[c.package for c in parent.component_builds])
-
-    groups = module_build_service.builder.GenericBuilder.default_buildroot_groups(
-        session, parent)
-
-    builder.buildroot_connect(groups)
-
     further_work = []
 
     # If there are no other components still building in a batch,
@@ -100,6 +88,9 @@ def _finalize(config, session, msg, state):
             c.nvr for c in parent.current_batch()
             if c.state == koji.BUILD_STATES['COMPLETE']
         ]
+
+        builder = module_build_service.builder.GenericBuilder.create_from_module(
+            session, parent, config)
 
         if not built_components_in_batch:
             # If there are no successfully built components in a batch,
@@ -130,6 +121,8 @@ def _finalize(config, session, msg, state):
         # done in repos.py:done(...), but because we have just finished one
         # build, try to call continue_batch_build again so in case we hit the
         # threshold previously, we will submit another build from this batch.
+        builder = module_build_service.builder.GenericBuilder.create_from_module(
+            session, parent, config)
         further_work += module_build_service.utils.continue_batch_build(
             config, parent, session, builder)
     return further_work
