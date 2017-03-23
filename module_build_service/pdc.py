@@ -266,51 +266,6 @@ def resolve_profiles(session, mmd, keys):
     # Return the union of all rpms in all profiles of the given keys.
     return results
 
-def module_depsolving_wrapper(session, modules, strict=True):
-    """
-    :param session : PDCClient instance
-    :param modules: list of module_info dicts
-    :return final list of the names of tags.
-    """
-    log.debug("module_depsolving_wrapper(%r, strict=%r)" % (modules, strict))
-
-    # This is the set we're going to build up and return.
-    module_tags = set()
-
-    # We want to take only single 
-    for module_dict in modules:
-        # Get enhanced info on this module from pdc.
-        info = get_module(session, module_dict, strict)
-
-        # Take note of the tag of this module, but only if it is a dep and
-        # not in the original list.
-         # XXX - But, for now go ahead and include it because that's how this
-        # code used to work.
-        module_tags.add(info['koji_tag'])
-
-        # Now, when we look for the deps of this module, use the mmd.xmd
-        # attributes because they contain the promise of *exactly* which
-        # versions of which deps we say we're going to build *this* module
-        # against.
-        if not info['modulemd']:
-            raise ValueError("No PDC modulemd found for %r" % info)
-        mmd = _extract_modulemd(info['modulemd'])
-
-        # Queue up the next tier of deps that we should look at..
-        for name, details in mmd.xmd['mbs']['buildrequires'].items():
-            modified_dep = {
-                'name': name,
-                'version': details['stream'],
-                'release': details['version'],
-                # Only return details about module builds that finished
-                'active': True,
-            }
-            info = get_module(session, modified_dep, strict)
-            module_tags.add(info['koji_tag'])
-
-    return list(module_tags)
-
-
 def get_module_build_dependencies(session, module_info, strict=False):
     """
     :param session : PDCClient instance
@@ -325,23 +280,38 @@ def get_module_build_dependencies(session, module_info, strict=False):
     # XXX get definitive list of modules
 
     deps = []
-    queried_mmd = get_module_modulemd(session, module_info, strict=strict)
+    queried_module = get_module(session, module_info, strict=strict)
+    yaml = queried_module['modulemd']
+    queried_mmd = _extract_modulemd(yaml, strict=strict)
     if not queried_mmd or not queried_mmd.xmd.get('mbs') or not \
             queried_mmd.xmd['mbs'].get('buildrequires'):
         raise RuntimeError(
             'The module "{0!r}" did not contain its modulemd or did not have '
             'its xmd attribute filled out in PDC'.format(module_info))
 
+    # This is the set we're going to build up and return.
+    module_tags = set()
+
+    # Take note of the tag of this module, but only if it is a dep and
+    # not in the original list.
+    # XXX - But, for now go ahead and include it because that's how this
+    # code used to work.
+    module_tags.add(queried_module['koji_tag'])
+
     buildrequires = queried_mmd.xmd['mbs']['buildrequires']
-    deps = [dict(
-        name=dep_name,
-        version=dep_info['stream'],
-        release=dep_info['version'],
-    ) for dep_name, dep_info in buildrequires.items()]
+    # Queue up the next tier of deps that we should look at..
+    for name, details in buildrequires.items():
+        modified_dep = {
+            'name': name,
+            'version': details['stream'],
+            'release': details['version'],
+            # Only return details about module builds that finished
+            'active': True,
+        }
+        info = get_module(session, modified_dep, strict)
+        module_tags.add(info['koji_tag'])
 
-    deps = module_depsolving_wrapper(session, deps, strict=strict)
-
-    return deps
+    return module_tags
 
 def get_module_commit_hash_and_version(session, module_info):
     """
