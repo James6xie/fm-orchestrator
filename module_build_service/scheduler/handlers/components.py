@@ -30,7 +30,7 @@ import module_build_service.pdc
 
 import koji
 
-from module_build_service import models, log
+from module_build_service import models, log, messaging
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -87,6 +87,8 @@ def _finalize(config, session, msg, state):
 
     builder.buildroot_connect(groups)
 
+    further_work = []
+
     # If there are no other components still building in a batch,
     # we can tag all successfully built components in the batch.
     unbuilt_components_in_batch = [
@@ -99,16 +101,25 @@ def _finalize(config, session, msg, state):
             if c.state == koji.BUILD_STATES['COMPLETE']
         ]
 
-        # tag && add to srpm-build group if neccessary
-        log.info("Batch done.  Tagging %i components." % len(
-            built_components_in_batch))
-        log.debug("%r" % built_components_in_batch)
-        install = bool(component_build.package == 'module-build-macros')
-        builder.buildroot_add_artifacts(built_components_in_batch, install=install)
+        if not built_components_in_batch:
+            # If there are no successfully built components in a batch,
+            # there is nothing to tag and therefore the repository won't
+            # be regenerated. We generate fake repo change message here.
+            log.info("Batch done. No component to tag")
+            further_work += [messaging.KojiRepoChange(
+                'components::_finalize: fake msg',
+                builder.module_build_tag['name'])]
+        else:
+            # tag && add to srpm-build group if neccessary
+            log.info("Batch done.  Tagging %i components." % len(
+                built_components_in_batch))
+            log.debug("%r" % built_components_in_batch)
+            install = bool(component_build.package == 'module-build-macros')
+            builder.buildroot_add_artifacts(built_components_in_batch, install=install)
 
-        # Do not tag packages which belong to -build tag to final tag.
-        if not install:
-            builder.tag_artifacts(built_components_in_batch)
+            # Do not tag packages which belong to -build tag to final tag.
+            if not install:
+                builder.tag_artifacts(built_components_in_batch)
 
         session.commit()
     elif (any([c.state != koji.BUILD_STATES['BUILDING']
@@ -119,9 +130,9 @@ def _finalize(config, session, msg, state):
         # done in repos.py:done(...), but because we have just finished one
         # build, try to call continue_batch_build again so in case we hit the
         # threshold previously, we will submit another build from this batch.
-        further_work = module_build_service.utils.continue_batch_build(
+        further_work += module_build_service.utils.continue_batch_build(
             config, parent, session, builder)
-        return further_work
+    return further_work
 
 
 def complete(config, session, msg):

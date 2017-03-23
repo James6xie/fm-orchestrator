@@ -75,7 +75,8 @@ def done(config, session, msg):
     # first before we ever get here.  This is here as a race condition safety
     # valve.
     if not good:
-        module_build.transition(config, models.BUILD_STATES['failed'])
+        module_build.transition(config, models.BUILD_STATES['failed'],
+                                "Some components failed to build.")
         session.commit()
         log.warn("Odd!  All components in batch failed for %r." % module_build)
         return
