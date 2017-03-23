@@ -1027,6 +1027,8 @@ class CoprModuleBuilder(GenericBuilder):
         except CoprRequestException as ex:
             if "already exists" not in ex.message.get("nsv", [""])[0]:
                 raise RuntimeError("Buildroot is not prep-ed")
+        finally:
+            os.remove(modulemd)
 
     def buildroot_ready(self, artifacts=None):
         """
@@ -1126,6 +1128,7 @@ class CoprModuleBuilder(GenericBuilder):
         # Create a module from previous project
         result = self.client.make_module(username=self.copr.username, projectname=self.copr.projectname,
                                          modulemd=modulemd, create=False, build=True)
+        os.remove(modulemd)
         if result.output != "ok":
             log.error(result.error)
             return
