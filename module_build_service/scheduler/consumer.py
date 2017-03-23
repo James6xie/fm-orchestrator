@@ -206,7 +206,7 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
             further_work = []
             try:
                 further_work = handler(conf, session, msg) or []
-            except ValidationError as e:
+            except Exception as e:
                 if build:
                     build.transition(conf, state=models.BUILD_STATES['failed'],
                                      state_reason=str(e))
