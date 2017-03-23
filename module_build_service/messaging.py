@@ -273,12 +273,18 @@ class KojiRepoChange(BaseMessage):
 
 
 class CoprBuildEnd(KojiBuildChange):
-    """ A wrapper class that transforms copr message attributes
-    to a KojiBuildChange message object
+    """ A class that inherits from KojiBuildChange to provide a message
+     object for a build info from Copr
+
+     @TODO There should be a base class for CoprBuildEnd and KojiBuildChange
+     and conditions in the code should check for it's descendants instead of KojiBuildChange directly.
+     In such case this class would not have to inherit from koji class
+
     :param msg_id: the id of the msg (e.g. 2016-SomeGUID)
     :param build_id: the id of the build (e.g. 264382)
     :param status: the new build state
     (see http://copr-backend.readthedocs.io/package/constants.html#backend.constants.BuildStatus )
+    :param copr: the project name
     :param pkg: the full name of what is being built
     (e.g. mutt-kz-1.5.23.1-1.20150203.git.c8504a8a.fc21)
     :param state_reason: the optional reason as to why the state changed
