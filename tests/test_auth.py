@@ -104,7 +104,9 @@ class TestAuthModule(unittest.TestCase):
     def test_disable_authentication(self):
         with patch.dict('module_build_service.app.config', {'NO_AUTH': True}, clear=True):
             request = mock.MagicMock()
-            eq_(module_build_service.auth.get_user(request), None)
+            username, groups = module_build_service.auth.get_user(request)
+            eq_(username, "anonymous")
+            eq_(groups, {"packager"})
 
     @patch('module_build_service.auth.client_secrets', None)
     def test_misconfiguring_oidc_client_secrets_should_be_failed(self):

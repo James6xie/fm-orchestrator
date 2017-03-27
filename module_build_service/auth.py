@@ -85,7 +85,7 @@ def get_user(request):
 
     if app.config['NO_AUTH']:
         log.debug("Authorization is disabled.")
-        return
+        return "anonymous", {"packager"}
 
     _load_secrets()
 
