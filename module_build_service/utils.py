@@ -731,6 +731,9 @@ def validate_optional_params(params):
         raise ValidationError('The request contains parameters specific to Copr builder: {} even though {} is used'
                               .format(", ".join(forbidden_params), conf.system))
 
+    if not conf.no_auth and "owner" in params:
+        raise ValidationError("The request contains 'owner' parameter, however NO_AUTH is not allowed")
+
 
 def scm_url_schemes(terse=False):
     """

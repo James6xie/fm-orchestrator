@@ -100,6 +100,9 @@ class ModuleBuildAPI(MethodView):
         else:
             handler = SCMHandler(request)
 
+        if conf.no_auth and handler.username == "anonymous" and "owner" in handler.data:
+            handler.username = handler.data["owner"]
+
         if conf.allowed_groups and not (conf.allowed_groups & handler.groups):
             raise Forbidden("%s is not in any of  %r, only %r" % (
                 handler.username, conf.allowed_groups, handler.groups))
@@ -189,7 +192,7 @@ class SCMHandler(BaseHandler):
         if isinstance(branch, unicode):
             branch = branch.encode('utf-8')
 
-        optional_params = {k: v for k, v in self.data.items() if k not in ["scmurl", "branch"]}
+        optional_params = {k: v for k, v in self.data.items() if k not in ["owner", "scmurl", "branch"]}
         return submit_module_build_from_scm(self.username, url, branch,
                                             allow_local_url=False, optional_params=optional_params)
 
@@ -209,7 +212,8 @@ class YAMLFileHandler(BaseHandler):
 
     def post(self):
         r = request.files["yaml"]
-        return submit_module_build_from_yaml(self.username, r.read(), optional_params=self.data)
+        optional_params = {k: v for k, v in self.data.items() if k not in ["owner"]}
+        return submit_module_build_from_yaml(self.username, r.read(), optional_params=optional_params)
 
 
 def register_api_v1():
