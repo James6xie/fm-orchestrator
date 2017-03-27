@@ -852,7 +852,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
         self.koji_session.editTag2(tag_name, **opts)
         return self._get_tag(tag_name) # Return up2date taginfo
 
-    def _get_component_owner(self, package):
+    def _get_logged_in_user(self):
         user = self.koji_session.getLoggedInUser()['name']
         if not self.koji_session.getUser(user):
             raise ValueError("Unknown user %s" % user)
