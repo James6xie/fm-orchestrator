@@ -153,6 +153,11 @@ class ModuleBuildAPI(MethodView):
 class BaseHandler(object):
     def __init__(self, request):
         self.username, self.groups = module_build_service.auth.get_user(request)
+        self.data = None
+
+    @property
+    def optional_params(self):
+        return {k: v for k, v in self.data.items() if k not in ["owner", "scmurl", "branch"]}
 
 
 class SCMHandler(BaseHandler):
@@ -192,9 +197,8 @@ class SCMHandler(BaseHandler):
         if isinstance(branch, unicode):
             branch = branch.encode('utf-8')
 
-        optional_params = {k: v for k, v in self.data.items() if k not in ["owner", "scmurl", "branch"]}
         return submit_module_build_from_scm(self.username, url, branch,
-                                            allow_local_url=False, optional_params=optional_params)
+                                            allow_local_url=False, optional_params=self.optional_params)
 
 
 class YAMLFileHandler(BaseHandler):
@@ -212,8 +216,7 @@ class YAMLFileHandler(BaseHandler):
 
     def post(self):
         r = request.files["yaml"]
-        optional_params = {k: v for k, v in self.data.items() if k not in ["owner"]}
-        return submit_module_build_from_yaml(self.username, r.read(), optional_params=optional_params)
+        return submit_module_build_from_yaml(self.username, r.read(), optional_params=self.optional_params)
 
 
 def register_api_v1():
