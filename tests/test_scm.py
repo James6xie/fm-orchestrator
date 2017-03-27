@@ -28,7 +28,7 @@ import unittest
 from nose.tools import raises
 
 import module_build_service.scm
-from module_build_service.errors import ValidationError
+from module_build_service.errors import ValidationError, UnprocessableEntity
 
 repo_path = 'file://' + os.path.dirname(__file__) + "/scm_data/testrepo"
 
@@ -83,7 +83,7 @@ class TestSCMModule(unittest.TestCase):
         sourcedir = scm.checkout(self.tempdir)
         scm.verify(sourcedir)
 
-    @raises(RuntimeError)
+    @raises(UnprocessableEntity)
     def test_verify_unknown_branch(self):
         scm = module_build_service.scm.SCM(repo_path, "unknown")
         sourcedir = scm.checkout(self.tempdir)
@@ -102,7 +102,7 @@ class TestSCMModule(unittest.TestCase):
         sourcedir = scm.checkout(self.tempdir)
         scm.verify(sourcedir)
 
-    @raises(RuntimeError)
+    @raises(UnprocessableEntity)
     def test_verify_unknown_hash(self):
         target = '7035bd33614972ac66559ac1fdd019ff6027ad22'
         scm = module_build_service.scm.SCM(repo_path + "?#" + target, "master")
