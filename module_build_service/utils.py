@@ -82,6 +82,17 @@ def at_concurrent_component_threshold(config, session):
     this time
     """
 
+    # We must not check it for "mock" backend.
+    # It would lead to multiple calls of continue_batch_build method and
+    # creation of multiple worker threads there. Mock backend uses thread-id
+    # to create and identify mock buildroot and for mock backend, we must
+    # build whole module in this single continue_batch_build call to keep
+    # the number of created buildroots low. The concurrent build limit
+    # for mock backend is secured by setting max_workers in
+    # ThreadPoolExecutor to num_consecutive_builds.
+    if conf.system == "mock":
+        return False
+
     import koji  # Placed here to avoid py2/py3 conflicts...
 
     if config.num_consecutive_builds and config.num_consecutive_builds <= \
@@ -148,9 +159,9 @@ def continue_batch_build(config, module, session, builder, components=None):
             previous_component_build = get_reusable_component(
                 session, module, c.package)
         # If a component build can't be reused, we need to check
-        # the concurrent threshold
-        if not previous_component_build and \
-                at_concurrent_component_threshold(config, session):
+        # the concurrent threshold.
+        if (not previous_component_build
+                and at_concurrent_component_threshold(config, session)):
             log.info('Concurrent build threshold met')
             break
 

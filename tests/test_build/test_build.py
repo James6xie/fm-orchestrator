@@ -80,7 +80,7 @@ class TestModuleBuilder(GenericBuilder):
     Test module builder which succeeds for every build.
     """
 
-    backend = "mock"
+    backend = "test"
     # Global build_id/task_id we increment when new build is executed.
     _build_id = 1
 
@@ -205,7 +205,7 @@ class TestModuleBuilder(GenericBuilder):
 
 
 @patch("module_build_service.config.Config.system", 
-        new_callable=PropertyMock, return_value = "mock")
+        new_callable=PropertyMock, return_value = "test")
 @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
        return_value={
             'srpm-build':
