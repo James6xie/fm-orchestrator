@@ -585,7 +585,8 @@ def format_mmd(mmd, scmurl):
             if err_msg:
                 raise UnprocessableEntity(err_msg)
 
-def record_component_builds(scm, mmd, module, initial_batch = 1):
+def record_component_builds(mmd, module, initial_batch = 1,
+                            previous_buildorder = None):
     import koji  # Placed here to avoid py2/py3 conflicts...
 
     # Format the modulemd by putting in defaults and replacing streams that
@@ -610,7 +611,6 @@ def record_component_builds(scm, mmd, module, initial_batch = 1):
 
         components = mmd.components.all
         components.sort(key=lambda x: x.buildorder)
-        previous_buildorder = None
 
         # We do not start with batch = 0 here, because the first batch is
         # reserved for module-build-macros. First real components must be
@@ -618,6 +618,11 @@ def record_component_builds(scm, mmd, module, initial_batch = 1):
         batch = initial_batch
 
         for pkg in components:
+            # Increment the batch number when buildorder increases.
+            if previous_buildorder != pkg.buildorder:
+                previous_buildorder = pkg.buildorder
+                batch += 1
+
             # If the pkg is another module, we fetch its modulemd file
             # and record its components recursively with the initial_batch
             # set to our current batch, so the components of this module
@@ -627,12 +632,9 @@ def record_component_builds(scm, mmd, module, initial_batch = 1):
                 # It is OK to whitelist all URLs here, because the validity
                 # of every URL have been already checked in format_mmd(...).
                 mmd = _fetch_mmd(full_url, whitelist_url=True)[0]
-                batch = record_component_builds(scm, mmd, module, batch)
+                batch = record_component_builds(mmd, module, batch,
+                                                previous_buildorder)
                 continue
-
-            if previous_buildorder != pkg.buildorder:
-                previous_buildorder = pkg.buildorder
-                batch += 1
 
             full_url = pkg.repository + "?#" + pkg.ref
 
@@ -708,7 +710,7 @@ def submit_module_build(username, url, mmd, scm, yaml, optional_params=None):
             **(optional_params or {})
         )
 
-    record_component_builds(scm, mmd, module)
+    record_component_builds(mmd, module)
 
     module.modulemd = mmd.dumps()
     module.transition(conf, models.BUILD_STATES["wait"])
