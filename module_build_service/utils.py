@@ -506,23 +506,23 @@ def format_mmd(mmd, scmurl):
     # them because of dep-chain.
     from module_build_service.scm import SCM
 
-    mmd.xmd['mbs'] = {'scmurl': scmurl}
+    mmd.xmd['mbs'] = {'scmurl': scmurl, 'commit': None}
 
-    scm = SCM(scmurl)
-    # If a commit hash is provided, add that information to the modulemd
-    if scm.commit:
-        # We want to make sure we have the full commit hash for consistency
-        if SCM.is_full_commit_hash(scm.scheme, scm.commit):
-            full_scm_hash = scm.commit
-        else:
-            full_scm_hash = scm.get_full_commit_hash()
-
-        mmd.xmd['mbs']['commit'] = full_scm_hash
-    # If a commit hash wasn't provided then just get the latest from master
-    else:
+    # If module build was submitted via yaml file, there is no scmurl
+    if scmurl:
         scm = SCM(scmurl)
-        mmd.xmd['mbs']['commit'] = scm.get_latest()
+        # If a commit hash is provided, add that information to the modulemd
+        if scm.commit:
+            # We want to make sure we have the full commit hash for consistency
+            if SCM.is_full_commit_hash(scm.scheme, scm.commit):
+                full_scm_hash = scm.commit
+            else:
+                full_scm_hash = scm.get_full_commit_hash()
 
+            mmd.xmd['mbs']['commit'] = full_scm_hash
+        # If a commit hash wasn't provided then just get the latest from master
+        else:
+            mmd.xmd['mbs']['commit'] = scm.get_latest()
 
     # If the modulemd yaml specifies module buildrequires, replace the streams
     # with commit hashes
@@ -537,7 +537,7 @@ def format_mmd(mmd, scmurl):
                 'version': module_stream}
             commit_hash, version = get_module_commit_hash_and_version(
                 pdc, module_info)
-            if commit_hash and version:
+            if version and (commit_hash or not scmurl):
                 mmd.xmd['mbs']['buildrequires'][module_name] = {
                     'ref': commit_hash,
                     'stream': mmd.buildrequires[module_name],
@@ -793,6 +793,7 @@ def get_reusable_component(session, module, component_name):
     previous_module_build = session.query(models.ModuleBuild)\
         .filter_by(name=mmd.name)\
         .filter(models.ModuleBuild.state.in_([3, 5]))\
+        .filter(models.ModuleBuild.scmurl.isnot(None))\
         .order_by(models.ModuleBuild.time_completed.desc())\
         .first()
     # The component can't be reused if there isn't a previous build in the done
@@ -831,8 +832,9 @@ def get_reusable_component(session, module, component_name):
         # Assumes that the streams have been replaced with commit hashes, so we
         # can compare to see if they have changed. Since a build is unique to
         # a commit hash, this is a safe test.
-        if br_module['ref'] != \
-                old_mmd.xmd['mbs']['buildrequires'][br_module_name]['ref']:
+        ref1 = br_module.get('ref')
+        ref2 = old_mmd.xmd['mbs']['buildrequires'][br_module_name].get('ref')
+        if not (ref1 and ref2) or ref1 != ref2:
             return None
 
     # At this point we've determined that both module builds depend(ed) on the

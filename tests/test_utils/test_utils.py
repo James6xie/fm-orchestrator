@@ -115,12 +115,54 @@ class TestUtils(unittest.TestCase):
         }
         self.assertEqual(mmd.xmd, xmd)
 
+    @vcr.use_cassette(
+        path.join(CASSETTES_DIR, 'tests.test_utils.TestUtils.test_format_mmd'))
+    @patch('module_build_service.scm.SCM')
+    def test_format_mmd_empty_scmurl(self, mocked_scm):
+        # For all the RPMs in testmodule, get_latest is called
+        mocked_scm.return_value.get_latest.side_effect = [
+             '4ceea43add2366d8b8c5a622a2fb563b625b9abf',
+             'fbed359411a1baa08d4a88e0d12d426fbf8f602c',
+             '76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb']
+
+        mmd = modulemd.ModuleMetadata()
+        with open(path.join(BASE_DIR, '..', 'staged_data', 'testmodule.yaml')) \
+                as mmd_file:
+            mmd.loads(mmd_file)
+
+        module_build_service.utils.format_mmd(mmd, scmurl=None)
+        xmd = {
+            'mbs': {
+                'commit': None,
+                'buildrequires': {
+                    'base-runtime': {
+                        'ref': 'abffed45ca33d7fe94fff8253b5bfe1d87e786b2',
+                        'stream': 'master',
+                        'version': '20170315134803'}},
+                'scmurl': None,
+            }
+        }
+        self.assertEqual(mmd.xmd, xmd)
+
     def test_get_reusable_component_same(self):
         test_reuse_component_init_data()
         new_module = models.ModuleBuild.query.filter_by(id=2).one()
         rv = module_build_service.utils.get_reusable_component(
             db.session, new_module, 'tangerine')
         self.assertEqual(rv.package, 'tangerine')
+
+    def test_get_reusable_component_empty_scmurl(self):
+        test_reuse_component_init_data()
+
+        new_module = models.ModuleBuild.query.filter_by(id=2).one()
+        mmd = new_module.mmd()
+        mmd.xmd['mbs']['buildrequires'] = {'base-runtime': {}}
+        new_module.modulemd = mmd.dumps()
+        db.session.commit()
+
+        rv = module_build_service.utils.get_reusable_component(
+            db.session, new_module, 'tangerine')
+        self.assertEqual(rv, None)
 
     def test_get_reusable_component_different_perl_tangerine(self):
         test_reuse_component_init_data()
