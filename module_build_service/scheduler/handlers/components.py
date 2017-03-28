@@ -30,7 +30,7 @@ import module_build_service.pdc
 
 import koji
 
-from module_build_service import models, log, messaging
+from module_build_service import models, log
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -111,13 +111,6 @@ def _finalize(config, session, msg, state):
             builder.tag_artifacts(built_components_in_batch)
 
         session.commit()
-
-        # Start of new batch is triggered by buildys.repo.done message.
-        # However in Copr there is no such thing. Therefore,
-        # since the batch is done, we can state that repo is done
-        if config.system == "copr":
-            messaging.CoprRepoDone(msg.copr).publish()
-
     elif (any([c.state != koji.BUILD_STATES['BUILDING']
             for c in unbuilt_components_in_batch])):
         # We are not in the middle of the batch building and
