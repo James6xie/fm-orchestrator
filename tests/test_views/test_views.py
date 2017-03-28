@@ -486,7 +486,7 @@ class TestViews(unittest.TestCase):
         data = json.loads(rv.data)
 
         assert 'component_builds' in data, data
-        self.assertEquals(data['component_builds'], [61, 62, 63, 64])
+        self.assertEquals(data['component_builds'], [61, 62, 63, 64, 65])
         self.assertEquals(data['name'], 'includedmodules')
         self.assertEquals(data['scmurl'],
                           ('git://pkgs.stg.fedoraproject.org/modules/testmodule'
@@ -505,6 +505,7 @@ class TestViews(unittest.TestCase):
         for build in ComponentBuild.query.filter_by(module_id=31).all():
             batches[build.package] = build.batch
 
+        self.assertEquals(batches['ed'], 2)
         self.assertEquals(batches['perl-List-Compare'], 2)
         self.assertEquals(batches['perl-Tangerine'], 2)
         self.assertEquals(batches['tangerine'], 3)
