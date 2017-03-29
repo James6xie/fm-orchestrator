@@ -216,11 +216,12 @@ class BaseMessage(object):
                     msg_id, msg_inner_msg.get('id'), msg_inner_msg.get('state'))
 
             elif conf.system == category == 'copr' and object == 'build':
+                copr = msg_inner_msg.get('copr')
                 build = msg_inner_msg.get('build')
                 status = msg_inner_msg.get('status')
                 pkg = msg_inner_msg.get('pkg')
                 what = msg_inner_msg.get('what')
-                msg_obj = CoprBuildEnd(msg_id, build, status, pkg, what)
+                msg_obj = CoprBuildEnd(msg_id, build, status, copr, pkg, what)
 
             # If the message matched the regex and is important to the app,
             # it will be returned
@@ -271,20 +272,26 @@ class KojiRepoChange(BaseMessage):
         self.repo_tag = repo_tag
 
 
-class CoprBuildEnd(object):
-    """ A wrapper class that transforms copr message attributes
-    to a KojiBuildChange message object
+class CoprBuildEnd(KojiBuildChange):
+    """ A class that inherits from KojiBuildChange to provide a message
+     object for a build info from Copr
+
+     @TODO There should be a base class for CoprBuildEnd and KojiBuildChange
+     and conditions in the code should check for it's descendants instead of KojiBuildChange directly.
+     In such case this class would not have to inherit from koji class
+
     :param msg_id: the id of the msg (e.g. 2016-SomeGUID)
     :param build_id: the id of the build (e.g. 264382)
     :param status: the new build state
     (see http://copr-backend.readthedocs.io/package/constants.html#backend.constants.BuildStatus )
+    :param copr: the project name
     :param pkg: the full name of what is being built
     (e.g. mutt-kz-1.5.23.1-1.20150203.git.c8504a8a.fc21)
     :param state_reason: the optional reason as to why the state changed
     """
-    def __new__(cls, msg_id, build_id, status, pkg, what=None):
+    def __init__(self, msg_id, build_id, status, copr, pkg, what=None):
         nvr = kobo.rpmlib.parse_nvra(pkg)
-        return KojiBuildChange(
+        super(CoprBuildEnd, self).__init__(
             msg_id=msg_id,
             build_id=build_id,
             task_id=build_id,
@@ -294,6 +301,7 @@ class CoprBuildEnd(object):
             build_release=".".join(s for s in [nvr["release"], nvr["epoch"], nvr["arch"]] if s),
             state_reason=what,
         )
+        self.copr = copr
 
 
 class MBSModule(BaseMessage):

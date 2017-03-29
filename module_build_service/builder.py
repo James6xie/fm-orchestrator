@@ -981,6 +981,7 @@ class CoprModuleBuilder(GenericBuilder):
         Koji Example: create tag, targets, set build tag inheritance...
         """
         self.copr = self._get_copr_safe()
+        self._create_module_safe()
         if self.copr and self.copr.projectname and self.copr.username:
             self.__prep = True
         log.info("%r buildroot sucessfully connected." % self)
@@ -1008,6 +1009,29 @@ class CoprModuleBuilder(GenericBuilder):
     def _create_copr(self, ownername, projectname):
         # @TODO fix issues with custom-1-x86_64 and custom-1-i386 chroot and use it
         return self.client.create_project(ownername, projectname, ["fedora-24-x86_64"])
+
+    def _create_module_safe(self):
+        from copr.exceptions import CoprRequestException
+
+        # @TODO it would be nice if the module build object was passed to Builder __init__
+        module = ModuleBuild.query.filter(ModuleBuild.name == self.module_str).one()
+        modulemd = tempfile.mktemp()
+        module.mmd().dump(modulemd)
+
+        kwargs = {
+            "username": module.copr_owner or self.owner,
+            "projectname": module.copr_project or CoprModuleBuilder._tag_to_copr_name(self.tag_name),
+            "modulemd": modulemd,
+            "create": True,
+            "build": False,
+        }
+        try:
+            self.client.make_module(**kwargs)
+        except CoprRequestException as ex:
+            if "already exists" not in ex.message.get("nsv", [""])[0]:
+                raise RuntimeError("Buildroot is not prep-ed")
+        finally:
+            os.remove(modulemd)
 
     def buildroot_ready(self, artifacts=None):
         """
@@ -1037,7 +1061,18 @@ class CoprModuleBuilder(GenericBuilder):
             # This forces install of bash into buildroot and srpm-buildroot
             koji add-group-pkg $module-build-tag srpm-build bash
         """
-        pass
+
+        # Start of a new batch of builds is triggered by buildsys.repo.done message.
+        # However in Copr there is no such thing. Therefore we are going to fake
+        # the message when builds are finished
+        self._send_repo_done()
+
+    def _send_repo_done(self):
+        msg = module_build_service.messaging.KojiRepoChange(
+            msg_id='a faked internal message',
+            repo_tag=self.tag_name + "-build",
+        )
+        module_build_service.scheduler.consumer.work_queue_put(msg)
 
     def buildroot_add_repos(self, dependencies):
         log.info("%r adding deps on %r" % (self, dependencies))
@@ -1099,35 +1134,15 @@ class CoprModuleBuilder(GenericBuilder):
 
         return response.data["ids"][0], koji.BUILD_STATES["BUILDING"], response.message, None
 
-    def _wait_until_all_builds_are_finished(self, module):
-        while True:
-            states = {b: self.client.get_build_details(b.task_id).status for b in module.component_builds}
-            if "failed" in states.values():
-                raise ValueError("Some builds failed")
-
-            if not filter(lambda x: x != "succeeded", states.values()):
-                return
-
-            seconds = 60
-            log.info("Going to sleep for {}s to wait until builds in copr are finished".format(seconds))
-            time.sleep(seconds)
-
     def finalize(self):
         modulemd = tempfile.mktemp()
         m1 = ModuleBuild.query.filter(ModuleBuild.name == self.module_str).one()
         m1.mmd().dump(modulemd)
 
-        # Wait until all builds are finished
-        # We shouldn't do this once the fedmsg on copr is done
-        from copr.exceptions import CoprRequestException
-        try:
-            self._wait_until_all_builds_are_finished(m1)
-        except (CoprRequestException, ValueError):
-            return log.info("Missing builds, not going to create a module")
-
         # Create a module from previous project
-        kwargs = {"username": self.copr.username, "projectname": self.copr.projectname, "modulemd": modulemd}
-        result = self.client.create_new_build_module(**kwargs)
+        result = self.client.make_module(username=self.copr.username, projectname=self.copr.projectname,
+                                         modulemd=modulemd, create=False, build=True)
+        os.remove(modulemd)
         if result.output != "ok":
             log.error(result.error)
             return
