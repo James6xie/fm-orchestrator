@@ -83,7 +83,7 @@ def get_user(request):
     Returns the client's username and groups based on the OIDC token provided.
     """
 
-    if app.config['NO_AUTH']:
+    if app.config['NO_AUTH'] is True:
         log.debug("Authorization is disabled.")
         return "anonymous", {"packager"}
 

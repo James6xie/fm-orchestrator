@@ -100,7 +100,7 @@ class ModuleBuildAPI(MethodView):
         else:
             handler = SCMHandler(request)
 
-        if conf.no_auth and handler.username == "anonymous" and "owner" in handler.data:
+        if conf.no_auth is True and handler.username == "anonymous" and "owner" in handler.data:
             handler.username = handler.data["owner"]
 
         if conf.allowed_groups and not (conf.allowed_groups & handler.groups):
