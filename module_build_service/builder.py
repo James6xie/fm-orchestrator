@@ -47,6 +47,7 @@ import xmlrpclib
 import shutil
 import subprocess
 import threading
+import yaml
 
 import munch
 from OpenSSL.SSL import SysCallError
@@ -1288,14 +1289,24 @@ mdpolicy=group:primary
         """
         log.debug("Creating repository in %s" % self.resultsdir)
         path = self.resultsdir
-        if os.path.exists(path + '/repodata/repomd.xml'):
-            comm = ['/usr/bin/createrepo_c', '--update', path]
-        else:
-            comm = ['/usr/bin/createrepo_c', path]
-        cmd = subprocess.Popen(
-            comm, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        out, err = cmd.communicate()
-        return out, err
+        repodata_path = os.path.join(path, "repodata")
+
+        # Remove old repodata files
+        if os.path.exists(repodata_path):
+            for name in os.listdir(repodata_path):
+                os.remove(os.path.join(repodata_path, name))
+
+        # Generate the mmd the same way as pungi does.
+        m1 = ModuleBuild.query.filter(ModuleBuild.name == self.module_str).one()
+        modules = {"modules": []}
+        modules["modules"].append(yaml.safe_load(m1.mmd().dumps()))
+        mmd_path = os.path.join(path, "modules.yaml")
+        with open(mmd_path, "w") as outfile:
+            outfile.write(yaml.safe_dump(modules))
+
+        # Generate repo and inject modules.yaml there.
+        _execute_cmd(['/usr/bin/createrepo_c', path])
+        _execute_cmd(['/usr/bin/modifyrepo_c', '--mdtype=modules', mmd_path, repodata_path])
 
     def _add_repo(self, name, baseurl, extra = ""):
         """
