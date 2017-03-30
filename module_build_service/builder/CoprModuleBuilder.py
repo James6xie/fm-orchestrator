@@ -19,8 +19,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 #
-# Written by Petr Šabata <contyk@redhat.com>
-#            Luboš Kocman <lkocman@redhat.com>
+# Written by Jakub Kadlčík <jkadlcik@redhat.com>
 
 
 import logging
