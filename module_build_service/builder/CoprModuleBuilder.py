@@ -68,7 +68,6 @@ class CoprModuleBuilder(GenericBuilder):
 
     @classmethod
     def _get_client(cls, config):
-        from copr.client import CoprClient
         return CoprClient.create_from_file_config(config.copr_config)
 
     def buildroot_connect(self, groups):
@@ -86,8 +85,6 @@ class CoprModuleBuilder(GenericBuilder):
         log.info("%r buildroot sucessfully connected." % self)
 
     def _get_copr_safe(self):
-        from copr.exceptions import CoprRequestException
-
         # @TODO it would be nice if the module build object was passed to Builder __init__
         module = ModuleBuild.query.filter(ModuleBuild.name == self.module_str).one()
 
@@ -277,7 +274,6 @@ class CoprModuleBuilder(GenericBuilder):
         # Premise is that tag_name is in name-stream-version format
         name, stream, version = tag_name.rsplit("-", 2)
 
-        from copr.exceptions import CoprRequestException
         try:
             client = cls._get_client(config)
             response = client.get_module_repo(owner, project, name, stream, version, arch).data
