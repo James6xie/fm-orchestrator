@@ -114,6 +114,18 @@ class ModuleBuildAPI(MethodView):
     def patch(self, id):
         username, groups = module_build_service.auth.get_user(request)
 
+        try:
+            r = json.loads(request.get_data().decode("utf-8"))
+        except:
+            log.error('Invalid JSON submitted')
+            raise ValidationError('Invalid JSON submitted')
+
+        if "owner" in r:
+            if conf.no_auth is not True:
+                raise ValidationError("The request contains 'owner' parameter, however NO_AUTH is not allowed")
+            elif username == "anonymous":
+                username = r["owner"]
+
         if conf.allowed_groups and not (conf.allowed_groups & groups):
             raise Forbidden("%s is not in any of  %r, only %r" % (
                 username, conf.allowed_groups, groups))
@@ -125,12 +137,6 @@ class ModuleBuildAPI(MethodView):
         if module.owner != username and username not in conf.admins:
             raise Forbidden('You are not owner of this build and '
                             'therefore cannot modify it.')
-
-        try:
-            r = json.loads(request.get_data().decode("utf-8"))
-        except:
-            log.error('Invalid JSON submitted')
-            raise ValidationError('Invalid JSON submitted')
 
         if not r.get('state'):
             log.error('Invalid JSON submitted')
