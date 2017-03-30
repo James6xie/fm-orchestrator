@@ -27,6 +27,7 @@ import module_build_service.scheduler.handlers.modules
 import modulemd as _modulemd
 import os
 import vcr
+from module_build_service import conf
 
 base_dir = os.path.dirname(os.path.dirname(__file__))
 cassette_dir = base_dir + '/vcr-request-data/'
@@ -35,7 +36,7 @@ cassette_dir = base_dir + '/vcr-request-data/'
 class TestModuleWait(unittest.TestCase):
 
     def setUp(self):
-        self.config = mock.Mock()
+        self.config = conf
         self.session = mock.Mock()
         self.fn = module_build_service.scheduler.handlers.modules.wait
 

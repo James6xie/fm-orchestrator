@@ -131,12 +131,7 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
         Any additional arguments are optional extras which can be passed along
         and are implementation-dependent.
         """
-
-        if isinstance(config.system, Mock):
-            from koji import KojiModuleBuilder
-            return KojiModuleBuilder(owner=owner, module=module,
-                                     config=config, **extra)
-        elif backend in GenericBuilder.backends:
+        if backend in GenericBuilder.backends:
             return GenericBuilder.backends[backend](owner=owner, module=module,
                                                     config=config, **extra)
         else:
