@@ -22,11 +22,6 @@
 # Written by Petr Šabata <contyk@redhat.com>
 #            Luboš Kocman <lkocman@redhat.com>
 
-"""Generic component build functions."""
-
-# TODO: Query the PDC to find what modules satisfy the build dependencies and
-#       their tag names.
-# TODO: Ensure the RPM %dist tag is set according to the policy.
 
 import logging
 import os
