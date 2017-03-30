@@ -721,20 +721,6 @@ def submit_module_build(username, url, mmd, scm, yaml, optional_params=None):
     return module
 
 
-def validate_optional_params(params):
-    forbidden_params = [k for k in params if k not in models.ModuleBuild.__table__.columns and k not in ["branch"]]
-    if forbidden_params:
-        raise ValidationError('The request contains unspecified parameters: {}'.format(", ".join(forbidden_params)))
-
-    forbidden_params = [k for k in params if k.startswith("copr_")]
-    if conf.system != "copr" and forbidden_params:
-        raise ValidationError('The request contains parameters specific to Copr builder: {} even though {} is used'
-                              .format(", ".join(forbidden_params), conf.system))
-
-    if not conf.no_auth and "owner" in params:
-        raise ValidationError("The request contains 'owner' parameter, however NO_AUTH is not allowed")
-
-
 def scm_url_schemes(terse=False):
     """
     Definition of URL schemes supported by both frontend and scheduler.

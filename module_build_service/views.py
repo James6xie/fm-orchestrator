@@ -35,7 +35,7 @@ from module_build_service import app, conf, log
 from module_build_service import models, db
 from module_build_service.utils import (
     pagination_metadata, filter_module_builds, submit_module_build_from_scm,
-    submit_module_build_from_yaml, scm_url_schemes, get_scm_url_re, validate_optional_params)
+    submit_module_build_from_yaml, scm_url_schemes, get_scm_url_re)
 from module_build_service.errors import (
     ValidationError, Forbidden, NotFound)
 
@@ -159,6 +159,20 @@ class BaseHandler(object):
     def optional_params(self):
         return {k: v for k, v in self.data.items() if k not in ["owner", "scmurl", "branch"]}
 
+    def validate_optional_params(self):
+        forbidden_params = [k for k in self.data if k not in models.ModuleBuild.__table__.columns
+                            and k not in ["branch"]]
+        if forbidden_params:
+            raise ValidationError('The request contains unspecified parameters: {}'.format(", ".join(forbidden_params)))
+
+        forbidden_params = [k for k in self.data if k.startswith("copr_")]
+        if conf.system != "copr" and forbidden_params:
+            raise ValidationError('The request contains parameters specific to Copr builder: {} even though {} is used'
+                                  .format(", ".join(forbidden_params), conf.system))
+
+        if not conf.no_auth and "owner" in self.data:
+            raise ValidationError("The request contains 'owner' parameter, however NO_AUTH is not allowed")
+
 
 class SCMHandler(BaseHandler):
     def __init__(self, request):
@@ -187,7 +201,7 @@ class SCMHandler(BaseHandler):
             log.error('Missing branch')
             raise ValidationError('Missing branch')
 
-        validate_optional_params(self.data)
+        self.validate_optional_params()
 
     def post(self):
         url = self.data["scmurl"]
@@ -212,7 +226,7 @@ class YAMLFileHandler(BaseHandler):
         if "yaml" not in request.files:
             log.error('Invalid file submitted')
             raise ValidationError('Invalid file submitted')
-        validate_optional_params(self.data)
+        self.validate_optional_params()
 
     def post(self):
         r = request.files["yaml"]
