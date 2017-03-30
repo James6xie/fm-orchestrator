@@ -28,38 +28,20 @@
 #       their tag names.
 # TODO: Ensure the RPM %dist tag is set according to the policy.
 
-import six
-from abc import ABCMeta, abstractmethod
 import logging
 import os
-
-from mock import Mock
-from kobo.shortcuts import run
 import koji
-import tempfile
-import glob
-import datetime
-import time
-import random
-import string
 import kobo.rpmlib
-import xmlrpclib
 import shutil
 import subprocess
 import threading
 
-import munch
-from OpenSSL.SSL import SysCallError
-
 from module_build_service import conf, log, db
-from module_build_service.models import ModuleBuild
-from module_build_service import pdc
 import module_build_service.scm
 import module_build_service.utils
 import module_build_service.scheduler
 import module_build_service.scheduler.consumer
 
-from requests.exceptions import ConnectionError
 from base import GenericBuilder, _execute_cmd, build_from_scm
 from KojiModuleBuilder import KojiModuleBuilder
 

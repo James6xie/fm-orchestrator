@@ -32,27 +32,12 @@ import six
 from abc import ABCMeta, abstractmethod
 import logging
 import os
-
-from mock import Mock
-from kobo.shortcuts import run
 import koji
 import tempfile
-import glob
-import datetime
-import time
-import random
-import string
-import kobo.rpmlib
-import xmlrpclib
 import shutil
 import subprocess
-import threading
-
-import munch
-from OpenSSL.SSL import SysCallError
 
 from module_build_service import conf, log, db
-from module_build_service.models import ModuleBuild
 from module_build_service import pdc
 import module_build_service.scm
 import module_build_service.utils
