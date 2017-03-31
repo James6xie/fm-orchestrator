@@ -852,18 +852,6 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
         self.koji_session.editTag2(tag_name, **opts)
         return self._get_tag(tag_name) # Return up2date taginfo
 
-    def _get_logged_in_user(self):
-        """
-        :return str or None (raise ValueError)
-
-        Get username of logged in user in the current Koji session.
-        """
-
-        user = self.koji_session.getLoggedInUser()['name']
-        if not self.koji_session.getUser(user):
-            raise ValueError("Unknown user %s" % user)
-        return user
-
     def _koji_whitelist_packages(self, packages, tags=None):
         if not tags:
             tags = [self.module_tag, self.module_build_tag]
