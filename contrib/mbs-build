@@ -2,7 +2,7 @@
 from __future__ import print_function
 import os
 import sys
-import fedora.client.openidcclient
+import openidc_client
 import argparse
 import logging
 import subprocess
@@ -13,7 +13,7 @@ import time
 DEFAULT_ID_PROVIDER = "https://id.fedoraproject.org/openidc/"
 DEFAULT_MBS_SERVER = "https://mbs.fedoraproject.org"
 
-fedora.client.openidcclient.WEB_PORTS = [13747]
+openidc_client.WEB_PORTS = [13747]
 
 def watch_build(server, build_id):
     if not server:
@@ -62,7 +62,7 @@ def watch_build(server, build_id):
         print('Module {name} is in state {state_name} (reason {state_reason})'.format(**data))
         time.sleep(30)
 
-def send_authorized_request(server, id_provider, url, body, **kwargs):
+def send_authorized_request(verb, server, id_provider, url, body, **kwargs):
     """
     Sends authorized request to server.
     """
@@ -74,16 +74,32 @@ def send_authorized_request(server, id_provider, url, body, **kwargs):
     logging.info("Trying to get the token from %s", id_provider)
 
     # Get the auth token using the OpenID client.
-    oidc = fedora.client.openidcclient.OpenIDCBaseClient(
-        server, 'mbs-authorizer',
-        id_provider=id_provider,
-        client_id="mbs-authorizer",
-        client_secret="notsecret")
+    oidc = openidc_client.OpenIDCClient(
+        "mbs_build", id_provider,
+        {'Token': 'Token', 'Authorization': 'Authorization'},
+        'mbs-authorizer', "notsecret")
 
     scopes = ['openid', 'https://id.fedoraproject.org/scope/groups',
               'https://mbs.fedoraproject.org/oidc/submit-build']
+
+    # Ideally we would use oidc.send_request here, but it doesn't support
+    # custom HTTP verbs/methods like "PATCH". It sends just "POST"...
+    token = oidc.get_token(scopes)
+    if not token:
+        return None
+
+    headers = {}
+    headers['Authorization'] = 'Bearer %s' % token
+
     logging.debug("Sending body: %s", body)
-    return oidc.send_request(url, scopes, json=body, **kwargs)
+    resp = requests.request(verb, "%s/%s" % (server, url), json=body,
+                            headers=headers, **kwargs)
+    if resp.status_code == 401:
+        # We got a 401 and this is a retry. Report error
+        self.report_token_issue()
+        return resp
+
+    return resp
 
 def submit_module_build(scm_url, branch, server, id_provider, pyrpkg):
     """
@@ -117,7 +133,7 @@ def submit_module_build(scm_url, branch, server, id_provider, pyrpkg):
     logging.info("Submitting module build %s", scm_url)
     body = {'scmurl': scm_url, 'branch': branch}
     resp = send_authorized_request(
-        server, id_provider, "/module-build-service/1/module-builds/",
+        "POST", server, id_provider, "/module-build-service/1/module-builds/",
         body)
     logging.info(resp.text)
 
@@ -132,9 +148,9 @@ def cancel_module_build(server, id_provider, build_id):
     """
     logging.info("Cancelling module build %s", build_id)
     resp = send_authorized_request(
-        server, id_provider,
+        "PATCH", server, id_provider,
         "/module-build-service/1/module-builds/" + str(build_id),
-        {'state': 'failed'}, verb="PATCH")
+        {'state': 'failed'})
     logging.info(resp.text)
 
 def main():
