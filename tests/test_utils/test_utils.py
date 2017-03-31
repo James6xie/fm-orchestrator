@@ -449,9 +449,9 @@ class DummyModuleBuilder(GenericBuilder):
         return DummyModuleBuilder._build_id, state, reason, None
 
     @staticmethod
-    def get_disttag_srpm(disttag):
+    def get_disttag_srpm(disttag, module_build):
         # @FIXME
-        return KojiModuleBuilder.get_disttag_srpm(disttag)
+        return KojiModuleBuilder.get_disttag_srpm(disttag, module_build)
 
     def cancel_build(self, task_id):
         pass

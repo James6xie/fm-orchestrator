@@ -167,7 +167,8 @@ def wait(config, session, msg):
             pdc_session = module_build_service.pdc.get_pdc_client_session(config)
             pdc_query = {
                 'name': name,
-                'version': stream
+                'version': stream,
+                'active': True
             }
 
             @module_build_service.utils.retry(interval=10, timeout=30, wait_on=ValueError)
@@ -230,7 +231,9 @@ def wait(config, session, msg):
     log.debug("Adding dependencies %s into buildroot for module %s" % (dependencies, module_info))
     builder.buildroot_add_repos(dependencies)
     # inject dist-tag into buildroot
-    srpm = builder.get_disttag_srpm(disttag=".%s" % get_rpm_release_from_mmd(build.mmd()))
+    srpm = builder.get_disttag_srpm(
+        disttag=".%s" % get_rpm_release_from_mmd(build.mmd()),
+        module_build=build)
 
     log.debug("Starting build batch 1")
     build.batch = 1

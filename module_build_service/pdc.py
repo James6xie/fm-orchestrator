@@ -162,14 +162,14 @@ def get_module(session, module_info, strict=False):
     """
 
     log.debug("get_module(%r, strict=%r)" % (module_info, strict))
-    module_info = get_variant_dict(module_info)
+    variant_dict = get_variant_dict(module_info)
 
     query = dict(
-        variant_id=module_info['variant_id'],
-        variant_version=module_info['variant_version'],
+        variant_id=variant_dict['variant_id'],
+        variant_version=variant_dict['variant_version'],
     )
-    if module_info.get('variant_release'):
-        query['variant_release'] = module_info['variant_release']
+    if variant_dict.get('variant_release'):
+        query['variant_release'] = variant_dict['variant_release']
     if module_info.get('active'):
         query['active'] = module_info['active']
 
