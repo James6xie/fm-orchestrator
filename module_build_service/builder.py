@@ -853,19 +853,20 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
         return self._get_tag(tag_name) # Return up2date taginfo
 
     def _get_logged_in_user(self):
+        """
+        :return str or None (raise ValueError)
+
+        Get username of logged in user in the current Koji session.
+        """
+
         user = self.koji_session.getLoggedInUser()['name']
         if not self.koji_session.getUser(user):
             raise ValueError("Unknown user %s" % user)
         return user
 
-    def _koji_whitelist_packages(self, packages, tags = None):
+    def _koji_whitelist_packages(self, packages, tags=None):
         if not tags:
             tags = [self.module_tag, self.module_build_tag]
-
-        # TODO: This has to be done per-package or just without the need
-        # to pass the `packages` to it depending on the result of
-        # issue #337.
-        owner = self._get_component_owner(packages[0])
 
         # This will help with potential resubmiting of failed builds
         pkglists = {}
@@ -875,13 +876,12 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
         self.koji_session.multicall = True
         for tag in tags:
             pkglist = pkglists[tag['id']]
-            to_add = []
             for package in packages:
                 if pkglist.get(package, None):
                     log.debug("%s Package %s is already whitelisted." % (self, package))
                     continue
 
-                self.koji_session.packageListAdd(tag['name'], package, owner)
+                self.koji_session.packageListAdd(tag['name'], package, self.owner)
         self.koji_session.multiCall(strict=True)
 
     @module_build_service.utils.validate_koji_tag(['build_tag', 'dest_tag'])
