@@ -175,13 +175,13 @@ class TestModuleBuilder(GenericBuilder):
 
         TestModuleBuilder._build_id += 1
 
+        if TestModuleBuilder.on_build_cb:
+            TestModuleBuilder.on_build_cb(self, artifact_name, source)
+
         if TestModuleBuilder.BUILD_STATE != "BUILDING":
             self._send_build_change(
                 koji.BUILD_STATES[TestModuleBuilder.BUILD_STATE], source,
                 TestModuleBuilder._build_id)
-
-        if TestModuleBuilder.on_build_cb:
-            TestModuleBuilder.on_build_cb(self, artifact_name, source)
 
         if TestModuleBuilder.INSTANT_COMPLETE:
             state = koji.BUILD_STATES['COMPLETE']
@@ -265,11 +265,11 @@ class TestBuild(unittest.TestCase):
 
         # Check that components are tagged after the batch is built.
         tag_groups = []
-        tag_groups.append([u'perl-Tangerine?#f25-1-1', u'perl-List-Compare?#f25-1-1'])
-        tag_groups.append([u'tangerine?#f25-1-1'])
+        tag_groups.append(set([u'perl-Tangerine?#f25-1-1', u'perl-List-Compare?#f25-1-1']))
+        tag_groups.append(set([u'tangerine?#f25-1-1']))
 
         def on_tag_artifacts_cb(cls, artifacts):
-            self.assertEqual(tag_groups.pop(0), artifacts)
+            self.assertEqual(tag_groups.pop(0), set(artifacts))
 
         TestModuleBuilder.on_tag_artifacts_cb = on_tag_artifacts_cb
 
@@ -549,13 +549,11 @@ class TestBuild(unittest.TestCase):
         module_build_id = data['id']
 
         def on_build_cb(cls, artifact_name, source):
-            # Next component *after* the module-build-macros will fail
-            # to build.
-            if artifact_name.startswith("module-build-macros"):
+            # fail perl-Tangerine build
+            if artifact_name.startswith("perl-Tangerine"):
                 TestModuleBuilder.BUILD_STATE = "FAILED"
             else:
                 TestModuleBuilder.BUILD_STATE = "COMPLETE"
-            print artifact_name
 
         TestModuleBuilder.on_build_cb = on_build_cb
 
@@ -607,7 +605,7 @@ class TestBuild(unittest.TestCase):
         def on_build_cb(cls, artifact_name, source):
             # Next components *after* the module-build-macros will fail
             # to build.
-            if artifact_name.startswith("module-build-macros"):
+            if not artifact_name.startswith("module-build-macros"):
                 TestModuleBuilder.BUILD_STATE = "FAILED"
 
         TestModuleBuilder.on_build_cb = on_build_cb
