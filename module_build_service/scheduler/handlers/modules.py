@@ -29,6 +29,8 @@ import module_build_service.pdc
 import module_build_service.utils
 import module_build_service.messaging
 
+from requests.exceptions import ConnectionError
+
 import koji
 import hashlib
 
@@ -193,7 +195,9 @@ def wait(config, session, msg):
             'release': module_info['version'],
         }
 
-        @module_build_service.utils.retry(interval=10, timeout=120, wait_on=(ValueError, RuntimeError))
+        @module_build_service.utils.retry(
+            interval=10, timeout=120,
+            wait_on=(ValueError, RuntimeError, ConnectionError))
         def _get_deps_and_tag():
             log.info("Getting %s deps from pdc (query %r)" % (module_info['name'], pdc_query))
             dependencies = module_build_service.pdc.get_module_build_dependencies(
