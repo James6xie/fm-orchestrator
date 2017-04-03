@@ -122,13 +122,13 @@ def cleardb():
 
 
 @manager.command
-def build_module_locally(url):
+def build_module_locally(url, branch):
     """ Performs local module build using Mock
     """
     conf.set_item("system", "mock")
 
     # Use our own local SQLite3 database.
-    confdir = os.path.abspath(os.path.dirname(__file__))
+    confdir = os.path.abspath(os.getcwd())
     dbdir = os.path.abspath(os.path.join(confdir, '..')) if confdir.endswith('conf') \
         else confdir
     dbpath = '/{0}'.format(os.path.join(dbdir, '.mbs_local_build.db'))
@@ -149,7 +149,7 @@ def build_module_locally(url):
     db.create_all()
 
     username = getpass.getuser()
-    submit_module_build_from_scm(username, url, "master", allow_local_url=True)
+    submit_module_build_from_scm(username, url, branch, allow_local_url=True)
 
     stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
     initial_messages = [MBSModule("local module build", 1, 1)]

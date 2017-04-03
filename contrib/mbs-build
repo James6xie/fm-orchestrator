@@ -9,6 +9,7 @@ import subprocess
 import requests
 import koji
 import time
+from copy import copy
 
 DEFAULT_ID_PROVIDER = "https://id.fedoraproject.org/openidc/"
 DEFAULT_MBS_SERVER = "https://mbs.fedoraproject.org"
@@ -16,6 +17,11 @@ DEFAULT_MBS_SERVER = "https://mbs.fedoraproject.org"
 openidc_client.WEB_PORTS = [13747]
 
 def watch_build(server, build_id):
+    """
+    Watches the MBS build in a loop, updates every 30 seconds.
+    Returns when build state is 'failed' or 'done' or 'ready' or when
+    user hits ctrl+c.
+    """
     if not server:
         server = DEFAULT_MBS_SERVER
 
@@ -62,6 +68,55 @@ def watch_build(server, build_id):
         print('Module {name} is in state {state_name} (reason {state_reason})'.format(**data))
         time.sleep(30)
 
+# Ideally we would use oidc.send_request here, but it doesn't support
+# custom HTTP verbs/methods like "PATCH". It sends just "POST"...
+# TODO: Remove this method once python-openidc-client with verb support
+# is released and updated in Fedora.
+def _send_oidc_request(oidc, verb, *args, **kwargs):
+    ckwargs = copy(kwargs)
+
+    scopes = ckwargs.pop('scopes')
+    new_token = ckwargs.pop('new_token', True)
+    auto_refresh = ckwargs.pop('auto_refresh', True)
+
+    is_retry = False
+    if oidc.token_to_try:
+        is_retry = True
+        token = oidc.token_to_try
+        oidc.token_to_try = None
+    else:
+        token = oidc.get_token(scopes, new_token=new_token)
+        if not token:
+            return None
+
+    if oidc.use_post:
+        if 'json' in ckwargs:
+            raise ValueError('Cannot provide json in a post call')
+
+        if 'data' not in ckwargs:
+            ckwargs['data'] = {}
+        ckwargs['data']['access_token'] = token
+    else:
+        if 'headers' not in ckwargs:
+            ckwargs['headers'] = {}
+        ckwargs['headers']['Authorization'] = 'Bearer %s' % token
+
+    resp = requests.request(verb, *args, **ckwargs)
+    if resp.status_code == 401 and not is_retry:
+        if not auto_refresh:
+            return resp
+
+        oidc.token_to_try = oidc.report_token_issue()
+        if not oidc.token_to_try:
+            return resp
+        return _send_oidc_request(oidc, verb, *args, **kwargs)
+    elif resp.status_code == 401:
+        # We got a 401 and this is a retry. Report error
+        oidc.report_token_issue()
+        return resp
+    else:
+        return resp
+
 def send_authorized_request(verb, server, id_provider, url, body, **kwargs):
     """
     Sends authorized request to server.
@@ -82,53 +137,68 @@ def send_authorized_request(verb, server, id_provider, url, body, **kwargs):
     scopes = ['openid', 'https://id.fedoraproject.org/scope/groups',
               'https://mbs.fedoraproject.org/oidc/submit-build']
 
-    # Ideally we would use oidc.send_request here, but it doesn't support
-    # custom HTTP verbs/methods like "PATCH". It sends just "POST"...
-    token = oidc.get_token(scopes)
-    if not token:
-        return None
-
-    headers = {}
-    headers['Authorization'] = 'Bearer %s' % token
-
     logging.debug("Sending body: %s", body)
-    resp = requests.request(verb, "%s/%s" % (server, url), json=body,
-                            headers=headers, **kwargs)
-    if resp.status_code == 401:
-        # We got a 401 and this is a retry. Report error
-        self.report_token_issue()
-        return resp
-
+    resp = _send_oidc_request(oidc, verb, "%s/%s" % (server, url), json=body,
+                              scopes=scopes, **kwargs)
     return resp
 
-def submit_module_build(scm_url, branch, server, id_provider, pyrpkg):
+def get_scm_url(scm_url, pyrpkg, local=False):
     """
-    Submits the module defined by `scm_url` to MBS instance defined
-    by `server`.
+    If `scm_url` it not set, returns the scm_url based on git repository
+    in the `os.getcwd()`. When local is True, file:// scheme is used,
+    otherwise `pyrpkg` is used to determine public URL to git repository.
     """
+    if scm_url:
+        return scm_url
 
-    if not scm_url or not branch:
-        logging.info("You have not provided SCM URL or branch. Trying to get "
-            "it from current working directory")
+    logging.info("You have not provided SCM URL or branch. Trying to get "
+        "it from current working directory")
+
+    if local:
+        # Just get the local URL from the current working directory.
+        scm_url = "file://%s" % os.getcwdu()
+        return scm_url
+    else:
+        # Get the url using pyrpkg implementation.
         process = subprocess.Popen([pyrpkg, 'giturl'], stdout=subprocess.PIPE,
-                                   stderr=subprocess.PIPE)
+                                stderr=subprocess.PIPE)
         out, err = process.communicate()
         if process.returncode != 0 and len(err) != 0:
             logging.error("Cannot get the giturl from current "
                 "working directory using the %s", pyrpkg)
             logging.error(err)
-            return -2
+            return None
         scm_url = out[:-1] # remove new-line
+        return scm_url
 
-        process = subprocess.Popen(['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
-                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        out, err = process.communicate()
-        if process.returncode != 0 and len(err) != 0:
-            logging.error("Cannot get the branch name from current "
-                "working directory.")
-            logging.error(err)
-            return -2
-        branch = out[:-1] # remove new-line
+def get_scm_branch(branch):
+    """
+    If `branch` it not set, returns the branch name based on git repository
+    in the `os.getcwd()`.
+    """
+    if branch:
+        return branch
+
+    process = subprocess.Popen(['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    out, err = process.communicate()
+    if process.returncode != 0 and len(err) != 0:
+        logging.error("Cannot get the branch name from current "
+            "working directory.")
+        logging.error(err)
+        return None
+    branch = out[:-1] # remove new-line
+    return branch
+
+def submit_module_build(scm_url, branch, server, id_provider, pyrpkg):
+    """
+    Submits the module defined by `scm_url` to MBS instance defined
+    by `server`. Returns build_id or negative error code.
+    """
+    scm_url = get_scm_url(scm_url, pyrpkg)
+    branch = get_scm_branch(branch)
+    if not scm_url or not branch:
+        return -2
 
     logging.info("Submitting module build %s", scm_url)
     body = {'scmurl': scm_url, 'branch': branch}
@@ -141,6 +211,23 @@ def submit_module_build(scm_url, branch, server, id_provider, pyrpkg):
     if 'id' in data:
         return data['id']
     return -3
+
+def do_local_build(scm_url, branch):
+    """
+    Starts the local build using the 'mbs-manager build_module_locally'
+    command. Returns exit code of that command or None when scm_url or
+    branch are not set and cannot be obtained from the CWD.
+    """
+    scm_url = get_scm_url(scm_url, None, local=True)
+    branch = get_scm_branch(branch)
+    if not scm_url or not branch:
+        return None
+
+    logging.info("Starting local build of %s, branch %s", scm_url, branch)
+    process = subprocess.Popen(['mbs-manager', 'build_module_locally',
+                                scm_url, branch])
+    process.communicate()
+    return process.returncode
 
 def cancel_module_build(server, id_provider, build_id):
     """
@@ -155,9 +242,7 @@ def cancel_module_build(server, id_provider, build_id):
 
 def main():
     # Parse command line arguments
-    parser = argparse.ArgumentParser(description="Submits module build. When "
-        "'scm_url' is not set, it submits the cloned module git repository in "
-        "the current working directory.")
+    parser = argparse.ArgumentParser(description="Submits and manages module builds.")
     subparsers = parser.add_subparsers(dest="cmd_name")
     parser.add_argument('-v', dest='verbose', action='store_true',
                         help="shows verbose output")
@@ -171,23 +256,36 @@ def main():
                         help="defines the name of pyrpkg client executable",
                         default="fedpkg")
 
-    parser_submit = subparsers.add_parser('submit',
-                                          help="submit module build")
+    parser_submit = subparsers.add_parser(
+        'submit', help="submit module build",
+        description="Submits the module build. When 'scm_url' or 'branch' "
+        "is not set, it presumes you are executing this command in "
+        "the directory with the cloned git repository with a module.")
     parser_submit.add_argument("scm_url", nargs='?')
     parser_submit.add_argument("branch", nargs='?')
     parser_submit.add_argument('-w', dest="watch", action='store_true',
                                help="watch the build progress")
 
-    parser_watch = subparsers.add_parser('watch',
-                                          help="watch module build")
+    parser_watch = subparsers.add_parser(
+        'watch', help="watch module build",
+        description="Watches the build progress of a build submitted by "
+        "the 'submit' subcommand.")
     parser_watch.add_argument("build_id")
 
-    parser_cancel = subparsers.add_parser('cancel',
-                                          help="cancel module build")
+    parser_cancel = subparsers.add_parser(
+        'cancel', help="cancel module build",
+        description="Cancels the build submitted by 'submit' subcommand.")
     parser_cancel.add_argument("build_id")
+    parser_local = subparsers.add_parser(
+        'local', help="do local build of module",
+        description="Starts local build of a module using the Mock backend. "
+        "When 'scm_url' or 'branch' is not set, it presumes you are "
+        "executing this command in the directory with the cloned git "
+        "repository with a module.")
+    parser_local.add_argument("scm_url", nargs='?')
+    parser_local.add_argument("branch", nargs='?')
 
     args = parser.parse_args()
-
 
     # Initialize the logging.
     if args.verbose:
@@ -207,6 +305,8 @@ def main():
 
         if args.watch:
             watch_build(args.server, build_id)
+    elif args.cmd_name == "local":
+        sys.exit(do_local_build(args.scm_url, args.branch))
     elif args.cmd_name == "watch":
         # Watch the module build.
         try:
