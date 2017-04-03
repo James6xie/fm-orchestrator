@@ -37,7 +37,7 @@ import module_build_service.scheduler
 import module_build_service.scheduler.consumer
 
 from base import GenericBuilder
-from utils import execute_cmd, build_from_scm
+from utils import execute_cmd, build_from_scm, fake_repo_done_message
 from KojiModuleBuilder import KojiModuleBuilder
 
 logging.basicConfig(level=logging.DEBUG)
@@ -252,14 +252,7 @@ mdpolicy=group:primary
                 self.groups.append("module-build-macros")
                 self._write_mock_config()
 
-        self._send_repo_done()
-
-    def _send_repo_done(self):
-        msg = module_build_service.messaging.KojiRepoChange(
-            msg_id='a faked internal message',
-            repo_tag=self.tag_name + "-build",
-        )
-        module_build_service.scheduler.consumer.work_queue_put(msg)
+        fake_repo_done_message(self.tag_name)
 
     def tag_artifacts(self, artifacts):
         pass

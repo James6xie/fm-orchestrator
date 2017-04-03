@@ -5,7 +5,8 @@ import shutil
 import subprocess
 import logging
 import module_build_service
-from module_build_service import log, scm
+import module_build_service.scheduler
+from module_build_service import log, scm, messaging
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -90,3 +91,11 @@ def execute_cmd(args, stdout = None, stderr = None, cwd = None):
     if proc.returncode != 0:
         err_msg = "Command '%s' returned non-zero value %d%s" % (args, proc.returncode, out_log_msg)
         raise RuntimeError(err_msg)
+
+
+def fake_repo_done_message(tag_name):
+    msg = module_build_service.messaging.KojiRepoChange(
+        msg_id='a faked internal message',
+        repo_tag=tag_name + "-build",
+    )
+    module_build_service.scheduler.consumer.work_queue_put(msg)

@@ -39,7 +39,7 @@ import module_build_service.scheduler
 import module_build_service.scheduler.consumer
 
 from base import GenericBuilder
-from utils import build_from_scm
+from utils import build_from_scm, fake_repo_done_message
 from KojiModuleBuilder import KojiModuleBuilder
 
 logging.basicConfig(level=logging.DEBUG)
@@ -162,14 +162,7 @@ class CoprModuleBuilder(GenericBuilder):
         # Start of a new batch of builds is triggered by buildsys.repo.done message.
         # However in Copr there is no such thing. Therefore we are going to fake
         # the message when builds are finished
-        self._send_repo_done()
-
-    def _send_repo_done(self):
-        msg = module_build_service.messaging.KojiRepoChange(
-            msg_id='a faked internal message',
-            repo_tag=self.tag_name + "-build",
-        )
-        module_build_service.scheduler.consumer.work_queue_put(msg)
+        fake_repo_done_message(self.tag_name)
 
     def buildroot_add_repos(self, dependencies):
         log.info("%r adding deps on %r" % (self, dependencies))
