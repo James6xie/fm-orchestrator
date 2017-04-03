@@ -37,7 +37,7 @@ import module_build_service.scheduler
 import module_build_service.scheduler.consumer
 
 from base import GenericBuilder
-from utils import _execute_cmd, build_from_scm
+from utils import execute_cmd, build_from_scm
 from KojiModuleBuilder import KojiModuleBuilder
 
 logging.basicConfig(level=logging.DEBUG)
@@ -323,14 +323,14 @@ mdpolicy=group:primary
 
         try:
             # Initialize mock.
-            _execute_cmd(["mock", "-v", "-r", mock_config, "--init"],
-                         stdout=mock_stdout_log, stderr=mock_stderr_log)
+            execute_cmd(["mock", "-v", "-r", mock_config, "--init"],
+                        stdout=mock_stdout_log, stderr=mock_stderr_log)
 
             # Start the build and store results to resultsdir
-            _execute_cmd(["mock", "-v", "-r", mock_config,
+            execute_cmd(["mock", "-v", "-r", mock_config,
                           "--no-clean", "--rebuild", source,
                           "--resultdir=%s" % resultsdir],
-                         stdout=mock_stdout_log, stderr=mock_stderr_log)
+                        stdout=mock_stdout_log, stderr=mock_stderr_log)
 
             # Emit messages simulating complete build. These messages
             # are put in the scheduler's work queue and are handled

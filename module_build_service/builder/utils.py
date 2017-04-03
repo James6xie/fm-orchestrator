@@ -38,8 +38,8 @@ def build_from_scm(artifact_name, source, config, build_srpm,
 
         # Use configured command to create SRPM out of the SCM repo.
         log.debug("Creating SRPM in %s" % cod)
-        _execute_cmd(config.mock_build_srpm_cmd.split(" "),
-                     stdout=stdout, stderr=stderr, cwd=cod)
+        execute_cmd(config.mock_build_srpm_cmd.split(" "),
+                    stdout=stdout, stderr=stderr, cwd=cod)
 
         # Find out the built SRPM and build it normally.
         for f in os.listdir(cod):
@@ -64,7 +64,7 @@ def build_from_scm(artifact_name, source, config, build_srpm,
     return ret
 
 
-def _execute_cmd(args, stdout = None, stderr = None, cwd = None):
+def execute_cmd(args, stdout = None, stderr = None, cwd = None):
     """
     Executes command defined by `args`. If `stdout` or `stderr` is set to
     Python file object, the stderr/stdout output is redirecter to that file.
