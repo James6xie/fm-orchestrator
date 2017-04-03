@@ -36,7 +36,8 @@ import module_build_service.utils
 import module_build_service.scheduler
 import module_build_service.scheduler.consumer
 
-from base import GenericBuilder, _execute_cmd, build_from_scm
+from base import GenericBuilder
+from utils import _execute_cmd, build_from_scm
 from KojiModuleBuilder import KojiModuleBuilder
 
 logging.basicConfig(level=logging.DEBUG)
