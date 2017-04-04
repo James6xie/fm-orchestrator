@@ -27,7 +27,7 @@ import os
 import koji
 import kobo.rpmlib
 import shutil
-import subprocess
+import yaml
 import threading
 
 from module_build_service import conf, log, db
@@ -39,6 +39,7 @@ import module_build_service.scheduler.consumer
 from base import GenericBuilder
 from utils import execute_cmd, build_from_scm, fake_repo_done_message
 from KojiModuleBuilder import KojiModuleBuilder
+from module_build_service.models import ModuleBuild
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -150,14 +151,25 @@ mdpolicy=group:primary
         """
         log.debug("Creating repository in %s" % self.resultsdir)
         path = self.resultsdir
-        if os.path.exists(path + '/repodata/repomd.xml'):
-            comm = ['/usr/bin/createrepo_c', '--update', path]
-        else:
-            comm = ['/usr/bin/createrepo_c', path]
-        cmd = subprocess.Popen(
-            comm, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        out, err = cmd.communicate()
-        return out, err
+        repodata_path = os.path.join(path, "repodata")
+
+        # Remove old repodata files
+        if os.path.exists(repodata_path):
+            for name in os.listdir(repodata_path):
+                os.remove(os.path.join(repodata_path, name))
+
+        # Generate the mmd the same way as pungi does.
+        m1 = ModuleBuild.query.filter(ModuleBuild.name == self.module_str).one()
+        modules = {"modules": []}
+        modules["modules"].append(yaml.safe_load(m1.mmd().dumps()))
+        mmd_path = os.path.join(path, "modules.yaml")
+
+        with open(mmd_path, "w") as outfile:
+            outfile.write(yaml.safe_dump(modules))
+
+        # Generate repo and inject modules.yaml there.
+        execute_cmd(['/usr/bin/createrepo_c', path])
+        execute_cmd(['/usr/bin/modifyrepo_c', '--mdtype=modules', mmd_path, repodata_path])
 
     def _add_repo(self, name, baseurl, extra = ""):
         """
@@ -401,9 +413,9 @@ mdpolicy=group:primary
             return self.build_srpm(artifact_name, source, build_id)
 
     @staticmethod
-    def get_disttag_srpm(disttag):
+    def get_disttag_srpm(disttag, module_build):
         # @FIXME
-        return KojiModuleBuilder.get_disttag_srpm(disttag)
+        return KojiModuleBuilder.get_disttag_srpm(disttag, module_build)
 
     def cancel_build(self, task_id):
         pass

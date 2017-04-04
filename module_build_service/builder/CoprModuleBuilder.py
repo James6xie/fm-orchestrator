@@ -241,9 +241,9 @@ class CoprModuleBuilder(GenericBuilder):
         log.info(result.data["modulemd"])
 
     @staticmethod
-    def get_disttag_srpm(disttag):
+    def get_disttag_srpm(disttag, module_build):
         # @FIXME
-        return KojiModuleBuilder.get_disttag_srpm(disttag)
+        return KojiModuleBuilder.get_disttag_srpm(disttag, module_build)
 
     @property
     def module_build_tag(self):
