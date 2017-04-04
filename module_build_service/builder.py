@@ -575,6 +575,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
 
         tagged_nvrs = self._get_tagged_nvrs(self.module_build_tag['name'])
 
+        self.koji_session.multicall = True
         for nvr in artifacts:
             if nvr in tagged_nvrs:
                 continue
@@ -589,18 +590,21 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
                 name = kobo.rpmlib.parse_nvr(nvr)['name']
                 log.info("%r adding %s to group %s" % (self, name, group))
                 self.koji_session.groupPackageListAdd(build_tag, group, name)
+        self.koji_session.multiCall(strict=True)
 
     def tag_artifacts(self, artifacts):
         dest_tag = self._get_tag(self.module_tag)['id']
 
         tagged_nvrs = self._get_tagged_nvrs(self.module_tag['name'])
 
+        self.koji_session.multicall = True
         for nvr in artifacts:
             if nvr in tagged_nvrs:
                 continue
 
             log.info("%r tagging %r into %r" % (self, nvr, dest_tag))
             self.koji_session.tagBuild(dest_tag, nvr)
+        self.koji_session.multiCall(strict=True)
 
     def wait_task(self, task_id):
         """

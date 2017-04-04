@@ -74,6 +74,14 @@ class MBSProducer(PollingProducer):
                 if not component_build.task_id:
                     continue
 
+                # Don't check tasks for components which have been reused,
+                # they may have BUILDING state temporarily before we tag them
+                # to new module tag. Checking them would be waste of resources.
+                if component_build.reused_component_id:
+                    log.debug('Skipping check for task "{0}", '
+                              'the component has been reused.'.format(task_id))
+                    continue
+
                 task_id = component_build.task_id
 
                 log.info('Checking status of task_id "{0}"'.format(task_id))
@@ -106,7 +114,7 @@ class MBSProducer(PollingProducer):
                 if task_info['state'] in state_mapping:
                     # Fake a fedmsg message on our internal queue
                     msg = module_build_service.messaging.KojiBuildChange(
-                        msg_id='a faked internal message',
+                        msg_id='producer::fail_lost_builds fake msg',
                         build_id=component_build.task_id,
                         task_id=component_build.task_id,
                         build_name=component_build.package,
