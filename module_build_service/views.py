@@ -165,7 +165,7 @@ class ModuleBuildAPI(MethodView):
         if not module:
             raise NotFound('No such module found.')
 
-        if module.owner != username and username not in conf.admins:
+        if module.owner != username and not (conf.admin_groups & groups):
             raise Forbidden('You are not owner of this build and '
                             'therefore cannot modify it.')
 

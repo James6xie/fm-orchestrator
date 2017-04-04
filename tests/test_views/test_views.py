@@ -553,16 +553,29 @@ class TestViews(unittest.TestCase):
         self.assertEquals(data['status'], 403)
         self.assertEquals(data['error'], 'Forbidden')
 
-    @patch('module_build_service.auth.get_user', return_value=('sammy', set(["packager"])))
+    @patch('module_build_service.auth.get_user',
+           return_value=('sammy', set(["packager", "mbs-admin"])))
     def test_cancel_build_admin(self, mocked_get_user):
-        with patch("module_build_service.config.Config.admins",
-                new_callable=PropertyMock, return_value = ["sammy"]):
+        with patch("module_build_service.config.Config.admin_groups",
+                new_callable=PropertyMock, return_value = set(["mbs-admin"])):
             rv = self.client.patch('/module-build-service/1/module-builds/30',
                                 data=json.dumps({'state': 'failed'}))
             data = json.loads(rv.data)
 
             self.assertEquals(data['state'], 4)
             self.assertEquals(data['state_reason'], 'Canceled by sammy.')
+
+    @patch('module_build_service.auth.get_user',
+           return_value=('sammy', set(["packager"])))
+    def test_cancel_build_no_admin(self, mocked_get_user):
+        with patch("module_build_service.config.Config.admin_groups",
+                new_callable=PropertyMock, return_value = set(["mbs-admin"])):
+            rv = self.client.patch('/module-build-service/1/module-builds/30',
+                                data=json.dumps({'state': 'failed'}))
+            data = json.loads(rv.data)
+
+            self.assertEquals(data['status'], 403)
+            self.assertEquals(data['error'], 'Forbidden')
 
     @patch('module_build_service.auth.get_user', return_value=other_user)
     def test_cancel_build_wrong_param(self, mocked_get_user):

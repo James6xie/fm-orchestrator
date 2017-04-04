@@ -303,10 +303,10 @@ class Config(object):
             'type': bool,
             'default': False,
             'desc': 'Disable client authentication.'},
-        'admins': {
-            'type': list,
-            'default': [],
-            'desc': 'List of names of users with admin privileges.'},
+        'admin_groups': {
+            'type': set,
+            'default': set([]),
+            'desc': 'The set of groups allowed to manage MBS.'},
     }
 
     def __init__(self, conf_section_obj):
