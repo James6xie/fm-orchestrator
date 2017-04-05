@@ -35,7 +35,6 @@ import module_build_service.scheduler.handlers.components
 from module_build_service.builder import GenericBuilder, KojiModuleBuilder
 from module_build_service.scheduler.producer import MBSProducer
 import six.moves.queue as queue
-import time
 
 BASE_DIR = path.abspath(path.dirname(__file__))
 CASSETTES_DIR = path.join(
@@ -89,101 +88,3 @@ class TestPoller(unittest.TestCase):
         components = module_build.current_batch()
         for component in components:
             self.assertEqual(component.state, koji.BUILD_STATES["BUILDING"])
-
-    def test_trigger_new_repo_when_staled(self, crete_builder,
-                                          koji_get_session, global_consumer,
-                                          dbg):
-        """
-        Tests that we call koji_sesion.newRepo when module build is staled.
-        """
-        consumer = mock.MagicMock()
-        consumer.incoming = queue.Queue()
-        global_consumer.return_value = consumer
-
-        koji_session = mock.MagicMock()
-        koji_session.getTag = lambda tag_name: {'name': tag_name}
-        koji_get_session.return_value = koji_session
-
-        builder = mock.MagicMock()
-        builder.buildroot_ready.return_value = False
-        crete_builder.return_value = builder
-
-        # Change the batch to 2, so the module build is in state where
-        # it is not building anything, but the state is "build".
-        module_build = models.ModuleBuild.query.filter_by(id=2).one()
-        module_build.batch = 2
-        components = module_build.current_batch()
-        for component in components:
-            component.state = koji.BUILD_STATES["COMPLETE"]
-        db.session.commit()
-
-        hub = mock.MagicMock()
-        poller = MBSProducer(hub)
-        poller.poll()
-
-        # newRepo should not be called right now, because the timeout is
-        # not reached yet.
-        self.assertTrue(not koji_session.newRepo.called)
-
-        # Try again after 25 minutes, newRepo should be called
-        with patch("time.time", return_value = time.time() + 25 * 60):
-            poller.poll()
-            koji_session.newRepo.assert_called_once_with("module-testmodule-build")
-
-        koji_session.newRepo.reset_mock()
-
-        # Try again after 35 minutes, newRepo should not be called
-        with patch("time.time", return_value = time.time() + 35 * 60):
-            poller.poll()
-            self.assertTrue(not koji_session.newRepo.called)
-
-        # Change module state to ready, it should be removed from the list
-        # of modules waiting for repo
-        module_build = models.ModuleBuild.query.filter_by(id=2).one()
-        module_build.state = 5
-        db.session.commit()
-
-        self.assertEqual(len(poller._waiting_for_repo), 1)
-        poller.poll()
-        self.assertEqual(len(poller._waiting_for_repo), 0)
-
-    def test_trigger_new_repo_when_staled_kojira_managed_that(
-            self, crete_builder, koji_get_session, global_consumer, dbg):
-        """
-        Tests that we do not call koji_sesion.newRepo when module build was
-        stalled but kojira managed to rebuild the repo in time.
-        """
-        consumer = mock.MagicMock()
-        consumer.incoming = queue.Queue()
-        global_consumer.return_value = consumer
-
-        koji_session = mock.MagicMock()
-        koji_session.getTag = lambda tag_name: {'name': tag_name}
-        koji_get_session.return_value = koji_session
-
-        builder = mock.MagicMock()
-        builder.buildroot_ready.return_value = False
-        crete_builder.return_value = builder
-
-        # Change the batch to 2, so the module build is in state where
-        # it is not building anything, but the state is "build".
-        module_build = models.ModuleBuild.query.filter_by(id=2).one()
-        module_build.batch = 2
-        components = module_build.current_batch()
-        for component in components:
-            component.state = koji.BUILD_STATES["COMPLETE"]
-        db.session.commit()
-
-        hub = mock.MagicMock()
-        poller = MBSProducer(hub)
-        poller.poll()
-
-        module_build.batch = 3
-        components = module_build.current_batch()
-        for component in components:
-            component.state = koji.BUILD_STATES["BUILDING"]
-        db.session.commit()
-
-        with patch("time.time", return_value = time.time() + 25 * 60):
-            poller.poll()
-            self.assertTrue(not koji_session.newRepo.called)

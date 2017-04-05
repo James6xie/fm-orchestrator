@@ -26,7 +26,6 @@ fedmsg-hub. This class polls the database for tasks to do.
 
 import koji
 import operator
-import time
 from datetime import timedelta
 from sqlalchemy.orm import lazyload
 from moksha.hub.api.producer import PollingProducer
@@ -41,14 +40,6 @@ from module_build_service.builder import GenericBuilder
 class MBSProducer(PollingProducer):
     frequency = timedelta(seconds=conf.polling_interval)
 
-    NEW_REPO_TIMEOUT = 20 * 60  # 20 minutes
-
-    def __init__(self, hub):
-        super(MBSProducer, self).__init__(hub)
-
-        # Modules waiting on repo with time when we found that out.
-        self._waiting_for_repo = {}
-
     def poll(self):
         with models.make_session(conf) as session:
             self.log_summary(session)
@@ -57,7 +48,6 @@ class MBSProducer(PollingProducer):
             self.process_open_component_builds(session)
             self.fail_lost_builds(session)
             self.process_paused_module_builds(conf, session)
-            self.trigger_new_repo_when_staled(conf, session)
 
         log.info('Poller will now sleep for "{}" seconds'
                  .format(conf.polling_interval))
@@ -82,14 +72,6 @@ class MBSProducer(PollingProducer):
                 log.debug(component_build.json())
                 # Don't check tasks which haven't been triggered yet
                 if not component_build.task_id:
-                    continue
-
-                # Don't check tasks for components which have been reused,
-                # they may have BUILDING state temporarily before we tag them
-                # to new module tag. Checking them would be waste of resources.
-                if component_build.reused_component_id:
-                    log.debug('Skipping check for task "{0}", '
-                              'the component has been reused.'.format(task_id))
                     continue
 
                 task_id = component_build.task_id
@@ -124,7 +106,7 @@ class MBSProducer(PollingProducer):
                 if task_info['state'] in state_mapping:
                     # Fake a fedmsg message on our internal queue
                     msg = module_build_service.messaging.KojiBuildChange(
-                        msg_id='producer::fail_lost_builds fake msg',
+                        msg_id='a faked internal message',
                         build_id=component_build.task_id,
                         task_id=component_build.task_id,
                         build_name=component_build.package,
@@ -212,49 +194,3 @@ class MBSProducer(PollingProducer):
             if module_build_service.utils.at_concurrent_component_threshold(
                     config, session):
                 break
-
-    def trigger_new_repo_when_staled(self, config, session):
-        """
-        Sometimes the Koji repo regeneration stays in "init" state without
-        doing anything and our module build stucks. In case the module build
-        gets stuck on that, we trigger newRepo again to rebuild it.
-        """
-        if config.system != 'koji':
-            return
-
-        # Used to remove modules which finished the build before two runs
-        # of this method.
-        checked_modules = []
-
-        for module_build in session.query(models.ModuleBuild).filter_by(
-                    state=models.BUILD_STATES['build']).all():
-            checked_modules.append(module_build.id)
-            if module_build.current_batch(koji.BUILD_STATES['BUILDING']):
-                # There are some components building, so in case this module
-                # has been marked as 'waiting for repo', it is no longer true.
-                if module_build.id in self._waiting_for_repo:
-                    log.info("Removing module %r from the list of modules "
-                             "which are waiting on repo regeneration. It has "
-                             "components in 'build' state.", module_build)
-                    del self._waiting_for_repo[module_build.id]
-            else:
-                if module_build.id not in self._waiting_for_repo:
-                    log.info("Adding module %r to list of modules waiting for "
-                             "repo-regen.", module_build)
-                    self._waiting_for_repo[module_build.id] = time.time()
-
-                staled_since = self._waiting_for_repo[module_build.id]
-                if staled_since + self.NEW_REPO_TIMEOUT < time.time():
-                    log.info("Triggering repo-regen for module %r. Kojira "
-                             "failed to create new repo in given time.", module_build)
-                    koji_session = module_build_service.builder.KojiModuleBuilder\
-                        .get_session(config, None)
-
-                    taginfo = koji_session.getTag(module_build.koji_tag + "-build")
-                    koji_session.newRepo(taginfo['name'])
-                    del self._waiting_for_repo[module_build.id]
-
-        # Clean finished builds from the _waiting_for_repo.
-        for module_id in self._waiting_for_repo.keys():
-            if module_id not in checked_modules:
-                del self._waiting_for_repo[module_id]
