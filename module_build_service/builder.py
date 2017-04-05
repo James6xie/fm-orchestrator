@@ -637,8 +637,13 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
         #  * we do want only build explicitly tagged in the module tag (inherit: False)
 
         opts = {'latest': True, 'package': artifact_name, 'inherit': False}
-        tagged = self.koji_session.listTagged(self.module_tag['name'], **opts)
 
+        if artifact_name == "module-build-macros":
+            tag = self.module_build_tag['name']
+        else:
+            tag = self.module_tag['name']
+
+        tagged = self.koji_session.listTagged(tag, **opts)
         if tagged:
             assert len(tagged) == 1, "Expected exactly one item in list. Got %s" % tagged
             return tagged[0]
