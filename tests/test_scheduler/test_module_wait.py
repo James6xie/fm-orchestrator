@@ -47,15 +47,15 @@ class TestModuleWait(unittest.TestCase):
     def tearDown(self):
         self.vcr.__exit__()
 
-    @mock.patch('module_build_service.builder.KojiModuleBuilder')
+    @mock.patch('module_build_service.builder.GenericBuilder.create_from_module')
     @mock.patch('module_build_service.models.ModuleBuild.from_module_event')
     @mock.patch('module_build_service.pdc')
-    def test_init_basic(self, pdc, from_module_event, KojiModuleBuilder):
+    def test_init_basic(self, pdc, from_module_event, create_builder):
         builder = mock.Mock()
         builder.get_disttag_srpm.return_value = 'some srpm disttag'
         builder.build.return_value = 1234, 1, "", None
         builder.module_build_tag = {'name': 'some-tag-build'}
-        KojiModuleBuilder.return_value = builder
+        create_builder.return_value = builder
         mocked_module_build = mock.Mock()
         mocked_module_build.json.return_value = {
             'name': 'foo',

@@ -228,12 +228,12 @@ def wait(config, session, msg):
     log.debug("Assigning koji tag=%s to module build" % tag)
     build.koji_tag = tag
 
-    builder = module_build_service.builder.GenericBuilder.create(
-        build.owner, build.name, config.system, config, tag_name=tag,
-        components=[c.package for c in build.component_builds])
-    builder.buildroot_connect(groups)
+    builder = module_build_service.builder.GenericBuilder.create_from_module(
+        session, build, config)
+
     log.debug("Adding dependencies %s into buildroot for module %s" % (dependencies, module_info))
     builder.buildroot_add_repos(dependencies)
+
     # inject dist-tag into buildroot
     srpm = builder.get_disttag_srpm(
         disttag=".%s" % get_rpm_release_from_mmd(build.mmd()),
