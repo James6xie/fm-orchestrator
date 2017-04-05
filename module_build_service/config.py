@@ -273,7 +273,7 @@ class Config(object):
             'desc': ''},
         'mock_build_srpm_cmd': {
             'type': str,
-            'default': 'fedpkg --dist f25 srpm',
+            'default': 'fedpkg --release f26 srpm',
             'desc': ''},
         'mock_resultsdir': {
             'type': str,
