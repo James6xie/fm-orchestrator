@@ -37,6 +37,7 @@ import module_build_service.messaging
 import module_build_service.scheduler.handlers.repos
 import module_build_service.scheduler.handlers.components
 import module_build_service.scheduler.handlers.modules
+import module_build_service.scheduler.handlers.tags
 from module_build_service import models, log, conf
 
 
@@ -97,6 +98,7 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
         }
         # Only one kind of repo change event, though...
         self.on_repo_change = module_build_service.scheduler.handlers.repos.done
+        self.on_tag_change = module_build_service.scheduler.handlers.tags.tagged
         self.sanity_check()
 
     def shutdown(self):
@@ -186,6 +188,9 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
         elif type(msg) == module_build_service.messaging.KojiRepoChange:
             handler = self.on_repo_change
             build = models.ModuleBuild.from_repo_done_event(session, msg)
+        elif type(msg) == module_build_service.messaging.KojiTagChange:
+            handler = self.on_tag_change
+            build = models.ModuleBuild.from_tag_change_event(session, msg)
         elif type(msg) == module_build_service.messaging.MBSModule:
             handler = self.on_module_change[module_build_state_from_msg(msg)]
             build = models.ModuleBuild.from_module_event(session, msg)

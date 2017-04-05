@@ -48,6 +48,7 @@ class MBSProducer(PollingProducer):
             self.process_open_component_builds(session)
             self.fail_lost_builds(session)
             self.process_paused_module_builds(conf, session)
+            self.trigger_new_repo_when_stalled(conf, session)
 
         log.info('Poller will now sleep for "{}" seconds'
                  .format(conf.polling_interval))
@@ -194,3 +195,30 @@ class MBSProducer(PollingProducer):
             if module_build_service.utils.at_concurrent_component_threshold(
                     config, session):
                 break
+
+    def trigger_new_repo_when_stalled(self, config, session):
+        """
+        Sometimes the Koji repo regeneration stays in "init" state without
+        doing anything and our module build stucks. In case the module build
+        gets stuck on that, we trigger newRepo again to rebuild it.
+        """
+        if config.system != 'koji':
+            return
+
+        koji_session = module_build_service.builder.KojiModuleBuilder\
+            .get_session(config, None)
+
+        for module_build in session.query(models.ModuleBuild).filter_by(
+                    state=models.BUILD_STATES['build']).all():
+            if not module_build.new_repo_task_id:
+                continue
+
+            task_info = koji_session.getTaskInfo(module_build.new_repo_task_id)
+            if (task_info["state"] in [koji.TASK_STATES['CANCELED'],
+                                       koji.TASK_STATES['FAILED']]):
+                log.info("newRepo task %s for %r failed, starting another one",
+                         str(module_build.new_repo_task_id), module_build)
+                taginfo = koji_session.getTag(module_build.koji_tag + "-build")
+                module_build.new_repo_task_id = koji_session.newRepo(taginfo["name"])
+
+        session.commit()
