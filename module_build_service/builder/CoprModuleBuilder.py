@@ -159,6 +159,17 @@ class CoprModuleBuilder(GenericBuilder):
             koji add-group-pkg $module-build-tag srpm-build bash
         """
 
+        # Install the module-build-macros into the buildroot
+        # We are using same hack as mock builder does
+        for artifact in artifacts:
+            if artifact and artifact.startswith("module-build-macros"):
+                chroot = self.client.get_chroot(self.copr.projectname, self.copr.username, "fedora-24-x86_64")
+                packages = (chroot.data["chroot"]["buildroot_pkgs"] or "").split()
+                self.client.edit_chroot(self.copr.projectname, "fedora-24-x86_64",
+                                        ownername=self.copr.username,
+                                        packages=" ".join(set(["module-build-macros"] + packages)))
+                break
+
         # Start of a new batch of builds is triggered by buildsys.repo.done message.
         # However in Copr there is no such thing. Therefore we are going to fake
         # the message when builds are finished
