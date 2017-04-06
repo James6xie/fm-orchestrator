@@ -402,7 +402,7 @@ class KojiModuleBuilder(GenericBuilder):
 
 
     @staticmethod
-    def get_disttag_srpm(disttag, build):
+    def get_disttag_srpm(disttag, module_build):
 
         #Taken from Karsten's create-distmacro-pkg.sh
         # - however removed any provides to system-release/redhat-release
