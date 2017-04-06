@@ -175,14 +175,22 @@ class CoprModuleBuilder(GenericBuilder):
         log.info("%r adding deps on %r" % (self, dependencies))
         # @TODO get architecture from some builder variable
         repos = [self._dependency_repo(d, "x86_64") for d in dependencies]
-        self.client.modify_project(self.copr.projectname, username=self.copr.username, repos=repos)
+        self._update_chroot(repos=repos)
 
-    def _update_chroot(self, packages=None):
-        chroot = self.client.get_chroot(self.copr.projectname, self.copr.username, "fedora-24-x86_64")
-        current_packages = (chroot.data["chroot"]["buildroot_pkgs"] or "").split()
+    def _update_chroot(self, packages=None, repos=None):
+        request = self.client.get_chroot(self.copr.projectname, self.copr.username, "fedora-24-x86_64")
+        chroot = request.data["chroot"]
+        current_packages = (chroot["buildroot_pkgs"] or "").split()
+        current_repos = (chroot["repos"] or "").split()
+
+        def merge(current, new):
+            current, new = current or [], new or []
+            return " ".join(set(current + new))
+
         self.client.edit_chroot(self.copr.projectname, "fedora-24-x86_64",
                                 ownername=self.copr.username,
-                                packages=" ".join(set(packages + current_packages)))
+                                packages=merge(current_packages, packages),
+                                repos=merge(current_repos, repos))
 
     def _dependency_repo(self, module, arch, backend="copr"):
         try:
