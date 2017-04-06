@@ -159,9 +159,9 @@ class BaseMessage(object):
         topic_categories = _messaging_backends['fedmsg']['services']
         categories_re = '|'.join(map(re.escape, topic_categories))
         regex_pattern = re.compile(
-            (r'(?P<category>' + categories_re + r')(?:\.)'
-             r'(?P<object>build|repo|module)(?:(?:\.)'
-             r'(?P<subobject>state|build))?(?:\.)(?P<event>change|done|end)$'))
+            (r'(?P<category>' + categories_re + r')(?:(?:\.)'
+             r'(?P<object>build|repo|module))?(?:(?:\.)'
+             r'(?P<subobject>state|build))?(?:\.)(?P<event>change|done|end|tag)$'))
         regex_results = re.search(regex_pattern, topic)
 
         if regex_results:
@@ -209,6 +209,11 @@ class BaseMessage(object):
                     subobject is None and event == 'done':
                 repo_tag = msg_inner_msg.get('tag')
                 msg_obj = KojiRepoChange(msg_id, repo_tag)
+
+            elif category == 'buildsys' and event == 'tag':
+                tag = msg_inner_msg.get('tag')
+                artifact = msg_inner_msg.get('name')
+                msg_obj = KojiTagChange(msg_id, tag, artifact)
 
             elif category == 'mbs' and object == 'module' and \
                     subobject == 'state' and event == 'change':
@@ -260,6 +265,17 @@ class KojiBuildChange(BaseMessage):
         self.module_build_id = module_build_id
         self.state_reason = state_reason
 
+class KojiTagChange(BaseMessage):
+    """
+    A class that inherits from BaseMessage to provide a message
+    object for a buildsys.tag info (in fedmsg this replaces the msg dictionary)
+    :param tag: the name of tag (e.g. module-123456789-build)
+    :param artifact: the name of tagged artifact (e.g. module-build-macros)
+    """
+    def __init__(self, msg_id, tag, artifact):
+        super(KojiTagChange, self).__init__(msg_id)
+        self.tag = tag
+        self.artifact = artifact
 
 class KojiRepoChange(BaseMessage):
     """ A class that inherits from BaseMessage to provide a message

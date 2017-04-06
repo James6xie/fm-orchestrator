@@ -90,3 +90,28 @@ class TestFedmsgMessaging(unittest.TestCase):
         self.assertEqual(msg.build_release, '1.20150203.git.c8504a8a.fc21')
         self.assertEqual(msg.state_reason,
                          'build end: user:fatka copr:mutt-kz build:100 ip:172.16.3.3  pid:12010 status:1')
+
+    def test_buildsys_tag(self):
+        # https://fedora-fedmsg.readthedocs.io/en/latest/topics.html#id134
+        buildsys_tag_msg = {
+            "msg": {
+                "build_id": 875961, 
+                "name": "module-build-macros", 
+                "tag_id": 619, 
+                "instance": "primary", 
+                "tag": "module-debugging-tools-master-20170405115403-build", 
+                "user": "mbs/mbs.fedoraproject.org", 
+                "version": "0.1", 
+                "owner": "mbs/mbs.fedoraproject.org", 
+                "release": "1.module_0c3d13fd"
+            },
+            'msg_id': '2015-51be4c8e-8ab6-4dcb-ac0d-37b257765c71',
+            'timestamp': 1424789698.0,
+            'topic': 'org.fedoraproject.prod.buildsys.tag'
+        }
+
+        topic = 'org.fedoraproject.prod.buildsys.tag'
+        msg = messaging.BaseMessage.from_fedmsg(topic, buildsys_tag_msg)
+
+        self.assertEqual(msg.tag, "module-debugging-tools-master-20170405115403-build")
+        self.assertEqual(msg.artifact, "module-build-macros")

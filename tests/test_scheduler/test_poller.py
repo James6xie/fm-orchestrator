@@ -88,3 +88,73 @@ class TestPoller(unittest.TestCase):
         components = module_build.current_batch()
         for component in components:
             self.assertEqual(component.state, koji.BUILD_STATES["BUILDING"])
+
+    def test_trigger_new_repo_when_failed(self, crete_builder,
+                                          koji_get_session, global_consumer,
+                                          dbg):
+        """
+        Tests that we call koji_sesion.newRepo when newRepo task failed.
+        """
+        consumer = mock.MagicMock()
+        consumer.incoming = queue.Queue()
+        global_consumer.return_value = consumer
+
+        koji_session = mock.MagicMock()
+        koji_session.getTag = lambda tag_name: {'name': tag_name}
+        koji_session.getTaskInfo.return_value = {'state': koji.TASK_STATES['FAILED']}
+        koji_session.newRepo.return_value = 123456
+        koji_get_session.return_value = koji_session
+
+        builder = mock.MagicMock()
+        builder.buildroot_ready.return_value = False
+        crete_builder.return_value = builder
+
+        # Change the batch to 2, so the module build is in state where
+        # it is not building anything, but the state is "build".
+        module_build = models.ModuleBuild.query.filter_by(id=2).one()
+        module_build.batch = 2
+        module_build.new_repo_task_id = 123456
+        db.session.commit()
+
+        hub = mock.MagicMock()
+        poller = MBSProducer(hub)
+        poller.poll()
+
+        koji_session.newRepo.assert_called_once_with("module-testmodule-build")
+
+
+    def test_trigger_new_repo_when_succeded(self, crete_builder,
+                                          koji_get_session, global_consumer,
+                                          dbg):
+        """
+        Tests that we do not call koji_sesion.newRepo when newRepo task
+        succeeded.
+        """
+        consumer = mock.MagicMock()
+        consumer.incoming = queue.Queue()
+        global_consumer.return_value = consumer
+
+        koji_session = mock.MagicMock()
+        koji_session.getTag = lambda tag_name: {'name': tag_name}
+        koji_session.getTaskInfo.return_value = {'state': koji.TASK_STATES['CLOSED']}
+        koji_session.newRepo.return_value = 123456
+        koji_get_session.return_value = koji_session
+
+        builder = mock.MagicMock()
+        builder.buildroot_ready.return_value = False
+        crete_builder.return_value = builder
+
+        # Change the batch to 2, so the module build is in state where
+        # it is not building anything, but the state is "build".
+        module_build = models.ModuleBuild.query.filter_by(id=2).one()
+        module_build.batch = 2
+        module_build.new_repo_task_id = 123456
+        db.session.commit()
+
+        hub = mock.MagicMock()
+        poller = MBSProducer(hub)
+        poller.poll()
+
+        self.assertTrue(not koji_session.newRepo.called)
+
+

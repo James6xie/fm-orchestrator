@@ -109,6 +109,7 @@ class ModuleBuild(MBSBase):
     time_submitted = db.Column(db.DateTime, nullable=False)
     time_modified = db.Column(db.DateTime)
     time_completed = db.Column(db.DateTime)
+    new_repo_task_id = db.Column(db.Integer)
 
     # A monotonically increasing integer that represents which batch or
     # iteration this module is currently on for successive rebuilds of its
@@ -223,6 +224,19 @@ class ModuleBuild(MBSBase):
         There should be at most one.
         """
         tag = event.repo_tag.strip('-build')
+        query = session.query(cls)\
+            .filter(cls.koji_tag == tag)\
+            .filter(cls.state == BUILD_STATES["build"])
+
+        count = query.count()
+        if count > 1:
+            raise RuntimeError("%r module builds in flight for %r" % (count, tag))
+
+        return query.first()
+
+    @classmethod
+    def from_tag_change_event(cls, session, event):
+        tag = event.tag.strip('-build')
         query = session.query(cls)\
             .filter(cls.koji_tag == tag)\
             .filter(cls.state == BUILD_STATES["build"])
@@ -361,6 +375,8 @@ class ComponentBuild(MBSBase):
     state_reason = db.Column(db.String)
     # This stays as None until the build completes.
     nvr = db.Column(db.String)
+    # True when this component build is tagged into buildroot.
+    tagged = db.Column(db.Boolean, default=False)
 
     # A monotonically increasing integer that represents which batch or
     # iteration this *component* is currently in.  This relates to the owning
