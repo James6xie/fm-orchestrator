@@ -72,6 +72,7 @@ class CoprModuleBuilder(GenericBuilder):
         self.copr = None
         self.client = CoprModuleBuilder._get_client(config)
         self.client.username = self.owner
+        self.chroot = "custom-1-x86_64"
         self.__prep = False
 
     @classmethod
@@ -112,8 +113,7 @@ class CoprModuleBuilder(GenericBuilder):
         return self.client.get_project_details(projectname, username=ownername).handle
 
     def _create_copr(self, ownername, projectname):
-        # @TODO fix issues with custom-1-x86_64 and custom-1-i386 chroot and use it
-        return self.client.create_project(ownername, projectname, ["fedora-24-x86_64"])
+        return self.client.create_project(ownername, projectname, [self.chroot])
 
     def _create_module_safe(self):
         from copr.exceptions import CoprRequestException
@@ -186,7 +186,7 @@ class CoprModuleBuilder(GenericBuilder):
         self._update_chroot(repos=repos)
 
     def _update_chroot(self, packages=None, repos=None):
-        request = self.client.get_chroot(self.copr.projectname, self.copr.username, "fedora-24-x86_64")
+        request = self.client.get_chroot(self.copr.projectname, self.copr.username, self.chroot)
         chroot = request.data["chroot"]
         current_packages = (chroot["buildroot_pkgs"] or "").split()
         current_repos = (chroot["repos"] or "").split()
@@ -195,7 +195,7 @@ class CoprModuleBuilder(GenericBuilder):
             current, new = current or [], new or []
             return " ".join(set(current + new))
 
-        self.client.edit_chroot(self.copr.projectname, "fedora-24-x86_64",
+        self.client.edit_chroot(self.copr.projectname, self.chroot,
                                 ownername=self.copr.username,
                                 packages=merge(current_packages, packages),
                                 repos=merge(current_repos, repos))
