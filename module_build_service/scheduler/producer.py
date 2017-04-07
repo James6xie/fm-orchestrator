@@ -42,13 +42,17 @@ class MBSProducer(PollingProducer):
 
     def poll(self):
         with models.make_session(conf) as session:
-            self.log_summary(session)
-            # XXX: detect whether it's actually stuck first
-            # self.process_waiting_module_builds(session)
-            self.process_open_component_builds(session)
-            self.fail_lost_builds(session)
-            self.process_paused_module_builds(conf, session)
-            self.trigger_new_repo_when_stalled(conf, session)
+            try:
+                self.log_summary(session)
+                # XXX: detect whether it's actually stuck first
+                # self.process_waiting_module_builds(session)
+                self.process_open_component_builds(session)
+                self.fail_lost_builds(session)
+                self.process_paused_module_builds(conf, session)
+                self.trigger_new_repo_when_stalled(conf, session)
+            except Exception as e:
+                msg = 'Error in poller execution:'
+                log.exception(msg)
 
         log.info('Poller will now sleep for "{}" seconds'
                  .format(conf.polling_interval))
