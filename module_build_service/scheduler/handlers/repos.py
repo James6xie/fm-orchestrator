@@ -41,7 +41,7 @@ def done(config, session, msg):
     if config.system == "koji" and not tag.endswith('-build'):
         log.debug("Tag %r does not end with '-build' suffix, ignoring" % tag)
         return
-    tag = tag.strip('-build')
+    tag = tag[:-6] if tag.endswith('-build') else tag
     module_build = models.ModuleBuild.from_repo_done_event(session, msg)
     if not module_build:
         log.debug("No module build found associated with koji tag %r" % tag)
