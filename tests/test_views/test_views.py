@@ -32,13 +32,14 @@ from os.path import dirname
 import modulemd as _modulemd
 
 from tests import app, init_data
-from module_build_service.models import ComponentBuild
+from module_build_service.models import ComponentBuild, ModuleBuild
 import module_build_service.scm
 from module_build_service import conf
 
 
 user = ('Homer J. Simpson', set(['packager']))
 other_user = ('some_other_user', set(['packager']))
+anonymous_user = ('anonymous', set(['packager']))
 base_dir = dirname(dirname(__file__))
 cassette_dir = base_dir + '/vcr-request-data/'
 
@@ -649,3 +650,64 @@ class TestViews(unittest.TestCase):
             'The stream "wrong_stream" that is stored in the modulemd does not '
             'match the branch "master"')
         self.assertEquals(data['error'], 'Bad Request')
+
+    @patch('module_build_service.auth.get_user', return_value=user)
+    def test_submit_build_set_owner(self, mocked_get_user):
+        data = {
+            'branch': 'master',
+            'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+                      'testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49',
+            'owner': 'foo',
+        }
+        rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(data))
+        result = json.loads(rv.data)
+        self.assertEquals(result['status'], 400)
+        self.assertIn("The request contains 'owner' parameter", result['message'])
+
+    @patch('module_build_service.auth.get_user', return_value=anonymous_user)
+    @patch('module_build_service.scm.SCM')
+    @patch("module_build_service.config.Config.no_auth", new_callable=PropertyMock, return_value=True)
+    def test_submit_build_no_auth_set_owner(self, mocked_conf, mocked_scm, mocked_get_user):
+        MockedSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
+                  '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+
+        data = {
+            'branch': 'master',
+            'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+                      'testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49',
+            'owner': 'foo',
+        }
+        rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(data))
+        result = json.loads(rv.data)
+
+        build = ModuleBuild.query.filter(ModuleBuild.id == result['id']).one()
+        self.assertTrue(build.owner == result['owner'] == 'foo')
+
+    @patch('module_build_service.auth.get_user', return_value=anonymous_user)
+    @patch('module_build_service.scm.SCM')
+    @patch("module_build_service.config.Config.no_auth", new_callable=PropertyMock)
+    def test_patch_set_different_owner(self, mocked_no_auth, mocked_scm, mocked_get_user):
+        MockedSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
+                  '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+
+        mocked_no_auth.return_value = True
+        data = {
+            'branch': 'master',
+            'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+                      'testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49',
+            'owner': 'foo',
+        }
+        rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(data))
+        r1 = json.loads(rv.data)
+
+        url = '/module-build-service/1/module-builds/' + str(r1['id'])
+        r2 = self.client.patch(url, data=json.dumps({'state': 'failed'}))
+        self.assertEquals(r2.status_code, 403)
+
+        r3 = self.client.patch(url, data=json.dumps({'state': 'failed', 'owner': 'foo'}))
+        self.assertEquals(r3.status_code, 200)
+
+        mocked_no_auth.return_value = False
+        r3 = self.client.patch(url, data=json.dumps({'state': 'failed', 'owner': 'foo'}))
+        self.assertEquals(r3.status_code, 400)
+        self.assertIn("The request contains 'owner' parameter", json.loads(r3.data)['message'])

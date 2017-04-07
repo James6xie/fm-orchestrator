@@ -35,7 +35,7 @@ from module_build_service import app, conf, log
 from module_build_service import models, db
 from module_build_service.utils import (
     pagination_metadata, filter_module_builds, submit_module_build_from_scm,
-    submit_module_build_from_yaml, scm_url_schemes, get_scm_url_re, validate_optional_params)
+    submit_module_build_from_yaml, scm_url_schemes, get_scm_url_re)
 from module_build_service.errors import (
     ValidationError, Forbidden, NotFound)
 
@@ -95,67 +95,36 @@ class ModuleBuildAPI(MethodView):
                 raise NotFound('No such module found.')
 
     def post(self):
-        username, groups = module_build_service.auth.get_user(request)
+        if "multipart/form-data" in request.headers.get("Content-Type", ""):
+            handler = YAMLFileHandler(request)
+        else:
+            handler = SCMHandler(request)
 
-        if conf.allowed_groups and not (conf.allowed_groups & groups):
+        if conf.no_auth is True and handler.username == "anonymous" and "owner" in handler.data:
+            handler.username = handler.data["owner"]
+
+        if conf.allowed_groups and not (conf.allowed_groups & handler.groups):
             raise Forbidden("%s is not in any of  %r, only %r" % (
-                username, conf.allowed_groups, groups))
+                handler.username, conf.allowed_groups, handler.groups))
 
-        kwargs = {"username": username}
-        module = (self.post_file(**kwargs) if "multipart/form-data" in request.headers.get("Content-Type", "") else
-                  self.post_scm(**kwargs))
-
+        handler.validate()
+        module = handler.post()
         return jsonify(module.json()), 201
 
-    def post_scm(self, username):
+    def patch(self, id):
+        username, groups = module_build_service.auth.get_user(request)
+
         try:
             r = json.loads(request.get_data().decode("utf-8"))
         except:
             log.error('Invalid JSON submitted')
             raise ValidationError('Invalid JSON submitted')
 
-        if "scmurl" not in r:
-            log.error('Missing scmurl')
-            raise ValidationError('Missing scmurl')
-
-        url = r["scmurl"]
-        if not any(url.startswith(prefix) for prefix in conf.scmurls):
-            log.error("The submitted scmurl %r is not allowed" % url)
-            raise Forbidden("The submitted scmurl %s is not allowed" % url)
-
-        if not get_scm_url_re().match(url):
-            log.error("The submitted scmurl %r is not valid" % url)
-            raise Forbidden("The submitted scmurl %s is not valid" % url)
-
-        if "branch" not in r:
-            log.error('Missing branch')
-            raise ValidationError('Missing branch')
-
-        branch = r["branch"]
-
-        # python-modulemd expects this to be bytes, not unicode.
-        if isinstance(branch, unicode):
-            branch = branch.encode('utf-8')
-
-        validate_optional_params(r)
-        optional_params = {k: v for k, v in r.items() if k != "scmurl" and k != 'branch'}
-        return submit_module_build_from_scm(username, url, branch, allow_local_url=False, optional_params=optional_params)
-
-    def post_file(self, username):
-        if not conf.yaml_submit_allowed:
-            raise Forbidden("YAML submission is not enabled")
-        validate_optional_params(request.form)
-
-        try:
-            r = request.files["yaml"]
-        except:
-            log.error('Invalid file submitted')
-            raise ValidationError('Invalid file submitted')
-
-        return submit_module_build_from_yaml(username, r.read(), optional_params=request.form.to_dict())
-
-    def patch(self, id):
-        username, groups = module_build_service.auth.get_user(request)
+        if "owner" in r:
+            if conf.no_auth is not True:
+                raise ValidationError("The request contains 'owner' parameter, however NO_AUTH is not allowed")
+            elif username == "anonymous":
+                username = r["owner"]
 
         if conf.allowed_groups and not (conf.allowed_groups & groups):
             raise Forbidden("%s is not in any of  %r, only %r" % (
@@ -168,12 +137,6 @@ class ModuleBuildAPI(MethodView):
         if module.owner != username and not (conf.admin_groups & groups):
             raise Forbidden('You are not owner of this build and '
                             'therefore cannot modify it.')
-
-        try:
-            r = json.loads(request.get_data().decode("utf-8"))
-        except:
-            log.error('Invalid JSON submitted')
-            raise ValidationError('Invalid JSON submitted')
 
         if not r.get('state'):
             log.error('Invalid JSON submitted')
@@ -191,6 +154,89 @@ class ModuleBuildAPI(MethodView):
         db.session.commit()
 
         return jsonify(module.api_json()), 200
+
+
+class BaseHandler(object):
+    def __init__(self, request):
+        self.username, self.groups = module_build_service.auth.get_user(request)
+        self.data = None
+
+    @property
+    def optional_params(self):
+        return {k: v for k, v in self.data.items() if k not in ["owner", "scmurl", "branch"]}
+
+    def validate_optional_params(self):
+        forbidden_params = [k for k in self.data if k not in models.ModuleBuild.__table__.columns
+                            and k not in ["branch"]]
+        if forbidden_params:
+            raise ValidationError('The request contains unspecified parameters: {}'.format(", ".join(forbidden_params)))
+
+        forbidden_params = [k for k in self.data if k.startswith("copr_")]
+        if conf.system != "copr" and forbidden_params:
+            raise ValidationError('The request contains parameters specific to Copr builder: {} even though {} is used'
+                                  .format(", ".join(forbidden_params), conf.system))
+
+        if not conf.no_auth and "owner" in self.data:
+            raise ValidationError("The request contains 'owner' parameter, however NO_AUTH is not allowed")
+
+
+class SCMHandler(BaseHandler):
+    def __init__(self, request):
+        super(SCMHandler, self).__init__(request)
+        try:
+            self.data = json.loads(request.get_data().decode("utf-8"))
+        except:
+            log.error('Invalid JSON submitted')
+            raise ValidationError('Invalid JSON submitted')
+
+    def validate(self):
+        if "scmurl" not in self.data:
+            log.error('Missing scmurl')
+            raise ValidationError('Missing scmurl')
+
+        url = self.data["scmurl"]
+        if not any(url.startswith(prefix) for prefix in conf.scmurls):
+            log.error("The submitted scmurl %r is not allowed" % url)
+            raise Forbidden("The submitted scmurl %s is not allowed" % url)
+
+        if not get_scm_url_re().match(url):
+            log.error("The submitted scmurl %r is not valid" % url)
+            raise Forbidden("The submitted scmurl %s is not valid" % url)
+
+        if "branch" not in self.data:
+            log.error('Missing branch')
+            raise ValidationError('Missing branch')
+
+        self.validate_optional_params()
+
+    def post(self):
+        url = self.data["scmurl"]
+        branch = self.data["branch"]
+
+        # python-modulemd expects this to be bytes, not unicode.
+        if isinstance(branch, unicode):
+            branch = branch.encode('utf-8')
+
+        return submit_module_build_from_scm(self.username, url, branch,
+                                            allow_local_url=False, optional_params=self.optional_params)
+
+
+class YAMLFileHandler(BaseHandler):
+    def __init__(self, request):
+        if not conf.yaml_submit_allowed:
+            raise Forbidden("YAML submission is not enabled")
+        super(YAMLFileHandler, self).__init__(request)
+        self.data = request.form.to_dict()
+
+    def validate(self):
+        if "yaml" not in request.files:
+            log.error('Invalid file submitted')
+            raise ValidationError('Invalid file submitted')
+        self.validate_optional_params()
+
+    def post(self):
+        r = request.files["yaml"]
+        return submit_module_build_from_yaml(self.username, r.read(), optional_params=self.optional_params)
 
 
 def register_api_v1():
