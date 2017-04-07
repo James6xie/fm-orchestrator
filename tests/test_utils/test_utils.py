@@ -96,9 +96,8 @@ class TestUtils(unittest.TestCase):
         module_build_service.utils.format_mmd(mmd, scmurl)
 
         # Make sure all the commit hashes were properly set on the RPMs
-        for i, pkg in enumerate(mmd.components.rpms.values()):
-            self.assertEqual(
-                pkg.ref, hashes_returned[i])
+        mmd_pkg_refs = [pkg.ref for pkg in mmd.components.rpms.values()]
+        self.assertEqual(set(mmd_pkg_refs), set(hashes_returned))
 
         self.assertEqual(mmd.buildrequires, {'base-runtime': 'master'})
         xmd = {
