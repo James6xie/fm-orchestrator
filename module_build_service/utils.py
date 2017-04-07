@@ -781,6 +781,7 @@ def get_reusable_component(session, module, component_name):
     # Find the latest module that is in the done or ready state
     previous_module_build = session.query(models.ModuleBuild)\
         .filter_by(name=mmd.name)\
+        .filter_by(stream=mmd.stream)\
         .filter(models.ModuleBuild.state.in_([3, 5]))\
         .filter(models.ModuleBuild.scmurl.isnot(None))\
         .order_by(models.ModuleBuild.time_completed.desc())\
