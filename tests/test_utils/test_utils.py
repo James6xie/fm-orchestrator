@@ -105,9 +105,9 @@ class TestUtils(unittest.TestCase):
                 'commit': '620ec77321b2ea7b0d67d82992dda3e1d67055b4',
                 'buildrequires': {
                     'base-runtime': {
-                        'ref': 'abffed45ca33d7fe94fff8253b5bfe1d87e786b2',
+                        'ref': '464026abf9cbe10fac1d800972e3229ac4d01975',
                         'stream': 'master',
-                        'version': '20170315134803'}},
+                        'version': '20170404161234'}},
                 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/testmodule'
                           '.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4',
             }
@@ -135,9 +135,9 @@ class TestUtils(unittest.TestCase):
                 'commit': None,
                 'buildrequires': {
                     'base-runtime': {
-                        'ref': 'abffed45ca33d7fe94fff8253b5bfe1d87e786b2',
+                        'ref': '464026abf9cbe10fac1d800972e3229ac4d01975',
                         'stream': 'master',
-                        'version': '20170315134803'}},
+                        'version': '20170404161234'}},
                 'scmurl': None,
             }
         }
@@ -554,3 +554,4 @@ class TestBatches(unittest.TestCase):
 
         # Batch number should not increase.
         self.assertEqual(module_build.batch, 1)
+

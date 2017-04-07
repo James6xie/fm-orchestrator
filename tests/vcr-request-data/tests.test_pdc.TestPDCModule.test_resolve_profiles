@@ -34,7 +34,7 @@ interactions:
       connection: [Keep-Alive]
       content-length: ['451']
       content-type: [text/html; charset=iso-8859-1]
-      date: ['Wed, 22 Mar 2017 08:25:49 GMT']
+      date: ['Fri, 07 Apr 2017 14:42:34 GMT']
       keep-alive: ['timeout=15, max=500']
       location: ['https://pdc.fedoraproject.org/rest_api/v1/unreleasedvariants?variant_release=20170315134803&variant_version=master&page_size=-1&variant_id=base-runtime']
       server: [Apache/2.4.6 (Red Hat Enterprise Linux)]
@@ -52,13 +52,13 @@ interactions:
   response:
     body: {string: !!python/unicode ''}
     headers:
-      appserver: [proxy04.fedoraproject.org]
-      apptime: [D=137830]
+      appserver: [proxy03.fedoraproject.org]
+      apptime: [D=104763]
       cache-control: ['private, max-age=0, must-revalidate']
       connection: [Keep-Alive]
       content-length: ['0']
       content-type: [text/html; charset=utf-8]
-      date: ['Wed, 22 Mar 2017 08:25:51 GMT']
+      date: ['Fri, 07 Apr 2017 14:42:36 GMT']
       keep-alive: ['timeout=15, max=500']
       location: ['/rest_api/v1/unreleasedvariants/?variant_release=20170315134803&variant_version=master&page_size=-1&variant_id=base-runtime']
       server: [Apache/2.4.25 (Fedora) mod_wsgi/4.4.23 Python/2.7.13]
@@ -299,118 +299,14 @@ interactions:
         i0//C1tqsq/l0y+3y1v537/+H5O1i+lw3wAA
     headers:
       allow: ['GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS']
-      appserver: [proxy04.fedoraproject.org]
-      apptime: [D=397894]
+      appserver: [proxy03.fedoraproject.org]
+      apptime: [D=487163]
       cache-control: ['private, max-age=0, must-revalidate']
       connection: [Keep-Alive]
       content-encoding: [gzip]
       content-type: [application/json]
-      date: ['Wed, 22 Mar 2017 08:25:51 GMT']
+      date: ['Fri, 07 Apr 2017 14:42:36 GMT']
       keep-alive: ['timeout=15, max=499']
-      server: [Apache/2.4.25 (Fedora) mod_wsgi/4.4.23 Python/2.7.13]
-      strict-transport-security: [max-age=15768000; includeSubDomains; preload]
-      vary: ['Accept,Cookie,Accept-Encoding']
-      x-frame-options: [SAMEORIGIN]
-    status: {code: 200, message: OK}
-- request:
-    body: null
-    headers:
-      Accept-Encoding: ['gzip, deflate']
-      Connection: [keep-alive]
-      User-Agent: [python-requests/2.10.0]
-      accept: [application/json]
-      content-type: [application/json]
-    method: GET
-    uri: http://pdc.fedoraproject.org/rest_api/v1/unreleasedvariants?variant_release=1&variant_version=master&page_size=-1&variant_id=bootstrap
-  response:
-    body: {string: !!python/unicode '<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
-
-        <html><head>
-
-        <title>302 Found</title>
-
-        </head><body>
-
-        <h1>Found</h1>
-
-        <p>The document has moved <a href="https://pdc.fedoraproject.org/rest_api/v1/unreleasedvariants?variant_release=1&amp;variant_version=master&amp;page_size=-1&amp;variant_id=bootstrap">here</a>.</p>
-
-        <hr>
-
-        <address>Apache/2.4.6 (Red Hat Enterprise Linux) Server at pdc.fedoraproject.org
-        Port 80</address>
-
-        </body></html>
-
-'}
-    headers:
-      connection: [Keep-Alive]
-      content-length: ['435']
-      content-type: [text/html; charset=iso-8859-1]
-      date: ['Wed, 22 Mar 2017 08:25:52 GMT']
-      keep-alive: ['timeout=15, max=499']
-      location: ['https://pdc.fedoraproject.org/rest_api/v1/unreleasedvariants?variant_release=1&variant_version=master&page_size=-1&variant_id=bootstrap']
-      server: [Apache/2.4.6 (Red Hat Enterprise Linux)]
-    status: {code: 302, message: Found}
-- request:
-    body: null
-    headers:
-      Accept-Encoding: ['gzip, deflate']
-      Connection: [keep-alive]
-      User-Agent: [python-requests/2.10.0]
-      accept: [application/json]
-      content-type: [application/json]
-    method: GET
-    uri: https://pdc.fedoraproject.org/rest_api/v1/unreleasedvariants?variant_release=1&variant_version=master&page_size=-1&variant_id=bootstrap
-  response:
-    body: {string: !!python/unicode ''}
-    headers:
-      appserver: [proxy04.fedoraproject.org]
-      apptime: [D=149095]
-      cache-control: ['private, max-age=0, must-revalidate']
-      connection: [Keep-Alive]
-      content-length: ['0']
-      content-type: [text/html; charset=utf-8]
-      date: ['Wed, 22 Mar 2017 08:25:53 GMT']
-      keep-alive: ['timeout=15, max=498']
-      location: ['/rest_api/v1/unreleasedvariants/?variant_release=1&variant_version=master&page_size=-1&variant_id=bootstrap']
-      server: [Apache/2.4.25 (Fedora) mod_wsgi/4.4.23 Python/2.7.13]
-      strict-transport-security: [max-age=15768000; includeSubDomains; preload]
-      x-frame-options: [SAMEORIGIN]
-    status: {code: 301, message: Moved Permanently}
-- request:
-    body: null
-    headers:
-      Accept-Encoding: ['gzip, deflate']
-      Connection: [keep-alive]
-      User-Agent: [python-requests/2.10.0]
-      accept: [application/json]
-      content-type: [application/json]
-    method: GET
-    uri: https://pdc.fedoraproject.org/rest_api/v1/unreleasedvariants/?variant_release=1&variant_version=master&page_size=-1&variant_id=bootstrap
-  response:
-    body:
-      string: !!binary |
-        H4sIAAAAAAAAA41T227iMBT8lSNe+lAHKRRoydt+ByB0Yp8El/iyvnBp1X9fOwTI7qpSXyyfGZ/x
-        jC/rz8kRnUQddlJMqkltTPDBoZ2wOxH/ZgqFPpArytESjYq+6Q4XmyllROxohB/JeWl0pnq9EeWo
-        I/S5K+9xMO9yF7BNZTNbFr1QWhguibuqquxPYMBqowEEee6kDUm8gqfpdPqU0eywgrvBDFlnGtmR
-        77sA6ig74dKCoQZwVvkK1jX6PYP6Q9oZA24cxSA7n6ZWGgZCNs0ANCSMw2Kwn2qpxUC1eDqwmy5A
-        yznLQ8Gfn9PEkU1j2oCB1E0SVXhI/RYDTzs7EnsMRXJTcKMb2bLsrOj9jjQ9CQZ+j8KcimHXgI5B
-        1L1whopO6nhmcNrLLHz+2F7b/V3v+/z/hSNhD22hpJYKu2RfR9vOfu52ZLR3ka6FUFVwfQ09EpVC
-        d6ngFzTpPB6XB9drT5lSZghmxIQ95SN0ScRFHqKjaZYaHlsFZa7OSgwZVe3vaa/56XeUjh4oPMQr
-        +HTUVIC0Wr3U+DZv5jWnxWI+fy1f3mac17gqX6kpl7PloilL9k+mUfqxo68bzI1SMvxcf6OF4VGR
-        Tj23j7DRD+H0P1zUQSraCbJ+Uq23bNKnHNXIgzymr5aOi762fwATDtA5DwQAAA==
-    headers:
-      allow: ['GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS']
-      appserver: [proxy04.fedoraproject.org]
-      apptime: [D=227872]
-      cache-control: ['private, max-age=0, must-revalidate']
-      connection: [Keep-Alive]
-      content-encoding: [gzip]
-      content-length: ['502']
-      content-type: [application/json]
-      date: ['Wed, 22 Mar 2017 08:25:53 GMT']
-      keep-alive: ['timeout=15, max=497']
       server: [Apache/2.4.25 (Fedora) mod_wsgi/4.4.23 Python/2.7.13]
       strict-transport-security: [max-age=15768000; includeSubDomains; preload]
       vary: ['Accept,Cookie,Accept-Encoding']

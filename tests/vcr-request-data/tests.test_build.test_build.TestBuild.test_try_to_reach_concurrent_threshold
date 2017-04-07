@@ -8,7 +8,7 @@ interactions:
       accept: [application/json]
       content-type: [application/json]
     method: GET
-    uri: http://pdc.fedoraproject.org/rest_api/v1/unreleasedvariants?variant_version=master&page_size=-1&variant_id=bootstrap
+    uri: http://pdc.fedoraproject.org/rest_api/v1/unreleasedvariants?active=True&variant_version=master&page_size=-1&variant_id=bootstrap
   response:
     body: {string: !!python/unicode '<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
 
@@ -20,7 +20,7 @@ interactions:
 
         <h1>Found</h1>
 
-        <p>The document has moved <a href="https://pdc.fedoraproject.org/rest_api/v1/unreleasedvariants?variant_version=master&amp;page_size=-1&amp;variant_id=bootstrap">here</a>.</p>
+        <p>The document has moved <a href="https://pdc.fedoraproject.org/rest_api/v1/unreleasedvariants?active=True&amp;variant_version=master&amp;page_size=-1&amp;variant_id=bootstrap">here</a>.</p>
 
         <hr>
 
@@ -32,11 +32,11 @@ interactions:
 '}
     headers:
       connection: [Keep-Alive]
-      content-length: ['413']
+      content-length: ['429']
       content-type: [text/html; charset=iso-8859-1]
-      date: ['Fri, 31 Mar 2017 12:32:55 GMT']
+      date: ['Fri, 07 Apr 2017 14:42:05 GMT']
       keep-alive: ['timeout=15, max=500']
-      location: ['https://pdc.fedoraproject.org/rest_api/v1/unreleasedvariants?variant_version=master&page_size=-1&variant_id=bootstrap']
+      location: ['https://pdc.fedoraproject.org/rest_api/v1/unreleasedvariants?active=True&variant_version=master&page_size=-1&variant_id=bootstrap']
       server: [Apache/2.4.6 (Red Hat Enterprise Linux)]
     status: {code: 302, message: Found}
 - request:
@@ -48,19 +48,19 @@ interactions:
       accept: [application/json]
       content-type: [application/json]
     method: GET
-    uri: https://pdc.fedoraproject.org/rest_api/v1/unreleasedvariants?variant_version=master&page_size=-1&variant_id=bootstrap
+    uri: https://pdc.fedoraproject.org/rest_api/v1/unreleasedvariants?active=True&variant_version=master&page_size=-1&variant_id=bootstrap
   response:
     body: {string: !!python/unicode ''}
     headers:
-      appserver: [proxy09.fedoraproject.org]
-      apptime: [D=101776]
+      appserver: [proxy01.phx2.fedoraproject.org]
+      apptime: [D=3104]
       cache-control: ['private, max-age=0, must-revalidate']
       connection: [Keep-Alive]
       content-length: ['0']
       content-type: [text/html; charset=utf-8]
-      date: ['Fri, 31 Mar 2017 12:32:56 GMT']
+      date: ['Fri, 07 Apr 2017 14:42:07 GMT']
       keep-alive: ['timeout=15, max=500']
-      location: ['/rest_api/v1/unreleasedvariants/?variant_version=master&page_size=-1&variant_id=bootstrap']
+      location: ['/rest_api/v1/unreleasedvariants/?active=True&variant_version=master&page_size=-1&variant_id=bootstrap']
       server: [Apache/2.4.25 (Fedora) mod_wsgi/4.4.23 Python/2.7.13]
       strict-transport-security: [max-age=15768000; includeSubDomains; preload]
       x-frame-options: [SAMEORIGIN]
@@ -74,7 +74,7 @@ interactions:
       accept: [application/json]
       content-type: [application/json]
     method: GET
-    uri: https://pdc.fedoraproject.org/rest_api/v1/unreleasedvariants/?variant_version=master&page_size=-1&variant_id=bootstrap
+    uri: https://pdc.fedoraproject.org/rest_api/v1/unreleasedvariants/?active=True&variant_version=master&page_size=-1&variant_id=bootstrap
   response:
     body:
       string: !!binary |
@@ -89,14 +89,14 @@ interactions:
         Tj23j7DRD+H0P1zUQSraCbJ+Uq23bNKnHNXIgzymr5aOi762fwATDtA5DwQAAA==
     headers:
       allow: ['GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS']
-      appserver: [proxy09.fedoraproject.org]
-      apptime: [D=294545]
+      appserver: [proxy01.phx2.fedoraproject.org]
+      apptime: [D=167537]
       cache-control: ['private, max-age=0, must-revalidate']
       connection: [Keep-Alive]
       content-encoding: [gzip]
       content-length: ['502']
       content-type: [application/json]
-      date: ['Fri, 31 Mar 2017 12:32:57 GMT']
+      date: ['Fri, 07 Apr 2017 14:42:07 GMT']
       keep-alive: ['timeout=15, max=499']
       server: [Apache/2.4.25 (Fedora) mod_wsgi/4.4.23 Python/2.7.13]
       strict-transport-security: [max-age=15768000; includeSubDomains; preload]
@@ -138,7 +138,7 @@ interactions:
       connection: [Keep-Alive]
       content-length: ['429']
       content-type: [text/html; charset=iso-8859-1]
-      date: ['Fri, 31 Mar 2017 12:32:59 GMT']
+      date: ['Fri, 07 Apr 2017 14:42:10 GMT']
       keep-alive: ['timeout=15, max=500']
       location: ['https://pdc.fedoraproject.org/rest_api/v1/unreleasedvariants?active=True&variant_version=master&page_size=-1&variant_id=bootstrap']
       server: [Apache/2.4.6 (Red Hat Enterprise Linux)]
@@ -156,13 +156,13 @@ interactions:
   response:
     body: {string: !!python/unicode ''}
     headers:
-      appserver: [proxy01.phx2.fedoraproject.org]
-      apptime: [D=3695]
+      appserver: [proxy10.phx2.fedoraproject.org]
+      apptime: [D=4459]
       cache-control: ['private, max-age=0, must-revalidate']
       connection: [Keep-Alive]
       content-length: ['0']
       content-type: [text/html; charset=utf-8]
-      date: ['Fri, 31 Mar 2017 12:32:59 GMT']
+      date: ['Fri, 07 Apr 2017 14:42:12 GMT']
       keep-alive: ['timeout=15, max=500']
       location: ['/rest_api/v1/unreleasedvariants/?active=True&variant_version=master&page_size=-1&variant_id=bootstrap']
       server: [Apache/2.4.25 (Fedora) mod_wsgi/4.4.23 Python/2.7.13]
@@ -193,14 +193,14 @@ interactions:
         Tj23j7DRD+H0P1zUQSraCbJ+Uq23bNKnHNXIgzymr5aOi762fwATDtA5DwQAAA==
     headers:
       allow: ['GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS']
-      appserver: [proxy01.phx2.fedoraproject.org]
-      apptime: [D=91709]
+      appserver: [proxy10.phx2.fedoraproject.org]
+      apptime: [D=119590]
       cache-control: ['private, max-age=0, must-revalidate']
       connection: [Keep-Alive]
       content-encoding: [gzip]
       content-length: ['502']
       content-type: [application/json]
-      date: ['Fri, 31 Mar 2017 12:33:00 GMT']
+      date: ['Fri, 07 Apr 2017 14:42:12 GMT']
       keep-alive: ['timeout=15, max=499']
       server: [Apache/2.4.25 (Fedora) mod_wsgi/4.4.23 Python/2.7.13]
       strict-transport-security: [max-age=15768000; includeSubDomains; preload]

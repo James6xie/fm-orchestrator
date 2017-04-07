@@ -534,14 +534,15 @@ def format_mmd(mmd, scmurl):
             # Assumes that module_stream is the stream and not the commit hash
             module_info = {
                 'name': module_name,
-                'version': module_stream}
+                'version': module_stream,
+                'active': True}
             commit_hash, version = get_module_commit_hash_and_version(
                 pdc, module_info)
             if version and (commit_hash or not scmurl):
                 mmd.xmd['mbs']['buildrequires'][module_name] = {
                     'ref': commit_hash,
                     'stream': mmd.buildrequires[module_name],
-                    'version': version
+                    'version': str(version)
                 }
             else:
                 raise RuntimeError(
