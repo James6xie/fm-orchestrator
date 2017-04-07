@@ -223,7 +223,10 @@ class ModuleBuild(MBSBase):
 
         There should be at most one.
         """
-        tag = event.repo_tag.strip('-build')
+        if event.repo_tag.endswith('-build'):
+            tag = event.repo_tag[:-6]
+        else:
+            tag = event.repo_tag
         query = session.query(cls)\
             .filter(cls.koji_tag == tag)\
             .filter(cls.state == BUILD_STATES["build"])
@@ -236,7 +239,7 @@ class ModuleBuild(MBSBase):
 
     @classmethod
     def from_tag_change_event(cls, session, event):
-        tag = event.tag.strip('-build')
+        tag = event.tag[:-6] if event.tag.endswith('-build') else event.tag
         query = session.query(cls)\
             .filter(cls.koji_tag == tag)\
             .filter(cls.state == BUILD_STATES["build"])
