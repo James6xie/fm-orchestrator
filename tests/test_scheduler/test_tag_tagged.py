@@ -85,6 +85,8 @@ class TestTagTagged(unittest.TestCase):
 
         module_build = module_build_service.models.ModuleBuild.query.filter_by(id=2).one()
         module_build.batch = 2
+        for c in module_build.current_batch():
+            c.state = koji.BUILD_STATES["COMPLETE"]
         db.session.commit()
 
         # Tag the first component to the buildroot.
@@ -104,6 +106,90 @@ class TestTagTagged(unittest.TestCase):
             config=conf, session=db.session, msg=msg)
 
         # newRepo should be called now - all components have been tagged.
+        koji_session.newRepo.assert_called_once_with("module-testmodule-build")
+
+        # Refresh our module_build object.
+        db.session.expunge(module_build)
+        module_build = module_build_service.models.ModuleBuild.query.filter_by(id=2).one()
+
+        # newRepo task_id should be stored in database, so we can check its
+        # status later in poller.
+        self.assertEqual(module_build.new_repo_task_id, 123456)
+
+
+    @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
+        return_value = {'build': [], 'srpm-build': []})
+    @patch("module_build_service.builder.KojiModuleBuilder.get_session")
+    @patch("module_build_service.builder.GenericBuilder.create_from_module")
+    def test_newrepo_still_building_components(self, create_builder, koji_get_session, dbg):
+        """
+        Test that newRepo is called in the expected times.
+        """
+        koji_session = mock.MagicMock()
+        koji_session.getTag = lambda tag_name: {'name': tag_name}
+        koji_session.getTaskInfo.return_value = {'state': koji.TASK_STATES['CLOSED']}
+        koji_session.newRepo.return_value = 123456
+        koji_get_session.return_value = koji_session
+
+        builder = mock.MagicMock()
+        builder.koji_session = koji_session
+        builder.buildroot_ready.return_value = False
+        create_builder.return_value = builder
+
+        module_build = module_build_service.models.ModuleBuild.query.filter_by(id=2).one()
+        module_build.batch = 2
+        component = module_build_service.models.ComponentBuild.query\
+            .filter_by(package='perl-Tangerine', module_id=module_build.id).one()
+        component.state = koji.BUILD_STATES["BUILDING"]
+        db.session.commit()
+
+        # Tag the perl-List-Compare component to the buildroot.
+        msg = module_build_service.messaging.KojiTagChange(
+            'id', 'module-testmodule-build', "perl-Tangerine")
+        module_build_service.scheduler.handlers.tags.tagged(
+            config=conf, session=db.session, msg=msg)
+
+        # newRepo should not be called, because perl-List-Compare has not been
+        # built yet.
+        self.assertTrue(not koji_session.newRepo.called)
+
+    @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
+        return_value = {'build': [], 'srpm-build': []})
+    @patch("module_build_service.builder.KojiModuleBuilder.get_session")
+    @patch("module_build_service.builder.GenericBuilder.create_from_module")
+    def test_newrepo_failed_components(self, create_builder, koji_get_session, dbg):
+        """
+        Test that newRepo is called in the expected times.
+        """
+        koji_session = mock.MagicMock()
+        koji_session.getTag = lambda tag_name: {'name': tag_name}
+        koji_session.getTaskInfo.return_value = {'state': koji.TASK_STATES['CLOSED']}
+        koji_session.newRepo.return_value = 123456
+        koji_get_session.return_value = koji_session
+
+        builder = mock.MagicMock()
+        builder.koji_session = koji_session
+        builder.buildroot_ready.return_value = False
+        create_builder.return_value = builder
+
+        module_build = module_build_service.models.ModuleBuild.query.filter_by(id=2).one()
+        module_build.batch = 2
+        component = module_build_service.models.ComponentBuild.query\
+            .filter_by(package='perl-Tangerine', module_id=module_build.id).one()
+        component.state = koji.BUILD_STATES["FAILED"]
+        component = module_build_service.models.ComponentBuild.query\
+            .filter_by(package='perl-List-Compare', module_id=module_build.id).one()
+        component.state = koji.BUILD_STATES["COMPLETE"]
+        db.session.commit()
+
+        # Tag the perl-List-Compare component to the buildroot.
+        msg = module_build_service.messaging.KojiTagChange(
+            'id', 'module-testmodule-build', "perl-List-Compare")
+        module_build_service.scheduler.handlers.tags.tagged(
+            config=conf, session=db.session, msg=msg)
+
+        # newRepo should be called now - all successfully built
+        # components have been tagged.
         koji_session.newRepo.assert_called_once_with("module-testmodule-build")
 
         # Refresh our module_build object.
