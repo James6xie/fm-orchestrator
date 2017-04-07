@@ -115,3 +115,23 @@ class TestFedmsgMessaging(unittest.TestCase):
 
         self.assertEqual(msg.tag, "module-debugging-tools-master-20170405115403-build")
         self.assertEqual(msg.artifact, "module-build-macros")
+
+
+    def test_buildsys_repo_done(self):
+        # https://fedora-fedmsg.readthedocs.io/en/latest/topics.html#id134
+        buildsys_tag_msg = {
+            "msg": {
+                "instance": "primary",
+                "repo_id": 728809,
+                "tag": "module-f0f7e44f3c6cccab-build",
+                "tag_id": 653
+            },
+            'msg_id': '2015-51be4c8e-8ab6-4dcb-ac0d-37b257765c71',
+            'timestamp': 1424789698.0,
+            'topic': 'org.fedoraproject.prod.buildsys.repo.done'
+        }
+
+        topic = 'org.fedoraproject.prod.buildsys.repo.done'
+        msg = messaging.BaseMessage.from_fedmsg(topic, buildsys_tag_msg)
+
+        self.assertEqual(msg.repo_tag, "module-f0f7e44f3c6cccab-build")

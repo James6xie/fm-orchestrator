@@ -56,14 +56,27 @@ def tagged(config, session, msg):
         log.error("No component %s in module %r", msg.artifact, module_build)
         return
 
+    log.info("Saw relevant component tag of %r from %r." % (component.nvr,
+                                                            msg.msg_id))
+
     # Mark the component as tagged
     component.tagged = True
     session.commit()
 
-    # Get the list of untagged components in current batch.
+    unbuilt_components_in_batch = [
+        c for c in module_build.current_batch()
+        if c.state == koji.BUILD_STATES['BUILDING'] or not c.state
+    ]
+    if unbuilt_components_in_batch:
+        log.info("Not regenerating repo for tag %s, there are still "
+                 "building components in a batch", tag)
+        return []
+
+    # Get the list of untagged components in current batch which
+    # have been built successfully.
     untagged_components = [
         c for c in module_build.current_batch()
-        if not c.tagged
+        if not c.tagged and c.state == koji.BUILD_STATES['COMPLETE']
     ]
 
     # If all components are tagged, start newRepo task.
