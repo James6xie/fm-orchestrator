@@ -9,12 +9,26 @@ import subprocess
 import requests
 import koji
 import time
+import operator
+from tabulate import tabulate
+from multiprocessing.dummy import Pool as ThreadPool
 from copy import copy
 
 DEFAULT_ID_PROVIDER = "https://id.fedoraproject.org/openidc/"
 DEFAULT_MBS_SERVER = "https://mbs.fedoraproject.org"
 
 openidc_client.WEB_PORTS = [13747]
+
+BUILD_STATES = {
+    "init": 0,
+    "wait": 1,
+    "build": 2,
+    "done": 3,
+    "failed": 4,
+    "ready": 5,
+}
+
+INVERSE_BUILD_STATES = {v: k for k, v in BUILD_STATES.items()}
 
 def watch_build(server, build_id):
     """
@@ -240,6 +254,68 @@ def cancel_module_build(server, id_provider, build_id):
         {'state': 'failed'})
     logging.info(resp.text)
 
+def show_overview(server):
+    if not server:
+        server = DEFAULT_MBS_SERVER
+
+    # Base URL to query.
+    baseurl = server + '/module-build-service/1/module-builds/'
+
+    # This logging would break our formatting.
+    logging.getLogger("requests").setLevel(logging.WARNING)
+    logging.getLogger("urllib3").setLevel(logging.WARNING)
+
+    def get_module_builds(page=1, state=0):
+        """
+        Yields modules with state `state`.
+        """
+        response = requests.get(baseurl, params=dict(page=page, state=state))
+        data = response.json()
+        for item in data['items']:
+            yield item
+        if data['meta']['pages'] > page:
+            for item in get_module_builds(page=page+1, state=state):
+                yield item
+
+    def get_module_info(module):
+        """
+        Returns the row with module_info.
+        """
+        idx = module['id']
+        response = requests.get(baseurl + '/%i?verbose=true' % idx)
+        module = response.json()
+        n_components = len(module['tasks'].get('rpms', []))
+        n_built_components = len([c for c in module['tasks'].get('rpms', {}).values() if c['state'] not in [None, 0, koji.BUILD_STATES["BUILDING"]]])
+        row = [module["id"], module["state_name"], module["time_submitted"],
+               "%s/%s" % (n_built_components, n_components), module["owner"],
+               "%s-%s-%s" % (module["name"], module["stream"], module["version"])]
+        return row
+
+    # We are interested only in init, wait and build states.
+    states = [BUILD_STATES["init"], BUILD_STATES["wait"],
+              BUILD_STATES["build"]]
+
+    # Get all modules in the states we are interested in using 3 threads.
+    pool = ThreadPool(3)
+    module_builds = pool.map(lambda x: list(get_module_builds(state=x)),
+                             states)
+    # Make one flat list with all the modules.
+    module_builds = [item for sublist in module_builds for item in sublist]
+
+    # Get the table rows with information about each module using 20 threads.
+    pool = ThreadPool(20)
+    table = pool.map(get_module_info, module_builds)
+
+    # Sort it according to 'id' (first element in list).
+    table = list(reversed(sorted(
+        table, key=operator.itemgetter(0),
+    )))
+
+    # Headers for table we will show to user.
+    headers = ["ID", "State", "Submitted", "Components", "Owner", "Module"]
+
+    print(tabulate(table, headers=headers))
+
 def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="Submits and manages module builds.")
@@ -276,6 +352,7 @@ def main():
         'cancel', help="cancel module build",
         description="Cancels the build submitted by 'submit' subcommand.")
     parser_cancel.add_argument("build_id")
+
     parser_local = subparsers.add_parser(
         'local', help="do local build of module",
         description="Starts local build of a module using the Mock backend. "
@@ -284,6 +361,10 @@ def main():
         "repository with a module.")
     parser_local.add_argument("scm_url", nargs='?')
     parser_local.add_argument("branch", nargs='?')
+
+    parser_overview = subparsers.add_parser(
+        'overview', help="show overview of module builds",
+        description="Shows overview of module builds.")
 
     args = parser.parse_args()
 
@@ -316,6 +397,8 @@ def main():
     elif args.cmd_name == "cancel":
         # Cancel the module build
         cancel_module_build(args.server, args.idprovider, args.build_id)
+    elif args.cmd_name == "overview":
+        show_overview(args.server)
 
 if __name__ == "__main__":
     main()
