@@ -65,7 +65,7 @@ class TestFedmsgMessaging(unittest.TestCase):
                 'copr': 'mutt-kz',
                 'ip': '172.16.3.3',
                 'pid': 12010,
-                'pkg': 'mutt-kz-1.5.23.1-1.20150203.git.c8504a8a.fc21',
+                'pkg': 'mutt-kz',  # Reality doesnt match the linked docs
                 'status': 1,
                 'user': 'fatka',
                 'version': '1.5.23.1-1.20150203.git.c8504a8a.fc21',
