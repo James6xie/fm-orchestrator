@@ -207,7 +207,7 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
         if handler is self.NO_OP:
             log.debug("Handler is NO_OP: %s" % idx)
         else:
-            log.debug("Calling %s" % idx)
+            log.info("Calling %s" % idx)
             further_work = []
             try:
                 further_work = handler(conf, session, msg) or []
