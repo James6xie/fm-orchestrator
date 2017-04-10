@@ -54,13 +54,6 @@ class CoprModuleBuilder(GenericBuilder):
 
     backend = "copr"
     _build_lock = threading.Lock()
-    buildroot_packages = [
-        "unzip", "tar", "cpio", "gawk", "xz", "sed",
-        "findutils", "util-linux", "bash", "info", "gcc",
-        "grep", "redhat-rpm-config", "shadow-utils", "rpm-build",
-        "rpm", "coreutils", "fedora-modular-release", "diffutils",
-        "make", "patch", "shadow-utils",
-    ]
 
     @module_build_service.utils.validate_koji_tag('tag_name')
     def __init__(self, owner, module, config, tag_name, components):
@@ -74,6 +67,7 @@ class CoprModuleBuilder(GenericBuilder):
         self.client.username = self.owner
         self.chroot = "custom-1-x86_64"
         self.__prep = False
+
 
     @classmethod
     def _get_client(cls, config):
@@ -89,7 +83,11 @@ class CoprModuleBuilder(GenericBuilder):
         """
         self.copr = self._get_copr_safe()
         self._create_module_safe()
-        self._update_chroot(packages=self.buildroot_packages)
+
+        # @FIXME Not able to use gcc-c++ in chroot (RhBug: 1440889)
+        packages = groups["build"] - {"gcc-c++"}
+        self._update_chroot(packages=list(packages))
+
         if self.copr and self.copr.projectname and self.copr.username:
             self.__prep = True
         log.info("%r buildroot sucessfully connected." % self)
