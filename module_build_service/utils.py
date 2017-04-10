@@ -370,7 +370,7 @@ def filter_module_builds(flask_request):
             else:
                 raise ValidationError('An invalid state was supplied')
 
-    for key in ['name', 'owner']:
+    for key in ['name', 'owner', 'koji_tag']:
         if flask_request.args.get(key, None):
             search_query[key] = flask_request.args[key]
 

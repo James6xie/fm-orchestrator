@@ -226,6 +226,11 @@ class TestViews(unittest.TestCase):
         data = json.loads(rv.data)
         self.assertEquals(data['meta']['total'], 10)
 
+    def test_query_builds_filter_koji_tag(self):
+        rv = self.client.get('/module-build-service/1/module-builds/?koji_tag=module-nginx-1.2')
+        data = json.loads(rv.data)
+        self.assertEquals(data['meta']['total'], 10)
+
     def test_query_builds_filter_completed_before(self):
         rv = self.client.get(
             '/module-build-service/1/module-builds/?completed_before=2016-09-03T11:30:00Z')
