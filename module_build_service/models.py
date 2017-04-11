@@ -269,6 +269,7 @@ class ModuleBuild(MBSBase):
             # TODO, show their entire .json() ?
             'component_builds': [build.id for build in self.component_builds],
             'modulemd': self.modulemd,
+            'koji_tag': self.koji_tag,
             'state_trace': [{'time': record.state_time,
                              'state': record.state,
                              'state_name': INVERSE_BUILD_STATES[record.state],
@@ -301,6 +302,7 @@ class ModuleBuild(MBSBase):
             "time_submitted": self._utc_datetime_to_iso(self.time_submitted),
             "time_modified": self._utc_datetime_to_iso(self.time_modified),
             "time_completed": self._utc_datetime_to_iso(self.time_completed),
+            "koji_tag": self.koji_tag,
             "tasks": self.tasks()
         }
 
