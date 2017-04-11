@@ -27,7 +27,6 @@
 import json
 import os
 import re
-import kobo.rpmlib
 try:
     from inspect import signature
 except ImportError:
@@ -225,8 +224,9 @@ class BaseMessage(object):
                 build = msg_inner_msg.get('build')
                 status = msg_inner_msg.get('status')
                 pkg = msg_inner_msg.get('pkg')
+                version = msg_inner_msg.get('version')
                 what = msg_inner_msg.get('what')
-                msg_obj = CoprBuildEnd(msg_id, build, status, copr, pkg, what)
+                msg_obj = CoprBuildEnd(msg_id, build, status, copr, pkg, version, what)
 
             # If the message matched the regex and is important to the app,
             # it will be returned
@@ -305,16 +305,16 @@ class CoprBuildEnd(KojiBuildChange):
     (e.g. mutt-kz-1.5.23.1-1.20150203.git.c8504a8a.fc21)
     :param state_reason: the optional reason as to why the state changed
     """
-    def __init__(self, msg_id, build_id, status, copr, pkg, what=None):
-        nvr = kobo.rpmlib.parse_nvra(pkg)
+    def __init__(self, msg_id, build_id, status, copr, pkg, version, what=None):
+        ver, rel = version.split("-", 1)
         super(CoprBuildEnd, self).__init__(
             msg_id=msg_id,
             build_id=build_id,
             task_id=build_id,
             build_new_state=status,
-            build_name=nvr["name"],
-            build_version=nvr["version"],
-            build_release=".".join(s for s in [nvr["release"], nvr["epoch"], nvr["arch"]] if s),
+            build_name=pkg,
+            build_version=ver,
+            build_release=rel,
             state_reason=what,
         )
         self.copr = copr
