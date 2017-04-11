@@ -155,6 +155,46 @@ class TestPoller(unittest.TestCase):
         poller = MBSProducer(hub)
         poller.poll()
 
+        # Refresh our module_build object.
+        db.session.expunge(module_build)
+        module_build = models.ModuleBuild.query.filter_by(id=2).one()
+
         self.assertTrue(not koji_session.newRepo.called)
+        self.assertEqual(module_build.new_repo_task_id, 0)
 
+    def test_process_paused_module_builds_waiting_for_repo(
+            self, crete_builder, koji_get_session, global_consumer, dbg):
+        """
+        Tests that process_paused_module_builds does not start new batch
+        when we are waiting for repo.
+        """
+        consumer = mock.MagicMock()
+        consumer.incoming = queue.Queue()
+        global_consumer.return_value = consumer
 
+        koji_session = mock.MagicMock()
+        koji_get_session.return_value = koji_session
+
+        builder = mock.MagicMock()
+        crete_builder.return_value = builder
+
+        # Change the batch to 2, so the module build is in state where
+        # it is not building anything, but the state is "build".
+        module_build = models.ModuleBuild.query.filter_by(id=2).one()
+        module_build.batch = 2
+        module_build.new_repo_task_id = 123456
+        db.session.commit()
+
+        # Poll :)
+        hub = mock.MagicMock()
+        poller = MBSProducer(hub)
+        poller.poll()
+
+        # Refresh our module_build object.
+        db.session.expunge(module_build)
+        module_build = models.ModuleBuild.query.filter_by(id=2).one()
+
+        # Components should not be in building state
+        components = module_build.current_batch()
+        for component in components:
+            self.assertEqual(component.state, None)
