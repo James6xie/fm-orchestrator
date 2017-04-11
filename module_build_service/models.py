@@ -331,8 +331,8 @@ class ModuleBuild(MBSBase):
             module_id=module_id).order_by(ModuleBuildTrace.state_time).all()
 
     def __repr__(self):
-        return "<ModuleBuild %s, stream=%s, version=%s, state %r, batch %r, state_reason %r>" % (
-            self.name, self.stream, self.version,
+        return "<ModuleBuild %s, id=%d, stream=%s, version=%s, state %r, batch %r, state_reason %r>" % (
+            self.name, self.id, self.stream, self.version,
             INVERSE_BUILD_STATES[self.state], self.batch, self.state_reason)
 
 
