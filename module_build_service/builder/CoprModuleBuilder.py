@@ -94,12 +94,9 @@ class CoprModuleBuilder(GenericBuilder):
         log.info("%r buildroot sucessfully connected." % self)
 
     def _get_copr_safe(self):
-        # @TODO it would be nice if the module build object was passed to Builder __init__
-        module = ModuleBuild.query.filter(ModuleBuild.name == self.module_str).one()
-
         kwargs = {
-            "ownername": module.copr_owner or self.owner,
-            "projectname": module.copr_project or CoprModuleBuilder._tag_to_copr_name(self.tag_name)
+            "ownername": self.module.copr_owner or self.owner,
+            "projectname": self.module.copr_project or CoprModuleBuilder._tag_to_copr_name(self.tag_name)
         }
 
         try:
@@ -117,14 +114,12 @@ class CoprModuleBuilder(GenericBuilder):
     def _create_module_safe(self):
         from copr.exceptions import CoprRequestException
 
-        # @TODO it would be nice if the module build object was passed to Builder __init__
-        module = ModuleBuild.query.filter(ModuleBuild.name == self.module_str).one()
         modulemd = tempfile.mktemp()
-        module.mmd().dump(modulemd)
+        self.module.mmd().dump(modulemd)
 
         kwargs = {
-            "username": module.copr_owner or self.owner,
-            "projectname": module.copr_project or CoprModuleBuilder._tag_to_copr_name(self.tag_name),
+            "username": self.module.copr_owner or self.owner,
+            "projectname": self.module.copr_project or CoprModuleBuilder._tag_to_copr_name(self.tag_name),
             "modulemd": modulemd,
             "create": True,
             "build": False,
@@ -255,8 +250,7 @@ class CoprModuleBuilder(GenericBuilder):
 
     def finalize(self):
         modulemd = tempfile.mktemp()
-        m1 = ModuleBuild.query.filter(ModuleBuild.name == self.module_str).one()
-        m1.mmd().dump(modulemd)
+        self.module.mmd().dump(modulemd)
 
         # Create a module from previous project
         result = self.client.make_module(username=self.copr.username, projectname=self.copr.projectname,
