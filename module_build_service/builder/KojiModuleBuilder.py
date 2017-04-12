@@ -61,12 +61,12 @@ class KojiModuleBuilder(GenericBuilder):
     def __init__(self, owner, module, config, tag_name, components):
         """
         :param owner: a string representing who kicked off the builds
-        :param module: string representing module
+        :param module: module_build_service.models.ModuleBuild instance.
         :param config: module_build_service.config.Config instance
         :param tag_name: name of tag for given module
         """
         self.owner = owner
-        self.module_str = module
+        self.module_str = module.name
         self.config = config
         self.tag_name = tag_name
         self.__prep = False

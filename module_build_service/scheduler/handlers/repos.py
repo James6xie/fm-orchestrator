@@ -85,7 +85,7 @@ def done(config, session, msg):
         session, module_build)
 
     builder = module_build_service.builder.GenericBuilder.create(
-        module_build.owner, module_build.name, config.system, config,
+        module_build.owner, module_build, config.system, config,
         tag_name=tag, components=[c.package for c in module_build.component_builds])
     builder.buildroot_connect(groups)
 

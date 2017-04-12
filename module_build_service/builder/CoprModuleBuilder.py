@@ -60,7 +60,8 @@ class CoprModuleBuilder(GenericBuilder):
         self.owner = owner
         self.config = config
         self.tag_name = tag_name
-        self.module_str = module
+        self.module = module
+        self.module_str = module.name
 
         self.copr = None
         self.client = CoprModuleBuilder._get_client(config)

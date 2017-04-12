@@ -25,6 +25,7 @@ import munch
 import mock
 import koji
 import xmlrpclib
+from collections import namedtuple
 
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.repos
@@ -58,6 +59,10 @@ class FakeKojiModuleBuilder(KojiModuleBuilder):
 
         return koji_session
 
+
+ModuleBuildMock = namedtuple('ModuleBuildMock', ['name'])
+
+
 class TestKojiBuilder(unittest.TestCase):
 
     def setUp(self):
@@ -83,7 +88,7 @@ class TestKojiBuilder(unittest.TestCase):
                  'checkForBuilds.side_effect': IOError}
         mocked_kojiutil.configure_mock(**attrs)
         fake_kmb = FakeKojiModuleBuilder(owner='Moe Szyslak',
-                                         module='nginx',
+                                         module=ModuleBuildMock(name='nginx'),
                                          config=conf,
                                          tag_name='module-nginx-1.2',
                                          components=[])
@@ -99,7 +104,7 @@ class TestKojiBuilder(unittest.TestCase):
         tag already tagged artifacts
         """
         builder = FakeKojiModuleBuilder(owner='Moe Szyslak',
-                                         module='nginx',
+                                         module=ModuleBuildMock(name='nginx'),
                                          config=conf,
                                          tag_name='module-nginx-1.2',
                                          components=[])
@@ -134,7 +139,7 @@ class TestGetKojiClientSession(unittest.TestCase):
         self.config.koji_profile = conf.koji_profile
         self.config.koji_config = conf.koji_config
         self.owner = 'Matt Jia'
-        self.module = 'fool'
+        self.module = ModuleBuildMock(name='fool')
         self.tag_name = 'module-fool-1.2'
 
     @patch.object(koji.ClientSession, 'krb_login')
