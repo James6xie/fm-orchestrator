@@ -53,7 +53,7 @@ class TestPoller(unittest.TestCase):
     def tearDown(self):
         init_data()
 
-    def test_process_paused_module_builds(self, crete_builder,
+    def test_process_paused_module_builds(self, create_builder,
                                           koji_get_session, global_consumer,
                                           dbg):
         """
@@ -67,7 +67,7 @@ class TestPoller(unittest.TestCase):
         koji_get_session.return_value = koji_session
 
         builder = mock.MagicMock()
-        crete_builder.return_value = builder
+        create_builder.return_value = builder
 
         # Change the batch to 2, so the module build is in state where
         # it is not building anything, but the state is "build".
@@ -81,15 +81,14 @@ class TestPoller(unittest.TestCase):
         poller.poll()
 
         # Refresh our module_build object.
-        db.session.expunge(module_build)
-        module_build = models.ModuleBuild.query.filter_by(id=2).one()
+        db.session.refresh(module_build)
 
         # Components should be in BUILDING state now.
         components = module_build.current_batch()
         for component in components:
             self.assertEqual(component.state, koji.BUILD_STATES["BUILDING"])
 
-    def test_trigger_new_repo_when_failed(self, crete_builder,
+    def test_trigger_new_repo_when_failed(self, create_builder,
                                           koji_get_session, global_consumer,
                                           dbg):
         """
@@ -107,7 +106,7 @@ class TestPoller(unittest.TestCase):
 
         builder = mock.MagicMock()
         builder.buildroot_ready.return_value = False
-        crete_builder.return_value = builder
+        create_builder.return_value = builder
 
         # Change the batch to 2, so the module build is in state where
         # it is not building anything, but the state is "build".
@@ -123,7 +122,7 @@ class TestPoller(unittest.TestCase):
         koji_session.newRepo.assert_called_once_with("module-testmodule-build")
 
 
-    def test_trigger_new_repo_when_succeded(self, crete_builder,
+    def test_trigger_new_repo_when_succeded(self, create_builder,
                                           koji_get_session, global_consumer,
                                           dbg):
         """
@@ -142,7 +141,7 @@ class TestPoller(unittest.TestCase):
 
         builder = mock.MagicMock()
         builder.buildroot_ready.return_value = False
-        crete_builder.return_value = builder
+        create_builder.return_value = builder
 
         # Change the batch to 2, so the module build is in state where
         # it is not building anything, but the state is "build".
@@ -156,14 +155,13 @@ class TestPoller(unittest.TestCase):
         poller.poll()
 
         # Refresh our module_build object.
-        db.session.expunge(module_build)
-        module_build = models.ModuleBuild.query.filter_by(id=2).one()
+        db.session.refresh(module_build)
 
         self.assertTrue(not koji_session.newRepo.called)
         self.assertEqual(module_build.new_repo_task_id, 0)
 
     def test_process_paused_module_builds_waiting_for_repo(
-            self, crete_builder, koji_get_session, global_consumer, dbg):
+            self, create_builder, koji_get_session, global_consumer, dbg):
         """
         Tests that process_paused_module_builds does not start new batch
         when we are waiting for repo.
@@ -176,7 +174,7 @@ class TestPoller(unittest.TestCase):
         koji_get_session.return_value = koji_session
 
         builder = mock.MagicMock()
-        crete_builder.return_value = builder
+        create_builder.return_value = builder
 
         # Change the batch to 2, so the module build is in state where
         # it is not building anything, but the state is "build".
@@ -191,8 +189,7 @@ class TestPoller(unittest.TestCase):
         poller.poll()
 
         # Refresh our module_build object.
-        db.session.expunge(module_build)
-        module_build = models.ModuleBuild.query.filter_by(id=2).one()
+        db.session.refresh(module_build)
 
         # Components should not be in building state
         components = module_build.current_batch()
