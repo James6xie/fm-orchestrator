@@ -33,7 +33,7 @@ import module_build_service.builder
 
 from mock import patch, MagicMock
 
-from tests import conf
+from tests import conf, init_data
 
 from module_build_service.builder import KojiModuleBuilder
 
@@ -61,6 +61,7 @@ class FakeKojiModuleBuilder(KojiModuleBuilder):
 class TestKojiBuilder(unittest.TestCase):
 
     def setUp(self):
+        init_data()
         self.config = mock.Mock()
         self.config.koji_profile = conf.koji_profile
         self.config.koji_repository_url = conf.koji_repository_url
@@ -131,6 +132,7 @@ class TestKojiBuilder(unittest.TestCase):
 class TestGetKojiClientSession(unittest.TestCase):
 
     def setUp(self):
+        init_data()
         self.config = mock.Mock()
         self.config.koji_profile = conf.koji_profile
         self.config.koji_config = conf.koji_config
