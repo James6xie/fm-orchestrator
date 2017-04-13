@@ -81,7 +81,7 @@ def failed(config, session, msg):
 
     if build.koji_tag:
         builder = module_build_service.builder.GenericBuilder.create(
-            build.owner, build.name, config.system, config, tag_name=build.koji_tag,
+            build.owner, build, config.system, config, tag_name=build.koji_tag,
             components=[c.package for c in build.component_builds])
         builder.buildroot_connect(groups)
 

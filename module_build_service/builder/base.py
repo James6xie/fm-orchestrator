@@ -100,7 +100,7 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
     def create(cls, owner, module, backend, config, **extra):
         """
         :param owner: a string representing who kicked off the builds
-        :param module: a module string e.g. 'testmodule-1.0'
+        :param module: module_build_service.models.ModuleBuild instance.
         :param backend: a string representing backend e.g. 'koji'
         :param config: instance of module_build_service.config.Config
 
@@ -125,7 +125,7 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
         """
         components = [c.package for c in module.component_builds]
         builder = GenericBuilder.create(
-            module.owner, module.name, config.system, config,
+            module.owner, module, config.system, config,
             tag_name=module.koji_tag, components=components)
         groups = GenericBuilder.default_buildroot_groups(session, module)
         builder.buildroot_connect(groups)

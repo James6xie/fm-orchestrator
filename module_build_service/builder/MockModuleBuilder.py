@@ -94,7 +94,7 @@ mdpolicy=group:primary
 
     @module_build_service.utils.validate_koji_tag('tag_name')
     def __init__(self, owner, module, config, tag_name, components):
-        self.module_str = module
+        self.module_str = module.name
         self.tag_name = tag_name
         self.config = config
         self.groups = []
