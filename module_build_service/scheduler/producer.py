@@ -191,8 +191,11 @@ class MBSProducer(PollingProducer):
         for module_build in session.query(models.ModuleBuild).filter_by(
                     state=models.BUILD_STATES['build']).all():
             # If there are no components in the build state on the module build,
-            # then no possible event will start off new component builds
-            if not module_build.current_batch(koji.BUILD_STATES['BUILDING']):
+            # then no possible event will start off new component builds.
+            # But do not try to start new builds when we are waiting for the
+            # repo-regen.
+            if (not module_build.current_batch(koji.BUILD_STATES['BUILDING'])
+                    and not module_build.new_repo_task_id):
                 # Initialize the builder...
                 builder = GenericBuilder.create_from_module(
                     session, module_build, config)
@@ -232,5 +235,7 @@ class MBSProducer(PollingProducer):
                          str(module_build.new_repo_task_id), module_build)
                 taginfo = koji_session.getTag(module_build.koji_tag + "-build")
                 module_build.new_repo_task_id = koji_session.newRepo(taginfo["name"])
+            else:
+                module_build.new_repo_task_id = 0
 
         session.commit()
