@@ -25,7 +25,6 @@ import munch
 import mock
 import koji
 import xmlrpclib
-from collections import namedtuple
 
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.repos
@@ -59,16 +58,13 @@ class FakeKojiModuleBuilder(KojiModuleBuilder):
 
         return koji_session
 
-
-ModuleBuildMock = namedtuple('ModuleBuildMock', ['name'])
-
-
 class TestKojiBuilder(unittest.TestCase):
 
     def setUp(self):
         self.config = mock.Mock()
         self.config.koji_profile = conf.koji_profile
         self.config.koji_repository_url = conf.koji_repository_url
+        self.module = module_build_service.models.ModuleBuild.query.filter_by(id=1).one()
 
     def test_tag_to_repo(self):
         """ Test that when a repo msg hits us and we have no match,
@@ -87,8 +83,8 @@ class TestKojiBuilder(unittest.TestCase):
         attrs = {'checkForBuilds.return_value': None,
                  'checkForBuilds.side_effect': IOError}
         mocked_kojiutil.configure_mock(**attrs)
-        fake_kmb = FakeKojiModuleBuilder(owner='Moe Szyslak',
-                                         module=ModuleBuildMock(name='nginx'),
+        fake_kmb = FakeKojiModuleBuilder(owner=self.module.owner,
+                                         module=self.module,
                                          config=conf,
                                          tag_name='module-nginx-1.2',
                                          components=[])
@@ -103,8 +99,8 @@ class TestKojiBuilder(unittest.TestCase):
         Tests that buildroot_add_artifacts and tag_artifacts do not try to
         tag already tagged artifacts
         """
-        builder = FakeKojiModuleBuilder(owner='Moe Szyslak',
-                                         module=ModuleBuildMock(name='nginx'),
+        builder = FakeKojiModuleBuilder(owner=self.module.owner,
+                                         module=self.module,
                                          config=conf,
                                          tag_name='module-nginx-1.2',
                                          components=[])
@@ -138,17 +134,16 @@ class TestGetKojiClientSession(unittest.TestCase):
         self.config = mock.Mock()
         self.config.koji_profile = conf.koji_profile
         self.config.koji_config = conf.koji_config
-        self.owner = 'Matt Jia'
-        self.module = ModuleBuildMock(name='fool')
+        self.module = module_build_service.models.ModuleBuild.query.filter_by(id=1).one()
         self.tag_name = 'module-fool-1.2'
 
     @patch.object(koji.ClientSession, 'krb_login')
     def test_proxyuser(self, mocked_krb_login):
-        KojiModuleBuilder(owner=self.owner,
+        KojiModuleBuilder(owner=self.module.owner,
                           module=self.module,
                           config=self.config,
                           tag_name=self.tag_name,
                           components=[])
         args, kwargs = mocked_krb_login.call_args
-        self.assertTrue(set([('proxyuser', self.owner)]).issubset(set(kwargs.items())))
+        self.assertTrue(set([('proxyuser', self.module.owner)]).issubset(set(kwargs.items())))
 
