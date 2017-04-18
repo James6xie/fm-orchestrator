@@ -536,9 +536,9 @@ class TestViews(unittest.TestCase):
         # Test that RPMs are properly merged in case of included modules in mmd.
         xmd_rpms = {'ed': {'ref': '40bd001563'},
                     'perl-List-Compare': {'ref': '2ee8474e44'},
-                    'tangerine': {'ref': '2ee8474e44'},
+                    'tangerine': {'ref': 'd29d5c24b8'},
                     'file': {'ref': 'a2740663f8'},
-                    'perl-Tangerine': {'ref': '2ee8474e44'}}
+                    'perl-Tangerine': {'ref': '27785f9f05'}}
         self.assertEqual(mmd.xmd['mbs']['rpms'], xmd_rpms)
 
     @patch('module_build_service.auth.get_user', return_value=user)

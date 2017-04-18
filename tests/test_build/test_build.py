@@ -265,8 +265,8 @@ class TestBuild(unittest.TestCase):
 
         # Check that components are tagged after the batch is built.
         tag_groups = []
-        tag_groups.append(set([u'perl-Tangerine?#f25-1-1', u'perl-List-Compare?#f25-1-1']))
-        tag_groups.append(set([u'tangerine?#f25-1-1']))
+        tag_groups.append(set([u'perl-Tangerine?#f24-1-1', u'perl-List-Compare?#f25-1-1']))
+        tag_groups.append(set([u'tangerine?#f23-1-1']))
 
         def on_tag_artifacts_cb(cls, artifacts):
             self.assertEqual(tag_groups.pop(0), set(artifacts))
@@ -277,8 +277,8 @@ class TestBuild(unittest.TestCase):
         # is built.
         buildroot_groups = []
         buildroot_groups.append(set([u'module-build-macros-0.1-1.module_fc4ed5f7.src.rpm-1-1']))
-        buildroot_groups.append(set([u'perl-Tangerine?#f25-1-1', u'perl-List-Compare?#f25-1-1']))
-        buildroot_groups.append(set([u'tangerine?#f25-1-1']))
+        buildroot_groups.append(set([u'perl-Tangerine?#f24-1-1', u'perl-List-Compare?#f25-1-1']))
+        buildroot_groups.append(set([u'tangerine?#f23-1-1']))
 
         def on_buildroot_add_artifacts_cb(cls, artifacts, install):
             self.assertEqual(buildroot_groups.pop(0), set(artifacts))

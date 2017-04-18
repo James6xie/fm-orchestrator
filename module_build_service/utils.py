@@ -491,8 +491,16 @@ def _scm_get_latest(pkg):
         pkgref = module_build_service.scm.SCM(
             pkg.repository).get_latest(branch=pkg.ref)
     except Exception as e:
-        return True, "Failed to get the latest commit for %s#%s" % (pkg.repository, pkg.ref)
-    return False, (pkg.name, pkgref)
+        log.exception(e)
+        return {
+            'error': "Failed to get the latest commit for %s#%s" % (pkg.repository, pkg.ref)
+        }
+
+    return {
+        'pkg_name': pkg.name,
+        'pkg_ref': pkgref,
+        'error': None
+    }
 
 def format_mmd(mmd, scmurl):
     """
@@ -582,26 +590,28 @@ def format_mmd(mmd, scmurl):
         # pkg.ref by real SCM hash and store the result to our private xmd
         # place in modulemd.
         pool = ThreadPool(20)
-        pkgrefs = pool.map(_scm_get_latest, mmd.components.rpms.values())
+        pkg_dicts = pool.map(_scm_get_latest, mmd.components.rpms.values())
         err_msg = ""
-        for is_error, pkgref in pkgrefs:
-            if is_error:
-                err_msg += pkgref + "\n"
+        for pkg_dict in pkg_dicts:
+            if pkg_dict["error"]:
+                err_msg += pkg_dict["error"] + "\n"
             else:
-                mmd.xmd['mbs']['rpms'][pkgref[0]] = {'ref': pkgref[1]}
+                pkg_name = pkg_dict["pkg_name"]
+                pkg_ref = pkg_dict["pkg_ref"]
+                mmd.xmd['mbs']['rpms'][pkg_name] = {'ref': pkg_ref}
         if err_msg:
             raise UnprocessableEntity(err_msg)
 
-def merge_included_mmd(main_mmd, mmd):
+def merge_included_mmd(mmd, included_mmd):
     """
     Merges two modulemds. This merges only metadata which are needed in
-    the `main_mmd` when it includes another module defined by `mmd`
+    the `main` when it includes another module defined by `included_mmd`
     """
-    if 'rpms' in mmd.xmd['mbs']:
-        if 'rpms' not in main_mmd.xmd['mbs']:
-            main_mmd.xmd['mbs']['rpms'] = mmd.xmd['mbs']['rpms']
+    if 'rpms' in included_mmd.xmd['mbs']:
+        if 'rpms' not in mmd.xmd['mbs']:
+            mmd.xmd['mbs']['rpms'] = included_mmd.xmd['mbs']['rpms']
         else:
-            main_mmd.xmd['mbs']['rpms'].update(mmd.xmd['mbs']['rpms'])
+            mmd.xmd['mbs']['rpms'].update(included_mmd.xmd['mbs']['rpms'])
 
 def record_component_builds(mmd, module, initial_batch = 1,
                             previous_buildorder = None, main_mmd = None):
