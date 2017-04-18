@@ -661,8 +661,21 @@ def record_component_builds(mmd, module, initial_batch = 1,
         return batch
 
 
-def submit_module_build_from_yaml(username, yaml, optional_params=None):
+def submit_module_build_from_yaml(username, handle, optional_params=None):
+    yaml = handle.read()
     mmd = load_mmd(yaml)
+
+    # Mimic the way how default values are generated for modules that are stored in SCM
+    # We can take filename as the module name as opposed to repo name,
+    # and also we can take numeric representation of current datetime
+    # as opposed to datetime of the last commit
+    dt = datetime.utcfromtimestamp(int(time.time()))
+    def_name = str(handle.filename.split(".")[0])
+    def_version = int(dt.strftime("%Y%m%d%H%M%S"))
+
+    mmd.name = mmd.name or def_name
+    mmd.stream = mmd.stream or "master"
+    mmd.version = mmd.version or def_version
     return submit_module_build(username, None, mmd, None, yaml, optional_params)
 
 

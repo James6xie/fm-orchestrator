@@ -235,8 +235,8 @@ class YAMLFileHandler(BaseHandler):
         self.validate_optional_params()
 
     def post(self):
-        r = request.files["yaml"]
-        return submit_module_build_from_yaml(self.username, r.read(), optional_params=self.optional_params)
+        handle = request.files["yaml"]
+        return submit_module_build_from_yaml(self.username, handle, optional_params=self.optional_params)
 
 
 def register_api_v1():
