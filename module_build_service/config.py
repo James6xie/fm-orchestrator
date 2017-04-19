@@ -171,6 +171,10 @@ class Config(object):
             'type': list,
             'default': ['module'],
             'desc': 'List of allowed koji tag prefixes.'},
+        'allow_custom_urls': {
+            'type': bool,
+            'default': False,
+            'desc': 'Allow custom scmurls.'},
         'rpms_default_repository': {
             'type': str,
             'default': 'git://pkgs.fedoraproject.org/rpms/',

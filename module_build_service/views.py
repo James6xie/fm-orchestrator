@@ -195,7 +195,8 @@ class SCMHandler(BaseHandler):
             raise ValidationError('Missing scmurl')
 
         url = self.data["scmurl"]
-        if not any(url.startswith(prefix) for prefix in conf.scmurls):
+        allowed_prefix = any(url.startswith(prefix) for prefix in conf.scmurls)
+        if not conf.allow_custom_urls and not allowed_prefix:
             log.error("The submitted scmurl %r is not allowed" % url)
             raise Forbidden("The submitted scmurl %s is not allowed" % url)
 
