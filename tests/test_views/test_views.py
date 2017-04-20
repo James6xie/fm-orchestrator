@@ -32,6 +32,7 @@ from mock import patch, Mock, PropertyMock
 from shutil import copyfile
 from os import path, mkdir
 from os.path import dirname
+import hashlib
 
 from tests import app, init_data
 from module_build_service.errors import UnprocessableEntity
@@ -96,7 +97,7 @@ class MockedSCM(object):
         return scm_dir
 
     def get_latest(self, branch='master'):
-        return branch
+        return hashlib.sha1(branch).hexdigest()[:10]
 
 
 class TestViews(unittest.TestCase):
@@ -528,6 +529,17 @@ class TestViews(unittest.TestCase):
         self.assertEquals(batches['perl-Tangerine'], 2)
         self.assertEquals(batches['tangerine'], 3)
         self.assertEquals(batches["file"], 4)
+
+        build = ModuleBuild.query.filter(ModuleBuild.id == data['id']).one()
+        mmd = build.mmd()
+
+        # Test that RPMs are properly merged in case of included modules in mmd.
+        xmd_rpms = {'ed': {'ref': '40bd001563'},
+                    'perl-List-Compare': {'ref': '2ee8474e44'},
+                    'tangerine': {'ref': 'd29d5c24b8'},
+                    'file': {'ref': 'a2740663f8'},
+                    'perl-Tangerine': {'ref': '27785f9f05'}}
+        self.assertEqual(mmd.xmd['mbs']['rpms'], xmd_rpms)
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')

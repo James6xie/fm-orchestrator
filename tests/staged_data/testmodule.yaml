@@ -29,8 +29,8 @@ data:
                 ref: f25
             perl-Tangerine:
                 rationale: Provides API for this module and is a dependency of tangerine.
-                ref: f25
+                ref: f24
             tangerine:
                 rationale: Provides API for this module.
                 buildorder: 10
-                ref: f25
+                ref: f23

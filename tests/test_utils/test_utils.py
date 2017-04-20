@@ -81,11 +81,16 @@ class TestUtils(unittest.TestCase):
         mocked_scm.return_value.commit = \
             '620ec77321b2ea7b0d67d82992dda3e1d67055b4'
         # For all the RPMs in testmodule, get_latest is called
-        hashes_returned = [
-            '4ceea43add2366d8b8c5a622a2fb563b625b9abf',
-            'fbed359411a1baa08d4a88e0d12d426fbf8f602c',
-            '76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb']
-        mocked_scm.return_value.get_latest.side_effect = hashes_returned
+        hashes_returned = {
+            'f24': '4ceea43add2366d8b8c5a622a2fb563b625b9abf',
+            'f23': 'fbed359411a1baa08d4a88e0d12d426fbf8f602c',
+            'f25': '76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb'}
+        original_refs = ["f23", "f24", "f25"]
+
+        def mocked_get_latest(branch = "master"):
+            return hashes_returned[branch]
+
+        mocked_scm.return_value.get_latest = mocked_get_latest
         mmd = modulemd.ModuleMetadata()
         with open(path.join(BASE_DIR, '..', 'staged_data', 'testmodule.yaml')) \
                 as mmd_file:
@@ -95,9 +100,9 @@ class TestUtils(unittest.TestCase):
              '?#620ec77321b2ea7b0d67d82992dda3e1d67055b4')
         module_build_service.utils.format_mmd(mmd, scmurl)
 
-        # Make sure all the commit hashes were properly set on the RPMs
+        # Make sure that original refs are not changed.
         mmd_pkg_refs = [pkg.ref for pkg in mmd.components.rpms.values()]
-        self.assertEqual(set(mmd_pkg_refs), set(hashes_returned))
+        self.assertEqual(set(mmd_pkg_refs), set(original_refs))
 
         self.assertEqual(mmd.buildrequires, {'base-runtime': 'master'})
         xmd = {
@@ -108,10 +113,14 @@ class TestUtils(unittest.TestCase):
                         'ref': '464026abf9cbe10fac1d800972e3229ac4d01975',
                         'stream': 'master',
                         'version': '20170404161234'}},
+                'rpms': {'perl-List-Compare': {'ref': '76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb'},
+                        'perl-Tangerine': {'ref': '4ceea43add2366d8b8c5a622a2fb563b625b9abf'},
+                        'tangerine': {'ref': 'fbed359411a1baa08d4a88e0d12d426fbf8f602c'}},
                 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/testmodule'
                           '.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4',
             }
         }
+
         self.assertEqual(mmd.xmd, xmd)
 
     @vcr.use_cassette(
@@ -119,10 +128,13 @@ class TestUtils(unittest.TestCase):
     @patch('module_build_service.scm.SCM')
     def test_format_mmd_empty_scmurl(self, mocked_scm):
         # For all the RPMs in testmodule, get_latest is called
-        mocked_scm.return_value.get_latest.side_effect = [
-             '4ceea43add2366d8b8c5a622a2fb563b625b9abf',
-             'fbed359411a1baa08d4a88e0d12d426fbf8f602c',
-             '76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb']
+        hashes_returned = {
+            'f24': '4ceea43add2366d8b8c5a622a2fb563b625b9abf',
+            'f23': 'fbed359411a1baa08d4a88e0d12d426fbf8f602c',
+            'f25': '76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb'}
+        def mocked_get_latest(branch = "master"):
+            return hashes_returned[branch]
+        mocked_scm.return_value.get_latest = mocked_get_latest
 
         mmd = modulemd.ModuleMetadata()
         with open(path.join(BASE_DIR, '..', 'staged_data', 'testmodule.yaml')) \
@@ -138,6 +150,9 @@ class TestUtils(unittest.TestCase):
                         'ref': '464026abf9cbe10fac1d800972e3229ac4d01975',
                         'stream': 'master',
                         'version': '20170404161234'}},
+                'rpms': {'perl-List-Compare': {'ref': '76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb'},
+                        'perl-Tangerine': {'ref': '4ceea43add2366d8b8c5a622a2fb563b625b9abf'},
+                        'tangerine': {'ref': 'fbed359411a1baa08d4a88e0d12d426fbf8f602c'}},
                 'scmurl': None,
             }
         }
@@ -358,13 +373,15 @@ class TestUtils(unittest.TestCase):
 
         self.assertTrue(str(cm.exception).endswith(' No value provided.'))
 
+    @vcr.use_cassette(
+        path.join(CASSETTES_DIR, 'tests.test_utils.TestUtils.test_format_mmd'))
     @patch('module_build_service.scm.SCM')
     def test_resubmit(self, mocked_scm):
         """
         Tests that the module resubmit reintializes the module state and
         component states properly.
         """
-        MockedSCM(mocked_scm, 'testmodule', 'testmodule-bootstrap.yaml',
+        MockedSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
                         '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
         with app.app_context():
             test_reuse_component_init_data()

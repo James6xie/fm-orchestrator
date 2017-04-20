@@ -488,11 +488,19 @@ def _scm_get_latest(pkg):
         # we want to pull from, we need to resolve that f25 branch
         # to the specific commit available at the time of
         # submission (now).
-        pkg.ref = module_build_service.scm.SCM(
+        pkgref = module_build_service.scm.SCM(
             pkg.repository).get_latest(branch=pkg.ref)
     except Exception as e:
-        return "Failed to get the latest commit for %s#%s" % (pkg.repository, pkg.ref)
-    return None
+        log.exception(e)
+        return {
+            'error': "Failed to get the latest commit for %s#%s" % (pkg.repository, pkg.ref)
+        }
+
+    return {
+        'pkg_name': pkg.name,
+        'pkg_ref': pkgref,
+        'error': None
+    }
 
 def format_mmd(mmd, scmurl):
     """
@@ -552,6 +560,8 @@ def format_mmd(mmd, scmurl):
         mmd.xmd['mbs']['buildrequires'] = {}
 
     if mmd.components:
+        if 'rpms' not in mmd.xmd['mbs']:
+            mmd.xmd['mbs']['rpms'] = {}
         # Add missing data in RPM components
         for pkgname, pkg in mmd.components.rpms.items():
             if pkg.repository and not conf.rpms_allow_repository:
@@ -577,17 +587,34 @@ def format_mmd(mmd, scmurl):
                 mod.ref = 'master'
 
         # Check that SCM URL is valid and replace potential branches in
-        # pkg.ref by real SCM hash.
+        # pkg.ref by real SCM hash and store the result to our private xmd
+        # place in modulemd.
         pool = ThreadPool(20)
-        err_msgs = pool.map(_scm_get_latest, mmd.components.rpms.values())
-        # TODO: only the first error message is raised, perhaps concatenate
-        # the messages together?
-        for err_msg in err_msgs:
-            if err_msg:
-                raise UnprocessableEntity(err_msg)
+        pkg_dicts = pool.map(_scm_get_latest, mmd.components.rpms.values())
+        err_msg = ""
+        for pkg_dict in pkg_dicts:
+            if pkg_dict["error"]:
+                err_msg += pkg_dict["error"] + "\n"
+            else:
+                pkg_name = pkg_dict["pkg_name"]
+                pkg_ref = pkg_dict["pkg_ref"]
+                mmd.xmd['mbs']['rpms'][pkg_name] = {'ref': pkg_ref}
+        if err_msg:
+            raise UnprocessableEntity(err_msg)
+
+def merge_included_mmd(mmd, included_mmd):
+    """
+    Merges two modulemds. This merges only metadata which are needed in
+    the `main` when it includes another module defined by `included_mmd`
+    """
+    if 'rpms' in included_mmd.xmd['mbs']:
+        if 'rpms' not in mmd.xmd['mbs']:
+            mmd.xmd['mbs']['rpms'] = included_mmd.xmd['mbs']['rpms']
+        else:
+            mmd.xmd['mbs']['rpms'].update(included_mmd.xmd['mbs']['rpms'])
 
 def record_component_builds(mmd, module, initial_batch = 1,
-                            previous_buildorder = None):
+                            previous_buildorder = None, main_mmd = None):
     import koji  # Placed here to avoid py2/py3 conflicts...
 
     # Format the modulemd by putting in defaults and replacing streams that
@@ -600,16 +627,15 @@ def record_component_builds(mmd, module, initial_batch = 1,
         db.session.commit()
         raise
 
-    # List of (pkg_name, git_url) tuples to be used to check
-    # the availability of git URLs in parallel later.
-    full_urls = []
+    # When main_mmd is set, merge the metadata from this mmd to main_mmd,
+    # otherwise our current mmd is main_mmd.
+    if main_mmd:
+        merge_included_mmd(main_mmd, mmd)
+    else:
+        main_mmd = mmd
 
     # If the modulemd yaml specifies components, then submit them for build
     if mmd.components:
-        for pkgname, pkg in mmd.components.rpms.items():
-            full_url = "%s?#%s" % (pkg.repository, pkg.ref)
-            full_urls.append((pkgname, full_url))
-
         components = mmd.components.all
         components.sort(key=lambda x: x.buildorder)
 
@@ -632,12 +658,13 @@ def record_component_builds(mmd, module, initial_batch = 1,
                 full_url = pkg.repository + "?#" + pkg.ref
                 # It is OK to whitelist all URLs here, because the validity
                 # of every URL have been already checked in format_mmd(...).
-                mmd = _fetch_mmd(full_url, whitelist_url=True)[0]
-                batch = record_component_builds(mmd, module, batch,
-                                                previous_buildorder)
+                included_mmd = _fetch_mmd(full_url, whitelist_url=True)[0]
+                batch = record_component_builds(included_mmd, module, batch,
+                                                previous_buildorder, main_mmd)
                 continue
 
-            full_url = pkg.repository + "?#" + pkg.ref
+            pkgref = mmd.xmd['mbs']['rpms'][pkg.name]['ref']
+            full_url = pkg.repository + "?#" + pkgref
 
             existing_build = models.ComponentBuild.query.filter_by(
                 module_id=module.id, package=pkg.name).first()
@@ -654,7 +681,7 @@ def record_component_builds(mmd, module, initial_batch = 1,
                     format="rpms",
                     scmurl=full_url,
                     batch=batch,
-                    ref=pkg.ref
+                    ref=pkgref
                 )
                 db.session.add(build)
 
