@@ -95,14 +95,14 @@ class TestFedmsgMessaging(unittest.TestCase):
         # https://fedora-fedmsg.readthedocs.io/en/latest/topics.html#id134
         buildsys_tag_msg = {
             "msg": {
-                "build_id": 875961, 
-                "name": "module-build-macros", 
-                "tag_id": 619, 
-                "instance": "primary", 
-                "tag": "module-debugging-tools-master-20170405115403-build", 
-                "user": "mbs/mbs.fedoraproject.org", 
-                "version": "0.1", 
-                "owner": "mbs/mbs.fedoraproject.org", 
+                "build_id": 875961,
+                "name": "module-build-macros",
+                "tag_id": 619,
+                "instance": "primary",
+                "tag": "module-debugging-tools-master-20170405115403-build",
+                "user": "mbs/mbs.fedoraproject.org",
+                "version": "0.1",
+                "owner": "mbs/mbs.fedoraproject.org",
                 "release": "1.module_0c3d13fd"
             },
             'msg_id': '2015-51be4c8e-8ab6-4dcb-ac0d-37b257765c71',

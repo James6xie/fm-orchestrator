@@ -494,7 +494,7 @@ class TestViews(unittest.TestCase):
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    @patch("module_build_service.config.Config.modules_allow_repository", 
+    @patch("module_build_service.config.Config.modules_allow_repository",
            new_callable=PropertyMock, return_value=True)
     def test_submit_build_includedmodule(self, conf, mocked_scm, mocked_get_user):
         mocked_scm_obj = MockedSCM(mocked_scm, "includedmodules",

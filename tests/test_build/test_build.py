@@ -204,7 +204,7 @@ class TestModuleBuilder(GenericBuilder):
         pass
 
 
-@patch("module_build_service.config.Config.system", 
+@patch("module_build_service.config.Config.system",
         new_callable=PropertyMock, return_value="test")
 @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
        return_value={
@@ -431,7 +431,7 @@ class TestBuild(unittest.TestCase):
     @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    @patch("module_build_service.config.Config.num_consecutive_builds", 
+    @patch("module_build_service.config.Config.num_consecutive_builds",
            new_callable=PropertyMock, return_value=1)
     def test_submit_build_concurrent_threshold(self, conf_num_consecutive_builds,
                                                mocked_scm, mocked_get_user,
@@ -482,7 +482,7 @@ class TestBuild(unittest.TestCase):
                                                conf_system, dbg):
         """
         Tests that we try to submit new component build right after
-        the previous one finished without waiting for all 
+        the previous one finished without waiting for all
         the num_consecutive_builds to finish.
         """
         MockedSCM(mocked_scm, 'testmodule-more-components', 'testmodule-more-components.yaml',

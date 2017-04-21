@@ -227,7 +227,7 @@ def continue_batch_build(config, module, session, builder, components=None):
 def start_next_batch_build(config, module, session, builder, components=None):
     """
     Tries to start the build of next batch. In case there are still unbuilt
-    components in a batch, tries to submit more components until it hits 
+    components in a batch, tries to submit more components until it hits
     concurrent builds limit. Otherwise Increments module.batch and submits component
     builds from the next batch.
 
