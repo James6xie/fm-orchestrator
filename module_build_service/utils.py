@@ -630,6 +630,20 @@ def record_component_builds(mmd, module, initial_batch=1,
     # When main_mmd is set, merge the metadata from this mmd to main_mmd,
     # otherwise our current mmd is main_mmd.
     if main_mmd:
+        # Check for components that are in both MMDs before merging since MBS
+        # currently can't handle that situation.
+        duplicate_components = [rpm for rpm in main_mmd.components.rpms.keys()
+                                if rpm in mmd.components.rpms.keys()]
+        if duplicate_components:
+            error_msg = (
+                'The included module "{0}" in "{1}" have the following '
+                'conflicting components: {2}'
+                .format(mmd.name, main_mmd.name,
+                        ', '.join(duplicate_components)))
+            module.transition(conf, models.BUILD_STATES["failed"], error_msg)
+            db.session.add(module)
+            db.session.commit()
+            raise RuntimeError(error_msg)
         merge_included_mmd(main_mmd, mmd)
     else:
         main_mmd = mmd

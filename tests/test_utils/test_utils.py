@@ -413,6 +413,48 @@ class TestUtils(unittest.TestCase):
             self.assertEqual(failed_component.state, None)
             self.assertEqual(canceled_component.state, None)
 
+    @vcr.use_cassette(
+        path.join(CASSETTES_DIR, 'tests.test_utils.TestUtils.test_format_mmd'))
+    @patch('module_build_service.scm.SCM')
+    def test_record_component_builds_duplicate_components(self, mocked_scm):
+        with app.app_context():
+            test_reuse_component_init_data()
+            mocked_scm.return_value.commit = \
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4'
+            # For all the RPMs in testmodule, get_latest is called
+            hashes_returned = {
+                'f25': '4ceea43add2366d8b8c5a622a2fb563b625b9abf',
+                'f24': 'fbed359411a1baa08d4a88e0d12d426fbf8f602c'}
+
+            def mocked_get_latest(branch="master"):
+                return hashes_returned[branch]
+
+            mocked_scm.return_value.get_latest = mocked_get_latest
+
+            testmodule_variant_mmd_path = path.join(
+                BASE_DIR, '..', 'staged_data', 'testmodule-variant.yaml')
+            testmodule_variant_mmd = modulemd.ModuleMetadata()
+            with open(testmodule_variant_mmd_path) as mmd_file:
+                testmodule_variant_mmd.loads(mmd_file)
+
+            module_build = \
+                db.session.query(models.ModuleBuild).filter_by(id=1).one()
+            mmd = module_build.mmd()
+
+            error_msg = (
+                'The included module "testmodule-variant" in "testmodule" have '
+                'the following conflicting components: perl-List-Compare')
+            try:
+                module_build_service.utils.record_component_builds(
+                    testmodule_variant_mmd, module_build, main_mmd=mmd)
+                assert False, 'A RuntimeError was expected but was not raised'
+            except RuntimeError as e:
+                self.assertEqual(e.message, error_msg)
+
+            self.assertEqual(module_build.state, models.BUILD_STATES['failed'])
+            self.assertEqual(module_build.state_reason, error_msg)
+
+
 class DummyModuleBuilder(GenericBuilder):
     """
     Dummy module builder
