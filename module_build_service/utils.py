@@ -706,8 +706,16 @@ def submit_module_build_from_yaml(username, handle, optional_params=None):
     return submit_module_build(username, None, mmd, None, yaml, optional_params)
 
 
+_url_check_re = re.compile(r"^[^:/]+:.*$")
+
 def submit_module_build_from_scm(username, url, branch, allow_local_url=False,
                                  optional_params=None):
+    # Translate local paths into file:// URL
+    if allow_local_url and not _url_check_re.match(url):
+        log.info(
+            "'{}' is not a valid URL, assuming local path".format(url))
+        url = os.path.abspath(url)
+        url = "file://" + url
     mmd, scm, yaml = _fetch_mmd(url, branch, allow_local_url)
     return submit_module_build(username, url, mmd, scm, yaml, optional_params)
 
