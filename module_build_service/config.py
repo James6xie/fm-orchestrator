@@ -127,6 +127,10 @@ class Config(object):
             'type': int,
             'default': 0,
             'desc': 'Polling interval, in seconds.'},
+        'cache_dir': {
+            'type': str,
+            'default': '/var/cache/module-build-service',
+            'desc': 'Cache directory'},
         'pdc_url': {
             'type': str,
             'default': '',
