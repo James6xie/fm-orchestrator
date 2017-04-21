@@ -171,7 +171,7 @@ mdpolicy=group:primary
         execute_cmd(['/usr/bin/createrepo_c', path])
         execute_cmd(['/usr/bin/modifyrepo_c', '--mdtype=modules', mmd_path, repodata_path])
 
-    def _add_repo(self, name, baseurl, extra = ""):
+    def _add_repo(self, name, baseurl, extra=""):
         """
         Adds repository to Mock config file. Call _write_mock_config() to
         actually write the config file to filesystem.

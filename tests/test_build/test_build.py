@@ -72,7 +72,7 @@ class MockedSCM(object):
 
         return scm_dir
 
-    def get_latest(self, branch = 'master'):
+    def get_latest(self, branch='master'):
         return branch
 
 class TestModuleBuilder(GenericBuilder):
@@ -205,7 +205,7 @@ class TestModuleBuilder(GenericBuilder):
 
 
 @patch("module_build_service.config.Config.system", 
-        new_callable=PropertyMock, return_value = "test")
+        new_callable=PropertyMock, return_value="test")
 @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
        return_value={
             'srpm-build':
@@ -316,13 +316,13 @@ class TestBuild(unittest.TestCase):
             return json.loads(rv.data)
 
         with patch("module_build_service.config.Config.yaml_submit_allowed",
-                new_callable=PropertyMock, return_value = True):
+                new_callable=PropertyMock, return_value=True):
             conf.set_item("yaml_submit_allowed", True)
             data = submit()
             self.assertEqual(data['id'], 1)
 
         with patch("module_build_service.config.Config.yaml_submit_allowed",
-                new_callable=PropertyMock, return_value = False):
+                new_callable=PropertyMock, return_value=False):
             data = submit()
             self.assertEqual(data['status'], 403)
             self.assertEqual(data['message'], 'YAML submission is not enabled')
@@ -432,7 +432,7 @@ class TestBuild(unittest.TestCase):
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     @patch("module_build_service.config.Config.num_consecutive_builds", 
-           new_callable=PropertyMock, return_value = 1)
+           new_callable=PropertyMock, return_value=1)
     def test_submit_build_concurrent_threshold(self, conf_num_consecutive_builds,
                                                mocked_scm, mocked_get_user,
                                                conf_system, dbg):
@@ -476,7 +476,7 @@ class TestBuild(unittest.TestCase):
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     @patch("module_build_service.config.Config.num_consecutive_builds",
-           new_callable=PropertyMock, return_value = 2)
+           new_callable=PropertyMock, return_value=2)
     def test_try_to_reach_concurrent_threshold(self, conf_num_consecutive_builds,
                                                mocked_scm, mocked_get_user,
                                                conf_system, dbg):
@@ -531,7 +531,7 @@ class TestBuild(unittest.TestCase):
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     @patch("module_build_service.config.Config.num_consecutive_builds",
-           new_callable=PropertyMock, return_value = 1)
+           new_callable=PropertyMock, return_value=1)
     def test_build_in_batch_fails(self, conf_num_consecutive_builds, mocked_scm,
                                   mocked_get_user, conf_system, dbg):
         """
@@ -585,7 +585,7 @@ class TestBuild(unittest.TestCase):
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     @patch("module_build_service.config.Config.num_consecutive_builds",
-           new_callable=PropertyMock, return_value = 1)
+           new_callable=PropertyMock, return_value=1)
     def test_all_builds_in_batch_fail(self, conf_num_consecutive_builds, mocked_scm,
                                   mocked_get_user, conf_system, dbg):
         """

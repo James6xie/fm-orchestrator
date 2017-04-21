@@ -13,7 +13,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 
 def build_from_scm(artifact_name, source, config, build_srpm,
-                   data = None, stdout=None, stderr=None):
+                   data=None, stdout=None, stderr=None):
     """
     Builds the artifact from the SCM based source.
 
@@ -65,7 +65,7 @@ def build_from_scm(artifact_name, source, config, build_srpm,
     return ret
 
 
-def execute_cmd(args, stdout = None, stderr = None, cwd = None):
+def execute_cmd(args, stdout=None, stderr=None, cwd=None):
     """
     Executes command defined by `args`. If `stdout` or `stderr` is set to
     Python file object, the stderr/stdout output is redirecter to that file.

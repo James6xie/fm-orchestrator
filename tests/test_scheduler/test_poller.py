@@ -41,7 +41,7 @@ CASSETTES_DIR = path.join(
     path.abspath(path.dirname(__file__)), '..', 'vcr-request-data')
 
 @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
-       return_value = {'build': [], 'srpm-build': []})
+       return_value={'build': [], 'srpm-build': []})
 @patch("module_build_service.scheduler.consumer.get_global_consumer")
 @patch("module_build_service.builder.KojiModuleBuilder.get_session")
 @patch("module_build_service.builder.GenericBuilder.create_from_module")

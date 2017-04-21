@@ -613,8 +613,8 @@ def merge_included_mmd(mmd, included_mmd):
         else:
             mmd.xmd['mbs']['rpms'].update(included_mmd.xmd['mbs']['rpms'])
 
-def record_component_builds(mmd, module, initial_batch = 1,
-                            previous_buildorder = None, main_mmd = None):
+def record_component_builds(mmd, module, initial_batch=1,
+                            previous_buildorder=None, main_mmd=None):
     import koji  # Placed here to avoid py2/py3 conflicts...
 
     # Format the modulemd by putting in defaults and replacing streams that

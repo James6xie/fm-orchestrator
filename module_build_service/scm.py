@@ -47,7 +47,7 @@ class SCM(object):
     # Assuming git for HTTP schemas
     types = module_build_service.utils.scm_url_schemes()
 
-    def __init__(self, url, branch = None, allowed_scm=None, allow_local = False):
+    def __init__(self, url, branch=None, allowed_scm=None, allow_local=False):
         """Initialize the SCM object using the specified scmurl.
 
         If url is not in the list of allowed_scm, an error will be raised.
@@ -124,7 +124,7 @@ class SCM(object):
 
     @staticmethod
     @module_build_service.utils.retry(wait_on=RuntimeError)
-    def _run(cmd, chdir=None, log_stdout = False):
+    def _run(cmd, chdir=None, log_stdout=False):
         proc = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE, cwd=chdir)
         stdout, stderr = proc.communicate()
         if log_stdout and stdout:

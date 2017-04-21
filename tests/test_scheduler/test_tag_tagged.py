@@ -65,7 +65,7 @@ class TestTagTagged(unittest.TestCase):
 
 
     @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
-        return_value = {'build': [], 'srpm-build': []})
+        return_value={'build': [], 'srpm-build': []})
     @patch("module_build_service.builder.KojiModuleBuilder.get_session")
     @patch("module_build_service.builder.GenericBuilder.create_from_module")
     def test_newrepo(self, create_builder, koji_get_session, dbg):
@@ -118,7 +118,7 @@ class TestTagTagged(unittest.TestCase):
 
 
     @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
-        return_value = {'build': [], 'srpm-build': []})
+        return_value={'build': [], 'srpm-build': []})
     @patch("module_build_service.builder.KojiModuleBuilder.get_session")
     @patch("module_build_service.builder.GenericBuilder.create_from_module")
     def test_newrepo_still_building_components(self, create_builder, koji_get_session, dbg):
@@ -154,7 +154,7 @@ class TestTagTagged(unittest.TestCase):
         self.assertTrue(not koji_session.newRepo.called)
 
     @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
-        return_value = {'build': [], 'srpm-build': []})
+        return_value={'build': [], 'srpm-build': []})
     @patch("module_build_service.builder.KojiModuleBuilder.get_session")
     @patch("module_build_service.builder.GenericBuilder.create_from_module")
     def test_newrepo_failed_components(self, create_builder, koji_get_session, dbg):

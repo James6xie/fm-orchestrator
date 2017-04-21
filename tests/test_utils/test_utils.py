@@ -63,7 +63,7 @@ class MockedSCM(object):
 
         return scm_dir
 
-    def get_latest(self, branch = 'master'):
+    def get_latest(self, branch='master'):
         return self.commit if self.commit else branch
 
 class TestUtils(unittest.TestCase):
@@ -87,7 +87,7 @@ class TestUtils(unittest.TestCase):
             'f25': '76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb'}
         original_refs = ["f23", "f24", "f25"]
 
-        def mocked_get_latest(branch = "master"):
+        def mocked_get_latest(branch="master"):
             return hashes_returned[branch]
 
         mocked_scm.return_value.get_latest = mocked_get_latest
@@ -132,7 +132,7 @@ class TestUtils(unittest.TestCase):
             'f24': '4ceea43add2366d8b8c5a622a2fb563b625b9abf',
             'f23': 'fbed359411a1baa08d4a88e0d12d426fbf8f602c',
             'f25': '76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb'}
-        def mocked_get_latest(branch = "master"):
+        def mocked_get_latest(branch="master"):
             return hashes_returned[branch]
         mocked_scm.return_value.get_latest = mocked_get_latest
 
@@ -475,7 +475,7 @@ class DummyModuleBuilder(GenericBuilder):
     def list_tasks_for_components(self, component_builds=None, state='active'):
         pass
 
-@patch("module_build_service.builder.GenericBuilder.default_buildroot_groups", return_value = {'build': [], 'srpm-build': []})
+@patch("module_build_service.builder.GenericBuilder.default_buildroot_groups", return_value={'build': [], 'srpm-build': []})
 class TestBatches(unittest.TestCase):
 
     def setUp(self):

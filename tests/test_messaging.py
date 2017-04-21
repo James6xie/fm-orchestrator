@@ -55,7 +55,7 @@ class TestFedmsgMessaging(unittest.TestCase):
         self.assertEqual(msg.build_new_state, 1)
 
     @patch("module_build_service.config.Config.system",
-            new_callable=PropertyMock, return_value = "copr")
+            new_callable=PropertyMock, return_value="copr")
     def test_copr_build_end(self, conf_system):
         # http://fedora-fedmsg.readthedocs.io/en/latest/topics.html#copr-build-end
         copr_build_end_msg = {

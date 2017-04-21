@@ -440,7 +440,7 @@ class TestViews(unittest.TestCase):
     @patch('module_build_service.scm.SCM')
     def test_submit_build_scm_parallalization(self, mocked_scm,
                                               mocked_get_user):
-        def mocked_scm_get_latest(branch = "master"):
+        def mocked_scm_get_latest(branch="master"):
             time.sleep(1)
             return branch
 
@@ -495,7 +495,7 @@ class TestViews(unittest.TestCase):
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     @patch("module_build_service.config.Config.modules_allow_repository", 
-           new_callable=PropertyMock, return_value = True)
+           new_callable=PropertyMock, return_value=True)
     def test_submit_build_includedmodule(self, conf, mocked_scm, mocked_get_user):
         mocked_scm_obj = MockedSCM(mocked_scm, "includedmodules",
                                 ["includedmodules.yaml", "testmodule.yaml"])
@@ -586,7 +586,7 @@ class TestViews(unittest.TestCase):
            return_value=('sammy', set(["packager", "mbs-admin"])))
     def test_cancel_build_admin(self, mocked_get_user):
         with patch("module_build_service.config.Config.admin_groups",
-                new_callable=PropertyMock, return_value = set(["mbs-admin"])):
+                new_callable=PropertyMock, return_value=set(["mbs-admin"])):
             rv = self.client.patch('/module-build-service/1/module-builds/30',
                                 data=json.dumps({'state': 'failed'}))
             data = json.loads(rv.data)
@@ -598,7 +598,7 @@ class TestViews(unittest.TestCase):
            return_value=('sammy', set(["packager"])))
     def test_cancel_build_no_admin(self, mocked_get_user):
         with patch("module_build_service.config.Config.admin_groups",
-                new_callable=PropertyMock, return_value = set(["mbs-admin"])):
+                new_callable=PropertyMock, return_value=set(["mbs-admin"])):
             rv = self.client.patch('/module-build-service/1/module-builds/30',
                                 data=json.dumps({'state': 'failed'}))
             data = json.loads(rv.data)
