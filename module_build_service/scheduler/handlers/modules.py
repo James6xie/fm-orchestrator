@@ -28,6 +28,8 @@ import module_build_service.builder
 import module_build_service.pdc
 import module_build_service.utils
 import module_build_service.messaging
+from module_build_service.utils import (
+    start_next_batch_build, attempt_to_reuse_all_components)
 
 from requests.exceptions import ConnectionError
 
@@ -234,32 +236,42 @@ def wait(config, session, msg):
     log.debug("Adding dependencies %s into buildroot for module %s" % (dependencies, module_info))
     builder.buildroot_add_repos(dependencies)
 
-    # inject dist-tag into buildroot
-    srpm = builder.get_disttag_srpm(
-        disttag=".%s" % get_rpm_release_from_mmd(build.mmd()),
-        module_build=build)
+    # If all components in module build will be reused, we don't have to build
+    # module-build-macros, because there won't be any build done.
+    if attempt_to_reuse_all_components(builder, session, build):
+        log.info("All components have ben reused for module %r, "
+                 "skipping build" % build)
+        session.commit()
+        return []
+    else:
+        # Build the module-build-macros
+        # inject dist-tag into buildroot
+        srpm = builder.get_disttag_srpm(
+            disttag=".%s" % get_rpm_release_from_mmd(build.mmd()),
+            module_build=build)
 
-    log.debug("Starting build batch 1")
-    build.batch = 1
+        log.debug("Starting build batch 1")
+        build.batch = 1
+        session.commit()
 
-    artifact_name = "module-build-macros"
-    task_id, state, reason, nvr = builder.build(artifact_name=artifact_name, source=srpm)
+        artifact_name = "module-build-macros"
+        task_id, state, reason, nvr = builder.build(artifact_name=artifact_name, source=srpm)
 
-    component_build = models.ComponentBuild(
-        module_id=build.id,
-        package=artifact_name,
-        format="rpms",
-        scmurl=srpm,
-        task_id=task_id,
-        state=state,
-        state_reason=reason,
-        nvr=nvr,
-        batch=1,
-    )
-    session.add(component_build)
-    build.transition(config, state="build")
-    session.add(build)
-    session.commit()
+        component_build = models.ComponentBuild(
+            module_id=build.id,
+            package=artifact_name,
+            format="rpms",
+            scmurl=srpm,
+            task_id=task_id,
+            state=state,
+            state_reason=reason,
+            nvr=nvr,
+            batch=1,
+        )
+        session.add(component_build)
+        build.transition(config, state="build")
+        session.add(build)
+        session.commit()
 
     # If this build already exists and is done, then fake the repo change event
     # back to the scheduler

@@ -72,10 +72,10 @@ def tagged(config, session, msg):
                  "building components in a batch", tag)
         return []
 
-    # Get the list of untagged components in current batch which
+    # Get the list of untagged components in current/previous batches which
     # have been built successfully.
     untagged_components = [
-        c for c in module_build.current_batch()
+        c for c in module_build.up_to_current_batch()
         if not c.tagged and c.state == koji.BUILD_STATES['COMPLETE']
     ]
 

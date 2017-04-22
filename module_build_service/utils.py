@@ -152,12 +152,10 @@ def continue_batch_build(config, module, session, builder, components=None):
     further_work = []
     components_to_build = []
     for c in unbuilt_components:
-        previous_component_build = None
         # Check to see if we can reuse a previous component build
-        # instead of rebuilding it if the builder is Koji
-        if conf.system == 'koji':
-            previous_component_build = get_reusable_component(
-                session, module, c.package)
+        # instead of rebuilding it
+        previous_component_build = get_reusable_component(
+            session, module, c.package)
         # If a component build can't be reused, we need to check
         # the concurrent threshold.
         if (not previous_component_build
@@ -166,37 +164,7 @@ def continue_batch_build(config, module, session, builder, components=None):
             break
 
         if previous_component_build:
-            log.info(
-                'Reusing component "{0}" from a previous module '
-                'build with the nvr "{1}"'.format(
-                    c.package, previous_component_build.nvr))
-            c.reused_component_id = previous_component_build.id
-            c.task_id = previous_component_build.task_id
-            # Use BUILDING state here, because we want the state to change to
-            # COMPLETE by the fake KojiBuildChange message we are generating
-            # few lines below. If we would set it to the right state right
-            # here, we would miss the code path handling the KojiBuildChange
-            # which works only when switching from BUILDING to COMPLETE.
-            c.state = koji.BUILD_STATES['BUILDING']
-            c.state_reason = \
-                'Reused component from previous module build'
-            c.nvr = previous_component_build.nvr
-            nvr_dict = kobo.rpmlib.parse_nvr(c.nvr)
-            # Add this message to further_work so that the reused
-            # component will be tagged properly
-            further_work.append(
-                module_build_service.messaging.KojiBuildChange(
-                    msg_id='start_build_batch: fake msg',
-                    build_id=None,
-                    task_id=c.task_id,
-                    build_new_state=previous_component_build.state,
-                    build_name=c.package,
-                    build_version=nvr_dict['version'],
-                    build_release=nvr_dict['release'],
-                    module_build_id=c.module_id,
-                    state_reason=c.state_reason
-                )
-            )
+            further_work += reuse_component(c, previous_component_build)
             continue
 
         # We set state to BUILDING here, because we are going to build the
@@ -806,6 +774,96 @@ def module_build_state_from_msg(msg):
         % (state, type(state), list(models.BUILD_STATES.values())))
     return state
 
+def reuse_component(component, previous_component_build,
+                    change_state_now=False):
+    """
+    Reuses component build `previous_component_build` instead of building
+    component `component`
+
+    Returns the list of BaseMessage instances to be handled later by the
+    scheduler.
+    """
+
+    import koji
+
+    log.info(
+        'Reusing component "{0}" from a previous module '
+        'build with the nvr "{1}"'.format(
+            component.package, previous_component_build.nvr))
+    component.reused_component_id = previous_component_build.id
+    component.task_id = previous_component_build.task_id
+    if change_state_now:
+        component.state = previous_component_build.state
+    else:
+        # Use BUILDING state here, because we want the state to change to
+        # COMPLETE by the fake KojiBuildChange message we are generating
+        # few lines below. If we would set it to the right state right
+        # here, we would miss the code path handling the KojiBuildChange
+        # which works only when switching from BUILDING to COMPLETE.
+        component.state = koji.BUILD_STATES['BUILDING']
+    component.state_reason = \
+        'Reused component from previous module build'
+    component.nvr = previous_component_build.nvr
+    nvr_dict = kobo.rpmlib.parse_nvr(component.nvr)
+    # Add this message to further_work so that the reused
+    # component will be tagged properly
+    return [
+        module_build_service.messaging.KojiBuildChange(
+            msg_id='reuse_component: fake msg',
+            build_id=None,
+            task_id=component.task_id,
+            build_new_state=previous_component_build.state,
+            build_name=component.package,
+            build_version=nvr_dict['version'],
+            build_release=nvr_dict['release'],
+            module_build_id=component.module_id,
+            state_reason=component.state_reason
+        )
+    ]
+
+def attempt_to_reuse_all_components(builder, session, module):
+    """
+    Tries to reuse all the components in a build. The components are also
+    tagged to the tags using the `builder`.
+
+    Returns True if all components could be reused, otherwise False. When
+    False is returned, no component has been reused.
+    """
+
+    # [(component, component_to_reuse), ...]
+    component_pairs = []
+
+    # Find out if we can reuse all components and cache component and
+    # component to reuse pairs.
+    for c in module.component_builds:
+        if c.package == "module-build-macros":
+            continue
+        component_to_reuse = get_reusable_component(
+            session, module, c.package)
+        if not component_to_reuse:
+            return False
+
+        component_pairs.append((c, component_to_reuse))
+
+    # Stores components we will tag to buildroot and final tag.
+    components_to_tag = []
+
+    # Reuse all components.
+    for c, component_to_reuse in component_pairs:
+        # Set the module.batch to the last batch we have.
+        if c.batch > module.batch:
+            module.batch = c.batch
+
+        # Reuse the component
+        reuse_component(c, component_to_reuse, True)
+        components_to_tag.append(c.nvr)
+
+    # Tag them
+    builder.buildroot_add_artifacts(components_to_tag, install=False)
+    builder.tag_artifacts(components_to_tag)
+
+    return True
+
 def get_reusable_component(session, module, component_name):
     """
     Returns the component (RPM) build of a module that can be reused
@@ -818,6 +876,11 @@ def get_reusable_component(session, module, component_name):
     :return: the component (RPM) build SQLAlchemy object, if one is not found,
     None is returned
     """
+
+    # We support components reusing only for koji and test backend.
+    if conf.system not in ['koji', 'test']:
+        return None
+
     mmd = module.mmd()
     # Find the latest module that is in the done or ready state
     previous_module_build = session.query(models.ModuleBuild)\
