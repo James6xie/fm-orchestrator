@@ -6,6 +6,8 @@ import subprocess
 import munch
 import errno
 import logging
+import urlgrabber.grabber as grabber
+import urlgrabber.progress as progress
 import module_build_service
 import module_build_service.scheduler
 from module_build_service import log, scm, messaging
@@ -112,8 +114,6 @@ def create_local_repo_from_koji_tag(config, tag, repo_dir, archs=None):
 
     # Placed here to avoid py2/py3 conflicts...
     import koji
-    import urlgrabber.grabber as grabber
-    import urlgrabber.progress as progress
 
     if not archs:
         archs = ["x86_64", "noarch"]
