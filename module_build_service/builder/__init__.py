@@ -9,9 +9,8 @@ __all__ = [
 
 GenericBuilder.register_backend_class(KojiModuleBuilder)
 
-if conf.system == "mock":
-    from MockModuleBuilder import MockModuleBuilder
-    GenericBuilder.register_backend_class(MockModuleBuilder)
+from MockModuleBuilder import MockModuleBuilder
+GenericBuilder.register_backend_class(MockModuleBuilder)
 
 if conf.system == "copr":
     from CoprModuleBuilder import CoprModuleBuilder

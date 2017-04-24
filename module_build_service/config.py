@@ -103,6 +103,12 @@ def init_config(app):
     app.config.from_object(config_section_obj)
     return conf
 
+class Path:
+    """
+    Config type for paths. Expands the users home directory.
+    """
+    pass
+
 
 class Config(object):
     """Class representing the orchestrator configuration."""
@@ -127,6 +133,10 @@ class Config(object):
             'type': int,
             'default': 0,
             'desc': 'Polling interval, in seconds.'},
+        'cache_dir': {
+            'type': Path,
+            'default': '~/modulebuild/cache',
+            'desc': 'Cache directory'},
         'pdc_url': {
             'type': str,
             'default': '',
@@ -276,8 +286,8 @@ class Config(object):
             'default': 'fedpkg --release f26 srpm',
             'desc': ''},
         'mock_resultsdir': {
-            'type': str,
-            'default': '/tmp',
+            'type': Path,
+            'default': '~/modulebuild/builds',
             'desc': 'Directory for Mock build results.'},
         'scmurls': {
             'type': list,
@@ -317,7 +327,7 @@ class Config(object):
 
         # set defaults
         for name, values in self._defaults.items():
-            self.set_item(name, values['default'])
+            self.set_item(name, values['default'], values['type'])
 
         # override defaults
         for key in dir(conf_section_obj):
@@ -327,7 +337,7 @@ class Config(object):
             # set item (lower key)
             self.set_item(key.lower(), getattr(conf_section_obj, key))
 
-    def set_item(self, key, value):
+    def set_item(self, key, value, value_type=None):
         """
         Set value for configuration item. Creates the self._key = value
         attribute and self.key property to set/get/del the attribute.
@@ -343,6 +353,10 @@ class Config(object):
         setifok_func = '_setifok_{}'.format(key)
         if hasattr(self, setifok_func):
             setx = lambda self, val: getattr(self, setifok_func)(val)
+        elif value_type == Path:
+            # For paths, expanduser.
+            setx = lambda self, val: setattr(
+                self, "_" + key, os.path.expanduser(val))
         else:
             setx = lambda self, val: setattr(self, "_" + key, val)
         getx = lambda self: getattr(self, "_" + key)
@@ -360,8 +374,8 @@ class Config(object):
                         value = convert(value)
                 except:
                     raise TypeError("Configuration value conversion failed for name: %s" % key)
-            # unknown type/unsupported conversion
-            elif convert is not None:
+            # unknown type/unsupported conversion, or conversion not needed
+            elif convert is not None and convert not in [Path]:
                 raise TypeError("Unsupported type %s for configuration item name: %s" % (convert, key))
 
         # Set the attribute to the correct value
