@@ -232,7 +232,7 @@ class CoprModuleBuilder(GenericBuilder):
         # remove _build_lock locking.
         with CoprModuleBuilder._build_lock:
             # Git sources are treated specially.
-            if source.startswith("git://"):
+            if source.startswith(("git://", "http://", "https://")):
                 return build_from_scm(artifact_name, source, self.config, self.build_srpm)
             else:
                 return self.build_srpm(artifact_name, source)
