@@ -756,3 +756,25 @@ class TestViews(unittest.TestCase):
                       data['message'])
         self.assertEquals(data['status'], 422)
         self.assertEquals(data['error'], 'Unprocessable Entity')
+
+    @patch('module_build_service.auth.get_user', return_value=user)
+    @patch('module_build_service.scm.SCM')
+    @patch("module_build_service.config.Config.allow_custom_scmurls", new_callable=PropertyMock)
+    def test_submit_custom_scmurl(self, allow_custom_scmurls, mocked_scm, mocked_get_user):
+        MockedSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
+                  '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+
+        def submit(scmurl):
+            return self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
+                                    {'branch': 'master', 'scmurl':  scmurl}))
+
+        allow_custom_scmurls.return_value = False
+        res1 = submit('git://some.custom.url.org/modules/testmodule.git?#68931c9')
+        data = json.loads(res1.data)
+        self.assertEquals(data['status'], 403)
+        self.assertTrue(data['message'].startswith('The submitted scmurl'))
+        self.assertTrue(data['message'].endswith('is not allowed'))
+
+        allow_custom_scmurls.return_value = True
+        res2 = submit('git://some.custom.url.org/modules/testmodule.git?#68931c9')
+        self.assertEquals(res2.status_code, 201)
