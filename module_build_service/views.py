@@ -196,7 +196,7 @@ class SCMHandler(BaseHandler):
 
         url = self.data["scmurl"]
         allowed_prefix = any(url.startswith(prefix) for prefix in conf.scmurls)
-        if not conf.allow_custom_urls and not allowed_prefix:
+        if not conf.allow_custom_scmurls and not allowed_prefix:
             log.error("The submitted scmurl %r is not allowed" % url)
             raise Forbidden("The submitted scmurl %s is not allowed" % url)
 

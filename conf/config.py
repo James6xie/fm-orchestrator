@@ -47,7 +47,7 @@ class BaseConfiguration(object):
     # and be in the build state at a time. Set this to 0 for no restrictions
     NUM_CONSECUTIVE_BUILDS = 5
 
-    ALLOW_CUSTOM_URLS = False
+    ALLOW_CUSTOM_SCMURLS = False
 
     RPMS_DEFAULT_REPOSITORY = 'git://pkgs.fedoraproject.org/rpms/'
     RPMS_ALLOW_REPOSITORY = False
