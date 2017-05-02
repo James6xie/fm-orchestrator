@@ -36,13 +36,14 @@ from module_build_service import db, models, conf
 
 from mock import patch, PropertyMock
 
-from tests import app, init_data
+from tests import app, init_data, test_reuse_component_init_data
 import os
 import json
 import itertools
 
 from module_build_service.builder import KojiModuleBuilder, GenericBuilder
 import module_build_service.scheduler.consumer
+from module_build_service.messaging import MBSModule
 
 base_dir = dirname(dirname(__file__))
 cassette_dir = base_dir + '/vcr-request-data/'
@@ -628,3 +629,107 @@ class TestBuild(unittest.TestCase):
             # We should end up with batch 2 and never start batch 3, because
             # there were failed components in batch 2.
             self.assertEqual(c.module_build.batch, 2)
+
+    @timed(30)
+    @patch('module_build_service.auth.get_user', return_value=user)
+    @patch('module_build_service.scm.SCM')
+    def test_submit_build_reuse_all(self, mocked_scm, mocked_get_user,
+                                    conf_system, dbg):
+        """
+        Tests that we do not try building module-build-macros when reusing all
+        components in a module build.
+        """
+        test_reuse_component_init_data()
+
+        def on_build_cb(cls, artifact_name, source):
+            raise ValueError("All components should be reused, not build.")
+        TestModuleBuilder.on_build_cb = on_build_cb
+
+        # Check that components are tagged after the batch is built.
+        tag_groups = []
+        tag_groups.append(set(
+            ['perl-Tangerine-0.23-1.module_testmodule_master_20170109091357',
+            'perl-List-Compare-0.53-5.module_testmodule_master_20170109091357',
+            'tangerine-0.22-3.module_testmodule_master_20170109091357']))
+
+        def on_tag_artifacts_cb(cls, artifacts):
+            self.assertEqual(tag_groups.pop(0), set(artifacts))
+        TestModuleBuilder.on_tag_artifacts_cb = on_tag_artifacts_cb
+
+        buildtag_groups = []
+        buildtag_groups.append(set(
+            ['perl-Tangerine-0.23-1.module_testmodule_master_20170109091357',
+            'perl-List-Compare-0.53-5.module_testmodule_master_20170109091357',
+            'tangerine-0.22-3.module_testmodule_master_20170109091357']))
+        def on_buildroot_add_artifacts_cb(cls, artifacts, install):
+            self.assertEqual(buildtag_groups.pop(0), set(artifacts))
+        TestModuleBuilder.on_buildroot_add_artifacts_cb = on_buildroot_add_artifacts_cb
+
+        msgs = [MBSModule("local module build", 2, 1)]
+        stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
+        module_build_service.scheduler.main(msgs, stop)
+
+        reused_component_ids = {"module-build-macros": None, "tangerine": 3,
+                                "perl-Tangerine": 1, "perl-List-Compare": 2}
+
+        # All components should be built and module itself should be in "done"
+        # or "ready" state.
+        for build in models.ComponentBuild.query.filter_by(module_id=2).all():
+            self.assertEqual(build.state, koji.BUILD_STATES['COMPLETE'])
+            self.assertTrue(build.module_build.state in [models.BUILD_STATES["done"], models.BUILD_STATES["ready"]])
+
+            self.assertEqual(build.reused_component_id,
+                             reused_component_ids[build.package])
+
+    @timed(30)
+    @patch('module_build_service.auth.get_user', return_value=user)
+    @patch('module_build_service.scm.SCM')
+    def test_submit_build_reuse_all_without_build_macros(self, mocked_scm, mocked_get_user,
+                                    conf_system, dbg):
+        """
+        Tests that we can reuse components even when the reused module does
+        not have module-build-macros component.
+        """
+        test_reuse_component_init_data()
+
+        models.ComponentBuild.query.filter_by(package="module-build-macros").delete()
+        self.assertEqual(len(models.ComponentBuild.query.filter_by(
+            package="module-build-macros").all()), 0)
+
+        db.session.commit()
+
+        def on_build_cb(cls, artifact_name, source):
+            raise ValueError("All components should be reused, not build.")
+        TestModuleBuilder.on_build_cb = on_build_cb
+
+        # Check that components are tagged after the batch is built.
+        tag_groups = []
+        tag_groups.append(set(
+            ['perl-Tangerine-0.23-1.module_testmodule_master_20170109091357',
+            'perl-List-Compare-0.53-5.module_testmodule_master_20170109091357',
+            'tangerine-0.22-3.module_testmodule_master_20170109091357']))
+
+        def on_tag_artifacts_cb(cls, artifacts):
+            self.assertEqual(tag_groups.pop(0), set(artifacts))
+        TestModuleBuilder.on_tag_artifacts_cb = on_tag_artifacts_cb
+
+        buildtag_groups = []
+        buildtag_groups.append(set(
+            ['perl-Tangerine-0.23-1.module_testmodule_master_20170109091357',
+            'perl-List-Compare-0.53-5.module_testmodule_master_20170109091357',
+            'tangerine-0.22-3.module_testmodule_master_20170109091357']))
+        def on_buildroot_add_artifacts_cb(cls, artifacts, install):
+            self.assertEqual(buildtag_groups.pop(0), set(artifacts))
+        TestModuleBuilder.on_buildroot_add_artifacts_cb = on_buildroot_add_artifacts_cb
+
+        msgs = [MBSModule("local module build", 2, 1)]
+        stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
+        module_build_service.scheduler.main(msgs, stop)
+
+        # All components should be built and module itself should be in "done"
+        # or "ready" state.
+        for build in models.ComponentBuild.query.filter_by(module_id=2).all():
+            self.assertEqual(build.state, koji.BUILD_STATES['COMPLETE'])
+            self.assertTrue(build.module_build.state in [models.BUILD_STATES["done"], models.BUILD_STATES["ready"]] )
+            self.assertNotEqual(build.package, "module-build-macros")
+
