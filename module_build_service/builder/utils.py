@@ -3,7 +3,11 @@ import koji
 import tempfile
 import shutil
 import subprocess
+import munch
+import errno
 import logging
+import urlgrabber.grabber as grabber
+import urlgrabber.progress as progress
 import module_build_service
 import module_build_service.scheduler
 from module_build_service import log, scm, messaging
@@ -13,7 +17,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 
 def build_from_scm(artifact_name, source, config, build_srpm,
-                   data = None, stdout=None, stderr=None):
+                   data=None, stdout=None, stderr=None):
     """
     Builds the artifact from the SCM based source.
 
@@ -65,7 +69,7 @@ def build_from_scm(artifact_name, source, config, build_srpm,
     return ret
 
 
-def execute_cmd(args, stdout = None, stderr = None, cwd = None):
+def execute_cmd(args, stdout=None, stderr=None, cwd=None):
     """
     Executes command defined by `args`. If `stdout` or `stderr` is set to
     Python file object, the stderr/stdout output is redirecter to that file.
@@ -99,3 +103,89 @@ def fake_repo_done_message(tag_name):
         repo_tag=tag_name + "-build",
     )
     module_build_service.scheduler.consumer.work_queue_put(msg)
+
+
+def create_local_repo_from_koji_tag(config, tag, repo_dir, archs=None):
+    """
+    Downloads the packages build for one of `archs` (defaults to ['x86_64',
+    'noarch']) in Koji tag `tag` to `repo_dir` and creates repository in that
+    directory. Needs config.koji_profile and config.koji_config to be set.
+    """
+
+    # Placed here to avoid py2/py3 conflicts...
+    import koji
+
+    if not archs:
+        archs = ["x86_64", "noarch"]
+
+    # Load koji config and create Koji session.
+    koji_config = munch.Munch(koji.read_config(
+        profile_name=config.koji_profile,
+        user_config=config.koji_config,
+    ))
+
+    address = koji_config.server
+    log.info("Connecting to koji %r" % address)
+    session = koji.ClientSession(address, opts=koji_config)
+
+    # Get the list of all RPMs and builds in a tag.
+    try:
+        rpms, builds = session.listTaggedRPMS(tag, latest=True)
+    except koji.GenericError as e:
+        log.exception("Failed to list rpms in tag %r" % tag)
+
+    # Reformat builds so they are dict with build_id as a key.
+    builds = {build['build_id']: build for build in builds}
+
+    # Prepare pathinfo we will use to generate the URL.
+    pathinfo = koji.PathInfo(topdir=session.opts["topurl"])
+
+    # Prepare the list of URLs to download
+    urls = []
+    for rpm in rpms:
+        build_info = builds[rpm['build_id']]
+
+        # We do not download debuginfo packages or packages built for archs
+        # we are not interested in.
+        if koji.is_debuginfo(rpm['name']) or not rpm['arch'] in archs:
+            continue
+
+        fname = pathinfo.rpm(rpm)
+        url = pathinfo.build(build_info) + '/' + fname
+        urls.append((url, os.path.basename(fname), rpm['size']))
+
+    log.info("Downloading %d packages from Koji tag %s to %s" % (len(urls), tag, repo_dir))
+
+    # Create the output directory
+    try:
+        os.makedirs(repo_dir)
+    except OSError as exception:
+        if exception.errno != errno.EEXIST:
+            raise
+
+    # When True, we want to run the createrepo_c.
+    repo_changed = False
+
+    # Donload the RPMs.
+    pg = progress.TextMeter()
+    for url, relpath, size in urls:
+        local_fn = os.path.join(repo_dir, relpath)
+
+        # Download only when RPM is missing or the size does not match.
+        if not os.path.exists(local_fn) or os.path.getsize(local_fn) != size:
+            if os.path.exists(local_fn):
+                os.remove(local_fn)
+            repo_changed = True
+            grabber.urlgrab(url, filename=local_fn, progress_obj=pg,
+                            async=(tag, 5), text=relpath)
+
+    grabber.parallel_wait()
+
+    # If we downloaded something, run the createrepo_c.
+    if repo_changed:
+        repodata_path = os.path.join(repo_dir, "repodata")
+        if os.path.exists(repodata_path):
+            shutil.rmtree(repodata_path)
+
+        log.info("Creating local repository in %s" % repo_dir)
+        execute_cmd(['/usr/bin/createrepo_c', repo_dir])

@@ -133,6 +133,26 @@ class ModuleBuild(MBSBase):
                 if component.batch == self.batch
             ]
 
+    def up_to_current_batch(self, state=None):
+        """
+        Returns all components of this module in the current batch and
+        in the previous batches.
+        """
+
+        if not self.batch:
+            raise ValueError("No batch is in progress: %r" % self.batch)
+
+        if state != None:
+            return [
+                component for component in self.component_builds
+                if component.batch <= self.batch and component.state == state
+            ]
+        else:
+            return [
+                component for component in self.component_builds
+                if component.batch <= self.batch
+            ]
+
     def mmd(self):
         mmd = _modulemd.ModuleMetadata()
         try:
@@ -269,6 +289,7 @@ class ModuleBuild(MBSBase):
             # TODO, show their entire .json() ?
             'component_builds': [build.id for build in self.component_builds],
             'modulemd': self.modulemd,
+            'koji_tag': self.koji_tag,
             'state_trace': [{'time': record.state_time,
                              'state': record.state,
                              'state_name': INVERSE_BUILD_STATES[record.state],
@@ -301,6 +322,7 @@ class ModuleBuild(MBSBase):
             "time_submitted": self._utc_datetime_to_iso(self.time_submitted),
             "time_modified": self._utc_datetime_to_iso(self.time_modified),
             "time_completed": self._utc_datetime_to_iso(self.time_completed),
+            "koji_tag": self.koji_tag,
             "tasks": self.tasks()
         }
 
@@ -331,8 +353,8 @@ class ModuleBuild(MBSBase):
             module_id=module_id).order_by(ModuleBuildTrace.state_time).all()
 
     def __repr__(self):
-        return "<ModuleBuild %s, stream=%s, version=%s, state %r, batch %r, state_reason %r>" % (
-            self.name, self.stream, self.version,
+        return "<ModuleBuild %s, id=%d, stream=%s, version=%s, state %r, batch %r, state_reason %r>" % (
+            self.name, self.id, self.stream, self.version,
             INVERSE_BUILD_STATES[self.state], self.batch, self.state_reason)
 
 

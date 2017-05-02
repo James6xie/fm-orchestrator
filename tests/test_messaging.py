@@ -55,7 +55,7 @@ class TestFedmsgMessaging(unittest.TestCase):
         self.assertEqual(msg.build_new_state, 1)
 
     @patch("module_build_service.config.Config.system",
-            new_callable=PropertyMock, return_value = "copr")
+            new_callable=PropertyMock, return_value="copr")
     def test_copr_build_end(self, conf_system):
         # http://fedora-fedmsg.readthedocs.io/en/latest/topics.html#copr-build-end
         copr_build_end_msg = {
@@ -65,7 +65,7 @@ class TestFedmsgMessaging(unittest.TestCase):
                 'copr': 'mutt-kz',
                 'ip': '172.16.3.3',
                 'pid': 12010,
-                'pkg': 'mutt-kz-1.5.23.1-1.20150203.git.c8504a8a.fc21',
+                'pkg': 'mutt-kz',  # Reality doesnt match the linked docs
                 'status': 1,
                 'user': 'fatka',
                 'version': '1.5.23.1-1.20150203.git.c8504a8a.fc21',
@@ -95,14 +95,14 @@ class TestFedmsgMessaging(unittest.TestCase):
         # https://fedora-fedmsg.readthedocs.io/en/latest/topics.html#id134
         buildsys_tag_msg = {
             "msg": {
-                "build_id": 875961, 
-                "name": "module-build-macros", 
-                "tag_id": 619, 
-                "instance": "primary", 
-                "tag": "module-debugging-tools-master-20170405115403-build", 
-                "user": "mbs/mbs.fedoraproject.org", 
-                "version": "0.1", 
-                "owner": "mbs/mbs.fedoraproject.org", 
+                "build_id": 875961,
+                "name": "module-build-macros",
+                "tag_id": 619,
+                "instance": "primary",
+                "tag": "module-debugging-tools-master-20170405115403-build",
+                "user": "mbs/mbs.fedoraproject.org",
+                "version": "0.1",
+                "owner": "mbs/mbs.fedoraproject.org",
                 "release": "1.module_0c3d13fd"
             },
             'msg_id': '2015-51be4c8e-8ab6-4dcb-ac0d-37b257765c71',

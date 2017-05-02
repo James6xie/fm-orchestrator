@@ -105,7 +105,7 @@ class TestRepoDone(unittest.TestCase):
     @mock.patch('module_build_service.builder.KojiModuleBuilder.get_session')
     @mock.patch('module_build_service.builder.KojiModuleBuilder.build')
     @mock.patch('module_build_service.builder.KojiModuleBuilder.buildroot_connect')
-    @mock.patch("module_build_service.builder.GenericBuilder.default_buildroot_groups", return_value = {'build': [], 'srpm-build': []})
+    @mock.patch("module_build_service.builder.GenericBuilder.default_buildroot_groups", return_value={'build': [], 'srpm-build': []})
     def test_failed_component_build(self, dbg, connect, build_fn, config, ready, list_tasks_fn):
         """ Test that when a KojiModuleBuilder.build fails, the build is
         marked as failed with proper state_reason.

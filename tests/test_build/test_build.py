@@ -36,13 +36,14 @@ from module_build_service import db, models, conf
 
 from mock import patch, PropertyMock
 
-from tests import app, init_data
+from tests import app, init_data, test_reuse_component_init_data
 import os
 import json
 import itertools
 
 from module_build_service.builder import KojiModuleBuilder, GenericBuilder
 import module_build_service.scheduler.consumer
+from module_build_service.messaging import MBSModule
 
 base_dir = dirname(dirname(__file__))
 cassette_dir = base_dir + '/vcr-request-data/'
@@ -72,7 +73,7 @@ class MockedSCM(object):
 
         return scm_dir
 
-    def get_latest(self, branch = 'master'):
+    def get_latest(self, branch='master'):
         return branch
 
 class TestModuleBuilder(GenericBuilder):
@@ -204,8 +205,8 @@ class TestModuleBuilder(GenericBuilder):
         pass
 
 
-@patch("module_build_service.config.Config.system", 
-        new_callable=PropertyMock, return_value = "test")
+@patch("module_build_service.config.Config.system",
+        new_callable=PropertyMock, return_value="test")
 @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
        return_value={
             'srpm-build':
@@ -265,8 +266,8 @@ class TestBuild(unittest.TestCase):
 
         # Check that components are tagged after the batch is built.
         tag_groups = []
-        tag_groups.append(set([u'perl-Tangerine?#f25-1-1', u'perl-List-Compare?#f25-1-1']))
-        tag_groups.append(set([u'tangerine?#f25-1-1']))
+        tag_groups.append(set([u'perl-Tangerine?#f24-1-1', u'perl-List-Compare?#f25-1-1']))
+        tag_groups.append(set([u'tangerine?#f23-1-1']))
 
         def on_tag_artifacts_cb(cls, artifacts):
             self.assertEqual(tag_groups.pop(0), set(artifacts))
@@ -277,8 +278,8 @@ class TestBuild(unittest.TestCase):
         # is built.
         buildroot_groups = []
         buildroot_groups.append(set([u'module-build-macros-0.1-1.module_fc4ed5f7.src.rpm-1-1']))
-        buildroot_groups.append(set([u'perl-Tangerine?#f25-1-1', u'perl-List-Compare?#f25-1-1']))
-        buildroot_groups.append(set([u'tangerine?#f25-1-1']))
+        buildroot_groups.append(set([u'perl-Tangerine?#f24-1-1', u'perl-List-Compare?#f25-1-1']))
+        buildroot_groups.append(set([u'tangerine?#f23-1-1']))
 
         def on_buildroot_add_artifacts_cb(cls, artifacts, install):
             self.assertEqual(buildroot_groups.pop(0), set(artifacts))
@@ -316,13 +317,13 @@ class TestBuild(unittest.TestCase):
             return json.loads(rv.data)
 
         with patch("module_build_service.config.Config.yaml_submit_allowed",
-                new_callable=PropertyMock, return_value = True):
+                new_callable=PropertyMock, return_value=True):
             conf.set_item("yaml_submit_allowed", True)
             data = submit()
             self.assertEqual(data['id'], 1)
 
         with patch("module_build_service.config.Config.yaml_submit_allowed",
-                new_callable=PropertyMock, return_value = False):
+                new_callable=PropertyMock, return_value=False):
             data = submit()
             self.assertEqual(data['status'], 403)
             self.assertEqual(data['message'], 'YAML submission is not enabled')
@@ -431,8 +432,8 @@ class TestBuild(unittest.TestCase):
     @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    @patch("module_build_service.config.Config.num_consecutive_builds", 
-           new_callable=PropertyMock, return_value = 1)
+    @patch("module_build_service.config.Config.num_consecutive_builds",
+           new_callable=PropertyMock, return_value=1)
     def test_submit_build_concurrent_threshold(self, conf_num_consecutive_builds,
                                                mocked_scm, mocked_get_user,
                                                conf_system, dbg):
@@ -476,13 +477,13 @@ class TestBuild(unittest.TestCase):
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     @patch("module_build_service.config.Config.num_consecutive_builds",
-           new_callable=PropertyMock, return_value = 2)
+           new_callable=PropertyMock, return_value=2)
     def test_try_to_reach_concurrent_threshold(self, conf_num_consecutive_builds,
                                                mocked_scm, mocked_get_user,
                                                conf_system, dbg):
         """
         Tests that we try to submit new component build right after
-        the previous one finished without waiting for all 
+        the previous one finished without waiting for all
         the num_consecutive_builds to finish.
         """
         MockedSCM(mocked_scm, 'testmodule-more-components', 'testmodule-more-components.yaml',
@@ -531,7 +532,7 @@ class TestBuild(unittest.TestCase):
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     @patch("module_build_service.config.Config.num_consecutive_builds",
-           new_callable=PropertyMock, return_value = 1)
+           new_callable=PropertyMock, return_value=1)
     def test_build_in_batch_fails(self, conf_num_consecutive_builds, mocked_scm,
                                   mocked_get_user, conf_system, dbg):
         """
@@ -585,7 +586,7 @@ class TestBuild(unittest.TestCase):
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     @patch("module_build_service.config.Config.num_consecutive_builds",
-           new_callable=PropertyMock, return_value = 1)
+           new_callable=PropertyMock, return_value=1)
     def test_all_builds_in_batch_fail(self, conf_num_consecutive_builds, mocked_scm,
                                   mocked_get_user, conf_system, dbg):
         """
@@ -628,3 +629,107 @@ class TestBuild(unittest.TestCase):
             # We should end up with batch 2 and never start batch 3, because
             # there were failed components in batch 2.
             self.assertEqual(c.module_build.batch, 2)
+
+    @timed(30)
+    @patch('module_build_service.auth.get_user', return_value=user)
+    @patch('module_build_service.scm.SCM')
+    def test_submit_build_reuse_all(self, mocked_scm, mocked_get_user,
+                                    conf_system, dbg):
+        """
+        Tests that we do not try building module-build-macros when reusing all
+        components in a module build.
+        """
+        test_reuse_component_init_data()
+
+        def on_build_cb(cls, artifact_name, source):
+            raise ValueError("All components should be reused, not build.")
+        TestModuleBuilder.on_build_cb = on_build_cb
+
+        # Check that components are tagged after the batch is built.
+        tag_groups = []
+        tag_groups.append(set(
+            ['perl-Tangerine-0.23-1.module_testmodule_master_20170109091357',
+            'perl-List-Compare-0.53-5.module_testmodule_master_20170109091357',
+            'tangerine-0.22-3.module_testmodule_master_20170109091357']))
+
+        def on_tag_artifacts_cb(cls, artifacts):
+            self.assertEqual(tag_groups.pop(0), set(artifacts))
+        TestModuleBuilder.on_tag_artifacts_cb = on_tag_artifacts_cb
+
+        buildtag_groups = []
+        buildtag_groups.append(set(
+            ['perl-Tangerine-0.23-1.module_testmodule_master_20170109091357',
+            'perl-List-Compare-0.53-5.module_testmodule_master_20170109091357',
+            'tangerine-0.22-3.module_testmodule_master_20170109091357']))
+        def on_buildroot_add_artifacts_cb(cls, artifacts, install):
+            self.assertEqual(buildtag_groups.pop(0), set(artifacts))
+        TestModuleBuilder.on_buildroot_add_artifacts_cb = on_buildroot_add_artifacts_cb
+
+        msgs = [MBSModule("local module build", 2, 1)]
+        stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
+        module_build_service.scheduler.main(msgs, stop)
+
+        reused_component_ids = {"module-build-macros": None, "tangerine": 3,
+                                "perl-Tangerine": 1, "perl-List-Compare": 2}
+
+        # All components should be built and module itself should be in "done"
+        # or "ready" state.
+        for build in models.ComponentBuild.query.filter_by(module_id=2).all():
+            self.assertEqual(build.state, koji.BUILD_STATES['COMPLETE'])
+            self.assertTrue(build.module_build.state in [models.BUILD_STATES["done"], models.BUILD_STATES["ready"]])
+
+            self.assertEqual(build.reused_component_id,
+                             reused_component_ids[build.package])
+
+    @timed(30)
+    @patch('module_build_service.auth.get_user', return_value=user)
+    @patch('module_build_service.scm.SCM')
+    def test_submit_build_reuse_all_without_build_macros(self, mocked_scm, mocked_get_user,
+                                    conf_system, dbg):
+        """
+        Tests that we can reuse components even when the reused module does
+        not have module-build-macros component.
+        """
+        test_reuse_component_init_data()
+
+        models.ComponentBuild.query.filter_by(package="module-build-macros").delete()
+        self.assertEqual(len(models.ComponentBuild.query.filter_by(
+            package="module-build-macros").all()), 0)
+
+        db.session.commit()
+
+        def on_build_cb(cls, artifact_name, source):
+            raise ValueError("All components should be reused, not build.")
+        TestModuleBuilder.on_build_cb = on_build_cb
+
+        # Check that components are tagged after the batch is built.
+        tag_groups = []
+        tag_groups.append(set(
+            ['perl-Tangerine-0.23-1.module_testmodule_master_20170109091357',
+            'perl-List-Compare-0.53-5.module_testmodule_master_20170109091357',
+            'tangerine-0.22-3.module_testmodule_master_20170109091357']))
+
+        def on_tag_artifacts_cb(cls, artifacts):
+            self.assertEqual(tag_groups.pop(0), set(artifacts))
+        TestModuleBuilder.on_tag_artifacts_cb = on_tag_artifacts_cb
+
+        buildtag_groups = []
+        buildtag_groups.append(set(
+            ['perl-Tangerine-0.23-1.module_testmodule_master_20170109091357',
+            'perl-List-Compare-0.53-5.module_testmodule_master_20170109091357',
+            'tangerine-0.22-3.module_testmodule_master_20170109091357']))
+        def on_buildroot_add_artifacts_cb(cls, artifacts, install):
+            self.assertEqual(buildtag_groups.pop(0), set(artifacts))
+        TestModuleBuilder.on_buildroot_add_artifacts_cb = on_buildroot_add_artifacts_cb
+
+        msgs = [MBSModule("local module build", 2, 1)]
+        stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
+        module_build_service.scheduler.main(msgs, stop)
+
+        # All components should be built and module itself should be in "done"
+        # or "ready" state.
+        for build in models.ComponentBuild.query.filter_by(module_id=2).all():
+            self.assertEqual(build.state, koji.BUILD_STATES['COMPLETE'])
+            self.assertTrue(build.module_build.state in [models.BUILD_STATES["done"], models.BUILD_STATES["ready"]] )
+            self.assertNotEqual(build.package, "module-build-macros")
+

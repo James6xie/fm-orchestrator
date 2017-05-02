@@ -183,7 +183,7 @@ def init_data():
             session.commit()
 
 
-def scheduler_init_data(communicator_state = None):
+def scheduler_init_data(communicator_state=None):
     db.session.remove()
     db.drop_all()
     db.create_all()

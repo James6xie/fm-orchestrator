@@ -37,7 +37,8 @@ import module_build_service.scheduler
 import module_build_service.scheduler.consumer
 
 from base import GenericBuilder
-from utils import execute_cmd, build_from_scm, fake_repo_done_message
+from utils import (build_from_scm, fake_repo_done_message,
+                   create_local_repo_from_koji_tag, execute_cmd)
 from KojiModuleBuilder import KojiModuleBuilder
 from module_build_service.models import ModuleBuild
 
@@ -94,7 +95,7 @@ mdpolicy=group:primary
 
     @module_build_service.utils.validate_koji_tag('tag_name')
     def __init__(self, owner, module, config, tag_name, components):
-        self.module_str = module
+        self.module_str = module.name
         self.tag_name = tag_name
         self.config = config
         self.groups = []
@@ -171,7 +172,7 @@ mdpolicy=group:primary
         execute_cmd(['/usr/bin/createrepo_c', path])
         execute_cmd(['/usr/bin/modifyrepo_c', '--mdtype=modules', mmd_path, repodata_path])
 
-    def _add_repo(self, name, baseurl, extra = ""):
+    def _add_repo(self, name, baseurl, extra=""):
         """
         Adds repository to Mock config file. Call _write_mock_config() to
         actually write the config file to filesystem.
@@ -274,7 +275,10 @@ mdpolicy=group:primary
         # extended to Copr in the future.
         self._load_mock_config()
         for tag in dependencies:
-            baseurl = KojiModuleBuilder.repo_from_tag(self.config, tag, self.arch)
+            repo_dir = os.path.join(self.config.cache_dir, "koji_tags", tag)
+            create_local_repo_from_koji_tag(self.config, tag, repo_dir,
+                                            [self.arch, "noarch"])
+            baseurl = "file://" + repo_dir
             self._add_repo(tag, baseurl)
         self._write_mock_config()
 

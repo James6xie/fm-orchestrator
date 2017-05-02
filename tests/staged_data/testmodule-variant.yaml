@@ -1,7 +1,8 @@
 document: modulemd
 version: 1
 data:
-    summary: A test module in all its beauty
+    name: testmodule-variant
+    summary: A test module in all its whackiness
     description: This module demonstrates how to write simple modulemd files And can be used for testing the build and release pipeline.
     license:
         module: [ MIT ]
@@ -17,20 +18,15 @@ data:
     profiles:
         default:
             rpms:
-                - tangerine
+                - python
     api:
         rpms:
-            - perl-Tangerine
-            - tangerine
+            - python
     components:
         rpms:
             perl-List-Compare:
                 rationale: A dependency of tangerine.
                 ref: f25
-            perl-Tangerine:
-                rationale: Provides API for this module and is a dependency of tangerine.
+            python:
+                rationale: This is irrational
                 ref: f24
-            tangerine:
-                rationale: Provides API for this module.
-                buildorder: 10
-                ref: f23

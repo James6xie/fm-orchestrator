@@ -24,16 +24,19 @@ import unittest
 import json
 import time
 import vcr
+
+import modulemd as _modulemd
+import module_build_service.scm
+
 from mock import patch, Mock, PropertyMock
 from shutil import copyfile
 from os import path, mkdir
 from os.path import dirname
-
-import modulemd as _modulemd
+import hashlib
 
 from tests import app, init_data
+from module_build_service.errors import UnprocessableEntity
 from module_build_service.models import ComponentBuild, ModuleBuild
-import module_build_service.scm
 from module_build_service import conf
 
 
@@ -43,8 +46,9 @@ anonymous_user = ('anonymous', set(['packager']))
 base_dir = dirname(dirname(__file__))
 cassette_dir = base_dir + '/vcr-request-data/'
 
+
 class MockedSCM(object):
-    def __init__(self, mocked_scm, name, mmd_filenames, commit=None):
+    def __init__(self, mocked_scm, name, mmd_filenames, commit=None, checkout_raise=False):
         """
         Adds default testing checkout, get_latest and name methods
         to mocked_scm SCM class.
@@ -61,7 +65,15 @@ class MockedSCM(object):
         self.mmd_filenames = mmd_filenames
         self.checkout_id = 0
 
-        self.mocked_scm.return_value.checkout = self.checkout
+        if checkout_raise:
+            self.mocked_scm.return_value.checkout.side_effect = \
+                UnprocessableEntity(
+                    "checkout: The requested commit hash was not found within "
+                    "the repository. Perhaps you forgot to push. The original "
+                    "message was: ")
+        else:
+            self.mocked_scm.return_value.checkout = self.checkout
+
         self.mocked_scm.return_value.name = self.name
         self.mocked_scm.return_value.commit = self.commit
         self.mocked_scm.return_value.get_latest = self.get_latest
@@ -85,7 +97,7 @@ class MockedSCM(object):
         return scm_dir
 
     def get_latest(self, branch='master'):
-        return branch
+        return hashlib.sha1(branch).hexdigest()[:10]
 
 
 class TestViews(unittest.TestCase):
@@ -223,6 +235,11 @@ class TestViews(unittest.TestCase):
 
     def test_query_builds_filter_name(self):
         rv = self.client.get('/module-build-service/1/module-builds/?name=nginx')
+        data = json.loads(rv.data)
+        self.assertEquals(data['meta']['total'], 10)
+
+    def test_query_builds_filter_koji_tag(self):
+        rv = self.client.get('/module-build-service/1/module-builds/?koji_tag=module-nginx-1.2')
         data = json.loads(rv.data)
         self.assertEquals(data['meta']['total'], 10)
 
@@ -423,7 +440,7 @@ class TestViews(unittest.TestCase):
     @patch('module_build_service.scm.SCM')
     def test_submit_build_scm_parallalization(self, mocked_scm,
                                               mocked_get_user):
-        def mocked_scm_get_latest(branch = "master"):
+        def mocked_scm_get_latest(branch="master"):
             time.sleep(1)
             return branch
 
@@ -477,8 +494,8 @@ class TestViews(unittest.TestCase):
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    @patch("module_build_service.config.Config.modules_allow_repository", 
-           new_callable=PropertyMock, return_value = True)
+    @patch("module_build_service.config.Config.modules_allow_repository",
+           new_callable=PropertyMock, return_value=True)
     def test_submit_build_includedmodule(self, conf, mocked_scm, mocked_get_user):
         mocked_scm_obj = MockedSCM(mocked_scm, "includedmodules",
                                 ["includedmodules.yaml", "testmodule.yaml"])
@@ -512,6 +529,17 @@ class TestViews(unittest.TestCase):
         self.assertEquals(batches['perl-Tangerine'], 2)
         self.assertEquals(batches['tangerine'], 3)
         self.assertEquals(batches["file"], 4)
+
+        build = ModuleBuild.query.filter(ModuleBuild.id == data['id']).one()
+        mmd = build.mmd()
+
+        # Test that RPMs are properly merged in case of included modules in mmd.
+        xmd_rpms = {'ed': {'ref': '40bd001563'},
+                    'perl-List-Compare': {'ref': '2ee8474e44'},
+                    'tangerine': {'ref': 'd29d5c24b8'},
+                    'file': {'ref': 'a2740663f8'},
+                    'perl-Tangerine': {'ref': '27785f9f05'}}
+        self.assertEqual(mmd.xmd['mbs']['rpms'], xmd_rpms)
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
@@ -558,7 +586,7 @@ class TestViews(unittest.TestCase):
            return_value=('sammy', set(["packager", "mbs-admin"])))
     def test_cancel_build_admin(self, mocked_get_user):
         with patch("module_build_service.config.Config.admin_groups",
-                new_callable=PropertyMock, return_value = set(["mbs-admin"])):
+                new_callable=PropertyMock, return_value=set(["mbs-admin"])):
             rv = self.client.patch('/module-build-service/1/module-builds/30',
                                 data=json.dumps({'state': 'failed'}))
             data = json.loads(rv.data)
@@ -570,7 +598,7 @@ class TestViews(unittest.TestCase):
            return_value=('sammy', set(["packager"])))
     def test_cancel_build_no_admin(self, mocked_get_user):
         with patch("module_build_service.config.Config.admin_groups",
-                new_callable=PropertyMock, return_value = set(["mbs-admin"])):
+                new_callable=PropertyMock, return_value=set(["mbs-admin"])):
             rv = self.client.patch('/module-build-service/1/module-builds/30',
                                 data=json.dumps({'state': 'failed'}))
             data = json.loads(rv.data)
@@ -711,3 +739,20 @@ class TestViews(unittest.TestCase):
         r3 = self.client.patch(url, data=json.dumps({'state': 'failed', 'owner': 'foo'}))
         self.assertEquals(r3.status_code, 400)
         self.assertIn("The request contains 'owner' parameter", json.loads(r3.data)['message'])
+
+    @patch('module_build_service.auth.get_user', return_value=user)
+    @patch('module_build_service.scm.SCM')
+    def test_submit_build_commit_hash_not_found(self, mocked_scm, mocked_get_user):
+        MockedSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
+                  '7035bd33614972ac66559ac1fdd019ff6027ad22', checkout_raise=True)
+
+        rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
+            {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+                'testmodule.git?#7035bd33614972ac66559ac1fdd019ff6027ad22'}))
+        data = json.loads(rv.data)
+        self.assertIn("The requested commit hash was not found within the repository.",
+                      data['message'])
+        self.assertIn("Perhaps you forgot to push. The original message was: ",
+                      data['message'])
+        self.assertEquals(data['status'], 422)
+        self.assertEquals(data['error'], 'Unprocessable Entity')

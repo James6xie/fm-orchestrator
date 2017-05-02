@@ -60,12 +60,15 @@ class CoprModuleBuilder(GenericBuilder):
         self.owner = owner
         self.config = config
         self.tag_name = tag_name
-        self.module_str = module
+        self.module = module
+        self.module_str = module.name
 
         self.copr = None
         self.client = CoprModuleBuilder._get_client(config)
         self.client.username = self.owner
+        self.chroot = "custom-1-x86_64"
         self.__prep = False
+
 
     @classmethod
     def _get_client(cls, config):
@@ -81,17 +84,19 @@ class CoprModuleBuilder(GenericBuilder):
         """
         self.copr = self._get_copr_safe()
         self._create_module_safe()
+
+        # @FIXME Not able to use gcc-c++ in chroot (RhBug: 1440889)
+        packages = groups["build"] - {"gcc-c++"}
+        self._update_chroot(packages=list(packages))
+
         if self.copr and self.copr.projectname and self.copr.username:
             self.__prep = True
         log.info("%r buildroot sucessfully connected." % self)
 
     def _get_copr_safe(self):
-        # @TODO it would be nice if the module build object was passed to Builder __init__
-        module = ModuleBuild.query.filter(ModuleBuild.name == self.module_str).one()
-
         kwargs = {
-            "ownername": module.copr_owner or self.owner,
-            "projectname": module.copr_project or CoprModuleBuilder._tag_to_copr_name(self.tag_name)
+            "ownername": self.module.copr_owner or self.owner,
+            "projectname": self.module.copr_project or CoprModuleBuilder._tag_to_copr_name(self.tag_name)
         }
 
         try:
@@ -104,20 +109,17 @@ class CoprModuleBuilder(GenericBuilder):
         return self.client.get_project_details(projectname, username=ownername).handle
 
     def _create_copr(self, ownername, projectname):
-        # @TODO fix issues with custom-1-x86_64 and custom-1-i386 chroot and use it
-        return self.client.create_project(ownername, projectname, ["fedora-24-x86_64"])
+        return self.client.create_project(ownername, projectname, [self.chroot])
 
     def _create_module_safe(self):
         from copr.exceptions import CoprRequestException
 
-        # @TODO it would be nice if the module build object was passed to Builder __init__
-        module = ModuleBuild.query.filter(ModuleBuild.name == self.module_str).one()
         modulemd = tempfile.mktemp()
-        module.mmd().dump(modulemd)
+        self.module.mmd().dump(modulemd)
 
         kwargs = {
-            "username": module.copr_owner or self.owner,
-            "projectname": module.copr_project or CoprModuleBuilder._tag_to_copr_name(self.tag_name),
+            "username": self.module.copr_owner or self.owner,
+            "projectname": self.module.copr_project or CoprModuleBuilder._tag_to_copr_name(self.tag_name),
             "modulemd": modulemd,
             "create": True,
             "build": False,
@@ -159,6 +161,13 @@ class CoprModuleBuilder(GenericBuilder):
             koji add-group-pkg $module-build-tag srpm-build bash
         """
 
+        # Install the module-build-macros into the buildroot
+        # We are using same hack as mock builder does
+        for artifact in artifacts:
+            if artifact and artifact.startswith("module-build-macros"):
+                self._update_chroot(packages=["module-build-macros"])
+                break
+
         # Start of a new batch of builds is triggered by buildsys.repo.done message.
         # However in Copr there is no such thing. Therefore we are going to fake
         # the message when builds are finished
@@ -168,7 +177,22 @@ class CoprModuleBuilder(GenericBuilder):
         log.info("%r adding deps on %r" % (self, dependencies))
         # @TODO get architecture from some builder variable
         repos = [self._dependency_repo(d, "x86_64") for d in dependencies]
-        self.client.modify_project(self.copr.projectname, username=self.copr.username, repos=repos)
+        self._update_chroot(repos=repos)
+
+    def _update_chroot(self, packages=None, repos=None):
+        request = self.client.get_chroot(self.copr.projectname, self.copr.username, self.chroot)
+        chroot = request.data["chroot"]
+        current_packages = (chroot["buildroot_pkgs"] or "").split()
+        current_repos = (chroot["repos"] or "").split()
+
+        def merge(current, new):
+            current, new = current or [], new or []
+            return " ".join(set(current + new))
+
+        self.client.edit_chroot(self.copr.projectname, self.chroot,
+                                ownername=self.copr.username,
+                                packages=merge(current_packages, packages),
+                                repos=merge(current_repos, repos))
 
     def _dependency_repo(self, module, arch, backend="copr"):
         try:
@@ -226,8 +250,7 @@ class CoprModuleBuilder(GenericBuilder):
 
     def finalize(self):
         modulemd = tempfile.mktemp()
-        m1 = ModuleBuild.query.filter(ModuleBuild.name == self.module_str).one()
-        m1.mmd().dump(modulemd)
+        self.module.mmd().dump(modulemd)
 
         # Create a module from previous project
         result = self.client.make_module(username=self.copr.username, projectname=self.copr.projectname,

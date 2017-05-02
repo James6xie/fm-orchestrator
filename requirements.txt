@@ -20,3 +20,4 @@ qpid-python
 six
 sqlalchemy
 futures # Python 2 only
+tabulate

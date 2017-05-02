@@ -37,7 +37,7 @@ import shutil
 import datetime
 
 from module_build_service import log
-from module_build_service.errors import Forbidden, ValidationError
+from module_build_service.errors import Forbidden, ValidationError, UnprocessableEntity
 import module_build_service.utils
 
 
@@ -47,7 +47,7 @@ class SCM(object):
     # Assuming git for HTTP schemas
     types = module_build_service.utils.scm_url_schemes()
 
-    def __init__(self, url, branch = None, allowed_scm=None, allow_local = False):
+    def __init__(self, url, branch=None, allowed_scm=None, allow_local=False):
         """Initialize the SCM object using the specified scmurl.
 
         If url is not in the list of allowed_scm, an error will be raised.
@@ -124,7 +124,7 @@ class SCM(object):
 
     @staticmethod
     @module_build_service.utils.retry(wait_on=RuntimeError)
-    def _run(cmd, chdir=None, log_stdout = False):
+    def _run(cmd, chdir=None, log_stdout=False):
         proc = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE, cwd=chdir)
         stdout, stderr = proc.communicate()
         if log_stdout and stdout:
@@ -157,7 +157,17 @@ class SCM(object):
             # perform checkouts
             SCM._run(module_clone_cmd, chdir=scmdir)
             if self.commit:
-                SCM._run(module_checkout_cmd, chdir=sourcedir)
+                try:
+                    SCM._run(module_checkout_cmd, chdir=sourcedir)
+                except RuntimeError as e:
+                    if (e.message.endswith(
+                            " did not match any file(s) known to git.\\n\"") or
+                       "fatal: reference is not a tree: " in e.message):
+                        raise UnprocessableEntity(
+                            "checkout: The requested commit hash was not found "
+                            "within the repository. Perhaps you forgot to push. "
+                            "The original message was: %s" % e.message)
+                    raise
 
             timestamp = SCM._run(["git", "show" , "-s", "--format=%ct"], chdir=sourcedir)[1]
             dt = datetime.datetime.utcfromtimestamp(int(timestamp))

@@ -152,12 +152,10 @@ def continue_batch_build(config, module, session, builder, components=None):
     further_work = []
     components_to_build = []
     for c in unbuilt_components:
-        previous_component_build = None
         # Check to see if we can reuse a previous component build
-        # instead of rebuilding it if the builder is Koji
-        if conf.system == 'koji':
-            previous_component_build = get_reusable_component(
-                session, module, c.package)
+        # instead of rebuilding it
+        previous_component_build = get_reusable_component(
+            session, module, c.package)
         # If a component build can't be reused, we need to check
         # the concurrent threshold.
         if (not previous_component_build
@@ -166,37 +164,7 @@ def continue_batch_build(config, module, session, builder, components=None):
             break
 
         if previous_component_build:
-            log.info(
-                'Reusing component "{0}" from a previous module '
-                'build with the nvr "{1}"'.format(
-                    c.package, previous_component_build.nvr))
-            c.reused_component_id = previous_component_build.id
-            c.task_id = previous_component_build.task_id
-            # Use BUILDING state here, because we want the state to change to
-            # COMPLETE by the fake KojiBuildChange message we are generating
-            # few lines below. If we would set it to the right state right
-            # here, we would miss the code path handling the KojiBuildChange
-            # which works only when switching from BUILDING to COMPLETE.
-            c.state = koji.BUILD_STATES['BUILDING']
-            c.state_reason = \
-                'Reused component from previous module build'
-            c.nvr = previous_component_build.nvr
-            nvr_dict = kobo.rpmlib.parse_nvr(c.nvr)
-            # Add this message to further_work so that the reused
-            # component will be tagged properly
-            further_work.append(
-                module_build_service.messaging.KojiBuildChange(
-                    msg_id='start_build_batch: fake msg',
-                    build_id=None,
-                    task_id=c.task_id,
-                    build_new_state=previous_component_build.state,
-                    build_name=c.package,
-                    build_version=nvr_dict['version'],
-                    build_release=nvr_dict['release'],
-                    module_build_id=c.module_id,
-                    state_reason=c.state_reason
-                )
-            )
+            further_work += reuse_component(c, previous_component_build)
             continue
 
         # We set state to BUILDING here, because we are going to build the
@@ -227,7 +195,7 @@ def continue_batch_build(config, module, session, builder, components=None):
 def start_next_batch_build(config, module, session, builder, components=None):
     """
     Tries to start the build of next batch. In case there are still unbuilt
-    components in a batch, tries to submit more components until it hits 
+    components in a batch, tries to submit more components until it hits
     concurrent builds limit. Otherwise Increments module.batch and submits component
     builds from the next batch.
 
@@ -370,7 +338,7 @@ def filter_module_builds(flask_request):
             else:
                 raise ValidationError('An invalid state was supplied')
 
-    for key in ['name', 'owner']:
+    for key in ['name', 'owner', 'koji_tag']:
         if flask_request.args.get(key, None):
             search_query[key] = flask_request.args[key]
 
@@ -488,11 +456,19 @@ def _scm_get_latest(pkg):
         # we want to pull from, we need to resolve that f25 branch
         # to the specific commit available at the time of
         # submission (now).
-        pkg.ref = module_build_service.scm.SCM(
+        pkgref = module_build_service.scm.SCM(
             pkg.repository).get_latest(branch=pkg.ref)
     except Exception as e:
-        return "Failed to get the latest commit for %s#%s" % (pkg.repository, pkg.ref)
-    return None
+        log.exception(e)
+        return {
+            'error': "Failed to get the latest commit for %s#%s" % (pkg.repository, pkg.ref)
+        }
+
+    return {
+        'pkg_name': pkg.name,
+        'pkg_ref': pkgref,
+        'error': None
+    }
 
 def format_mmd(mmd, scmurl):
     """
@@ -552,6 +528,8 @@ def format_mmd(mmd, scmurl):
         mmd.xmd['mbs']['buildrequires'] = {}
 
     if mmd.components:
+        if 'rpms' not in mmd.xmd['mbs']:
+            mmd.xmd['mbs']['rpms'] = {}
         # Add missing data in RPM components
         for pkgname, pkg in mmd.components.rpms.items():
             if pkg.repository and not conf.rpms_allow_repository:
@@ -577,17 +555,34 @@ def format_mmd(mmd, scmurl):
                 mod.ref = 'master'
 
         # Check that SCM URL is valid and replace potential branches in
-        # pkg.ref by real SCM hash.
+        # pkg.ref by real SCM hash and store the result to our private xmd
+        # place in modulemd.
         pool = ThreadPool(20)
-        err_msgs = pool.map(_scm_get_latest, mmd.components.rpms.values())
-        # TODO: only the first error message is raised, perhaps concatenate
-        # the messages together?
-        for err_msg in err_msgs:
-            if err_msg:
-                raise UnprocessableEntity(err_msg)
+        pkg_dicts = pool.map(_scm_get_latest, mmd.components.rpms.values())
+        err_msg = ""
+        for pkg_dict in pkg_dicts:
+            if pkg_dict["error"]:
+                err_msg += pkg_dict["error"] + "\n"
+            else:
+                pkg_name = pkg_dict["pkg_name"]
+                pkg_ref = pkg_dict["pkg_ref"]
+                mmd.xmd['mbs']['rpms'][pkg_name] = {'ref': pkg_ref}
+        if err_msg:
+            raise UnprocessableEntity(err_msg)
 
-def record_component_builds(mmd, module, initial_batch = 1,
-                            previous_buildorder = None):
+def merge_included_mmd(mmd, included_mmd):
+    """
+    Merges two modulemds. This merges only metadata which are needed in
+    the `main` when it includes another module defined by `included_mmd`
+    """
+    if 'rpms' in included_mmd.xmd['mbs']:
+        if 'rpms' not in mmd.xmd['mbs']:
+            mmd.xmd['mbs']['rpms'] = included_mmd.xmd['mbs']['rpms']
+        else:
+            mmd.xmd['mbs']['rpms'].update(included_mmd.xmd['mbs']['rpms'])
+
+def record_component_builds(mmd, module, initial_batch=1,
+                            previous_buildorder=None, main_mmd=None):
     import koji  # Placed here to avoid py2/py3 conflicts...
 
     # Format the modulemd by putting in defaults and replacing streams that
@@ -600,16 +595,29 @@ def record_component_builds(mmd, module, initial_batch = 1,
         db.session.commit()
         raise
 
-    # List of (pkg_name, git_url) tuples to be used to check
-    # the availability of git URLs in parallel later.
-    full_urls = []
+    # When main_mmd is set, merge the metadata from this mmd to main_mmd,
+    # otherwise our current mmd is main_mmd.
+    if main_mmd:
+        # Check for components that are in both MMDs before merging since MBS
+        # currently can't handle that situation.
+        duplicate_components = [rpm for rpm in main_mmd.components.rpms.keys()
+                                if rpm in mmd.components.rpms.keys()]
+        if duplicate_components:
+            error_msg = (
+                'The included module "{0}" in "{1}" have the following '
+                'conflicting components: {2}'
+                .format(mmd.name, main_mmd.name,
+                        ', '.join(duplicate_components)))
+            module.transition(conf, models.BUILD_STATES["failed"], error_msg)
+            db.session.add(module)
+            db.session.commit()
+            raise RuntimeError(error_msg)
+        merge_included_mmd(main_mmd, mmd)
+    else:
+        main_mmd = mmd
 
     # If the modulemd yaml specifies components, then submit them for build
     if mmd.components:
-        for pkgname, pkg in mmd.components.rpms.items():
-            full_url = "%s?#%s" % (pkg.repository, pkg.ref)
-            full_urls.append((pkgname, full_url))
-
         components = mmd.components.all
         components.sort(key=lambda x: x.buildorder)
 
@@ -632,12 +640,13 @@ def record_component_builds(mmd, module, initial_batch = 1,
                 full_url = pkg.repository + "?#" + pkg.ref
                 # It is OK to whitelist all URLs here, because the validity
                 # of every URL have been already checked in format_mmd(...).
-                mmd = _fetch_mmd(full_url, whitelist_url=True)[0]
-                batch = record_component_builds(mmd, module, batch,
-                                                previous_buildorder)
+                included_mmd = _fetch_mmd(full_url, whitelist_url=True)[0]
+                batch = record_component_builds(included_mmd, module, batch,
+                                                previous_buildorder, main_mmd)
                 continue
 
-            full_url = pkg.repository + "?#" + pkg.ref
+            pkgref = mmd.xmd['mbs']['rpms'][pkg.name]['ref']
+            full_url = pkg.repository + "?#" + pkgref
 
             existing_build = models.ComponentBuild.query.filter_by(
                 module_id=module.id, package=pkg.name).first()
@@ -654,20 +663,41 @@ def record_component_builds(mmd, module, initial_batch = 1,
                     format="rpms",
                     scmurl=full_url,
                     batch=batch,
-                    ref=pkg.ref
+                    ref=pkgref
                 )
                 db.session.add(build)
 
         return batch
 
 
-def submit_module_build_from_yaml(username, yaml, optional_params=None):
+def submit_module_build_from_yaml(username, handle, optional_params=None):
+    yaml = handle.read()
     mmd = load_mmd(yaml)
+
+    # Mimic the way how default values are generated for modules that are stored in SCM
+    # We can take filename as the module name as opposed to repo name,
+    # and also we can take numeric representation of current datetime
+    # as opposed to datetime of the last commit
+    dt = datetime.utcfromtimestamp(int(time.time()))
+    def_name = str(handle.filename.split(".")[0])
+    def_version = int(dt.strftime("%Y%m%d%H%M%S"))
+
+    mmd.name = mmd.name or def_name
+    mmd.stream = mmd.stream or "master"
+    mmd.version = mmd.version or def_version
     return submit_module_build(username, None, mmd, None, yaml, optional_params)
 
 
+_url_check_re = re.compile(r"^[^:/]+:.*$")
+
 def submit_module_build_from_scm(username, url, branch, allow_local_url=False,
                                  optional_params=None):
+    # Translate local paths into file:// URL
+    if allow_local_url and not _url_check_re.match(url):
+        log.info(
+            "'{}' is not a valid URL, assuming local path".format(url))
+        url = os.path.abspath(url)
+        url = "file://" + url
     mmd, scm, yaml = _fetch_mmd(url, branch, allow_local_url)
     return submit_module_build(username, url, mmd, scm, yaml, optional_params)
 
@@ -766,6 +796,96 @@ def module_build_state_from_msg(msg):
         % (state, type(state), list(models.BUILD_STATES.values())))
     return state
 
+def reuse_component(component, previous_component_build,
+                    change_state_now=False):
+    """
+    Reuses component build `previous_component_build` instead of building
+    component `component`
+
+    Returns the list of BaseMessage instances to be handled later by the
+    scheduler.
+    """
+
+    import koji
+
+    log.info(
+        'Reusing component "{0}" from a previous module '
+        'build with the nvr "{1}"'.format(
+            component.package, previous_component_build.nvr))
+    component.reused_component_id = previous_component_build.id
+    component.task_id = previous_component_build.task_id
+    if change_state_now:
+        component.state = previous_component_build.state
+    else:
+        # Use BUILDING state here, because we want the state to change to
+        # COMPLETE by the fake KojiBuildChange message we are generating
+        # few lines below. If we would set it to the right state right
+        # here, we would miss the code path handling the KojiBuildChange
+        # which works only when switching from BUILDING to COMPLETE.
+        component.state = koji.BUILD_STATES['BUILDING']
+    component.state_reason = \
+        'Reused component from previous module build'
+    component.nvr = previous_component_build.nvr
+    nvr_dict = kobo.rpmlib.parse_nvr(component.nvr)
+    # Add this message to further_work so that the reused
+    # component will be tagged properly
+    return [
+        module_build_service.messaging.KojiBuildChange(
+            msg_id='reuse_component: fake msg',
+            build_id=None,
+            task_id=component.task_id,
+            build_new_state=previous_component_build.state,
+            build_name=component.package,
+            build_version=nvr_dict['version'],
+            build_release=nvr_dict['release'],
+            module_build_id=component.module_id,
+            state_reason=component.state_reason
+        )
+    ]
+
+def attempt_to_reuse_all_components(builder, session, module):
+    """
+    Tries to reuse all the components in a build. The components are also
+    tagged to the tags using the `builder`.
+
+    Returns True if all components could be reused, otherwise False. When
+    False is returned, no component has been reused.
+    """
+
+    # [(component, component_to_reuse), ...]
+    component_pairs = []
+
+    # Find out if we can reuse all components and cache component and
+    # component to reuse pairs.
+    for c in module.component_builds:
+        if c.package == "module-build-macros":
+            continue
+        component_to_reuse = get_reusable_component(
+            session, module, c.package)
+        if not component_to_reuse:
+            return False
+
+        component_pairs.append((c, component_to_reuse))
+
+    # Stores components we will tag to buildroot and final tag.
+    components_to_tag = []
+
+    # Reuse all components.
+    for c, component_to_reuse in component_pairs:
+        # Set the module.batch to the last batch we have.
+        if c.batch > module.batch:
+            module.batch = c.batch
+
+        # Reuse the component
+        reuse_component(c, component_to_reuse, True)
+        components_to_tag.append(c.nvr)
+
+    # Tag them
+    builder.buildroot_add_artifacts(components_to_tag, install=False)
+    builder.tag_artifacts(components_to_tag)
+
+    return True
+
 def get_reusable_component(session, module, component_name):
     """
     Returns the component (RPM) build of a module that can be reused
@@ -778,6 +898,11 @@ def get_reusable_component(session, module, component_name):
     :return: the component (RPM) build SQLAlchemy object, if one is not found,
     None is returned
     """
+
+    # We support components reusing only for koji and test backend.
+    if conf.system not in ['koji', 'test']:
+        return None
+
     mmd = module.mmd()
     # Find the latest module that is in the done or ready state
     previous_module_build = session.query(models.ModuleBuild)\
