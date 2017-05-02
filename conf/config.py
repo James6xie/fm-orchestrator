@@ -94,7 +94,7 @@ class BaseConfiguration(object):
     # Disable Client Authorization
     NO_AUTH = False
 
-    CACHE_DIR = '/var/cache/module-build-service'
+    CACHE_DIR = '~/modulebuild/cache'
 
 
 class DevConfiguration(BaseConfiguration):
