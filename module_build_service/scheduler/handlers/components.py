@@ -84,6 +84,12 @@ def _finalize(config, session, msg, state):
         if c.state == koji.BUILD_STATES['BUILDING'] or not c.state
     ]
     if not unbuilt_components_in_batch:
+        failed_components_in_batch = [
+            c.nvr for c in parent.current_batch()
+            if (c.state in [koji.BUILD_STATES['FAILED'],
+                            koji.BUILD_STATES['CANCELED']])
+        ]
+
         built_components_in_batch = [
             c.nvr for c in parent.current_batch()
             if c.state == koji.BUILD_STATES['COMPLETE']
@@ -92,11 +98,18 @@ def _finalize(config, session, msg, state):
         builder = module_build_service.builder.GenericBuilder.create_from_module(
             session, parent, config)
 
-        if not built_components_in_batch:
+        if not built_components_in_batch or failed_components_in_batch:
             # If there are no successfully built components in a batch,
-            # there is nothing to tag and therefore the repository won't
-            # be regenerated. We generate fake repo change message here.
-            log.info("Batch done. No component to tag")
+            # there is nothing to tag. If there is some failed component build,
+            # we should not tag even the successfully built components, because
+            # the module build will fail anyway. Repository won't be
+            # regenerated in these cases and therefore we generate fake repo
+            # change message here.
+            if failed_components_in_batch:
+                log.info("Batch done, but not tagging because of failed "
+                    "component builds.")
+            else:
+                log.info("Batch done. No component to tag")
             further_work += [messaging.KojiRepoChange(
                 'components::_finalize: fake msg',
                 builder.module_build_tag['name'])]
