@@ -178,9 +178,9 @@ class TestViews(unittest.TestCase):
                 },
             },
         })
-        self.assertEquals(data['time_completed'], u'Sat, 03 Sep 2016 11:25:32 GMT')
-        self.assertEquals(data['time_modified'], u'Sat, 03 Sep 2016 11:25:32 GMT')
-        self.assertEquals(data['time_submitted'], u'Sat, 03 Sep 2016 11:23:20 GMT')
+        self.assertEquals(data['time_completed'], u'2016-09-03T11:25:32Z')
+        self.assertEquals(data['time_modified'], u'2016-09-03T11:25:32Z')
+        self.assertEquals(data['time_submitted'], u'2016-09-03T11:23:20Z')
         self.assertEquals(data['version'], '2')
 
     def test_pagination_metadata(self):
