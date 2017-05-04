@@ -282,15 +282,15 @@ class ModuleBuild(MBSBase):
             'state_url': get_url_for('module_build', id=self.id),
             'scmurl': self.scmurl,
             'owner': self.owner,
-            'time_submitted': self.time_submitted,
-            'time_modified': self.time_modified,
-            'time_completed': self.time_completed,
+            'time_submitted': self._utc_datetime_to_iso(self.time_submitted),
+            'time_modified': self._utc_datetime_to_iso(self.time_modified),
+            'time_completed': self._utc_datetime_to_iso(self.time_completed),
             "tasks": self.tasks(),
             # TODO, show their entire .json() ?
             'component_builds': [build.id for build in self.component_builds],
             'modulemd': self.modulemd,
             'koji_tag': self.koji_tag,
-            'state_trace': [{'time': record.state_time,
+            'state_trace': [{'time': self._utc_datetime_to_iso(record.state_time),
                              'state': record.state,
                              'state_name': INVERSE_BUILD_STATES[record.state],
                              'reason': record.state_reason}
@@ -372,7 +372,7 @@ class ModuleBuildTrace(MBSBase):
         retval = {
             'id': self.id,
             'module_id': self.module_id,
-            'state_time': self.state_time,
+            'state_time': self._utc_datetime_to_iso(self.state_time),
             'state': self.state,
             'state_reason': self.state_reason,
         }
@@ -473,7 +473,7 @@ class ComponentBuildTrace(MBSBase):
         retval = {
             'id': self.id,
             'component_id': self.component_id,
-            'state_time': self.state_time,
+            'state_time': self._utc_datetime_to_iso(self.state_time),
             'state': self.state,
             'state_reason': self.state_reason,
             'task_id': self.task_id,
