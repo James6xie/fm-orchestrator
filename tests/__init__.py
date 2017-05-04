@@ -32,6 +32,7 @@ import modulemd
 from module_build_service.utils import get_scm_url_re
 import module_build_service.pdc
 
+base_dir = os.path.dirname(__file__)
 app = module_build_service.app
 conf = init_config(app)
 
@@ -46,7 +47,8 @@ def init_data():
         build_one.stream = '1'
         build_one.version = 2
         build_one.state = 3
-        build_one.modulemd = ''  # Skipping since no tests rely on it
+        with open(os.path.join(base_dir, "staged_data", "nginx_mmd.yaml")) as mmd:
+            build_one.modulemd = mmd.read()
         build_one.koji_tag = 'module-nginx-1.2'
         build_one.scmurl = ('git://pkgs.domain.local/modules/nginx?'
                             '#ba95886c7a443b36a9ce31abda1f9bef22f2f8c9')

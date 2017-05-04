@@ -1,0 +1,31 @@
+# Document type identifier
+document: modulemd
+# Module metadata format version
+version: 1
+data:
+    # Module name, optional
+    # Typically filled in by the buildsystem, using the VCS repository
+    # name as the name of the module.
+    name: nginx
+    # Module update stream, optional
+    # Typically filled in by the buildsystem, using the VCS branch name
+    # as the name of the stream.
+    stream: 1
+    # Module version, integer, optional, cannot be negative
+    # Typically filled in by the buildsystem, using the VCS commit
+    # timestamp.  Module version defines upgrade path for the particular
+    # update stream.
+    version: 2
+    # A short summary describing the module, required
+    summary: An example nginx module
+    # A verbose description of the module, required
+    description: >
+        A module for the tests of module build service
+    # Module and content licenses in the Fedora license identifier
+    # format, required
+    license:
+        # Module license, required
+        # This list covers licenses used for the module metadata, SPEC
+        # files or extra patches
+        module:
+            - MIT
