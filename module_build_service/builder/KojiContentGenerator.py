@@ -47,12 +47,13 @@ class KojiContentGenerator(object):
         """
         self.owner = module.owner
         self.module = module
-        self.module_str = module.name
+        self.module_name = module.name
+        self.mmd = module.modulemd
         self.config = config
 
 
     def __repr__(self):
-        return "<KojiContentGenerator module: %s>" % (self.module_str)
+        return "<KojiContentGenerator module: %s>" % (self.module_name)
 
     def _koji_rpms_in_tag(self, tag):
         """ Return the list of koji rpms in a tag. """
@@ -142,9 +143,9 @@ class KojiContentGenerator(object):
                 'buildroot_id': 1,
                 'arch': "noarch",
                 'type': 'modulemd',
-                'filesize': len(self.module_str),
+                'filesize': len(self.mmd),
                 'checksum_type': 'md5',
-                'checksum': hashlib.md5(self.module_str).hexdigest(),
+                'checksum': hashlib.md5(self.mmd).hexdigest(),
                 'filename': 'modulemd.yaml',
                 'components': components
             }
