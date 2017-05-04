@@ -144,14 +144,19 @@ Prior to starting MBS, you can force development mode::
 Module Submission
 -----------------
 
-You can submit a local test build with the `contrib/submit_build.py` script,
+You can submit a local test build with the `contrib/mbs-build` script,
 which should submit an HTTP POST to the frontend, requesting a build::
 
-    $ cd contrib/ && python submit_build.py
 
-This script uses `scmurl` from the input file `contrib/submit-build.json`. Note
-that authentication will be required for submitting a module build. Follow
-the on-screen instructions to authenticate.
+    $ ./contrib/mbs-build -s [server] submit [scm_url] [branch]
+
+Here, `server` should specify the `hostname[:port]` port of the MBS instance
+you want to submit to.  For local development, try `127.0.0.1:5000`.
+
+The `scmurl` should be a url to a dist-git repo of the module in question and
+the `branch` should be the stream that you want to build. Note that
+authentication will be required for submitting a module build. Follow the
+on-screen instructions to authenticate.
 
 See also `SCMURLS` in `conf/config.py` for list of allowed SCM URLs.
 
