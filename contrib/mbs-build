@@ -79,7 +79,11 @@ def watch_build(server, build_id):
 
         done = data["state_name"] in ["failed", "done", "ready"]
 
-        print('Module {name} is in state {state_name} (reason {state_reason})'.format(**data))
+        template = ('{owner}\'s build #{id} of {name}-{stream} is in '
+                    'the "{state_name}" state')
+        if data['state_reason']:
+            template += ' (reason: {state_reason})'
+        print(template.format(**data))
         time.sleep(30)
 
 # Ideally we would use oidc.send_request here, but it doesn't support
