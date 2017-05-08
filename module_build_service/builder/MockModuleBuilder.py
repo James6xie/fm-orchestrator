@@ -403,7 +403,7 @@ mdpolicy=group:primary
             build_id = int(MockModuleBuilder._build_id)
 
         # Git sources are treated specially.
-        if source.startswith("git://"):
+        if source.startswith(("git://", "http://", "https://")):
             # Open the srpm-stdout and srpm-stderr logs and build from SCM.
             srpm_stdout_fn = os.path.join(self.resultsdir,
                                           artifact_name + "-srpm-stdout.log")
