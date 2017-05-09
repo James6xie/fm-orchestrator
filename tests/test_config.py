@@ -35,3 +35,7 @@ class TestConfig(unittest.TestCase):
         test_dir = "~/modulebuild/builds"
         conf.mock_resultsdir = test_dir
         self.assertEqual(conf.mock_resultsdir, os.path.expanduser(test_dir))
+
+        test_dir = "~/modulebuild/builds"
+        conf.cache_dir = test_dir
+        self.assertEqual(conf.cache_dir, os.path.expanduser(test_dir))
