@@ -27,8 +27,10 @@ import hashlib
 import logging
 import json
 import os
+import pkg_resources
 import platform
 import shutil
+import subprocess
 import tempfile
 
 import koji
@@ -59,6 +61,122 @@ class KojiContentGenerator(object):
     def __repr__(self):
         return "<KojiContentGenerator module: %s>" % (self.module_name)
 
+    @staticmethod
+    def parse_rpm_output(output, tags, separator=';'):
+        """
+        Copied from https://github.com/projectatomic/atomic-reactor/blob/master/atomic_reactor/plugins/exit_koji_promote.py
+        License: BSD 3-clause
+
+        Parse output of the rpm query.
+        :param output: list, decoded output (str) from the rpm subprocess
+        :param tags: list, str fields used for query output
+        :return: list, dicts describing each rpm package
+        """
+
+        def field(tag):
+            """
+            Get a field value by name
+            """
+            try:
+                value = fields[tags.index(tag)]
+            except ValueError:
+                return None
+
+            if value == '(none)':
+                return None
+
+            return value
+
+        components = []
+        sigmarker = 'Key ID '
+        for rpm in output:
+            fields = rpm.rstrip('\n').split(separator)
+            if len(fields) < len(tags):
+                continue
+
+            signature = field('SIGPGP:pgpsig') or field('SIGGPG:pgpsig')
+            if signature:
+                parts = signature.split(sigmarker, 1)
+                if len(parts) > 1:
+                    signature = parts[1]
+
+            component_rpm = {
+                'type': 'rpm',
+                'name': field('NAME'),
+                'version': field('VERSION'),
+                'release': field('RELEASE'),
+                'arch': field('ARCH'),
+                'sigmd5': field('SIGMD5'),
+                'signature': signature,
+            }
+
+            # Special handling for epoch as it must be an integer or None
+            epoch = field('EPOCH')
+            if epoch is not None:
+                epoch = int(epoch)
+
+            component_rpm['epoch'] = epoch
+
+            if component_rpm['name'] != 'gpg-pubkey':
+                components.append(component_rpm)
+
+        return components
+
+    def __get_rpms(self):
+        """
+        Copied from https://github.com/projectatomic/atomic-reactor/blob/master/atomic_reactor/plugins/exit_koji_promote.py
+        License: BSD 3-clause
+
+        Build a list of installed RPMs in the format required for the
+        metadata.
+        """
+
+        tags = [
+            'NAME',
+            'VERSION',
+            'RELEASE',
+            'ARCH',
+            'EPOCH',
+            'SIGMD5',
+            'SIGPGP:pgpsig',
+            'SIGGPG:pgpsig',
+        ]
+
+        sep = ';'
+        fmt = sep.join(["%%{%s}" % tag for tag in tags])
+        cmd = "/bin/rpm -qa --qf '{0}\n'".format(fmt)
+        try:
+            # py3
+            (status, output) = subprocess.getstatusoutput(cmd)
+        except AttributeError:
+            # py2
+            with open('/dev/null', 'r+') as devnull:
+                p = subprocess.Popen(cmd,
+                                     shell=True,
+                                     stdin=devnull,
+                                     stdout=subprocess.PIPE,
+                                     stderr=devnull)
+
+                (stdout, stderr) = p.communicate()
+                status = p.wait()
+                output = stdout.decode()
+
+        if status != 0:
+            log.debug("%s: stderr output: %s", cmd, stderr)
+            raise RuntimeError("%s: exit code %s" % (cmd, status))
+
+        return self.parse_rpm_output(output.splitlines(), tags, separator=sep)
+
+    def __get_tools(self):
+        """Return list of tools which are important for reproducing mbs outputs"""
+
+        tools = ["modulemd"]
+        ret = []
+        for tool in tools:
+            ret.append({"name": tool,
+                        "version": pkg_resources.get_distribution(tool).version})
+        return ret
+
     def _koji_rpms_in_tag(self, tag):
         """ Return the list of koji rpms in a tag. """
         log.debug("Listing rpms in koji tag %s", tag)
@@ -83,7 +201,7 @@ class KojiContentGenerator(object):
     def _get_build(self):
         ret = {}
         ret['name'] = self.module.name
-        ret['version'] = self.module.stream
+        ret['version'] = self.module.stream.replace("-", "_")
         ret['release'] = self.module.version
         ret['source'] = self.module.scmurl
         ret['start_time'] = calendar.timegm(
@@ -92,16 +210,18 @@ class KojiContentGenerator(object):
             self.module.time_completed.utctimetuple())
         ret['extra'] = {
             "typeinfo": {
-                "modulemd": {
+                "module": {
                     "module_build_service_id": self.module.id,
-                    "modulemd_str": self.module.modulemd
+                    "modulemd_str": self.module.modulemd,
+                    "name": self.module.name,
+                    "stream": self.module.stream,
+                    "version": self.module.version
                 }
             }
         }
         return ret
 
     def _get_buildroot(self):
-        import pkg_resources
         version = pkg_resources.get_distribution("module-build-service").version
         distro = platform.linux_distribution()
         ret = {
@@ -118,11 +238,10 @@ class KojiContentGenerator(object):
                 "arch": platform.machine(),
                 "type": "none"
             },
-            "components": [],
-            "tools": []
+            "components": self.__get_rpms(),
+            "tools": self.__get_tools()
         }
         return ret
-
 
 
     def _get_output(self):
@@ -145,8 +264,13 @@ class KojiContentGenerator(object):
         ret.append(
             {
                 'buildroot_id': 1,
-                'arch': "noarch",
-                'type': 'modulemd',
+                'arch': 'noarch',
+                'type': 'file',
+                'extra': {
+                    'typeinfo': {
+                        'module': {}
+                    }
+                },
                 'filesize': len(self.mmd),
                 'checksum_type': 'md5',
                 'checksum': hashlib.md5(self.mmd).hexdigest(),

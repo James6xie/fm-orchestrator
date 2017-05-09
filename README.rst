@@ -484,3 +484,11 @@ the following rules (all of them are evaluated from top to bottom):
 - if `MODULE_BUILD_SERVICE_DEVELOPER_ENV` is set to some reasonable
   value, DevConfiguration is forced and `config.py` is used directly from the
   MBS's develop instance. For more information see `docs/CONTRIBUTING.rst`.
+
+License
+=======
+
+MBS is licensed under MIT license. See LICENSE file for details.
+
+Parts of MBS are licensed under 3-clause BSD license from:
+https://github.com/projectatomic/atomic-reactor/blob/master/LICENSE
