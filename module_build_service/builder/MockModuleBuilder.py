@@ -67,6 +67,7 @@ config_opts['extra_chroot_dirs'] = [ '/run/lock', ]
 config_opts['releasever'] = ''
 config_opts['package_manager'] = 'dnf'
 config_opts['nosync'] = True
+config_opts['use_bootstrap_container'] = False
 
 config_opts['yum.conf'] = \"\"\"
 $yum_conf
