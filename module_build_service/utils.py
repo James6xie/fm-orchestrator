@@ -288,6 +288,13 @@ def start_next_batch_build(config, module, session, builder, components=None):
             and c.batch == module.batch)
     ]
 
+    # If there are no components to build, skip the batch and start building
+    # the new one. This can happen when resubmitting the failed module build.
+    if not unbuilt_components and not components:
+        log.info("Skipping build of batch %d, no component to build.",
+                 module.batch)
+        return start_next_batch_build(config, module, session, builder)
+
     log.info("Starting build of next batch %d, %s" % (module.batch,
         unbuilt_components))
 
