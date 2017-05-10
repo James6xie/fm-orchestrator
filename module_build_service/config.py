@@ -350,22 +350,23 @@ class Config(object):
             raise Exception("Configuration item's name is not allowed: %s" % key)
 
         # Create the empty self._key attribute, so we can assign to it.
-        setattr(self, "_" + key, None)
+        if not hasattr(self, "_" + key):
+            setattr(self, "_" + key, None)
 
-        # Create self.key property to access the self._key attribute.
-        # Use the setifok_func if available for the attribute.
-        setifok_func = '_setifok_{}'.format(key)
-        if hasattr(self, setifok_func):
-            setx = lambda self, val: getattr(self, setifok_func)(val)
-        elif value_type == Path:
-            # For paths, expanduser.
-            setx = lambda self, val: setattr(
-                self, "_" + key, os.path.expanduser(val))
-        else:
-            setx = lambda self, val: setattr(self, "_" + key, val)
-        getx = lambda self: getattr(self, "_" + key)
-        delx = lambda self: delattr(self, "_" + key)
-        setattr(Config, key, property(getx, setx, delx))
+            # Create self.key property to access the self._key attribute.
+            # Use the setifok_func if available for the attribute.
+            setifok_func = '_setifok_{}'.format(key)
+            if hasattr(self, setifok_func):
+                setx = lambda self, val: getattr(self, setifok_func)(val)
+            elif value_type == Path:
+                # For paths, expanduser.
+                setx = lambda self, val: setattr(
+                    self, "_" + key, os.path.expanduser(val))
+            else:
+                setx = lambda self, val: setattr(self, "_" + key, val)
+            getx = lambda self: getattr(self, "_" + key)
+            delx = lambda self: delattr(self, "_" + key)
+            setattr(Config, key, property(getx, setx, delx))
 
         # managed/registered configuration items
         if key in self._defaults:
