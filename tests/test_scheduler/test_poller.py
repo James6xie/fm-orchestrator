@@ -35,6 +35,7 @@ import module_build_service.scheduler.handlers.components
 from module_build_service.builder import GenericBuilder, KojiModuleBuilder
 from module_build_service.scheduler.producer import MBSProducer
 import six.moves.queue as queue
+from datetime import datetime, timedelta
 
 BASE_DIR = path.abspath(path.dirname(__file__))
 CASSETTES_DIR = path.join(
@@ -195,3 +196,66 @@ class TestPoller(unittest.TestCase):
         components = module_build.current_batch()
         for component in components:
             self.assertEqual(component.state, None)
+
+    def test_delete_old_koji_targets(
+            self, create_builder, koji_get_session, global_consumer, dbg):
+        """
+        Tests that we delete koji target when time_completed is older than
+        koji_target_delete_time value.
+        """
+        consumer = mock.MagicMock()
+        consumer.incoming = queue.Queue()
+        global_consumer.return_value = consumer
+
+        for state_name, state in models.BUILD_STATES.items():
+            koji_session = mock.MagicMock()
+            koji_session.getBuildTargets.return_value = [
+                {'dest_tag_name': 'module-tag', 'id': 852, 'name': 'module-tag'},
+                {'dest_tag_name': 'f26', 'id': 853, 'name': 'f26'},
+                {'dest_tag_name': 'module-tag2', 'id': 853, 'name': 'f26'}]
+            koji_get_session.return_value = koji_session
+
+            builder = mock.MagicMock()
+            create_builder.return_value = builder
+
+            # Change the batch to 2, so the module build is in state where
+            # it is not building anything, but the state is "build".
+            module_build = models.ModuleBuild.query.filter_by(id=2).one()
+            module_build.state = state
+            module_build.koji_tag = "module-tag"
+            module_build.time_completed = datetime.utcnow()
+            module_build.new_repo_task_id = 123456
+            db.session.commit()
+
+            # Poll :)
+            hub = mock.MagicMock()
+            poller = MBSProducer(hub)
+            poller.delete_old_koji_targets(conf, db.session)
+
+            db.session.refresh(module_build)
+            module_build.time_completed = datetime.utcnow() - timedelta(hours=23)
+            db.session.commit()
+            poller.delete_old_koji_targets(conf, db.session)
+
+            # deleteBuildTarget should not be called, because time_completed is
+            # set to "now".
+            self.assertTrue(not koji_session.deleteBuildTarget.called)
+
+            # Try removing non-modular target - should not happen
+            db.session.refresh(module_build)
+            module_build.koji_tag = "module-tag2"
+            module_build.time_completed = datetime.utcnow() - timedelta(hours=25)
+            db.session.commit()
+            poller.delete_old_koji_targets(conf, db.session)
+            self.assertTrue(not koji_session.deleteBuildTarget.called)
+
+            # Refresh our module_build object and set time_completed 25 hours ago
+            db.session.refresh(module_build)
+            module_build.time_completed = datetime.utcnow() - timedelta(hours=25)
+            module_build.koji_tag = "module-tag"
+            db.session.commit()
+
+            poller.delete_old_koji_targets(conf, db.session)
+
+            if state_name in ["done", "ready", "failed"]:
+                koji_session.deleteBuildTarget.assert_called_once_with(852)

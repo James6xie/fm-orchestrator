@@ -26,7 +26,7 @@ fedmsg-hub. This class polls the database for tasks to do.
 
 import koji
 import operator
-from datetime import timedelta
+from datetime import timedelta, datetime
 from sqlalchemy.orm import lazyload
 from moksha.hub.api.producer import PollingProducer
 
@@ -50,6 +50,7 @@ class MBSProducer(PollingProducer):
                 self.fail_lost_builds(session)
                 self.process_paused_module_builds(conf, session)
                 self.trigger_new_repo_when_stalled(conf, session)
+                self.delete_old_koji_targets(conf, session)
             except Exception as e:
                 msg = 'Error in poller execution:'
                 log.exception(msg)
@@ -239,3 +240,42 @@ class MBSProducer(PollingProducer):
                 module_build.new_repo_task_id = 0
 
         session.commit()
+
+    def delete_old_koji_targets(self, config, session):
+        """
+        Deletes targets older than `config.koji_target_delete_time` seconds
+        from Koji to cleanup after the module builds.
+        """
+        if config.system != 'koji':
+            return
+
+        log.info('Looking for module builds which Koji target can be removed')
+
+        now = datetime.utcnow()
+
+        koji_session = module_build_service.builder.KojiModuleBuilder\
+            .get_session(config, None)
+        for target in koji_session.getBuildTargets():
+            koji_tag = target["dest_tag_name"]
+            module = session.query(models.ModuleBuild).filter_by(
+                koji_tag=koji_tag).first()
+            if not module or module.state in [models.BUILD_STATES["init"],
+                                              models.BUILD_STATES["wait"],
+                                              models.BUILD_STATES["build"]]:
+                continue
+
+            # Double-check that the target we are going to remove is prefixed
+            # by our prefix, so we won't remove f26 when there is some garbage
+            # in DB or Koji.
+            for allowed_prefix in config.koji_tag_prefixes:
+                if target['name'].startswith(allowed_prefix + "-"):
+                    break
+            else:
+                log.error("Module %r has Koji target with not allowed prefix.",
+                          module)
+                continue
+
+            delta = now - module.time_completed
+            if delta.total_seconds() > config.koji_target_delete_time:
+                log.info("Removing target of module %r", module)
+                koji_session.deleteBuildTarget(target['id'])

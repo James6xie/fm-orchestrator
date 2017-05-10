@@ -181,6 +181,11 @@ class Config(object):
             'type': list,
             'default': ['module'],
             'desc': 'List of allowed koji tag prefixes.'},
+        'koji_target_delete_time': {
+            'type': int,
+            'default': 24*3600,
+            'desc': 'Time in seconds after which the Koji target of '
+                'built module is deleted'},
         'allow_custom_scmurls': {
             'type': bool,
             'default': False,
