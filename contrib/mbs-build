@@ -30,15 +30,43 @@ BUILD_STATES = {
 
 INVERSE_BUILD_STATES = {v: k for k, v in BUILD_STATES.items()}
 
+
+def fetch_module_info(server, build_id):
+    if not server:
+        server = DEFAULT_MBS_SERVER
+    idx = int(build_id)
+
+    response = requests.get(server + '/module-build-service/1/module-builds/%i?verbose=true' % idx)
+    return response.json()
+
+
+def show_module_info(server, build_id):
+    state_names = dict([(v, k) for k, v in koji.BUILD_STATES.items()])
+    state_names[None] = "undefined"
+
+    data = fetch_module_info(server, build_id)
+    table = []
+    for package_name, task_data in data["tasks"]["rpms"].items():
+        try:
+            koji_task_url = "https://koji.fedoraproject.org/koji/taskinfo?taskID=%s" % task_data['task_id']
+        except KeyError:
+            koji_task_url = ""
+        table += [[
+            task_data.get("nvr", "null"),
+            state_names[task_data.get("state", None)],
+            koji_task_url
+        ]]
+    headers = ["NVR", "State", "Koji Task"]
+
+    print(tabulate(table, headers=headers))
+
+
 def watch_build(server, build_id):
     """
     Watches the MBS build in a loop, updates every 30 seconds.
     Returns when build state is 'failed' or 'done' or 'ready' or when
     user hits ctrl+c.
     """
-    if not server:
-        server = DEFAULT_MBS_SERVER
-
     done = False
     while not done:
         # Clear the screen
@@ -47,10 +75,7 @@ def watch_build(server, build_id):
         state_names = dict([(v, k) for k, v in koji.BUILD_STATES.items()])
         state_names[None] = "undefined"
 
-        idx = int(build_id)
-
-        response = requests.get(server + '/module-build-service/1/module-builds/%i?verbose=true' % idx)
-        data = response.json()
+        data = fetch_module_info(server, build_id)
 
         tasks = data['tasks']['rpms']
         states = list(set([task['state'] for task in tasks.values()]))
@@ -258,7 +283,7 @@ def cancel_module_build(server, id_provider, build_id):
         {'state': 'failed'})
     logging.info(resp.text)
 
-def show_overview(server):
+def show_overview(server, finished, limit=30):
     if not server:
         server = DEFAULT_MBS_SERVER
 
@@ -295,9 +320,14 @@ def show_overview(server):
                "%s-%s-%s" % (module["name"], module["stream"], module["version"])]
         return row
 
-    # We are interested only in init, wait and build states.
-    states = [BUILD_STATES["init"], BUILD_STATES["wait"],
-              BUILD_STATES["build"]]
+    if finished:
+        # these are the states when the module build is finished
+        states = [BUILD_STATES["done"], BUILD_STATES["ready"],
+                  BUILD_STATES["failed"]]
+    else:
+        # this is when the build is in progress
+        states = [BUILD_STATES["init"], BUILD_STATES["wait"],
+                  BUILD_STATES["build"]]
 
     # Get all modules in the states we are interested in using 3 threads.
     pool = ThreadPool(3)
@@ -308,7 +338,8 @@ def show_overview(server):
 
     # Get the table rows with information about each module using 20 threads.
     pool = ThreadPool(20)
-    table = pool.map(get_module_info, module_builds)
+    # get most recent builds
+    table = pool.map(get_module_info, module_builds[-limit:])
 
     # Sort it according to 'id' (first element in list).
     table = list(reversed(sorted(
@@ -352,6 +383,11 @@ def main():
         "the 'submit' subcommand.")
     parser_watch.add_argument("build_id")
 
+    parser_info = subparsers.add_parser(
+        'info', help="display detailed information about selected module build",
+        description="Display detailed information about selected module build.")
+    parser_info.add_argument("build_id")
+
     parser_cancel = subparsers.add_parser(
         'cancel', help="cancel module build",
         description="Cancels the build submitted by 'submit' subcommand.")
@@ -369,6 +405,12 @@ def main():
     parser_overview = subparsers.add_parser(
         'overview', help="show overview of module builds",
         description="Shows overview of module builds.")
+    parser_overview.add_argument(
+        '--finished', dest='finished', action='store_true', default=False,
+        help="show only finished module builds")
+    parser_overview.add_argument(
+        '--limit', dest='limit', action='store', type=int, default=30,
+        help="the number of recent builds to show")
 
     args = parser.parse_args()
 
@@ -404,7 +446,9 @@ def main():
         # Cancel the module build
         cancel_module_build(args.server, args.idprovider, args.build_id)
     elif args.cmd_name == "overview":
-        show_overview(args.server)
+        show_overview(args.server, finished=args.finished, limit=args.limit)
+    elif args.cmd_name == "info":
+        show_module_info(args.server, args.build_id)
 
 if __name__ == "__main__":
     main()
