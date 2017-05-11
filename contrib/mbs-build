@@ -283,7 +283,7 @@ def cancel_module_build(server, id_provider, build_id):
         {'state': 'failed'})
     logging.info(resp.text)
 
-def show_overview(server, finished):
+def show_overview(server, finished, limit=30):
     if not server:
         server = DEFAULT_MBS_SERVER
 
@@ -338,7 +338,8 @@ def show_overview(server, finished):
 
     # Get the table rows with information about each module using 20 threads.
     pool = ThreadPool(20)
-    table = pool.map(get_module_info, module_builds)
+    # get most recent builds
+    table = pool.map(get_module_info, module_builds[-limit:])
 
     # Sort it according to 'id' (first element in list).
     table = list(reversed(sorted(
@@ -407,6 +408,9 @@ def main():
     parser_overview.add_argument(
         '--finished', dest='finished', action='store_true', default=False,
         help="show only finished module builds")
+    parser_overview.add_argument(
+        '--limit', dest='limit', action='store', type=int, default=30,
+        help="the number of recent builds to show")
 
     args = parser.parse_args()
 
@@ -442,7 +446,7 @@ def main():
         # Cancel the module build
         cancel_module_build(args.server, args.idprovider, args.build_id)
     elif args.cmd_name == "overview":
-        show_overview(args.server, finished=args.finished)
+        show_overview(args.server, finished=args.finished, limit=args.limit)
     elif args.cmd_name == "info":
         show_module_info(args.server, args.build_id)
 
