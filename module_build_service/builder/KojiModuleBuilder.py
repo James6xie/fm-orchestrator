@@ -262,11 +262,6 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
                                                    self.module_build_tag,
                                                    self.module_tag)
 
-        # Add -repo target, so Kojira creates RPM repository with built
-        # module for us.
-        self._koji_add_target(self.tag_name + "-repo", self.module_tag,
-                              self.module_tag)
-
         self.__prep = True
         log.info("%r buildroot sucessfully connected." % self)
 
