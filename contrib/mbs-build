@@ -258,7 +258,7 @@ def cancel_module_build(server, id_provider, build_id):
         {'state': 'failed'})
     logging.info(resp.text)
 
-def show_overview(server):
+def show_overview(server, finished):
     if not server:
         server = DEFAULT_MBS_SERVER
 
@@ -295,9 +295,14 @@ def show_overview(server):
                "%s-%s-%s" % (module["name"], module["stream"], module["version"])]
         return row
 
-    # We are interested only in init, wait and build states.
-    states = [BUILD_STATES["init"], BUILD_STATES["wait"],
-              BUILD_STATES["build"]]
+    if finished:
+        # these are the states when the module build is finished
+        states = [BUILD_STATES["done"], BUILD_STATES["ready"],
+                  BUILD_STATES["failed"]]
+    else:
+        # this is when the build is in progress
+        states = [BUILD_STATES["init"], BUILD_STATES["wait"],
+                  BUILD_STATES["build"]]
 
     # Get all modules in the states we are interested in using 3 threads.
     pool = ThreadPool(3)
@@ -369,6 +374,9 @@ def main():
     parser_overview = subparsers.add_parser(
         'overview', help="show overview of module builds",
         description="Shows overview of module builds.")
+    parser_overview.add_argument(
+        '--finished', dest='finished', action='store_true', default=False,
+        help="show only finished module builds")
 
     args = parser.parse_args()
 
@@ -404,7 +412,7 @@ def main():
         # Cancel the module build
         cancel_module_build(args.server, args.idprovider, args.build_id)
     elif args.cmd_name == "overview":
-        show_overview(args.server)
+        show_overview(args.server, finished=args.finished)
 
 if __name__ == "__main__":
     main()
