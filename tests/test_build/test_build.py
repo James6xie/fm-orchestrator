@@ -733,3 +733,42 @@ class TestBuild(unittest.TestCase):
             self.assertTrue(build.module_build.state in [models.BUILD_STATES["done"], models.BUILD_STATES["ready"]] )
             self.assertNotEqual(build.package, "module-build-macros")
 
+    @timed(30)
+    @patch('module_build_service.auth.get_user', return_value=user)
+    @patch('module_build_service.scm.SCM')
+    def test_submit_build_resume(self, mocked_scm, mocked_get_user, conf_system, dbg):
+        """
+        Tests that resuming the build works even when previous batches
+        are already built.
+        """
+        MockedSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
+                  '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+
+        rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
+            {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+                'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}))
+
+        data = json.loads(rv.data)
+        module_build_id = data['id']
+
+        TestModuleBuilder.BUILD_STATE = "BUILDING"
+        TestModuleBuilder.INSTANT_COMPLETE = True
+
+        # Set the components from batch 2 to COMPLETE
+        components = models.ComponentBuild.query.filter_by(module_id=module_build_id)
+        for c in components:
+            print c
+            if c.batch == 2:
+                c.state = koji.BUILD_STATES["COMPLETE"]
+        db.session.commit()
+        db.session.expire_all()
+
+        msgs = []
+        stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
+        module_build_service.scheduler.main(msgs, stop)
+
+        # All components should be built and module itself should be in "done"
+        # or "ready" state.
+        for build in models.ComponentBuild.query.filter_by(module_id=module_build_id).all():
+            self.assertEqual(build.state, koji.BUILD_STATES['COMPLETE'])
+            self.assertTrue(build.module_build.state in [models.BUILD_STATES["done"], models.BUILD_STATES["ready"]] )
