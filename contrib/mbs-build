@@ -30,15 +30,43 @@ BUILD_STATES = {
 
 INVERSE_BUILD_STATES = {v: k for k, v in BUILD_STATES.items()}
 
+
+def fetch_module_info(server, build_id):
+    if not server:
+        server = DEFAULT_MBS_SERVER
+    idx = int(build_id)
+
+    response = requests.get(server + '/module-build-service/1/module-builds/%i?verbose=true' % idx)
+    return response.json()
+
+
+def show_module_info(server, build_id):
+    state_names = dict([(v, k) for k, v in koji.BUILD_STATES.items()])
+    state_names[None] = "undefined"
+
+    data = fetch_module_info(server, build_id)
+    table = []
+    for package_name, task_data in data["tasks"]["rpms"].items():
+        try:
+            koji_task_url = "https://koji.fedoraproject.org/koji/taskinfo?taskID=%s" % task_data['task_id']
+        except KeyError:
+            koji_task_url = ""
+        table += [[
+            task_data.get("nvr", "null"),
+            state_names[task_data.get("state", None)],
+            koji_task_url
+        ]]
+    headers = ["NVR", "State", "Koji Task"]
+
+    print(tabulate(table, headers=headers))
+
+
 def watch_build(server, build_id):
     """
     Watches the MBS build in a loop, updates every 30 seconds.
     Returns when build state is 'failed' or 'done' or 'ready' or when
     user hits ctrl+c.
     """
-    if not server:
-        server = DEFAULT_MBS_SERVER
-
     done = False
     while not done:
         # Clear the screen
@@ -47,10 +75,7 @@ def watch_build(server, build_id):
         state_names = dict([(v, k) for k, v in koji.BUILD_STATES.items()])
         state_names[None] = "undefined"
 
-        idx = int(build_id)
-
-        response = requests.get(server + '/module-build-service/1/module-builds/%i?verbose=true' % idx)
-        data = response.json()
+        data = fetch_module_info(server, build_id)
 
         tasks = data['tasks']['rpms']
         states = list(set([task['state'] for task in tasks.values()]))
@@ -357,6 +382,11 @@ def main():
         "the 'submit' subcommand.")
     parser_watch.add_argument("build_id")
 
+    parser_info = subparsers.add_parser(
+        'info', help="display detailed information about selected module build",
+        description="Display detailed information about selected module build.")
+    parser_info.add_argument("build_id")
+
     parser_cancel = subparsers.add_parser(
         'cancel', help="cancel module build",
         description="Cancels the build submitted by 'submit' subcommand.")
@@ -413,6 +443,8 @@ def main():
         cancel_module_build(args.server, args.idprovider, args.build_id)
     elif args.cmd_name == "overview":
         show_overview(args.server, finished=args.finished)
+    elif args.cmd_name == "info":
+        show_module_info(args.server, args.build_id)
 
 if __name__ == "__main__":
     main()
