@@ -147,7 +147,8 @@ class TestViews(unittest.TestCase):
         data = json.loads(rv.data)
         self.assertEquals(data['component_builds'], [1, 2])
         self.assertEquals(data['id'], 1)
-        self.assertEquals(data['modulemd'], '')
+        with open(path.join(base_dir, "staged_data", "nginx_mmd.yaml")) as mmd:
+            self.assertEquals(data['modulemd'], mmd.read())
         self.assertEquals(data['name'], 'nginx')
         self.assertEquals(data['owner'], 'Moe Szyslak')
         self.assertEquals(data['scmurl'],

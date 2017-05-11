@@ -74,6 +74,7 @@ class TestBuild(unittest.TestCase):
     @patch("platform.machine")
     @patch("module_build_service.builder.KojiContentGenerator.KojiContentGenerator._koji_rpms_in_tag")
     def test_get_generator_json(self, rpms_in_tag, machine, distro, pkg_res):
+        """ Test generation of content generator json """
         self.maxDiff = None
         distro.return_value = ("Fedora", "25", "Twenty Five")
         machine.return_value = "i686"
@@ -93,3 +94,10 @@ class TestBuild(unittest.TestCase):
         ret = self.cg._get_content_generator_metadata()
         rpms_in_tag.assert_called_once()
         self.assertEqual(expected_output, ret)
+
+
+    def test_prepare_file_directory(self):
+        """ Test preparation of directory with output files """
+        dir_path = self.cg._prepare_file_directory()
+        with open(path.join(dir_path, "modulemd.yaml")) as mmd:
+            self.assertEqual(len(mmd.read()), 1134)

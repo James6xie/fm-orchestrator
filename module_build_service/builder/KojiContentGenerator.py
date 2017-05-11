@@ -23,9 +23,13 @@
 
 
 import calendar
-import logging
-import platform
 import hashlib
+import logging
+import json
+import os
+import platform
+import shutil
+import tempfile
 
 import koji
 
@@ -47,12 +51,13 @@ class KojiContentGenerator(object):
         """
         self.owner = module.owner
         self.module = module
-        self.module_str = module.name
+        self.module_name = module.name
+        self.mmd = module.modulemd
         self.config = config
 
 
     def __repr__(self):
-        return "<KojiContentGenerator module: %s>" % (self.module_str)
+        return "<KojiContentGenerator module: %s>" % (self.module_name)
 
     def _koji_rpms_in_tag(self, tag):
         """ Return the list of koji rpms in a tag. """
@@ -142,9 +147,9 @@ class KojiContentGenerator(object):
                 'buildroot_id': 1,
                 'arch': "noarch",
                 'type': 'modulemd',
-                'filesize': len(self.module_str),
+                'filesize': len(self.mmd),
                 'checksum_type': 'md5',
-                'checksum': hashlib.md5(self.module_str).hexdigest(),
+                'checksum': hashlib.md5(self.mmd).hexdigest(),
                 'filename': 'modulemd.yaml',
                 'components': components
             }
@@ -163,7 +168,34 @@ class KojiContentGenerator(object):
 
         return ret
 
+    def _prepare_file_directory(self):
+        """ Creates a temporary directory that will contain all the files
+        mentioned in the outputs section
+
+        Returns path to the temporary directory
+        """
+        prepdir = tempfile.mkdtemp(prefix="koji-cg-import")
+        mmd_path = os.path.join(prepdir, "modulemd.yaml")
+        with open(mmd_path, "w") as mmd_f:
+            mmd_f.write(self.mmd)
+        return prepdir
+
+
     def koji_import(self):
+        """This method imports given module into the configured koji instance as
+        a content generator based build
+
+        Raises an exception when error is encountered during import"""
         session = KojiModuleBuilder.get_session(self.config, self.owner)
 
         metadata = self._get_content_generator_metadata()
+        file_dir = self._prepare_file_directory()
+        try:
+            build_info = session.CGImport(metadata, file_dir)
+            log.debug("Content generator import done: %s",
+                      json.dumps(build_info, sort_keys=True, indent=4))
+        except Exception, e:
+            log.error("Content generator import failed: %s", e)
+            raise e
+        finally:
+            shutil.rmtree(file_dir)
