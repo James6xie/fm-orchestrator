@@ -25,7 +25,6 @@
 
 import logging
 import os
-from kobo.shortcuts import run
 import koji
 import tempfile
 import glob
@@ -45,6 +44,7 @@ import module_build_service.scm
 import module_build_service.utils
 import module_build_service.scheduler
 import module_build_service.scheduler.consumer
+from module_build_service.builder.utils import execute_cmd
 
 from base import GenericBuilder
 
@@ -145,6 +145,8 @@ Group:      System Environment/Base
 License:    MIT
 URL:        http://fedoraproject.org
 
+Source1:    macros.modules
+
 %description
 This package is used for building modules with a different dist tag.
 It provides a file /usr/lib/rpm/macros.d/macro.modules and gets read
@@ -157,11 +159,7 @@ It should NEVER be installed on any system as it will really mess up
 
 %install
 mkdir -p %buildroot/%_rpmconfigdir/macros.d 2>/dev/null |:
-echo %%dist %dist > %buildroot/%_rpmconfigdir/macros.d/macros.modules
-echo %%_module_build 1 >> %buildroot/%_rpmconfigdir/macros.d/macros.modules
-echo %%_module_name %_module_name >> %buildroot/%_rpmconfigdir/macros.d/macros.modules
-echo %%_module_stream %_module_stream >> %buildroot/%_rpmconfigdir/macros.d/macros.modules
-echo %%_module_version %_module_version >> %buildroot/%_rpmconfigdir/macros.d/macros.modules
+cp %SOURCE1 %buildroot/%_rpmconfigdir/macros.d/macros.modules
 chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
 
 
@@ -178,12 +176,46 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
            module_name=module_build.name,
            module_stream=module_build.stream,
            module_version=module_build.version)
+
+        mmd = module_build.mmd()
+        modulemd_macros = ""
+        if mmd.buildopts and mmd.buildopts.rpms:
+            modulemd_macros = mmd.buildopts.rpms.macros
+
+        macros_content = """
+
+# General macros set by MBS
+
+%dist {disttag}
+%_module_build 1
+%_module_name {module_name}
+%_module_stream {module_stream}
+%_module_version {module_version}
+
+# Macros set by module author:
+
+{modulemd_macros}
+""".format(disttag=disttag, module_name=module_build.name,
+           module_stream=module_build.stream,
+           module_version=module_build.version,
+           modulemd_macros=modulemd_macros)
+
         td = tempfile.mkdtemp(prefix="module_build_service-build-macros")
         fd = open(os.path.join(td, "%s.spec" % name), "w")
         fd.write(spec_content)
         fd.close()
+        sources_dir = os.path.join(td, "SOURCES")
+        os.mkdir(sources_dir)
+        fd = open(os.path.join(sources_dir, "macros.modules"), "w")
+        fd.write(macros_content)
+        fd.close()
         log.debug("Building %s.spec" % name)
-        ret, out = run('rpmbuild -bs %s.spec --define "_topdir %s"' % (name, td), workdir=td)
+
+        # We are not interested in the rpmbuild stdout...
+        null_fd = open(os.devnull, 'w')
+        execute_cmd(['rpmbuild', '-bs', '%s.spec' % name, '--define',
+                     '_topdir %s' % td], cwd=td, stdout=null_fd)
+        null_fd.close()
         sdir = os.path.join(td, "SRPMS")
         srpm_paths = glob.glob("%s/*.src.rpm" % sdir)
         assert len(srpm_paths) == 1, "Expected exactly 1 srpm in %s. Got %s" % (sdir, srpm_paths)
