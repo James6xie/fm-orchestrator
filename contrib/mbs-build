@@ -335,6 +335,7 @@ def show_overview(server, finished, limit=30):
                              states)
     # Make one flat list with all the modules.
     module_builds = [item for sublist in module_builds for item in sublist]
+    module_builds.sort(key=lambda x: x["id"])
 
     # Get the table rows with information about each module using 20 threads.
     pool = ThreadPool(20)
