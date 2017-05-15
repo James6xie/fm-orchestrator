@@ -448,7 +448,7 @@ class SCMBuilder(BaseBuilder):
             f.writelines([
                 "config_opts['scm'] = True\n",
                 "config_opts['scm_opts']['method'] = 'distgit'\n",
-                "config_opts['scm_opts']['branch'] = 'f24'\n",
+                "config_opts['scm_opts']['branch'] = 'master'\n",
                 "config_opts['scm_opts']['package'] = '{}'\n".format(artifact_name),
                 "config_opts['scm_opts']['distgit_get'] = 'fedpkg clone {} --anonymous'\n".format(artifact_name),
                 "config_opts['scm_opts']['distgit_src_get'] = 'fedpkg sources'\n",
