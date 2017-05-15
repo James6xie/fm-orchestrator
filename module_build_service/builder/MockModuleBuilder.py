@@ -429,4 +429,35 @@ mdpolicy=group:primary
         pass
 
 
+class BaseBuilder(object):
+    def __init__(self, config, resultsdir):
+        self.config = config
+        self.resultsdir = resultsdir
+        self.cmd = ["mock", "-v", "-r", config,
+                    "--no-clean",
+                    "--resultdir=%s" % resultsdir]
+
+    def build(self, stdout, stderr):
+        execute_cmd(self.cmd, stdout=stdout, stderr=stderr)
+
+
+class LocalBuilder(BaseBuilder):
+    def __init__(self, config, resultsdir, source):
+        super(LocalBuilder, self).__init__(config, resultsdir)
+        self.cmd.extend(["--rebuild", source])
+
+
+class SCMBuilder(BaseBuilder):
+    def __init__(self, config, resultsdir, artifact_name):
+        super(SCMBuilder, self).__init__(config, resultsdir)
+        with open(config, "a") as f:
+            f.writelines([
+                "config_opts['scm'] = True\n",
+                "config_opts['scm_opts']['method'] = 'distgit'\n",
+                "config_opts['scm_opts']['branch'] = 'f24'\n",
+                "config_opts['scm_opts']['package'] = '{}'\n".format(artifact_name),
+                "config_opts['scm_opts']['distgit_get'] = 'fedpkg clone {} --anonymous'\n".format(artifact_name),
+                "config_opts['scm_opts']['distgit_src_get'] = 'fedpkg sources'\n",
+            ])
+
 
