@@ -151,7 +151,7 @@ which should submit an HTTP POST to the frontend, requesting a build::
     $ ./contrib/mbs-build -s [server] submit [scm_url] [branch]
 
 Here, `server` should specify the `hostname[:port]` port of the MBS instance
-you want to submit to.  For local development, try `127.0.0.1:5000`.
+you want to submit to.  For local development, try `https://127.0.0.1:5000`.
 
 The `scmurl` should be a url to a dist-git repo of the module in question and
 the `branch` should be the stream that you want to build. Note that
