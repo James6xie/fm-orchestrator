@@ -104,6 +104,11 @@ class KojiModuleBuilder(GenericBuilder):
         log.info("%r checking buildroot readiness for "
                  "repo: %r, tag_id: %r, artifacts: %r, builds: %r" % (
                      self, repo, tag_id, artifacts, builds))
+
+        if not repo:
+            log.info("Repo is not generated yet, buildroot is not ready yet.")
+            return False
+
         ready = bool(koji.util.checkForBuilds(
             self.koji_session,
             tag_id,
