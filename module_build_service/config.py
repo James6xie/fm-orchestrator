@@ -377,7 +377,7 @@ class Config(object):
         if key in self._defaults:
             # type conversion for configuration item
             convert = self._defaults[key]['type']
-            if convert in [bool, int, list, str, set]:
+            if convert in [bool, int, list, str, set, dict]:
                 try:
                     # Do no try to convert None...
                     if value is not None:
