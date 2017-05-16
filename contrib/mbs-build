@@ -14,6 +14,11 @@ from tabulate import tabulate
 from multiprocessing.dummy import Pool as ThreadPool
 from copy import copy
 
+try:
+    from urllib.parse import urljoin
+except ImportError:
+    from urlparse import urljoin
+
 DEFAULT_ID_PROVIDER = "https://id.fedoraproject.org/openidc/"
 DEFAULT_MBS_SERVER = "https://mbs.fedoraproject.org"
 
@@ -181,7 +186,7 @@ def send_authorized_request(verb, server, id_provider, url, body, **kwargs):
               'https://mbs.fedoraproject.org/oidc/submit-build']
 
     logging.debug("Sending body: %s", body)
-    resp = _send_oidc_request(oidc, verb, "%s/%s" % (server, url), json=body,
+    resp = _send_oidc_request(oidc, verb, urljoin(server, url), json=body,
                               scopes=scopes, **kwargs)
     return resp
 
@@ -233,7 +238,7 @@ def get_scm_branch(branch):
     branch = out[:-1] # remove new-line
     return branch
 
-def submit_module_build(scm_url, branch, server, id_provider, pyrpkg):
+def submit_module_build(scm_url, branch, server, id_provider, pyrpkg, verify=True):
     """
     Submits the module defined by `scm_url` to MBS instance defined
     by `server`. Returns build_id or negative error code.
@@ -247,7 +252,7 @@ def submit_module_build(scm_url, branch, server, id_provider, pyrpkg):
     body = {'scmurl': scm_url, 'branch': branch}
     resp = send_authorized_request(
         "POST", server, id_provider, "/module-build-service/1/module-builds/",
-        body)
+        body, verify=verify)
     logging.info(resp.text)
 
     data = resp.json()
@@ -272,7 +277,7 @@ def do_local_build(scm_url, branch):
     process.communicate()
     return process.returncode
 
-def cancel_module_build(server, id_provider, build_id):
+def cancel_module_build(server, id_provider, build_id, verify=True):
     """
     Cancels the module build.
     """
@@ -280,7 +285,7 @@ def cancel_module_build(server, id_provider, build_id):
     resp = send_authorized_request(
         "PATCH", server, id_provider,
         "/module-build-service/1/module-builds/" + str(build_id),
-        {'state': 'failed'})
+        {'state': 'failed'}, verify=verify)
     logging.info(resp.text)
 
 def show_overview(server, finished, limit=30):
@@ -360,6 +365,8 @@ def main():
                         help="shows verbose output")
     parser.add_argument('-q', dest='quiet', action='store_true',
                         help="shows only warnings and errors")
+    parser.add_argument('-k', '--insecure', dest='verify', action='store_false',
+                        help="allow connections to SSL sites without certs")
     parser.add_argument('-s', dest='server', action='store',
                         help="defines the hostname[:port] of the Module Build Service")
     parser.add_argument('-i', dest='idprovider', action='store',
@@ -427,7 +434,7 @@ def main():
     if args.cmd_name == "submit":
         # Submit the module build.
         build_id = submit_module_build(args.scm_url, args.branch, args.server,
-                                    args.idprovider, args.pyrpkg_client)
+                                    args.idprovider, args.pyrpkg_client, args.verify)
         if build_id < 0:
             sys.exit(build_id)
 
@@ -445,7 +452,7 @@ def main():
             pass
     elif args.cmd_name == "cancel":
         # Cancel the module build
-        cancel_module_build(args.server, args.idprovider, args.build_id)
+        cancel_module_build(args.server, args.idprovider, args.build_id, args.verify)
     elif args.cmd_name == "overview":
         show_overview(args.server, finished=args.finished, limit=args.limit)
     elif args.cmd_name == "info":
