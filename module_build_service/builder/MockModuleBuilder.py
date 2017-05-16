@@ -406,7 +406,7 @@ mdpolicy=group:primary
 
         # Git sources are treated specially.
         if source.startswith(("git://", "http://", "https://")):
-            builder = SCMBuilder(mock_config, resultsdir, artifact_name)
+            builder = SCMBuilder(mock_config, resultsdir, source, artifact_name)
         else:
             builder = LocalBuilder(mock_config, resultsdir, source)
         return self.build_srpm(artifact_name, source, build_id, builder)
@@ -442,13 +442,14 @@ class LocalBuilder(BaseBuilder):
 
 
 class SCMBuilder(BaseBuilder):
-    def __init__(self, config, resultsdir, artifact_name):
+    def __init__(self, config, resultsdir, source, artifact_name):
         super(SCMBuilder, self).__init__(config, resultsdir)
         with open(config, "a") as f:
+            branch = source.split("?#")[1]
             f.writelines([
                 "config_opts['scm'] = True\n",
                 "config_opts['scm_opts']['method'] = 'distgit'\n",
-                "config_opts['scm_opts']['branch'] = 'master'\n",
+                "config_opts['scm_opts']['branch'] = '{}'\n".format(branch),
                 "config_opts['scm_opts']['package'] = '{}'\n".format(artifact_name),
                 "config_opts['scm_opts']['distgit_get'] = 'fedpkg clone {} --anonymous'\n".format(artifact_name),
                 "config_opts['scm_opts']['distgit_src_get'] = 'fedpkg sources'\n",
