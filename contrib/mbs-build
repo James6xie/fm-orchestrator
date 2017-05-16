@@ -14,6 +14,11 @@ from tabulate import tabulate
 from multiprocessing.dummy import Pool as ThreadPool
 from copy import copy
 
+try:
+    from urllib.parse import urljoin
+except ImportError:
+    from urlparse import urljoin
+
 DEFAULT_ID_PROVIDER = "https://id.fedoraproject.org/openidc/"
 DEFAULT_MBS_SERVER = "https://mbs.fedoraproject.org"
 
@@ -181,7 +186,7 @@ def send_authorized_request(verb, server, id_provider, url, body, **kwargs):
               'https://mbs.fedoraproject.org/oidc/submit-build']
 
     logging.debug("Sending body: %s", body)
-    resp = _send_oidc_request(oidc, verb, "%s/%s" % (server, url), json=body,
+    resp = _send_oidc_request(oidc, verb, urljoin(server, url), json=body,
                               scopes=scopes, **kwargs)
     return resp
 
