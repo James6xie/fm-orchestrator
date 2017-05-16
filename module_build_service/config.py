@@ -286,6 +286,12 @@ class Config(object):
             'type': str,
             'default': '',
             'desc': 'Trusted certificate for ssl connection.'},
+        'distgits': {
+            'type': dict,
+            'default': {
+                'git://pkgs.fedoraproject.org': 'fedpkg clone --anonymous {}',
+            },
+            'desc': 'Mapping between dist-git and command to '},
         'mock_config': {
             'type': str,
             'default': 'fedora-25-x86_64',

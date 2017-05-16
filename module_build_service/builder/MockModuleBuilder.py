@@ -446,13 +446,18 @@ class SCMBuilder(BaseBuilder):
         super(SCMBuilder, self).__init__(config, resultsdir)
         with open(config, "a") as f:
             branch = source.split("?#")[1]
+            dist_git_get = self._get_clone_command(source).format(artifact_name)
             f.writelines([
                 "config_opts['scm'] = True\n",
                 "config_opts['scm_opts']['method'] = 'distgit'\n",
                 "config_opts['scm_opts']['branch'] = '{}'\n".format(branch),
                 "config_opts['scm_opts']['package'] = '{}'\n".format(artifact_name),
-                "config_opts['scm_opts']['distgit_get'] = 'fedpkg clone {} --anonymous'\n".format(artifact_name),
+                "config_opts['scm_opts']['distgit_get'] = '{}'\n".format(dist_git_get),
                 "config_opts['scm_opts']['distgit_src_get'] = 'fedpkg sources'\n",
             ])
 
-
+    def _get_clone_command(self, source):
+        for host, cmd in conf.distgits.items():
+            if source.startswith(host):
+                return cmd
+        raise KeyError("No defined command for {}".format(source))
