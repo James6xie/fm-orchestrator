@@ -558,6 +558,12 @@ class TestBuild(unittest.TestCase):
 
         TestModuleBuilder.on_build_cb = on_build_cb
 
+        # Check that no components are tagged when single component fails
+        # in batch.
+        def on_tag_artifacts_cb(cls, artifacts):
+            raise ValueError("No component should be tagged.")
+        TestModuleBuilder.on_tag_artifacts_cb = on_tag_artifacts_cb
+
         msgs = []
         stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
         module_build_service.scheduler.main(msgs, stop)
