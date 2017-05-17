@@ -69,17 +69,25 @@ class TestBuild(unittest.TestCase):
         import moksha.hub.reactor
         self.vcr.__exit__()
 
+    @patch("subprocess.Popen")
     @patch("pkg_resources.get_distribution")
     @patch("platform.linux_distribution")
     @patch("platform.machine")
     @patch("module_build_service.builder.KojiContentGenerator.KojiContentGenerator._koji_rpms_in_tag")
-    def test_get_generator_json(self, rpms_in_tag, machine, distro, pkg_res):
+    def test_get_generator_json(self, rpms_in_tag, machine, distro, pkg_res, popen):
         """ Test generation of content generator json """
         self.maxDiff = None
         distro.return_value = ("Fedora", "25", "Twenty Five")
         machine.return_value = "i686"
         pkg_res.return_value = Mock()
         pkg_res.return_value.version = "current-tested-version"
+        rpm_mock = Mock()
+        rpm_out =  "rpm-name;1.0;r1;x86_64;(none);sigmd5:1;sigpgp:p;siggpg:g\n" \
+                   "rpm-name-2;2.0;r2;i686;1;sigmd5:2;sigpgp:p2;siggpg:g2"
+        attrs = {'communicate.return_value': (rpm_out, 'error'),
+                 'wait.return_value': 0}
+        rpm_mock.configure_mock(**attrs)
+        popen.return_value = rpm_mock
 
         tests_dir = path.abspath(path.dirname(__file__))
         rpm_in_tag_path = path.join(tests_dir,
