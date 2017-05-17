@@ -289,7 +289,7 @@ class Config(object):
         'distgits': {
             'type': dict,
             'default': {
-                'git://pkgs.fedoraproject.org': 'fedpkg clone --anonymous {}',
+                'git://pkgs.fedoraproject.org': ('fedpkg clone --anonymous {}', 'fedpkg sources'),
             },
             'desc': 'Mapping between dist-git and command to '},
         'mock_config': {
