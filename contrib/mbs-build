@@ -116,7 +116,8 @@ def watch_build(server, build_id):
         if data.get('koji_tag'):
             template += ' (koji tag: "{koji_tag}")'
         print(template.format(**data))
-        time.sleep(30)
+        if not done:
+            time.sleep(30)
 
 # Ideally we would use oidc.send_request here, but it doesn't support
 # custom HTTP verbs/methods like "PATCH". It sends just "POST"...
