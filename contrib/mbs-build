@@ -113,6 +113,8 @@ def watch_build(server, build_id):
                     'the "{state_name}" state')
         if data['state_reason']:
             template += ' (reason: {state_reason})'
+        if data.get('koji_tag'):
+            template += ' (koji tag: "{koji_tag}")'
         print(template.format(**data))
         time.sleep(30)
 
