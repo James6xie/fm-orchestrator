@@ -177,6 +177,14 @@ class CoprModuleBuilder(GenericBuilder):
         log.info("%r adding deps on %r" % (self, dependencies))
         # @TODO get architecture from some builder variable
         repos = [self._dependency_repo(d, "x86_64") for d in dependencies]
+
+        # @FIXME
+        # Kojipkgs repos have been prematurely disabled without providing any
+        # suitable alternative for Copr. This is a temporary workaround until
+        # we figure out how to solve this permanently.
+        repos.append("https://kojipkgs.fedoraproject.org/compose/"
+                     "latest-Fedora-Modular-Rawhide/compose/Server/x86_64/os/")
+
         self._update_chroot(repos=repos)
 
     def _update_chroot(self, packages=None, repos=None):
