@@ -93,9 +93,6 @@ def at_concurrent_component_threshold(config, session):
     if conf.system == "mock":
         return False
 
-    if conf.system == "copr":
-        return False
-
     import koji  # Placed here to avoid py2/py3 conflicts...
 
     if config.num_consecutive_builds and config.num_consecutive_builds <= \
