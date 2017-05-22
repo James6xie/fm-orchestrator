@@ -121,12 +121,6 @@ def done(config, session, msg):
         further_work += start_next_batch_build(
             config, module_build, session, builder)
 
-        # We don't have copr implementation finished yet, Let's fake the repo change event,
-        # as if copr builds finished successfully
-        if config.system == "copr":
-            further_work += [module_build_service.messaging.KojiRepoChange('fake msg', module_build.koji_tag)]
-            return further_work
-
     else:
         if has_failed_components:
             module_build.transition(config, state=models.BUILD_STATES['failed'],
