@@ -239,8 +239,10 @@ def wait(config, session, msg):
     # If all components in module build will be reused, we don't have to build
     # module-build-macros, because there won't be any build done.
     if attempt_to_reuse_all_components(builder, session, build):
-        log.info("All components have ben reused for module %r, "
+        log.info("All components have been reused for module %r, "
                  "skipping build" % build)
+        build.transition(config, state="build")
+        session.add(build)
         session.commit()
         return []
     else:
