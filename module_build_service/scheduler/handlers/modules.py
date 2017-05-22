@@ -280,8 +280,3 @@ def wait(config, session, msg):
         # other backends need this implemented (e.g. COPR)
         return [module_build_service.messaging.KojiRepoChange(
             'fake msg', builder.module_build_tag['name'])]
-
-    # We don't have copr implementation finished yet, Let's fake the repo change event,
-    # as if copr builds finished successfully
-    if config.system == "copr":
-        return [module_build_service.messaging.KojiRepoChange('fake msg', build.koji_tag)]
