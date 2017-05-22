@@ -208,6 +208,23 @@ class TestUtils(unittest.TestCase):
             db.session, second_module_build, 'tangerine')
         self.assertEqual(tangerine_rv, None)
 
+    def test_get_reusable_component_different_rpm_macros(self):
+        test_reuse_component_init_data()
+        second_module_build = models.ModuleBuild.query.filter_by(id=2).one()
+        mmd = second_module_build.mmd()
+        mmd.buildopts.rpms.macros = "%my_macro 1"
+        second_module_build.modulemd = mmd.dumps()
+        db.session.commit()
+
+        plc_rv = module_build_service.utils.get_reusable_component(
+            db.session, second_module_build, 'perl-List-Compare')
+        self.assertEqual(plc_rv, None)
+
+        # perl-Tangerine has a different commit hash
+        pt_rv = module_build_service.utils.get_reusable_component(
+            db.session, second_module_build, 'perl-Tangerine')
+        self.assertEqual(pt_rv, None)
+
     def test_get_reusable_component_different_buildrequires_hash(self):
         test_reuse_component_init_data()
         second_module_build = models.ModuleBuild.query.filter_by(id=2).one()
