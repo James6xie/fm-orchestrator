@@ -944,6 +944,16 @@ def get_reusable_component(session, module, component_name):
             .format(previous_module_build.version, previous_module_build.name))
         return None
 
+    # If the mmd.buildopts.macros.rpms changed, we cannot reuse
+    modulemd_macros = ""
+    old_modulemd_macros = ""
+    if mmd.buildopts and mmd.buildopts.rpms:
+        modulemd_macros = mmd.buildopts.rpms.macros
+    if old_mmd.buildopts and old_mmd.buildopts.rpms:
+        modulemd_macros = old_mmd.buildopts.rpms.macros
+    if modulemd_macros != old_modulemd_macros:
+        return None
+
     # If the module buildrequires are different, then we can't reuse the
     # component
     if mmd.buildrequires.keys() != old_mmd.buildrequires.keys():
