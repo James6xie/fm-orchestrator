@@ -6,10 +6,11 @@ The proper way how to run unit tests is using `tox
 topmost directory of the project's repository.
 
 For most cases, you need to work against tox's `py27` environment. This
-will just invoke `pytest` command. For full set of tests, omit the `-e
-py27` argument. This will invoke code analysis, security analysis and
-code coverage checks. And any other environments which will appear in the
-`tox.ini` file in the future.
+will just invoke the `pytest` command. For the full set of tests, omit the `-e
+py27` argument. This will invoke code analysis, security analysis, and
+code coverage checks. This will also run any additional environments
+that will be added to the `tox.ini` file in the future.
+
 
 Examples
 --------
@@ -47,7 +48,7 @@ Development
 ===========
 
 In most cases, you don't need to deploy your development instance. Please,
-refer to `Running Tests` section first.
+refer to the `Running Tests` section first.
 
 We have two mechanisms for quickly setting up a development environment,
 `docker-compose` and `vagrant`.
