@@ -32,6 +32,7 @@ class BaseConfiguration(object):
     KOJI_PROXYUSER = True
     KOJI_REPOSITORY_URL = 'https://kojipkgs.fedoraproject.org/repos'
     KOJI_TAG_PREFIXES = ['module']
+    KOJI_ENABLE_CONTENT_GENERATOR = True
     COPR_CONFIG = '/etc/module-build-service/copr.conf'
     PDC_URL = 'http://pdc.fedoraproject.org/rest_api/v1'
     PDC_INSECURE = True

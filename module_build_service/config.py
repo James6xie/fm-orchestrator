@@ -186,6 +186,11 @@ class Config(object):
             'default': 24*3600,
             'desc': 'Time in seconds after which the Koji target of '
                 'built module is deleted'},
+        'koji_enable_content_generator': {
+            'type': bool,
+            'default': True,
+            'desc': 'Enable or disable imports to koji using content '
+                'generator api'},
         'allow_custom_scmurls': {
             'type': bool,
             'default': False,
