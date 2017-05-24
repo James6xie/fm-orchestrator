@@ -245,40 +245,46 @@ def wait(config, session, msg):
         session.add(build)
         session.commit()
         return []
-    else:
-        # Build the module-build-macros
-        # inject dist-tag into buildroot
-        srpm = builder.get_disttag_srpm(
-            disttag=".%s" % get_rpm_release_from_mmd(build.mmd()),
-            module_build=build)
 
-        log.debug("Starting build batch 1")
-        build.batch = 1
-        session.commit()
+    # Build the module-build-macros
+    # inject dist-tag into buildroot
+    srpm = builder.get_disttag_srpm(
+        disttag=".%s" % get_rpm_release_from_mmd(build.mmd()),
+        module_build=build)
 
-        artifact_name = "module-build-macros"
-        task_id, state, reason, nvr = builder.build(artifact_name=artifact_name, source=srpm)
+    log.debug("Starting build batch 1")
+    build.batch = 1
+    session.commit()
 
-        component_build = models.ComponentBuild(
-            module_id=build.id,
-            package=artifact_name,
-            format="rpms",
-            scmurl=srpm,
-            task_id=task_id,
-            state=state,
-            state_reason=reason,
-            nvr=nvr,
-            batch=1,
-        )
-        session.add(component_build)
-        build.transition(config, state="build")
-        session.add(build)
-        session.commit()
+    artifact_name = "module-build-macros"
+    task_id, state, reason, nvr = builder.build(artifact_name=artifact_name, source=srpm)
 
-    # If this build already exists and is done, then fake the repo change event
-    # back to the scheduler
+    component_build = models.ComponentBuild(
+        module_id=build.id,
+        package=artifact_name,
+        format="rpms",
+        scmurl=srpm,
+        task_id=task_id,
+        state=state,
+        state_reason=reason,
+        nvr=nvr,
+        batch=1,
+    )
+    session.add(component_build)
+    build.transition(config, state="build")
+    session.add(build)
+    session.commit()
+
+    # If this build already exists and is done, then regenerate the repository
+    # to ensure module-build-macros is there.
     if state == koji.BUILD_STATES['COMPLETE']:
-        # TODO: builder.module_build_tag only works for Koji, figure out if
-        # other backends need this implemented (e.g. COPR)
-        return [module_build_service.messaging.KojiRepoChange(
-            'fake msg', builder.module_build_tag['name'])]
+        if config.system == "koji":
+            log.info("module-build-macros is already built. "
+                "Regenerating the repo.")
+            task_id = builder.koji_session.newRepo(
+                builder.module_build_tag['name'])
+            build.new_repo_task_id = task_id
+            session.commit()
+        else:
+            return [module_build_service.messaging.KojiRepoChange(
+                'fake msg', builder.module_build_tag['name'])]
