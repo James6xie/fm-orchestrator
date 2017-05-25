@@ -1,4 +1,5 @@
 import os
+import sys
 import koji
 import tempfile
 import shutil
@@ -173,7 +174,8 @@ def create_local_repo_from_koji_tag(config, tag, repo_dir, archs=None):
     repo_changed = False
 
     # Donload the RPMs.
-    pg = progress.TextMeter()
+    pg = progress.TextMeter(sys.stdout)
+    multi_pg = progress.TextMultiFileMeter(sys.stdout)
     for url, relpath, size in urls:
         local_fn = os.path.join(repo_dir, relpath)
 
@@ -183,7 +185,8 @@ def create_local_repo_from_koji_tag(config, tag, repo_dir, archs=None):
                 os.remove(local_fn)
             repo_changed = True
             grabber.urlgrab(url, filename=local_fn, progress_obj=pg,
-                            async=(tag, 5), text=relpath)
+                            multi_progress_obj=multi_pg, async=(tag, 5),
+                            text=relpath)
 
     grabber.parallel_wait()
 
