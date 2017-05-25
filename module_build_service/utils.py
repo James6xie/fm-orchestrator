@@ -383,6 +383,19 @@ def filter_module_builds(flask_request):
                 elif context == 'before':
                     query = query.filter(column <= item_datetime)
 
+    # Order the results by any column in the ModuleBuild table.
+    order_by = flask_request.args.get("order_by", None)
+    order_desc_by = flask_request.args.get("order_desc_by", None)
+    if order_by or order_desc_by:
+        column = getattr(models.ModuleBuild, order_desc_by or order_by, None)
+        if column:
+            if order_desc_by:
+                column = column.desc()
+            query = query.order_by(column)
+        else:
+            raise ValidationError('An invalid order_by or order_desc_by key '
+                'was supplied')
+
     page = flask_request.args.get('page', 1, type=int)
     per_page = flask_request.args.get('per_page', 10, type=int)
     return query.paginate(page, per_page, False)

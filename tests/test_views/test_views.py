@@ -307,6 +307,44 @@ class TestViews(unittest.TestCase):
                           ' was provided for the \"modified_after\" parameter')
         self.assertEquals(data['status'], 400)
 
+    def test_query_builds_order_by(self):
+        rv = self.client.get('/module-build-service/1/module-builds/?'
+            'per_page=10&order_by=id')
+        items = json.loads(rv.data)['items']
+        # Check that the id is 1, 2, 3, ..., 10
+        for idx, item in enumerate(items):
+            self.assertEquals(item["id"], idx + 1)
+
+    def test_query_builds_order_desc_by(self):
+        rv = self.client.get('/module-build-service/1/module-builds/?'
+            'per_page=10&order_desc_by=id')
+        items = json.loads(rv.data)['items']
+        # Check that the id is items[0]["id"], items[0]["id"] - 1, ...
+        for idx, item in enumerate(items):
+            self.assertEquals(item["id"], items[0]["id"] - idx)
+
+    def test_query_builds_order_by_order_desc_by(self):
+        """
+        Test that when both order_by and order_desc_by is set,
+        we prefer order_desc_by.
+        """
+        rv = self.client.get('/module-build-service/1/module-builds/?'
+            'per_page=10&order_desc_by=id&order_by=name')
+        items = json.loads(rv.data)['items']
+        # Check that the id is items[0]["id"], items[0]["id"] - 1, ...
+        for idx, item in enumerate(items):
+            self.assertEquals(item["id"], items[0]["id"] - idx)
+
+    def test_query_builds_order_by_wrong_key(self):
+        rv = self.client.get('/module-build-service/1/module-builds/?'
+            'per_page=10&order_by=unknown')
+        data = json.loads(rv.data)
+        self.assertEquals(data['status'], 400)
+        self.assertEquals(data['error'], 'Bad Request')
+        self.assertEquals(
+            data['message'], 'An invalid order_by or order_desc_by key '
+            'was supplied')
+
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     def test_submit_build(self, mocked_scm, mocked_get_user):
