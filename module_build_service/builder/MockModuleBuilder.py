@@ -38,7 +38,8 @@ import module_build_service.scheduler.consumer
 
 from base import GenericBuilder
 from utils import (build_from_scm, fake_repo_done_message,
-                   create_local_repo_from_koji_tag, execute_cmd)
+                   create_local_repo_from_koji_tag, execute_cmd,
+                   find_srpm)
 from KojiModuleBuilder import KojiModuleBuilder
 from module_build_service.models import ModuleBuild
 
@@ -305,7 +306,7 @@ mdpolicy=group:primary
         if os.path.exists(old_log):
             os.rename(old_log, new_log)
 
-    def build_srpm(self, artifact_name, source, build_id):
+    def build_srpm(self, artifact_name, source, build_id, builder):
         """
         Builds the artifact from the SRPM.
         """
@@ -314,16 +315,6 @@ mdpolicy=group:primary
         # Use the mock config associated with this thread.
         mock_config = os.path.join(self.configdir,
                                    "mock-%s.cfg" % str(threading.current_thread().name))
-
-        # Clear resultsdir associated with this thread or in case it does not
-        # exist, create it.
-        resultsdir = os.path.join(self.resultsdir,
-                                  str(threading.current_thread().name))
-        if os.path.exists(resultsdir):
-            for name in os.listdir(resultsdir):
-                os.remove(os.path.join(resultsdir, name))
-        else:
-            os.makedirs(resultsdir)
 
         # Open the logs to which we will forward mock stdout/stderr.
         mock_stdout_log = open(os.path.join(self.resultsdir,
@@ -337,17 +328,16 @@ mdpolicy=group:primary
                         stdout=mock_stdout_log, stderr=mock_stderr_log)
 
             # Start the build and store results to resultsdir
-            execute_cmd(["mock", "-v", "-r", mock_config,
-                          "--no-clean", "--rebuild", source,
-                          "--resultdir=%s" % resultsdir],
-                        stdout=mock_stdout_log, stderr=mock_stderr_log)
+            resultsdir = builder.resultsdir
+            builder.build(mock_stdout_log, mock_stderr_log)
+            srpm = find_srpm(resultsdir)
 
             # Emit messages simulating complete build. These messages
             # are put in the scheduler's work queue and are handled
             # by MBS after the build_srpm() method returns and scope gets
             # back to scheduler.main.main() method.
             state = koji.BUILD_STATES['COMPLETE']
-            self._send_build_change(state, source, build_id)
+            self._send_build_change(state, srpm, build_id)
 
             with open(os.path.join(resultsdir, "status.log"), 'w') as f:
                 f.write("complete\n")
@@ -396,6 +386,7 @@ mdpolicy=group:primary
         # generate the thread-specific mock config by writing it to fs again.
         self._load_mock_config()
         self._write_mock_config()
+        mock_config = os.path.join(self.configdir, "mock-%s.cfg" % str(threading.current_thread().name))
 
         # Get the build-id in thread-safe manner.
         build_id = None
@@ -403,19 +394,22 @@ mdpolicy=group:primary
             MockModuleBuilder._build_id += 1
             build_id = int(MockModuleBuilder._build_id)
 
+        # Clear resultsdir associated with this thread or in case it does not
+        # exist, create it.
+        resultsdir = os.path.join(self.resultsdir,
+                                  str(threading.current_thread().name))
+        if os.path.exists(resultsdir):
+            for name in os.listdir(resultsdir):
+                os.remove(os.path.join(resultsdir, name))
+        else:
+            os.makedirs(resultsdir)
+
         # Git sources are treated specially.
         if source.startswith(("git://", "http://", "https://")):
-            # Open the srpm-stdout and srpm-stderr logs and build from SCM.
-            srpm_stdout_fn = os.path.join(self.resultsdir,
-                                          artifact_name + "-srpm-stdout.log")
-            srpm_stderr_fn = os.path.join(self.resultsdir,
-                                          artifact_name + "-srpm-stderr.log")
-            with open(srpm_stdout_fn, "w") as srpm_stdout_log, open(srpm_stderr_fn, "w") as srpm_stderr_log:
-                return build_from_scm(artifact_name, source,
-                                      self.config, self.build_srpm, data=build_id,
-                                      stdout=srpm_stdout_log, stderr=srpm_stderr_log)
+            builder = SCMBuilder(mock_config, resultsdir, source, artifact_name)
         else:
-            return self.build_srpm(artifact_name, source, build_id)
+            builder = LocalBuilder(mock_config, resultsdir, source)
+        return self.build_srpm(artifact_name, source, build_id, builder)
 
     @staticmethod
     def get_disttag_srpm(disttag, module_build):
@@ -429,4 +423,42 @@ mdpolicy=group:primary
         pass
 
 
+class BaseBuilder(object):
+    def __init__(self, config, resultsdir):
+        self.config = config
+        self.resultsdir = resultsdir
+        self.cmd = ["mock", "-v", "-r", config,
+                    "--no-clean",
+                    "--resultdir=%s" % resultsdir]
 
+    def build(self, stdout, stderr):
+        execute_cmd(self.cmd, stdout=stdout, stderr=stderr)
+
+
+class LocalBuilder(BaseBuilder):
+    def __init__(self, config, resultsdir, source):
+        super(LocalBuilder, self).__init__(config, resultsdir)
+        self.cmd.extend(["--rebuild", source])
+
+
+class SCMBuilder(BaseBuilder):
+    def __init__(self, config, resultsdir, source, artifact_name):
+        super(SCMBuilder, self).__init__(config, resultsdir)
+        with open(config, "a") as f:
+            branch = source.split("?#")[1]
+            distgit_cmds = self._get_distgit_commands(source)
+            distgit_get = distgit_cmds[0].format(artifact_name)
+            f.writelines([
+                "config_opts['scm'] = True\n",
+                "config_opts['scm_opts']['method'] = 'distgit'\n",
+                "config_opts['scm_opts']['branch'] = '{}'\n".format(branch),
+                "config_opts['scm_opts']['package'] = '{}'\n".format(artifact_name),
+                "config_opts['scm_opts']['distgit_get'] = '{}'\n".format(distgit_get),
+                "config_opts['scm_opts']['distgit_src_get'] = '{}'\n".format(distgit_cmds[1]),
+            ])
+
+    def _get_distgit_commands(self, source):
+        for host, cmds in conf.distgits.items():
+            if source.startswith(host):
+                return cmds
+        raise KeyError("No defined commands for {}".format(source))

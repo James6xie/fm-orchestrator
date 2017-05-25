@@ -69,6 +69,12 @@ def build_from_scm(artifact_name, source, config, build_srpm,
     return ret
 
 
+def find_srpm(cod):
+    for f in os.listdir(cod):
+        if f.endswith(".src.rpm"):
+            return os.path.join(cod, f)
+
+
 def execute_cmd(args, stdout=None, stderr=None, cwd=None):
     """
     Executes command defined by `args`. If `stdout` or `stderr` is set to
