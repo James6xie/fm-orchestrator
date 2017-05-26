@@ -26,6 +26,7 @@ import logging
 import os
 import koji
 import kobo.rpmlib
+import modulemd
 import shutil
 import yaml
 import threading
@@ -163,12 +164,8 @@ mdpolicy=group:primary
 
         # Generate the mmd the same way as pungi does.
         m1 = ModuleBuild.query.filter(ModuleBuild.name == self.module_str).one()
-        modules = {"modules": []}
-        modules["modules"].append(yaml.safe_load(m1.mmd().dumps()))
         mmd_path = os.path.join(path, "modules.yaml")
-
-        with open(mmd_path, "w") as outfile:
-            outfile.write(yaml.safe_dump(modules))
+        modulemd.dump_all(mmd_path, [ m1.mmd() ])
 
         # Generate repo and inject modules.yaml there.
         execute_cmd(['/usr/bin/createrepo_c', path])

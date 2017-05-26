@@ -11,7 +11,7 @@ kobo
 m2crypto
 m2ext
 mock
-modulemd>=1.1.0,<2.0.0
+modulemd>=1.2.0,<2.0.0
 munch
 pdc-client
 pyOpenSSL
