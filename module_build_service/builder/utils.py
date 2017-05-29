@@ -97,11 +97,12 @@ def execute_cmd(args, stdout=None, stderr=None, cwd=None):
 
     log.info("Executing command: %s%s" % (args, out_log_msg))
     proc = subprocess.Popen(args, stdout=stdout, stderr=stderr, cwd=cwd)
-    proc.communicate()
+    out, err = proc.communicate()
 
     if proc.returncode != 0:
         err_msg = "Command '%s' returned non-zero value %d%s" % (args, proc.returncode, out_log_msg)
         raise RuntimeError(err_msg)
+    return out, err
 
 
 def fake_repo_done_message(tag_name):
