@@ -37,14 +37,19 @@ def build_from_scm(artifact_name, source, config, build_srpm,
 
     try:
         log.debug('Cloning source URL: %s' % source)
+        url, commit = source.split("?#")
         # Create temp dir and clone the repo there.
         td = tempfile.mkdtemp()
-        scm = module_build_service.scm.SCM(source)
+        scm = module_build_service.scm.SCM(url)
         cod = scm.checkout(td)
+
+        branch = git_branch_contains(cod, commit)
+        git_checkout(cod, branch)
 
         # Use configured command to create SRPM out of the SCM repo.
         log.debug("Creating SRPM in %s" % cod)
-        execute_cmd(config.mock_build_srpm_cmd.split(" "),
+        distgit_cmds = get_distgit_commands(source, config)
+        execute_cmd(distgit_cmds[1].split(" "),
                     stdout=stdout, stderr=stderr, cwd=cod)
 
         # Find out the built SRPM and build it normally.
@@ -68,6 +73,17 @@ def build_from_scm(artifact_name, source, config, build_srpm,
                     td, str(e)))
 
     return ret
+
+
+def git_branch_contains(cod, commit):
+    cmd = ["git", "branch", "-r", "--contains", commit]
+    out, err = execute_cmd(cmd, cwd=cod, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    return out.strip().split("/")[1]
+
+
+def git_checkout(cod, branch):
+    cmd = ["git", "checkout", branch]
+    execute_cmd(cmd, cwd=cod)
 
 
 def find_srpm(cod):
@@ -103,6 +119,13 @@ def execute_cmd(args, stdout=None, stderr=None, cwd=None):
         err_msg = "Command '%s' returned non-zero value %d%s" % (args, proc.returncode, out_log_msg)
         raise RuntimeError(err_msg)
     return out, err
+
+
+def get_distgit_commands(source, conf):
+    for host, cmds in conf.distgits.items():
+        if source.startswith(host):
+            return cmds
+    raise KeyError("No defined commands for {}".format(source))
 
 
 def fake_repo_done_message(tag_name):
