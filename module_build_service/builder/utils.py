@@ -90,9 +90,9 @@ def execute_cmd(args, stdout=None, stderr=None, cwd=None):
     :raises RuntimeError: Raised when command exits with non-zero exit code.
     """
     out_log_msg = ""
-    if stdout:
+    if stdout and hasattr(stdout, "name"):
         out_log_msg += ", stdout log: %s" % stdout.name
-    if stderr:
+    if stderr and hasattr(stderr, "name"):
         out_log_msg += ", stderr log: %s" % stderr.name
 
     log.info("Executing command: %s%s" % (args, out_log_msg))
