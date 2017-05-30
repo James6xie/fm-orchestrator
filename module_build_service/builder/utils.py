@@ -1,8 +1,5 @@
 import os
-import re
 import sys
-import koji
-import tempfile
 import shutil
 import subprocess
 import munch
@@ -16,83 +13,6 @@ from module_build_service import log, scm, messaging
 
 
 logging.basicConfig(level=logging.DEBUG)
-
-
-def build_from_scm(artifact_name, source, config, build_srpm,
-                   data=None, stdout=None, stderr=None):
-    """
-    Builds the artifact from the SCM based source.
-
-    :param artifact_name: Name of the artifact.
-    :param source: SCM URL with artifact's sources (spec file).
-    :param config: Config instance.
-    :param build_srpm: Method to call to build the RPM from the generate SRPM.
-    :param data: Data to be passed to the build_srpm method.
-    :param stdout: Python file object to which the stdout of SRPM build
-                   command is logged.
-    :param stderr: Python file object to which the stderr of SRPM build
-                   command is logged.
-    """
-    ret = (0, koji.BUILD_STATES["FAILED"], "Cannot create SRPM", None)
-    td = None
-
-    try:
-        log.debug('Cloning source URL: %s' % source)
-        url, commit = source.split("?#")
-        # Create temp dir and clone the repo there.
-        td = tempfile.mkdtemp()
-        scm = module_build_service.scm.SCM(source)
-        cod = scm.checkout(td)
-
-        cmd = config.mock_build_srpm_cmd.split(" ")
-        if is_from_copr(source):
-            branch = git_branch_contains(cod, commit)
-            git_checkout(cod, branch)
-            cmd = ["fedpkg-copr", "--release", branch, "srpm"]
-
-        # Use configured command to create SRPM out of the SCM repo.
-        log.debug("Creating SRPM in %s" % cod)
-        execute_cmd(cmd, stdout=stdout, stderr=stderr, cwd=cod)
-
-        # Find out the built SRPM and build it normally.
-        for f in os.listdir(cod):
-            if f.endswith(".src.rpm"):
-                log.info("Created SRPM %s" % f)
-                source = os.path.join(cod, f)
-                ret = build_srpm(artifact_name, source, data)
-                break
-    except Exception as e:
-        log.error("Error while generating SRPM for artifact %s: %s" % (
-            artifact_name, str(e)))
-        ret = (0, koji.BUILD_STATES["FAILED"], "Cannot create SRPM %s" % str(e), None)
-    finally:
-        try:
-            if td is not None:
-                shutil.rmtree(td)
-        except Exception as e:
-            log.warning(
-                "Failed to remove temporary directory {!r}: {}".format(
-                    td, str(e)))
-
-    return ret
-
-
-def git_branch_contains(cod, commit):
-    cmd = ["git", "branch", "-r", "--contains", commit]
-    out, err = execute_cmd(cmd, cwd=cod, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    branch = out.strip().split("/")[1]
-    if " -> " in branch:
-        branch = branch.split(" -> ")[0]
-    return branch
-
-
-def is_from_copr(source):
-    return bool(re.match("https?://copr-dist-git(-dev)?\.fedorainfracloud\.org", source))
-
-
-def git_checkout(cod, branch):
-    cmd = ["git", "checkout", branch]
-    execute_cmd(cmd, cwd=cod)
 
 
 def find_srpm(cod):
