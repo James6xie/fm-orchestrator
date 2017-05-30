@@ -256,6 +256,15 @@ class CoprModuleBuilder(GenericBuilder):
 
         return response.data["ids"][0], koji.BUILD_STATES["BUILDING"], response.message, None
 
+    def build_scm(self, source):
+        # @TODO use this method once support on Copr side is finished
+        # Copr is currently able to create a build from fedora distgit,
+        # but not from custom distgit, such as copr-dist-git
+        url, branch = source.split("?#")
+        url = (url.replace("git://", "https://")
+                  .replace("pkgs.fedoraproject.org", "src.fedoraproject.org/git"))
+        self.client.create_new_build_distgit(self.copr.projectname, url, branch=branch, username=self.copr.username)
+
     def finalize(self):
         modulemd = tempfile.mktemp()
         self.module.mmd().dump(modulemd)
