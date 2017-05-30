@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import koji
 import tempfile
@@ -40,17 +41,18 @@ def build_from_scm(artifact_name, source, config, build_srpm,
         url, commit = source.split("?#")
         # Create temp dir and clone the repo there.
         td = tempfile.mkdtemp()
-        scm = module_build_service.scm.SCM(url)
+        scm = module_build_service.scm.SCM(source)
         cod = scm.checkout(td)
 
-        branch = git_branch_contains(cod, commit)
-        git_checkout(cod, branch)
+        cmd = config.mock_build_srpm_cmd.split(" ")
+        if is_from_copr(source):
+            branch = git_branch_contains(cod, commit)
+            git_checkout(cod, branch)
+            cmd = ["fedpkg-copr", "--release", branch, "srpm"]
 
         # Use configured command to create SRPM out of the SCM repo.
         log.debug("Creating SRPM in %s" % cod)
-        distgit_cmds = get_distgit_commands(source, config)
-        execute_cmd(distgit_cmds[1].split(" "),
-                    stdout=stdout, stderr=stderr, cwd=cod)
+        execute_cmd(cmd, stdout=stdout, stderr=stderr, cwd=cod)
 
         # Find out the built SRPM and build it normally.
         for f in os.listdir(cod):
@@ -78,7 +80,14 @@ def build_from_scm(artifact_name, source, config, build_srpm,
 def git_branch_contains(cod, commit):
     cmd = ["git", "branch", "-r", "--contains", commit]
     out, err = execute_cmd(cmd, cwd=cod, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    return out.strip().split("/")[1]
+    branch = out.strip().split("/")[1]
+    if " -> " in branch:
+        branch = branch.split(" -> ")[0]
+    return branch
+
+
+def is_from_copr(source):
+    return bool(re.match("https?://copr-dist-git(-dev)?\.fedorainfracloud\.org", source))
 
 
 def git_checkout(cod, branch):
