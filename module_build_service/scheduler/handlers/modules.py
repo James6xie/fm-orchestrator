@@ -30,6 +30,7 @@ import module_build_service.utils
 import module_build_service.messaging
 from module_build_service.utils import (
     start_next_batch_build, attempt_to_reuse_all_components)
+from module_build_service.builder.KojiContentGenerator import KojiContentGenerator
 
 from requests.exceptions import ConnectionError
 
@@ -119,6 +120,11 @@ def done(config, session, msg):
                      module_info['state'], msg.module_build_state))
         # This is ok.. it's a race condition we can ignore.
         pass
+
+    if config.system == 'koji' and config.koji_enable_content_generator:
+        # KojiContentGenerator import
+        cg = KojiContentGenerator(build, config)
+        cg.koji_import()
 
     build.transition(config, state="ready")
     session.commit()
