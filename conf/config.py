@@ -46,7 +46,7 @@ class BaseConfiguration(object):
 
     # Determines how many builds that can be submitted to the builder
     # and be in the build state at a time. Set this to 0 for no restrictions
-    NUM_CONSECUTIVE_BUILDS = 5
+    NUM_CONCURRENT_BUILDS = 5
 
     ALLOW_CUSTOM_SCMURLS = False
 

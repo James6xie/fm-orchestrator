@@ -317,10 +317,10 @@ class Config(object):
             'type': bool,
             'default': False,
             'desc': 'Is it allowed to directly submit modulemd yaml file?'},
-        'num_consecutive_builds': {
+        'num_concurrent_builds': {
             'type': int,
             'default': 0,
-            'desc': 'Number of consecutive component builds.'},
+            'desc': 'Number of concurrent component builds.'},
         'net_timeout': {
             'type': int,
             'default': 120,
@@ -463,9 +463,9 @@ class Config(object):
             raise TypeError("scmurls needs to be a list.")
         self._scmurls = [str(x) for x in l]
 
-    def _setifok_num_consecutive_builds(self, i):
+    def _setifok_num_concurrent_builds(self, i):
         if not isinstance(i, int):
-            raise TypeError('NUM_CONSECUTIVE_BUILDS needs to be an int')
+            raise TypeError('NUM_CONCURRENT_BUILDS needs to be an int')
         if i < 0:
-            raise ValueError('NUM_CONSECUTIVE_BUILDS must be >= 0')
-        self._num_consecutive_builds = i
+            raise ValueError('NUM_CONCURRENT_BUILDS must be >= 0')
+        self._num_concurrent_builds = i

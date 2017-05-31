@@ -89,13 +89,13 @@ def at_concurrent_component_threshold(config, session):
     # build whole module in this single continue_batch_build call to keep
     # the number of created buildroots low. The concurrent build limit
     # for mock backend is secured by setting max_workers in
-    # ThreadPoolExecutor to num_consecutive_builds.
+    # ThreadPoolExecutor to num_concurrent_builds.
     if conf.system == "mock":
         return False
 
     import koji  # Placed here to avoid py2/py3 conflicts...
 
-    if config.num_consecutive_builds and config.num_consecutive_builds <= \
+    if config.num_concurrent_builds and config.num_concurrent_builds <= \
         session.query(models.ComponentBuild).filter_by(
             state=koji.BUILD_STATES['BUILDING']).count():
         return True
@@ -148,7 +148,7 @@ def continue_batch_build(config, module, session, builder, components=None):
 
     # Get the list of components to be build in this batch. We are not
     # building all `unbuilt_components`, because we can a) meet
-    # the num_consecutive_builds threshold or b) reuse previous build.
+    # the num_concurrent_builds threshold or b) reuse previous build.
     further_work = []
     components_to_build = []
     for c in unbuilt_components:
@@ -175,8 +175,8 @@ def continue_batch_build(config, module, session, builder, components=None):
 
     # Start build of components in this batch.
     max_workers = 1
-    if config.num_consecutive_builds > 0:
-        max_workers = config.num_consecutive_builds
+    if config.num_concurrent_builds > 0:
+        max_workers = config.num_concurrent_builds
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = {executor.submit(start_build_component, builder, c): c for c in components_to_build}
         concurrent.futures.wait(futures)

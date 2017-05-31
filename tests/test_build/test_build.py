@@ -432,14 +432,14 @@ class TestBuild(unittest.TestCase):
     @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    @patch("module_build_service.config.Config.num_consecutive_builds",
+    @patch("module_build_service.config.Config.num_concurrent_builds",
            new_callable=PropertyMock, return_value=1)
-    def test_submit_build_concurrent_threshold(self, conf_num_consecutive_builds,
+    def test_submit_build_concurrent_threshold(self, conf_num_concurrent_builds,
                                                mocked_scm, mocked_get_user,
                                                conf_system, dbg):
         """
         Tests the build of testmodule.yaml using TestModuleBuilder with
-        num_consecutive_builds set to 1.
+        num_concurrent_builds set to 1.
         """
         MockedSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
                   '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
@@ -454,10 +454,10 @@ class TestBuild(unittest.TestCase):
         def stop(message):
             """
             Stop the scheduler when the module is built or when we try to build
-            more components than the num_consecutive_builds.
+            more components than the num_concurrent_builds.
             """
             main_stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
-            over_threshold = conf.num_consecutive_builds < \
+            over_threshold = conf.num_concurrent_builds < \
                 db.session.query(models.ComponentBuild).filter_by(
                 state=koji.BUILD_STATES['BUILDING']).count()
             return main_stop(message) or over_threshold
@@ -469,22 +469,22 @@ class TestBuild(unittest.TestCase):
         # or "ready" state.
         for build in models.ComponentBuild.query.filter_by(module_id=module_build_id).all():
             self.assertEqual(build.state, koji.BUILD_STATES['COMPLETE'])
-            # When this fails, it can mean that num_consecutive_builds
+            # When this fails, it can mean that num_concurrent_builds
             # threshold has been met.
             self.assertTrue(build.module_build.state in [models.BUILD_STATES["done"], models.BUILD_STATES["ready"]] )
 
     @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    @patch("module_build_service.config.Config.num_consecutive_builds",
+    @patch("module_build_service.config.Config.num_concurrent_builds",
            new_callable=PropertyMock, return_value=2)
-    def test_try_to_reach_concurrent_threshold(self, conf_num_consecutive_builds,
+    def test_try_to_reach_concurrent_threshold(self, conf_num_concurrent_builds,
                                                mocked_scm, mocked_get_user,
                                                conf_system, dbg):
         """
         Tests that we try to submit new component build right after
         the previous one finished without waiting for all
-        the num_consecutive_builds to finish.
+        the num_concurrent_builds to finish.
         """
         MockedSCM(mocked_scm, 'testmodule-more-components', 'testmodule-more-components.yaml',
                   '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
@@ -503,12 +503,12 @@ class TestBuild(unittest.TestCase):
         def stop(message):
             """
             Stop the scheduler when the module is built or when we try to build
-            more components than the num_consecutive_builds.
+            more components than the num_concurrent_builds.
             """
             main_stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
             num_building = db.session.query(models.ComponentBuild).filter_by(
                 state=koji.BUILD_STATES['BUILDING']).count()
-            over_threshold = conf.num_consecutive_builds < num_building
+            over_threshold = conf.num_concurrent_builds < num_building
             TestBuild._global_var.append(num_building)
             return main_stop(message) or over_threshold
 
@@ -523,7 +523,7 @@ class TestBuild(unittest.TestCase):
         # when we should be building just single component:
         #   1) module-base-macros in first batch.
         #   2) The last component of second batch.
-        # If we are building single component more often, num_consecutive_builds
+        # If we are building single component more often, num_concurrent_builds
         # does not work correctly.
         num_builds = [k for k, g in itertools.groupby(TestBuild._global_var)]
         self.assertEqual(num_builds.count(1), 2)
@@ -531,9 +531,9 @@ class TestBuild(unittest.TestCase):
     @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    @patch("module_build_service.config.Config.num_consecutive_builds",
+    @patch("module_build_service.config.Config.num_concurrent_builds",
            new_callable=PropertyMock, return_value=1)
-    def test_build_in_batch_fails(self, conf_num_consecutive_builds, mocked_scm,
+    def test_build_in_batch_fails(self, conf_num_concurrent_builds, mocked_scm,
                                   mocked_get_user, conf_system, dbg):
         """
         Tests that if the build in batch fails, other components in a batch
@@ -591,9 +591,9 @@ class TestBuild(unittest.TestCase):
     @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    @patch("module_build_service.config.Config.num_consecutive_builds",
+    @patch("module_build_service.config.Config.num_concurrent_builds",
            new_callable=PropertyMock, return_value=1)
-    def test_all_builds_in_batch_fail(self, conf_num_consecutive_builds, mocked_scm,
+    def test_all_builds_in_batch_fail(self, conf_num_concurrent_builds, mocked_scm,
                                   mocked_get_user, conf_system, dbg):
         """
         Tests that if the build in batch fails, other components in a batch
