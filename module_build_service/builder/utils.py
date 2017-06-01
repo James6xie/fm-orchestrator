@@ -50,13 +50,6 @@ def execute_cmd(args, stdout=None, stderr=None, cwd=None):
     return out, err
 
 
-def get_distgit_commands(source, conf):
-    for host, cmds in conf.distgits.items():
-        if source.startswith(host):
-            return cmds
-    raise KeyError("No defined commands for {}".format(source))
-
-
 def fake_repo_done_message(tag_name):
     msg = module_build_service.messaging.KojiRepoChange(
         msg_id='a faked internal message',
