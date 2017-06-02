@@ -38,7 +38,7 @@ import module_build_service.scheduler
 import module_build_service.scheduler.consumer
 
 from base import GenericBuilder
-from utils import (build_from_scm, fake_repo_done_message,
+from utils import (fake_repo_done_message,
                    create_local_repo_from_koji_tag, execute_cmd,
                    find_srpm)
 from KojiModuleBuilder import KojiModuleBuilder

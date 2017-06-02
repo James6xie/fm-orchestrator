@@ -1,7 +1,5 @@
 import os
 import sys
-import koji
-import tempfile
 import shutil
 import subprocess
 import munch
@@ -15,59 +13,6 @@ from module_build_service import log, scm, messaging
 
 
 logging.basicConfig(level=logging.DEBUG)
-
-
-def build_from_scm(artifact_name, source, config, build_srpm,
-                   data=None, stdout=None, stderr=None):
-    """
-    Builds the artifact from the SCM based source.
-
-    :param artifact_name: Name of the artifact.
-    :param source: SCM URL with artifact's sources (spec file).
-    :param config: Config instance.
-    :param build_srpm: Method to call to build the RPM from the generate SRPM.
-    :param data: Data to be passed to the build_srpm method.
-    :param stdout: Python file object to which the stdout of SRPM build
-                   command is logged.
-    :param stderr: Python file object to which the stderr of SRPM build
-                   command is logged.
-    """
-    ret = (0, koji.BUILD_STATES["FAILED"], "Cannot create SRPM", None)
-    td = None
-
-    try:
-        log.debug('Cloning source URL: %s' % source)
-        # Create temp dir and clone the repo there.
-        td = tempfile.mkdtemp()
-        scm = module_build_service.scm.SCM(source)
-        cod = scm.checkout(td)
-
-        # Use configured command to create SRPM out of the SCM repo.
-        log.debug("Creating SRPM in %s" % cod)
-        execute_cmd(config.mock_build_srpm_cmd.split(" "),
-                    stdout=stdout, stderr=stderr, cwd=cod)
-
-        # Find out the built SRPM and build it normally.
-        for f in os.listdir(cod):
-            if f.endswith(".src.rpm"):
-                log.info("Created SRPM %s" % f)
-                source = os.path.join(cod, f)
-                ret = build_srpm(artifact_name, source, data)
-                break
-    except Exception as e:
-        log.error("Error while generating SRPM for artifact %s: %s" % (
-            artifact_name, str(e)))
-        ret = (0, koji.BUILD_STATES["FAILED"], "Cannot create SRPM %s" % str(e), None)
-    finally:
-        try:
-            if td is not None:
-                shutil.rmtree(td)
-        except Exception as e:
-            log.warning(
-                "Failed to remove temporary directory {!r}: {}".format(
-                    td, str(e)))
-
-    return ret
 
 
 def find_srpm(cod):
@@ -90,18 +35,19 @@ def execute_cmd(args, stdout=None, stderr=None, cwd=None):
     :raises RuntimeError: Raised when command exits with non-zero exit code.
     """
     out_log_msg = ""
-    if stdout:
+    if stdout and hasattr(stdout, "name"):
         out_log_msg += ", stdout log: %s" % stdout.name
-    if stderr:
+    if stderr and hasattr(stderr, "name"):
         out_log_msg += ", stderr log: %s" % stderr.name
 
     log.info("Executing command: %s%s" % (args, out_log_msg))
     proc = subprocess.Popen(args, stdout=stdout, stderr=stderr, cwd=cwd)
-    proc.communicate()
+    out, err = proc.communicate()
 
     if proc.returncode != 0:
         err_msg = "Command '%s' returned non-zero value %d%s" % (args, proc.returncode, out_log_msg)
         raise RuntimeError(err_msg)
+    return out, err
 
 
 def fake_repo_done_message(tag_name):
