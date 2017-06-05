@@ -1029,23 +1029,23 @@ def get_reusable_component(session, module, component_name):
     # Create separate lists for the new and previous module build. These lists
     # will have an entry for every build batch *before* the component's
     # batch except for 1, which is reserved for the module-build-macros RPM.
-    # Each batch entry will contain a list of dicts with the name and ref
-    # (commit) of the component.
+    # Each batch entry will contain a set of "(name, ref)" with the name and
+    # ref (commit) of the component.
     for i in range(new_module_build_component.batch - 1):
         # This is the first batch which we want to skip since it will always
         # contain only the module-build-macros RPM and it gets built every time
         if i == 0:
             continue
 
-        new_module_build_components.append([
-            {'name': value.package, 'ref': value.ref} for value in
+        new_module_build_components.append(set([
+            (value.package, value.ref) for value in
             new_component_builds if value.batch == i + 1
-        ])
+        ]))
 
-        previous_module_build_components.append([
-            {'name': value.package, 'ref': value.ref} for value in
+        previous_module_build_components.append(set([
+            (value.package, value.ref) for value in
             prev_component_builds if value.batch == i + 1
-        ])
+        ]))
 
     # If the previous batches have the same ordering and hashes, then the
     # component can be reused

@@ -28,7 +28,8 @@ import module_build_service.utils
 import module_build_service.scm
 from module_build_service import models, conf
 from module_build_service.errors import ProgrammingError, ValidationError
-from tests import test_reuse_component_init_data, init_data, db
+from tests import (test_reuse_component_init_data, init_data, db,
+                   test_reuse_shared_userspace_init_data)
 import mock
 from mock import PropertyMock
 import koji
@@ -278,6 +279,19 @@ class TestUtils(unittest.TestCase):
         tangerine_rv = module_build_service.utils.get_reusable_component(
             db.session, second_module_build, 'tangerine')
         self.assertEqual(tangerine_rv, None)
+
+    def test_get_reusable_component_shared_userspace_ordering(self):
+        """
+        For modules with lot of components per batch, there is big chance that
+        the database will return them in different order than what we have for
+        current `new_module`. In this case, reuse code should still be able to
+        reuse the components.
+        """
+        test_reuse_shared_userspace_init_data()
+        new_module = models.ModuleBuild.query.filter_by(id=2).one()
+        rv = module_build_service.utils.get_reusable_component(
+            db.session, new_module, 'llvm')
+        self.assertEqual(rv.package, 'llvm')
 
     def test_validate_koji_tag_wrong_tag_arg_during_programming(self):
         """ Test that we fail on a wrong param name (non-existing one) due to

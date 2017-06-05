@@ -398,3 +398,110 @@ def test_reuse_component_init_data():
         session.add(component_three_build_two)
         session.add(component_four_build_two)
         session.commit()
+
+def test_reuse_shared_userspace_init_data():
+    db.session.remove()
+    db.drop_all()
+    db.create_all()
+    db.session.commit()
+
+    with make_session(conf) as session:
+        mmd = modulemd.ModuleMetadata()
+
+        # Create shared-userspace-570, state is COMPLETE, all components
+        # are properly built.
+        current_dir = os.path.dirname(__file__)
+        formatted_testmodule_yml_path = os.path.join(
+            current_dir, 'staged_data', 'shared-userspace-570.yaml')
+        with open(formatted_testmodule_yml_path, 'r') as f:
+            yaml = f.read()
+            mmd.loads(yaml)
+
+        build_one = module_build_service.models.ModuleBuild()
+        build_one.name = mmd.name
+        build_one.stream =  mmd.stream
+        build_one.version = mmd.version
+        build_one.state = 5
+        build_one.modulemd = yaml
+        build_one.koji_tag = 'module-testmodule-master-20170109091357'
+        build_one.scmurl = ('git://pkgs.stg.fedoraproject.org/modules/testmodule.'
+                            'git?#7fea453')
+        build_one.batch = 16
+        build_one.owner = 'Tom Brady'
+        build_one.time_submitted = datetime(2017, 2, 15, 16, 8, 18)
+        build_one.time_modified = datetime(2017, 2, 15, 16, 19, 35)
+        build_one.time_completed = datetime(2017, 2, 15, 16, 19, 35)
+
+        session.add(build_one)
+
+        components = mmd.components.all
+        components.sort(key=lambda x: x.buildorder)
+        previous_buildorder = None
+        batch = 1
+        for pkg in components:
+            # Increment the batch number when buildorder increases.
+            if previous_buildorder != pkg.buildorder:
+                previous_buildorder = pkg.buildorder
+                batch += 1
+
+            pkgref = mmd.xmd['mbs']['rpms'][pkg.name]['ref']
+            full_url = pkg.repository + "?#" + pkgref
+            build = module_build_service.models.ComponentBuild(
+                module_id=1,
+                package=pkg.name,
+                format="rpms",
+                scmurl=full_url,
+                batch=batch,
+                ref=pkgref,
+                state=1
+            )
+            session.add(build)
+
+        # Create shared-userspace-577, state is WAIT, no component built
+        formatted_testmodule_yml_path = os.path.join(
+            current_dir, 'staged_data', 'shared-userspace-577.yaml')
+        with open(formatted_testmodule_yml_path, 'r') as f:
+            yaml = f.read()
+            mmd.loads(yaml)
+
+        build_one = module_build_service.models.ModuleBuild()
+        build_one.name = mmd.name
+        build_one.stream =  mmd.stream
+        build_one.version = mmd.version
+        build_one.state = 3
+        build_one.modulemd = yaml
+        build_one.koji_tag = 'module-testmodule-master-20170109091357'
+        build_one.scmurl = ('git://pkgs.stg.fedoraproject.org/modules/testmodule.'
+                            'git?#7fea453')
+        build_one.batch = 0
+        build_one.owner = 'Tom Brady'
+        build_one.time_submitted = datetime(2017, 2, 15, 16, 8, 18)
+        build_one.time_modified = datetime(2017, 2, 15, 16, 19, 35)
+        build_one.time_completed = datetime(2017, 2, 15, 16, 19, 35)
+
+        session.add(build_one)
+
+        components = mmd.components.all
+        # Store components to database in different order than for 570 to
+        # reproduce the reusing issue.
+        components.sort(key=lambda x: len(x.name))
+        components.sort(key=lambda x: x.buildorder)
+        previous_buildorder = None
+        batch = 1
+        for pkg in components:
+            # Increment the batch number when buildorder increases.
+            if previous_buildorder != pkg.buildorder:
+                previous_buildorder = pkg.buildorder
+                batch += 1
+
+            pkgref = mmd.xmd['mbs']['rpms'][pkg.name]['ref']
+            full_url = pkg.repository + "?#" + pkgref
+            build = module_build_service.models.ComponentBuild(
+                module_id=2,
+                package=pkg.name,
+                format="rpms",
+                scmurl=full_url,
+                batch=batch,
+                ref=pkgref
+            )
+            session.add(build)

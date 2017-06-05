@@ -1,0 +1,487 @@
+data:
+  api:
+    rpms: [epydoc, libX11, libtirpc, tcl, libxshmfence, libglvnd, golang-github-russross-blackfriday,
+      libnfsidmap, fontconfig, satyr, libstemmer, libSM, policycoreutils, pixman,
+      clang, libdrm, lksctp-tools, pango, selinux-policy, libdaemon, python2, ghostscript,
+      perl-TermReadKey, libXfixes, parted, rpcbind, augeas, cairo, libpciaccess, bluez,
+      libXrender, libxslt, libssh, libaio, compiler-rt, golang-github-cpuguy83-go-md2man,
+      btrfs-progs, poppler, libcgroup, boost, icu, poppler-data, systemtap, python-rhsm,
+      libXinerama, xorg-x11-xtrans-devel, libXrandr, libedit, libjpeg-turbo, chrpath,
+      atk, ding-libs, libXft, libical, hesiod, lcms2, gssproxy, mesa-libGLU, tcp_wrappers,
+      harfbuzz, libXcomposite, libxcb, cups, libXdamage, libXxf86vm, git, libXcursor,
+      golang-github-shurcooL-sanitized_anchor_name, libusbx, libdatrie, gdk-pixbuf2,
+      libXi, nfs-utils, graphite2, libXp, libreport, libunwind, libXt, libevent, libXext,
+      godep, xorg-x11-proto-devel, docbook-dtds, gnupg, avahi, libselinux, xfsprogs,
+      qpdf, cups-filters, valgrind, gperftools, jbigkit, perl-Error, dbus-glib, alsa-lib,
+      libXmu, compat-openssl10, libsecret, skopeo, xorg-x11-xbitmaps, PyYAML, llvm,
+      quota, polkit, libtool, gtk2, desktop-file-utils, mesa, python-pymongo, checkpolicy,
+      libICE, glib2, pulseaudio, libthai, libusb, ghostscript-fonts, time, SDL, libuv]
+  components:
+    rpms:
+      PyYAML: {buildorder: 10, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/PyYAML',
+        rationale: Component for shared userspace - PyYAML., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/PyYAML'}
+      SDL: {buildorder: 10, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/SDL',
+        rationale: Component for shared userspace - SDL., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/SDL'}
+      alsa-lib: {buildorder: 10, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/alsa-lib',
+        rationale: Component for shared userspace - alsa-lib., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/alsa-lib'}
+      atk: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/atk', rationale: Requirement
+          for gtk2., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/atk'}
+      augeas: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/augeas',
+        rationale: runtime req for libreport., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/augeas'}
+      avahi: {buildorder: 12, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/avahi',
+        rationale: Runtime req for cups and others., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/avahi'}
+      bluez: {buildorder: 11, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/bluez',
+        rationale: Requirement for gtk2., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/bluez'}
+      boost: {buildorder: 10, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/boost',
+        rationale: Component for shared userspace - boost., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/boost'}
+      btrfs-progs: {buildorder: 10, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/btrfs-progs',
+        rationale: Build dependency of docker., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/btrfs-progs'}
+      cairo: {buildorder: 8, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/cairo',
+        rationale: Requirement for gtk2., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/cairo'}
+      checkpolicy: {buildorder: 2, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/checkpolicy',
+        rationale: dependency of policycoreutils., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/checkpolicy'}
+      chrpath: {buildorder: 1, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/chrpath',
+        rationale: dependency of dbus-glib., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/chrpath'}
+      clang: {buildorder: 8, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/clang',
+        rationale: Requirement for mesa., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/clang'}
+      compat-openssl10: {buildorder: 10, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/compat-openssl10',
+        rationale: Component for shared userspace - compat-openssl10., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/compat-openssl10'}
+      compiler-rt: {buildorder: 7, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/compiler-rt',
+        rationale: Requirement for clang., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/compiler-rt'}
+      cups: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/cups',
+        rationale: Requirement for gtk2., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/cups'}
+      cups-filters: {buildorder: 11, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/cups-filters',
+        rationale: Runtime requirement for cups., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/cups-filters'}
+      dbus-glib: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/dbus-glib',
+        rationale: dependency of policycoreutils., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/dbus-glib'}
+      desktop-file-utils: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/desktop-file-utils',
+        rationale: dependency of cups/python-cups/epydoc/policycoreutils, ref: f26,
+        repository: 'git://pkgs.fedoraproject.org/rpms/desktop-file-utils'}
+      ding-libs: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/ding-libs',
+        rationale: Runtime requirement for nfs-utils., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/ding-libs'}
+      docbook-dtds: {buildorder: 6, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/docbook-dtds',
+        rationale: runtime requirement for boost-doctools., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/docbook-dtds'}
+      docbook-style-xsl: {buildorder: 6, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/docbook-style-xsl',
+        rationale: runtime requirement for boost-doctools., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/docbook-style-xsl'}
+      epydoc: {buildorder: 7, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/epydoc',
+        rationale: dependency of cups/python-cups., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/epydoc'}
+      fontconfig: {buildorder: 8, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/fontconfig',
+        rationale: Runtime requirement for cairo-devel., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/fontconfig'}
+      fontpackages: {buildorder: 12, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/fontpackages',
+        rationale: Runtime req for fontconfig., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/fontpackages'}
+      gdk-pixbuf2: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/gdk-pixbuf2',
+        rationale: Requirement for gtk2., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/gdk-pixbuf2'}
+      ghostscript: {buildorder: 14, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/ghostscript',
+        rationale: req for cups-filters., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/ghostscript'}
+      ghostscript-fonts: {buildorder: 14, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/ghostscript-fonts',
+        rationale: req for ghostscript-core., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/ghostscript-fonts'}
+      git: {buildorder: 10, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/git',
+        rationale: Build dependency of docker., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/git'}
+      glib2: {buildorder: 4, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/glib2',
+        rationale: Build dep for many packages., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/glib2'}
+      gnupg: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/gnupg',
+        rationale: build dep of golang., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/gnupg'}
+      godep: {buildorder: 10, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/godep',
+        rationale: Build dependency of docker., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/godep'}
+      golang-github-cpuguy83-go-md2man: {buildorder: 13, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/golang-github-cpuguy83-go-md2man',
+        rationale: Build dependency of docker., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/golang-github-cpuguy83-go-md2man'}
+      golang-github-russross-blackfriday: {buildorder: 12, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/golang-github-russross-blackfriday',
+        rationale: B-D of golang-github-cpuguy83-go-md2man., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/golang-github-russross-blackfriday'}
+      golang-github-shurcooL-sanitized_anchor_name: {buildorder: 11, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/golang-github-shurcooL-sanitized_anchor_name',
+        rationale: B-D of golang-github-russross-blackfriday., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/golang-github-shurcooL-sanitized_anchor_name'}
+      gperftools: {buildorder: 10, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/gperftools',
+        rationale: Component for shared userspace - gperftools., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/gperftools'}
+      graphite2: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/graphite2',
+        rationale: runtime req of git., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/graphite2'}
+      gssproxy: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/gssproxy',
+        rationale: Runtime requirement for nfs-utils., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/gssproxy'}
+      gtk2: {buildorder: 10, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/gtk2',
+        rationale: Component for shared userspace - gtk2., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/gtk2'}
+      gtk3: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/gtk3',
+        rationale: 'runtime req for gtk2 ?.', ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/gtk3'}
+      harfbuzz: {buildorder: 12, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/harfbuzz',
+        rationale: Runtime req for pango., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/harfbuzz'}
+      hesiod: {buildorder: 10, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/hesiod',
+        rationale: Component for shared userspace - hesiod., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/hesiod'}
+      icu: {buildorder: 10, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/icu',
+        rationale: Component for shared userspace - libicu., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/icu'}
+      jbigkit: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/jbigkit',
+        rationale: Requirement for libtiff., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/jbigkit'}
+      lcms2: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/lcms2',
+        rationale: runtime req for ghostscript-core., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/lcms2'}
+      libICE: {buildorder: 10, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libICE',
+        rationale: requirement for libXt., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libICE'}
+      libSM: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libSM',
+        rationale: Requirement for libXt., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libSM'}
+      libX11: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libX11',
+        rationale: Requirement for SDL., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libX11'}
+      libXau: {buildorder: 11, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libXau',
+        rationale: Runtime requirement for libXp., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libXau'}
+      libXcomposite: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libXcomposite',
+        rationale: Requirement for gtk2., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libXcomposite'}
+      libXcursor: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libXcursor',
+        rationale: Requirement for gtk2., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libXcursor'}
+      libXdamage: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libXdamage',
+        rationale: Requirement for gtk2., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libXdamage'}
+      libXext: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libXext',
+        rationale: Requirement for mesa-libGL., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libXext'}
+      libXfixes: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libXfixes',
+        rationale: Requirement for gtk2., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libXfixes'}
+      libXft: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libXft',
+        rationale: Requirement for motif., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libXft'}
+      libXi: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libXi',
+        rationale: Requirement for gtk2., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libXi'}
+      libXinerama: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libXinerama',
+        rationale: Requirement for gtk2., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libXinerama'}
+      libXmu: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libXmu',
+        rationale: Requirement for mesa-libGL., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libXmu'}
+      libXp: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libXp',
+        rationale: Requirement for motif., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libXp'}
+      libXrandr: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libXrandr',
+        rationale: Requirement for gtk2., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libXrandr'}
+      libXrender: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libXrender',
+        rationale: Requirement for gtk2., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libXrender'}
+      libXt: {buildorder: 11, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libXt',
+        rationale: Requirement for motif., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libXt'}
+      libXxf86vm: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libXxf86vm',
+        rationale: Requirement for mesa-libGL., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libXxf86vm'}
+      libaio: {buildorder: 10, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libaio',
+        rationale: Component for shared userspace - libaio., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libaio'}
+      libcgroup: {buildorder: 2, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libcgroup',
+        rationale: dependency of policycoreutils., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libcgroup'}
+      libdaemon: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libdaemon',
+        rationale: runtime req for avahi., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libdaemon'}
+      libdatrie: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libdatrie',
+        rationale: runtime req for libthai., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libdatrie'}
+      libdrm: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libdrm',
+        rationale: Requirement for mesa-libGL., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libdrm'}
+      libedit: {buildorder: 10, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libedit',
+        rationale: Component for shared userspace - libedit., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libedit'}
+      liberation-fonts: {buildorder: 12, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/liberation-fonts',
+        rationale: Runtime req for fontconfig., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/liberation-fonts'}
+      libevent: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libevent',
+        rationale: Runtime requirement for nfs-utils., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libevent'}
+      libglvnd: {buildorder: 8, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libglvnd',
+        rationale: runtime requirement for cairo., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libglvnd'}
+      libical: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libical',
+        rationale: Requirement for gtk2., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libical'}
+      libjpeg-turbo: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libjpeg-turbo',
+        rationale: Requirement for libtiff., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libjpeg-turbo'}
+      libnfsidmap: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libnfsidmap',
+        rationale: Runtime requirement for nfs-utils., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libnfsidmap'}
+      libpciaccess: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libpciaccess',
+        rationale: Requirement for libdrm., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libpciaccess'}
+      libreport: {buildorder: 16, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libreport',
+        rationale: runtime req for anaconda., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libreport'}
+      libsecret: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libsecret',
+        rationale: Runtime req for git., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libsecret'}
+      libselinux: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libselinux',
+        rationale: dependency of policycoreutils., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libselinux'}
+      libssh: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libssh',
+        rationale: Requirement for libvirt-client., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libssh'}
+      libstemmer: {buildorder: 10, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libstemmer',
+        rationale: Component for shared userspace - libstemmer., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libstemmer'}
+      libthai: {buildorder: 12, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libthai',
+        rationale: Runtime req for pango., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libthai'}
+      libtiff: {buildorder: 6, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libtiff',
+        rationale: Runtime requirement for gtk2, ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libtiff'}
+      libtirpc: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libtirpc',
+        rationale: Runtime requirement for nfs-utils., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libtirpc'}
+      libtool: {buildorder: 6, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libtool',
+        rationale: Build dep for many packages., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libtool'}
+      libunwind: {buildorder: 11, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libunwind',
+        rationale: Runtime requirement for gperftools., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libunwind'}
+      libusb: {buildorder: 10, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libusb',
+        rationale: Component for shared userspace - libusb., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libusb'}
+      libusbx: {buildorder: 8, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libusbx',
+        rationale: requirement for libusb., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libusbx'}
+      libuv: {buildorder: 10, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libuv',
+        rationale: Component for shared userspace - libuv., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libuv'}
+      libxcb: {buildorder: 11, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libxcb',
+        rationale: Runtime requirement for libX11-devel., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libxcb'}
+      libxml2: {buildorder: 11, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libxml2',
+        rationale: Runtime requirement for shared-mime-info., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libxml2'}
+      libxshmfence: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libxshmfence',
+        rationale: Requirement for mesa-libGL., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libxshmfence'}
+      libxslt: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libxslt',
+        rationale: Requirement for libvirt-client., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libxslt'}
+      libyaml: {buildorder: 12, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libyaml',
+        rationale: Runtime requirement for PyYAML., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libyaml'}
+      lksctp-tools: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/lksctp-tools',
+        rationale: Requirement for compat-openssl10., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/lksctp-tools'}
+      llvm: {buildorder: 6, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/llvm',
+        rationale: Requirement for mesa., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/llvm'}
+      lynx: {buildorder: 14, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/lynx',
+        rationale: build req for libdaemon., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/lynx'}
+      mesa: {buildorder: 9, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/mesa',
+        rationale: Component for shared userspace - mesa-libGL., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/mesa'}
+      mesa-libGLU: {buildorder: 10, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/mesa-libGLU',
+        rationale: Component for shared userspace - mesa-libGLU., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/mesa-libGLU'}
+      nfs-utils: {buildorder: 16, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/nfs-utils',
+        rationale: Component of shared-userspace., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/nfs-utils'}
+      pango: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/pango',
+        rationale: Requirement for gtk2., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/pango'}
+      parted: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/parted',
+        rationale: build dep of golang., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/parted'}
+      perl-Error: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/perl-Error',
+        rationale: Component for shared userspace - perl(Error)., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/perl-Error'}
+      perl-TermReadKey: {buildorder: 14, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/perl-TermReadKey',
+        rationale: Requirement for git., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/perl-TermReadKey'}
+      perl-Test-Pod: {buildorder: 14, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/perl-Test-Pod',
+        rationale: Requirement for perl(Error)., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/perl-Test-Pod'}
+      perl-Test-Pod-Coverage: {buildorder: 14, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/perl-Test-Pod-Coverage',
+        rationale: Requirement for perl(Error)., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/perl-Test-Pod-Coverage'}
+      pixman: {buildorder: 8, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/pixman',
+        rationale: Runtime requirement for cairo-devel., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/pixman'}
+      policycoreutils: {buildorder: 6, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/policycoreutils',
+        rationale: dependency of selinux-policy., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/policycoreutils'}
+      polkit: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/polkit',
+        rationale: runtime req for ghostscript-core., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/polkit'}
+      poppler: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/poppler',
+        rationale: runtime req for cups-filters., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/poppler'}
+      poppler-data: {buildorder: 13, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/poppler-data',
+        rationale: runtime req for ghostscript-core., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/poppler-data'}
+      pulseaudio: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/pulseaudio',
+        rationale: Requirement for SDL., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/pulseaudio'}
+      python-pymongo: {buildorder: 10, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/python-pymongo',
+        rationale: Component for shared userspace - python-pymongo., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/python-pymongo'}
+      python-rhsm: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/python-rhsm',
+        rationale: build dep of golang., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/python-rhsm'}
+      python2: {buildorder: 6, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/python2',
+        rationale: dependency of many packages., ref: 0268e323750ca7d4af3c78e13480cffc63b08f85,
+        repository: 'git://pkgs.fedoraproject.org/rpms/python2'}
+      qpdf: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/qpdf',
+        rationale: runtime req for cups-filters., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/qpdf'}
+      quota: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/quota',
+        rationale: Runtime requirement for nfs-utils., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/quota'}
+      rpcbind: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/rpcbind',
+        rationale: Runtime requirement for nfs-utils., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/rpcbind'}
+      satyr: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/satyr',
+        rationale: runtime req for libreport., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/satyr'}
+      selinux-policy: {buildorder: 10, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/selinux-policy',
+        rationale: Component for shared userspace - selinux-policy., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/selinux-policy'}
+      shared-mime-info: {buildorder: 12, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/shared-mime-info',
+        rationale: Runtime requirement for gdk-pixbuf2., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/shared-mime-info'}
+      skopeo: {buildorder: 14, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/skopeo',
+        rationale: Build dependency of docker., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/skopeo'}
+      systemtap: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/systemtap',
+        rationale: build and runtime dep of many packages., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/systemtap'}
+      tcl: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/tcl', rationale: dependency
+          of python2., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/tcl'}
+      tcp_wrappers: {buildorder: 8, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/tcp_wrappers',
+        rationale: requirement for audit and others., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/tcp_wrappers'}
+      time: {buildorder: 10, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/time',
+        rationale: Component for shared userspace - time., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/time'}
+      vala: {buildorder: 8, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/vala',
+        rationale: libsecret dependency., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/vala'}
+      valgrind: {buildorder: 12, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/valgrind',
+        rationale: Requirement for git., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/valgrind'}
+      xfsprogs: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/xfsprogs',
+        rationale: build dep of golang., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/xfsprogs'}
+      xmlto: {buildorder: 12, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/xmlto',
+        rationale: libsecret dependency., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/xmlto'}
+      xorg-x11-proto-devel: {buildorder: 8, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/xorg-x11-proto-devel',
+        rationale: requirement for libX11., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/xorg-x11-proto-devel'}
+      xorg-x11-xbitmaps: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/xorg-x11-xbitmaps',
+        rationale: Requirement for motif., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/xorg-x11-xbitmaps'}
+      xorg-x11-xtrans-devel: {buildorder: 9, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/xorg-x11-xtrans-devel',
+        rationale: requirement for libICE., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/xorg-x11-xtrans-devel'}
+  dependencies:
+    buildrequires: {bootstrap: f26, common-build-dependencies: f26, perl: f26}
+    requires: {base-runtime: f26, perl: f26}
+  description: A module that contains libraries, binaries, etc that are shared between
+    all other modules.
+  filter:
+    rpms: [libreport-gtk, libsecret-devel, boost-mpich-python, avahi-qt3, util-linux-user,
+      texinfo-tex, libreport-web-devel, policycoreutils-python, libreport-plugin-systemd-journal,
+      glib2-fam, poppler-demos, avahi-ui-tools, gitweb, avahi-ui-sharp, avahi-qt4-devel,
+      libreport-python3, libreport-newt, valgrind-openmpi, pulseaudio-module-jack,
+      libreport-plugin-mailx, poppler-qt5, fontpackages-devel, git-svn, selinux-policy-doc,
+      boost-openmpi-devel, pulseaudio-qpaeq, augeas, mesa-vulkan-devel, avahi-ui-sharp-devel,
+      avahi-qt4, boost-doctools, policycoreutils-gui, libreport-plugin-rhtsupport,
+      poppler-devel, boost-openmpi-python, qt5-rpm-macros, systemtap-runtime-java,
+      gtk2-immodules, qt5, systemtap-testsuite, avahi-autoipd, poppler-glib-doc, pulseaudio-module-gconf,
+      poppler-cpp, git-cvs, pango-tests, perl-Git-SVN, poppler-glib, pulseaudio-module-bluetooth,
+      avahi-sharp, boost-mpich, boost-openmpi, libreport-fedora, libreport-compat,
+      gitk, graphite2-devel, avahi-ui-gtk3, cups-ipptool, libreport-devel, vulkan-devel,
+      harfbuzz-icu, git-gui, avahi-dnsconfd, poppler-cpp-devel, perl-Test-Pod-Coverage,
+      libreport-plugin-ureport, git-email, cups-lpd, libreport-python, clang-analyzer,
+      libtool-ltdl-devel, satyr-python3, harfbuzz-devel, pulseaudio-gdm-hooks, libreport-plugin-kerneloops,
+      libselinux-ruby, xmlto-xhtml, pulseaudio-module-x11, satyr-devel, fontpackages-tools,
+      augeas-devel, lynx, poppler-glib-devel, avahi-qt3-devel, pulseaudio-utils, poppler-qt,
+      ghostscript-doc, pulseaudio-module-zeroconf, qt5-devel, vala-doc, libreport-plugin-mantisbt,
+      libreport-gtk-devel, avahi-ui-devel, libreport-cli, libreport-centos, boost-graph-openmpi,
+      boost-mpich-devel, poppler-qt-devel, systemtap-server, xmlto-tex, ghostscript-gtk,
+      libtool, boost-graph-mpich, pulseaudio-module-lirc, satyr-python, libreport-plugin-logger,
+      poppler-qt5-devel, git-all, systemtap-initscript]
+  license:
+    module: [MIT]
+  name: shared-userspace
+  profiles:
+    default:
+      rpms: [epydoc, libX11, tcl, libxshmfence, libglvnd, golang-github-russross-blackfriday,
+        fontconfig, satyr, libstemmer, libSM, policycoreutils, pixman, clang, gtk3,
+        libdrm, lksctp-tools, pango, selinux-policy, libdaemon, python2, ghostscript,
+        perl-TermReadKey, libXfixes, parted, augeas, cairo, libpciaccess, bluez, libXrender,
+        libxslt, libssh, libaio, compiler-rt, golang-github-cpuguy83-go-md2man, btrfs-progs,
+        poppler, libcgroup, boost, icu, poppler-data, systemtap, python-rhsm, libXinerama,
+        xorg-x11-xtrans-devel, libXrandr, libedit, libjpeg-turbo, chrpath, atk, libXft,
+        libical, hesiod, lcms2, mesa-libGLU, tcp_wrappers, harfbuzz, libXcomposite,
+        libxcb, cups, libXdamage, libXxf86vm, git, libXcursor, golang-github-shurcooL-sanitized_anchor_name,
+        libusbx, libdatrie, gdk-pixbuf2, libXi, graphite2, libXp, libreport, libunwind,
+        libXt, libXext, godep, xorg-x11-proto-devel, docbook-dtds, gnupg, avahi, libselinux,
+        xfsprogs, qpdf, cups-filters, valgrind, gperftools, jbigkit, perl-Error, dbus-glib,
+        alsa-lib, libXmu, compat-openssl10, skopeo, xorg-x11-xbitmaps, PyYAML, llvm,
+        polkit, libtool, gtk2, desktop-file-utils, mesa, python-pymongo, checkpolicy,
+        libICE, glib2, pulseaudio, libthai, libusb, ghostscript-fonts, time, SDL,
+        libuv]
+  references: {community: 'https://fedoraproject.org/wiki/Modularity', documentation: 'https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules',
+    tracker: 'https://taiga.fedorainfracloud.org/project/modularity'}
+  stream: f26
+  summary: Shared Userspace Module
+  version: 20170605091544
+  xmd:
+    mbs:
+      buildrequires:
+        bootstrap: {ref: ae993ba84f4bce554471382ccba917ef16265f11, stream: f26, version: '1'}
+        common-build-dependencies: {ref: efe284a9c846412d36bee10bd034a833e49a2f3e,
+          stream: f26, version: '20170531160555'}
+        perl: {ref: 634417c4c8d86fd473056b3aeab29be91c23812f, stream: f26, version: '20170515072053'}
+      commit: 7886687b3a64fc0c5473460e09bc2c7a26f19d5f
+      rpms:
+        PyYAML: {ref: f17d9a7c1f1c473779751401b5eb617abf452dbe}
+        SDL: {ref: ffe7df02ef5d81bd03088ad29db90d9fb5265eb3}
+        alsa-lib: {ref: 138b4242d34119a25cb4651356534c68728775f2}
+        atk: {ref: 755452d4a7298b1bc5aca02f6cf618a2109e3a10}
+        augeas: {ref: 62ecc80b426abc61d3658f2ccb6daa2c9c0f56a3}
+        avahi: {ref: fe40dd230cf70bea28ed0fdebe8c9f419b54ea8a}
+        bluez: {ref: 71b7c79efddcb6d5b88f49484a0132986f1e90ec}
+        boost: {ref: 6d2d8199e5d01cab2091b02c650e6477ad27ffd1}
+        btrfs-progs: {ref: 6c50d26d051ed5d165396372d452a579dab07ec0}
+        cairo: {ref: 6f5ede7225598c5be8cd5b4c19bf0ba5ba351d09}
+        checkpolicy: {ref: 269e7db87e9501371a78c6a7d8dcc84d86aa7fb0}
+        chrpath: {ref: 1ca83527dfdc6ec4dcd81e563c69a106f92eafdd}
+        clang: {ref: 604a42b909fd897399f4d808f178335b8bab0ed1}
+        compat-openssl10: {ref: d59ab7262d0937c4064e5e42e066e8cfa330c6ef}
+        compiler-rt: {ref: 6bcb3b7dbd6d081521df3be798997fe21665997f}
+        cups: {ref: e8a468ba1d43a5fa83152ba478574a083d78105c}
+        cups-filters: {ref: 5aa32bd61aadaec8295ef90f79daaf190e387509}
+        dbus-glib: {ref: 109eff38b1821950e70c3872e5d29ef70ad499d1}
+        desktop-file-utils: {ref: 8b09dcec35eb34cc54b7c7a2dc78a33ccc3aaf6f}
+        ding-libs: {ref: 25ee9d35c9bc0c43d7169d826ae897251bdf5812}
+        docbook-dtds: {ref: 97d4126deb2ad667f099be18e3060d2931109555}
+        docbook-style-xsl: {ref: 544ff5ad6e978cb682af66883c78d3211d8e453f}
+        epydoc: {ref: 3060fb8024c662a2d1bedf13d7f3b40ece58eb88}
+        fontconfig: {ref: d5e37249efa6bde8bb3ce23f30420b5a1db18849}
+        fontpackages: {ref: 6f1d08188cef126ae81e313abf57240c80acf10b}
+        gdk-pixbuf2: {ref: ef449c8acf370722acf00c9a258c45952f868f7b}
+        ghostscript: {ref: 4ec268f406e7a7f6c4755e878f1ca8a5c2507373}
+        ghostscript-fonts: {ref: 5da4642f70202404068c97a77a5df86ad8439d20}
+        git: {ref: e15c234c87b84d0cab29f62a40c8c3efc401aae8}
+        glib2: {ref: 15854645a451f349662f7de7d6dae2fa86c84cd2}
+        gnupg: {ref: f219c1201bb2a434de39143e4df996b0ac87697e}
+        godep: {ref: 8714bf9b3e411895271fb9901a7e6a99f1f7c49e}
+        golang-github-cpuguy83-go-md2man: {ref: 1f3457187536b922195fe3cf359972bf79118b8d}
+        golang-github-russross-blackfriday: {ref: a5d89017b1ed1bf006b01efdf97089f9c863ddf8}
+        golang-github-shurcooL-sanitized_anchor_name: {ref: 233d5ac20700982f003f09bef81fc04ed9cfb3cd}
+        gperftools: {ref: a6655264f95432e06f4bc43734d6b44039ab04c9}
+        graphite2: {ref: f5e9777a568cd1c7a4a413cf3e0a7f1ab030348d}
+        gssproxy: {ref: 35e3b9ed5eb163bcf57ef2a84e1a9400009c4655}
+        gtk2: {ref: a6943f603ece25b1896ab276eb333c38c58336f6}
+        gtk3: {ref: 94c4f287367e4ecf98f9cd41d0cd6a0fa2b0fbe1}
+        harfbuzz: {ref: 1512f25719742aed6d0636be212621481669cc41}
+        hesiod: {ref: 5f762c4cdf1be166837780795601751bfc24cfab}
+        icu: {ref: 83e0743e854a269079f7fe66e59757bde38256d8}
+        jbigkit: {ref: 1606276c846c516d87e29afe2ffb58ee59b4aef2}
+        lcms2: {ref: e0e5d0ef40ba0b2f9c9b567f8621dc39dbaf9069}
+        libICE: {ref: a9c53bc5a199b393231d8266b7f1dbb97d16aa46}
+        libSM: {ref: 24697c6afa3f8cc675e78f3546e3328737f5c6c4}
+        libX11: {ref: f8cbb31f4ca1843a88da11dcdd12c52c909bb21a}
+        libXau: {ref: bfc3c1cc4d5510c61018b6a04ebd0a55a6186a7a}
+        libXcomposite: {ref: 3c20d027402c78307a72e8bf142ff2906e0dffd7}
+        libXcursor: {ref: 40ce0bbab80b88d0fc0d44d27763ea5c4273086c}
+        libXdamage: {ref: 058afaed97747da73fe5469f2b9cb252ed5f7f55}
+        libXext: {ref: f567589d2533c57ad27d0f7e4ca47b8e017424bb}
+        libXfixes: {ref: 125d406f1d61ee2d7f62bbc1b08ae21d15ff082a}
+        libXft: {ref: 9b6b361741ecc26583c0827962a64b788f7a7e48}
+        libXi: {ref: c1a657b7765f8a9c24de6321b4cb579ccb089b3e}
+        libXinerama: {ref: a14421a3766f5f05dab50f81f45c6cb19ba7fa28}
+        libXmu: {ref: 162cc4fb3b32084778895393224efbbe09518c04}
+        libXp: {ref: a984ea3b65097abce31066b8ae2959b300e1ba8f}
+        libXrandr: {ref: 382787b315dd1db3d3e569d6c07a466e4e79e1f1}
+        libXrender: {ref: 72fe8a7db9acdc87dc44c4e8765a4cde40bd1987}
+        libXt: {ref: 08f8671f5925ecbd7c55d83e8368dd0be81ef8ed}
+        libXxf86vm: {ref: 117940621a63688cf49b71a0855c7e7299f6f7fe}
+        libaio: {ref: db11cf2785cee8d274c6640edf9a7078c2509012}
+        libcgroup: {ref: f5d7f93633504ad8dde5bcbe55d6b7c12a435eda}
+        libdaemon: {ref: cded0af21e7f3e8521bc610ae94b1227be52ca1b}
+        libdatrie: {ref: 060a159a7912838a78b11c5f4dd2c7cf68ac6f35}
+        libdrm: {ref: f733e1b99a7af5bdf44353d65c5683ae349f224c}
+        libedit: {ref: 3858b5775f5a3eef75fdff5239a20782ad259f94}
+        liberation-fonts: {ref: 3b582d0751a34c5542215c4c7c5df8790df973ac}
+        libevent: {ref: 65677b2dae6be63b23990982c26869b51d58d783}
+        libglvnd: {ref: e389ff61d3f4c13276fe12755c89f6b7b5a2dc45}
+        libical: {ref: 6d5889eca7528bad67fed5bc19fb3d4b7fe3065f}
+        libjpeg-turbo: {ref: 09ba98ad101ad7790be443dc061b51e204d15e69}
+        libnfsidmap: {ref: cbd5432b93ace3dea1278998d7f700c908947fb3}
+        libpciaccess: {ref: 14af11625e1c86b564e7eef18cc8318714c11df1}
+        libreport: {ref: b730895e1c6c071a493aad90d0b3967ad078e0f3}
+        libsecret: {ref: 007967fa676cf5141f08ba0c8b9420b9ada7d55a}
+        libselinux: {ref: ea9eee161ed07911c9c672b0e598509e39cac679}
+        libssh: {ref: 7e81156350cb3244891cfe4563d4e519e44e474e}
+        libstemmer: {ref: 456b60dfdbb3eed861d6ccbe49f7fb01bd09b4df}
+        libthai: {ref: 5ff06962539fb75554392122e57a4d9aaff42cc0}
+        libtiff: {ref: 8bce9c68f8e6e5e4d3504f7820118d67ccd2a3f5}
+        libtirpc: {ref: 617335bd03768a182878dcb4d8c72f0858709989}
+        libtool: {ref: 84b388bf8529b0fec746ef66558dbab0e847fcca}
+        libunwind: {ref: 1d518e58d41a44309a58dd762c82c1eab002411a}
+        libusb: {ref: 0e2a1f9246118180d61aad731923ebd85154bc6e}
+        libusbx: {ref: 1d447b1d5fea72a82da152b20a54bdad7cfb8a0a}
+        libuv: {ref: 7afe8b28f9097e59b858c6beb532959958ea1b9e}
+        libxcb: {ref: ec23eafd8adae5f882558cb315e92d8b7d6efd03}
+        libxml2: {ref: c0407c34f907d84a536f66d17f6d1885fbab67c6}
+        libxshmfence: {ref: 4db7a802dd7b7b0ae74138df73c17c82e769289c}
+        libxslt: {ref: 5270d9bc9a5ad58e2379ea7dca113a7f63b3da51}
+        libyaml: {ref: 020d6ef369d8bb91bd0dcc6ff437537a9b58e3dd}
+        lksctp-tools: {ref: 83ea859340165d678b72936694c6f79bf6a636d7}
+        llvm: {ref: 1a4ccaa8f8f9a7d2a9b74cd17c7f9b494a9aa54b}
+        lynx: {ref: 061a0ae3afa08feb813f1d671e8afdd0a8f565a0}
+        mesa: {ref: 99d93e3dd81b48643f0c1899170679a59a30f043}
+        mesa-libGLU: {ref: 1c2c1be653b6545f2e92e04de0e65e49d15398e5}
+        nfs-utils: {ref: 93a5c3e3cadf419e44167a3701f8901a72ee0139}
+        pango: {ref: 3801f3fc51d1021bbbc3dcb397a8ca4c15a86543}
+        parted: {ref: fd44e261404ab70ebfeb25ca246202bd9b090d40}
+        perl-Error: {ref: 7314bd991225612bc2db6cd4770568ea1ff3d283}
+        perl-TermReadKey: {ref: 012af49cc9a63d1d481cb616a21b0f3545aefe23}
+        perl-Test-Pod: {ref: 576a8c16670036dc9212fd54eabd0ef7d9d164c1}
+        perl-Test-Pod-Coverage: {ref: 010a282957d054909aeda5efa3a699fd3c7992f7}
+        pixman: {ref: a5d85027d0f231fc39a02e1065fe9e39e991fb76}
+        policycoreutils: {ref: b185f8151d518e94376a442b9609fc95b7213bf4}
+        polkit: {ref: b70ff6f61b7e64a59c9bbaf2b1c7fbe99cec7aa9}
+        poppler: {ref: 343d9a10eb5c86ea25f065246f48da1c8dfcad7c}
+        poppler-data: {ref: aa41512654d8bd31f823022a6efcaf10af9d9514}
+        pulseaudio: {ref: 708651acb960348fb98bcde9b5f31e0e5fa00b20}
+        python-pymongo: {ref: 1bec8e56902647dcf20c8ed4bb2793ad18b589a7}
+        python-rhsm: {ref: fb92881128d2060128e59ecd58985b9b4aa656f6}
+        python2: {ref: 0268e323750ca7d4af3c78e13480cffc63b08f85}
+        qpdf: {ref: 012cad66a4bfedad064c26ebd7b166231793c0c7}
+        quota: {ref: c2a20db316870ad7af8269b8acc56007a3d397e8}
+        rpcbind: {ref: 8b5dd7733d2fbdaa1ebb5117fedb1baa665984bc}
+        satyr: {ref: c5f2386252f34a27d4741a01d750b7354ab607ce}
+        selinux-policy: {ref: 3b8266eec3cbe2ebc8da668e2f946e011b58c9c3}
+        shared-mime-info: {ref: ad741756ed9449ed9b7e77257ac2a4c445f33406}
+        skopeo: {ref: 41980140558351b940401db492e8924d5caf4bca}
+        systemtap: {ref: 43d514b85622d4b7362e4f5e1b7937f924a65b3a}
+        tcl: {ref: 6bd054eafabf63e56d9c6aa5d0d6f404a0027411}
+        tcp_wrappers: {ref: 3aa22b5bed459758a32a802982ef6a8066f71fb0}
+        time: {ref: 0e9df1c2aa4fa7454bba05cfc33e2785baadc0ac}
+        vala: {ref: 9103488f53ad22ea2ba429ae85b4de13f9dd6830}
+        valgrind: {ref: 3dda5d8d288ecde10df33b32d31f11e1167fb06a}
+        xfsprogs: {ref: 08fe16a413d9632aba90d993150019e29a738294}
+        xmlto: {ref: ac2d935244f5e6f9f89421354e4d5fd4ada671b2}
+        xorg-x11-proto-devel: {ref: cc4dd71c59e72d5d0ecfb6cfe74ae2f55ad45b1f}
+        xorg-x11-xbitmaps: {ref: 21c346af2393ae921896bb195043a31ef01f528e}
+        xorg-x11-xtrans-devel: {ref: 49db949f08696926ee8fdc7fd0122dad08996181}
+      scmurl: git://pkgs.fedoraproject.org/modules/shared-userspace?#7886687b3a64fc0c5473460e09bc2c7a26f19d5f
+document: modulemd
+version: 1
