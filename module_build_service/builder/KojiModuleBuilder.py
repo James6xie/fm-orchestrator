@@ -65,6 +65,7 @@ class KojiModuleBuilder(GenericBuilder):
         """
         self.owner = owner
         self.module_str = module.name
+        self.mmd = module.mmd()
         self.config = config
         self.tag_name = tag_name
         self.__prep = False
@@ -373,15 +374,15 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
 
         return get_result()
 
-    def _get_task_by_artifact(self, artifact_name):
+    def _get_build_by_artifact(self, artifact_name):
         """
         :param artifact_name: e.g. bash
 
-        Searches for a tagged package inside module tag.
+        Searches for a complete build of artifact belonging to this module.
+        The returned build can be even untagged.
 
-        Returns task_id or None.
+        Returns koji_session.getBuild response or None.
 
-        TODO: handle builds with skip_tag (not tagged at all)
         """
         # yaml file can hold only one reference to a package name, so
         # I expect that we can have only one build of package within single module
@@ -401,6 +402,21 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
         if tagged:
             assert len(tagged) == 1, "Expected exactly one item in list. Got %s" % tagged
             return tagged[0]
+
+        # If the build cannot be found in tag, it may be untagged as a result
+        # of some earlier inconsistent situation. Let's find the task_info
+        # based on the list of untagged builds
+        release = module_build_service.utils.get_rpm_release_from_mmd(self.mmd)
+        opts = {'name': artifact_name}
+        untagged = self.koji_session.untaggedBuilds(**opts)
+        for build in untagged:
+            if build["release"].endswith(release):
+                build_info = self.koji_session.getBuild(build['id'])
+                if not build_info:
+                    log.error("Cannot get build info of build %r", build['id'])
+                    return None
+                self.tag_artifacts([build_info["nvr"]])
+                return build_info
 
         return None
 
@@ -434,7 +450,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
                 raise RuntimeError("Buildroot is not prep-ed")
 
             # Skip existing builds
-            task_info = self._get_task_by_artifact(artifact_name)
+            task_info = self._get_build_by_artifact(artifact_name)
             if task_info:
                 log.info("skipping build of %s. Build already exists (task_id=%s), via %s" % (
                     source, task_info['task_id'], self))

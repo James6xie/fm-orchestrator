@@ -29,28 +29,19 @@ import module_build_service.pdc
 import module_build_service.utils
 import module_build_service.messaging
 from module_build_service.utils import (
-    start_next_batch_build, attempt_to_reuse_all_components)
+    start_next_batch_build, attempt_to_reuse_all_components,
+    get_rpm_release_from_mmd)
 from module_build_service.builder.KojiContentGenerator import KojiContentGenerator
 
 from requests.exceptions import ConnectionError
 
 import koji
-import hashlib
 
 import logging
 import os
 
 logging.basicConfig(level=logging.DEBUG)
 
-
-def get_rpm_release_from_mmd(mmd):
-    """
-    Returns the dist tag based on the modulemd metadata and MBS configuration.
-    """
-
-    dist_str = '.'.join([mmd.name, mmd.stream, str(mmd.version)])
-    dist_hash = hashlib.sha1(dist_str).hexdigest()[:8]
-    return conf.default_dist_tag_prefix + dist_hash
 
 def get_artifact_from_srpm(srpm_path):
     return os.path.basename(srpm_path).replace(".src.rpm", "")

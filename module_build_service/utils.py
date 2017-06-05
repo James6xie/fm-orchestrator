@@ -34,6 +34,7 @@ import copy
 import kobo.rpmlib
 import inspect
 from six import iteritems
+import hashlib
 
 import modulemd
 
@@ -1219,3 +1220,12 @@ def validate_koji_tag(tag_arg_names, pre='', post='-', dict_key='name'):
         return wrapper
 
     return validation_decorator
+
+def get_rpm_release_from_mmd(mmd):
+    """
+    Returns the dist tag based on the modulemd metadata and MBS configuration.
+    """
+
+    dist_str = '.'.join([mmd.name, mmd.stream, str(mmd.version)])
+    dist_hash = hashlib.sha1(dist_str).hexdigest()[:8]
+    return conf.default_dist_tag_prefix + dist_hash
