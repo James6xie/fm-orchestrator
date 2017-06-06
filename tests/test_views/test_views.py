@@ -28,7 +28,7 @@ import vcr
 import modulemd as _modulemd
 import module_build_service.scm
 
-from mock import patch, Mock, PropertyMock
+from mock import patch, Mock, PropertyMock, MagicMock
 from shutil import copyfile
 from os import path, mkdir
 from os.path import dirname
@@ -37,7 +37,8 @@ import hashlib
 from tests import app, init_data
 from module_build_service.errors import UnprocessableEntity
 from module_build_service.models import ComponentBuild, ModuleBuild
-from module_build_service import conf
+from module_build_service import conf, db
+import module_build_service.scheduler.handlers.modules
 
 
 user = ('Homer J. Simpson', set(['packager']))
@@ -48,7 +49,8 @@ cassette_dir = base_dir + '/vcr-request-data/'
 
 
 class MockedSCM(object):
-    def __init__(self, mocked_scm, name, mmd_filenames, commit=None, checkout_raise=False):
+    def __init__(self, mocked_scm, name, mmd_filenames, commit=None, checkout_raise=False,
+                 get_latest_raise=False):
         """
         Adds default testing checkout, get_latest and name methods
         to mocked_scm SCM class.
@@ -76,7 +78,11 @@ class MockedSCM(object):
 
         self.mocked_scm.return_value.name = self.name
         self.mocked_scm.return_value.commit = self.commit
-        self.mocked_scm.return_value.get_latest = self.get_latest
+        if get_latest_raise:
+            self.mocked_scm.return_value.get_latest.side_effect = \
+                RuntimeError("Failed to get_latest commit")
+        else:
+            self.mocked_scm.return_value.get_latest = self.get_latest
         self.mocked_scm.return_value.repository_root = "git://pkgs.stg.fedoraproject.org/modules/"
         self.mocked_scm.return_value.branch = 'master'
 
@@ -795,6 +801,36 @@ class TestViews(unittest.TestCase):
                       data['message'])
         self.assertEquals(data['status'], 422)
         self.assertEquals(data['error'], 'Unprocessable Entity')
+
+    @patch('module_build_service.auth.get_user', return_value=user)
+    @patch('module_build_service.scm.SCM')
+    @patch('module_build_service.models.ModuleBuild.from_module_event')
+    def test_submit_build_get_latest_raises(
+            self, from_module_event, mocked_scm, mocked_get_user):
+        MockedSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
+                  '7035bd33614972ac66559ac1fdd019ff6027ad22', get_latest_raise=True)
+
+        with app.app_context():
+            rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
+                {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+                    'testmodule.git?#7035bd33614972ac66559ac1fdd019ff6027ad22'}))
+            data = json.loads(rv.data)
+            self.assertEquals(data['status'], 422)
+            self.assertEquals(data['error'], 'Unprocessable Entity')
+
+            # Get the last module and check it has the state_reason set.
+            build = ModuleBuild.query.order_by(ModuleBuild.id).all()[-1]
+            db.session.add(build)
+            from_module_event.return_value = build
+            self.assertIn("Failed to validate modulemd file", build.state_reason)
+
+            # Check that after the failed message is handled, the state_reason
+            # remains the same.
+            module_build_service.scheduler.handlers.modules.failed(
+                conf, db.session, MagicMock())
+            db.session.expunge(build)
+            build = ModuleBuild.query.order_by(ModuleBuild.id).all()[-1]
+            self.assertIn("Failed to validate modulemd file", build.state_reason)
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')

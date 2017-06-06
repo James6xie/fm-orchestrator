@@ -612,8 +612,9 @@ def record_component_builds(mmd, module, initial_batch=1,
     # are branches with commit hashes
     try:
         format_mmd(mmd, module.scmurl)
-    except Exception:
-        module.transition(conf, models.BUILD_STATES["failed"])
+    except Exception as e:
+        module.transition(conf, models.BUILD_STATES["failed"],
+                          "Failed to validate modulemd file: %s" % str(e))
         db.session.add(module)
         db.session.commit()
         raise

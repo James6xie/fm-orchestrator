@@ -79,14 +79,9 @@ def failed(config, session, msg):
             and c.state != koji.BUILD_STATES["FAILED"])
     ]
 
-    groups = module_build_service.builder.GenericBuilder.default_buildroot_groups(
-        session, build)
-
     if build.koji_tag:
-        builder = module_build_service.builder.GenericBuilder.create(
-            build.owner, build, config.system, config, tag_name=build.koji_tag,
-            components=[c.package for c in build.component_builds])
-        builder.buildroot_connect(groups)
+        builder = module_build_service.builder.GenericBuilder.create_from_module(
+            session, build, config)
 
         for component in unbuilt_components:
             if component.task_id:
@@ -95,11 +90,13 @@ def failed(config, session, msg):
             component.state_reason = build.state_reason
             session.add(component)
     else:
-        reason = "Missing koji tag. Assuming previously failed module lookup in PDC."
-        log.error(reason)
-        build.transition(config, state="failed", state_reason=reason)
-        session.commit()
-        return
+        # Do not overwrite state_reason set by Frontend if any.
+        if not build.state_reason:
+            reason = "Missing koji tag. Assuming previously failed module lookup in PDC."
+            log.error(reason)
+            build.transition(config, state="failed", state_reason=reason)
+            session.commit()
+            return
 
     build.transition(config, state="failed")
     session.commit()
