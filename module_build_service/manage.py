@@ -152,10 +152,9 @@ def build_module_locally(url, branch):
     submit_module_build_from_scm(username, url, branch, allow_local_url=True)
 
     stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
-    initial_messages = [MBSModule("local module build", 1, 1)]
 
     # Run the consumer until stop_condition returns True
-    module_build_service.scheduler.main(initial_messages, stop)
+    module_build_service.scheduler.main([], stop)
 
 
 @manager.command

@@ -164,8 +164,15 @@ mdpolicy=group:primary
 
         # Generate the mmd the same way as pungi does.
         m1 = ModuleBuild.query.filter(ModuleBuild.name == self.module_str).one()
+        m1_mmd = m1.mmd()
+        for rpm in os.listdir(self.resultsdir):
+            if not rpm.endswith(".rpm"):
+                continue
+            rpm = rpm[:-len(".rpm")]
+            m1_mmd.artifacts.add_rpm(str(rpm))
+
         mmd_path = os.path.join(path, "modules.yaml")
-        modulemd.dump_all(mmd_path, [ m1.mmd() ])
+        modulemd.dump_all(mmd_path, [ m1_mmd ])
 
         # Generate repo and inject modules.yaml there.
         execute_cmd(['/usr/bin/createrepo_c', path])
@@ -282,7 +289,10 @@ mdpolicy=group:primary
         self._write_mock_config()
 
     def _send_build_change(self, state, source, build_id):
-        nvr = kobo.rpmlib.parse_nvr(source)
+        try:
+            nvr = kobo.rpmlib.parse_nvr(source)
+        except ValueError:
+            nvr = {"name": source, "release": "unknown", "version": "unknown"}
 
         # build_id=1 and task_id=1 are OK here, because we are building just
         # one RPM at the time.
@@ -319,13 +329,14 @@ mdpolicy=group:primary
         mock_stderr_log = open(os.path.join(self.resultsdir,
                                             artifact_name + "-mock-stderr.log"), "w")
 
+        srpm = artifact_name
+        resultsdir = builder.resultsdir
         try:
             # Initialize mock.
             execute_cmd(["mock", "-v", "-r", mock_config, "--init"],
                         stdout=mock_stdout_log, stderr=mock_stderr_log)
 
             # Start the build and store results to resultsdir
-            resultsdir = builder.resultsdir
             builder.build(mock_stdout_log, mock_stderr_log)
             srpm = find_srpm(resultsdir)
 
@@ -347,7 +358,7 @@ mdpolicy=group:primary
             # by MBS after the build_srpm() method returns and scope gets
             # back to scheduler.main.main() method.
             state = koji.BUILD_STATES['FAILED']
-            self._send_build_change(state, source,
+            self._send_build_change(state, srpm,
                                     build_id)
             with open(os.path.join(resultsdir, "status.log"), 'w') as f:
                 f.write("failed\n")
@@ -445,14 +456,37 @@ class SCMBuilder(BaseBuilder):
             branch = source.split("?#")[1]
             distgit_cmds = self._get_distgit_commands(source)
             distgit_get = distgit_cmds[0].format(artifact_name)
+
+            # mock-scm cannot checkout particular commit hash, but only branch.
+            # We therefore create distgit-clone-wrapper script which clones
+            # the repository and checkouts particular commit hash.
+            # See https://bugzilla.redhat.com/show_bug.cgi?id=1459437 for
+            # more info. Once mock-scm supports this feature, we can remove
+            # this code.
+            wrapper_path = os.path.join(os.path.dirname(config), "distgit-clone-wrapper")
+            with open(wrapper_path, "w") as fd:
+                fd.writelines([
+                    "#!/bin/sh -eu\n",
+                    "%s\n" % distgit_get,
+                    "git -C $1 checkout $2\n",
+                ])
+            self._make_executable(wrapper_path)
+
             f.writelines([
                 "config_opts['scm'] = True\n",
                 "config_opts['scm_opts']['method'] = 'distgit'\n",
-                "config_opts['scm_opts']['branch'] = '{}'\n".format(branch),
-                "config_opts['scm_opts']['package'] = '{}'\n".format(artifact_name),
-                "config_opts['scm_opts']['distgit_get'] = '{}'\n".format(distgit_get),
-                "config_opts['scm_opts']['distgit_src_get'] = '{}'\n".format(distgit_cmds[1]),
+                "config_opts['scm_opts']['package'] = '{}'\n".format(
+                    artifact_name),
+                "config_opts['scm_opts']['distgit_get'] = '{} {} {}'\n".format(
+                    wrapper_path, artifact_name, branch),
+                "config_opts['scm_opts']['distgit_src_get'] = '{}'\n".format(
+                    distgit_cmds[1]),
             ])
+
+    def _make_executable(self, path):
+        mode = os.stat(path).st_mode
+        mode |= (mode & 0o444) >> 2    # copy R bits to X
+        os.chmod(path, mode)
 
     def _get_distgit_commands(self, source):
         for host, cmds in conf.distgits.items():

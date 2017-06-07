@@ -34,7 +34,7 @@ class BaseConfiguration(object):
     KOJI_TAG_PREFIXES = ['module']
     KOJI_ENABLE_CONTENT_GENERATOR = True
     COPR_CONFIG = '/etc/module-build-service/copr.conf'
-    PDC_URL = 'http://pdc.fedoraproject.org/rest_api/v1'
+    PDC_URL = 'https://pdc.fedoraproject.org/rest_api/v1'
     PDC_INSECURE = True
     PDC_DEVELOP = True
     SCMURLS = ["git://pkgs.fedoraproject.org/modules/"]
@@ -153,7 +153,7 @@ class TestConfiguration(BaseConfiguration):
         path.join(dbdir, 'tests', 'test_module_build_service.db'))
     DEBUG = True
     MESSAGING = 'in_memory'
-    PDC_URL = 'http://pdc.fedoraproject.org/rest_api/v1'
+    PDC_URL = 'https://pdc.fedoraproject.org/rest_api/v1'
 
     # Global network-related values, in seconds
     NET_TIMEOUT = 3
@@ -170,3 +170,7 @@ class TestConfiguration(BaseConfiguration):
 
 class ProdConfiguration(BaseConfiguration):
     pass
+
+class LocalBuildConfiguration(BaseConfiguration):
+    LOG_LEVEL = 'debug'
+    MESSAGING = 'in_memory'

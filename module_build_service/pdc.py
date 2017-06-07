@@ -173,7 +173,7 @@ def get_module(session, module_info, strict=False):
     if module_info.get('active'):
         query['active'] = module_info['active']
 
-    retval = session['unreleasedvariants'](page_size=-1, **query) # ordering=variant_release...
+    retval = session['unreleasedvariants/'](page_size=-1, **query) # ordering=variant_release...
 
     # Error handling
     if not retval:

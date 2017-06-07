@@ -107,12 +107,14 @@ def start_build_component(builder, c):
     Submits single component build to builder. Called in thread
     by QueueBasedThreadPool in continue_batch_build.
     """
+    import koji
     try:
         c.task_id, c.state, c.state_reason, c.nvr = builder.build(
             artifact_name=c.package, source=c.scmurl)
     except Exception as e:
         c.state = koji.BUILD_STATES['FAILED']
         c.state_reason = "Failed to build artifact %s: %s" % (c.package, str(e))
+        log.exception(e)
         return
 
     if not c.task_id and c.state == koji.BUILD_STATES['BUILDING']:
@@ -180,6 +182,11 @@ def continue_batch_build(config, module, session, builder, components=None):
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = {executor.submit(start_build_component, builder, c): c for c in components_to_build}
         concurrent.futures.wait(futures)
+        # In case there has been an excepion generated directly in the
+        # start_build_component, the future.result() will re-raise it in the
+        # main thread so it is not lost.
+        for future in futures:
+            future.result()
 
     # If all components in this batch are already done, it can mean that they
     # have been built in the past and have been skipped in this module build.
@@ -946,15 +953,15 @@ def get_reusable_component(session, module, component_name):
 
     # Perform a sanity check to make sure that the buildrequires are the same
     # as the buildrequires in xmd for the passed in mmd
-    if mmd.buildrequires.keys() != mmd.xmd['mbs']['buildrequires'].keys():
+    if set(mmd.buildrequires.keys()) != set(mmd.xmd['mbs']['buildrequires'].keys()):
         log.error(
             'The submitted module "{0}" has different keys in mmd.buildrequires'
             ' than in mmd.xmd[\'mbs\'][\'buildrequires\']'.format(mmd.name))
         return None
     # Perform a sanity check to make sure that the buildrequires are the same
     # as the buildrequires in xmd for the mmd of the previous module build
-    if old_mmd.buildrequires.keys() != \
-            old_mmd.xmd['mbs']['buildrequires'].keys():
+    if set(old_mmd.buildrequires.keys()) != \
+            set(old_mmd.xmd['mbs']['buildrequires'].keys()):
         log.error(
             'Version "{0}" of the module "{1}" has different keys in '
             'mmd.buildrequires than in mmd.xmd[\'mbs\'][\'buildrequires\']'

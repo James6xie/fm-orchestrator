@@ -51,6 +51,12 @@ def init_config(app):
     if flask_app_env and any([var.startswith('mod_wsgi.')
                               for var in app.request.environ]):
         config_section = 'ProdConfiguration'
+
+    # Load LocalBuildConfiguration section in case we are building modules
+    # locally.
+    if "build_module_locally" in sys.argv:
+        config_section = "LocalBuildConfiguration"
+
     # try getting config_file from os.environ
     if 'MBS_CONFIG_FILE' in os.environ:
         config_file = os.environ['MBS_CONFIG_FILE']
@@ -294,7 +300,9 @@ class Config(object):
         'distgits': {
             'type': dict,
             'default': {
-                'git://pkgs.fedoraproject.org': ('fedpkg clone --anonymous {}', 'fedpkg sources'),
+                'git://pkgs.fedoraproject.org':
+                    ('fedpkg clone --anonymous $1',
+                     'fedpkg --release module sources'),
             },
             'desc': 'Mapping between dist-git and command to '},
         'mock_config': {
