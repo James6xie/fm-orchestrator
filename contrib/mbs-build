@@ -263,7 +263,7 @@ def submit_module_build(scm_url, branch, server, id_provider, pyrpkg, verify=Tru
         return data['id']
     return -3
 
-def do_local_build(scm_url, branch):
+def do_local_build(scm_url, branch, skiptests):
     """
     Starts the local build using the 'mbs-manager build_module_locally'
     command. Returns exit code of that command or None when scm_url or
@@ -274,9 +274,15 @@ def do_local_build(scm_url, branch):
     if not scm_url or not branch:
         return None
 
+
     logging.info("Starting local build of %s, branch %s", scm_url, branch)
-    process = subprocess.Popen(['mbs-manager', 'build_module_locally',
-                                scm_url, branch])
+    command = ['mbs-manager', 'build_module_locally']
+    if skiptests:
+        command.append('--skiptests')
+        logging.info("Tests will be skipped due to --skiptests option.")
+    command.extend([scm_url, branch])
+
+    process = subprocess.Popen(command)
     process.communicate()
     return process.returncode
 
@@ -412,6 +418,8 @@ def main():
         "repository with a module.")
     parser_local.add_argument("scm_url", nargs='?')
     parser_local.add_argument("branch", nargs='?')
+    parser_local.add_argument('--skiptests', dest='skiptests', action='store_true',
+                        help="add macro for skipping check section/phase")
 
     parser_overview = subparsers.add_parser(
         'overview', help="show overview of module builds",
@@ -446,7 +454,7 @@ def main():
         else:
             logging.info("Submitted module build %r" % build_id)
     elif args.cmd_name == "local":
-        sys.exit(do_local_build(args.scm_url, args.branch))
+        sys.exit(do_local_build(args.scm_url, args.branch, args.skiptests))
     elif args.cmd_name == "watch":
         # Watch the module build.
         try:
