@@ -301,7 +301,7 @@ class Config(object):
             'type': dict,
             'default': {
                 'git://pkgs.fedoraproject.org':
-                    ('fedpkg clone --anonymous $1',
+                    ('fedpkg clone --anonymous {}',
                      'fedpkg --release module sources'),
             },
             'desc': 'Mapping between dist-git and command to '},

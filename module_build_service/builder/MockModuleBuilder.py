@@ -27,6 +27,7 @@ import os
 import koji
 import kobo.rpmlib
 import modulemd
+import pipes
 import yaml
 import threading
 
@@ -466,27 +467,23 @@ class SCMBuilder(BaseBuilder):
             distgit_get = distgit_cmds[0].format(artifact_name)
 
             # mock-scm cannot checkout particular commit hash, but only branch.
-            # We therefore create distgit-clone-wrapper script which clones
-            # the repository and checkouts particular commit hash.
+            # We therefore use a command that combines the distgit-command with
+            # checking out a particular commit hash.
             # See https://bugzilla.redhat.com/show_bug.cgi?id=1459437 for
             # more info. Once mock-scm supports this feature, we can remove
             # this code.
-            wrapper_path = os.path.join(os.path.dirname(config), "distgit-clone-wrapper")
-            with open(wrapper_path, "w") as fd:
-                fd.writelines([
-                    "#!/bin/sh -eu\n",
-                    "%s\n" % distgit_get,
-                    "git -C $1 checkout $2\n",
-                ])
-            self._make_executable(wrapper_path)
+            distgit_get_branch = \
+                "sh -c {}'; git -C {} checkout {}'".format(pipes.quote(distgit_get),
+                                                               artifact_name,
+                                                               branch)
 
             f.writelines([
                 "config_opts['scm'] = True\n",
                 "config_opts['scm_opts']['method'] = 'distgit'\n",
                 "config_opts['scm_opts']['package'] = '{}'\n".format(
                     artifact_name),
-                "config_opts['scm_opts']['distgit_get'] = '{} {} {}'\n".format(
-                    wrapper_path, artifact_name, branch),
+                "config_opts['scm_opts']['distgit_get'] = {!r}\n".format(
+                    distgit_get_branch),
                 "config_opts['scm_opts']['distgit_src_get'] = '{}'\n".format(
                     distgit_cmds[1]),
             ])
