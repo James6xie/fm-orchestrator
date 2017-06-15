@@ -27,7 +27,6 @@ import os
 import koji
 import kobo.rpmlib
 import modulemd
-import shutil
 import yaml
 import threading
 
@@ -382,7 +381,7 @@ mdpolicy=group:primary
 
         # Copy files from thread-related resultsdire to the main resultsdir.
         for name in os.listdir(resultsdir):
-            shutil.copyfile(os.path.join(resultsdir, name), os.path.join(self.resultsdir, name))
+            os.rename(os.path.join(resultsdir, name), os.path.join(self.resultsdir, name))
 
         # We return BUILDING state here even when we know it is already
         # completed or failed, because otherwise utils.start_build_batch
