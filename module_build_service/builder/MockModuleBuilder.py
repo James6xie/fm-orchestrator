@@ -162,20 +162,29 @@ mdpolicy=group:primary
             for name in os.listdir(repodata_path):
                 os.remove(os.path.join(repodata_path, name))
 
+        # We pass an explicit package list to createrepo_c, otherwise, it will
+        # walk the target directory recursively, instead of just finding the
+        # files at the toplevel.
+        pkglist = os.path.join(path, "pkglist")
+        pkglist_f = open(pkglist, "w")
+
         # Generate the mmd the same way as pungi does.
         m1 = ModuleBuild.query.filter(ModuleBuild.name == self.module_str).one()
         m1_mmd = m1.mmd()
         for rpm in os.listdir(self.resultsdir):
             if not rpm.endswith(".rpm"):
                 continue
+            pkglist_f.write(rpm + '\n')
             rpm = rpm[:-len(".rpm")]
             m1_mmd.artifacts.add_rpm(str(rpm))
+
+        pkglist_f.close()
 
         mmd_path = os.path.join(path, "modules.yaml")
         modulemd.dump_all(mmd_path, [ m1_mmd ])
 
         # Generate repo and inject modules.yaml there.
-        execute_cmd(['/usr/bin/createrepo_c', path])
+        execute_cmd(['/usr/bin/createrepo_c', '--pkglist', pkglist, path])
         execute_cmd(['/usr/bin/modifyrepo_c', '--mdtype=modules', mmd_path, repodata_path])
 
     def _add_repo(self, name, baseurl, extra=""):
