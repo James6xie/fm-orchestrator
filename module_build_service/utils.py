@@ -722,7 +722,7 @@ def submit_module_build_from_yaml(username, handle, optional_params=None):
 _url_check_re = re.compile(r"^[^:/]+:.*$")
 
 def submit_module_build_from_scm(username, url, branch, allow_local_url=False,
-                                 optional_params=None):
+                                 skiptests=False, optional_params=None):
     # Translate local paths into file:// URL
     if allow_local_url and not _url_check_re.match(url):
         log.info(
@@ -730,6 +730,8 @@ def submit_module_build_from_scm(username, url, branch, allow_local_url=False,
         url = os.path.abspath(url)
         url = "file://" + url
     mmd, scm, yaml = _fetch_mmd(url, branch, allow_local_url)
+    if skiptests:
+        mmd.buildopts.rpms.macros += "\n\n%check exit 0\n"
     return submit_module_build(username, url, mmd, scm, yaml, optional_params)
 
 

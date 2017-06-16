@@ -122,7 +122,7 @@ def cleardb():
 
 
 @manager.command
-def build_module_locally(url, branch):
+def build_module_locally(url, branch, skiptests=False):
     """ Performs local module build using Mock
     """
     conf.set_item("system", "mock")
@@ -149,7 +149,8 @@ def build_module_locally(url, branch):
     db.create_all()
 
     username = getpass.getuser()
-    submit_module_build_from_scm(username, url, branch, allow_local_url=True)
+    submit_module_build_from_scm(username, url, branch, allow_local_url=True,
+                                 skiptests=skiptests)
 
     stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
 
