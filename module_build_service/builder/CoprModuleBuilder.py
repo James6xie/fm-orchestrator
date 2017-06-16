@@ -357,7 +357,8 @@ def build_from_scm(artifact_name, source, config, build_srpm,
         cmd = config.mock_build_srpm_cmd.split(" ")
         if is_from_copr(source):
             branch = git_branch_contains(cod, commit)
-            git_checkout(cod, branch)
+            if branch != "HEAD":
+                git_checkout(cod, branch)
             cmd = ["fedpkg-copr", "--release", branch, "srpm"]
 
         # Use configured command to create SRPM out of the SCM repo.
