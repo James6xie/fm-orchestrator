@@ -59,6 +59,7 @@ conf = init_config(app)
 
 db = SQLAlchemy(app)
 
+
 @app.errorhandler(ValidationError)
 def validationerror_error(e):
     """Flask error handler for ValidationError exceptions"""
@@ -104,6 +105,7 @@ init_logging(conf)
 log = getLogger(__name__)
 build_logs = ModuleBuildLogs(conf.build_logs_dir)
 
+
 def get_url_for(*args, **kwargs):
     """
     flask.url_for wrapper which creates the app_context on-the-fly.
@@ -116,8 +118,9 @@ def get_url_for(*args, **kwargs):
     app.config['SERVER_NAME'] = 'localhost'
     with app.app_context():
         log.debug("WARNING: get_url_for() has been called without the Flask "
-            "app_context. That can lead to SQLAlchemy errors caused by "
-            "multiple session being used in the same time.")
+                  "app_context. That can lead to SQLAlchemy errors caused by "
+                  "multiple session being used in the same time.")
         return url_for(*args, **kwargs)
+
 
 from module_build_service import views

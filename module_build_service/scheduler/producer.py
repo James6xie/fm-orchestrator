@@ -51,7 +51,7 @@ class MBSProducer(PollingProducer):
                 self.process_paused_module_builds(conf, session)
                 self.trigger_new_repo_when_stalled(conf, session)
                 self.delete_old_koji_targets(conf, session)
-            except Exception as e:
+            except Exception:
                 msg = 'Error in poller execution:'
                 log.exception(msg)
 
@@ -155,7 +155,7 @@ class MBSProducer(PollingProducer):
                     # First batch is number '1'.
                     for i in range(1, module_build.batch + 1):
                         n = len([c for c in module_build.component_builds
-                                 if c.batch == i ])
+                                 if c.batch == i])
                         log.info('      * {0} components in batch {1}'
                                  .format(n, i))
 
@@ -189,14 +189,13 @@ class MBSProducer(PollingProducer):
 
         # Check to see if module builds that are in build state but don't have
         # any component builds being built can be worked on
-        for module_build in session.query(models.ModuleBuild).filter_by(
-                    state=models.BUILD_STATES['build']).all():
+        for module_build in session.query(models.ModuleBuild).filter_by(state=models.BUILD_STATES['build']).all():
             # If there are no components in the build state on the module build,
             # then no possible event will start off new component builds.
             # But do not try to start new builds when we are waiting for the
             # repo-regen.
-            if (not module_build.current_batch(koji.BUILD_STATES['BUILDING'])
-                    and not module_build.new_repo_task_id):
+            if (not module_build.current_batch(koji.BUILD_STATES['BUILDING']) and
+               not module_build.new_repo_task_id):
                 # Initialize the builder...
                 builder = GenericBuilder.create_from_module(
                     session, module_build, config)
@@ -224,8 +223,7 @@ class MBSProducer(PollingProducer):
         koji_session = module_build_service.builder.KojiModuleBuilder\
             .get_session(config, None)
 
-        for module_build in session.query(models.ModuleBuild).filter_by(
-                    state=models.BUILD_STATES['build']).all():
+        for module_build in session.query(models.ModuleBuild).filter_by(state=models.BUILD_STATES['build']).all():
             if not module_build.new_repo_task_id:
                 continue
 

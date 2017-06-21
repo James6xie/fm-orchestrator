@@ -29,11 +29,8 @@ import time
 import shutil
 import tempfile
 import os
-import logging
-import copy
 import kobo.rpmlib
 import inspect
-from six import iteritems
 import hashlib
 
 import modulemd
@@ -52,6 +49,7 @@ import module_build_service.pdc
 from module_build_service.pdc import get_module_commit_hash_and_version
 
 import concurrent.futures
+
 
 def retry(timeout=conf.net_timeout, interval=conf.net_retry_interval, wait_on=Exception):
     """ A decorator that allows to retry a section of code...
@@ -104,6 +102,7 @@ def at_concurrent_component_threshold(config, session):
 
     return False
 
+
 def start_build_component(builder, c):
     """
     Submits single component build to builder. Called in thread
@@ -122,8 +121,9 @@ def start_build_component(builder, c):
     if not c.task_id and c.state == koji.BUILD_STATES['BUILDING']:
         c.state = koji.BUILD_STATES['FAILED']
         c.state_reason = ("Failed to build artifact %s: "
-            "Builder did not return task ID" % (c.package))
+                          "Builder did not return task ID" % (c.package))
         return
+
 
 def continue_batch_build(config, module, session, builder, components=None):
     """
@@ -140,10 +140,10 @@ def continue_batch_build(config, module, session, builder, components=None):
     # successfully built yet or isn't currently being built.
     unbuilt_components = components or [
         c for c in module.component_builds
-        if (c.state != koji.BUILD_STATES['COMPLETE']
-            and c.state != koji.BUILD_STATES['BUILDING']
-            and c.state != koji.BUILD_STATES['FAILED']
-            and c.batch == module.batch)
+        if (c.state != koji.BUILD_STATES['COMPLETE'] and
+            c.state != koji.BUILD_STATES['BUILDING'] and
+            c.state != koji.BUILD_STATES['FAILED'] and
+            c.batch == module.batch)
     ]
 
     if not unbuilt_components:
@@ -162,8 +162,8 @@ def continue_batch_build(config, module, session, builder, components=None):
             session, module, c.package)
         # If a component build can't be reused, we need to check
         # the concurrent threshold.
-        if (not previous_component_build
-                and at_concurrent_component_threshold(config, session)):
+        if (not previous_component_build and
+           at_concurrent_component_threshold(config, session)):
             log.info('Concurrent build threshold met')
             break
 
@@ -195,14 +195,15 @@ def continue_batch_build(config, module, session, builder, components=None):
     # We therefore have to generate fake KojiRepoChange message, because the
     # repo has been also done in the past and build system will not send us
     # any message now.
-    if (all(c.state in [koji.BUILD_STATES['COMPLETE'], koji.BUILD_STATES['FAILED']]
-            or c.reused_component_id
+    if (all(c.state in [koji.BUILD_STATES['COMPLETE'],
+                        koji.BUILD_STATES['FAILED']] or c.reused_component_id
             for c in unbuilt_components) and builder.module_build_tag):
         further_work += [module_build_service.messaging.KojiRepoChange(
             'start_build_batch: fake msg', builder.module_build_tag['name'])]
 
     session.commit()
     return further_work
+
 
 def start_next_batch_build(config, module, session, builder, components=None):
     """
@@ -294,10 +295,10 @@ def start_next_batch_build(config, module, session, builder, components=None):
     # successfully built yet or isn't currently being built.
     unbuilt_components = components or [
         c for c in module.component_builds
-        if (c.state != koji.BUILD_STATES['COMPLETE']
-            and c.state != koji.BUILD_STATES['BUILDING']
-            and c.state != koji.BUILD_STATES['FAILED']
-            and c.batch == module.batch)
+        if (c.state != koji.BUILD_STATES['COMPLETE'] and
+            c.state != koji.BUILD_STATES['BUILDING'] and
+            c.state != koji.BUILD_STATES['FAILED'] and
+            c.batch == module.batch)
     ]
 
     # If there are no components to build, skip the batch and start building
@@ -308,10 +309,11 @@ def start_next_batch_build(config, module, session, builder, components=None):
         return start_next_batch_build(config, module, session, builder)
 
     log.info("Starting build of next batch %d, %s" % (module.batch,
-        unbuilt_components))
+             unbuilt_components))
 
     return continue_batch_build(
         config, module, session, builder, unbuilt_components)
+
 
 def pagination_metadata(p_query, request_args):
     """
@@ -358,6 +360,7 @@ def pagination_metadata(p_query, request_args):
 
     return pagination_data
 
+
 def filter_component_builds(flask_request):
     """
     Returns a flask_sqlalchemy.Pagination object based on the request parameters
@@ -398,11 +401,12 @@ def filter_component_builds(flask_request):
             query = query.order_by(column)
         else:
             raise ValidationError('An invalid order_by or order_desc_by key '
-                'was supplied')
+                                  'was supplied')
 
     page = flask_request.args.get('page', 1, type=int)
     per_page = flask_request.args.get('per_page', 10, type=int)
     return query.paginate(page, per_page, False)
+
 
 def filter_module_builds(flask_request):
     """
@@ -468,7 +472,7 @@ def filter_module_builds(flask_request):
             query = query.order_by(column)
         else:
             raise ValidationError('An invalid order_by or order_desc_by key '
-                'was supplied')
+                                  'was supplied')
 
     page = flask_request.args.get('page', 1, type=int)
     per_page = flask_request.args.get('per_page', 10, type=int)
@@ -566,6 +570,7 @@ def _scm_get_latest(pkg):
         'pkg_ref': pkgref,
         'error': None
     }
+
 
 def format_mmd(mmd, scmurl):
     """
@@ -667,6 +672,7 @@ def format_mmd(mmd, scmurl):
         if err_msg:
             raise UnprocessableEntity(err_msg)
 
+
 def merge_included_mmd(mmd, included_mmd):
     """
     Merges two modulemds. This merges only metadata which are needed in
@@ -677,6 +683,7 @@ def merge_included_mmd(mmd, included_mmd):
             mmd.xmd['mbs']['rpms'] = included_mmd.xmd['mbs']['rpms']
         else:
             mmd.xmd['mbs']['rpms'].update(included_mmd.xmd['mbs']['rpms'])
+
 
 def record_component_builds(mmd, module, initial_batch=1,
                             previous_buildorder=None, main_mmd=None):
@@ -788,6 +795,7 @@ def submit_module_build_from_yaml(username, handle, optional_params=None):
 
 _url_check_re = re.compile(r"^[^:/]+:.*$")
 
+
 def submit_module_build_from_scm(username, url, branch, allow_local_url=False,
                                  skiptests=False, optional_params=None):
     # Translate local paths into file:// URL
@@ -805,7 +813,6 @@ def submit_module_build_from_scm(username, url, branch, allow_local_url=False,
 def submit_module_build(username, url, mmd, scm, yaml, optional_params=None):
     # Import it here, because SCM uses utils methods
     # and fails to import them because of dep-chain.
-    import module_build_service.scm
 
     module = models.ModuleBuild.query.filter_by(
         name=mmd.name, stream=mmd.stream, version=str(mmd.version)).first()
@@ -816,8 +823,8 @@ def submit_module_build(username, url, mmd, scm, yaml, optional_params=None):
         if module.state not in (models.BUILD_STATES['failed'],
                                 models.BUILD_STATES['init']):
             err_msg = ('Module (state=%s) already exists. '
-                      'Only new build or resubmission of build in "init" or '
-                      '"failed" state is allowed.' % module.state)
+                       'Only new build or resubmission of build in "init" or '
+                       '"failed" state is allowed.' % module.state)
             log.error(err_msg)
             raise Conflict(err_msg)
         log.debug('Resuming existing module build %r' % module)
@@ -870,9 +877,9 @@ def scm_url_schemes(terse=False):
     """
 
     scm_types = {
-                "git": ("git://", "git+http://", "git+https://",
-                        "git+rsync://", "http://", "https://", "file://")
-            }
+        "git": ("git://", "git+http://", "git+https://",
+                "git+rsync://", "http://", "https://", "file://")
+    }
 
     if not terse:
         return scm_types
@@ -882,11 +889,13 @@ def scm_url_schemes(terse=False):
             scheme_list.extend([scheme[:-3] for scheme in scm_schemes])
         return list(set(scheme_list))
 
+
 def get_scm_url_re():
     schemes_re = '|'.join(map(re.escape, scm_url_schemes(terse=True)))
     return re.compile(
         r"(?P<giturl>(?:(?P<scheme>(" + schemes_re + r"))://(?P<host>[^/]+))?"
         r"(?P<repopath>/[^\?]+))\?(?P<modpath>[^#]*)#(?P<revision>.+)")
+
 
 def module_build_state_from_msg(msg):
     state = int(msg.module_build_state)
@@ -895,6 +904,7 @@ def module_build_state_from_msg(msg):
         'state=%s(%s) is not in %s'
         % (state, type(state), list(models.BUILD_STATES.values())))
     return state
+
 
 def reuse_component(component, previous_component_build,
                     change_state_now=False):
@@ -943,6 +953,7 @@ def reuse_component(component, previous_component_build,
         )
     ]
 
+
 def attempt_to_reuse_all_components(builder, session, module):
     """
     Tries to reuse all the components in a build. The components are also
@@ -985,6 +996,7 @@ def attempt_to_reuse_all_components(builder, session, module):
     builder.tag_artifacts(components_to_tag)
 
     return True
+
 
 def get_reusable_component(session, module, component_name):
     """
@@ -1220,6 +1232,7 @@ def validate_koji_tag(tag_arg_names, pre='', post='-', dict_key='name'):
         return wrapper
 
     return validation_decorator
+
 
 def get_rpm_release_from_mmd(mmd):
     """

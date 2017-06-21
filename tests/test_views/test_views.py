@@ -28,7 +28,7 @@ import vcr
 import modulemd as _modulemd
 import module_build_service.scm
 
-from mock import patch, Mock, PropertyMock, MagicMock
+from mock import patch, PropertyMock, MagicMock
 from shutil import copyfile
 from os import path, mkdir
 from os.path import dirname
@@ -96,7 +96,7 @@ class MockedSCM(object):
         mkdir(scm_dir)
         base_dir = path.abspath(path.dirname(__file__))
         copyfile(path.join(base_dir, '..', 'staged_data', mmd_filename),
-                    path.join(scm_dir, self.name + ".yaml"))
+                 path.join(scm_dir, self.name + ".yaml"))
 
         self.checkout_id += 1
 
@@ -258,7 +258,7 @@ class TestViews(unittest.TestCase):
     def test_query_builds_filter_task_id(self):
         rv = self.client.get('/module-build-service/1/component-builds/?task_id=12312346')
         data = json.loads(rv.data)
-        self.assertEquals(data['meta']['total'], 1)    
+        self.assertEquals(data['meta']['total'], 1)
 
     def test_query_builds_filter_name(self):
         rv = self.client.get('/module-build-service/1/module-builds/?name=nginx')
@@ -335,7 +335,7 @@ class TestViews(unittest.TestCase):
 
     def test_query_builds_order_by(self):
         rv = self.client.get('/module-build-service/1/module-builds/?'
-            'per_page=10&order_by=id')
+                             'per_page=10&order_by=id')
         items = json.loads(rv.data)['items']
         # Check that the id is 1, 2, 3, ..., 10
         for idx, item in enumerate(items):
@@ -343,7 +343,7 @@ class TestViews(unittest.TestCase):
 
     def test_query_builds_order_desc_by(self):
         rv = self.client.get('/module-build-service/1/module-builds/?'
-            'per_page=10&order_desc_by=id')
+                             'per_page=10&order_desc_by=id')
         items = json.loads(rv.data)['items']
         # Check that the id is items[0]["id"], items[0]["id"] - 1, ...
         for idx, item in enumerate(items):
@@ -355,7 +355,7 @@ class TestViews(unittest.TestCase):
         we prefer order_desc_by.
         """
         rv = self.client.get('/module-build-service/1/module-builds/?'
-            'per_page=10&order_desc_by=id&order_by=name')
+                             'per_page=10&order_desc_by=id&order_by=name')
         items = json.loads(rv.data)['items']
         # Check that the id is items[0]["id"], items[0]["id"] - 1, ...
         for idx, item in enumerate(items):
@@ -363,7 +363,7 @@ class TestViews(unittest.TestCase):
 
     def test_query_builds_order_by_wrong_key(self):
         rv = self.client.get('/module-build-service/1/module-builds/?'
-            'per_page=10&order_by=unknown')
+                             'per_page=10&order_by=unknown')
         data = json.loads(rv.data)
         self.assertEquals(data['status'], 400)
         self.assertEquals(data['error'], 'Bad Request')
@@ -472,7 +472,7 @@ class TestViews(unittest.TestCase):
             {'branch': 'master', 'scmurl': 'git://badurl.com'}))
         data = json.loads(rv.data)
         self.assertEquals(data['message'], 'The submitted scmurl '
-            'git://badurl.com is not allowed')
+                          'git://badurl.com is not allowed')
         self.assertEquals(data['status'], 403)
         self.assertEquals(data['error'], 'Forbidden')
 
@@ -483,15 +483,15 @@ class TestViews(unittest.TestCase):
                 'testmodule.git'}))
         data = json.loads(rv.data)
         self.assertEquals(data['message'], 'The submitted scmurl '
-            'git://pkgs.stg.fedoraproject.org/modules/testmodule.git '
-            'is not valid')
+                          'git://pkgs.stg.fedoraproject.org/modules/testmodule.git '
+                          'is not valid')
         self.assertEquals(data['status'], 403)
         self.assertEquals(data['error'], 'Forbidden')
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     def test_submit_build_bad_modulemd(self, mocked_scm, mocked_get_user):
-        mocked_scm_obj = MockedSCM(mocked_scm, "bad", "bad.yaml")
+        MockedSCM(mocked_scm, "bad", "bad.yaml")
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
@@ -562,8 +562,9 @@ class TestViews(unittest.TestCase):
     @patch("module_build_service.config.Config.modules_allow_repository",
            new_callable=PropertyMock, return_value=True)
     def test_submit_build_includedmodule(self, conf, mocked_scm, mocked_get_user):
-        mocked_scm_obj = MockedSCM(mocked_scm, "includedmodules",
-                                ["includedmodules.yaml", "testmodule.yaml"])
+        MockedSCM(mocked_scm, "includedmodules", ["includedmodules.yaml",
+                                                  "testmodule.yaml"])
+
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                 'testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49'}))
@@ -609,9 +610,9 @@ class TestViews(unittest.TestCase):
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     def test_submit_build_includedmodule_custom_repo_not_allowed(self,
-            mocked_scm, mocked_get_user):
-        mocked_scm_obj = MockedSCM(mocked_scm, "includedmodules",
-                                ["includedmodules.yaml", "testmodule.yaml"])
+                                                                 mocked_scm, mocked_get_user):
+        MockedSCM(mocked_scm, "includedmodules", ["includedmodules.yaml",
+                                                  "testmodule.yaml"])
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                 'testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49'}))
@@ -651,9 +652,9 @@ class TestViews(unittest.TestCase):
            return_value=('sammy', set(["packager", "mbs-admin"])))
     def test_cancel_build_admin(self, mocked_get_user):
         with patch("module_build_service.config.Config.admin_groups",
-                new_callable=PropertyMock, return_value=set(["mbs-admin"])):
+                   new_callable=PropertyMock, return_value=set(["mbs-admin"])):
             rv = self.client.patch('/module-build-service/1/module-builds/30',
-                                data=json.dumps({'state': 'failed'}))
+                                   data=json.dumps({'state': 'failed'}))
             data = json.loads(rv.data)
 
             self.assertEquals(data['state'], 4)
@@ -663,9 +664,9 @@ class TestViews(unittest.TestCase):
            return_value=('sammy', set(["packager"])))
     def test_cancel_build_no_admin(self, mocked_get_user):
         with patch("module_build_service.config.Config.admin_groups",
-                new_callable=PropertyMock, return_value=set(["mbs-admin"])):
+                   new_callable=PropertyMock, return_value=set(["mbs-admin"])):
             rv = self.client.patch('/module-build-service/1/module-builds/30',
-                                data=json.dumps({'state': 'failed'}))
+                                   data=json.dumps({'state': 'failed'}))
             data = json.loads(rv.data)
 
             self.assertEquals(data['status'], 403)
@@ -861,7 +862,7 @@ class TestViews(unittest.TestCase):
 
         def submit(scmurl):
             return self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
-                                    {'branch': 'master', 'scmurl':  scmurl}))
+                                    {'branch': 'master', 'scmurl': scmurl}))
 
         allow_custom_scmurls.return_value = False
         res1 = submit('git://some.custom.url.org/modules/testmodule.git?#68931c9')

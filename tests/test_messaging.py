@@ -22,7 +22,7 @@
 
 
 import unittest
-from module_build_service import messaging, conf
+from module_build_service import messaging
 from mock import patch, PropertyMock
 
 
@@ -55,7 +55,7 @@ class TestFedmsgMessaging(unittest.TestCase):
         self.assertEqual(msg.build_new_state, 1)
 
     @patch("module_build_service.config.Config.system",
-            new_callable=PropertyMock, return_value="copr")
+           new_callable=PropertyMock, return_value="copr")
     def test_copr_build_end(self, conf_system):
         # http://fedora-fedmsg.readthedocs.io/en/latest/topics.html#copr-build-end
         copr_build_end_msg = {
@@ -115,7 +115,6 @@ class TestFedmsgMessaging(unittest.TestCase):
 
         self.assertEqual(msg.tag, "module-debugging-tools-master-20170405115403-build")
         self.assertEqual(msg.artifact, "module-build-macros")
-
 
     def test_buildsys_repo_done(self):
         # https://fedora-fedmsg.readthedocs.io/en/latest/topics.html#id134

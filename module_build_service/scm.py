@@ -27,8 +27,6 @@
 
 """SCM handler functions."""
 
-from six.moves import http_client
-
 import os
 import subprocess as sp
 import re
@@ -169,7 +167,7 @@ class SCM(object):
                             "The original message was: %s" % e.message)
                     raise
 
-            timestamp = SCM._run(["git", "show" , "-s", "--format=%ct"], chdir=sourcedir)[1]
+            timestamp = SCM._run(["git", "show", "-s", "--format=%ct"], chdir=sourcedir)[1]
             dt = datetime.datetime.utcfromtimestamp(int(timestamp))
             self.version = dt.strftime("%Y%m%d%H%M%S")
         else:

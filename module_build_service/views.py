@@ -36,7 +36,7 @@ from module_build_service import models, db
 from module_build_service.utils import (
     pagination_metadata, filter_module_builds, filter_component_builds,
     submit_module_build_from_scm, submit_module_build_from_yaml,
-    scm_url_schemes, get_scm_url_re)
+    get_scm_url_re)
 from module_build_service.errors import (
     ValidationError, Forbidden, NotFound)
 
@@ -68,6 +68,7 @@ api_v1 = {
         }
     },
 }
+
 
 class ComponentBuildAPI(MethodView):
 
@@ -206,8 +207,8 @@ class BaseHandler(object):
         return {k: v for k, v in self.data.items() if k not in ["owner", "scmurl", "branch"]}
 
     def validate_optional_params(self):
-        forbidden_params = [k for k in self.data if k not in models.ModuleBuild.__table__.columns
-                            and k not in ["branch"]]
+        forbidden_params = [k for k in self.data if k not in models.ModuleBuild.__table__.columns and
+                            k not in ["branch"]]
         if forbidden_params:
             raise ValidationError('The request contains unspecified parameters: {}'.format(", ".join(forbidden_params)))
 
@@ -289,11 +290,11 @@ def register_api_v1():
             app.add_url_rule(val['url'],
                              endpoint=key,
                              view_func=module_view,
-                             **val['options'])            
+                             **val['options'])
         else:
             app.add_url_rule(val['url'],
                              endpoint=key,
                              view_func=component_view,
                              **val['options'])
-        
+
 register_api_v1()

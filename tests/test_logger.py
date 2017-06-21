@@ -29,7 +29,6 @@ import unittest
 from module_build_service import log
 from module_build_service.logger import ModuleBuildLogs
 from module_build_service.scheduler.consumer import MBSConsumer
-from mock import patch, PropertyMock
 
 
 class TestLogger(unittest.TestCase):

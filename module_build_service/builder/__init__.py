@@ -1,6 +1,7 @@
 from module_build_service import conf
 from base import GenericBuilder
 from KojiModuleBuilder import KojiModuleBuilder
+from MockModuleBuilder import MockModuleBuilder
 
 __all__ = [
     GenericBuilder
@@ -9,7 +10,6 @@ __all__ = [
 
 GenericBuilder.register_backend_class(KojiModuleBuilder)
 
-from MockModuleBuilder import MockModuleBuilder
 GenericBuilder.register_backend_class(MockModuleBuilder)
 
 if conf.system == "copr":

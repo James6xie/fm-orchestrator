@@ -20,15 +20,11 @@
 #
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
-from nose.tools import raises, eq_
-
-
 import unittest
-import mock
 import os.path
-from mock import patch
 
 from module_build_service import conf
+
 
 class TestConfig(unittest.TestCase):
     def test_path_expanduser(self):

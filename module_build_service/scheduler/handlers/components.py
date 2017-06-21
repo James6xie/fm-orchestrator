@@ -68,10 +68,10 @@ def _finalize(config, session, msg, state):
     parent = component_build.module_build
 
     # If the macro build failed, then the module is doomed.
-    if (component_build.package == 'module-build-macros'
-            and state != koji.BUILD_STATES['COMPLETE']):
+    if (component_build.package == 'module-build-macros' and
+       state != koji.BUILD_STATES['COMPLETE']):
         parent.transition(config, state=models.BUILD_STATES['failed'],
-                            state_reason=state_reason)
+                          state_reason=state_reason)
         session.commit()
         return
 
@@ -107,7 +107,7 @@ def _finalize(config, session, msg, state):
             # change message here.
             if failed_components_in_batch:
                 log.info("Batch done, but not tagging because of failed "
-                    "component builds.")
+                         "component builds.")
             else:
                 log.info("Batch done. No component to tag")
             further_work += [messaging.KojiRepoChange(
@@ -127,7 +127,7 @@ def _finalize(config, session, msg, state):
 
         session.commit()
     elif (any([c.state != koji.BUILD_STATES['BUILDING']
-            for c in unbuilt_components_in_batch])):
+          for c in unbuilt_components_in_batch])):
         # We are not in the middle of the batch building and
         # we have some unbuilt components in this batch. We might hit the
         # concurrent builds threshold in previous call of continue_batch_build
@@ -144,8 +144,10 @@ def _finalize(config, session, msg, state):
 def complete(config, session, msg):
     return _finalize(config, session, msg, state=koji.BUILD_STATES['COMPLETE'])
 
+
 def failed(config, session, msg):
     return _finalize(config, session, msg, state=koji.BUILD_STATES['FAILED'])
+
 
 def canceled(config, session, msg):
     return _finalize(config, session, msg, state=koji.BUILD_STATES['CANCELED'])

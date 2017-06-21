@@ -34,6 +34,7 @@ import modulemd
 base_dir = os.path.dirname(__file__)
 cassette_dir = base_dir + '/vcr-request-data/'
 
+
 class TestPDCModule(unittest.TestCase):
 
     def setUp(self):
@@ -111,5 +112,5 @@ class TestPDCModule(unittest.TestCase):
                 set(['shadow-utils', 'redhat-rpm-config', 'rpm-build',
                      'fedora-modular-release', 'fedpkg-minimal', 'gnupg2',
                      'bash'])
-                }
+        }
         self.assertEqual(result, expected)

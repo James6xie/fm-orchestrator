@@ -28,10 +28,9 @@ import koji
 import kobo.rpmlib
 import modulemd
 import pipes
-import yaml
 import threading
 
-from module_build_service import conf, log, db
+from module_build_service import conf, log
 import module_build_service.scm
 import module_build_service.utils
 import module_build_service.scheduler
@@ -104,7 +103,7 @@ mdpolicy=group:primary
         self.tag_name = tag_name
         self.config = config
         self.groups = []
-        self.arch = "x86_64" # TODO: We may need to change that in the future
+        self.arch = "x86_64"  # TODO: We may need to change that in the future
         self.yum_conf = MockModuleBuilder.MOCK_YUM_CONF_TEMPLATE
 
         # Create main directory for this tag
@@ -183,7 +182,7 @@ mdpolicy=group:primary
         pkglist_f.close()
 
         mmd_path = os.path.join(path, "modules.yaml")
-        modulemd.dump_all(mmd_path, [ m1_mmd ])
+        modulemd.dump_all(mmd_path, [m1_mmd])
 
         # Generate repo and inject modules.yaml there.
         execute_cmd(['/usr/bin/createrepo_c', '--pkglist', pkglist, path])
@@ -477,8 +476,8 @@ class SCMBuilder(BaseBuilder):
             # this code.
             distgit_get_branch = \
                 "sh -c {}'; git -C {} checkout {}'".format(pipes.quote(distgit_get),
-                                                               artifact_name,
-                                                               branch)
+                                                           artifact_name,
+                                                           branch)
 
             f.writelines([
                 "config_opts['scm'] = True\n",

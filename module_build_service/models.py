@@ -67,6 +67,7 @@ BUILD_STATES = {
 
 INVERSE_BUILD_STATES = {v: k for k, v in BUILD_STATES.items()}
 
+
 @contextlib.contextmanager
 def _dummy_context_mgr():
     """
@@ -74,6 +75,7 @@ def _dummy_context_mgr():
     app_context exists.
     """
     yield None
+
 
 @contextlib.contextmanager
 def make_session(conf):
@@ -142,7 +144,7 @@ class ModuleBuild(MBSBase):
         if not self.batch:
             raise ValueError("No batch is in progress: %r" % self.batch)
 
-        if state != None:
+        if state is not None:
             return [
                 component for component in self.component_builds
                 if component.batch == self.batch and component.state == state
@@ -162,7 +164,7 @@ class ModuleBuild(MBSBase):
         if not self.batch:
             raise ValueError("No batch is in progress: %r" % self.batch)
 
-        if state != None:
+        if state is not None:
             return [
                 component for component in self.component_builds
                 if component.batch <= self.batch and component.state == state
@@ -339,7 +341,7 @@ class ModuleBuild(MBSBase):
             'state_reason': self.state_reason,
             "owner": self.owner,
             "name": self.name,
-            "scmurl": self.scmurl, 
+            "scmurl": self.scmurl,
             "time_submitted": self._utc_datetime_to_iso(self.time_submitted),
             "time_modified": self._utc_datetime_to_iso(self.time_modified),
             "time_completed": self._utc_datetime_to_iso(self.time_completed),

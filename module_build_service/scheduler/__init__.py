@@ -9,6 +9,7 @@ import module_build_service.scheduler.consumer
 import logging
 log = logging.getLogger(__name__)
 
+
 def main(initial_messages, stop_condition):
     """ Run the consumer until some condition is met.
 

@@ -28,13 +28,11 @@
 import modulemd
 from pdc_client import PDCClient
 
-import copy
 import inspect
 import pprint
 import logging
-log = logging.getLogger()
-
 import six
+log = logging.getLogger()
 
 
 def get_pdc_client_session(config):
@@ -56,6 +54,7 @@ def get_pdc_client_session(config):
             develop=config.pdc_develop,
             insecure=config.pdc_insecure,
         )
+
 
 def get_variant_dict(data):
     """
@@ -117,7 +116,6 @@ def get_variant_dict(data):
         if 'variant_type' not in result.keys():
             result['variant_type'] = 'module'
 
-
     elif is_module_dict(data):
         result = {'variant_id': data['name'], 'variant_version': data['version']}
 
@@ -144,12 +142,13 @@ def variant_dict_from_str(module_str):
 
     release_start = module_str.rfind('-')
     version_start = module_str.rfind('-', 0, release_start)
-    module_info['variant_release'] = module_str[release_start+1:]
-    module_info['variant_version'] = module_str[version_start+1:release_start]
+    module_info['variant_release'] = module_str[release_start + 1:]
+    module_info['variant_version'] = module_str[version_start + 1:release_start]
     module_info['variant_id'] = module_str[:version_start]
     module_info['variant_type'] = 'module'
 
     return module_info
+
 
 def get_module(session, module_info, strict=False):
     """
@@ -173,7 +172,7 @@ def get_module(session, module_info, strict=False):
     if module_info.get('active'):
         query['active'] = module_info['active']
 
-    retval = session['unreleasedvariants/'](page_size=-1, **query) # ordering=variant_release...
+    retval = session['unreleasedvariants/'](page_size=-1, **query)  # ordering=variant_release...
 
     # Error handling
     if not retval:
@@ -197,6 +196,7 @@ def get_module(session, module_info, strict=False):
 
     return module
 
+
 def get_module_tag(session, module_info, strict=False):
     """
     :param session : PDCClient instance
@@ -206,6 +206,7 @@ def get_module_tag(session, module_info, strict=False):
     :return: koji tag string
     """
     return get_module(session, module_info, strict=strict)['koji_tag']
+
 
 def get_module_modulemd(session, module_info, strict=False):
     """
@@ -223,16 +224,18 @@ def get_module_modulemd(session, module_info, strict=False):
     if not yaml:
         if strict:
             raise ValueError("Failed to find modulemd entry in PDC for "
-                "%r" % module_info)
+                             "%r" % module_info)
         else:
             return None
 
     return _extract_modulemd(yaml, strict=strict)
 
+
 def _extract_modulemd(yaml, strict=False):
     mmd = modulemd.ModuleMetadata()
     mmd.loads(yaml)
     return mmd
+
 
 def resolve_profiles(session, mmd, keys):
     """
@@ -266,6 +269,7 @@ def resolve_profiles(session, mmd, keys):
     # Return the union of all rpms in all profiles of the given keys.
     return results
 
+
 def get_module_build_dependencies(session, module_info, strict=False):
     """
     :param session : PDCClient instance
@@ -279,7 +283,6 @@ def get_module_build_dependencies(session, module_info, strict=False):
     log.debug("get_module_build_dependencies(%r, strict=%r)" % (module_info, strict))
     # XXX get definitive list of modules
 
-    deps = []
     queried_module = get_module(session, module_info, strict=strict)
     yaml = queried_module['modulemd']
     queried_mmd = _extract_modulemd(yaml, strict=strict)
@@ -312,6 +315,7 @@ def get_module_build_dependencies(session, module_info, strict=False):
         module_tags.add(info['koji_tag'])
 
     return module_tags
+
 
 def get_module_commit_hash_and_version(session, module_info):
     """

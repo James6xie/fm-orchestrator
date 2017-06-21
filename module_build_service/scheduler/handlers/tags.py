@@ -28,7 +28,6 @@ import module_build_service.pdc
 import logging
 import koji
 from module_build_service import models, log
-from module_build_service.utils import start_next_batch_build
 
 logging.basicConfig(level=logging.DEBUG)
 

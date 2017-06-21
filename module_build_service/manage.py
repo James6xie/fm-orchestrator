@@ -30,20 +30,11 @@ import ssl
 from shutil import rmtree
 import getpass
 
-import fedmsg.config
-import moksha.hub
-import moksha.hub.hub
-import moksha.hub.reactor
-
 from module_build_service import app, conf, db
 from module_build_service import models
-from module_build_service.pdc import (
-    get_pdc_client_session, get_module,
-    get_module_tag, get_module_build_dependencies)
 from module_build_service.utils import (
     submit_module_build_from_scm,
 )
-from module_build_service.messaging import MBSModule
 import module_build_service.messaging
 import module_build_service.scheduler.consumer
 
@@ -154,7 +145,7 @@ def build_module_locally(url, branch, skiptests=False):
 
         username = getpass.getuser()
         submit_module_build_from_scm(username, url, branch, allow_local_url=True,
-                                    skiptests=skiptests)
+                                     skiptests=skiptests)
 
         stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
 

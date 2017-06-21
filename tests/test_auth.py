@@ -20,8 +20,7 @@
 #
 # Written by Ralph Bean <rbean@redhat.com>
 
-from nose.tools import raises, eq_
-
+from nose.tools import eq_
 
 import unittest
 import mock
@@ -42,10 +41,10 @@ class TestAuthModule(unittest.TestCase):
             request.cookies.return_value = {}
 
             with self.assertRaises(module_build_service.errors.Unauthorized) as cm:
-                result = module_build_service.auth.get_user(request)
+                module_build_service.auth.get_user(request)
 
             self.assertEquals(str(cm.exception),
-                "No 'authorization' header found.")
+                              "No 'authorization' header found.")
 
     @patch('module_build_service.auth._get_token_info')
     @patch('module_build_service.auth._get_user_info')
@@ -57,10 +56,10 @@ class TestAuthModule(unittest.TestCase):
             # https://www.youtube.com/watch?v=G-LtddOgUCE
             name = "Joey Jo Jo Junior Shabadoo"
             mocked_get_token_info = {"active": False, "username": name,
-                        "scope": "openid https://id.fedoraproject.org/scope/groups mbs-scope"}
+                                     "scope": "openid https://id.fedoraproject.org/scope/groups mbs-scope"}
             get_token_info.return_value = mocked_get_token_info
 
-            get_user_info.return_value = {"groups":["group"]}
+            get_user_info.return_value = {"groups": ["group"]}
 
             headers = {"authorization": "Bearer foobar"}
             request = mock.MagicMock()
@@ -70,10 +69,10 @@ class TestAuthModule(unittest.TestCase):
             request.headers.__contains__.side_effect = headers.__contains__
 
             with self.assertRaises(module_build_service.errors.Unauthorized) as cm:
-                result = module_build_service.auth.get_user(request)
+                module_build_service.auth.get_user(request)
 
             self.assertEquals(str(cm.exception),
-                "OIDC token invalid or expired.")
+                              "OIDC token invalid or expired.")
 
     @patch('module_build_service.auth._get_token_info')
     @patch('module_build_service.auth._get_user_info')
@@ -85,10 +84,10 @@ class TestAuthModule(unittest.TestCase):
             # https://www.youtube.com/watch?v=G-LtddOgUCE
             name = "Joey Jo Jo Junior Shabadoo"
             mocked_get_token_info = {"active": True, "username": name,
-                        "scope": "openid https://id.fedoraproject.org/scope/groups mbs-scope"}
+                                     "scope": "openid https://id.fedoraproject.org/scope/groups mbs-scope"}
             get_token_info.return_value = mocked_get_token_info
 
-            get_user_info.return_value = {"groups":["group"]}
+            get_user_info.return_value = {"groups": ["group"]}
 
             headers = {"authorization": "Bearer foobar"}
             request = mock.MagicMock()
@@ -115,7 +114,7 @@ class TestAuthModule(unittest.TestCase):
             module_build_service.auth.get_user(request)
 
         self.assertEquals(str(cm.exception),
-            "OIDC_CLIENT_SECRETS must be set in server config.")
+                          "OIDC_CLIENT_SECRETS must be set in server config.")
 
     @patch('module_build_service.auth._get_token_info')
     @patch('module_build_service.auth._get_user_info')
@@ -126,11 +125,12 @@ class TestAuthModule(unittest.TestCase):
                                                             'OIDC_REQUIRED_SCOPE': 'mbs-scope'}):
             # https://www.youtube.com/watch?v=G-LtddOgUCE
             name = "Joey Jo Jo Junior Shabadoo"
-            mocked_get_token_info = {"active": True, "username": name,
-                        "scope": "openid https://id.fedoraproject.org/scope/groups"}
+            mocked_get_token_info = {"active": True,
+                                     "username": name,
+                                     "scope": "openid https://id.fedoraproject.org/scope/groups"}
             get_token_info.return_value = mocked_get_token_info
 
-            get_user_info.return_value = {"groups":["group"]}
+            get_user_info.return_value = {"groups": ["group"]}
 
             headers = {"authorization": "Bearer foobar"}
             request = mock.MagicMock()
@@ -140,11 +140,11 @@ class TestAuthModule(unittest.TestCase):
             request.headers.__contains__.side_effect = headers.__contains__
 
             with self.assertRaises(module_build_service.errors.Unauthorized) as cm:
-                result = module_build_service.auth.get_user(request)
+                module_build_service.auth.get_user(request)
 
             self.assertEquals(str(cm.exception),
-                "Required OIDC scope 'mbs-scope' not present: "
-                "['openid', 'https://id.fedoraproject.org/scope/groups']")
+                              "Required OIDC scope 'mbs-scope' not present: "
+                              "['openid', 'https://id.fedoraproject.org/scope/groups']")
 
     @patch('module_build_service.auth._get_token_info')
     @patch('module_build_service.auth._get_user_info')
@@ -154,11 +154,12 @@ class TestAuthModule(unittest.TestCase):
         with patch.dict('module_build_service.app.config', {'OIDC_CLIENT_SECRETS': client_secrets}):
             # https://www.youtube.com/watch?v=G-LtddOgUCE
             name = "Joey Jo Jo Junior Shabadoo"
-            mocked_get_token_info = {"active": True, "username": name,
-                        "scope": "openid https://id.fedoraproject.org/scope/groups"}
+            mocked_get_token_info = {"active": True,
+                                     "username": name,
+                                     "scope": "openid https://id.fedoraproject.org/scope/groups"}
             get_token_info.return_value = mocked_get_token_info
 
-            get_user_info.return_value = {"groups":["group"]}
+            get_user_info.return_value = {"groups": ["group"]}
 
             headers = {"authorization": "Bearer foobar"}
             request = mock.MagicMock()
@@ -168,7 +169,7 @@ class TestAuthModule(unittest.TestCase):
             request.headers.__contains__.side_effect = headers.__contains__
 
             with self.assertRaises(module_build_service.errors.Forbidden) as cm:
-                result = module_build_service.auth.get_user(request)
+                module_build_service.auth.get_user(request)
 
             self.assertEquals(str(cm.exception),
-                "OIDC_REQUIRED_SCOPE must be set in server config.")
+                              "OIDC_REQUIRED_SCOPE must be set in server config.")
