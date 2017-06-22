@@ -319,7 +319,7 @@ class KojiContentGenerator(object):
             log.debug("Content generator import done: %s",
                       json.dumps(build_info, sort_keys=True, indent=4))
         except Exception, e:
-            log.error("Content generator import failed: %s", e)
+            log.exception("Content generator import failed: %s", e)
             raise e
         finally:
             shutil.rmtree(file_dir)
