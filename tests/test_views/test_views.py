@@ -193,7 +193,6 @@ class TestViews(unittest.TestCase):
     def test_pagination_metadata(self):
         rv = self.client.get('/module-build-service/1/module-builds/?per_page=8&page=2')
         meta_data = json.loads(rv.data)['meta']
-        print meta_data
         self.assertIn(
             meta_data['prev'].split('?', 1)[1], ['per_page=8&page=1', 'page=1&per_page=8'])
         self.assertIn(
@@ -202,6 +201,17 @@ class TestViews(unittest.TestCase):
             meta_data['last'].split('?', 1)[1], ['per_page=8&page=4', 'page=4&per_page=8'])
         self.assertIn(
             meta_data['first'].split('?', 1)[1], ['per_page=8&page=1', 'page=1&per_page=8'])
+        self.assertEquals(meta_data['total'], 30)
+        self.assertEquals(meta_data['per_page'], 8)
+        self.assertEquals(meta_data['pages'], 4)
+        self.assertEquals(meta_data['page'], 2)
+
+    def test_pagination_metadata_with_args(self):
+        rv = self.client.get('/module-build-service/1/module-builds/?per_page=8&page=2&order_by=id')
+        meta_data = json.loads(rv.data)['meta']
+        for link in [meta_data['prev'], meta_data['next'], meta_data['last'], meta_data['first']]:
+            self.assertIn('order_by=id', link)
+            self.assertIn('per_page=8', link)
         self.assertEquals(meta_data['total'], 30)
         self.assertEquals(meta_data['per_page'], 8)
         self.assertEquals(meta_data['pages'], 4)

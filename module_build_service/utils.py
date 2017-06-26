@@ -23,6 +23,7 @@
 
 """ Utility functions for module_build_service. """
 import re
+import copy
 import functools
 import time
 import shutil
@@ -311,28 +312,48 @@ def start_next_batch_build(config, module, session, builder, components=None):
     return continue_batch_build(
         config, module, session, builder, unbuilt_components)
 
-def pagination_metadata(p_query):
+def pagination_metadata(p_query, request_args):
     """
-    Returns a dictionary containing metadata about the paginated query. This must be run as part of a Flask request.
+    Returns a dictionary containing metadata about the paginated query.
+    This must be run as part of a Flask request.
     :param p_query: flask_sqlalchemy.Pagination object
+    :param request_args: a dictionary of the arguments that were part of the
+    Flask request
     :return: a dictionary containing metadata about the paginated query
     """
+    request_args_wo_page = dict(copy.deepcopy(request_args))
+    # Remove pagination related args because those are handled elsewhere
+    # Also, remove any args that url_for accepts in case the user entered
+    # those in
+    for key in ['page', 'per_page', 'endpoint']:
+        if key in request_args_wo_page:
+            request_args_wo_page.pop(key)
+    for key in request_args:
+        if key.startswith('_'):
+            request_args_wo_page.pop(key)
 
     pagination_data = {
         'page': p_query.page,
-        'per_page': p_query.per_page,
-        'total': p_query.total,
         'pages': p_query.pages,
-        'first': url_for(request.endpoint, page=1, per_page=p_query.per_page, _external=True),
-        'last': url_for(request.endpoint, page=p_query.pages, per_page=p_query.per_page, _external=True)
+        'per_page': p_query.per_page,
+        'prev': None,
+        'next': None,
+        'total': p_query.total,
+        'first': url_for(request.endpoint, page=1, per_page=p_query.per_page,
+                         _external=True, **request_args_wo_page),
+        'last': url_for(request.endpoint, page=p_query.pages,
+                        per_page=p_query.per_page, _external=True,
+                        **request_args_wo_page)
     }
 
     if p_query.has_prev:
         pagination_data['prev'] = url_for(request.endpoint, page=p_query.prev_num,
-                                          per_page=p_query.per_page, _external=True)
+                                          per_page=p_query.per_page, _external=True,
+                                          **request_args_wo_page)
     if p_query.has_next:
         pagination_data['next'] = url_for(request.endpoint, page=p_query.next_num,
-                                          per_page=p_query.per_page, _external=True)
+                                          per_page=p_query.per_page, _external=True,
+                                          **request_args_wo_page)
 
     return pagination_data
 

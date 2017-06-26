@@ -72,7 +72,7 @@ class ModuleBuildAPI(MethodView):
             p_query = filter_module_builds(request)
 
             json_data = {
-                'meta': pagination_metadata(p_query)
+                'meta': pagination_metadata(p_query, request.args)
             }
 
             if verbose_flag.lower() == 'true' or verbose_flag == '1':
