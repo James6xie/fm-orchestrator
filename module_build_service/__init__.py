@@ -44,7 +44,7 @@ from flask import Flask, has_app_context, url_for
 from flask_sqlalchemy import SQLAlchemy
 from logging import getLogger
 
-from module_build_service.logger import init_logging
+from module_build_service.logger import init_logging, ModuleBuildLogs
 
 from module_build_service.errors import (
     ValidationError, Unauthorized, UnprocessableEntity, Conflict, NotFound,
@@ -102,6 +102,7 @@ def notfound_error(e):
 
 init_logging(conf)
 log = getLogger(__name__)
+build_logs = ModuleBuildLogs(conf.build_logs_dir)
 
 def get_url_for(*args, **kwargs):
     """

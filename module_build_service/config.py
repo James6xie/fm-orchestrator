@@ -257,6 +257,10 @@ class Config(object):
             'type': str,
             'default': 0,
             'desc': 'Log level'},
+        'build_logs_dir': {
+            'type': Path,
+            'default': "",
+            'desc': 'Directory to store module build logs to.'},
         'krb_keytab': {
             'type': None,
             'default': None,

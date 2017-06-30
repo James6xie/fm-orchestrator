@@ -55,6 +55,11 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
     log.debug('Setting topics: {}'.format(', '.join(topic)))
     config_key = 'mbsconsumer'
 
+    # It is set to the id of currently handled module build. It is used to
+    # group all the log messages associated with single module build to
+    # per module build log file.
+    current_module_build_id = None
+
     def __init__(self, hub):
         super(MBSConsumer, self).__init__(hub)
 
@@ -202,6 +207,8 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
             log.debug("No module associated with msg {}".format(msg.msg_id))
             return
 
+        MBSConsumer.current_module_build_id = build.id
+
         # Execute our chosen handler
         idx = "%s: %s, %s" % (handler.__name__, type(msg).__name__, msg.msg_id)
         if handler is self.NO_OP:
@@ -230,6 +237,8 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
             for event in further_work:
                 log.info("  Scheduling faked event %r" % event)
                 self.incoming.put(event)
+
+        MBSConsumer.current_module_build_id = None
 
 
 def get_global_consumer():

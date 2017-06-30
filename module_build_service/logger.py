@@ -42,6 +42,7 @@ logging.warn("%s failed to build", task_id)
 
 """
 
+import os
 import logging
 
 levels = {}
@@ -49,6 +50,86 @@ levels["debug"] = logging.DEBUG
 levels["error"] = logging.ERROR
 levels["warning"] = logging.WARNING
 levels["info"] = logging.INFO
+
+log_format = '%(asctime)s - %(threadName)s - %(name)s - %(levelname)s - %(message)s'
+
+class ModuleBuildFileHandler(logging.FileHandler):
+    """
+    FileHandler subclass which handles only messages generated during
+    particular module build with `build_id` set in its constructor.
+    """
+    def __init__(self, build_id, filename, mode='a', encoding=None, delay=0):
+        logging.FileHandler.__init__(self, filename, mode, encoding, delay)
+        self.build_id = build_id
+
+    def emit(self, record):
+        # Imported here because of importing cycle between __init__.py,
+        # scheduler and models.
+        from module_build_service.scheduler.consumer import MBSConsumer
+
+        # Check the currently handled module build and emit the message only
+        # if it's associated with current module.
+        build_id = MBSConsumer.current_module_build_id
+        if not build_id or build_id != self.build_id:
+            return
+
+        logging.FileHandler.emit(self, record)
+
+
+class ModuleBuildLogs(object):
+    """
+    Manages ModuleBuildFileHandler logging handlers.
+    """
+    def __init__(self, build_logs_dir):
+        """
+        Creates new ModuleBuildLogs instance. Module build logs are stored
+        to `build_logs_dir` directory.
+        """
+        self.handlers = {}
+        self.build_logs_dir = build_logs_dir
+
+    def path(self, build_id):
+        """
+        Returns the full path to build log of module with id `build_id`.
+        """
+        path = os.path.join(self.build_logs_dir, "build-%d.log" % build_id)
+        return path
+
+    def start(self, build_id):
+        """
+        Starts logging build log for module with `build_id` id.
+        """
+        if not self.build_logs_dir:
+            return
+
+        if build_id in self.handlers:
+            return
+
+        # Create and add ModuleBuildFileHandler.
+        handler = ModuleBuildFileHandler(build_id, self.path(build_id))
+        handler.setFormatter(logging.Formatter(log_format, None))
+        log = logging.getLogger()
+        log.addHandler(handler)
+
+        self.handlers[build_id] = handler
+
+    def stop(self, build_id):
+        """
+        Stops logging build log for module with `build_id` id. It does *not*
+        remove the build log from fs.
+        """
+        if build_id not in self.handlers:
+            return
+
+        handler = self.handlers[build_id]
+        handler.flush()
+        handler.close()
+
+        # Remove the log handler.
+        log = logging.getLogger()
+        log.removeHandler(handler)
+        del self.handlers[build_id]
+
 
 def str_to_log_level(level):
     """
@@ -69,7 +150,6 @@ def init_logging(conf):
     """
     Initializes logging according to configuration file.
     """
-    log_format = '%(asctime)s - %(threadName)s - %(name)s - %(levelname)s - %(message)s'
     log_backend = conf.log_backend
 
     if not log_backend or len(log_backend) == 0 or log_backend == "console":

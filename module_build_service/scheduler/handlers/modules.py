@@ -23,7 +23,7 @@
 
 """ Handlers for module change events on the message bus. """
 
-from module_build_service import conf, models, log
+from module_build_service import conf, models, log, build_logs
 import module_build_service.builder
 import module_build_service.pdc
 import module_build_service.utils
@@ -100,6 +100,7 @@ def failed(config, session, msg):
 
     build.transition(config, state="failed")
     session.commit()
+    build_logs.stop(build.id)
 
 
 def done(config, session, msg):
@@ -126,6 +127,8 @@ def done(config, session, msg):
     build.transition(config, state="ready")
     session.commit()
 
+    build_logs.stop(build.id)
+
 def wait(config, session, msg):
     """ Called whenever a module enters the 'wait' state.
 
@@ -149,6 +152,8 @@ def wait(config, session, msg):
                            .format(build))
 
     build = _get_build_containing_xmd_for_mbs()
+    build_logs.start(build.id)
+
     log.info("Found build=%r from message" % build)
 
     module_info = build.json()
