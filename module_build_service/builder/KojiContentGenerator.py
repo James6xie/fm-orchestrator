@@ -36,7 +36,7 @@ import tempfile
 import koji
 
 import module_build_service
-from module_build_service import log
+from module_build_service import log, build_logs
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
 
 logging.basicConfig(level=logging.DEBUG)
@@ -323,6 +323,12 @@ class KojiContentGenerator(object):
         mmd_path = os.path.join(prepdir, "modulemd.yaml")
         with open(mmd_path, "w") as mmd_f:
             mmd_f.write(self.mmd)
+
+        log_path = os.path.join(prepdir, "build.log")
+        try:
+            shutil.copy(build_logs.path(self.module.id), log_path)
+        except IOError, e:
+            log.exception(e)
         return prepdir
 
 
@@ -333,8 +339,8 @@ class KojiContentGenerator(object):
         Raises an exception when error is encountered during import"""
         session = KojiModuleBuilder.get_session(self.config, self.owner)
 
-        metadata = self._get_content_generator_metadata()
         file_dir = self._prepare_file_directory()
+        metadata = self._get_content_generator_metadata(file_dir)
         try:
             build_info = session.CGImport(metadata, file_dir)
             log.debug("Content generator import done: %s",

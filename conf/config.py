@@ -147,6 +147,7 @@ class DevConfiguration(BaseConfiguration):
 
 
 class TestConfiguration(BaseConfiguration):
+    BUILD_LOGS_DIR = '/tmp'
     LOG_BACKEND = 'console'
     LOG_LEVEL = 'debug'
     SQLALCHEMY_DATABASE_URI = 'sqlite:///{0}'.format(

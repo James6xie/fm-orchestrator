@@ -24,6 +24,7 @@ import unittest
 import json
 import vcr
 
+import os
 from os import path
 from os.path import dirname
 
@@ -31,7 +32,7 @@ from os.path import dirname
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.repos
 import module_build_service.utils
-from module_build_service import models, conf
+from module_build_service import models, conf, build_logs
 
 from mock import patch, Mock
 
@@ -68,6 +69,11 @@ class TestBuild(unittest.TestCase):
         del sys.modules['moksha.hub']
         import moksha.hub.reactor
         self.vcr.__exit__()
+        try:
+            path = build_logs.path(self.cg.module.id)
+            os.remove(path)
+        except:
+            pass
 
     @patch("subprocess.Popen")
     @patch("pkg_resources.get_distribution")
@@ -76,7 +82,46 @@ class TestBuild(unittest.TestCase):
     @patch("module_build_service.builder.KojiContentGenerator.KojiContentGenerator._koji_rpms_in_tag")
     def test_get_generator_json(self, rpms_in_tag, machine, distro, pkg_res, popen):
         """ Test generation of content generator json """
+        distro.return_value = ("Fedora", "25", "Twenty Five")
         self.maxDiff = None
+        machine.return_value = "i686"
+        pkg_res.return_value = Mock()
+        pkg_res.return_value.version = "current-tested-version"
+        rpm_mock = Mock()
+        rpm_out =  "rpm-name;1.0;r1;x86_64;(none);sigmd5:1;sigpgp:p;siggpg:g\n" \
+                   "rpm-name-2;2.0;r2;i686;1;sigmd5:2;sigpgp:p2;siggpg:g2"
+        attrs = {'communicate.return_value': (rpm_out, 'error'),
+                 'wait.return_value': 0}
+        rpm_mock.configure_mock(**attrs)
+        popen.return_value = rpm_mock
+
+        tests_dir = path.abspath(path.dirname(__file__))
+        rpm_in_tag_path = path.join(tests_dir,
+                                    "test_get_generator_json_rpms_in_tag.json")
+        with open(rpm_in_tag_path) as rpms_in_tag_file:
+            rpms_in_tag.return_value = json.load(rpms_in_tag_file)
+
+        expected_output_path = path.join(tests_dir,
+                                         "test_get_generator_json_expected_output_with_log.json")
+        with open(expected_output_path) as expected_output_file:
+            expected_output = json.load(expected_output_file)
+
+        # create the build.log
+        build_logs.start(self.cg.module.id)
+        build_logs.stop(self.cg.module.id)
+
+        file_dir = self.cg._prepare_file_directory()
+        ret = self.cg._get_content_generator_metadata(file_dir)
+        rpms_in_tag.assert_called_once()
+        self.assertEqual(expected_output, ret)
+
+    @patch("subprocess.Popen")
+    @patch("pkg_resources.get_distribution")
+    @patch("platform.linux_distribution")
+    @patch("platform.machine")
+    @patch("module_build_service.builder.KojiContentGenerator.KojiContentGenerator._koji_rpms_in_tag")
+    def test_get_generator_json_no_log(self, rpms_in_tag, machine, distro, pkg_res, popen):
+        """ Test generation of content generator json """
         distro.return_value = ("Fedora", "25", "Twenty Five")
         machine.return_value = "i686"
         pkg_res.return_value = Mock()
@@ -99,7 +144,8 @@ class TestBuild(unittest.TestCase):
                                          "test_get_generator_json_expected_output.json")
         with open(expected_output_path) as expected_output_file:
             expected_output = json.load(expected_output_file)
-        ret = self.cg._get_content_generator_metadata()
+        file_dir = self.cg._prepare_file_directory()
+        ret = self.cg._get_content_generator_metadata(file_dir)
         rpms_in_tag.assert_called_once()
         self.assertEqual(expected_output, ret)
 
