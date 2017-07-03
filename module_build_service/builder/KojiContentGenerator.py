@@ -101,13 +101,13 @@ class KojiContentGenerator(object):
                     signature = parts[1]
 
             component_rpm = {
-                'type': 'rpm',
-                'name': field('NAME'),
-                'version': field('VERSION'),
-                'release': field('RELEASE'),
-                'arch': field('ARCH'),
-                'sigmd5': field('SIGMD5'),
-                'signature': signature,
+                u'type': u'rpm',
+                u'name': field('NAME'),
+                u'version': field('VERSION'),
+                u'release': field('RELEASE'),
+                u'arch': field('ARCH'),
+                u'sigmd5': field('SIGMD5'),
+                u'signature': signature,
             }
 
             # Special handling for epoch as it must be an integer or None
@@ -115,7 +115,7 @@ class KojiContentGenerator(object):
             if epoch is not None:
                 epoch = int(epoch)
 
-            component_rpm['epoch'] = epoch
+            component_rpm[u'epoch'] = epoch
 
             if component_rpm['name'] != 'gpg-pubkey':
                 components.append(component_rpm)
@@ -170,11 +170,12 @@ class KojiContentGenerator(object):
     def __get_tools(self):
         """Return list of tools which are important for reproducing mbs outputs"""
 
-        tools = ["modulemd"]
+        tools = [u"modulemd"]
         ret = []
         for tool in tools:
-            ret.append({"name": tool,
-                        "version": pkg_resources.get_distribution(tool).version})
+            version = unicode(pkg_resources.get_distribution(tool).version)
+            ret.append({u"name": tool,
+                        u"version": version})
         return ret
 
     def _koji_rpms_in_tag(self, tag):
@@ -200,22 +201,22 @@ class KojiContentGenerator(object):
 
     def _get_build(self):
         ret = {}
-        ret['name'] = self.module.name
-        ret['version'] = self.module.stream.replace("-", "_")
-        ret['release'] = self.module.version
-        ret['source'] = self.module.scmurl
-        ret['start_time'] = calendar.timegm(
+        ret[u'name'] = self.module.name
+        ret[u'version'] = self.module.stream.replace("-", "_")
+        ret[u'release'] = self.module.version
+        ret[u'source'] = self.module.scmurl
+        ret[u'start_time'] = calendar.timegm(
             self.module.time_submitted.utctimetuple())
-        ret['end_time'] = calendar.timegm(
+        ret[u'end_time'] = calendar.timegm(
             self.module.time_completed.utctimetuple())
-        ret['extra'] = {
-            "typeinfo": {
-                "module": {
-                    "module_build_service_id": self.module.id,
-                    "modulemd_str": self.module.modulemd,
-                    "name": self.module.name,
-                    "stream": self.module.stream,
-                    "version": self.module.version
+        ret[u'extra'] = {
+            u"typeinfo": {
+                u"module": {
+                    u"module_build_service_id": self.module.id,
+                    u"modulemd_str": self.module.modulemd,
+                    u"name": self.module.name,
+                    u"stream": self.module.stream,
+                    u"version": self.module.version
                 }
             }
         }
@@ -225,69 +226,89 @@ class KojiContentGenerator(object):
         version = pkg_resources.get_distribution("module-build-service").version
         distro = platform.linux_distribution()
         ret = {
-            "id": 1,
-            "host": {
-                "arch": platform.machine(),
-                'os': "%s %s" % (distro[0], distro[1])
+            u"id": 1,
+            u"host": {
+                u"arch": unicode(platform.machine()),
+                u'os': u"%s %s" % (distro[0], distro[1])
             },
-            "content_generator": {
-                "name": "module-build-service",
-                "version": version
+            u"content_generator": {
+                u"name": u"module-build-service",
+                u"version": unicode(version)
             },
-            "container": {
-                "arch": platform.machine(),
-                "type": "none"
+            u"container": {
+                u"arch": unicode(platform.machine()),
+                u"type": u"none"
             },
-            "components": self.__get_rpms(),
-            "tools": self.__get_tools()
+            u"components": self.__get_rpms(),
+            u"tools": self.__get_tools()
         }
         return ret
 
 
-    def _get_output(self):
+    def _get_output(self, output_path):
         ret = []
         rpms = self._koji_rpms_in_tag(self.module.koji_tag)
         components = []
         for rpm in rpms:
             components.append(
                 {
-                    "name": rpm["name"],
-                    "version": rpm["version"],
-                    "release": rpm["release"],
-                    "arch": rpm["arch"],
-                    "epoch": rpm["epoch"],
-                    "sigmd5": rpm["payloadhash"],
-                    "type": "rpm"
+                    u"name": rpm["name"],
+                    u"version": rpm["version"],
+                    u"release": rpm["release"],
+                    u"arch": rpm["arch"],
+                    u"epoch": rpm["epoch"],
+                    u"sigmd5": rpm["payloadhash"],
+                    u"type": u"rpm"
                 }
             )
 
         ret.append(
             {
-                'buildroot_id': 1,
-                'arch': 'noarch',
-                'type': 'file',
-                'extra': {
-                    'typeinfo': {
-                        'module': {}
+                u'buildroot_id': 1,
+                u'arch': u'noarch',
+                u'type': u'file',
+                u'extra': {
+                    u'typeinfo': {
+                        u'module': {}
                     }
                 },
-                'filesize': len(self.mmd),
-                'checksum_type': 'md5',
-                'checksum': hashlib.md5(self.mmd).hexdigest(),
-                'filename': 'modulemd.yaml',
-                'components': components
+                u'filesize': len(self.mmd),
+                u'checksum_type': u'md5',
+                u'checksum': unicode(hashlib.md5(self.mmd).hexdigest()),
+                u'filename': u'modulemd.yaml',
+                u'components': components
             }
         )
-        # TODO add logs output
+
+        try:
+            log_path = os.path.join(output_path, "build.log")
+            with open(log_path) as build_log:
+                checksum = hashlib.md5(build_log.read()).hexdigest()
+            stat = os.stat(log_path)
+            ret.append(
+                {
+                    u'buildroot_id': 1,
+                    u'arch': u'noarch',
+                    u'type': u'log',
+                    u'filename': u'build.log',
+                    u'filesize': stat.st_size,
+                    u'checksum_type': u'md5',
+                    u'checksum': checksum
+                }
+            )
+        except IOError:
+            # no log file?
+            log.error("No module build log file found. Excluding from import")
+
         return ret
 
 
-    def _get_content_generator_metadata(self):
+    def _get_content_generator_metadata(self, output_path):
         ret = {
-            "metadata_version": 0,
-            "buildroots": [self._get_buildroot()],
-            "build": self._get_build(),
-            "output": self._get_output()
+            u"metadata_version": 0,
+            u"buildroots": [self._get_buildroot()],
+            u"build": self._get_build(),
+            u"output": self._get_output(output_path)
         }
 
         return ret
