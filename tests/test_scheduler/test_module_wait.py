@@ -30,7 +30,7 @@ import os
 import vcr
 import koji
 from tests import conf, db, app, scheduler_init_data
-from module_build_service import conf
+from module_build_service import conf, build_logs
 
 base_dir = os.path.dirname(os.path.dirname(__file__))
 cassette_dir = base_dir + '/vcr-request-data/'
@@ -49,6 +49,11 @@ class TestModuleWait(unittest.TestCase):
 
     def tearDown(self):
         self.vcr.__exit__()
+        try:
+            path = build_logs.path(1)
+            os.remove(path)
+        except:
+            pass
 
     @mock.patch('module_build_service.builder.GenericBuilder.create_from_module')
     @mock.patch('module_build_service.models.ModuleBuild.from_module_event')
@@ -73,6 +78,7 @@ class TestModuleWait(unittest.TestCase):
         with open(formatted_testmodule_yml_path, 'r') as f:
             mmd.loads(f)
 
+        mocked_module_build.id = 1
         mocked_module_build.mmd.return_value = mmd
         mocked_module_build.component_builds = []
 
