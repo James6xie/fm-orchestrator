@@ -250,6 +250,16 @@ class TestViews(unittest.TestCase):
         self.assertEquals(item['time_modified'], '2016-09-03T11:25:32Z')
         self.assertEquals(item['time_submitted'], '2016-09-03T11:23:20Z')
 
+    def test_query_builds_filter_nvr(self):
+        rv = self.client.get('/module-build-service/1/component-builds/?nvr=nginx-1.10.1-2.module_nginx_1_2')
+        data = json.loads(rv.data)
+        self.assertEquals(data['meta']['total'], 10)
+
+    def test_query_builds_filter_task_id(self):
+        rv = self.client.get('/module-build-service/1/component-builds/?task_id=12312346')
+        data = json.loads(rv.data)
+        self.assertEquals(data['meta']['total'], 1)    
+
     def test_query_builds_filter_name(self):
         rv = self.client.get('/module-build-service/1/module-builds/?name=nginx')
         data = json.loads(rv.data)

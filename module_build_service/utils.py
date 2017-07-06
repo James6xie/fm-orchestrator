@@ -357,6 +357,51 @@ def pagination_metadata(p_query, request_args):
 
     return pagination_data
 
+def filter_component_builds(flask_request):
+    """
+    Returns a flask_sqlalchemy.Pagination object based on the request parameters
+    :param request: Flask request object
+    :return: flask_sqlalchemy.Pagination
+    """
+    search_query = dict()
+    state = flask_request.args.get('state', None)
+
+    if state:
+        if state.isdigit():
+            search_query['state'] = state
+        else:
+            if state in models.BUILD_STATES:
+                search_query['state'] = models.BUILD_STATES[state]
+            else:
+                raise ValidationError('An invalid state was supplied')
+
+    # Lookup module_build from task_id, ref, format, nvr or tagged attribute
+    # of a component build.
+    for key in ['task_id', 'ref', 'nvr', 'format', 'tagged']:
+        if flask_request.args.get(key, None):
+            search_query[key] = flask_request.args[key]
+
+    query = models.ComponentBuild.query
+
+    if search_query:
+        query = query.filter_by(**search_query)
+
+    # Order the results by any column in the ModuleBuild table.
+    order_by = flask_request.args.get("order_by", None)
+    order_desc_by = flask_request.args.get("order_desc_by", None)
+    if order_by or order_desc_by:
+        column = getattr(models.ComponentBuild, order_desc_by or order_by, None)
+        if column:
+            if order_desc_by:
+                column = column.desc()
+            query = query.order_by(column)
+        else:
+            raise ValidationError('An invalid order_by or order_desc_by key '
+                'was supplied')
+
+    page = flask_request.args.get('page', 1, type=int)
+    per_page = flask_request.args.get('per_page', 10, type=int)
+    return query.paginate(page, per_page, False)
 
 def filter_module_builds(flask_request):
     """
