@@ -258,3 +258,11 @@ def work_queue_put(msg):
     """ Artificially put a message into the work queue of the consumer. """
     consumer = get_global_consumer()
     consumer.incoming.put(msg)
+
+
+def fake_repo_done_message(tag_name):
+    msg = module_build_service.messaging.KojiRepoChange(
+        msg_id='a faked internal message',
+        repo_tag=tag_name + "-build",
+    )
+    work_queue_put(msg)

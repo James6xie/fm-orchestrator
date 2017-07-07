@@ -36,8 +36,6 @@ from module_build_service import conf, log
 from module_build_service import pdc
 import module_build_service.scm
 import module_build_service.utils
-import module_build_service.scheduler
-import module_build_service.scheduler.consumer
 
 
 """

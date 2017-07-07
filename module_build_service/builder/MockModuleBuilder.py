@@ -38,9 +38,11 @@ import module_build_service.scheduler
 import module_build_service.scheduler.consumer
 
 from base import GenericBuilder
-from utils import (fake_repo_done_message,
-                   create_local_repo_from_koji_tag, execute_cmd,
-                   find_srpm)
+from utils import (
+    create_local_repo_from_koji_tag,
+    execute_cmd,
+    find_srpm,
+)
 from KojiModuleBuilder import KojiModuleBuilder
 from module_build_service.models import ModuleBuild
 
@@ -280,6 +282,7 @@ mdpolicy=group:primary
                 self.groups.append("module-build-macros")
                 self._write_mock_config()
 
+        from module_build_service.scheduler.consumer import fake_repo_done_message
         fake_repo_done_message(self.tag_name)
 
     def tag_artifacts(self, artifacts):
