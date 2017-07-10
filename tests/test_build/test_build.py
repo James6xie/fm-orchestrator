@@ -23,7 +23,8 @@
 import unittest
 import koji
 import vcr
-from os import path, mkdir
+import os
+from os import path, mkdir, remove
 from os.path import dirname
 from shutil import copyfile
 
@@ -32,7 +33,7 @@ from nose.tools import timed
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.repos
 import module_build_service.utils
-from module_build_service import db, models, conf
+from module_build_service import db, models, conf, build_logs
 
 from mock import patch, PropertyMock
 
@@ -245,6 +246,11 @@ class TestBuild(unittest.TestCase):
         del sys.modules['moksha.hub']
         import moksha.hub.reactor
         self.vcr.__exit__()
+        for i in range(20):
+            try:
+                os.remove(build_logs.path(i))
+            except:
+                pass
 
     @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
