@@ -21,8 +21,11 @@
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
 
-import unittest
 import os
+import shutil
+import tempfile
+import unittest
+
 from module_build_service import log
 from module_build_service.logger import ModuleBuildLogs
 from module_build_service.scheduler.consumer import MBSConsumer
@@ -32,14 +35,13 @@ from mock import patch, PropertyMock
 class TestLogger(unittest.TestCase):
 
     def setUp(self):
-        self.build_log = ModuleBuildLogs("/tmp")
-        self.paths = []
+        self.base = tempfile.mkdtemp(prefix='mbs-', suffix='-%s' % self.id())
+        print("Storing build logs in %r" % self.base)
+        self.build_log = ModuleBuildLogs(self.base)
 
     def tearDown(self):
         MBSConsumer.current_module_build_id = None
-        for path in self.paths:
-            if os.path.exists(path):
-                os.unlink(path)
+        shutil.rmtree(self.base)
 
     def test_module_build_logs(self):
         """
@@ -49,8 +51,7 @@ class TestLogger(unittest.TestCase):
         # ensure we are not using some garbage from previous failed test.
         self.build_log.start(1)
         path = self.build_log.path(1)
-        self.paths.append(path)
-        self.assertEqual(path, "/tmp/build-1.log")
+        self.assertEqual(path[len(self.base):], "/build-1.log")
         if os.path.exists(path):
             os.unlink(path)
 
@@ -78,7 +79,7 @@ class TestLogger(unittest.TestCase):
         log.info("ignore this test msg2")
         log.warn("ignore this test msg2")
         log.error("ignore this test msg2")
-        
+
         self.build_log.stop(1)
         self.assertTrue(os.path.exists(path))
         with open(path, "r") as f:
