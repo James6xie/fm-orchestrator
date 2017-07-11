@@ -82,6 +82,7 @@ class TestPoller(unittest.TestCase):
         poller.poll()
 
         # Refresh our module_build object.
+        module_build = models.ModuleBuild.query.filter_by(id=2).one()
         db.session.refresh(module_build)
 
         # Components should be in BUILDING state now.
@@ -156,6 +157,7 @@ class TestPoller(unittest.TestCase):
         poller.poll()
 
         # Refresh our module_build object.
+        module_build = models.ModuleBuild.query.filter_by(id=2).one()
         db.session.refresh(module_build)
 
         self.assertTrue(not koji_session.newRepo.called)
@@ -190,6 +192,7 @@ class TestPoller(unittest.TestCase):
         poller.poll()
 
         # Refresh our module_build object.
+        module_build = models.ModuleBuild.query.filter_by(id=2).one()
         db.session.refresh(module_build)
 
         # Components should not be in building state
@@ -232,6 +235,7 @@ class TestPoller(unittest.TestCase):
             poller = MBSProducer(hub)
             poller.delete_old_koji_targets(conf, db.session)
 
+            module_build = models.ModuleBuild.query.filter_by(id=2).one()
             db.session.refresh(module_build)
             module_build.time_completed = datetime.utcnow() - timedelta(hours=23)
             db.session.commit()

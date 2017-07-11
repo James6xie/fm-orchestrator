@@ -31,9 +31,10 @@ import contextlib
 from datetime import datetime
 from sqlalchemy import engine_from_config, event
 from sqlalchemy.orm import validates, scoped_session, sessionmaker
+from flask import has_app_context
 import modulemd as _modulemd
 
-from module_build_service import db, log, get_url_for
+from module_build_service import db, log, get_url_for, app
 import module_build_service.messaging
 
 from sqlalchemy.orm import lazyload
@@ -66,25 +67,44 @@ BUILD_STATES = {
 
 INVERSE_BUILD_STATES = {v: k for k, v in BUILD_STATES.items()}
 
+@contextlib.contextmanager
+def _dummy_context_mgr():
+    """
+    Yields None. Used in the make_session to not duplicate the code when
+    app_context exists.
+    """
+    yield None
 
 @contextlib.contextmanager
 def make_session(conf):
-    # TODO - we could use ZopeTransactionExtension() here some day for
-    # improved safety on the backend.
-    engine = engine_from_config({
-        'sqlalchemy.url': conf.sqlalchemy_database_uri,
-    })
-    session = scoped_session(sessionmaker(bind=engine))()
-    event.listen(session, "before_commit", session_before_commit_handlers)
-    try:
-        yield session
-        session.commit()
-    except:
-        # This is a no-op if no transaction is in progress.
-        session.rollback()
-        raise
-    finally:
-        session.close()
+    """
+    Yields new SQLAlchemy database sesssion.
+    """
+    # Needs to be set to create app_context.
+    if 'SERVER_NAME' not in app.config:
+        app.config['SERVER_NAME'] = 'localhost'
+
+    # If there is no app_context, we have to create one before creating
+    # the session. If we would create app_context after the session (this
+    # happens in get_url_for() method), new concurrent session would be
+    # created and this would lead to "database is locked" error for SQLite.
+    with app.app_context() if not has_app_context() else _dummy_context_mgr():
+        # TODO - we could use ZopeTransactionExtension() here some day for
+        # improved safety on the backend.
+        engine = engine_from_config({
+            'sqlalchemy.url': conf.sqlalchemy_database_uri,
+        })
+        session = scoped_session(sessionmaker(bind=engine))()
+        event.listen(session, "before_commit", session_before_commit_handlers)
+        try:
+            yield session
+            session.commit()
+        except:
+            # This is a no-op if no transaction is in progress.
+            session.rollback()
+            raise
+        finally:
+            session.close()
 
 
 class MBSBase(db.Model):
