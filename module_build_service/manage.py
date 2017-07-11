@@ -125,37 +125,41 @@ def cleardb():
 def build_module_locally(url, branch, skiptests=False):
     """ Performs local module build using Mock
     """
-    conf.set_item("system", "mock")
+    if 'SERVER_NAME' not in app.config:
+        app.config["SERVER_NAME"] = 'localhost'
 
-    # Use our own local SQLite3 database.
-    confdir = os.path.abspath(os.getcwd())
-    dbdir = os.path.abspath(os.path.join(confdir, '..')) if confdir.endswith('conf') \
-        else confdir
-    dbpath = '/{0}'.format(os.path.join(dbdir, '.mbs_local_build.db'))
-    dburi = 'sqlite://' + dbpath
-    app.config["SQLALCHEMY_DATABASE_URI"] = dburi
-    conf.set_item("sqlalchemy_database_uri", dburi)
-    if os.path.exists(dbpath):
-        os.remove(dbpath)
+    with app.app_context():
+        conf.set_item("system", "mock")
 
-    # Create the database and insert fake base-runtime module there. This is
-    # normally done by the flask_migrate.upgrade(), but I (jkaluza) do not
-    # call it here, because after that call, all the logged messages are not
-    # printed to stdout/stderr and are ignored... I did not find a way how to
-    # fix that.
-    #
-    # In the future, we should use PDC to get what we need from the fake module,
-    # so it's probably not big problem.
-    db.create_all()
+        # Use our own local SQLite3 database.
+        confdir = os.path.abspath(os.getcwd())
+        dbdir = os.path.abspath(os.path.join(confdir, '..')) if confdir.endswith('conf') \
+            else confdir
+        dbpath = '/{0}'.format(os.path.join(dbdir, '.mbs_local_build.db'))
+        dburi = 'sqlite://' + dbpath
+        app.config["SQLALCHEMY_DATABASE_URI"] = dburi
+        conf.set_item("sqlalchemy_database_uri", dburi)
+        if os.path.exists(dbpath):
+            os.remove(dbpath)
 
-    username = getpass.getuser()
-    submit_module_build_from_scm(username, url, branch, allow_local_url=True,
-                                 skiptests=skiptests)
+        # Create the database and insert fake base-runtime module there. This is
+        # normally done by the flask_migrate.upgrade(), but I (jkaluza) do not
+        # call it here, because after that call, all the logged messages are not
+        # printed to stdout/stderr and are ignored... I did not find a way how to
+        # fix that.
+        #
+        # In the future, we should use PDC to get what we need from the fake module,
+        # so it's probably not big problem.
+        db.create_all()
 
-    stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
+        username = getpass.getuser()
+        submit_module_build_from_scm(username, url, branch, allow_local_url=True,
+                                    skiptests=skiptests)
 
-    # Run the consumer until stop_condition returns True
-    module_build_service.scheduler.main([], stop)
+        stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
+
+        # Run the consumer until stop_condition returns True
+        module_build_service.scheduler.main([], stop)
 
 
 @manager.command
