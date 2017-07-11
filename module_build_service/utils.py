@@ -1023,16 +1023,18 @@ def get_reusable_component(session, module, component_name):
     # as the buildrequires in xmd for the passed in mmd
     if set(mmd.buildrequires.keys()) != set(mmd.xmd['mbs']['buildrequires'].keys()):
         log.error(
-            'The submitted module "{0}" has different keys in mmd.buildrequires'
-            ' than in mmd.xmd[\'mbs\'][\'buildrequires\']'.format(mmd.name))
+            'Cannot re-use.  The submitted module "{0}" has different keys in '
+            'mmd.buildrequires than in '
+            'mmd.xmd[\'mbs\'][\'buildrequires\']'.format(mmd.name))
         return None
     # Perform a sanity check to make sure that the buildrequires are the same
     # as the buildrequires in xmd for the mmd of the previous module build
     if set(old_mmd.buildrequires.keys()) != \
             set(old_mmd.xmd['mbs']['buildrequires'].keys()):
         log.error(
-            'Version "{0}" of the module "{1}" has different keys in '
-            'mmd.buildrequires than in mmd.xmd[\'mbs\'][\'buildrequires\']'
+            'Cannot re-use.  Version "{0}" of the module "{1}" has different '
+            'keys in mmd.buildrequires than in '
+            'mmd.xmd[\'mbs\'][\'buildrequires\']'
             .format(previous_module_build.version, previous_module_build.name))
         return None
 
@@ -1044,11 +1046,13 @@ def get_reusable_component(session, module, component_name):
     if old_mmd.buildopts and old_mmd.buildopts.rpms:
         modulemd_macros = old_mmd.buildopts.rpms.macros
     if modulemd_macros != old_modulemd_macros:
+        log.info('Cannot re-use.  Old modulemd macros do not match the new.')
         return None
 
     # If the module buildrequires are different, then we can't reuse the
     # component
     if mmd.buildrequires.keys() != old_mmd.buildrequires.keys():
+        log.info('Cannot re-use.  The set of module buildrequires changed')
         return None
 
     # Make sure that the module buildrequires commit hashes are exactly the same
@@ -1060,6 +1064,7 @@ def get_reusable_component(session, module, component_name):
         ref1 = br_module.get('ref')
         ref2 = old_mmd.xmd['mbs']['buildrequires'][br_module_name].get('ref')
         if not (ref1 and ref2) or ref1 != ref2:
+            log.info('Cannot re-use.  The module buildrequires hashes changed')
             return None
 
     # At this point we've determined that both module builds depend(ed) on the
@@ -1073,6 +1078,7 @@ def get_reusable_component(session, module, component_name):
         session, component_name, module.id)
     if not new_module_build_component or not new_module_build_component.batch \
             or not new_module_build_component.ref:
+        log.info('Cannot re-use.  New component not found in the db.')
         return None
 
     prev_module_build_component = models.ComponentBuild.from_component_name(
@@ -1082,16 +1088,19 @@ def get_reusable_component(session, module, component_name):
     # be reused
     if not prev_module_build_component or not prev_module_build_component.batch\
             or not prev_module_build_component.ref:
+        log.info('Cannot re-use.  Previous component not found in the db.')
         return None
 
     # Make sure the batch number for the component that is trying to be reused
     # hasn't changed since the last build
     if prev_module_build_component.batch != new_module_build_component.batch:
+        log.info('Cannot re-use.  Batch numbers do not match.')
         return None
 
     # Make sure the ref for the component that is trying to be reused
     # hasn't changed since the last build
     if prev_module_build_component.ref != new_module_build_component.ref:
+        log.info('Cannot re-use.  Component commit hashes do not match.')
         return None
 
     # Convert the component_builds to a list and sort them by batch
@@ -1128,8 +1137,11 @@ def get_reusable_component(session, module, component_name):
     if previous_module_build_components == new_module_build_components:
         reusable_component = models.ComponentBuild.query.filter_by(
             package=component_name, module_id=previous_module_build.id).one()
+        log.debug('Found reusable component!')
         return reusable_component
 
+    log.info('Cannot re-use.  Ordering or commit hashes of '
+             'previous batches differ.')
     return None
 
 
