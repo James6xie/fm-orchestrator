@@ -35,7 +35,7 @@ class BaseConfiguration(object):
     KOJI_ENABLE_CONTENT_GENERATOR = True
     COPR_CONFIG = '/etc/module-build-service/copr.conf'
     PDC_URL = 'https://pdc.fedoraproject.org/rest_api/v1'
-    PDC_INSECURE = True
+    PDC_INSECURE = False
     PDC_DEVELOP = True
     SCMURLS = ["git://pkgs.fedoraproject.org/modules/"]
     YAML_SUBMIT_ALLOWED = False
