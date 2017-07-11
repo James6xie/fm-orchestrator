@@ -34,8 +34,9 @@ from flask.views import MethodView
 from module_build_service import app, conf, log
 from module_build_service import models, db
 from module_build_service.utils import (
-    pagination_metadata, filter_module_builds, submit_module_build_from_scm,
-    submit_module_build_from_yaml, scm_url_schemes, get_scm_url_re)
+    pagination_metadata, filter_module_builds, filter_component_builds,
+    submit_module_build_from_scm, submit_module_build_from_yaml,
+    scm_url_schemes, get_scm_url_re)
 from module_build_service.errors import (
     ValidationError, Forbidden, NotFound)
 
@@ -59,7 +60,46 @@ api_v1 = {
             'methods': ['GET', 'PATCH'],
         }
     },
+    'component_builds_list': {
+        'url': '/module-build-service/1/component-builds/',
+        'options': {
+            'defaults': {'id': None},
+            'methods': ['GET'],
+        }
+    },
 }
+
+class ComponentBuildAPI(MethodView):
+
+    def get(self, id):
+        verbose_flag = request.args.get('verbose', 'false')
+
+        if id is None:
+            # Lists all tracked builds
+            p_query = filter_component_builds(request)
+
+            json_data = {
+                'meta': pagination_metadata(p_query, request.args)
+            }
+
+            if verbose_flag.lower() == 'true' or verbose_flag == '1':
+                json_data['items'] = [item.api_json() for item in p_query.items]
+            else:
+                json_data['items'] = [{'id': item.id, 'state': item.state} for
+                                      item in p_query.items]
+
+            return jsonify(json_data), 200
+        else:
+            # Lists details for the specified module builds
+            module = models.ComponentBuild.query.filter_by(id=id).first()
+
+            if module:
+                if verbose_flag.lower() == 'true' or verbose_flag == '1':
+                    return jsonify(module.json()), 200
+                else:
+                    return jsonify(module.api_json()), 200
+            else:
+                raise NotFound('No such module found.')
 
 
 class ModuleBuildAPI(MethodView):
@@ -243,10 +283,17 @@ class YAMLFileHandler(BaseHandler):
 def register_api_v1():
     """ Registers version 1 of MBS API. """
     module_view = ModuleBuildAPI.as_view('module_builds')
+    component_view = ComponentBuildAPI.as_view('component_builds')
     for key, val in api_v1.items():
-        app.add_url_rule(val['url'],
-                         endpoint=key,
-                         view_func=module_view,
-                         **val['options'])
-
+        if key != 'component_builds_list':
+            app.add_url_rule(val['url'],
+                             endpoint=key,
+                             view_func=module_view,
+                             **val['options'])            
+        else:
+            app.add_url_rule(val['url'],
+                             endpoint=key,
+                             view_func=component_view,
+                             **val['options'])
+        
 register_api_v1()
