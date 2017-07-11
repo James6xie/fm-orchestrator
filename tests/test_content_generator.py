@@ -113,9 +113,6 @@ class TestBuild(unittest.TestCase):
         file_dir = self.cg._prepare_file_directory()
         ret = self.cg._get_content_generator_metadata(file_dir)
         rpms_in_tag.assert_called_once()
-        # Remove checksums for the logs, because they change with time.
-        del ret['output'][-1]['checksum']
-        del expected_output['output'][-1]['checksum']
         self.assertEqual(expected_output, ret)
 
     @patch("subprocess.Popen")
