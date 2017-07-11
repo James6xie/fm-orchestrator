@@ -739,7 +739,7 @@ class TestBuild(unittest.TestCase):
             self.assertTrue(build.module_build.state in [models.BUILD_STATES["done"], models.BUILD_STATES["ready"]] )
             self.assertNotEqual(build.package, "module-build-macros")
 
-    @timed(30)
+    @timed(60)
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     def test_submit_build_resume(self, mocked_scm, mocked_get_user, conf_system, dbg):
