@@ -21,7 +21,6 @@
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
 import unittest
-import munch
 import mock
 import koji
 import xmlrpclib
@@ -41,13 +40,6 @@ class FakeKojiModuleBuilder(KojiModuleBuilder):
 
     @module_build_service.utils.retry(wait_on=(xmlrpclib.ProtocolError, koji.GenericError))
     def get_session(self, config, owner):
-        koji_config = munch.Munch(koji.read_config(
-            profile_name=config.koji_profile,
-            user_config=config.koji_config,
-        ))
-
-        address = koji_config.server
-
         koji_session = MagicMock()
         koji_session.getRepo.return_value = {'create_event': 'fake event'}
 
