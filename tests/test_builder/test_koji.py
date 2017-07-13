@@ -70,6 +70,89 @@ class TestKojiBuilder(unittest.TestCase):
         self.assertEquals(repo, "https://kojipkgs.stg.fedoraproject.org/repos"
                           "/module-base-runtime-0.25-9/latest/x86_64")
 
+    def test_get_build_by_artifact_when_tagged(self):
+        """ Test the _get_build_by_artifact happy path. """
+        builder = FakeKojiModuleBuilder(owner=self.module.owner,
+                                        module=self.module,
+                                        config=conf,
+                                        tag_name='module-foo',
+                                        components=[])
+
+        builder.module_tag = {"name": "module-foo", "id": 1}
+        builder.module_build_tag = {"name": "module-foo-build", "id": 2}
+
+        # Set listTagged to return test data
+        tagged = [{"nvr": "foo-1.0-1.module_e0095747"}]
+        builder.koji_session.listTagged.return_value = tagged
+
+        actual = builder._get_build_by_artifact('foo')
+        expected = {'nvr': 'foo-1.0-1.module_e0095747'}
+        self.assertEquals(actual, expected)
+        self.assertEquals(builder.koji_session.tagBuild.call_count, 0)
+
+    def test_get_build_by_artifact_when_untagged(self):
+        """ Test the _get_build_by_artifact un-happy path.
+
+        If there's an untagged build that matches, tag it and return it.
+        """
+        builder = FakeKojiModuleBuilder(owner=self.module.owner,
+                                        module=self.module,
+                                        config=conf,
+                                        tag_name='module-foo',
+                                        components=[])
+
+        builder.module_tag = {"name": "module-foo", "id": 1}
+        builder.module_build_tag = {"name": "module-foo-build", "id": 2}
+
+        # Set listTagged to return test data
+        tagged = []
+        builder.koji_session.listTagged.return_value = tagged
+        untagged = [{
+            "nvr": "foo-1.0-1.module_e0095747",
+            "release": "module_e0095747",
+            "id": "whatever",
+        }]
+        builder.koji_session.untaggedBuilds.return_value = untagged
+        builder.koji_session.getBuild.return_value = {
+            "nvr": "foo-1.0-1.module_e0095747",
+        }
+
+        actual = builder._get_build_by_artifact('foo')
+        expected = {'nvr': 'foo-1.0-1.module_e0095747'}
+        self.assertEquals(actual, expected)
+        builder.koji_session.tagBuild.assert_called_once_with(
+            1, 'foo-1.0-1.module_e0095747')
+
+    def test_get_build_by_artifact_when_nothing_exists(self):
+        """ Test the _get_build_by_artifact super un-happy path.
+
+        If there's an untagged build but it doesn't match our module... we'd
+        better not touch it or try to tag it.  Confirm!
+        """
+        builder = FakeKojiModuleBuilder(owner=self.module.owner,
+                                        module=self.module,
+                                        config=conf,
+                                        tag_name='module-foo',
+                                        components=[])
+
+        builder.module_tag = {"name": "module-foo", "id": 1}
+        builder.module_build_tag = {"name": "module-foo-build", "id": 2}
+
+        # Set listTagged to return nothing...
+        tagged = []
+        builder.koji_session.listTagged.return_value = tagged
+        # See how this is nope and not module_e0095747?
+        untagged = [{
+            "nvr": "foo-1.0-1.nope",
+            "release": "nope",
+        }]
+        builder.koji_session.untaggedBuilds.return_value = untagged
+
+        actual = builder._get_build_by_artifact('foo')
+        expected = None
+        self.assertEquals(actual, expected)
+        self.assertEquals(builder.koji_session.tagBuild.call_count, 0)
+
     @patch('koji.util')
     def test_buildroot_ready(self, mocked_kojiutil):
 
