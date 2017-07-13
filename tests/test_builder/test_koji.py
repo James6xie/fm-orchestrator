@@ -93,10 +93,10 @@ class TestKojiBuilder(unittest.TestCase):
         tag already tagged artifacts
         """
         builder = FakeKojiModuleBuilder(owner=self.module.owner,
-                                         module=self.module,
-                                         config=conf,
-                                         tag_name='module-nginx-1.2',
-                                         components=[])
+                                        module=self.module,
+                                        config=conf,
+                                        tag_name='module-nginx-1.2',
+                                        components=[])
 
         builder.module_tag = {"name": "module-foo", "id": 1}
         builder.module_build_tag = {"name": "module-foo-build", "id": 2}
