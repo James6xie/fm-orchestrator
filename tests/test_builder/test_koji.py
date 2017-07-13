@@ -102,23 +102,23 @@ class TestKojiBuilder(unittest.TestCase):
         builder.module_build_tag = {"name": "module-foo-build", "id": 2}
 
         # Set listTagged to return test data
-        tagged = [{"nvr": "foo-1.0-1.module_x"},
-                  {"nvr": "bar-1.0-1.module_x"}]
+        tagged = [{"nvr": "foo-1.0-1.module_e0095747"},
+                  {"nvr": "bar-1.0-1.module_e0095747"}]
         builder.koji_session.listTagged.return_value = tagged
 
         # Try to tag one artifact which is already tagged and one new ...
-        to_tag = ["foo-1.0-1.module_x", "new-1.0-1.module_x"]
+        to_tag = ["foo-1.0-1.module_e0095747", "new-1.0-1.module_e0095747"]
         builder.buildroot_add_artifacts(to_tag)
 
         # ... only new one should be added.
         builder.koji_session.tagBuild.assert_called_once_with(
-            builder.module_build_tag["id"], "new-1.0-1.module_x")
+            builder.module_build_tag["id"], "new-1.0-1.module_e0095747")
 
         # Try the same for tag_artifacts(...).
         builder.koji_session.tagBuild.reset_mock()
         builder.tag_artifacts(to_tag)
         builder.koji_session.tagBuild.assert_called_once_with(
-            builder.module_tag["id"], "new-1.0-1.module_x")
+            builder.module_tag["id"], "new-1.0-1.module_e0095747")
 
 
 class TestGetKojiClientSession(unittest.TestCase):
