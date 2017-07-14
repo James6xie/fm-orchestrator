@@ -339,6 +339,7 @@ class ModuleBuild(MBSBase):
             'state_reason': self.state_reason,
             "owner": self.owner,
             "name": self.name,
+            "scmurl": self.scmurl, 
             "time_submitted": self._utc_datetime_to_iso(self.time_submitted),
             "time_modified": self._utc_datetime_to_iso(self.time_modified),
             "time_completed": self._utc_datetime_to_iso(self.time_completed),
