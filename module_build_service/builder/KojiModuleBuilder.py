@@ -411,12 +411,17 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
         untagged = self.koji_session.untaggedBuilds(**opts)
         for build in untagged:
             if build["release"].endswith(release):
-                build_info = self.koji_session.getBuild(build['id'])
-                if not build_info:
-                    log.error("Cannot get build info of build %r", build['id'])
-                    return None
-                self.tag_artifacts([build_info["nvr"]])
-                return build_info
+                # Tag it.
+                nvr = "{name}-{version}-{release}".format(**build)
+                self.tag_artifacts([nvr])
+
+                # Now, make the same query we made earlier to return a dict
+                # with the same schema.
+                tagged = self.koji_session.listTagged(tag, **opts)
+                if not tagged:
+                    # Should be impossible.
+                    raise ValueError("Just tagged %s but didn't find it" % nvr)
+                return tagged[0]
 
         return None
 

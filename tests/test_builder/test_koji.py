@@ -104,21 +104,32 @@ class TestKojiBuilder(unittest.TestCase):
         builder.module_tag = {"name": "module-foo", "id": 1}
         builder.module_build_tag = {"name": "module-foo-build", "id": 2}
 
-        # Set listTagged to return test data
-        tagged = []
-        builder.koji_session.listTagged.return_value = tagged
-        untagged = [{
-            "nvr": "foo-1.0-1.module_e0095747",
-            "release": "module_e0095747",
-            "id": "whatever",
-        }]
-        builder.koji_session.untaggedBuilds.return_value = untagged
-        builder.koji_session.getBuild.return_value = {
+        tagged_build = {
+            "id": 9000,
+            "name": "foo",
+            "version": "1.0",
+            "release": "1.module_e0095747",
             "nvr": "foo-1.0-1.module_e0095747",
         }
+        # Set listTagged to return test data
+        builder.koji_session.listTagged.side_effect = [
+            # Return nothing the first time
+            [],
+            # Return nothing the second time
+            [],
+            # But something the third time.
+            [tagged_build],
+        ]
+        untagged = [{
+            "id": 9000,
+            "name": "foo",
+            "version": "1.0",
+            "release": "1.module_e0095747",
+        }]
+        builder.koji_session.untaggedBuilds.return_value = untagged
 
         actual = builder._get_build_by_artifact('foo')
-        expected = {'nvr': 'foo-1.0-1.module_e0095747'}
+        expected = tagged_build
         self.assertEquals(actual, expected)
         builder.koji_session.tagBuild.assert_called_once_with(
             1, 'foo-1.0-1.module_e0095747')
