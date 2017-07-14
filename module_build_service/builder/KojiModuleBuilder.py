@@ -57,7 +57,7 @@ class KojiModuleBuilder(GenericBuilder):
 
     backend = "koji"
     _build_lock = threading.Lock()
-    newRegion = make_region().configure("dogpile.cache.memory")
+    region = dogpile.cache.make_region()
 
     @module_build_service.utils.validate_koji_tag('tag_name')
     def __init__(self, owner, module, config, tag_name, components):
@@ -92,7 +92,7 @@ class KojiModuleBuilder(GenericBuilder):
         return "<KojiModuleBuilder module: %s, tag: %s>" % (
             self.module_str, self.tag_name)
 
-    @dogpile.cache.memory.cache_on_arguments()
+    @region.cache_on_arguments()
     def getPerms(self):
         return dict([(p['name'], p['id']) for p in self.koji_session.getAllPerms()])
 
