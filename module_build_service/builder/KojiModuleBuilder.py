@@ -57,7 +57,7 @@ class KojiModuleBuilder(GenericBuilder):
 
     backend = "koji"
     _build_lock = threading.Lock()
-    region = dogpile.cache.make_region()
+    region = dogpile.cache.make_region().configure('dogpile.cache.memory')
 
     @module_build_service.utils.validate_koji_tag('tag_name')
     def __init__(self, owner, module, config, tag_name, components):
