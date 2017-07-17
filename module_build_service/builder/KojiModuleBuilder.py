@@ -30,6 +30,7 @@ import tempfile
 import glob
 import datetime
 import time
+import dogpile.cache
 import random
 import string
 import kobo.rpmlib
@@ -54,6 +55,7 @@ class KojiModuleBuilder(GenericBuilder):
 
     backend = "koji"
     _build_lock = threading.Lock()
+    region = dogpile.cache.make_region().configure('dogpile.cache.memory')
 
     @module_build_service.utils.validate_koji_tag('tag_name')
     def __init__(self, owner, module, config, tag_name, components):
@@ -88,6 +90,10 @@ class KojiModuleBuilder(GenericBuilder):
     def __repr__(self):
         return "<KojiModuleBuilder module: %s, tag: %s>" % (
             self.module_str, self.tag_name)
+
+    @region.cache_on_arguments()
+    def getPerms(self):
+        return dict([(p['name'], p['id']) for p in self.koji_session.getAllPerms()])
 
     @module_build_service.utils.retry(wait_on=(IOError, koji.GenericError))
     def buildroot_ready(self, artifacts=None):
@@ -617,7 +623,8 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
             if taginfo['locked']:
                 raise SystemError("Tag %s: master lock already set. Can't edit tag" % taginfo['name'])
 
-            perm_ids = dict([(p['name'], p['id']) for p in self.koji_session.getAllPerms()])
+            perm_ids = self.getPerms()
+
             if perm not in perm_ids:
                 raise ValueError("Unknown permissions %s" % perm)
 
