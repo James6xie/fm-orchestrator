@@ -2,22 +2,23 @@ Flask
 Flask-Migrate
 Flask-SQLAlchemy
 Flask-Script
+dogpile.cache
 fedmsg
-moksha.hub
-psutil
 funcsigs # Python2 only
+futures # Python 2 only
 httplib2
 kobo
 m2crypto
 m2ext
 mock
 modulemd>=1.2.0,<2.0.0
+moksha.hub
 munch
 pdc-client
+psutil
 pyOpenSSL
 python-fedora
 qpid-python
 six
 sqlalchemy
-futures # Python 2 only
 tabulate
