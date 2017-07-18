@@ -60,6 +60,8 @@ Koji workflow
 8) (optional) wait for selected builds to be available in buildroot
 
 """
+
+
 class GenericBuilder(six.with_metaclass(ABCMeta)):
     """
     External Api for builders

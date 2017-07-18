@@ -31,7 +31,6 @@ from module_build_service.errors import ProgrammingError, ValidationError
 from tests import (test_reuse_component_init_data, init_data, db,
                    test_reuse_shared_userspace_init_data)
 import mock
-from mock import PropertyMock
 import koji
 import module_build_service.scheduler.handlers.components
 from module_build_service.builder import GenericBuilder, KojiModuleBuilder
@@ -40,6 +39,7 @@ from tests import app
 BASE_DIR = path.abspath(path.dirname(__file__))
 CASSETTES_DIR = path.join(
     path.abspath(path.dirname(__file__)), '..', 'vcr-request-data')
+
 
 class MockedSCM(object):
     def __init__(self, mocked_scm, name, mmd_filename, commit=None):
@@ -60,12 +60,13 @@ class MockedSCM(object):
         mkdir(scm_dir)
         base_dir = path.abspath(path.dirname(__file__))
         copyfile(path.join(base_dir, '..', 'staged_data', self.mmd_filename),
-                    path.join(scm_dir, self.name + ".yaml"))
+                 path.join(scm_dir, self.name + ".yaml"))
 
         return scm_dir
 
     def get_latest(self, branch='master'):
         return self.commit if self.commit else branch
+
 
 class TestUtils(unittest.TestCase):
 
@@ -115,8 +116,8 @@ class TestUtils(unittest.TestCase):
                         'stream': 'master',
                         'version': '20170404161234'}},
                 'rpms': {'perl-List-Compare': {'ref': '76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb'},
-                        'perl-Tangerine': {'ref': '4ceea43add2366d8b8c5a622a2fb563b625b9abf'},
-                        'tangerine': {'ref': 'fbed359411a1baa08d4a88e0d12d426fbf8f602c'}},
+                         'perl-Tangerine': {'ref': '4ceea43add2366d8b8c5a622a2fb563b625b9abf'},
+                         'tangerine': {'ref': 'fbed359411a1baa08d4a88e0d12d426fbf8f602c'}},
                 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/testmodule'
                           '.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4',
             }
@@ -133,6 +134,7 @@ class TestUtils(unittest.TestCase):
             'f24': '4ceea43add2366d8b8c5a622a2fb563b625b9abf',
             'f23': 'fbed359411a1baa08d4a88e0d12d426fbf8f602c',
             'f25': '76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb'}
+
         def mocked_get_latest(branch="master"):
             return hashes_returned[branch]
         mocked_scm.return_value.get_latest = mocked_get_latest
@@ -152,8 +154,8 @@ class TestUtils(unittest.TestCase):
                         'stream': 'master',
                         'version': '20170404161234'}},
                 'rpms': {'perl-List-Compare': {'ref': '76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb'},
-                        'perl-Tangerine': {'ref': '4ceea43add2366d8b8c5a622a2fb563b625b9abf'},
-                        'tangerine': {'ref': 'fbed359411a1baa08d4a88e0d12d426fbf8f602c'}},
+                         'perl-Tangerine': {'ref': '4ceea43add2366d8b8c5a622a2fb563b625b9abf'},
+                         'tangerine': {'ref': 'fbed359411a1baa08d4a88e0d12d426fbf8f602c'}},
                 'scmurl': None,
             }
         }
@@ -368,7 +370,7 @@ class TestUtils(unittest.TestCase):
 
         self.assertEquals(
             validate_koji_tag_good_tag_value_in_dict_nondefault_key(
-               {'nondefault': 'module-foo'}), True)
+                {'nondefault': 'module-foo'}), True)
 
     def test_validate_koji_tag_double_trouble_good(self):
         """ Test that we pass on a list of tags that are good. """
@@ -413,7 +415,7 @@ class TestUtils(unittest.TestCase):
         component states properly.
         """
         MockedSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
-                        '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+                  '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
         with app.app_context():
             test_reuse_component_init_data()
             # Mark the module build as failed, so we can resubmit it.
@@ -502,7 +504,6 @@ class DummyModuleBuilder(GenericBuilder):
         self.tag_name = tag_name
         self.config = config
 
-
     def buildroot_connect(self, groups):
         pass
 
@@ -547,6 +548,7 @@ class DummyModuleBuilder(GenericBuilder):
 
     def list_tasks_for_components(self, component_builds=None, state='active'):
         pass
+
 
 @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups", return_value={'build': [], 'srpm-build': []})
 class TestBatches(unittest.TestCase):
@@ -639,9 +641,6 @@ class TestBatches(unittest.TestCase):
 
         builder = mock.MagicMock()
         builder.buildroot_ready.return_value = False
-        further_work = module_build_service.utils.start_next_batch_build(
-            conf, module_build, db.session, builder)
 
         # Batch number should not increase.
         self.assertEqual(module_build.batch, 1)
-

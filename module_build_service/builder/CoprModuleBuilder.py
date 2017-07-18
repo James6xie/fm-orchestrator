@@ -35,7 +35,6 @@ from copr.client import CoprClient
 from copr.exceptions import CoprRequestException
 
 from module_build_service import log
-from module_build_service.models import ModuleBuild
 import module_build_service.scm
 import module_build_service.utils
 
@@ -69,7 +68,6 @@ class CoprModuleBuilder(GenericBuilder):
         self.client.username = self.owner
         self.chroot = "custom-1-x86_64"
         self.__prep = False
-
 
     @classmethod
     def _get_client(cls, config):

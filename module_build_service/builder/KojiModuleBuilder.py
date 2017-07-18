@@ -40,7 +40,7 @@ import threading
 import munch
 from OpenSSL.SSL import SysCallError
 
-from module_build_service import conf, log, db
+from module_build_service import log
 import module_build_service.scm
 import module_build_service.utils
 from module_build_service.builder.utils import execute_cmd
@@ -80,9 +80,9 @@ class KojiModuleBuilder(GenericBuilder):
             raise ValueError("No koji_arches specified in the config.")
 
         # These eventually get populated by calling _connect and __prep is set to True
-        self.module_tag = None # string
-        self.module_build_tag = None # string
-        self.module_target = None # A koji target dict
+        self.module_tag = None  # string
+        self.module_build_tag = None  # string
+        self.module_target = None  # A koji target dict
 
         self.build_priority = config.koji_build_priority
         self.components = components
@@ -127,11 +127,10 @@ class KojiModuleBuilder(GenericBuilder):
             log.info("%r buildroot is not yet ready.. wait." % self)
         return ready
 
-
     @staticmethod
     def get_disttag_srpm(disttag, module_build):
 
-        #Taken from Karsten's create-distmacro-pkg.sh
+        # Taken from Karsten's create-distmacro-pkg.sh
         # - however removed any provides to system-release/redhat-release
 
         name = 'module-build-macros'
@@ -284,7 +283,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
 
         # Create or update individual tags
         self.module_tag = self._koji_create_tag(
-            self.tag_name, self.arches, perm="admin") # the main tag needs arches so pungi can dump it
+            self.tag_name, self.arches, perm="admin")  # the main tag needs arches so pungi can dump it
 
         self.module_build_tag = self._koji_create_tag(
             self.tag_name + "-build", self.arches, perm="admin")
@@ -370,7 +369,8 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
 
         log.info("Waiting for task_id=%s to finish" % task_id)
 
-        timeout = 60 * 60 # 60 minutes
+        timeout = 60 * 60  # 60 minutes
+
         @module_build_service.utils.retry(timeout=timeout, wait_on=koji.GenericError)
         def get_result():
             log.debug("Waiting for task_id=%s to finish" % task_id)
@@ -467,9 +467,9 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
                     source, task_info['task_id'], self))
                 return task_info['task_id'], koji.BUILD_STATES['COMPLETE'], 'Build already exists.', task_info['nvr']
 
-            self._koji_whitelist_packages([artifact_name,])
+            self._koji_whitelist_packages([artifact_name])
             if '://' not in source:
-                #treat source as an srpm and upload it
+                # treat source as an srpm and upload it
                 serverdir = _unique_path('cli-build')
                 callback = None
                 self.koji_session.uploadWrapper(source, serverdir, callback=callback)
@@ -480,8 +480,8 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
             # The reason is that it is faster to build this RPM in
             # already existing shared target, because Koji does not need to do
             # repo-regen.
-            if (artifact_name == "module-build-macros"
-                and self.config.koji_build_macros_target):
+            if (artifact_name == "module-build-macros" and
+               self.config.koji_build_macros_target):
                 module_target = self.config.koji_build_macros_target
             else:
                 module_target = self.module_target['name']
@@ -536,13 +536,14 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
         priority = 0
         if inheritance_data:
             priority = inheritance_data[-1]['priority'] + 10
+
         def record_exists(parent_id, data):
             for item in data:
                 if parent_id == item['parent_id']:
                     return True
             return False
 
-        for parent in parent_tags: # We expect that they're sorted
+        for parent in parent_tags:  # We expect that they're sorted
             parent = self._get_tag(parent)
             if record_exists(parent['id'], inheritance_data):
                 continue
@@ -571,10 +572,10 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
             raise ValueError("Expected dict {'group' : [str(package1), ...]")
 
         dest_tag = self._get_tag(dest_tag)['name']
-        existing_groups = dict([
-                                   (p['name'], p['group_id'])
-                                   for p in self.koji_session.getTagGroups(dest_tag, inherit=False)
-                                   ])
+        existing_groups = dict([(p['name'], p['group_id'])
+                                for p
+                                in self.koji_session.getTagGroups(dest_tag, inherit=False)
+                                ])
 
         for group, packages in groups.items():
             group_id = existing_groups.get(group, None)
@@ -588,7 +589,6 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
             # This doesn't fail in case that it's already present in the group. This should be safe
             for pkg in packages:
                 self.koji_session.groupPackageListAdd(dest_tag, group, pkg)
-
 
     @module_build_service.utils.validate_koji_tag('tag_name')
     def _koji_create_tag(self, tag_name, arches=None, perm=None):
@@ -613,8 +613,8 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
                 raise ValueError("Expected list or None on input got %s" % type(arches))
 
             current_arches = []
-            if taginfo['arches']: # None if none
-                current_arches = taginfo['arches'].split() # string separated by empty spaces
+            if taginfo['arches']:  # None if none
+                current_arches = taginfo['arches'].split()  # string separated by empty spaces
 
             if set(arches) != set(current_arches):
                 opts['arches'] = " ".join(arches)
@@ -629,7 +629,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
                 raise ValueError("Unknown permissions %s" % perm)
 
             perm_id = perm_ids[perm]
-            if taginfo['perm'] not in (perm_id, perm): # check either id or the string
+            if taginfo['perm'] not in (perm_id, perm):  # check either id or the string
                 opts['perm'] = perm_id
 
         opts['extra'] = {
@@ -638,7 +638,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
 
         # edit tag with opts
         self.koji_session.editTag2(tag_name, **opts)
-        return self._get_tag(tag_name) # Return up2date taginfo
+        return self._get_tag(tag_name)  # Return up2date taginfo
 
     def _koji_whitelist_packages(self, packages, tags=None):
         if not tags:
@@ -681,7 +681,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
         if not target_info:
             target_info = self.koji_session.createBuildTarget(name, build_tag['name'], dest_tag['name'])
 
-        else: # verify whether build and destination tag matches
+        else:  # verify whether build and destination tag matches
             if build_tag['name'] != target_info['build_tag_name']:
                 raise SystemError("Target references unexpected build_tag_name. Got '%s', expected '%s'. Please contact administrator." % (target_info['build_tag_name'], build_tag['name']))
             if dest_tag['name'] != target_info['dest_tag_name']:
@@ -725,7 +725,7 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
                 # TODO: https://pagure.io/fm-orchestrator/issue/397
                 # Subj: Do not mix target/tag when looking for component builds
                 if (c.package == task_opts['mbs_artifact_name'] and
-                            c.module_build.koji_tag == task_opts['mbs_module_target']):
+                   c.module_build.koji_tag == task_opts['mbs_module_target']):
                     tasks.append(task)
 
         return tasks

@@ -1,17 +1,12 @@
 import json
-import requests
-import os
-import sys
 import yaml
-
-import pdc_client
 
 filename = 'bootstrap-master-1.json'
 print("Reading %s" % filename)
 with open(filename, 'r') as f:
     entry = json.loads(f.read())
 
-print entry['modulemd']
+print(entry['modulemd'])
 modulemd = yaml.load(entry['modulemd'])
 mbs = {}
 mbs['commit'] = modulemd['data']['xmd']['mbs_commit']

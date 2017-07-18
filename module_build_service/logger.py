@@ -53,6 +53,7 @@ levels["info"] = logging.INFO
 
 log_format = '%(asctime)s - %(threadName)s - %(name)s - %(levelname)s - %(message)s'
 
+
 class ModuleBuildFileHandler(logging.FileHandler):
     """
     FileHandler subclass which handles only messages generated during
@@ -138,13 +139,15 @@ def str_to_log_level(level):
 
     Available levels are: debug, info, warning, error
     """
-    if not level in levels:
+    if level not in levels:
         return logging.NOTSET
 
     return levels[level]
 
+
 def supported_log_backends():
     return ("console", "journal", "file")
+
 
 def init_logging(conf):
     """

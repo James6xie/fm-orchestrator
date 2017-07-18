@@ -36,6 +36,7 @@ from tests import conf, init_data
 
 from module_build_service.builder import KojiModuleBuilder
 
+
 class FakeKojiModuleBuilder(KojiModuleBuilder):
 
     @module_build_service.utils.retry(wait_on=(xmlrpclib.ProtocolError, koji.GenericError))
@@ -49,6 +50,7 @@ class FakeKojiModuleBuilder(KojiModuleBuilder):
         koji_session.getTag = _get_tag
 
         return koji_session
+
 
 class TestKojiBuilder(unittest.TestCase):
 
@@ -234,4 +236,3 @@ class TestGetKojiClientSession(unittest.TestCase):
                           components=[])
         args, kwargs = mocked_krb_login.call_args
         self.assertTrue(set([('proxyuser', self.module.owner)]).issubset(set(kwargs.items())))
-

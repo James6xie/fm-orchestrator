@@ -24,7 +24,7 @@ import unittest
 import koji
 import vcr
 import os
-from os import path, mkdir, remove
+from os import path, mkdir
 from os.path import dirname
 from shutil import copyfile
 
@@ -38,7 +38,6 @@ from module_build_service import db, models, conf, build_logs
 from mock import patch, PropertyMock
 
 from tests import app, init_data, test_reuse_component_init_data
-import os
 import json
 import itertools
 
@@ -50,6 +49,7 @@ base_dir = dirname(dirname(__file__))
 cassette_dir = base_dir + '/vcr-request-data/'
 
 user = ('Homer J. Simpson', set(['packager']))
+
 
 class MockedSCM(object):
     def __init__(self, mocked_scm, name, mmd_filename, commit=None):
@@ -70,12 +70,13 @@ class MockedSCM(object):
         mkdir(scm_dir)
         base_dir = path.abspath(path.dirname(__file__))
         copyfile(path.join(base_dir, '..', 'staged_data', self.mmd_filename),
-                    path.join(scm_dir, self.mmd_filename))
+                 path.join(scm_dir, self.mmd_filename))
 
         return scm_dir
 
     def get_latest(self, branch='master'):
         return branch
+
 
 class TestModuleBuilder(GenericBuilder):
     """
@@ -173,7 +174,7 @@ class TestModuleBuilder(GenericBuilder):
         module_build_service.scheduler.consumer.work_queue_put(msg)
 
     def build(self, artifact_name, source):
-        print "Starting building artifact %s: %s" % (artifact_name, source)
+        print("Starting building artifact %s: %s" % (artifact_name, source))
 
         TestModuleBuilder._build_id += 1
 
@@ -207,18 +208,18 @@ class TestModuleBuilder(GenericBuilder):
 
 
 @patch("module_build_service.config.Config.system",
-        new_callable=PropertyMock, return_value="test")
+       new_callable=PropertyMock, return_value="test")
 @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
        return_value={
-            'srpm-build':
-                set(['shadow-utils', 'fedora-release', 'redhat-rpm-config',
-                     'rpm-build', 'fedpkg-minimal', 'gnupg2', 'bash']),
-            'build':
-                set(['unzip', 'fedora-release', 'tar', 'cpio', 'gawk',
-                     'gcc', 'xz', 'sed', 'findutils', 'util-linux', 'bash',
-                     'info', 'bzip2', 'grep', 'redhat-rpm-config',
-                     'diffutils', 'make', 'patch', 'shadow-utils',
-                     'coreutils', 'which', 'rpm-build', 'gzip', 'gcc-c++'])})
+           'srpm-build':
+           set(['shadow-utils', 'fedora-release', 'redhat-rpm-config',
+                'rpm-build', 'fedpkg-minimal', 'gnupg2', 'bash']),
+           'build':
+           set(['unzip', 'fedora-release', 'tar', 'cpio', 'gawk',
+                'gcc', 'xz', 'sed', 'findutils', 'util-linux', 'bash',
+                'info', 'bzip2', 'grep', 'redhat-rpm-config',
+                'diffutils', 'make', 'patch', 'shadow-utils',
+                'coreutils', 'which', 'rpm-build', 'gzip', 'gcc-c++'])})
 class TestBuild(unittest.TestCase):
 
     # Global variable used for tests if needed
@@ -300,7 +301,7 @@ class TestBuild(unittest.TestCase):
         # or "ready" state.
         for build in models.ComponentBuild.query.filter_by(module_id=module_build_id).all():
             self.assertEqual(build.state, koji.BUILD_STATES['COMPLETE'])
-            self.assertTrue(build.module_build.state in [models.BUILD_STATES["done"], models.BUILD_STATES["ready"]] )
+            self.assertTrue(build.module_build.state in [models.BUILD_STATES["done"], models.BUILD_STATES["ready"]])
 
         # All components has to be tagged, so tag_groups and buildroot_groups are empty...
         self.assertEqual(tag_groups, [])
@@ -323,13 +324,13 @@ class TestBuild(unittest.TestCase):
             return json.loads(rv.data)
 
         with patch("module_build_service.config.Config.yaml_submit_allowed",
-                new_callable=PropertyMock, return_value=True):
+                   new_callable=PropertyMock, return_value=True):
             conf.set_item("yaml_submit_allowed", True)
             data = submit()
             self.assertEqual(data['id'], 1)
 
         with patch("module_build_service.config.Config.yaml_submit_allowed",
-                new_callable=PropertyMock, return_value=False):
+                   new_callable=PropertyMock, return_value=False):
             data = submit()
             self.assertEqual(data['status'], 403)
             self.assertEqual(data['message'], 'YAML submission is not enabled')
@@ -373,11 +374,11 @@ class TestBuild(unittest.TestCase):
         # method. We just cancel the build here using the web API to simulate
         # user cancelling the build in the middle of building.
         def on_build_cb(cls, artifact_name, source):
-            self.client.patch(
-                '/module-build-service/1/module-builds/' + str(module_build_id),
-                data=json.dumps({'state': 'failed'}))
+            self.client.patch('/module-build-service/1/module-builds/' + str(module_build_id),
+                              data=json.dumps({'state': 'failed'}))
 
         cancelled_tasks = []
+
         def on_cancel_cb(cls, task_id):
             cancelled_tasks.append(task_id)
 
@@ -433,7 +434,7 @@ class TestBuild(unittest.TestCase):
         # or "ready" state.
         for build in models.ComponentBuild.query.filter_by(module_id=module_build_id).all():
             self.assertEqual(build.state, koji.BUILD_STATES['COMPLETE'])
-            self.assertTrue(build.module_build.state in [models.BUILD_STATES["done"], models.BUILD_STATES["ready"]] )
+            self.assertTrue(build.module_build.state in [models.BUILD_STATES["done"], models.BUILD_STATES["ready"]])
 
     @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
@@ -465,7 +466,7 @@ class TestBuild(unittest.TestCase):
             main_stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
             over_threshold = conf.num_concurrent_builds < \
                 db.session.query(models.ComponentBuild).filter_by(
-                state=koji.BUILD_STATES['BUILDING']).count()
+                    state=koji.BUILD_STATES['BUILDING']).count()
             return main_stop(message) or over_threshold
 
         msgs = []
@@ -477,7 +478,7 @@ class TestBuild(unittest.TestCase):
             self.assertEqual(build.state, koji.BUILD_STATES['COMPLETE'])
             # When this fails, it can mean that num_concurrent_builds
             # threshold has been met.
-            self.assertTrue(build.module_build.state in [models.BUILD_STATES["done"], models.BUILD_STATES["ready"]] )
+            self.assertTrue(build.module_build.state in [models.BUILD_STATES["done"], models.BUILD_STATES["ready"]])
 
     @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
@@ -600,7 +601,7 @@ class TestBuild(unittest.TestCase):
     @patch("module_build_service.config.Config.num_concurrent_builds",
            new_callable=PropertyMock, return_value=1)
     def test_all_builds_in_batch_fail(self, conf_num_concurrent_builds, mocked_scm,
-                                  mocked_get_user, conf_system, dbg):
+                                      mocked_get_user, conf_system, dbg):
         """
         Tests that if the build in batch fails, other components in a batch
         are still build, but next batch is not started.
@@ -661,8 +662,8 @@ class TestBuild(unittest.TestCase):
         tag_groups = []
         tag_groups.append(set(
             ['perl-Tangerine-0.23-1.module_testmodule_master_20170109091357',
-            'perl-List-Compare-0.53-5.module_testmodule_master_20170109091357',
-            'tangerine-0.22-3.module_testmodule_master_20170109091357']))
+             'perl-List-Compare-0.53-5.module_testmodule_master_20170109091357',
+             'tangerine-0.22-3.module_testmodule_master_20170109091357']))
 
         def on_tag_artifacts_cb(cls, artifacts):
             self.assertEqual(tag_groups.pop(0), set(artifacts))
@@ -671,8 +672,9 @@ class TestBuild(unittest.TestCase):
         buildtag_groups = []
         buildtag_groups.append(set(
             ['perl-Tangerine-0.23-1.module_testmodule_master_20170109091357',
-            'perl-List-Compare-0.53-5.module_testmodule_master_20170109091357',
-            'tangerine-0.22-3.module_testmodule_master_20170109091357']))
+             'perl-List-Compare-0.53-5.module_testmodule_master_20170109091357',
+             'tangerine-0.22-3.module_testmodule_master_20170109091357']))
+
         def on_buildroot_add_artifacts_cb(cls, artifacts, install):
             self.assertEqual(buildtag_groups.pop(0), set(artifacts))
         TestModuleBuilder.on_buildroot_add_artifacts_cb = on_buildroot_add_artifacts_cb
@@ -697,7 +699,7 @@ class TestBuild(unittest.TestCase):
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     def test_submit_build_reuse_all_without_build_macros(self, mocked_scm, mocked_get_user,
-                                    conf_system, dbg):
+                                                         conf_system, dbg):
         """
         Tests that we can reuse components even when the reused module does
         not have module-build-macros component.
@@ -718,8 +720,8 @@ class TestBuild(unittest.TestCase):
         tag_groups = []
         tag_groups.append(set(
             ['perl-Tangerine-0.23-1.module_testmodule_master_20170109091357',
-            'perl-List-Compare-0.53-5.module_testmodule_master_20170109091357',
-            'tangerine-0.22-3.module_testmodule_master_20170109091357']))
+             'perl-List-Compare-0.53-5.module_testmodule_master_20170109091357',
+             'tangerine-0.22-3.module_testmodule_master_20170109091357']))
 
         def on_tag_artifacts_cb(cls, artifacts):
             self.assertEqual(tag_groups.pop(0), set(artifacts))
@@ -728,8 +730,9 @@ class TestBuild(unittest.TestCase):
         buildtag_groups = []
         buildtag_groups.append(set(
             ['perl-Tangerine-0.23-1.module_testmodule_master_20170109091357',
-            'perl-List-Compare-0.53-5.module_testmodule_master_20170109091357',
-            'tangerine-0.22-3.module_testmodule_master_20170109091357']))
+             'perl-List-Compare-0.53-5.module_testmodule_master_20170109091357',
+             'tangerine-0.22-3.module_testmodule_master_20170109091357']))
+
         def on_buildroot_add_artifacts_cb(cls, artifacts, install):
             self.assertEqual(buildtag_groups.pop(0), set(artifacts))
         TestModuleBuilder.on_buildroot_add_artifacts_cb = on_buildroot_add_artifacts_cb
@@ -742,7 +745,7 @@ class TestBuild(unittest.TestCase):
         # or "ready" state.
         for build in models.ComponentBuild.query.filter_by(module_id=2).all():
             self.assertEqual(build.state, koji.BUILD_STATES['COMPLETE'])
-            self.assertTrue(build.module_build.state in [models.BUILD_STATES["done"], models.BUILD_STATES["ready"]] )
+            self.assertTrue(build.module_build.state in [models.BUILD_STATES["done"], models.BUILD_STATES["ready"]])
             self.assertNotEqual(build.package, "module-build-macros")
 
     @timed(60)
@@ -769,7 +772,7 @@ class TestBuild(unittest.TestCase):
         # Set the components from batch 2 to COMPLETE
         components = models.ComponentBuild.query.filter_by(module_id=module_build_id)
         for c in components:
-            print c
+            print(c)
             if c.batch == 2:
                 c.state = koji.BUILD_STATES["COMPLETE"]
         db.session.commit()
@@ -783,4 +786,4 @@ class TestBuild(unittest.TestCase):
         # or "ready" state.
         for build in models.ComponentBuild.query.filter_by(module_id=module_build_id).all():
             self.assertEqual(build.state, koji.BUILD_STATES['COMPLETE'])
-            self.assertTrue(build.module_build.state in [models.BUILD_STATES["done"], models.BUILD_STATES["ready"]] )
+            self.assertTrue(build.module_build.state in [models.BUILD_STATES["done"], models.BUILD_STATES["ready"]])

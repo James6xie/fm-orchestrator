@@ -57,7 +57,6 @@ class KojiContentGenerator(object):
         self.mmd = module.modulemd
         self.config = config
 
-
     def __repr__(self):
         return "<KojiContentGenerator module: %s>" % (self.module_name)
 
@@ -185,7 +184,7 @@ class KojiContentGenerator(object):
 
         try:
             rpms, builds = session.listTaggedRPMS(tag, latest=True)
-        except koji.GenericError as e:
+        except koji.GenericError:
             log.exception("Failed to list rpms in tag %r", tag)
             # If the tag doesn't exist.. then there are no rpms in that tag.
             return []
@@ -244,7 +243,6 @@ class KojiContentGenerator(object):
         }
         return ret
 
-
     def _get_output(self, output_path):
         ret = []
         rpms = self._koji_rpms_in_tag(self.module.koji_tag)
@@ -302,7 +300,6 @@ class KojiContentGenerator(object):
 
         return ret
 
-
     def _get_content_generator_metadata(self, output_path):
         ret = {
             u"metadata_version": 0,
@@ -327,10 +324,9 @@ class KojiContentGenerator(object):
         log_path = os.path.join(prepdir, "build.log")
         try:
             shutil.copy(build_logs.path(self.module.id), log_path)
-        except IOError, e:
+        except IOError as e:
             log.exception(e)
         return prepdir
-
 
     def koji_import(self):
         """This method imports given module into the configured koji instance as
@@ -345,7 +341,7 @@ class KojiContentGenerator(object):
             build_info = session.CGImport(metadata, file_dir)
             log.debug("Content generator import done: %s",
                       json.dumps(build_info, sort_keys=True, indent=4))
-        except Exception, e:
+        except Exception as e:
             log.exception("Content generator import failed: %s", e)
             raise e
         finally:

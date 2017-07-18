@@ -29,7 +29,7 @@ import module_build_service.pdc
 import module_build_service.utils
 import module_build_service.messaging
 from module_build_service.utils import (
-    start_next_batch_build, attempt_to_reuse_all_components,
+    attempt_to_reuse_all_components,
     get_rpm_release_from_mmd)
 from module_build_service.builder.KojiContentGenerator import KojiContentGenerator
 
@@ -45,6 +45,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 def get_artifact_from_srpm(srpm_path):
     return os.path.basename(srpm_path).replace(".src.rpm", "")
+
 
 def failed(config, session, msg):
     """
@@ -66,8 +67,8 @@ def failed(config, session, msg):
 
     unbuilt_components = [
         c for c in build.component_builds
-        if (c.state != koji.BUILD_STATES['COMPLETE']
-            and c.state != koji.BUILD_STATES["FAILED"])
+        if (c.state != koji.BUILD_STATES['COMPLETE'] and
+            c.state != koji.BUILD_STATES["FAILED"])
     ]
 
     if build.koji_tag:
@@ -120,6 +121,7 @@ def done(config, session, msg):
 
     build_logs.stop(build.id)
 
+
 def wait(config, session, msg):
     """ Called whenever a module enters the 'wait' state.
 
@@ -161,9 +163,9 @@ def wait(config, session, msg):
     if conf.system != "koji":
         # In case of mock, we do not try to get anything from pdc,
         # just generate our own koji_tag to identify the module in messages.
-        tag = '-'.join(['module', module_info['name'],
-            str(module_info['stream']), str(module_info['version'])])
-
+        tag = '-'.join(['module',
+                        module_info['name'],
+                        str(module_info['stream']), str(module_info['version'])])
 
         for name, stream in build.mmd().buildrequires.items():
 
@@ -217,9 +219,6 @@ def wait(config, session, msg):
             build.transition(config, state="failed", state_reason=reason)
             session.commit()
             raise
-
-    groups = module_build_service.builder.GenericBuilder.default_buildroot_groups(
-        session, build)
 
     log.debug("Found tag=%s for module %r" % (tag, build))
     # Hang on to this information for later.  We need to know which build is
@@ -279,7 +278,7 @@ def wait(config, session, msg):
     if state == koji.BUILD_STATES['COMPLETE']:
         if config.system == "koji":
             log.info("module-build-macros is already built. "
-                "Regenerating the repo.")
+                     "Regenerating the repo.")
             task_id = builder.koji_session.newRepo(
                 builder.module_build_tag['name'])
             build.new_repo_task_id = task_id

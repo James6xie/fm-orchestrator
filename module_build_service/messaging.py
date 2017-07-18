@@ -265,6 +265,7 @@ class KojiBuildChange(BaseMessage):
         self.module_build_id = module_build_id
         self.state_reason = state_reason
 
+
 class KojiTagChange(BaseMessage):
     """
     A class that inherits from BaseMessage to provide a message
@@ -276,6 +277,7 @@ class KojiTagChange(BaseMessage):
         super(KojiTagChange, self).__init__(msg_id)
         self.tag = tag
         self.artifact = artifact
+
 
 class KojiRepoChange(BaseMessage):
     """ A class that inherits from BaseMessage to provide a message

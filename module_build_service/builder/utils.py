@@ -8,7 +8,7 @@ import logging
 import urlgrabber.grabber as grabber
 import urlgrabber.progress as progress
 import module_build_service
-from module_build_service import log, scm, messaging
+from module_build_service import log
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -75,7 +75,7 @@ def create_local_repo_from_koji_tag(config, tag, repo_dir, archs=None):
     # Get the list of all RPMs and builds in a tag.
     try:
         rpms, builds = session.listTaggedRPMS(tag, latest=True)
-    except koji.GenericError as e:
+    except koji.GenericError:
         log.exception("Failed to list rpms in tag %r" % tag)
 
     # Reformat builds so they are dict with build_id as a key.

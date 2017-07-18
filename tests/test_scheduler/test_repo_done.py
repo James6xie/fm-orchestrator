@@ -34,6 +34,7 @@ from tests import conf, db, app
 base_dir = dirname(dirname(__file__))
 cassette_dir = base_dir + '/vcr-request-data/'
 
+
 class TestRepoDone(unittest.TestCase):
 
     def setUp(self):

@@ -28,10 +28,8 @@ import os
 from os import path
 from os.path import dirname
 
-
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.repos
-import module_build_service.utils
 from module_build_service import models, conf, build_logs
 
 from mock import patch, Mock
@@ -60,7 +58,6 @@ class TestBuild(unittest.TestCase):
         self.vcr = vcr.use_cassette(filename)
         self.vcr.__enter__()
 
-
     def tearDown(self):
         # Necessary to restart the twisted reactor for the next test.
         import sys
@@ -88,8 +85,8 @@ class TestBuild(unittest.TestCase):
         pkg_res.return_value = Mock()
         pkg_res.return_value.version = "current-tested-version"
         rpm_mock = Mock()
-        rpm_out =  "rpm-name;1.0;r1;x86_64;(none);sigmd5:1;sigpgp:p;siggpg:g\n" \
-                   "rpm-name-2;2.0;r2;i686;1;sigmd5:2;sigpgp:p2;siggpg:g2"
+        rpm_out = "rpm-name;1.0;r1;x86_64;(none);sigmd5:1;sigpgp:p;siggpg:g\n" \
+                  "rpm-name-2;2.0;r2;i686;1;sigmd5:2;sigpgp:p2;siggpg:g2"
         attrs = {'communicate.return_value': (rpm_out, 'error'),
                  'wait.return_value': 0}
         rpm_mock.configure_mock(**attrs)
@@ -127,8 +124,8 @@ class TestBuild(unittest.TestCase):
         pkg_res.return_value = Mock()
         pkg_res.return_value.version = "current-tested-version"
         rpm_mock = Mock()
-        rpm_out =  "rpm-name;1.0;r1;x86_64;(none);sigmd5:1;sigpgp:p;siggpg:g\n" \
-                   "rpm-name-2;2.0;r2;i686;1;sigmd5:2;sigpgp:p2;siggpg:g2"
+        rpm_out = "rpm-name;1.0;r1;x86_64;(none);sigmd5:1;sigpgp:p;siggpg:g\n" \
+                  "rpm-name-2;2.0;r2;i686;1;sigmd5:2;sigpgp:p2;siggpg:g2"
         attrs = {'communicate.return_value': (rpm_out, 'error'),
                  'wait.return_value': 0}
         rpm_mock.configure_mock(**attrs)
@@ -148,7 +145,6 @@ class TestBuild(unittest.TestCase):
         ret = self.cg._get_content_generator_metadata(file_dir)
         rpms_in_tag.assert_called_once()
         self.assertEqual(expected_output, ret)
-
 
     def test_prepare_file_directory(self):
         """ Test preparation of directory with output files """

@@ -21,7 +21,6 @@
 # Written by Matt Prahl <mprahl@redhat.com
 
 import os
-import copy
 import module_build_service
 
 from datetime import datetime, timedelta
@@ -29,12 +28,12 @@ from module_build_service import db
 from module_build_service.config import init_config
 from module_build_service.models import ModuleBuild, ComponentBuild, make_session
 import modulemd
-from module_build_service.utils import get_scm_url_re
 import module_build_service.pdc
 
 base_dir = os.path.dirname(__file__)
 app = module_build_service.app
 conf = init_config(app)
+
 
 def init_data():
     db.session.remove()
@@ -399,6 +398,7 @@ def test_reuse_component_init_data():
         session.add(component_four_build_two)
         session.commit()
 
+
 def test_reuse_shared_userspace_init_data():
     db.session.remove()
     db.drop_all()
@@ -419,7 +419,7 @@ def test_reuse_shared_userspace_init_data():
 
         build_one = module_build_service.models.ModuleBuild()
         build_one.name = mmd.name
-        build_one.stream =  mmd.stream
+        build_one.stream = mmd.stream
         build_one.version = mmd.version
         build_one.state = 5
         build_one.modulemd = yaml
@@ -466,7 +466,7 @@ def test_reuse_shared_userspace_init_data():
 
         build_one = module_build_service.models.ModuleBuild()
         build_one.name = mmd.name
-        build_one.stream =  mmd.stream
+        build_one.stream = mmd.stream
         build_one.version = mmd.version
         build_one.state = 3
         build_one.modulemd = yaml

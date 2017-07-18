@@ -20,10 +20,8 @@
 #
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
-from os.path import dirname
 import unittest
 import mock
-import vcr
 
 from mock import patch
 
@@ -31,9 +29,10 @@ import module_build_service.messaging
 import module_build_service.scheduler.handlers.repos
 import module_build_service.models
 from tests import test_reuse_component_init_data
-from tests import conf, db, app
+from tests import conf, db
 
 import koji
+
 
 class TestTagTagged(unittest.TestCase):
 
@@ -63,9 +62,8 @@ class TestTagTagged(unittest.TestCase):
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
 
-
     @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
-        return_value={'build': [], 'srpm-build': []})
+           return_value={'build': [], 'srpm-build': []})
     @patch("module_build_service.builder.KojiModuleBuilder.get_session")
     @patch("module_build_service.builder.GenericBuilder.create_from_module")
     def test_newrepo(self, create_builder, koji_get_session, dbg):
@@ -123,9 +121,8 @@ class TestTagTagged(unittest.TestCase):
         # status later in poller.
         self.assertEqual(module_build.new_repo_task_id, 123456)
 
-
     @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
-        return_value={'build': [], 'srpm-build': []})
+           return_value={'build': [], 'srpm-build': []})
     @patch("module_build_service.builder.KojiModuleBuilder.get_session")
     @patch("module_build_service.builder.GenericBuilder.create_from_module")
     def test_newrepo_still_building_components(self, create_builder, koji_get_session, dbg):
@@ -161,7 +158,7 @@ class TestTagTagged(unittest.TestCase):
         self.assertTrue(not koji_session.newRepo.called)
 
     @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
-        return_value={'build': [], 'srpm-build': []})
+           return_value={'build': [], 'srpm-build': []})
     @patch("module_build_service.builder.KojiModuleBuilder.get_session")
     @patch("module_build_service.builder.GenericBuilder.create_from_module")
     def test_newrepo_failed_components(self, create_builder, koji_get_session, dbg):
@@ -215,7 +212,7 @@ class TestTagTagged(unittest.TestCase):
         self.assertEqual(module_build.new_repo_task_id, 123456)
 
     @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
-        return_value = {'build': [], 'srpm-build': []})
+           return_value={'build': [], 'srpm-build': []})
     @patch("module_build_service.builder.KojiModuleBuilder.get_session")
     @patch("module_build_service.builder.GenericBuilder.create_from_module")
     def test_newrepo_multiple_batches_tagged(

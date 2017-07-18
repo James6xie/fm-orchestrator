@@ -20,19 +20,11 @@
 
 import unittest
 from os import path
-import vcr
-import modulemd
 from mock import patch
-import module_build_service.utils
-import module_build_service.scm
 from module_build_service import models, conf
-from module_build_service.errors import ProgrammingError, ValidationError
 from tests import test_reuse_component_init_data, init_data, db
 import mock
-from mock import PropertyMock
 import koji
-import module_build_service.scheduler.handlers.components
-from module_build_service.builder import GenericBuilder, KojiModuleBuilder
 from module_build_service.scheduler.producer import MBSProducer
 import six.moves.queue as queue
 from datetime import datetime, timedelta
@@ -40,6 +32,7 @@ from datetime import datetime, timedelta
 BASE_DIR = path.abspath(path.dirname(__file__))
 CASSETTES_DIR = path.join(
     path.abspath(path.dirname(__file__)), '..', 'vcr-request-data')
+
 
 @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
        return_value={'build': [], 'srpm-build': []})
@@ -123,10 +116,9 @@ class TestPoller(unittest.TestCase):
 
         koji_session.newRepo.assert_called_once_with("module-testmodule-build")
 
-
     def test_trigger_new_repo_when_succeded(self, create_builder,
-                                          koji_get_session, global_consumer,
-                                          dbg):
+                                            koji_get_session, global_consumer,
+                                            dbg):
         """
         Tests that we do not call koji_sesion.newRepo when newRepo task
         succeeded.

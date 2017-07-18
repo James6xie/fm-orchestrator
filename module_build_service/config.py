@@ -109,6 +109,7 @@ def init_config(app):
     app.config.from_object(config_section_obj)
     return conf
 
+
 class Path:
     """
     Config type for paths. Expands the users home directory.
@@ -189,14 +190,14 @@ class Config(object):
             'desc': 'List of allowed koji tag prefixes.'},
         'koji_target_delete_time': {
             'type': int,
-            'default': 24*3600,
+            'default': 24 * 3600,
             'desc': 'Time in seconds after which the Koji target of '
-                'built module is deleted'},
+                    'built module is deleted'},
         'koji_enable_content_generator': {
             'type': bool,
             'default': True,
             'desc': 'Enable or disable imports to koji using content '
-                'generator api'},
+                    'generator api'},
         'allow_custom_scmurls': {
             'type': bool,
             'default': False,

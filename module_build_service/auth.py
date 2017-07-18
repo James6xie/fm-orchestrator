@@ -37,17 +37,19 @@ def _json_loads(content):
 
 client_secrets = None
 
+
 def _load_secrets():
     global client_secrets
     if client_secrets:
         return
 
-    if not "OIDC_CLIENT_SECRETS" in app.config:
+    if "OIDC_CLIENT_SECRETS" not in app.config:
         raise Forbidden("OIDC_CLIENT_SECRETS must be set in server config.")
 
     secrets = _json_loads(open(app.config['OIDC_CLIENT_SECRETS'],
-                                'r').read())
+                               'r').read())
     client_secrets = list(secrets.values())[0]
+
 
 def _get_token_info(token):
     """
@@ -57,9 +59,9 @@ def _get_token_info(token):
         return None
 
     request = {'token': token,
-                'token_type_hint': 'Bearer',
-                'client_id': client_secrets['client_id'],
-                'client_secret': client_secrets['client_secret']}
+               'token_type_hint': 'Bearer',
+               'client_id': client_secrets['client_id'],
+               'client_secret': client_secrets['client_secret']}
     headers = {'Content-type': 'application/x-www-form-urlencoded'}
 
     resp = requests.post(client_secrets['token_introspection_uri'], data=request, headers=headers)
@@ -89,7 +91,7 @@ def get_user(request):
 
     _load_secrets()
 
-    if not "authorization" in request.headers:
+    if "authorization" not in request.headers:
         raise Unauthorized("No 'authorization' header found.")
 
     header = request.headers['authorization'].strip()
@@ -105,10 +107,10 @@ def get_user(request):
         log.exception(error)
         raise Exception(error)
 
-    if not data or not "active" in data or not data["active"]:
+    if not data or "active" not in data or not data["active"]:
         raise Unauthorized("OIDC token invalid or expired.")
 
-    if not "OIDC_REQUIRED_SCOPE" in app.config:
+    if "OIDC_REQUIRED_SCOPE" not in app.config:
         raise Forbidden("OIDC_REQUIRED_SCOPE must be set in server config.")
 
     presented_scopes = data['scope'].split(' ')
