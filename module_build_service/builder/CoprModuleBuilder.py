@@ -241,30 +241,26 @@ class CoprModuleBuilder(GenericBuilder):
         with CoprModuleBuilder._build_lock:
             # Git sources are treated specially.
             if source.startswith(("git://", "http://", "https://")):
-                return self.build_scm(source)
+                response = self.build_scm(source)
             else:
-                return self.build_srpm(artifact_name, source)
+                response = self.build_srpm(artifact_name, source)
+
+            if response.output != "ok":
+                log.error(response.error)
+            return response.data["ids"][0], koji.BUILD_STATES["BUILDING"], response.message, None
 
     def build_srpm(self, artifact_name, source, build_id=None):
         if not self.__prep:
             raise RuntimeError("Buildroot is not prep-ed")
 
         # Build package from `source`
-        response = self.client.create_new_build(self.copr.projectname, [source], username=self.copr.username)
-        if response.output != "ok":
-            log.error(response.error)
-
-        return response.data["ids"][0], koji.BUILD_STATES["BUILDING"], response.message, None
+        return self.client.create_new_build(self.copr.projectname, [source], username=self.copr.username)
 
     def build_scm(self, source):
         url, branch = source.split("?#")
         url = (url.replace("git://", "https://")
                   .replace("pkgs.fedoraproject.org", "src.fedoraproject.org/git"))
-        response = self.client.create_new_build_distgit(self.copr.projectname, url, branch=branch, username=self.copr.username)
-        if response.output != "ok":
-            log.error(response.error)
-
-        return response.data["ids"][0], koji.BUILD_STATES["BUILDING"], response.message, None
+        return self.client.create_new_build_distgit(self.copr.projectname, url, branch=branch, username=self.copr.username)
 
     def finalize(self):
         modulemd = tempfile.mktemp()
