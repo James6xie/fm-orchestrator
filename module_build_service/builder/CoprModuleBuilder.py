@@ -236,6 +236,9 @@ class CoprModuleBuilder(GenericBuilder):
         """
         log.info("Copr build")
 
+        if not self.__prep:
+            raise RuntimeError("Buildroot is not prep-ed")
+
         # TODO: If we are sure that this method is thread-safe, we can just
         # remove _build_lock locking.
         with CoprModuleBuilder._build_lock:
@@ -250,9 +253,6 @@ class CoprModuleBuilder(GenericBuilder):
             return response.data["ids"][0], koji.BUILD_STATES["BUILDING"], response.message, None
 
     def build_srpm(self, artifact_name, source, build_id=None):
-        if not self.__prep:
-            raise RuntimeError("Buildroot is not prep-ed")
-
         # Build package from `source`
         return self.client.create_new_build(self.copr.projectname, [source], username=self.copr.username)
 
