@@ -257,9 +257,12 @@ class CoprModuleBuilder(GenericBuilder):
         return self.client.create_new_build(self.copr.projectname, [source], username=self.copr.username)
 
     def build_scm(self, source):
-        url, branch = source.split("?#")
+        url, commit = source.split("?#")
         url = (url.replace("git://", "https://")
                   .replace("pkgs.fedoraproject.org", "src.fedoraproject.org/git"))
+        cod = clone(url)
+        branch = git_branch_contains(cod, commit)
+        rmdir(cod)
         return self.client.create_new_build_distgit(self.copr.projectname, url, branch=branch, username=self.copr.username)
 
     def finalize(self):
@@ -380,6 +383,23 @@ def build_from_scm(artifact_name, source, config, build_srpm,
                     td, str(e)))
 
     return ret
+
+
+def clone(url):
+    log.debug('Cloning source URL: %s' % url)
+    td = tempfile.mkdtemp()
+    scm = module_build_service.scm.SCM(url)
+    return scm.checkout(td)
+
+
+def rmdir(path):
+    try:
+        if path is not None:
+            shutil.rmtree(path)
+    except Exception as e:
+        log.warning(
+            "Failed to remove temporary directory {!r}: {}".format(
+                path, str(e)))
 
 
 def git_branch_contains(cod, commit):
