@@ -254,7 +254,8 @@ class CoprModuleBuilder(GenericBuilder):
 
     def build_srpm(self, artifact_name, source, build_id=None):
         # Build package from `source`
-        return self.client.create_new_build(self.copr.projectname, [source], username=self.copr.username)
+        return self.client.create_new_build(self.copr.projectname, [source],username=self.copr.username,
+                                            chroots=[self.chroot])
 
     def build_scm(self, source):
         url, commit = source.split("?#")
@@ -263,7 +264,8 @@ class CoprModuleBuilder(GenericBuilder):
         cod = clone(url)
         branch = git_branch_contains(cod, commit)
         rmdir(cod)
-        return self.client.create_new_build_distgit(self.copr.projectname, url, branch=branch, username=self.copr.username)
+        return self.client.create_new_build_distgit(self.copr.projectname, url, branch=branch,
+                                                    username=self.copr.username, chroots=[self.chroot])
 
     def finalize(self):
         modulemd = tempfile.mktemp()
