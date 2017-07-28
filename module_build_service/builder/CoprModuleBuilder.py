@@ -254,7 +254,7 @@ class CoprModuleBuilder(GenericBuilder):
 
     def build_srpm(self, artifact_name, source, build_id=None):
         # Build package from `source`
-        return self.client.create_new_build(self.copr.projectname, [source],username=self.copr.username,
+        return self.client.create_new_build(self.copr.projectname, [source], username=self.copr.username,
                                             chroots=[self.chroot])
 
     def build_scm(self, source):
