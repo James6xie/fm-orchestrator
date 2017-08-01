@@ -261,7 +261,8 @@ class CoprModuleBuilder(GenericBuilder):
         url, commit = source.split("?#")
         url = (url.replace("git://", "https://")
                   .replace("pkgs.fedoraproject.org", "src.fedoraproject.org/git"))
-        cod = clone(url)
+        td = tempfile.mkdtemp()
+        cod = clone(url, td)
         branch = git_branch_contains(cod, commit)
         rmdir(cod)
         return self.client.create_new_build_distgit(self.copr.projectname, url, branch=branch,
@@ -327,11 +328,10 @@ class CoprModuleBuilder(GenericBuilder):
         return koji_tag.replace("+", "-")
 
 
-def clone(url):
+def clone(url, path):
     log.debug('Cloning source URL: %s' % url)
-    td = tempfile.mkdtemp()
     scm = module_build_service.scm.SCM(url)
-    return scm.checkout(td)
+    return scm.checkout(path)
 
 
 def rmdir(path):
