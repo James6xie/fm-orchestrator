@@ -241,7 +241,7 @@ def get_scm_branch(branch):
     branch = out[:-1] # remove new-line
     return branch
 
-def submit_module_build(scm_url, branch, server, id_provider, pyrpkg, verify=True):
+def submit_module_build(scm_url, branch, server, id_provider, pyrpkg, verify=True, optional=None):
     """
     Submits the module defined by `scm_url` to MBS instance defined
     by `server`. Returns build_id or negative error code.
@@ -251,8 +251,10 @@ def submit_module_build(scm_url, branch, server, id_provider, pyrpkg, verify=Tru
     if not scm_url or not branch:
         return -2
 
+
     logging.info("Submitting module build %s", scm_url)
     body = {'scmurl': scm_url, 'branch': branch}
+    body.update({x.split("=")[0]: x.split("=")[1] for x in optional})
     resp = send_authorized_request(
         "POST", server, id_provider, "/module-build-service/1/module-builds/",
         body, verify=verify)
@@ -391,6 +393,8 @@ def main():
         "the directory with the cloned git repository with a module.")
     parser_submit.add_argument("scm_url", nargs='?')
     parser_submit.add_argument("branch", nargs='?')
+    parser_submit.add_argument('-o', dest="optional", action='append',
+                               help="optional arguments in arg=value format")
     parser_submit.add_argument('-w', dest="watch", action='store_true',
                                help="watch the build progress")
 
@@ -445,7 +449,7 @@ def main():
     if args.cmd_name == "submit":
         # Submit the module build.
         build_id = submit_module_build(args.scm_url, args.branch, args.server,
-                                    args.idprovider, args.pyrpkg_client, args.verify)
+                                    args.idprovider, args.pyrpkg_client, args.verify, args.optional)
         if build_id < 0:
             sys.exit(build_id)
 
