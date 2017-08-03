@@ -347,7 +347,7 @@ def rmdir(path):
 def git_branch_contains(cod, commit):
     cmd = ["git", "branch", "-r", "--contains", commit, "--sort", "-committerdate"]
     out, err = execute_cmd(cmd, cwd=cod, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    branch = out.strip().split("/")[1]
+    branch = out.split()[0].split("/")[1]
     if " -> " in branch:
         branch = branch.split(" -> ")[0]
     return branch
