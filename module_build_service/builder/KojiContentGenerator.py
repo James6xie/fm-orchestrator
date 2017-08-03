@@ -344,8 +344,11 @@ class KojiContentGenerator(object):
             build_info = session.CGImport(metadata, file_dir)
             log.info("Content generator import done.")
             log.debug(json.dumps(build_info, sort_keys=True, indent=4))
+
+            # Only remove the logs if CG import was successful.  If it fails,
+            # then we want to keep them around for debugging.
+            log.info("Removing %r" % file_dir)
+            shutil.rmtree(file_dir)
         except Exception as e:
             log.exception("Content generator import failed: %s", e)
             raise e
-        finally:
-            shutil.rmtree(file_dir)
