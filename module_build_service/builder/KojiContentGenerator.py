@@ -318,12 +318,15 @@ class KojiContentGenerator(object):
         """
         prepdir = tempfile.mkdtemp(prefix="koji-cg-import")
         mmd_path = os.path.join(prepdir, "modulemd.yaml")
+        log.info("Writing modulemd.yaml to %r" % mmd_path)
         with open(mmd_path, "w") as mmd_f:
             mmd_f.write(self.mmd)
 
         log_path = os.path.join(prepdir, "build.log")
         try:
-            shutil.copy(build_logs.path(self.module.id), log_path)
+            source = build_logs.path(self.module.id)
+            log.info("Moving logs from %r to %r" % (source, log_path))
+            shutil.copy(source, log_path)
         except IOError as e:
             log.exception(e)
         return prepdir
@@ -339,10 +342,13 @@ class KojiContentGenerator(object):
         metadata = self._get_content_generator_metadata(file_dir)
         try:
             build_info = session.CGImport(metadata, file_dir)
-            log.debug("Content generator import done: %s",
-                      json.dumps(build_info, sort_keys=True, indent=4))
+            log.info("Content generator import done.")
+            log.debug(json.dumps(build_info, sort_keys=True, indent=4))
+
+            # Only remove the logs if CG import was successful.  If it fails,
+            # then we want to keep them around for debugging.
+            log.info("Removing %r" % file_dir)
+            shutil.rmtree(file_dir)
         except Exception as e:
             log.exception("Content generator import failed: %s", e)
             raise e
-        finally:
-            shutil.rmtree(file_dir)
