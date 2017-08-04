@@ -236,34 +236,37 @@ class CoprModuleBuilder(GenericBuilder):
         """
         log.info("Copr build")
 
+        if not self.__prep:
+            raise RuntimeError("Buildroot is not prep-ed")
+
         # TODO: If we are sure that this method is thread-safe, we can just
         # remove _build_lock locking.
         with CoprModuleBuilder._build_lock:
             # Git sources are treated specially.
             if source.startswith(("git://", "http://", "https://")):
-                return build_from_scm(artifact_name, source, self.config, self.build_srpm)
+                response = self.build_scm(source)
             else:
-                return self.build_srpm(artifact_name, source)
+                response = self.build_srpm(artifact_name, source)
+
+            if response.output != "ok":
+                log.error(response.error)
+            return response.data["ids"][0], koji.BUILD_STATES["BUILDING"], response.message, None
 
     def build_srpm(self, artifact_name, source, build_id=None):
-        if not self.__prep:
-            raise RuntimeError("Buildroot is not prep-ed")
-
         # Build package from `source`
-        response = self.client.create_new_build(self.copr.projectname, [source], username=self.copr.username)
-        if response.output != "ok":
-            log.error(response.error)
-
-        return response.data["ids"][0], koji.BUILD_STATES["BUILDING"], response.message, None
+        return self.client.create_new_build(self.copr.projectname, [source], username=self.copr.username,
+                                            chroots=[self.chroot])
 
     def build_scm(self, source):
-        # @TODO use this method once support on Copr side is finished
-        # Copr is currently able to create a build from fedora distgit,
-        # but not from custom distgit, such as copr-dist-git
-        url, branch = source.split("?#")
+        url, commit = source.split("?#")
         url = (url.replace("git://", "https://")
                   .replace("pkgs.fedoraproject.org", "src.fedoraproject.org/git"))
-        self.client.create_new_build_distgit(self.copr.projectname, url, branch=branch, username=self.copr.username)
+        td = tempfile.mkdtemp()
+        cod = clone(url, td)
+        branch = git_branch_contains(cod, commit)
+        rmdir(cod)
+        return self.client.create_new_build_distgit(self.copr.projectname, url, branch=branch,
+                                                    username=self.copr.username, chroots=[self.chroot])
 
     def finalize(self):
         modulemd = tempfile.mktemp()
@@ -325,79 +328,26 @@ class CoprModuleBuilder(GenericBuilder):
         return koji_tag.replace("+", "-")
 
 
-def build_from_scm(artifact_name, source, config, build_srpm,
-                   data=None, stdout=None, stderr=None):
-    """
-    Builds the artifact from the SCM based source.
+def clone(url, path):
+    log.debug('Cloning source URL: %s' % url)
+    scm = module_build_service.scm.SCM(url)
+    return scm.checkout(path)
 
-    :param artifact_name: Name of the artifact.
-    :param source: SCM URL with artifact's sources (spec file).
-    :param config: Config instance.
-    :param build_srpm: Method to call to build the RPM from the generate SRPM.
-    :param data: Data to be passed to the build_srpm method.
-    :param stdout: Python file object to which the stdout of SRPM build
-                   command is logged.
-    :param stderr: Python file object to which the stderr of SRPM build
-                   command is logged.
-    """
-    ret = (0, koji.BUILD_STATES["FAILED"], "Cannot create SRPM", None)
-    td = None
 
+def rmdir(path):
     try:
-        log.debug('Cloning source URL: %s' % source)
-        url, commit = source.split("?#")
-        # Create temp dir and clone the repo there.
-        td = tempfile.mkdtemp()
-        scm = module_build_service.scm.SCM(source)
-        cod = scm.checkout(td)
-
-        cmd = config.mock_build_srpm_cmd.split(" ")
-        if is_from_copr(source):
-            branch = git_branch_contains(cod, commit)
-            if branch != "HEAD":
-                git_checkout(cod, branch)
-            cmd = ["fedpkg-copr", "--release", branch, "srpm"]
-
-        # Use configured command to create SRPM out of the SCM repo.
-        log.debug("Creating SRPM in %s" % cod)
-        execute_cmd(cmd, stdout=stdout, stderr=stderr, cwd=cod)
-
-        # Find out the built SRPM and build it normally.
-        for f in os.listdir(cod):
-            if f.endswith(".src.rpm"):
-                log.info("Created SRPM %s" % f)
-                source = os.path.join(cod, f)
-                ret = build_srpm(artifact_name, source, data)
-                break
+        if path is not None:
+            shutil.rmtree(path)
     except Exception as e:
-        log.error("Error while generating SRPM for artifact %s: %s" % (
-            artifact_name, str(e)))
-        ret = (0, koji.BUILD_STATES["FAILED"], "Cannot create SRPM %s" % str(e), None)
-    finally:
-        try:
-            if td is not None:
-                shutil.rmtree(td)
-        except Exception as e:
-            log.warning(
-                "Failed to remove temporary directory {!r}: {}".format(
-                    td, str(e)))
-
-    return ret
+        log.warning(
+            "Failed to remove temporary directory {!r}: {}".format(
+                path, str(e)))
 
 
 def git_branch_contains(cod, commit):
-    cmd = ["git", "branch", "-r", "--contains", commit]
+    cmd = ["git", "branch", "-r", "--contains", commit, "--sort", "-committerdate"]
     out, err = execute_cmd(cmd, cwd=cod, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    branch = out.strip().split("/")[1]
+    branch = out.split()[0].split("/")[1]
     if " -> " in branch:
         branch = branch.split(" -> ")[0]
     return branch
-
-
-def is_from_copr(source):
-    return bool(re.match("https?://copr-dist-git(-dev)?\.fedorainfracloud\.org", source))
-
-
-def git_checkout(cod, branch):
-    cmd = ["git", "checkout", branch]
-    execute_cmd(cmd, cwd=cod)
