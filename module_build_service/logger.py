@@ -51,6 +51,12 @@ levels["error"] = logging.ERROR
 levels["warning"] = logging.WARNING
 levels["info"] = logging.INFO
 
+level_flags = {}
+level_flags["debug"] = levels["debug"]
+level_flags["verbose"] = levels["info"]
+level_flags["quiet"] = levels["error"]
+
+
 log_format = '%(asctime)s - %(threadName)s - %(name)s - %(levelname)s - %(message)s'
 
 

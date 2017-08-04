@@ -44,7 +44,8 @@ from flask import Flask, has_app_context, url_for
 from flask_sqlalchemy import SQLAlchemy
 from logging import getLogger
 
-from module_build_service.logger import init_logging, ModuleBuildLogs
+from module_build_service.logger import (
+    init_logging, ModuleBuildLogs, level_flags)
 
 from module_build_service.errors import (
     ValidationError, Unauthorized, UnprocessableEntity, Conflict, NotFound,
@@ -52,12 +53,30 @@ from module_build_service.errors import (
 from module_build_service.config import init_config
 from module_build_service.proxy import ReverseProxy
 
-app = Flask(__name__)
-app.wsgi_app = ReverseProxy(app.wsgi_app)
 
+def create_app(debug=False, verbose=False, quiet=False):
+    app = Flask(__name__)
+    app.wsgi_app = ReverseProxy(app.wsgi_app)
+
+    # logging (intended for flask-script, see manage.py)
+    log = getLogger(__name__)
+    if debug:
+        log.setLevel(level_flags["debug"])
+    elif verbose:
+        log.setLevel(level_flags["verbose"])
+    elif quiet:
+        log.setLevel(level_flags["quiet"])
+
+    return app
+
+app = create_app()
 conf = init_config(app)
-
 db = SQLAlchemy(app)
+
+
+def load_views():
+    from module_build_service import views
+    assert views
 
 
 @app.errorhandler(ValidationError)
@@ -122,5 +141,4 @@ def get_url_for(*args, **kwargs):
                   "multiple session being used in the same time.")
         return url_for(*args, **kwargs)
 
-
-from module_build_service import views
+load_views()
