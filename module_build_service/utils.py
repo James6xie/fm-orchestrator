@@ -494,9 +494,9 @@ def _fetch_mmd(url, branch=None, allow_local_url=False, whitelist_url=False):
             scm = module_build_service.scm.SCM(url, branch, [url], allow_local_url)
         else:
             scm = module_build_service.scm.SCM(url, branch, conf.scmurls, allow_local_url)
-        cod = scm.checkout(td)
-        scm.verify(cod)
-        cofn = os.path.join(cod, (scm.name + ".yaml"))
+        scm.checkout(td)
+        scm.verify()
+        cofn = scm.get_module_yaml()
 
         with open(cofn, "r") as mmdfile:
             yaml = mmdfile.read()

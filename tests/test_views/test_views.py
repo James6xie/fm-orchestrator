@@ -66,6 +66,7 @@ class MockedSCM(object):
             mmd_filenames = [mmd_filenames]
         self.mmd_filenames = mmd_filenames
         self.checkout_id = 0
+        self.sourcedir = None
 
         if checkout_raise:
             self.mocked_scm.return_value.checkout.side_effect = \
@@ -85,6 +86,8 @@ class MockedSCM(object):
             self.mocked_scm.return_value.get_latest = self.get_latest
         self.mocked_scm.return_value.repository_root = "git://pkgs.stg.fedoraproject.org/modules/"
         self.mocked_scm.return_value.branch = 'master'
+        self.mocked_scm.return_value.sourcedir = self.sourcedir
+        self.mocked_scm.return_value.get_module_yaml = self.get_module_yaml
 
     def checkout(self, temp_dir):
         try:
@@ -92,18 +95,21 @@ class MockedSCM(object):
         except:
             mmd_filename = self.mmd_filenames[0]
 
-        scm_dir = path.join(temp_dir, self.name)
-        mkdir(scm_dir)
+        self.sourcedir = path.join(temp_dir, self.name)
+        mkdir(self.sourcedir)
         base_dir = path.abspath(path.dirname(__file__))
         copyfile(path.join(base_dir, '..', 'staged_data', mmd_filename),
-                 path.join(scm_dir, self.name + ".yaml"))
+                 self.get_module_yaml())
 
         self.checkout_id += 1
 
-        return scm_dir
+        return self.sourcedir
 
     def get_latest(self, branch='master'):
         return hashlib.sha1(branch).hexdigest()[:10]
+
+    def get_module_yaml(self):
+        return path.join(self.sourcedir, self.name + ".yaml")
 
 
 class TestViews(unittest.TestCase):

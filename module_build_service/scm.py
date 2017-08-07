@@ -35,7 +35,8 @@ import shutil
 import datetime
 
 from module_build_service import log
-from module_build_service.errors import Forbidden, ValidationError, UnprocessableEntity
+from module_build_service.errors import (
+    Forbidden, ValidationError, UnprocessableEntity, ProgrammingError)
 import module_build_service.utils
 
 
@@ -64,6 +65,7 @@ class SCM(object):
         url = url.rstrip('/')
 
         self.url = url
+        self.sourcedir = None
 
         # once we have more than one SCM provider, we will need some more
         # sophisticated lookup logic
@@ -90,18 +92,20 @@ class SCM(object):
         else:
             raise ValidationError("Unhandled SCM scheme: %s" % self.scheme)
 
-    def verify(self, sourcedir):
+    def verify(self):
         """
         Verifies that the information provided by a user in SCM URL and branch
         matches the information in SCM repository. For example verifies that
         the commit hash really belongs to the provided branch.
 
-        :param str sourcedir: Directory with SCM repo as returned by checkout().
         :raises ValidationError
         """
+        if not self.sourcedir:
+            raise ProgrammingError("Do .checkout() first.")
 
         found = False
-        branches = SCM._run(["git", "branch", "-r", "--contains", self.commit], chdir=sourcedir)[1]
+        branches = SCM._run(["git", "branch", "-r", "--contains", self.commit],
+                            chdir=self.sourcedir)[1]
         for branch in branches.split("\n"):
             branch = branch.strip()
             if branch[len("origin/"):] == self.branch:
@@ -143,20 +147,20 @@ class SCM(object):
         """
         # TODO: sanity check arguments
         if self.scheme == "git":
-            sourcedir = '%s/%s' % (scmdir, self.name)
+            self.sourcedir = '%s/%s' % (scmdir, self.name)
 
             module_clone_cmd = ['git', 'clone', '-q']
             if self.commit:
                 module_checkout_cmd = ['git', 'checkout', '-q', self.commit]
             else:
                 module_clone_cmd.extend(['--depth', '1'])
-            module_clone_cmd.extend([self.repository, sourcedir])
+            module_clone_cmd.extend([self.repository, self.sourcedir])
 
             # perform checkouts
             SCM._run(module_clone_cmd, chdir=scmdir)
             if self.commit:
                 try:
-                    SCM._run(module_checkout_cmd, chdir=sourcedir)
+                    SCM._run(module_checkout_cmd, chdir=self.sourcedir)
                 except RuntimeError as e:
                     if (e.message.endswith(
                             " did not match any file(s) known to git.\\n\"") or
@@ -167,12 +171,12 @@ class SCM(object):
                             "The original message was: %s" % e.message)
                     raise
 
-            timestamp = SCM._run(["git", "show", "-s", "--format=%ct"], chdir=sourcedir)[1]
+            timestamp = SCM._run(["git", "show", "-s", "--format=%ct"], chdir=self.sourcedir)[1]
             dt = datetime.datetime.utcfromtimestamp(int(timestamp))
             self.version = dt.strftime("%Y%m%d%H%M%S")
         else:
             raise RuntimeError("checkout: Unhandled SCM scheme.")
-        return sourcedir
+        return self.sourcedir
 
     def get_latest(self, branch='master'):
         """Get the latest commit ID.
@@ -229,6 +233,25 @@ class SCM(object):
                 .format(commit_hash, self.repository))
         else:
             raise RuntimeError('get_full_commit_hash: Unhandled SCM scheme.')
+
+    def get_module_yaml(self):
+        """
+        Get full path to the module's YAML file.
+
+        :return: path as a string
+        :raises UnprocessableEntity
+        """
+        if not self.sourcedir:
+            raise ProgrammingError("Do .checkout() first.")
+
+        path_to_yaml = os.path.join(self.sourcedir, (self.name + ".yaml"))
+        try:
+            with open(path_to_yaml):
+                return path_to_yaml
+        except IOError:
+            raise UnprocessableEntity(
+                "get_module_yaml: SCM repository doesn't seem to contain a "
+                "module YAML file. Couldn't access: %s" % path_to_yaml)
 
     @staticmethod
     def is_full_commit_hash(scheme, commit):
@@ -287,6 +310,15 @@ class SCM(object):
     @scheme.setter
     def scheme(self, s):
         self._scheme = str(s)
+
+    @property
+    def sourcedir(self):
+        """The SCM source directory."""
+        return self._sourcedir
+
+    @sourcedir.setter
+    def sourcedir(self, s):
+        self._sourcedir = str(s)
 
     @property
     def repository(self):

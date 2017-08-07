@@ -80,31 +80,38 @@ class TestSCMModule(unittest.TestCase):
 
     def test_verify(self):
         scm = module_build_service.scm.SCM(repo_path)
-        sourcedir = scm.checkout(self.tempdir)
-        scm.verify(sourcedir)
+        scm.checkout(self.tempdir)
+        scm.verify()
 
     @raises(UnprocessableEntity)
     def test_verify_unknown_branch(self):
         scm = module_build_service.scm.SCM(repo_path, "unknown")
-        sourcedir = scm.checkout(self.tempdir)
-        scm.verify(sourcedir)
+        scm.checkout(self.tempdir)
+        scm.verify()
 
     def test_verify_commit_in_branch(self):
         target = '7035bd33614972ac66559ac1fdd019ff6027ad21'
         scm = module_build_service.scm.SCM(repo_path + "?#" + target, "dev")
-        sourcedir = scm.checkout(self.tempdir)
-        scm.verify(sourcedir)
+        scm.checkout(self.tempdir)
+        scm.verify()
 
     @raises(ValidationError)
     def test_verify_commit_not_in_branch(self):
         target = '7035bd33614972ac66559ac1fdd019ff6027ad21'
         scm = module_build_service.scm.SCM(repo_path + "?#" + target, "master")
-        sourcedir = scm.checkout(self.tempdir)
-        scm.verify(sourcedir)
+        scm.checkout(self.tempdir)
+        scm.verify()
 
     @raises(UnprocessableEntity)
     def test_verify_unknown_hash(self):
         target = '7035bd33614972ac66559ac1fdd019ff6027ad22'
         scm = module_build_service.scm.SCM(repo_path + "?#" + target, "master")
-        sourcedir = scm.checkout(self.tempdir)
-        scm.verify(sourcedir)
+        scm.checkout(self.tempdir)
+        scm.verify()
+
+    @raises(UnprocessableEntity)
+    def test_get_module_yaml(self):
+        scm = module_build_service.scm.SCM(repo_path)
+        scm.checkout(self.tempdir)
+        scm.verify()
+        scm.get_module_yaml()
