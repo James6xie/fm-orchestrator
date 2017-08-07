@@ -265,7 +265,7 @@ def submit_module_build(scm_url, branch, server, id_provider, pyrpkg, verify=Tru
         return data['id']
     return -3
 
-def do_local_build(scm_url, branch, skiptests):
+def do_local_build(scm_url, branch, skiptests, log_flag=None):
     """
     Starts the local build using the 'mbs-manager build_module_locally'
     command. Returns exit code of that command or None when scm_url or
@@ -278,7 +278,10 @@ def do_local_build(scm_url, branch, skiptests):
 
 
     logging.info("Starting local build of %s, branch %s", scm_url, branch)
-    command = ['mbs-manager', 'build_module_locally']
+    command = ['mbs-manager']
+    if log_flag:
+        command.append(log_flag)
+    command.append('build_module_locally')
     if skiptests:
         command.append('--skiptests')
         logging.info("Tests will be skipped due to --skiptests option.")
@@ -372,10 +375,17 @@ def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="Submits and manages module builds.")
     subparsers = parser.add_subparsers(dest="cmd_name")
-    parser.add_argument('-v', dest='verbose', action='store_true',
+    # logging
+    flag_debug = '-d'
+    flag_verbose = '-v'
+    flag_quiet = '-q'
+    parser.add_argument(flag_debug, dest='debug', action='store_true',
+                        help="shows debug output")
+    parser.add_argument(flag_verbose, dest='verbose', action='store_true',
                         help="shows verbose output")
-    parser.add_argument('-q', dest='quiet', action='store_true',
-                        help="shows only warnings and errors")
+    parser.add_argument(flag_quiet, dest='quiet', action='store_true',
+                        help="shows only errors")
+
     parser.add_argument('-k', '--insecure', dest='verify', action='store_false',
                         help="allow connections to SSL sites without certs")
     parser.add_argument('-s', dest='server', action='store',
@@ -438,12 +448,18 @@ def main():
     args = parser.parse_args()
 
     # Initialize the logging.
-    if args.verbose:
+    log_flag = None
+    if args.debug:
         loglevel = logging.DEBUG
-    elif args.quiet:
-        loglevel = logging.WARNING
-    else:
+        log_flag = flag_debug
+    elif args.verbose:
         loglevel = logging.INFO
+        log_flag = flag_verbose
+    elif args.quiet:
+        loglevel = logging.ERROR
+        log_flag = flag_quiet
+    else:
+        loglevel = logging.WARNING
     logging.basicConfig(level=loglevel, format="%(levelname)s: %(message)s")
 
     if args.cmd_name == "submit":
@@ -458,7 +474,8 @@ def main():
         else:
             logging.info("Submitted module build %r" % build_id)
     elif args.cmd_name == "local":
-        sys.exit(do_local_build(args.scm_url, args.branch, args.skiptests))
+        sys.exit(do_local_build(args.scm_url, args.branch, args.skiptests,
+                                log_flag))
     elif args.cmd_name == "watch":
         # Watch the module build.
         try:

@@ -30,7 +30,7 @@ import ssl
 from shutil import rmtree
 import getpass
 
-from module_build_service import app, conf, db
+from module_build_service import app, conf, db, create_app
 from module_build_service import models
 from module_build_service.utils import (
     submit_module_build_from_scm,
@@ -39,11 +39,14 @@ import module_build_service.messaging
 import module_build_service.scheduler.consumer
 
 
-manager = Manager(app)
+manager = Manager(create_app)
 help_args = ('-?', '--help')
 manager.help_args = help_args
 migrate = flask_migrate.Migrate(app, db)
 manager.add_command('db', flask_migrate.MigrateCommand)
+manager.add_option('-d', '--debug', dest='debug', action='store_true')
+manager.add_option('-v', '--verbose', dest='verbose', action='store_true')
+manager.add_option('-q', '--quiet', dest='quiet', action='store_true')
 
 
 def console_script_help(f):
