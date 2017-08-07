@@ -27,7 +27,7 @@ import module_build_service.builder
 import module_build_service.pdc
 import logging
 import koji
-from module_build_service import models, log
+from module_build_service import models, log, messaging
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -78,13 +78,30 @@ def tagged(config, session, msg):
         if not c.tagged and c.state == koji.BUILD_STATES['COMPLETE']
     ]
 
+    further_work = []
+
     # If all components are tagged, start newRepo task.
     if not untagged_components:
-        log.info("All components tagged, regenerating repo for tag %s", tag)
         builder = module_build_service.builder.GenericBuilder.create_from_module(
             session, module_build, config)
-        task_id = builder.koji_session.newRepo(tag)
-        module_build.new_repo_task_id = task_id
+
+        unbuilt_components = [
+            c for c in module_build.component_builds
+            if c.state == koji.BUILD_STATES['BUILDING'] or not c.state
+        ]
+        if unbuilt_components:
+            log.info("All components in batch tagged, regenerating repo for tag %s", tag)
+            task_id = builder.koji_session.newRepo(tag)
+            module_build.new_repo_task_id = task_id
+        else:
+            # In case this is the last batch, we do not need to regenerate the
+            # buildroot, because we will not build anything else in it. It
+            # would be useless to wait for a repository we will not use anyway.
+            log.info("All components in module tagged and built, skipping the "
+                     "last repo regeneration")
+            further_work += [messaging.KojiRepoChange(
+                'components::_finalize: fake msg',
+                builder.module_build_tag['name'])]
         session.commit()
 
-    return []
+    return further_work
