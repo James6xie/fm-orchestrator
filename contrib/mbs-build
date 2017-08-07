@@ -249,7 +249,7 @@ def submit_module_build(scm_url, branch, server, id_provider, pyrpkg, verify=Tru
     scm_url = get_scm_url(scm_url, pyrpkg)
     branch = get_scm_branch(branch)
     if not scm_url or not branch:
-        return -2
+        return -2, None
 
 
     logging.info("Submitting module build %s", scm_url)
@@ -261,9 +261,11 @@ def submit_module_build(scm_url, branch, server, id_provider, pyrpkg, verify=Tru
     logging.info(resp.text)
 
     data = resp.json()
-    if 'id' in data:
-        return data['id']
-    return -3
+    if 'error' in data:
+        return -4, "%s %s: %s" % (data['status'], data['error'], data['message'])
+    elif 'id' in data:
+        return data['id'], None
+    return -3, None
 
 def do_local_build(scm_url, branch, skiptests, log_flag=None):
     """
@@ -464,9 +466,11 @@ def main():
 
     if args.cmd_name == "submit":
         # Submit the module build.
-        build_id = submit_module_build(args.scm_url, args.branch, args.server,
-                                    args.idprovider, args.pyrpkg_client, args.verify, args.optional)
+        build_id, errmsg = submit_module_build(args.scm_url, args.branch, args.server,
+                                               args.idprovider, args.pyrpkg_client, args.verify, args.optional)
         if build_id < 0:
+            if errmsg:
+                logging.critical(errmsg)
             sys.exit(build_id)
 
         if args.watch:
