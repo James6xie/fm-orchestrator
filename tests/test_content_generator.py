@@ -149,5 +149,5 @@ class TestBuild(unittest.TestCase):
     def test_prepare_file_directory(self):
         """ Test preparation of directory with output files """
         dir_path = self.cg._prepare_file_directory()
-        with open(path.join(dir_path, "modulemd.yaml")) as mmd:
+        with open(path.join(dir_path, "modulemd.txt")) as mmd:
             self.assertEqual(len(mmd.read()), 1134)

@@ -32,6 +32,7 @@ import platform
 import shutil
 import subprocess
 import tempfile
+import time
 
 import koji
 
@@ -273,7 +274,7 @@ class KojiContentGenerator(object):
                 u'filesize': len(self.mmd),
                 u'checksum_type': u'md5',
                 u'checksum': unicode(hashlib.md5(self.mmd).hexdigest()),
-                u'filename': u'modulemd.yaml',
+                u'filename': u'modulemd.txt',
                 u'components': components
             }
         )
@@ -317,7 +318,7 @@ class KojiContentGenerator(object):
         Returns path to the temporary directory
         """
         prepdir = tempfile.mkdtemp(prefix="koji-cg-import")
-        mmd_path = os.path.join(prepdir, "modulemd.yaml")
+        mmd_path = os.path.join(prepdir, "modulemd.txt")
         log.info("Writing modulemd.yaml to %r" % mmd_path)
         with open(mmd_path, "w") as mmd_f:
             mmd_f.write(self.mmd)
@@ -331,6 +332,32 @@ class KojiContentGenerator(object):
             log.exception(e)
         return prepdir
 
+    def _upload_outputs(self, session, metadata, file_dir):
+        """
+        Uploads output files to Koji hub.
+        """
+        to_upload = []
+        for info in metadata['output']:
+            if info.get('metadata_only', False):
+                continue
+            localpath = os.path.join(file_dir, info['filename'])
+            if not os.path.exists(localpath):
+                err = "Cannot upload %s to Koji. No such file." % localpath
+                log.error(err)
+                raise RuntimeError(err)
+
+            to_upload.append([localpath, info])
+
+        # Create unique server directory.
+        serverdir = 'mbs/%r.%d' % (time.time(), self.module.id)
+
+        for localpath, info in to_upload:
+            log.info("Uploading %s to Koji" % localpath)
+            session.uploadWrapper(localpath, serverdir, callback=None)
+            log.info("Upload of %s to Koji done" % localpath)
+
+        return serverdir
+
     def koji_import(self):
         """This method imports given module into the configured koji instance as
         a content generator based build
@@ -341,7 +368,8 @@ class KojiContentGenerator(object):
         file_dir = self._prepare_file_directory()
         metadata = self._get_content_generator_metadata(file_dir)
         try:
-            build_info = session.CGImport(metadata, file_dir)
+            serverdir = self._upload_outputs(session, metadata, file_dir)
+            build_info = session.CGImport(metadata, serverdir)
             log.info("Content generator import done.")
             log.debug(json.dumps(build_info, sort_keys=True, indent=4))
 
