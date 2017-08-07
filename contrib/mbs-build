@@ -476,7 +476,7 @@ def main():
         if args.watch:
             watch_build(args.server, build_id)
         else:
-            logging.info("Submitted module build %r" % build_id)
+            print("Submitted module build %r" % build_id)
     elif args.cmd_name == "local":
         sys.exit(do_local_build(args.scm_url, args.branch, args.skiptests,
                                 log_flag))
