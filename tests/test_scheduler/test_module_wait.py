@@ -31,6 +31,7 @@ import vcr
 import koji
 from tests import conf, db, app, scheduler_init_data
 from module_build_service import build_logs
+from module_build_service.models import ComponentBuild
 
 base_dir = os.path.dirname(os.path.dirname(__file__))
 cassette_dir = base_dir + '/vcr-request-data/'
@@ -117,6 +118,12 @@ class TestModuleWait(unittest.TestCase):
             module_build_service.scheduler.handlers.modules.wait(
                 config=conf, session=db.session, msg=msg)
             koji_session.newRepo.assert_called_once_with("module-123-build")
+
+            # When module-build-macros is reused, it still has to appear only
+            # once in database.
+            builds_count = db.session.query(ComponentBuild).filter_by(
+                package="module-build-macros", module_id=1).count()
+            self.assertEqual(builds_count, 1)
 
     @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
            return_value={'build': [], 'srpm-build': []})

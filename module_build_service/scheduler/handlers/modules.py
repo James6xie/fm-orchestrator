@@ -257,18 +257,27 @@ def wait(config, session, msg):
     artifact_name = "module-build-macros"
     task_id, state, reason, nvr = builder.build(artifact_name=artifact_name, source=srpm)
 
-    component_build = models.ComponentBuild(
-        module_id=build.id,
-        package=artifact_name,
-        format="rpms",
-        scmurl=srpm,
-        task_id=task_id,
-        state=state,
-        state_reason=reason,
-        nvr=nvr,
-        batch=1,
-    )
-    session.add(component_build)
+    component_build = models.ComponentBuild.from_component_name(
+        session, artifact_name, build.id)
+    if component_build:
+        component_build.task_id = task_id
+        component_build.state = state
+        component_build.state_reason = reason
+        component_build.nvr = nvr
+    else:
+        component_build = models.ComponentBuild(
+            module_id=build.id,
+            package=artifact_name,
+            format="rpms",
+            scmurl=srpm,
+            task_id=task_id,
+            state=state,
+            state_reason=reason,
+            nvr=nvr,
+            batch=1,
+        )
+        session.add(component_build)
+
     build.transition(config, state="build")
     session.add(build)
     session.commit()
