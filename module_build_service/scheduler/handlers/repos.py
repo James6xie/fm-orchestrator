@@ -89,13 +89,6 @@ def done(config, session, msg):
         tag_name=tag, components=[c.package for c in module_build.component_builds])
     builder.buildroot_connect(groups)
 
-    # Ok, for the subset of builds that did complete successfully, check to
-    # see if they are in the buildroot.
-    artifacts = [component_build.nvr for component_build in good]
-    if not builder.buildroot_ready(artifacts):
-        log.info("Not all of %r are in the buildroot.  Waiting." % artifacts)
-        return
-
     # If we have reached here then we know the following things:
     #
     # - All components in this batch have finished (failed or succeeded)
@@ -116,6 +109,13 @@ def done(config, session, msg):
 
     further_work = []
     if has_unbuilt_components and not has_failed_components:
+        # Ok, for the subset of builds that did complete successfully, check to
+        # see if they are in the buildroot before starting new batch.
+        artifacts = [component_build.nvr for component_build in good]
+        if not builder.buildroot_ready(artifacts):
+            log.info("Not all of %r are in the buildroot.  Waiting." % artifacts)
+            return
+
         # Try to start next batch build, because there are still unbuilt
         # components in a module.
         further_work += start_next_batch_build(
