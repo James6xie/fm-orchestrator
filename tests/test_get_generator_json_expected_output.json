@@ -44,7 +44,7 @@
     }],
     "output": [
         {
-            "filename": "modulemd.yaml",
+            "filename": "modulemd.txt",
             "buildroot_id": 1,
             "components": [
                 {
