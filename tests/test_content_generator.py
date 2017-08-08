@@ -58,6 +58,13 @@ class TestBuild(unittest.TestCase):
         self.vcr = vcr.use_cassette(filename)
         self.vcr.__enter__()
 
+        # Ensure that there is no build log from other tests
+        try:
+            path = build_logs.path(self.cg.module.id)
+            os.remove(path)
+        except OSError:
+            pass
+
     def tearDown(self):
         # Necessary to restart the twisted reactor for the next test.
         import sys
@@ -69,7 +76,7 @@ class TestBuild(unittest.TestCase):
         try:
             path = build_logs.path(self.cg.module.id)
             os.remove(path)
-        except:
+        except OSError:
             pass
 
     @patch("subprocess.Popen")
