@@ -7,7 +7,7 @@ moksha.hub
 psutil
 funcsigs # Python2 only
 httplib2
-kobo
+kobo>=0.5.0
 m2crypto
 m2ext
 mock
