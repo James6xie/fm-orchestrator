@@ -99,16 +99,25 @@ class CoprModuleBuilder(GenericBuilder):
         }
 
         try:
-            return self._get_copr(**kwargs)
+            copr = self._get_copr(**kwargs)
         except CoprRequestException:
             self._create_copr(**kwargs)
-            return self._get_copr(**kwargs)
+            copr = self._get_copr(**kwargs)
+
+        self._create_chroot_safe(copr, self.chroot)
+        return copr
 
     def _get_copr(self, ownername, projectname):
         return self.client.get_project_details(projectname, username=ownername).handle
 
     def _create_copr(self, ownername, projectname):
         return self.client.create_project(ownername, projectname, [self.chroot])
+
+    def _create_chroot_safe(self, copr, chroot):
+        detail = copr.get_project_details().data["detail"]
+        current_chroots = detail["yum_repos"].keys()
+        if chroot not in current_chroots:
+            self.client.modify_project(copr.projectname, copr.username, chroots=current_chroots + [chroot])
 
     def _create_module_safe(self):
         from copr.exceptions import CoprRequestException
