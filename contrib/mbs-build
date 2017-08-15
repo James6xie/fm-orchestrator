@@ -84,7 +84,10 @@ def watch_build(server, build_id):
 
         data = fetch_module_info(server, build_id)
 
-        tasks = data['tasks']['rpms']
+        tasks = dict()
+        if 'rpms' in data['tasks']:
+            tasks = data['tasks']['rpms']
+
         states = list(set([task['state'] for task in tasks.values()]))
         inverted = dict()
         for name, task in tasks.items():
