@@ -21,6 +21,8 @@ except ImportError:
 
 DEFAULT_ID_PROVIDER = "https://id.fedoraproject.org/openidc/"
 DEFAULT_MBS_SERVER = "https://mbs.fedoraproject.org"
+DEFAULT_MBS_REST_API = "/module-build-service/1/module-builds"
+DEFAULT_KOJI_TASK_URL = "https://koji.fedoraproject.org/koji/taskinfo"
 
 openidc_client.WEB_PORTS = [13747]
 
@@ -41,7 +43,7 @@ def fetch_module_info(server, build_id):
         server = DEFAULT_MBS_SERVER
     idx = int(build_id)
 
-    response = requests.get(server + '/module-build-service/1/module-builds/%i?verbose=true' % idx)
+    response = requests.get(server + '%s/%i?verbose=true' % (DEFAULT_MBS_REST_API, idx))
     return response.json()
 
 
@@ -53,7 +55,7 @@ def show_module_info(server, build_id):
     table = []
     for package_name, task_data in data["tasks"]["rpms"].items():
         try:
-            koji_task_url = "https://koji.fedoraproject.org/koji/taskinfo?taskID=%s" % task_data['task_id']
+            koji_task_url = "%s?taskID=%s" % (DEFAULT_KOJI_TASK_URL, task_data['task_id'])
         except KeyError:
             koji_task_url = ""
         table += [[
@@ -94,13 +96,13 @@ def watch_build(server, build_id):
             print("Still building:")
             for name in inverted[0]:
                 task = tasks[name]
-                print("  ", name, "https://koji.fedoraproject.org/koji/taskinfo?taskID=%s" % task['task_id'])
+                print("  ", name, "%s?taskID=%s" % (DEFAULT_KOJI_TASK_URL, task['task_id']))
 
         if 3 in inverted:
             print("Failed:")
             for name in inverted[3]:
                 task = tasks[name]
-                print("  ", name, "https://koji.fedoraproject.org/koji/taskinfo?taskID=%s" % task['task_id'])
+                print("  ", name, "%staskID=%s" % (DEFAULT_KOJI_TASK_URL, task['task_id']))
 
         print()
         print("Summary:")
@@ -264,7 +266,7 @@ def submit_module_build(scm_url, branch, server, id_provider, pyrpkg, verify=Tru
         return -5, "Optional arguments are not in a proper arg=value format."
     body.update(optional_dict)
     resp = send_authorized_request(
-        "POST", server, id_provider, "/module-build-service/1/module-builds/",
+        "POST", server, id_provider, DEFAULT_MBS_REST_API,
         body, verify=verify)
     logging.info(resp.text)
 
@@ -309,7 +311,7 @@ def cancel_module_build(server, id_provider, build_id, verify=True):
     logging.info("Cancelling module build %s", build_id)
     resp = send_authorized_request(
         "PATCH", server, id_provider,
-        "/module-build-service/1/module-builds/" + str(build_id),
+        "%s/%s" % (DEFAULT_MBS_REST_API, build_id),
         {'state': 'failed'}, verify=verify)
     logging.info(resp.text)
 
@@ -319,7 +321,7 @@ def show_overview(server, finished, limit=30):
         server = DEFAULT_MBS_SERVER
 
     # Base URL to query.
-    baseurl = server + '/module-build-service/1/module-builds/'
+    baseurl = server + DEFAULT_MBS_REST_API
 
     # This logging would break our formatting.
     logging.getLogger("requests").setLevel(logging.WARNING)
