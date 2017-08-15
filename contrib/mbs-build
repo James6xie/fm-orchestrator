@@ -260,6 +260,7 @@ def submit_module_build(scm_url, branch, server, id_provider, pyrpkg, verify=Tru
 
     logging.info("Submitting module build %s", scm_url)
     body = {'scmurl': scm_url, 'branch': branch}
+    optional = optional if optional else []
     try:
         optional_dict = {y[0]: y[1] for y in [x.split("=", 1) for x in optional]}
     except IndexError:
