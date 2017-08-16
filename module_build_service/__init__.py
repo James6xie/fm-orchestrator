@@ -54,10 +54,14 @@ from module_build_service.config import init_config
 from module_build_service.proxy import ReverseProxy
 
 
-def create_app(debug=False, verbose=False, quiet=False):
-    app = Flask(__name__)
-    app.wsgi_app = ReverseProxy(app.wsgi_app)
+app = Flask(__name__)
+app.wsgi_app = ReverseProxy(app.wsgi_app)
 
+conf = init_config(app)
+db = SQLAlchemy(app)
+
+
+def create_app(debug=False, verbose=False, quiet=False):
     # logging (intended for flask-script, see manage.py)
     log = getLogger(__name__)
     if debug:
@@ -68,10 +72,6 @@ def create_app(debug=False, verbose=False, quiet=False):
         log.setLevel(level_flags["quiet"])
 
     return app
-
-app = create_app()
-conf = init_config(app)
-db = SQLAlchemy(app)
 
 
 def load_views():
