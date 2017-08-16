@@ -28,6 +28,7 @@ import koji
 import kobo.rpmlib
 import modulemd
 import pipes
+import re
 import threading
 
 from module_build_service import conf, log
@@ -324,6 +325,25 @@ mdpolicy=group:primary
         if os.path.exists(old_log):
             os.rename(old_log, new_log)
 
+    def _purge_useless_logs(self):
+        """
+        Remove empty or otherwise useless log files
+        """
+        for logf in os.listdir(self.resultsdir):
+
+            log_path = os.path.join(self.resultsdir, logf)
+
+            # Remove empty files
+            if os.path.isfile(log_path) and os.path.getsize(log_path) == 0:
+                os.remove(log_path)
+
+            # Remove other files containing useless information
+            elif logf.endswith('-srpm-stdout.log'):
+                with open(log_path) as f:
+                    data = f.read(4096)
+                    if re.match("Downloading [^\n]*\n\n\nWrote: [^\n]", data):
+                        os.remove(log_path)
+
     def build_srpm(self, artifact_name, source, build_id, builder):
         """
         Builds the artifact from the SRPM.
@@ -385,6 +405,10 @@ mdpolicy=group:primary
         # Copy files from thread-related resultsdire to the main resultsdir.
         for name in os.listdir(resultsdir):
             os.rename(os.path.join(resultsdir, name), os.path.join(self.resultsdir, name))
+
+        # Depending on the configuration settings, remove/keep useless log files
+        if conf.mock_purge_useless_logs:
+            self._purge_useless_logs()
 
         # We return BUILDING state here even when we know it is already
         # completed or failed, because otherwise utils.start_build_batch
