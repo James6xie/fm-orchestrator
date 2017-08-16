@@ -322,6 +322,10 @@ class Config(object):
             'type': Path,
             'default': '~/modulebuild/builds',
             'desc': 'Directory for Mock build results.'},
+        'mock_purge_useless_logs': {
+            'type': bool,
+            'default': True,
+            'desc': 'Remove empty or otherwise useless log files.'},
         'scmurls': {
             'type': list,
             'default': [],
