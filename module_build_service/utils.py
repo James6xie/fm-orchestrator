@@ -34,6 +34,7 @@ import inspect
 import hashlib
 
 import modulemd
+import yaml
 
 from flask import request, url_for
 from datetime import datetime
@@ -572,6 +573,90 @@ def _scm_get_latest(pkg):
     }
 
 
+def load_local_builds(local_build_nsvs):
+    """
+    Loads previously finished local module builds from conf.mock_resultsdir
+    and imports them to database.
+
+    :param local_build_nsvs: List of NSV separated by ':' defining the modules
+        to load from the mock_resultsdir.
+    """
+    if not local_build_nsvs:
+        return
+
+    if type(local_build_nsvs) != list:
+        local_build_nsvs = [local_build_nsvs]
+
+    # Get the list of all available local module builds.
+    builds = []
+    try:
+        for d in os.listdir(conf.mock_resultsdir):
+            m = re.match('^module-(.*)-([^-]*)-([0-9]+)$', d)
+            if m:
+                builds.append((m.group(1), m.group(2), int(m.group(3)), d))
+    except OSError:
+        pass
+
+    # Sort with the biggest version first
+    builds.sort(lambda a, b: -cmp(a[2], b[2]))
+
+    for build_id in local_build_nsvs:
+        parts = build_id.split(':')
+        if len(parts) < 1 or len(parts) > 3:
+            raise RuntimeError(
+                'The local build "{0}" couldn\'t be be parsed into '
+                'NAME[:STREAM[:VERSION]]'.format(build_id))
+
+        name = parts[0]
+        stream = parts[1] if len(parts) > 1 else None
+        version = int(parts[2]) if len(parts) > 2 else None
+
+        found_build = None
+        for build in builds:
+            if name != build[0]:
+                continue
+            if stream is not None and stream != build[1]:
+                continue
+            if version is not None and version != build[2]:
+                continue
+
+            found_build = build
+            break
+
+        if not found_build:
+            raise RuntimeError(
+                'The local build "{0}" couldn\'t be found in "{1}"'.format(
+                    build_id, conf.mock_resultsdir))
+
+        # Load the modulemd metadata.
+        path = os.path.join(conf.mock_resultsdir, found_build[3], 'results')
+        mmd_path = os.path.join(path, 'modules.yaml')
+        with open(mmd_path, 'r') as f:
+            mmd_data = yaml.safe_load(f)
+        mmd = modulemd.ModuleMetadata()
+        mmd.loadd(mmd_data)
+
+        # Create ModuleBuild in database.
+        module = models.ModuleBuild.create(
+            db.session,
+            conf,
+            name=mmd.name,
+            stream=mmd.stream,
+            version=str(mmd.version),
+            modulemd=mmd.dumps(),
+            scmurl="",
+            username="mbs")
+        module.koji_tag = path
+        db.session.commit()
+
+        if (found_build[0] != module.name
+                or found_build[1] != module.stream
+                or str(found_build[2]) != module.version):
+            raise RuntimeError(
+                'Parsed metadata results for "{0}" don\'t match the directory name'.format(found_build[3]))
+        log.info("Loaded local module build %r", module)
+
+
 def format_mmd(mmd, scmurl):
     """
     Prepares the modulemd for the MBS. This does things such as replacing the
@@ -585,6 +670,9 @@ def format_mmd(mmd, scmurl):
     from module_build_service.scm import SCM
 
     mmd.xmd['mbs'] = {'scmurl': scmurl, 'commit': None}
+
+    local_modules = models.ModuleBuild.local_modules(db.session)
+    local_modules = {m.name + "-" + m.stream: m for m in local_modules}
 
     # If module build was submitted via yaml file, there is no scmurl
     if scmurl:
@@ -609,6 +697,20 @@ def format_mmd(mmd, scmurl):
         pdc = module_build_service.pdc.get_pdc_client_session(conf)
         for module_name, module_stream in \
                 mmd.xmd['mbs']['buildrequires'].items():
+
+            # Try to find out module dependency in the local module builds
+            # added by utils.load_local_builds(...).
+            local_modules = models.ModuleBuild.local_modules(
+                db.session, module_name, module_stream)
+            if local_modules:
+                local_build = local_modules[0]
+                mmd.xmd['mbs']['buildrequires'][module_name] = {
+                    # The commit ID isn't currently saved in modules.yaml
+                    'stream': local_build.stream,
+                    'version': local_build.version
+                }
+                continue
+
             # Assumes that module_stream is the stream and not the commit hash
             module_info = {
                 'name': module_name,

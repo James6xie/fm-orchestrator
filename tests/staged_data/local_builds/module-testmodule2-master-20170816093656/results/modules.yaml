@@ -1,0 +1,46 @@
+---
+data:
+  api:
+    rpms: [ed, mksh]
+  artifacts:
+    rpms: [mksh-56-1.module_92fc48de.src, module-build-macros-0.1-1.module_b7b9441a.src,
+      mksh-debuginfo-56-1.module_92fc48de.x86_64, module-build-macros-0.1-1.module_b7b9441a.noarch,
+      mksh-56-1.module_92fc48de.x86_64]
+  buildopts:
+    rpms: {macros: '
+
+
+        %check exit 0
+
+        '}
+  components:
+    rpms:
+      mksh: {cache: 'http://pkgs.fedoraproject.org/repo/pkgs/mksh', rationale: A build
+          dependency of mksh., ref: master, repository: 'git://pkgs.fedoraproject.org/rpms/mksh'}
+  dependencies:
+    buildrequires: {base-runtime: master, testmodule: master}
+    requires: {base-runtime: master}
+  description: This module demonstrates how to write simple modulemd files And can
+    be used for testing the build and release pipeline.
+  license:
+    module: [MIT]
+  name: testmodule2
+  profiles:
+    default:
+      rpms: [mksh]
+  references: {community: 'https://docs.pagure.org/modularity/', documentation: 'https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules'}
+  stream: master
+  summary: A test module in all its beautiful beauty
+  version: 20170816093656
+  xmd:
+    mbs:
+      buildrequires:
+        base-runtime: {ref: 147dca4ca65aa9a1ac51f71b7e687f9178ffa5df, stream: master,
+          version: '20170616125652'}
+        testmodule: {stream: master, version: '20170816080815'}
+      commit: null
+      rpms:
+        mksh: {ref: 7df6f444cd19c4af97dee8529f35c02f0cedc4fa}
+      scmurl: ''
+document: modulemd
+version: 1

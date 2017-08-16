@@ -95,6 +95,7 @@ class TestModuleBuilder(GenericBuilder):
 
     BUILD_STATE = "COMPLETE"
     INSTANT_COMPLETE = False
+    DEFAULT_GROUPS = None
 
     on_build_cb = None
     on_cancel_cb = None
@@ -115,9 +116,10 @@ class TestModuleBuilder(GenericBuilder):
         TestModuleBuilder.on_cancel_cb = None
         TestModuleBuilder.on_buildroot_add_artifacts_cb = None
         TestModuleBuilder.on_tag_artifacts_cb = None
+        TestModuleBuilder.DEFAULT_GROUPS = None
 
     def buildroot_connect(self, groups):
-        default_groups = {
+        default_groups = TestModuleBuilder.DEFAULT_GROUPS or {
             'srpm-build':
                 set(['shadow-utils', 'fedora-release', 'redhat-rpm-config',
                      'rpm-build', 'fedpkg-minimal', 'gnupg2', 'bash']),
@@ -793,3 +795,83 @@ class TestBuild(unittest.TestCase):
         for build in models.ComponentBuild.query.filter_by(module_id=module_build_id).all():
             self.assertEqual(build.state, koji.BUILD_STATES['COMPLETE'])
             self.assertTrue(build.module_build.state in [models.BUILD_STATES["done"], models.BUILD_STATES["ready"]])
+
+@patch("module_build_service.config.Config.system",
+       new_callable=PropertyMock, return_value="test")
+class TestLocalBuild(unittest.TestCase):
+
+    def setUp(self):
+        GenericBuilder.register_backend_class(TestModuleBuilder)
+        self.client = app.test_client()
+
+        init_data()
+        models.ModuleBuild.query.delete()
+        models.ComponentBuild.query.delete()
+
+        filename = cassette_dir + self.id()
+        self.vcr = vcr.use_cassette(filename)
+        self.vcr.__enter__()
+
+    def tearDown(self):
+        TestModuleBuilder.reset()
+
+        # Necessary to restart the twisted reactor for the next test.
+        import sys
+        del sys.modules['twisted.internet.reactor']
+        del sys.modules['moksha.hub.reactor']
+        del sys.modules['moksha.hub']
+        import moksha.hub.reactor
+        self.vcr.__exit__()
+        for i in range(20):
+            try:
+                os.remove(build_logs.path(i))
+            except:
+                pass
+
+    @timed(30)
+    @patch('module_build_service.auth.get_user', return_value=user)
+    @patch('module_build_service.scm.SCM')
+    @patch("module_build_service.config.Config.mock_resultsdir",
+        new_callable=PropertyMock,
+        return_value=path.join(
+            base_dir, 'staged_data', "local_builds"))
+    def test_submit_build_local_dependency(
+            self, resultsdir, mocked_scm, mocked_get_user, conf_system):
+        """
+        Tests local module build dependency.
+        """
+        with app.app_context():
+            module_build_service.utils.load_local_builds(["base-runtime"])
+            MockedSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
+                    '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+
+            rv = self.client.post(
+                '/module-build-service/1/module-builds/', data=json.dumps(
+                    {'branch': 'master',
+                     'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+                    'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}))
+
+            data = json.loads(rv.data)
+            module_build_id = data['id']
+
+            # Local base-runtime has changed profiles, so we can detect we use
+            # the local one and not the main one.
+            TestModuleBuilder.DEFAULT_GROUPS = {
+                'srpm-build':
+                    set(['bar']),
+                'build':
+                    set(['foo'])}
+
+            msgs = []
+            stop = module_build_service.scheduler.make_simple_stop_condition(
+                db.session)
+            module_build_service.scheduler.main(msgs, stop)
+
+            # All components should be built and module itself should be in "done"
+            # or "ready" state.
+            for build in models.ComponentBuild.query.filter_by(
+                    module_id=module_build_id).all():
+                self.assertEqual(build.state, koji.BUILD_STATES['COMPLETE'])
+                self.assertTrue(build.module_build.state in [
+                    models.BUILD_STATES["done"], models.BUILD_STATES["ready"]])
+

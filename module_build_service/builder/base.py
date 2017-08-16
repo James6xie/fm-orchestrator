@@ -32,8 +32,8 @@ import six
 from abc import ABCMeta, abstractmethod
 from requests.exceptions import ConnectionError
 
-from module_build_service import conf, log
-from module_build_service import pdc
+from module_build_service import conf, log, db
+from module_build_service import pdc, models
 import module_build_service.scm
 import module_build_service.utils
 
@@ -277,10 +277,31 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
     @classmethod
     @module_build_service.utils.retry(wait_on=(ConnectionError))
     def default_buildroot_groups(cls, session, module):
+        local_modules = models.ModuleBuild.local_modules(db.session)
+        local_modules = {m.name + "-" + m.stream: m for m in local_modules}
+
         try:
+            mmd = module.mmd()
             pdc_session = pdc.get_pdc_client_session(conf)
-            pdc_groups = pdc.resolve_profiles(pdc_session, module.mmd(),
-                                              ('buildroot', 'srpm-buildroot'))
+
+            # Resolve default buildroot groups using the PDC, but only for
+            # non-local modules.
+            pdc_groups = pdc.resolve_profiles(pdc_session, mmd,
+                                              ('buildroot', 'srpm-buildroot'),
+                                              exclude=local_modules)
+
+            # For local modules, resolve the buildroot groups using local
+            # modulemd metadata.
+            for module_name, module_info in mmd.xmd['mbs']['buildrequires'].items():
+                key = module_name + "-" + module_info['stream']
+                if key in local_modules:
+                    local_build = local_modules[key]
+                    local_mmd = local_build.mmd()
+                    if 'buildroot' in local_mmd.profiles:
+                        pdc_groups['buildroot'] |= local_mmd.profiles['buildroot'].rpms
+                    if 'srpm-buildroot' in local_mmd.profiles:
+                        pdc_groups['srpm-buildroot'] |= local_mmd.profiles['srpm-buildroot'].rpms
+
             groups = {
                 'build': pdc_groups['buildroot'],
                 'srpm-build': pdc_groups['srpm-buildroot'],
