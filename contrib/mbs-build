@@ -105,7 +105,7 @@ def watch_build(server, build_id):
             print("Failed:")
             for name in inverted[3]:
                 task = tasks[name]
-                print("  ", name, "%staskID=%s" % (DEFAULT_KOJI_TASK_URL, task['task_id']))
+                print("  ", name, "%s?taskID=%s" % (DEFAULT_KOJI_TASK_URL, task['task_id']))
 
         print()
         print("Summary:")
