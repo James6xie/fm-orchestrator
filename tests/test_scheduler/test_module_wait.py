@@ -133,7 +133,7 @@ class TestModuleWait(unittest.TestCase):
     def test_new_repo_not_called_when_macros_not_reused(
             self, pdc, create_builder, koji_get_session, dbg):
         """
-        Test that newRepo is not called when module-build-macros build is not reused.
+        Test that newRepo is called everytime for module-build-macros
         """
         with app.app_context():
             pdc.get_module_tag.return_value = "module-testmodule-master-20170109091357"
@@ -153,4 +153,4 @@ class TestModuleWait(unittest.TestCase):
                                                            module_build_state='some state')
             module_build_service.scheduler.handlers.modules.wait(
                 config=conf, session=db.session, msg=msg)
-            self.assertTrue(not koji_session.newRepo.called)
+            self.assertTrue(koji_session.newRepo.called)

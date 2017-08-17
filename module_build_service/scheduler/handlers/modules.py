@@ -292,16 +292,13 @@ def wait(config, session, msg):
     session.add(build)
     session.commit()
 
-    # If this build already exists and is done, then regenerate the repository
-    # to ensure module-build-macros is there.
-    if state == koji.BUILD_STATES['COMPLETE']:
-        if config.system == "koji":
-            log.info("module-build-macros is already built. "
-                     "Regenerating the repo.")
-            task_id = builder.koji_session.newRepo(
-                builder.module_build_tag['name'])
-            build.new_repo_task_id = task_id
-            session.commit()
-        else:
-            return [module_build_service.messaging.KojiRepoChange(
-                'fake msg', builder.module_build_tag['name'])]
+    # We always have to regenerate the repository.
+    if config.system == "koji":
+        log.info("Regenerating the repository")
+        task_id = builder.koji_session.newRepo(
+            builder.module_build_tag['name'])
+        build.new_repo_task_id = task_id
+        session.commit()
+    else:
+        return [module_build_service.messaging.KojiRepoChange(
+            'fake msg', builder.module_build_tag['name'])]
