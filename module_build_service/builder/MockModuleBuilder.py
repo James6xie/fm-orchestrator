@@ -293,11 +293,20 @@ mdpolicy=group:primary
         # extended to Copr in the future.
         self._load_mock_config()
         for tag in dependencies:
-            repo_dir = os.path.join(self.config.cache_dir, "koji_tags", tag)
-            create_local_repo_from_koji_tag(self.config, tag, repo_dir,
-                                            [self.arch, "noarch"])
+            # If tag starts with mock_resultdir, it means it is path to local
+            # module build repository.
+            if tag.startswith(conf.mock_resultsdir):
+                repo_name = os.path.basename(tag)
+                if repo_name.startswith("module-"):
+                    repo_name = name[7:]
+                repo_dir = tag
+            else:
+                repo_name = tag
+                repo_dir = os.path.join(self.config.cache_dir, "koji_tags", tag)
+                create_local_repo_from_koji_tag(self.config, tag, repo_dir,
+                                                [self.arch, "noarch"])
             baseurl = "file://" + repo_dir
-            self._add_repo(tag, baseurl)
+            self._add_repo(repo_name, baseurl)
         self._write_mock_config()
 
     def _send_build_change(self, state, source, build_id):

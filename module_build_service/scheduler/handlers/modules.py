@@ -168,6 +168,16 @@ def wait(config, session, msg):
                         str(module_info['stream']), str(module_info['version'])])
 
         for name, stream in build.mmd().buildrequires.items():
+            # Try to load local module if it is loaded by
+            # utils.load_local_modules(...). Such modules have koji_tag set to
+            # path to repository with built RPMs.
+            local_modules = models.ModuleBuild.local_modules(session, name, stream)
+            if local_modules:
+                local_module = local_modules[0]
+                log.info("Using local module %r as a dependency.",
+                         local_module)
+                dependencies.append(local_module.koji_tag)
+                continue
 
             pdc_session = module_build_service.pdc.get_pdc_client_session(config)
             pdc_query = {

@@ -114,3 +114,20 @@ class TestPDCModule(unittest.TestCase):
                      'bash'])
         }
         self.assertEqual(result, expected)
+
+    def test_resolve_profiles_exclude(self):
+        current_dir = os.path.dirname(__file__)
+        yaml_path = os.path.join(
+            current_dir, 'staged_data', 'formatted_testmodule.yaml')
+        mmd = modulemd.ModuleMetadata()
+        mmd.load(yaml_path)
+        result = mbs_pdc.resolve_profiles(self.pdc, mmd,
+                                          ('buildroot', 'srpm-buildroot'),
+                                          exclude=("base-runtime-master",))
+        expected = {
+            'buildroot':
+                set(),
+            'srpm-buildroot':
+                set()
+        }
+        self.assertEqual(result, expected)

@@ -1,0 +1,38 @@
+---
+data:
+  api:
+    rpms: [ed, mksh]
+  artifacts:
+    rpms: [ed-debuginfo-1.14.1-4.module_92fc48de.x86_64, ed-1.14.1-4.module_92fc48de.x86_64,
+      module-build-macros-0.1-1.module_92fc48de.src, module-build-macros-0.1-1.module_92fc48de.noarch,
+      ed-1.14.1-4.module_92fc48de.src]
+  components:
+    rpms:
+      ed: {cache: 'http://pkgs.fedoraproject.org/repo/pkgs/ed', rationale: A build
+          dependency of mksh., ref: master, repository: 'git://pkgs.fedoraproject.org/rpms/ed'}
+  dependencies:
+    buildrequires: {base-runtime: master}
+    requires: {base-runtime: master}
+  description: This module demonstrates how to write simple modulemd files And can
+    be used for testing the build and release pipeline.
+  license:
+    module: [MIT]
+  name: testmodule
+  profiles:
+    default:
+      rpms: [mksh]
+  references: {community: 'https://docs.pagure.org/modularity/', documentation: 'https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules'}
+  stream: master
+  summary: A test module in all its beautiful beauty
+  version: 20170816080815
+  xmd:
+    mbs:
+      buildrequires:
+        base-runtime: {ref: 147dca4ca65aa9a1ac51f71b7e687f9178ffa5df, stream: master,
+          version: '20170616125652'}
+      commit: 722fd739fd6cf66faf29f6fb95dd64f60ba3e39a
+      rpms:
+        ed: {ref: 01bf8330812fea798671925cc537f2f29b0bd216}
+      scmurl: file:///home/hanzz/modules/testmodule/
+document: modulemd
+version: 1

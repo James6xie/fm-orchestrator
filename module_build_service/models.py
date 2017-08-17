@@ -34,7 +34,7 @@ from sqlalchemy.orm import validates, scoped_session, sessionmaker
 from flask import has_app_context
 import modulemd as _modulemd
 
-from module_build_service import db, log, get_url_for, app
+from module_build_service import db, log, get_url_for, app, conf
 import module_build_service.messaging
 
 from sqlalchemy.orm import lazyload
@@ -83,7 +83,7 @@ def make_session(conf):
     Yields new SQLAlchemy database sesssion.
     """
     # Needs to be set to create app_context.
-    if 'SERVER_NAME' not in app.config:
+    if 'SERVER_NAME' not in app.config or not app.config['SERVER_NAME']:
         app.config['SERVER_NAME'] = 'localhost'
 
     # If there is no app_context, we have to create one before creating
@@ -214,7 +214,7 @@ class ModuleBuild(MBSBase):
             owner=username,
             time_submitted=now,
             copr_owner=copr_owner,
-            copr_project=copr_project,
+            copr_project=copr_project
         )
         session.add(module)
         session.commit()
@@ -253,6 +253,35 @@ class ModuleBuild(MBSBase):
                 msg=self.json(),  # Note the state is "init" here...
                 conf=conf,
             )
+
+    @classmethod
+    def local_modules(cls, session, name=None, stream=None):
+        """
+        Returns list of local module builds added by
+        utils.load_local_builds(...). When `name` or `stream` is set,
+        it is used to further limit the result set.
+
+        If conf.system is not set to "mock" or "test", returns empty
+        list everytime, because local modules make sense only when
+        building using Mock backend or during tests.
+        """
+        if conf.system in ["koji", "copr"]:
+            return []
+
+        filters = {}
+        if name:
+            filters["name"] = name
+        if stream:
+            filters["stream"] = stream
+        local_modules = session.query(ModuleBuild).filter_by(
+            **filters).all()
+        if not local_modules:
+            return []
+
+        local_modules = [m for m in local_modules
+                         if m.koji_tag
+                         and m.koji_tag.startswith(conf.mock_resultsdir)]
+        return local_modules
 
     @classmethod
     def by_state(cls, session, state):

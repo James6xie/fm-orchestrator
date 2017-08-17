@@ -237,12 +237,14 @@ def _extract_modulemd(yaml, strict=False):
     return mmd
 
 
-def resolve_profiles(session, mmd, keys):
+def resolve_profiles(session, mmd, keys, exclude=None):
     """
     :param session : PDCClient instance
     :param mmd: ModuleMetadata instance of module
     :param keys: list of modulemd installation profiles to include in
                  the result.
+    :param exclude: a set or map with the keys being $name-$stream
+                 to not look up in the PDC
     :return: Dictionary with keys set according to `keys` param and values
              set to union of all components defined in all installation
              profiles matching the key using the buildrequires.
@@ -250,10 +252,15 @@ def resolve_profiles(session, mmd, keys):
     https://pagure.io/fm-orchestrator/issue/181
     """
 
+    exclude = exclude or []
+
     results = {}
     for key in keys:
         results[key] = set()
     for module_name, module_info in mmd.xmd['mbs']['buildrequires'].items():
+        if module_name + "-" + module_info['stream'] in exclude:
+            continue
+
         # Find the dep in the built modules in PDC
         module_info = {
             'variant_id': module_name,

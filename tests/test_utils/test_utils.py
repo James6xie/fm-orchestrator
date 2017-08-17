@@ -650,3 +650,81 @@ class TestBatches(unittest.TestCase):
 
         # Batch number should not increase.
         self.assertEqual(module_build.batch, 1)
+
+
+@patch("module_build_service.config.Config.mock_resultsdir",
+       new_callable=mock.PropertyMock,
+       return_value=path.join(
+           BASE_DIR, '..', 'staged_data', "local_builds"))
+@patch("module_build_service.config.Config.system",
+       new_callable=mock.PropertyMock, return_value="mock")
+class TestLocalBuilds(unittest.TestCase):
+
+    def setUp(self):
+        init_data()
+
+    def tearDown(self):
+        init_data()
+
+    def test_load_local_builds_name(self, conf_system, conf_resultsdir):
+        with app.app_context():
+            module_build_service.utils.load_local_builds("testmodule")
+            local_modules = models.ModuleBuild.local_modules(db.session)
+
+            self.assertEqual(len(local_modules), 1)
+            self.assertTrue(local_modules[0].koji_tag.endswith(
+                "/module-testmodule-master-20170816080816/results"))
+
+    def test_load_local_builds_name_stream(
+            self, conf_system, conf_resultsdir):
+        with app.app_context():
+            module_build_service.utils.load_local_builds("testmodule:master")
+            local_modules = models.ModuleBuild.local_modules(db.session)
+
+            self.assertEqual(len(local_modules), 1)
+            self.assertTrue(local_modules[0].koji_tag.endswith(
+                "/module-testmodule-master-20170816080816/results"))
+
+    def test_load_local_builds_name_stream_non_existing(
+            self, conf_system, conf_resultsdir):
+        with app.app_context():
+            with self.assertRaises(RuntimeError):
+                module_build_service.utils.load_local_builds("testmodule:x")
+                local_modules = models.ModuleBuild.local_modules(db.session)
+
+    def test_load_local_builds_name_stream_version(
+            self, conf_system, conf_resultsdir):
+        with app.app_context():
+            module_build_service.utils.load_local_builds("testmodule:master:20170816080815")
+            local_modules = models.ModuleBuild.local_modules(db.session)
+
+            self.assertEqual(len(local_modules), 1)
+            self.assertTrue(local_modules[0].koji_tag.endswith(
+                "/module-testmodule-master-20170816080815/results"))
+
+    def test_load_local_builds_name_stream_version_non_existing(
+            self, conf_system, conf_resultsdir):
+        with app.app_context():
+            with self.assertRaises(RuntimeError):
+                module_build_service.utils.load_local_builds("testmodule:master:123")
+                local_modules = models.ModuleBuild.local_modules(db.session)
+
+    def test_load_local_builds_base_runtime(
+            self, conf_system, conf_resultsdir):
+        with app.app_context():
+            module_build_service.utils.load_local_builds("base-runtime")
+            local_modules = models.ModuleBuild.local_modules(db.session)
+
+            self.assertEqual(len(local_modules), 1)
+            self.assertTrue(local_modules[0].koji_tag.endswith(
+                "/module-base-runtime-master-20170816080815/results"))
+
+    def test_load_local_builds_base_runtime_master(
+            self, conf_system, conf_resultsdir):
+        with app.app_context():
+            module_build_service.utils.load_local_builds("base-runtime:master")
+            local_modules = models.ModuleBuild.local_modules(db.session)
+
+            self.assertEqual(len(local_modules), 1)
+            self.assertTrue(local_modules[0].koji_tag.endswith(
+                "/module-base-runtime-master-20170816080815/results"))

@@ -34,6 +34,7 @@ from module_build_service import app, conf, db, create_app
 from module_build_service import models
 from module_build_service.utils import (
     submit_module_build_from_scm,
+    load_local_builds,
 )
 import module_build_service.messaging
 import module_build_service.scheduler.consumer
@@ -115,11 +116,14 @@ def cleardb():
     models.ComponentBuild.query.delete()
 
 
-@manager.command
-def build_module_locally(url, branch, skiptests=False):
+@manager.option('branch')
+@manager.option('url')
+@manager.option('skiptests', action='store_true')
+@manager.option('-l', '--add-local-build', action='append', default=None, dest='local_build_nsvs')
+def build_module_locally(url, branch, local_build_nsvs=None, skiptests=False):
     """ Performs local module build using Mock
     """
-    if 'SERVER_NAME' not in app.config:
+    if 'SERVER_NAME' not in app.config or not app.config['SERVER_NAME']:
         app.config["SERVER_NAME"] = 'localhost'
 
     with app.app_context():
@@ -136,15 +140,8 @@ def build_module_locally(url, branch, skiptests=False):
         if os.path.exists(dbpath):
             os.remove(dbpath)
 
-        # Create the database and insert fake base-runtime module there. This is
-        # normally done by the flask_migrate.upgrade(), but I (jkaluza) do not
-        # call it here, because after that call, all the logged messages are not
-        # printed to stdout/stderr and are ignored... I did not find a way how to
-        # fix that.
-        #
-        # In the future, we should use PDC to get what we need from the fake module,
-        # so it's probably not big problem.
         db.create_all()
+        load_local_builds(local_build_nsvs)
 
         username = getpass.getuser()
         submit_module_build_from_scm(username, url, branch, allow_local_url=True,
