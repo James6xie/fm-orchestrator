@@ -21,7 +21,7 @@ except ImportError:
 
 DEFAULT_ID_PROVIDER = "https://id.fedoraproject.org/openidc/"
 DEFAULT_MBS_SERVER = "https://mbs.fedoraproject.org"
-DEFAULT_MBS_REST_API = "/module-build-service/1/module-builds"
+DEFAULT_MBS_REST_API = "/module-build-service/1/module-builds/"
 DEFAULT_KOJI_TASK_URL = "https://koji.fedoraproject.org/koji/taskinfo"
 
 openidc_client.WEB_PORTS = [13747]
