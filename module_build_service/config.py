@@ -134,7 +134,7 @@ class Config(object):
             'desc': 'RDB URL.'},
         'default_dist_tag_prefix': {
             'type': str,
-            'default': 'module_',
+            'default': 'module+',
             'desc': 'Default dist-tag prefix for built modules.'},
         'polling_interval': {
             'type': int,
