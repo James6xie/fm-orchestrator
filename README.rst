@@ -409,6 +409,48 @@ and the "submitted_before" parameters::
         "total": 3
       }
 
+Listing component builds
+------------------------
+
+An example of querying the "component-builds" resource without any additional
+parameters::
+
+    GET /module-build-service/1/component-builds/
+
+::
+
+    HTTP 200 OK
+
+::
+
+    {
+      "items": [
+        {
+          "id": 854,
+          "state": 1
+        },
+        {
+          "id": 107,
+          "state": 1
+        },
+        {
+          "id": 104,
+          "state": 1
+        },
+        ....
+      ],
+      "meta": {
+        "first": "https://127.0.0.1:5000/module-build-service/1/component-builds/?per_page=10&page=1",
+        "last": "https://127.0.0.1:5000/module-build-service/1/component-builds/?per_page=10&page=4237",
+        "next": "https://127.0.0.1:5000/module-build-service/1/component-builds/?per_page=10&page=2",
+        "page": 1,
+        "pages": 4237,
+        "per_page": 10,
+        "prev": null,
+        "total": 42366
+      }
+    }
+
 HTTP Response Codes
 -------------------
 
