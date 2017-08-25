@@ -41,26 +41,37 @@ from sqlalchemy.orm import lazyload
 
 # Just like koji.BUILD_STATES, except our own codes for modules.
 BUILD_STATES = {
-    # When you parse the modulemd file and know the nvr and you create a
-    # record in the db, and that's it.
-    # publish the message
-    # validate that components are available
-    #   and that you can fetch them.
-    # if all is good, go to wait: telling module_build_service_daemon to take over.
-    # if something is bad, go straight to failed.
+    # This is (obviously) the first state a module build enters.
+    #
+    # When a user first submits a module build, it enters this state. We parse
+    # the modulemd file, learn the NVR, create a record for the module build.
+    # and publish the message.
+    #
+    # Then, we validate that the components are available, and that we can
+    # fetch them. If this is all good, then we set the build to the 'wait'
+    # state. If anything goes wrong, we jump immediately to the 'failed' state.
     "init": 0,
-    # Here, the scheduler picks up tasks in wait.
-    # switch to build immediately.
-    # throttling logic (when we write it) goes here.
+
+    # Here, the scheduler picks up tasks in wait and switches to build
+    # immediately. Eventually, we'll add throttling logic here so we don't
+    # submit too many builds for the build system to handle
     "wait": 1,
-    # Actively working on it.
+
+    # The scheduler works on builds in this state. We prepare the buildroot,
+    # submit builds for all the components, and wait for the results to come
+    # back.
     "build": 2,
-    # All is good
+
+    # Once all components have succeeded, we set the top-level module build
+    # to 'done'.
     "done": 3,
-    # Something failed
+
+    # If any of the component builds fail, then we set the top-level module
+    # build to 'failed' also.
     "failed": 4,
+
     # This is a state to be set when a module is ready to be part of a
-    # larger compose.  perhaps it is set by an external service that knows
+    # larger compose. perhaps it is set by an external service that knows
     # about the Grand Plan.
     "ready": 5,
 }
