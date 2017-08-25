@@ -438,14 +438,12 @@ class Config(object):
 
     def _setifok_rpms_default_repository(self, s):
         rpm_repo = str(s)
-        if rpm_repo[-1] != '/':
-            rpm_repo = rpm_repo + '/'
+        rpm_repo = rpm_repo.rstrip('/') + '/'
         self._rpms_default_repository = rpm_repo
 
     def _setifok_rpms_default_cache(self, s):
         rpm_cache = str(s)
-        if rpm_cache[-1] != '/':
-            rpm_cache = rpm_cache + '/'
+        rpm_cache = rpm_cache.rstrip('/') + '/'
         self._rpms_default_cache = rpm_cache
 
     def _setifok_log_backend(self, s):
