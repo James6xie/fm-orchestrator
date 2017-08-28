@@ -183,7 +183,7 @@ class CoprModuleBuilder(GenericBuilder):
         # suitable alternative for Copr. This is a temporary workaround until
         # we figure out how to solve this permanently.
         repos.append("https://kojipkgs.fedoraproject.org/compose/"
-                     "latest-Fedora-Modular-Rawhide/compose/Server/x86_64/os/")
+                     "latest-Fedora-Modular-26/compose/Server/x86_64/os/")
 
         self._update_chroot(repos=repos)
 
