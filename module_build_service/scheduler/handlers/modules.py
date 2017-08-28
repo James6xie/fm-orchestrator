@@ -30,7 +30,9 @@ import module_build_service.utils
 import module_build_service.messaging
 from module_build_service.utils import (
     attempt_to_reuse_all_components,
+    record_component_builds,
     get_rpm_release_from_mmd)
+from module_build_service.errors import UnprocessableEntity
 from module_build_service.builder.KojiContentGenerator import KojiContentGenerator
 
 from requests.exceptions import ConnectionError
@@ -120,6 +122,26 @@ def done(config, session, msg):
     session.commit()
 
     build_logs.stop(build.id)
+
+
+def init(config, session, msg):
+    """ Called whenever a module enters the 'init' state."""
+    build = models.ModuleBuild.from_module_event(session, msg)
+
+    build.transition(config, "init", state_reason="Checking out the module components")
+    session.add(build)
+    session.commit()
+
+    try:
+        mmd = build.mmd()
+        record_component_builds(mmd, build, session=session)
+        build.modulemd = mmd.dumps()
+        build.transition(conf, models.BUILD_STATES["wait"])
+    except UnprocessableEntity:
+        build.transition(conf, models.BUILD_STATES["failed"])
+    finally:
+        session.add(build)
+        session.commit()
 
 
 def wait(config, session, msg):

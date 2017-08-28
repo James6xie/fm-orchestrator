@@ -110,7 +110,8 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
             koji.BUILD_STATES["DELETED"]: NO_OP,
         }
         self.on_module_change = {
-            models.BUILD_STATES["init"]: NO_OP,
+            models.BUILD_STATES[
+                "init"]: module_build_service.scheduler.handlers.modules.init,
             models.BUILD_STATES[
                 "wait"]: module_build_service.scheduler.handlers.modules.wait,
             models.BUILD_STATES["build"]: NO_OP,

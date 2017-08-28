@@ -760,6 +760,13 @@ def format_mmd(mmd, scmurl, session=None):
             raise UnprocessableEntity(err_msg)
 
 
+def validate_mmd(mmd):
+    for modname, mod in mmd.components.modules.items():
+        if mod.repository and not conf.modules_allow_repository:
+            raise Forbidden(
+                "Custom component repositories aren't allowed")
+
+
 def merge_included_mmd(mmd, included_mmd):
     """
     Merges two modulemds. This merges only metadata which are needed in
@@ -938,10 +945,8 @@ def submit_module_build(username, url, mmd, scm, yaml, optional_params=None):
             **(optional_params or {})
         )
 
-    record_component_builds(mmd, module)
-
+    validate_mmd(mmd)
     module.modulemd = mmd.dumps()
-    module.transition(conf, models.BUILD_STATES["wait"])
     db.session.add(module)
     db.session.commit()
     log.info("%s submitted build of %s, stream=%s, version=%s", username,
