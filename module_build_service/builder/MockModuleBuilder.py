@@ -176,6 +176,12 @@ mdpolicy=group:primary
         for rpm in os.listdir(self.resultsdir):
             if not rpm.endswith(".rpm"):
                 continue
+
+            # If RPM is filtered-out, do not add it to artifacts list.
+            nvr = kobo.rpmlib.parse_nvr(rpm)
+            if nvr["name"] in m1_mmd.filter.rpms:
+                continue
+
             pkglist_f.write(rpm + '\n')
             rpm = rpm[:-len(".rpm")]
             m1_mmd.artifacts.add_rpm(str(rpm))
