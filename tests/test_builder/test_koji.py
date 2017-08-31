@@ -126,7 +126,7 @@ class TestKojiBuilder(unittest.TestCase):
             "id": 9000,
             "name": "foo",
             "version": "1.0",
-            "release": "1.module_e0095747",
+            "release": "1.module+e0095747",
         }]
         builder.koji_session.untaggedBuilds.return_value = untagged
 
@@ -134,7 +134,7 @@ class TestKojiBuilder(unittest.TestCase):
         expected = tagged_build
         self.assertEquals(actual, expected)
         builder.koji_session.tagBuild.assert_called_once_with(
-            1, 'foo-1.0-1.module_e0095747')
+            1, 'foo-1.0-1.module+e0095747')
 
     def test_get_build_by_artifact_when_nothing_exists(self):
         """ Test the _get_build_by_artifact super un-happy path.
