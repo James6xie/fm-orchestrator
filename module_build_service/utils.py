@@ -908,7 +908,7 @@ def submit_module_build_from_scm(username, url, branch, allow_local_url=False,
         url = "file://" + url
     mmd, scm, yaml = _fetch_mmd(url, branch, allow_local_url)
     if skiptests:
-        mmd.buildopts.rpms.macros += "\n\n%check exit 0\n"
+        mmd.buildopts.rpms.macros += "\n\n%__spec_check_pre exit 0\n"
     return submit_module_build(username, url, mmd, scm, yaml, optional_params)
 
 
