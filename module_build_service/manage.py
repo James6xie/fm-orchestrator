@@ -118,7 +118,7 @@ def cleardb():
 
 @manager.option('branch')
 @manager.option('url')
-@manager.option('skiptests', action='store_true')
+@manager.option('--skiptests', action='store_true')
 @manager.option('-l', '--add-local-build', action='append', default=None, dest='local_build_nsvs')
 def build_module_locally(url, branch, local_build_nsvs=None, skiptests=False):
     """ Performs local module build using Mock
