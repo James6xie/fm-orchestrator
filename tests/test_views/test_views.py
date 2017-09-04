@@ -32,6 +32,7 @@ from mock import patch, PropertyMock, MagicMock
 from shutil import copyfile
 from os import path, mkdir
 from os.path import dirname
+from parameterized import parameterized
 import hashlib
 
 from tests import app, init_data
@@ -256,12 +257,52 @@ class TestViews(unittest.TestCase):
         self.assertEquals(item['time_modified'], '2016-09-03T11:25:32Z')
         self.assertEquals(item['time_submitted'], '2016-09-03T11:23:20Z')
 
-    def test_query_builds_filter_nvr(self):
+    def test_query_component_build(self):
+        rv = self.client.get('/module-build-service/1/component-builds/1')
+        data = json.loads(rv.data)
+        self.assertEquals(data['id'], 1)
+        self.assertEquals(data['format'], 'rpms')
+        self.assertEquals(data['module_build'], 1)
+        self.assertEquals(data['package'], 'nginx')
+        self.assertEquals(data['state'], 1)
+        self.assertEquals(data['state_name'], 'COMPLETE')
+        self.assertEquals(data['state_reason'], None)
+        self.assertEquals(data['task_id'], 12312345)
+
+    def test_query_component_build_verbose(self):
+        rv = self.client.get('/module-build-service/1/component-builds/3?verbose=1')
+        data = json.loads(rv.data)
+        self.assertEquals(data['id'], 3)
+        self.assertEquals(data['format'], 'rpms')
+        self.assertEquals(data['module_build'], 2)
+        self.assertEquals(data['package'], 'postgresql')
+        self.assertEquals(data['state'], 1)
+        self.assertEquals(data['state_name'], 'COMPLETE')
+        self.assertEquals(data['state_reason'], None)
+        self.assertEquals(data['task_id'], 2433433)
+        self.assertEquals(data['state_trace'][0]['reason'], None)
+        self.assertTrue(data['state_trace'][0]['time'] is not None)
+        self.assertEquals(data['state_trace'][0]['state'], 1)
+        self.assertEquals(data['state_trace'][0]['state_name'], 'wait')
+
+    component_builds_filters = ['tagged', 'ref', 'format']
+
+    @parameterized.expand([
+        ('format', 'rpms', 60),
+        ('ref', 'this-filter-query-should-return-zero-items', 0),
+        ('tagged', 'this-filter-query-should-return-zero-items', 0),
+    ])
+    def test_query_component_builds_filters(self, f, s, c):
+        rv = self.client.get('/module-build-service/1/component-builds/?{}={}'.format(f, s))
+        data = json.loads(rv.data)
+        self.assertEquals(data['meta']['total'], c)
+
+    def test_query_component_builds_filter_nvr(self):
         rv = self.client.get('/module-build-service/1/component-builds/?nvr=nginx-1.10.1-2.module_nginx_1_2')
         data = json.loads(rv.data)
         self.assertEquals(data['meta']['total'], 10)
 
-    def test_query_builds_filter_task_id(self):
+    def test_query_component_builds_filter_task_id(self):
         rv = self.client.get('/module-build-service/1/component-builds/?task_id=12312346')
         data = json.loads(rv.data)
         self.assertEquals(data['meta']['total'], 1)

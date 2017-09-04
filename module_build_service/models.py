@@ -79,6 +79,19 @@ BUILD_STATES = {
 INVERSE_BUILD_STATES = {v: k for k, v in BUILD_STATES.items()}
 
 
+def _utc_datetime_to_iso(datetime_object):
+    """
+    Takes a UTC datetime object and returns an ISO formatted string
+    :param datetime_object: datetime.datetime
+    :return: string with datetime in ISO format
+    """
+    if datetime_object:
+        # Converts the datetime to ISO 8601
+        return datetime_object.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    return None
+
+
 @contextlib.contextmanager
 def _dummy_context_mgr():
     """
@@ -290,8 +303,8 @@ class ModuleBuild(MBSBase):
             return []
 
         local_modules = [m for m in local_modules
-                         if m.koji_tag
-                         and m.koji_tag.startswith(conf.mock_resultsdir)]
+                         if m.koji_tag and
+                         m.koji_tag.startswith(conf.mock_resultsdir)]
         return local_modules
 
     @classmethod
@@ -335,59 +348,37 @@ class ModuleBuild(MBSBase):
     def json(self):
         return {
             'id': self.id,
-            'name': self.name,
-            'stream': self.stream,
-            'version': self.version,
             'state': self.state,
             'state_name': INVERSE_BUILD_STATES[self.state],
             'state_reason': self.state_reason,
-            'state_url': get_url_for('module_build', id=self.id),
-            'scmurl': self.scmurl,
             'owner': self.owner,
-            'time_submitted': self._utc_datetime_to_iso(self.time_submitted),
-            'time_modified': self._utc_datetime_to_iso(self.time_modified),
-            'time_completed': self._utc_datetime_to_iso(self.time_completed),
-            "tasks": self.tasks(),
+            'name': self.name,
+            'scmurl': self.scmurl,
+            'time_submitted': _utc_datetime_to_iso(self.time_submitted),
+            'time_modified': _utc_datetime_to_iso(self.time_modified),
+            'time_completed': _utc_datetime_to_iso(self.time_completed),
+            'koji_tag': self.koji_tag,
+            'tasks': self.tasks(),
+        }
+
+    def extended_json(self):
+        json = self.json()
+        json.update({
+            'stream': self.stream,
+            'version': self.version,
+            'state_url': get_url_for('module_build', id=self.id),
             # TODO, show their entire .json() ?
             'component_builds': [build.id for build in self.component_builds],
             'modulemd': self.modulemd,
-            'koji_tag': self.koji_tag,
-            'state_trace': [{'time': self._utc_datetime_to_iso(record.state_time),
+            'state_trace': [{'time': _utc_datetime_to_iso(record.state_time),
                              'state': record.state,
                              'state_name': INVERSE_BUILD_STATES[record.state],
                              'reason': record.state_reason}
                             for record
                             in self.state_trace(self.id)]
-        }
+        })
 
-    @staticmethod
-    def _utc_datetime_to_iso(datetime_object):
-        """
-        Takes a UTC datetime object and returns an ISO formatted string
-        :param datetime_object: datetime.datetime
-        :return: string with datetime in ISO format
-        """
-        if datetime_object:
-            # Converts the datetime to ISO 8601
-            return datetime_object.strftime("%Y-%m-%dT%H:%M:%SZ")
-
-        return None
-
-    def api_json(self):
-        return {
-            "id": self.id,
-            "state": self.state,
-            'state_name': INVERSE_BUILD_STATES[self.state],
-            'state_reason': self.state_reason,
-            "owner": self.owner,
-            "name": self.name,
-            "scmurl": self.scmurl,
-            "time_submitted": self._utc_datetime_to_iso(self.time_submitted),
-            "time_modified": self._utc_datetime_to_iso(self.time_modified),
-            "time_completed": self._utc_datetime_to_iso(self.time_completed),
-            "koji_tag": self.koji_tag,
-            "tasks": self.tasks()
-        }
+        return json
 
     def tasks(self):
         """
@@ -435,7 +426,7 @@ class ModuleBuildTrace(MBSBase):
         retval = {
             'id': self.id,
             'module_id': self.module_id,
-            'state_time': self._utc_datetime_to_iso(self.state_time),
+            'state_time': _utc_datetime_to_iso(self.state_time),
             'state': self.state,
             'state_reason': self.state_reason,
         }
@@ -495,6 +486,10 @@ class ComponentBuild(MBSBase):
         return session.query(cls).filter_by(
             package=component_name, module_id=module_id).first()
 
+    def state_trace(self, component_id):
+        return ComponentBuildTrace.query.filter_by(
+            component_id=component_id).order_by(ComponentBuildTrace.state_time).all()
+
     def json(self):
         retval = {
             'id': self.id,
@@ -516,6 +511,19 @@ class ComponentBuild(MBSBase):
 
         return retval
 
+    def extended_json(self):
+        json = self.json()
+        json.update({
+            'state_trace': [{'time': _utc_datetime_to_iso(record.state_time),
+                             'state': record.state,
+                             'state_name': INVERSE_BUILD_STATES[record.state],
+                             'reason': record.state_reason}
+                            for record
+                            in self.state_trace(self.id)]
+        })
+
+        return json
+
     def __repr__(self):
         return "<ComponentBuild %s, %r, state: %r, task_id: %r, batch: %r, state_reason: %s>" % (
             self.package, self.module_id, self.state, self.task_id, self.batch, self.state_reason)
@@ -536,7 +544,7 @@ class ComponentBuildTrace(MBSBase):
         retval = {
             'id': self.id,
             'component_id': self.component_id,
-            'state_time': self._utc_datetime_to_iso(self.state_time),
+            'state_time': _utc_datetime_to_iso(self.state_time),
             'state': self.state,
             'state_reason': self.state_reason,
             'task_id': self.task_id,

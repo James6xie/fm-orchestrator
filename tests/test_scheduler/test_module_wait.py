@@ -66,7 +66,7 @@ class TestModuleWait(unittest.TestCase):
         builder.module_build_tag = {'name': 'some-tag-build'}
         create_builder.return_value = builder
         mocked_module_build = mock.Mock()
-        mocked_module_build.json.return_value = {
+        mocked_module_build.extended_json.return_value = {
             'name': 'foo',
             'stream': 1,
             'version': 1,

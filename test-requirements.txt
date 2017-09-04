@@ -1,5 +1,6 @@
 copr
 mock
 nose
+parameterized
 pytest
 vcrpy

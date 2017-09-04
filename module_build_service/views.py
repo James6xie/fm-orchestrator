@@ -67,6 +67,12 @@ api_v1 = {
             'methods': ['GET'],
         }
     },
+    'component_build': {
+        'url': '/module-build-service/1/component-builds/<int:id>',
+        'options': {
+            'methods': ['GET'],
+        }
+    },
 }
 
 
@@ -84,23 +90,23 @@ class ComponentBuildAPI(MethodView):
             }
 
             if verbose_flag.lower() == 'true' or verbose_flag == '1':
-                json_data['items'] = [item.api_json() for item in p_query.items]
+                json_data['items'] = [item.extended_json() for item in p_query.items]
             else:
                 json_data['items'] = [{'id': item.id, 'state': item.state} for
                                       item in p_query.items]
 
             return jsonify(json_data), 200
         else:
-            # Lists details for the specified module builds
-            module = models.ComponentBuild.query.filter_by(id=id).first()
+            # Lists details for the specified component builds
+            component = models.ComponentBuild.query.filter_by(id=id).first()
 
-            if module:
+            if component:
                 if verbose_flag.lower() == 'true' or verbose_flag == '1':
-                    return jsonify(module.json()), 200
+                    return jsonify(component.extended_json()), 200
                 else:
-                    return jsonify(module.api_json()), 200
+                    return jsonify(component.json()), 200
             else:
-                raise NotFound('No such module found.')
+                raise NotFound('No such component found.')
 
 
 class ModuleBuildAPI(MethodView):
@@ -117,7 +123,7 @@ class ModuleBuildAPI(MethodView):
             }
 
             if verbose_flag.lower() == 'true' or verbose_flag == '1':
-                json_data['items'] = [item.api_json() for item in p_query.items]
+                json_data['items'] = [item.extended_json() for item in p_query.items]
             else:
                 json_data['items'] = [{'id': item.id, 'state': item.state} for
                                       item in p_query.items]
@@ -129,9 +135,9 @@ class ModuleBuildAPI(MethodView):
 
             if module:
                 if verbose_flag.lower() == 'true' or verbose_flag == '1':
-                    return jsonify(module.json()), 200
+                    return jsonify(module.extended_json()), 200
                 else:
-                    return jsonify(module.api_json()), 200
+                    return jsonify(module.json()), 200
             else:
                 raise NotFound('No such module found.')
 
@@ -150,7 +156,7 @@ class ModuleBuildAPI(MethodView):
 
         handler.validate()
         module = handler.post()
-        return jsonify(module.json()), 201
+        return jsonify(module.extended_json()), 201
 
     def patch(self, id):
         username, groups = module_build_service.auth.get_user(request)
@@ -194,7 +200,7 @@ class ModuleBuildAPI(MethodView):
         db.session.add(module)
         db.session.commit()
 
-        return jsonify(module.api_json()), 200
+        return jsonify(module.json()), 200
 
 
 class BaseHandler(object):
@@ -286,15 +292,17 @@ def register_api_v1():
     module_view = ModuleBuildAPI.as_view('module_builds')
     component_view = ComponentBuildAPI.as_view('component_builds')
     for key, val in api_v1.items():
-        if key != 'component_builds_list':
+        if key.startswith('component_build'):
+            app.add_url_rule(val['url'],
+                             endpoint=key,
+                             view_func=component_view,
+                             **val['options'])
+        elif key.startswith('module_build'):
             app.add_url_rule(val['url'],
                              endpoint=key,
                              view_func=module_view,
                              **val['options'])
         else:
-            app.add_url_rule(val['url'],
-                             endpoint=key,
-                             view_func=component_view,
-                             **val['options'])
+            raise NotImplementedError("Unhandled api key.")
 
 register_api_v1()

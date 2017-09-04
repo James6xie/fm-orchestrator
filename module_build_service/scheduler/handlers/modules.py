@@ -150,7 +150,7 @@ def wait(config, session, msg):
     log.info("Found build=%r from message" % build)
     log.info("%r", build.modulemd)
 
-    module_info = build.json()
+    module_info = build.extended_json()
     if module_info['state'] != msg.module_build_state:
         log.warn("Note that retrieved module state %r "
                  "doesn't match message module state %r" % (

@@ -79,10 +79,9 @@ builds. For more info, there's an existing help available.
 Client-side API
 ===============
 
-The orchestrator implements a RESTful interface for module build
-submission and state querying. Not all REST methods are supported. See
-below for details. For client tooling which utilizes the API, please
-refer to `Client tooling`_ section.
+The MBS implements a RESTful interface for module build submission and state
+querying. Not all REST methods are supported. See below for details. For client
+tooling which utilizes the API, please refer to `Client tooling`_ section.
 
 Module build submission
 -----------------------
@@ -158,11 +157,11 @@ about the referenced build task.
         ...
     }
 
-"id" is the ID of the task. "state" refers to the orchestrator module
-build state and might be one of "init", "wait", "build", "done", "failed" or
-"ready". "tasks" is a dictionary of information about the individual component
-builds including their IDs in the backend buildsystem, their state, a reason
-for their state, and the NVR (if known).
+"id" is the ID of the task. "state" refers to the MBS module build state and
+might be one of "init", "wait", "build", "done", "failed" or "ready". "tasks"
+is a dictionary of information about the individual component builds including
+their IDs in the backend buildsystem, their state, a reason for their state,
+and the NVR (if known).
 
 By adding ``?verbose=1`` to the request, additional detailed information
 about the module can be obtained.
@@ -408,6 +407,49 @@ and the "submitted_before" parameters::
         "per_page": 3,
         "total": 3
       }
+
+Component build state query
+---------------------------
+
+Getting particular component build is very similar to a module build query.
+
+::
+
+    GET /module-build-service/1/component-builds/1
+
+The response, if the build exists, would include various pieces of information
+about the referenced component build.
+
+::
+
+    HTTP 200 OK
+
+::
+
+    {
+        "format": "rpms", 
+        "id": 1, 
+        "module_build": 1, 
+        "package": "nginx", 
+        "state": 1, 
+        "state_name": "COMPLETE", 
+        "state_reason": null, 
+        "task_id": 12312345
+    }
+
+"id" is the ID of the component build. "state_name" refers to the MBS component
+build state and might be one of "COMPLETE", "FAILED", "CANCELED". "task_id"
+is a related task ID in the backend buildsystem, their state and a reason
+for their state. "module_build" refers to the module build ID for which this
+component was built. "format" is typically "rpms", since we're building it
+and "package" is simply the package name.
+
+By adding ``?verbose=1`` to the request, additional detailed information
+about the component can be obtained.
+
+::
+
+    GET /module-build-service/1/component-builds/1?verbose=1
 
 Listing component builds
 ------------------------
