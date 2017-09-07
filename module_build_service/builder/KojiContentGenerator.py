@@ -213,6 +213,7 @@ class KojiContentGenerator(object):
             u"typeinfo": {
                 u"module": {
                     u"module_build_service_id": self.module.id,
+                    u"content_koji_tag": self.module.koji_tag,
                     u"modulemd_str": self.module.modulemd,
                     u"name": self.module.name,
                     u"stream": self.module.stream,
