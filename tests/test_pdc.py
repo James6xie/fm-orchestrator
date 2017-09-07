@@ -66,7 +66,7 @@ class TestPDCModule(unittest.TestCase):
         }
         result = mbs_pdc.get_module_build_dependencies(self.pdc, query)
         expected = [
-            u'f26-modularity',
+            u'module-bootstrap-rawhide',
             # Should the list of deps should not include the original tag?
             # Probably not.
             u'module-base-runtime-master-20170315134803',

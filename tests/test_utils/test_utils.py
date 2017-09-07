@@ -118,9 +118,9 @@ class TestUtils(unittest.TestCase):
                 'commit': '620ec77321b2ea7b0d67d82992dda3e1d67055b4',
                 'buildrequires': {
                     'base-runtime': {
-                        'ref': '464026abf9cbe10fac1d800972e3229ac4d01975',
+                        'ref': '147dca4ca65aa9a1ac51f71b7e687f9178ffa5df',
                         'stream': 'master',
-                        'version': '20170404161234'}},
+                        'version': '20170616125652'}},
                 'rpms': {'perl-List-Compare': {'ref': '76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb'},
                          'perl-Tangerine': {'ref': '4ceea43add2366d8b8c5a622a2fb563b625b9abf'},
                          'tangerine': {'ref': 'fbed359411a1baa08d4a88e0d12d426fbf8f602c'}},
@@ -156,9 +156,9 @@ class TestUtils(unittest.TestCase):
                 'commit': None,
                 'buildrequires': {
                     'base-runtime': {
-                        'ref': '464026abf9cbe10fac1d800972e3229ac4d01975',
+                        'ref': '147dca4ca65aa9a1ac51f71b7e687f9178ffa5df',
                         'stream': 'master',
-                        'version': '20170404161234'}},
+                        'version': '20170616125652'}},
                 'rpms': {'perl-List-Compare': {'ref': '76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb'},
                          'perl-Tangerine': {'ref': '4ceea43add2366d8b8c5a622a2fb563b625b9abf'},
                          'tangerine': {'ref': 'fbed359411a1baa08d4a88e0d12d426fbf8f602c'}},

@@ -172,29 +172,31 @@ def get_module(session, module_info, strict=False):
     if module_info.get('active'):
         query['active'] = module_info['active']
 
-    retval = session['unreleasedvariants/'](page_size=-1, **query)  # ordering=variant_release...
+    # TODO: So far sorting on Fedora prod PDC instance is broken and it sorts
+    # only by variant_uid by default. Once the sorting is fixed, we can start
+    # using '-variant_release' ordering and just get the first variant from
+    # there. But in the meantime, we have to get the first variant with 
+    # page_size set to 1 to find out how many variants (pages) are there in
+    # results set and jump to last one in another query. The last one is always
+    # the latest one (the one with the highest version).
+    #query['ordering'] = '-variant_release'
+    retval = session['unreleasedvariants/'](page_size=1, **query)
+
+    # Jump to last page to latest module release.
+    if retval['count'] != 1:
+        query['page'] = retval['count']
+        retval = session['unreleasedvariants/'](page_size=1, **query)
 
     # Error handling
-    if not retval:
+    if not retval or len(retval["results"]) == 0:
         if strict:
             raise ValueError("Failed to find module in PDC %r" % query)
         else:
             return None
 
-    module = None
-    # If we specify 'variant_release', we expect only single module to be
-    # returned, but otherwise we have to pick the one with the highest
-    # release ourselves.
-    if 'variant_release' in query:
-        assert len(retval) <= 1, pprint.pformat(retval)
-        module = retval[0]
-    else:
-        module = retval[0]
-        for m in retval:
-            if int(m['variant_release']) > int(module['variant_release']):
-                module = m
-
-    return module
+    results = retval["results"]
+    assert len(results) <= 1, pprint.pformat(retval)
+    return results[0]
 
 
 def get_module_tag(session, module_info, strict=False):
