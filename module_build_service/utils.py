@@ -47,7 +47,7 @@ from module_build_service.errors import (Forbidden, Conflict)
 import module_build_service.messaging
 from multiprocessing.dummy import Pool as ThreadPool
 import module_build_service.pdc
-from module_build_service.pdc import get_module_commit_hash_and_version
+from module_build_service.pdc import resolve_requires
 
 import concurrent.futures
 
@@ -690,46 +690,20 @@ def format_mmd(mmd, scmurl):
         else:
             mmd.xmd['mbs']['commit'] = scm.get_latest()
 
-    # If the modulemd yaml specifies module buildrequires, replace the streams
-    # with commit hashes
+    pdc = module_build_service.pdc.get_pdc_client_session(conf)
+
+    # Resolve Build-requires.
     if mmd.buildrequires:
-        mmd.xmd['mbs']['buildrequires'] = copy.deepcopy(mmd.buildrequires)
-        pdc = module_build_service.pdc.get_pdc_client_session(conf)
-        for module_name, module_stream in \
-                mmd.xmd['mbs']['buildrequires'].items():
-
-            # Try to find out module dependency in the local module builds
-            # added by utils.load_local_builds(...).
-            local_modules = models.ModuleBuild.local_modules(
-                db.session, module_name, module_stream)
-            if local_modules:
-                local_build = local_modules[0]
-                mmd.xmd['mbs']['buildrequires'][module_name] = {
-                    # The commit ID isn't currently saved in modules.yaml
-                    'stream': local_build.stream,
-                    'version': local_build.version
-                }
-                continue
-
-            # Assumes that module_stream is the stream and not the commit hash
-            module_info = {
-                'name': module_name,
-                'version': module_stream,
-                'active': True}
-            commit_hash, version = get_module_commit_hash_and_version(
-                pdc, module_info)
-            if version and (commit_hash or not scmurl):
-                mmd.xmd['mbs']['buildrequires'][module_name] = {
-                    'ref': commit_hash,
-                    'stream': mmd.buildrequires[module_name],
-                    'version': str(version)
-                }
-            else:
-                raise RuntimeError(
-                    'The module "{0}" didn\'t contain either a commit hash or a'
-                    ' version in PDC'.format(module_name))
+        mmd.xmd['mbs']['buildrequires'] = resolve_requires(
+            pdc, mmd.buildrequires)
     else:
         mmd.xmd['mbs']['buildrequires'] = {}
+
+    # Resolve Requires.
+    if mmd.requires:
+        mmd.xmd['mbs']['requires'] = resolve_requires(pdc, mmd.requires)
+    else:
+        mmd.xmd['mbs']['requires'] = {}
 
     if mmd.components:
         if 'rpms' not in mmd.xmd['mbs']:

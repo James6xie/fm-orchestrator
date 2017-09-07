@@ -287,20 +287,7 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
             # Resolve default buildroot groups using the PDC, but only for
             # non-local modules.
             pdc_groups = pdc.resolve_profiles(pdc_session, mmd,
-                                              ('buildroot', 'srpm-buildroot'),
-                                              exclude=local_modules)
-
-            # For local modules, resolve the buildroot groups using local
-            # modulemd metadata.
-            for module_name, module_info in mmd.xmd['mbs']['buildrequires'].items():
-                key = module_name + "-" + module_info['stream']
-                if key in local_modules:
-                    local_build = local_modules[key]
-                    local_mmd = local_build.mmd()
-                    if 'buildroot' in local_mmd.profiles:
-                        pdc_groups['buildroot'] |= local_mmd.profiles['buildroot'].rpms
-                    if 'srpm-buildroot' in local_mmd.profiles:
-                        pdc_groups['srpm-buildroot'] |= local_mmd.profiles['srpm-buildroot'].rpms
+                                              ('buildroot', 'srpm-buildroot'))
 
             groups = {
                 'build': pdc_groups['buildroot'],

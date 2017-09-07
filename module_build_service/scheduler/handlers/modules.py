@@ -148,6 +148,7 @@ def wait(config, session, msg):
     build_logs.start(build.id)
 
     log.info("Found build=%r from message" % build)
+    log.info("%r", build.modulemd)
 
     module_info = build.json()
     if module_info['state'] != msg.module_build_state:
@@ -160,75 +161,55 @@ def wait(config, session, msg):
     tag = None
     dependencies = []
 
-    if conf.system != "koji":
-        # In case of mock, we do not try to get anything from pdc,
-        # just generate our own koji_tag to identify the module in messages.
-        tag = '-'.join(['module',
-                        module_info['name'],
-                        str(module_info['stream']), str(module_info['version'])])
+    pdc_session = module_build_service.pdc.get_pdc_client_session(config)
 
-        for name, stream in build.mmd().buildrequires.items():
-            # Try to load local module if it is loaded by
-            # utils.load_local_modules(...). Such modules have koji_tag set to
-            # path to repository with built RPMs.
-            local_modules = models.ModuleBuild.local_modules(session, name, stream)
-            if local_modules:
-                local_module = local_modules[0]
-                log.info("Using local module %r as a dependency.",
-                         local_module)
-                dependencies.append(local_module.koji_tag)
-                continue
+    @module_build_service.utils.retry(
+        interval=10, timeout=120,
+        wait_on=(ValueError, RuntimeError, ConnectionError))
+    def _get_deps_and_tag():
+        """
+        Private method to get the dependencies and koji tag of a module we
+        are going to build. We use private method here to allow "retry"
+        on failure.
+        """
+        if conf.system != "koji":
+            # In case of non-koji backend, we want to get the dependencies
+            # of the local module build based on ModuleMetadata, because the
+            # local build is not stored in PDC and therefore we cannot query
+            # it using the `pdc_query` as for Koji below.
+            dependencies = module_build_service.pdc.get_module_build_dependencies(
+                pdc_session, build.mmd(), strict=True)
 
-            pdc_session = module_build_service.pdc.get_pdc_client_session(config)
+            # We also don't want to get the tag name from the PDC, but just
+            # generate it locally instead.
+            tag = '-'.join(['module',
+                            module_info['name'],
+                            str(module_info['stream']), str(module_info['version'])])
+        else:
+            # For Koji backend, query the PDC for the module we are going to
+            # build to get the koji_tag and deps from it.
             pdc_query = {
-                'name': name,
-                'version': stream,
-                'active': True
+                'name': module_info['name'],
+                'version': module_info['stream'],
+                'release': module_info['version'],
             }
-
-            @module_build_service.utils.retry(interval=10, timeout=30, wait_on=ValueError)
-            def _get_module():
-                log.info("Getting %s from pdc (query %r)" % (module_info['name'], pdc_query))
-                return module_build_service.pdc.get_module_tag(
-                    pdc_session, pdc_query, strict=True)
-
-            try:
-                dependencies.append(_get_module())
-            except ValueError:
-                reason = "Failed to get module info from PDC. Max retries reached."
-                log.exception(reason)
-                build.transition(config, state="failed", state_reason=reason)
-                session.commit()
-                raise
-    else:
-        # TODO: Move this to separate func
-        pdc_session = module_build_service.pdc.get_pdc_client_session(config)
-        pdc_query = {
-            'name': module_info['name'],
-            'version': module_info['stream'],
-            'release': module_info['version'],
-        }
-
-        @module_build_service.utils.retry(
-            interval=10, timeout=120,
-            wait_on=(ValueError, RuntimeError, ConnectionError))
-        def _get_deps_and_tag():
             log.info("Getting %s deps from pdc (query %r)" % (module_info['name'], pdc_query))
             dependencies = module_build_service.pdc.get_module_build_dependencies(
                 pdc_session, pdc_query, strict=True)
             log.info("Getting %s tag from pdc (query %r)" % (module_info['name'], pdc_query))
             tag = module_build_service.pdc.get_module_tag(
                 pdc_session, pdc_query, strict=True)
-            return dependencies, tag
 
-        try:
-            dependencies, tag = _get_deps_and_tag()
-        except ValueError:
-            reason = "Failed to get module info from PDC. Max retries reached."
-            log.exception(reason)
-            build.transition(config, state="failed", state_reason=reason)
-            session.commit()
-            raise
+        return dependencies, tag
+
+    try:
+        dependencies, tag = _get_deps_and_tag()
+    except ValueError:
+        reason = "Failed to get module info from PDC. Max retries reached."
+        log.exception(reason)
+        build.transition(config, state="failed", state_reason=reason)
+        session.commit()
+        raise
 
     log.debug("Found tag=%s for module %r" % (tag, build))
     # Hang on to this information for later.  We need to know which build is

@@ -32,13 +32,13 @@ interactions:
     headers:
       allow: ['GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS']
       appserver: [proxy06.fedoraproject.org]
-      apptime: [D=199830]
+      apptime: [D=308440]
       cache-control: ['private, max-age=0, must-revalidate']
       connection: [Keep-Alive]
       content-encoding: [gzip]
       content-length: ['963']
       content-type: [application/json]
-      date: ['Thu, 07 Sep 2017 06:50:38 GMT']
+      date: ['Thu, 07 Sep 2017 10:38:39 GMT']
       keep-alive: ['timeout=15, max=500']
       server: [Apache/2.4.27 (Fedora) mod_wsgi/4.5.15 Python/2.7]
       set-cookie: [SERVERID=pdc-web02; path=/]
@@ -56,7 +56,7 @@ interactions:
       accept: [application/json]
       content-type: [application/json]
     method: GET
-    uri: https://pdc.fedoraproject.org/rest_api/v1/unreleasedvariants/?active=True&variant_release=20170315134803&variant_version=master&page_size=1&variant_id=base-runtime
+    uri: https://pdc.fedoraproject.org/rest_api/v1/unreleasedvariants/?variant_release=20170315134803&variant_version=master&page_size=1&variant_id=base-runtime
   response:
     body:
       string: !!binary |
@@ -283,12 +283,12 @@ interactions:
     headers:
       allow: ['GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS']
       appserver: [proxy06.fedoraproject.org]
-      apptime: [D=287940]
+      apptime: [D=368153]
       cache-control: ['private, max-age=0, must-revalidate']
       connection: [Keep-Alive]
       content-encoding: [gzip]
       content-type: [application/json]
-      date: ['Thu, 07 Sep 2017 06:50:39 GMT']
+      date: ['Thu, 07 Sep 2017 10:38:40 GMT']
       keep-alive: ['timeout=15, max=499']
       server: [Apache/2.4.27 (Fedora) mod_wsgi/4.5.15 Python/2.7]
       strict-transport-security: [max-age=15768000; includeSubDomains; preload]

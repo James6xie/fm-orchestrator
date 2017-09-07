@@ -24,14 +24,14 @@ interactions:
         0nt+dDwu4vN84wX/fP38A7xxstJVBAAA
     headers:
       allow: ['GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS']
-      appserver: [proxy04.fedoraproject.org]
-      apptime: [D=283912]
+      appserver: [proxy08.fedoraproject.org]
+      apptime: [D=231339]
       cache-control: ['private, max-age=0, must-revalidate']
       connection: [Keep-Alive]
       content-encoding: [gzip]
       content-length: ['537']
       content-type: [application/json]
-      date: ['Thu, 07 Sep 2017 06:50:22 GMT']
+      date: ['Thu, 07 Sep 2017 09:44:55 GMT']
       keep-alive: ['timeout=15, max=500']
       server: [Apache/2.4.27 (Fedora) mod_wsgi/4.5.15 Python/2.7]
       set-cookie: [SERVERID=pdc-web02; path=/]
@@ -44,6 +44,7 @@ interactions:
     headers:
       Accept-Encoding: ['gzip, deflate']
       Connection: [keep-alive]
+      Cookie: [SERVERID=pdc-web02]
       User-Agent: [python-requests/2.13.0]
       accept: [application/json]
       content-type: [application/json]
@@ -64,14 +65,53 @@ interactions:
         0nt+dDwu4vN84wX/fP38A7xxstJVBAAA
     headers:
       allow: ['GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS']
-      appserver: [proxy11.fedoraproject.org]
-      apptime: [D=425383]
+      appserver: [proxy08.fedoraproject.org]
+      apptime: [D=275016]
       cache-control: ['private, max-age=0, must-revalidate']
       connection: [Keep-Alive]
       content-encoding: [gzip]
       content-length: ['537']
       content-type: [application/json]
-      date: ['Thu, 07 Sep 2017 06:50:24 GMT']
+      date: ['Thu, 07 Sep 2017 09:44:55 GMT']
+      keep-alive: ['timeout=15, max=499']
+      server: [Apache/2.4.27 (Fedora) mod_wsgi/4.5.15 Python/2.7]
+      strict-transport-security: [max-age=15768000; includeSubDomains; preload]
+      vary: ['Accept,Cookie,Accept-Encoding']
+      x-frame-options: [SAMEORIGIN]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.13.0]
+      accept: [application/json]
+      content-type: [application/json]
+    method: GET
+    uri: https://pdc.fedoraproject.org/rest_api/v1/unreleasedvariants/?variant_release=1&variant_version=master&page_size=1&variant_id=bootstrap
+  response:
+    body:
+      string: !!binary |
+        H4sIAAAAAAAAA41Uy27jMAz8FcKXHioHSdNNW9/2O9oioCU60cZ6rB5p2qD/vpTjJN5dFOhFEIfi
+        cIayfKykyzZVzUJUlg68sbnvReUD7bXL8RwHirlPHD4fqz0GjTattaqaqnUuxRTQV+KSyH9naoMx
+        UagXkyMWDX1Rnd59SRmnck8TfE8hamdLauCbpAL1hLFUlR4790uvE24uJPVVSsC3rVaF9pQyRanC
+        hM2LBVAUZdA+cZsGbmaz2U1Bi9YGLhwF8sF1uqc4VAG0Wfcq8IExBgjexAaeW4xbAe2H9ncCpAuU
+        k+4jb712ApTuuhHoSLmA9WiEY23VmNrg206ceQE2Uoqy1PL2ljeBPK/cQIC2HZMa3HG9xyS5cyC1
+        xVSzmlo62+mNKMrqQe+EM5ISELeo3Fs9dk0YBGQ7EBeo7rXNBwE8vkJ8+Hg9lccL39f+/zNHyu82
+        tdFWG+xZvs1+c/d9tROhgwq+FkLTwOm7GJBsDIb3Bn5Cx/O4Xh6crp09sWdIbpJJWyojDEwSskw5
+        0KxQjZ9dA4sSHYwaPZo2Xtye/NPvrANdUbiSN3AM1DVwv7pb0H33iN1SzXGF7Woul49qvljJH0/L
+        p/bhYTV/XC468Y+nifupos8zLJ0xOn2f/8UqJ7MhyzXnh/Bir8T8PgL/FrShtSJfnv2rqAaXkxhl
+        0nt+dDwu4vN84wX/fP38A7xxstJVBAAA
+    headers:
+      allow: ['GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS']
+      appserver: [proxy06.fedoraproject.org]
+      apptime: [D=250626]
+      cache-control: ['private, max-age=0, must-revalidate']
+      connection: [Keep-Alive]
+      content-encoding: [gzip]
+      content-length: ['537']
+      content-type: [application/json]
+      date: ['Thu, 07 Sep 2017 09:44:58 GMT']
       keep-alive: ['timeout=15, max=500']
       server: [Apache/2.4.27 (Fedora) mod_wsgi/4.5.15 Python/2.7]
       set-cookie: [SERVERID=pdc-web02; path=/]
