@@ -91,6 +91,9 @@ class FakeCoprAPI(object):
         })
 
 
+COPR_MODULE_BUILDER = "module_build_service.builder.CoprModuleBuilder.CoprModuleBuilder"
+
+
 class TestCoprModuleBuilder(unittest.TestCase):
 
     def setUp(self):
@@ -134,9 +137,9 @@ class TestCoprModuleBuilder(unittest.TestCase):
     #                                                                                                                  #
     ####################################################################################################################
 
-    @mock.patch("module_build_service.builder.CoprModuleBuilder._update_chroot")
-    @mock.patch("module_build_service.builder.CoprModuleBuilder._get_copr_safe")
-    @mock.patch("module_build_service.builder.CoprModuleBuilder._create_module_safe")
+    @mock.patch(COPR_MODULE_BUILDER + "._update_chroot")
+    @mock.patch(COPR_MODULE_BUILDER + "._get_copr_safe")
+    @mock.patch(COPR_MODULE_BUILDER + "._create_module_safe")
     def test_buildroot_connect(self, create_module_safe, get_copr_safe, update_chroot):
         builder = self.create_builder()
         groups = {"build": {"pkgname1", "pkgname2", "pkgname3"}}
@@ -144,8 +147,8 @@ class TestCoprModuleBuilder(unittest.TestCase):
         update_chroot.assert_called_with(packages=["pkgname1", "pkgname3", "pkgname2"])
         self.assertEqual(builder._CoprModuleBuilder__prep, True)
 
-    @mock.patch("module_build_service.builder.CoprModuleBuilder._get_copr")
-    @mock.patch("module_build_service.builder.CoprModuleBuilder._create_copr")
+    @mock.patch(COPR_MODULE_BUILDER + "._get_copr")
+    @mock.patch(COPR_MODULE_BUILDER + "._create_copr")
     def test_get_copr_safe(self, create_copr, get_copr):
         builder = self.create_builder()
 
@@ -223,7 +226,7 @@ class TestCoprModuleBuilder(unittest.TestCase):
     def test_buildroot_add_artifacts(self):
         pass
 
-    @mock.patch("module_build_service.builder.CoprModuleBuilder._update_chroot")
+    @mock.patch(COPR_MODULE_BUILDER + "._update_chroot")
     def test_buildroot_add_repos(self, update_chroot):
         builder = self.create_builder()
         builder.buildroot_add_repos(["foo", "bar", "baz"])
@@ -243,8 +246,8 @@ class TestCoprModuleBuilder(unittest.TestCase):
     #                                                                                                                  #
     ####################################################################################################################
 
-    @mock.patch("module_build_service.builder.CoprModuleBuilder.build_srpm")
-    @mock.patch("module_build_service.builder.CoprModuleBuilder.build_scm")
+    @mock.patch(COPR_MODULE_BUILDER + ".build_srpm")
+    @mock.patch(COPR_MODULE_BUILDER + ".build_scm")
     def test_build(self, build_scm, build_srpm):
         builder = self.create_builder()
         builder._CoprModuleBuilder__prep = True
