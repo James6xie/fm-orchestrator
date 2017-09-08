@@ -23,9 +23,13 @@
 import os
 
 import unittest
+from mock import patch, PropertyMock
 
 import vcr
 import module_build_service.pdc as mbs_pdc
+import module_build_service.utils
+import module_build_service.models
+from module_build_service import app, db
 
 import tests
 import modulemd
@@ -67,9 +71,6 @@ class TestPDCModule(unittest.TestCase):
         result = mbs_pdc.get_module_build_dependencies(self.pdc, query)
         expected = [
             u'module-bootstrap-rawhide',
-            # Should the list of deps should not include the original tag?
-            # Probably not.
-            u'module-base-runtime-master-20170315134803',
         ]
         self.assertEqual(set(result), set(expected))
 
@@ -87,11 +88,40 @@ class TestPDCModule(unittest.TestCase):
         result = mbs_pdc.get_module_build_dependencies(self.pdc, query)
         expected = [
             u'module-base-runtime-master-20170315134803',
-            # Should the list of deps should not include the original tag?
-            # Probably not.
-            u'module-testmodule-master-20170322155247'
         ]
         self.assertEqual(set(result), set(expected))
+
+    @patch("module_build_service.config.Config.system",
+        new_callable=PropertyMock, return_value="test")
+    @patch("module_build_service.config.Config.mock_resultsdir",
+        new_callable=PropertyMock,
+        return_value=os.path.join(
+            base_dir, 'staged_data', "local_builds"))
+    def test_get_module_build_dependencies_recursive_requires(
+            self, resultdir, conf_system):
+        """
+        Tests that we return Requires of Buildrequires of a module
+        recursively.
+        """
+        with app.app_context():
+            module_build_service.utils.load_local_builds(
+                ["base-runtime", "parent", "child", "testmodule"])
+            
+            build = module_build_service.models.ModuleBuild.local_modules(
+                db.session, "child", "master")
+            result = mbs_pdc.get_module_build_dependencies(self.pdc, build[0].mmd())
+
+            local_path = os.path.join(base_dir, 'staged_data', "local_builds")
+
+            expected = [
+                os.path.join(
+                    local_path,
+                    'module-base-runtime-master-20170816080815/results'),
+                os.path.join(
+                    local_path,
+                    'module-parent-master-20170816080815/results'),
+            ]
+            self.assertEqual(set(result), set(expected))
 
     def test_resolve_profiles(self):
         current_dir = os.path.dirname(__file__)
@@ -115,19 +145,27 @@ class TestPDCModule(unittest.TestCase):
         }
         self.assertEqual(result, expected)
 
-    def test_resolve_profiles_exclude(self):
-        current_dir = os.path.dirname(__file__)
-        yaml_path = os.path.join(
-            current_dir, 'staged_data', 'formatted_testmodule.yaml')
-        mmd = modulemd.ModuleMetadata()
-        mmd.load(yaml_path)
-        result = mbs_pdc.resolve_profiles(self.pdc, mmd,
-                                          ('buildroot', 'srpm-buildroot'),
-                                          exclude=("base-runtime-master",))
-        expected = {
-            'buildroot':
-                set(),
-            'srpm-buildroot':
-                set()
-        }
-        self.assertEqual(result, expected)
+    @patch("module_build_service.config.Config.system",
+        new_callable=PropertyMock, return_value="test")
+    @patch("module_build_service.config.Config.mock_resultsdir",
+        new_callable=PropertyMock,
+        return_value=os.path.join(
+            base_dir, 'staged_data', "local_builds"))
+    def test_resolve_profiles_local_module(self, local_builds, conf_system):
+        with app.app_context():
+            module_build_service.utils.load_local_builds(["base-runtime"])
+
+            current_dir = os.path.dirname(__file__)
+            yaml_path = os.path.join(
+                current_dir, 'staged_data', 'formatted_testmodule.yaml')
+            mmd = modulemd.ModuleMetadata()
+            mmd.load(yaml_path)
+            result = mbs_pdc.resolve_profiles(self.pdc, mmd,
+                                            ('buildroot', 'srpm-buildroot'))
+            expected = {
+                'buildroot':
+                    set(['foo']),
+                'srpm-buildroot':
+                    set(['bar'])
+            }
+            self.assertEqual(result, expected)

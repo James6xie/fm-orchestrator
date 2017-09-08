@@ -27,11 +27,14 @@
 
 import modulemd
 from pdc_client import PDCClient
+from module_build_service import db
+from module_build_service import models
 
 import inspect
 import pprint
 import logging
 import six
+import copy
 log = logging.getLogger()
 
 
@@ -78,9 +81,10 @@ def get_variant_dict(data):
         if not isinstance(data, dict):
             return False
 
-        for attr in ('variant_id', 'variant_stream'):
-            if attr not in data.keys():
-                return False
+        if ('variant_id' not in data or
+                ('variant_stream' not in data and
+                 'variant_version' not in data)):
+            return False
         return True
 
     def is_modulemd(data):
@@ -239,28 +243,114 @@ def _extract_modulemd(yaml, strict=False):
     return mmd
 
 
-def resolve_profiles(session, mmd, keys, exclude=None):
+def _get_recursively_required_modules(session, info, modules=None,
+                                      strict=False):
+    """
+    :param session: PDCClient instance
+    :param info: pdc variant_dict, str, mmd or module dict
+    :param modules: Used by recursion only, list of modules found by previous
+                    iteration of this method.
+    :param strict: Normally this function returns empty list if no module can
+                   be found.  If strict=True, then a ValueError is raised.
+
+    Returns list of modules by recursively querying PDC based on a "requires"
+    list of an input module represented by `info`. The returned list
+    therefore contains all modules the input module "requires".
+
+    If there are some modules loaded by utils.load_local_builds(...), these
+    local modules will be used instead of querying PDC for the particular
+    module found in local module builds database.
+
+    The returned list contains only "modulemd" and "koji_tag" fields returned
+    by PDC, because other fields are not known for local builds.
+    """
+    modules = modules or []
+
+    variant_dict = get_variant_dict(info)
+    local_modules = models.ModuleBuild.local_modules(
+        db.session, variant_dict["variant_id"],
+        variant_dict['variant_version'])
+    if local_modules:
+        local_module = local_modules[0]
+        log.info("Using local module %r as a dependency.",
+                 local_module)
+        mmd = local_module.mmd()
+        module_info = {}
+        module_info["modulemd"] = local_module.modulemd
+        module_info["koji_tag"] = local_module.koji_tag
+    else:
+        module_info = get_module(session, variant_dict, strict)
+        module_info = {k: v for k, v in module_info.items()
+                       if k in ["modulemd", "koji_tag"]}
+        module_info = {
+            'modulemd': module_info['modulemd'],
+            'koji_tag': module_info['koji_tag']
+        }
+
+        yaml = module_info['modulemd']
+        mmd = _extract_modulemd(yaml)
+
+    # Check if we have examined this koji_tag already - no need to do
+    # it again...
+    if module_info in modules:
+        return modules
+
+    modules.append(module_info)
+
+
+    # We want to use the same stream as the one used in the time this
+    # module was built. But we still should fallback to plain mmd.requires
+    # in case this module depends on some older module for which we did
+    # not populate mmd.xmd['mbs']['requires'].
+    if mmd.xmd.get('mbs') and mmd.xmd['mbs'].get('requires'):
+        requires = mmd.xmd['mbs']['requires']
+        requires = {name: data['stream'] for name, data in requires.items()}
+    else:
+        requires = mmd.requires
+
+    for name, stream in requires.items():
+        modified_dep = {
+            'name': name,
+            'version': stream,
+            # Only return details about module builds that finished
+            'active': True,
+        }
+        modules = _get_recursively_required_modules(
+            session, modified_dep, modules, strict)
+
+    return modules
+
+
+def resolve_profiles(session, mmd, keys):
     """
     :param session : PDCClient instance
     :param mmd: ModuleMetadata instance of module
     :param keys: list of modulemd installation profiles to include in
                  the result.
-    :param exclude: a set or map with the keys being $name-$stream
-                 to not look up in the PDC
     :return: Dictionary with keys set according to `keys` param and values
              set to union of all components defined in all installation
              profiles matching the key using the buildrequires.
 
+    If there are some modules loaded by utils.load_local_builds(...), these
+    local modules will be considered when returning the profiles.
+
     https://pagure.io/fm-orchestrator/issue/181
     """
-
-    exclude = exclude or []
 
     results = {}
     for key in keys:
         results[key] = set()
     for module_name, module_info in mmd.xmd['mbs']['buildrequires'].items():
-        if module_name + "-" + module_info['stream'] in exclude:
+        local_modules = models.ModuleBuild.local_modules(
+            db.session, module_name, module_info['stream'])
+        if local_modules:
+            local_module = local_modules[0]
+            log.info("Using local module %r to resolve profiles.",
+                        local_module)
+            dep_mmd = local_module.mmd()
+            for key in keys:
+                if key in dep_mmd.profiles:
+                    results[key] |= dep_mmd.profiles[key].rpms
             continue
 
         # Find the dep in the built modules in PDC
@@ -268,12 +358,17 @@ def resolve_profiles(session, mmd, keys, exclude=None):
             'variant_id': module_name,
             'variant_stream': module_info['stream'],
             'variant_release': module_info['version']}
-        dep_mmd = get_module_modulemd(session, module_info, True)
+        modules = _get_recursively_required_modules(
+            session, module_info, strict=True)
 
-        # Take note of what rpms are in this dep's profile.
-        for key in keys:
-            if key in dep_mmd.profiles:
-                results[key] |= dep_mmd.profiles[key].rpms
+        for module in modules:
+            yaml = module['modulemd']
+            dep_mmd = _extract_modulemd(yaml)
+
+            # Take note of what rpms are in this dep's profile.
+            for key in keys:
+                if key in dep_mmd.profiles:
+                    results[key] |= dep_mmd.profiles[key].rpms
 
     # Return the union of all rpms in all profiles of the given keys.
     return results
@@ -282,33 +377,37 @@ def resolve_profiles(session, mmd, keys, exclude=None):
 def get_module_build_dependencies(session, module_info, strict=False):
     """
     :param session : PDCClient instance
-    :param module_info : a dict containing filters for pdc
+    :param module_info : a dict containing filters for pdc or ModuleMetadata
+    instance.
     :param strict: Normally this function returns None if no module can be
            found.  If strict=True, then a ValueError is raised.
     :return final list of koji tags
 
-    Example minimal module_info {'variant_id': module_name, 'variant_version': module_version, 'variant_type': 'module'}
+    Example minimal module_info:
+        {
+            'variant_id': module_name,
+            'variant_version': module_version,
+            'variant_type': 'module'
+        }
     """
     log.debug("get_module_build_dependencies(%r, strict=%r)" % (module_info, strict))
     # XXX get definitive list of modules
 
-    queried_module = get_module(session, module_info, strict=strict)
-    yaml = queried_module['modulemd']
-    queried_mmd = _extract_modulemd(yaml, strict=strict)
-    if not queried_mmd or not queried_mmd.xmd.get('mbs') or not \
-            queried_mmd.xmd['mbs'].get('buildrequires'):
-        raise RuntimeError(
-            'The module "{0!r}" did not contain its modulemd or did not have '
-            'its xmd attribute filled out in PDC'.format(module_info))
-
     # This is the set we're going to build up and return.
     module_tags = set()
 
-    # Take note of the tag of this module, but only if it is a dep and
-    # not in the original list.
-    # XXX - But, for now go ahead and include it because that's how this
-    # code used to work.
-    module_tags.add(queried_module['koji_tag'])
+    if not isinstance(module_info, modulemd.ModuleMetadata):
+        queried_module = get_module(session, module_info, strict=strict)
+        yaml = queried_module['modulemd']
+        queried_mmd = _extract_modulemd(yaml, strict=strict)
+    else:
+        queried_mmd = module_info
+
+    if (not queried_mmd or not queried_mmd.xmd.get('mbs') or
+            not queried_mmd.xmd['mbs'].get('buildrequires')):
+        raise RuntimeError(
+            'The module "{0!r}" did not contain its modulemd or did not have '
+            'its xmd attribute filled out in PDC'.format(module_info))
 
     buildrequires = queried_mmd.xmd['mbs']['buildrequires']
     # Queue up the next tier of deps that we should look at..
@@ -320,8 +419,10 @@ def get_module_build_dependencies(session, module_info, strict=False):
             # Only return details about module builds that finished
             'active': True,
         }
-        info = get_module(session, modified_dep, strict)
-        module_tags.add(info['koji_tag'])
+        modules = _get_recursively_required_modules(
+            session, modified_dep, strict=strict)
+        tags = [m["koji_tag"] for m in modules]
+        module_tags = module_tags.union(set(tags))
 
     return module_tags
 
@@ -356,3 +457,59 @@ def get_module_commit_hash_and_version(session, module_info):
         log.warn(
             'The version for {0!r} was not in PDC'.format(module_info))
     return commit_hash, version
+
+def resolve_requires(session, requires):
+    """
+    Takes `requires` dict with module_name as key and module_stream as value.
+    Resolves the stream to particular latest version of a module and returns
+    new dict in following format:
+
+    {
+        "module_name": {
+            "ref": module_commit_hash,
+            "stream": original_module_stream,
+            "version": module_version,
+        },
+        ...
+    }
+
+    If there are some modules loaded by utils.load_local_builds(...), these
+    local modules will be considered when resolving the requires.
+
+    Raises RuntimeError on PDC lookup error.
+    """
+    new_requires = copy.deepcopy(requires)
+    for module_name, module_stream in requires.items():
+        # Try to find out module dependency in the local module builds
+        # added by utils.load_local_builds(...).
+        local_modules = models.ModuleBuild.local_modules(
+            db.session, module_name, module_stream)
+        if local_modules:
+            local_build = local_modules[0]
+            new_requires[module_name] = {
+                # The commit ID isn't currently saved in modules.yaml
+                'ref': None,
+                'stream': local_build.stream,
+                'version': local_build.version
+            }
+            continue
+
+        # Assumes that module_stream is the stream and not the commit hash
+        module_info = {
+            'name': module_name,
+            'version': module_stream,
+            'active': True}
+        commit_hash, version = get_module_commit_hash_and_version(
+            session, module_info)
+        if version and commit_hash:
+            new_requires[module_name] = {
+                'ref': commit_hash,
+                'stream': module_stream,
+                'version': str(version)
+            }
+        else:
+            raise RuntimeError(
+                'The module "{0}" didn\'t contain either a commit hash or a'
+                ' version in PDC'.format(module_name))
+
+    return new_requires
