@@ -147,7 +147,8 @@ class TestCoprModuleBuilder(unittest.TestCase):
         builder = self.create_builder()
         groups = {"build": {"pkgname1", "pkgname2", "pkgname3"}}
         builder.buildroot_connect(groups)
-        update_chroot.assert_called_with(packages=["pkgname1", "pkgname3", "pkgname2"])
+        args, kwargs = update_chroot.call_args
+        self.assertEquals(set(kwargs["packages"]), {"pkgname1", "pkgname2", "pkgname3"})
         self.assertEqual(builder._CoprModuleBuilder__prep, True)
 
     @mock.patch(COPR_MODULE_BUILDER + "._get_copr")
@@ -211,20 +212,26 @@ class TestCoprModuleBuilder(unittest.TestCase):
         # Update buildroot packages
         builder._update_chroot(packages=["pkg4", "pkg5"])
         edit_chroot.assert_called_with("someproject", "custom-1-x86_64", ownername="myself",
-                                       repos="http://repo2.ex/ http://repo1.ex/",
-                                       packages="pkg4 pkg5 pkg2 pkg3 pkg1")
+                                       repos=mock.ANY, packages=mock.ANY)
+        args, kwargs = edit_chroot.call_args
+        self.assertEqual(set(kwargs["packages"].split()), {"pkg1", "pkg2", "pkg3", "pkg4", "pkg5"})
+        self.assertEqual(set(kwargs["repos"].split()), {"http://repo1.ex/", "http://repo2.ex/"})
 
         # Update buildroot repos
         builder._update_chroot(repos=["http://repo3.ex/"])
         edit_chroot.assert_called_with("someproject", "custom-1-x86_64", ownername="myself",
-                                       repos="http://repo2.ex/ http://repo1.ex/ http://repo3.ex/",
-                                       packages="pkg2 pkg3 pkg1")
+                                       repos=mock.ANY, packages=mock.ANY)
+        args, kwargs = edit_chroot.call_args
+        self.assertEqual(set(kwargs["packages"].split()), {"pkg1", "pkg2", "pkg3"})
+        self.assertEqual(set(kwargs["repos"].split()), {"http://repo1.ex/", "http://repo2.ex/", "http://repo3.ex/"})
 
         # Update multiple buildroot options at the same time
         builder._update_chroot(packages=["pkg4", "pkg5"], repos=["http://repo3.ex/"])
         edit_chroot.assert_called_with("someproject", "custom-1-x86_64", ownername="myself",
-                                       repos="http://repo2.ex/ http://repo1.ex/ http://repo3.ex/",
-                                       packages="pkg4 pkg5 pkg2 pkg3 pkg1")
+                                       repos=mock.ANY, packages=mock.ANY)
+        args, kwargs = edit_chroot.call_args
+        self.assertEqual(set(kwargs["packages"].split()), {"pkg1", "pkg2", "pkg3", "pkg4", "pkg5"})
+        self.assertEqual(set(kwargs["repos"].split()), {"http://repo1.ex/", "http://repo2.ex/", "http://repo3.ex/"})
 
     def test_buildroot_add_artifacts(self):
         pass
@@ -233,14 +240,15 @@ class TestCoprModuleBuilder(unittest.TestCase):
     def test_buildroot_add_repos(self, update_chroot):
         builder = self.create_builder()
         builder.buildroot_add_repos(["foo", "bar", "baz"])
-        update_chroot.assert_called_with(repos=[
+        args, kwargs = update_chroot.call_args
+        self.assertEquals(set(kwargs["repos"]), {
             conf.koji_repository_url + "/foo/latest/x86_64",
             conf.koji_repository_url + "/bar/latest/x86_64",
             conf.koji_repository_url + "/baz/latest/x86_64",
 
             # We always add this repo as a workaround, see the code for details
             "https://kojipkgs.fedoraproject.org/compose/latest-Fedora-Modular-Rawhide/compose/Server/x86_64/os/",
-        ])
+        })
 
     ####################################################################################################################
     #                                                                                                                  #
