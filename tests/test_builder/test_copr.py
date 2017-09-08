@@ -29,6 +29,7 @@ import module_build_service.builder
 from munch import Munch
 from tests import conf, init_data
 from module_build_service.builder.CoprModuleBuilder import CoprModuleBuilder
+from copr import CoprClient
 from copr.exceptions import CoprRequestException
 
 
@@ -103,13 +104,15 @@ class TestCoprModuleBuilder(unittest.TestCase):
         self.config.koji_repository_url = conf.koji_repository_url
         self.module = module_build_service.models.ModuleBuild.query.filter_by(id=1).one()
 
-    def create_builder(self):
-        conf.copr_config = "/tmp/module_build_service/conf/copr.conf"
+
+    @mock.patch("copr.client.CoprClient.create_from_file_config")
+    def create_builder(self, create_from_file_config):
         builder = CoprModuleBuilder(owner=self.module.owner,
                                     module=self.module,
                                     config=conf,
                                     tag_name='module-nginx-1.2',
                                     components=[])
+        builder.client = CoprClient(username="myself", login="", token="", copr_url="http://example.com/")
         builder.copr = Munch(projectname="someproject", username="myself")
         return builder
 
