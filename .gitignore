@@ -15,3 +15,4 @@ module_build_service.db
 server.crt
 server.key
 test_module_build_service.db
+tests/vcr-request-data

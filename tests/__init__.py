@@ -21,6 +21,7 @@
 # Written by Matt Prahl <mprahl@redhat.com
 
 import os
+import tarfile
 import module_build_service
 
 from datetime import datetime, timedelta
@@ -34,6 +35,15 @@ base_dir = os.path.dirname(__file__)
 app = module_build_service.app
 conf = init_config(app)
 
+
+def uncompress_vcrpy_cassette():
+    cassette_dir = base_dir + '/vcr-request-data/'
+    if not os.path.exists(cassette_dir):
+        archive = cassette_dir.rstrip('/') + ".tar.gz"
+        with tarfile.open(archive, mode='r:gz') as t:
+            t.extractall(base_dir)
+
+uncompress_vcrpy_cassette()
 
 def init_data():
     db.session.remove()
