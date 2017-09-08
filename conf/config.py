@@ -63,8 +63,6 @@ class BaseConfiguration(object):
     SSL_CERTIFICATE_KEY_FILE = '/etc/module-build-service/server.key'
     SSL_CA_CERTIFICATE_FILE = '/etc/module-build-service/cacert.pem'
 
-    PKGDB_API_URL = 'https://admin.fedoraproject.org/pkgdb/api'
-
     ALLOWED_GROUPS = set([
         'packager',
         # 'modularity-wg',
@@ -166,7 +164,6 @@ class TestConfiguration(BaseConfiguration):
 
     KOJI_REPOSITORY_URL = 'https://kojipkgs.stg.fedoraproject.org/repos'
     SCMURLS = ["git://pkgs.stg.fedoraproject.org/modules/"]
-    PKGDB_API_URL = 'https://admin.stg.fedoraproject.org/pkgdb/api'
 
 
 class ProdConfiguration(BaseConfiguration):

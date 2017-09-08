@@ -238,10 +238,6 @@ class Config(object):
             'type': str,
             'default': '',
             'desc': ''},
-        'pkgdb_api_url': {
-            'type': str,
-            'default': '',
-            'desc': ''},
         'allowed_groups': {
             'type': set,
             'default': set(['packager']),
