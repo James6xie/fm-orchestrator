@@ -247,7 +247,7 @@ class TestCoprModuleBuilder(unittest.TestCase):
             conf.koji_repository_url + "/baz/latest/x86_64",
 
             # We always add this repo as a workaround, see the code for details
-            "https://kojipkgs.fedoraproject.org/compose/latest-Fedora-Modular-Rawhide/compose/Server/x86_64/os/",
+            "https://kojipkgs.fedoraproject.org/compose/latest-Fedora-Modular-26/compose/Server/x86_64/os/",
         })
 
     ####################################################################################################################
