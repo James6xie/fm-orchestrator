@@ -153,8 +153,9 @@ class TestCoprModuleBuilder(unittest.TestCase):
 
     @mock.patch(COPR_MODULE_BUILDER + "._get_copr")
     @mock.patch(COPR_MODULE_BUILDER + "._create_copr")
+    @mock.patch(COPR_MODULE_BUILDER + "._create_chroot_safe")
     @mock.patch("copr.client.CoprClient.create_project")  # So that python-copr-1.79-1 is not required
-    def test_get_copr_safe(self, create_project, create_copr, get_copr):
+    def test_get_copr_safe(self, create_project, create_chroot_safe, create_copr, get_copr):
         builder = self.create_builder()
 
         builder._get_copr_safe()
