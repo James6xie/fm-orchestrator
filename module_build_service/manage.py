@@ -27,7 +27,6 @@ import flask_migrate
 import logging
 import os
 import ssl
-from shutil import rmtree
 import getpass
 
 from module_build_service import app, conf, db, create_app
@@ -151,104 +150,6 @@ def build_module_locally(url, branch, local_build_nsvs=None, skiptests=False):
 
         # Run the consumer until stop_condition returns True
         module_build_service.scheduler.main([], stop)
-
-
-@manager.command
-def gendevfedmsgcert(pki_dir='/etc/module_build_service', force=False):
-    """ Creates a CA, a certificate signed by that CA, and generates a CRL.
-    """
-    from OpenSSL import crypto
-
-    if os.path.exists(pki_dir):
-        if force:
-            rmtree(pki_dir)
-        else:
-            print('The directory "{}" already exists'.format(pki_dir))
-            return
-
-    os.mkdir(pki_dir)
-
-    ca_crt_path = os.path.join(pki_dir, 'ca.crt')
-    ca_key_path = os.path.join(pki_dir, 'ca.key')
-    msg_key_path = os.path.join(pki_dir, 'localhost.key')
-    msg_crt_path = os.path.join(pki_dir, 'localhost.crt')
-    ca_crl = os.path.join(pki_dir, 'ca.crl')
-
-    # Create a key pair for the CA
-    ca_key = crypto.PKey()
-    ca_key.generate_key(crypto.TYPE_RSA, 2048)
-
-    with open(ca_key_path, 'w') as ca_key_file:
-        ca_key_file.write(
-            crypto.dump_privatekey(crypto.FILETYPE_PEM, ca_key))
-
-    # Create a self-signed CA cert
-    ca_cert = crypto.X509()
-    ca_subject = ca_cert.get_subject()
-    ca_subject.C = 'US'
-    ca_subject.ST = 'MA'
-    ca_subject.L = 'Boston'
-    ca_subject.O = 'Development'
-    ca_subject.CN = 'Dev-CA'
-    ca_cert.set_serial_number(1)
-    ca_cert.gmtime_adj_notBefore(0)
-    ca_cert.gmtime_adj_notAfter(315360000)  # 10 years
-    ca_cert.set_issuer(ca_cert.get_subject())
-    ca_cert.set_pubkey(ca_key)
-    ca_cert.add_extensions([
-        crypto.X509Extension('basicConstraints', True, 'CA:true')])
-    ca_cert.sign(ca_key, 'sha256')
-
-    with open(ca_crt_path, 'w') as ca_crt_file:
-        ca_crt_file.write(
-            crypto.dump_certificate(crypto.FILETYPE_PEM, ca_cert))
-
-    # Create a key pair for the message signing cert
-    msg_key = crypto.PKey()
-    msg_key.generate_key(crypto.TYPE_RSA, 2048)
-
-    with open(msg_key_path, 'w') as msg_key_file:
-        msg_key_file.write(
-            crypto.dump_privatekey(crypto.FILETYPE_PEM, msg_key))
-
-    # Create a cert signed by the CA
-    msg_cert = crypto.X509()
-    msg_cert_subject = msg_cert.get_subject()
-    msg_cert_subject.C = 'US'
-    msg_cert_subject.ST = 'MA'
-    msg_cert_subject.L = 'Boston'
-    msg_cert_subject.O = 'Development'
-    msg_cert_subject.CN = 'localhost'
-    msg_cert.set_serial_number(2)
-    msg_cert.gmtime_adj_notBefore(0)
-    msg_cert.gmtime_adj_notAfter(315360000)  # 10 years
-    msg_cert.set_issuer(ca_cert.get_subject())
-    msg_cert.set_pubkey(msg_key)
-    cert_extensions = [
-        crypto.X509Extension(
-            'keyUsage', True,
-            'digitalSignature, keyEncipherment, nonRepudiation'),
-        crypto.X509Extension('extendedKeyUsage', True, 'serverAuth'),
-        crypto.X509Extension('basicConstraints', True, 'CA:false'),
-        crypto.X509Extension('crlDistributionPoints', False,
-                             'URI:http://localhost/crl/ca.crl'),
-        crypto.X509Extension('authorityInfoAccess', False,
-                             'caIssuers;URI:http://localhost/crl/ca.crt'),
-        crypto.X509Extension('subjectKeyIdentifier', False, 'hash',
-                             subject=ca_cert)
-    ]
-    msg_cert.add_extensions(cert_extensions)
-    msg_cert.sign(ca_key, 'sha256')
-
-    with open(msg_crt_path, 'w') as msg_crt_file:
-        msg_crt_file.write(
-            crypto.dump_certificate(crypto.FILETYPE_PEM, msg_cert))
-
-    # Generate the CRL
-    with open(ca_crl, 'w') as ca_crl_file:
-        ca_crl_file.write(
-            crypto.CRL().export(ca_cert, ca_key, type=crypto.FILETYPE_PEM,
-                                days=3650, digest='sha256'))
 
 
 @console_script_help
