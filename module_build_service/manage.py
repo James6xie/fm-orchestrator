@@ -26,7 +26,6 @@ from functools import wraps
 import flask_migrate
 import logging
 import os
-import ssl
 import getpass
 
 from module_build_service import app, conf, db, create_app
@@ -85,13 +84,8 @@ def _establish_ssl_context():
         if not os.path.exists(value):
             raise OSError("%s: %s file not found." % (attribute, value))
 
-    # Then, establish the ssl context and return it
-    ssl_ctx = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
-    ssl_ctx.load_cert_chain(conf.ssl_certificate_file,
-                            conf.ssl_certificate_key_file)
-    ssl_ctx.verify_mode = ssl.CERT_OPTIONAL
-    ssl_ctx.load_verify_locations(cafile=conf.ssl_ca_certificate_file)
-    return ssl_ctx
+    return (os.path.abspath(conf.ssl_certificate_file),
+            os.path.abspath(conf.ssl_certificate_key_file))
 
 
 @console_script_help
