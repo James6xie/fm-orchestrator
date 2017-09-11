@@ -21,6 +21,7 @@
 #
 # Written by Matt Prahl <mprahl@redhat.com> except for the test functions
 
+import random
 from flask_script import Manager
 from functools import wraps
 import flask_migrate
@@ -149,7 +150,7 @@ def build_module_locally(url, branch, local_build_nsvs=None, skiptests=False):
 @console_script_help
 @manager.command
 def generatelocalhostcert():
-    """ Creates a public/private key pair for message signing and the frontend
+    """ Creates a public/private key pair for the frontend
     """
     from OpenSSL import crypto
     cert_key = crypto.PKey()
@@ -167,7 +168,7 @@ def generatelocalhostcert():
     msg_cert_subject.L = 'Boston'
     msg_cert_subject.O = 'Development'
     msg_cert_subject.CN = 'localhost'
-    cert.set_serial_number(2)
+    cert.set_serial_number(random.randint(2, 99999999))
     cert.gmtime_adj_notBefore(0)
     cert.gmtime_adj_notAfter(315360000)  # 10 years
     cert.set_issuer(cert.get_subject())
