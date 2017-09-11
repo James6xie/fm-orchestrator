@@ -59,7 +59,8 @@ Vagrant.configure("2") do |config|
   config.vm.network "forwarded_port", guest_ip: "0.0.0.0", guest: 13747, host: 13747
   config.vm.provision "shell", inline: $script
   config.vm.provision "shell", inline: $script_services, run: "always"
-  config.vm.provider "libvirt" do |v|
+  config.vm.provider "libvirt" do |v, override|
+    override.vm.synced_folder "./", "/tmp/module_build_service", type: "sshfs"
     v.memory = 1024
     #v.cpus = 2
   end
