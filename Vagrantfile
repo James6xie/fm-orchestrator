@@ -20,8 +20,9 @@ $script = <<SCRIPT
         openssl-devel \
         python \
         python-devel \
-        python-devel \
+        python-docutils \
         python-flask \
+        python-m2ext \
         python-mock \
         python-qpid \
         python-virtualenv \
@@ -48,17 +49,19 @@ $script_services = <<SCRIPT_SERVICES
 SCRIPT_SERVICES
 
 Vagrant.configure("2") do |config|
-  config.vm.box = "fedora/24-cloud-base"
+  config.vm.box = "fedora/26-cloud-base"
   config.vm.synced_folder "./", "/tmp/module_build_service"
+  # Disable the default share
+  config.vm.synced_folder ".", "/vagrant", disabled: true
   config.vm.provision "file", source: "/tmp/mbs-krbcc", destination: "/var/tmp/krbcc", run: "always"
   config.vm.network "forwarded_port", guest_ip: "0.0.0.0", guest: 5000, host: 5000
   config.vm.network "forwarded_port", guest_ip: "0.0.0.0", guest: 2001, host: 5001
   config.vm.network "forwarded_port", guest_ip: "0.0.0.0", guest: 13747, host: 13747
   config.vm.provision "shell", inline: $script
   config.vm.provision "shell", inline: $script_services, run: "always"
-  config.vm.provider "libvirt" do |domain|
-    domain.memory = 1024
-    #domain.cpus = 2
+  config.vm.provider "libvirt" do |v|
+    v.memory = 1024
+    #v.cpus = 2
   end
   config.vm.provider "virtualbox" do |v|
     v.memory = 1024

@@ -22,3 +22,4 @@ qpid-python
 six
 sqlalchemy
 tabulate
+urlgrabber
