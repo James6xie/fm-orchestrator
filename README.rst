@@ -641,6 +641,30 @@ the following rules (all of them are evaluated from top to bottom):
   value, DevConfiguration is forced and ``config.py`` is used directly from the
   MBS's develop instance. For more information see ``docs/CONTRIBUTING.rst``.
 
+
+Setting Up Kerberos + LDAP Authentication
+=========================================
+
+MBS defaults to using OIDC as its authentication mechanism. It additionally
+supports Kerberos + LDAP, where Kerberos proves the user's identity and LDAP
+is used to determine the user's group membership. To configure this, the following
+must be set in ``/etc/module-build-service/config.py``:
+
+- ``AUTH_METHOD`` must be set to ``'kerberos'``.
+- ``KERBEROS_HTTP_HOST`` can override the hostname MBS will present itself as when
+  performing Kerberos authentication. If this is not set, Python will try to guess the
+  hostname of the server.
+- ``KERBEROS_KEYTAB`` is the path to the keytab used by MBS. If this is not set,
+  the environment variable ``KRB5_KTNAME`` will be used.
+- ``LDAP_URI`` is the URI to connect to LDAP (e.g. ``'ldaps://ldap.domain.local:636'``
+  or ``'ldap://ldap.domain.local'``).
+- ``LDAP_GROUPS_DN`` is the distinguished name of the container or organizational unit where groups
+  are located (e.g. ``'ou=groups,dc=domain,dc=local'``). MBS does not search the tree below the
+  distinguished name specified here for security reasons because it ensures common names are
+  unique.
+- ``ALLOWED_GROUPS`` and ``ADMIN_GROUPS`` both need to declare the common name of the LDAP groups,
+  not the distinguished name.
+
 Development
 ===========
 

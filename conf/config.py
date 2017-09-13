@@ -164,6 +164,7 @@ class TestConfiguration(BaseConfiguration):
 
     KOJI_REPOSITORY_URL = 'https://kojipkgs.stg.fedoraproject.org/repos'
     SCMURLS = ["git://pkgs.stg.fedoraproject.org/modules/"]
+    AUTH_METHOD = 'oidc'
 
 
 class ProdConfiguration(BaseConfiguration):

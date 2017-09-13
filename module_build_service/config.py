@@ -26,6 +26,7 @@
 
 import imp
 import os
+import re
 
 from os import sys
 
@@ -358,6 +359,29 @@ class Config(object):
             'type': list,
             'default': ['/etc/module-build-service/yum.conf', 'conf/yum.conf'],
             'desc': 'List of yum config file paths in order of preference.'},
+        'auth_method': {
+            'type': str,
+            'default': 'oidc',
+            'desc': 'Authentiation method to MBS. Options are oidc or kerberos'},
+        'kerberos_http_host': {
+            'type': str,
+            'default': '',
+            'desc': ('Hardcodes the HTTP host MBS identifies as in Kerberos. If this isn\'t set, '
+                     'it will be derived dynamically.')},
+        'kerberos_keytab': {
+            'type': str,
+            'default': '',
+            'desc': ('Overrides the use of the environment variable KRB5_KTNAME, which specifies '
+                     'the location to the Kerberos keytab for authentication.')},
+        'ldap_uri': {
+            'type': str,
+            'default': '',
+            'desc': 'LDAP URI to query for group information when using Kerberos authentication'},
+        'ldap_groups_dn': {
+            'type': str,
+            'default': '',
+            'desc': ('The distinguished name of the container or organizational unit containing '
+                     'the groups in LDAP')}
     }
 
     def __init__(self, conf_section_obj):
@@ -488,3 +512,26 @@ class Config(object):
         if i < 0:
             raise ValueError('NUM_CONCURRENT_BUILDS must be >= 0')
         self._num_concurrent_builds = i
+
+    def _setifok_auth_method(self, s):
+        s = str(s)
+        if s.lower() not in ('oidc', 'kerberos'):
+            raise ValueError('Unsupported authentication method')
+        self._auth_method = s.lower()
+
+    def _setifok_kerberos_keytab(self, s):
+        keytab = str(s)
+        if keytab:
+            keytab = os.path.expanduser(keytab)
+            if not os.path.exists(keytab):
+                raise ValueError('The path set for KERBEROS_KEYTAB does not exist')
+
+        self._kerberos_keytab = keytab
+
+    def _setifok_ldap_uri(self, s):
+        ldap_uri = str(s)
+
+        if ldap_uri and not re.match(r'^(?:ldap(?:s)?:\/\/.+)$', ldap_uri):
+            raise ValueError('LDAP_URI is invalid. It must start with "ldap://" or "ldaps://"')
+
+        self._ldap_uri = ldap_uri
