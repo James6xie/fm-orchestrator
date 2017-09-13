@@ -310,6 +310,10 @@ class Config(object):
             'type': str,
             'default': 'fedora-25-x86_64',
             'desc': ''},
+        'mock_config_file': {
+            'type': list,
+            'default': ['/etc/module-build-service/mock.cfg', 'conf/mock.cfg'],
+            'desc': 'List of mock config file paths in order of preference.'},
         'mock_build_srpm_cmd': {
             'type': str,
             'default': 'fedpkg --release f26 srpm',
@@ -350,6 +354,10 @@ class Config(object):
             'type': set,
             'default': set([]),
             'desc': 'The set of groups allowed to manage MBS.'},
+        'yum_config_file': {
+            'type': list,
+            'default': ['/etc/module-build-service/yum.conf', 'conf/yum.conf'],
+            'desc': 'List of yum config file paths in order of preference.'},
     }
 
     def __init__(self, conf_section_obj):
