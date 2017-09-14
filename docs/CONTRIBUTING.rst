@@ -138,6 +138,16 @@ for folder syncing::
 
     $ vagrant plugin install vagrant-vbguest
 
+If you are using libvirt, then folder syncing will be done using SSHFS. To
+install this on Fedora, use:
+
+    $ dnf install vagrant-sshfs
+
+If you are using libvirt but not using Fedora, you can install the plugin
+directly in Vagrant using:
+
+    $ vagrant plugin install vagrant-sshfs
+
 To launch Vagrant, run (depending on your OS, you may need to run it with sudo)::
 
     $ vagrant up
