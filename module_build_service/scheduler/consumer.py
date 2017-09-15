@@ -131,7 +131,7 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
         if isinstance(message, module_build_service.messaging.BaseMessage):
             msg = message
         else:
-            msg = self.get_abstracted_msg(message['body'])
+            msg = self.get_abstracted_msg(message)
 
         # Primary work is done here.
         try:
@@ -147,10 +147,10 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
         # Convert the message to an abstracted message
         if conf.messaging == 'fedmsg':
             msg = module_build_service.messaging.BaseMessage.from_fedmsg(
-                message['topic'], message)
+                message['body']['topic'], message['body'])
         elif conf.messaging == 'amq':
             msg = module_build_service.messaging.BaseMessage.from_amq(
-                message['topic'], message)
+                message['body']['topic'], message['body'])
         else:
             raise ValueError('The messaging format "{0}" is not supported'
                              .format(conf.messaging))
