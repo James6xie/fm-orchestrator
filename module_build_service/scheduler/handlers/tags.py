@@ -40,9 +40,6 @@ def tagged(config, session, msg):
 
     # Find our ModuleBuild associated with this tagged artifact.
     tag = msg.tag
-    if not tag.endswith('-build'):
-        log.debug("Tag %r does not end with '-build' suffix, ignoring" % tag)
-        return
     module_build = models.ModuleBuild.from_tag_change_event(session, msg)
     if not module_build:
         log.debug("No module build found associated with koji tag %r" % tag)
@@ -59,7 +56,10 @@ def tagged(config, session, msg):
                                                             msg.msg_id))
 
     # Mark the component as tagged
-    component.tagged = True
+    if tag.endswith('-build'):
+        component.tagged = True
+    else:
+        component.tagged_in_final = True
     session.commit()
 
     unbuilt_components_in_batch = [
@@ -75,7 +75,8 @@ def tagged(config, session, msg):
     # have been built successfully.
     untagged_components = [
         c for c in module_build.up_to_current_batch()
-        if not c.tagged and c.state == koji.BUILD_STATES['COMPLETE']
+        if (not c.tagged or (not c.tagged_in_final and not c.build_time_only)) and
+        c.state == koji.BUILD_STATES['COMPLETE']
     ]
 
     further_work = []
@@ -90,8 +91,9 @@ def tagged(config, session, msg):
             if c.state == koji.BUILD_STATES['BUILDING'] or not c.state
         ]
         if unbuilt_components:
-            log.info("All components in batch tagged, regenerating repo for tag %s", tag)
-            task_id = builder.koji_session.newRepo(tag)
+            repo_tag = builder.module_build_tag['name']
+            log.info("All components in batch tagged, regenerating repo for tag %s", repo_tag)
+            task_id = builder.koji_session.newRepo(repo_tag)
             module_build.new_repo_task_id = task_id
         else:
             # In case this is the last batch, we do not need to regenerate the

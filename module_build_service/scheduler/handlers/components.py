@@ -124,6 +124,11 @@ def _finalize(config, session, msg, state):
             # Do not tag packages which belong to -build tag to final tag.
             if not install:
                 builder.tag_artifacts(built_components_in_batch)
+            else:
+                # For components which should not be tagged in final Koji tag,
+                # set the build_time_only to True so we do not wait for the
+                # non-existing tagging task to finish.
+                component_build.build_time_only = True
 
         session.commit()
     elif (any([c.state != koji.BUILD_STATES['BUILDING']

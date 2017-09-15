@@ -79,6 +79,7 @@ class TestTagTagged(unittest.TestCase):
         builder = mock.MagicMock()
         builder.koji_session = koji_session
         builder.buildroot_ready.return_value = False
+        builder.module_build_tag = {"name": "module-testmodule-build"}
         create_builder.return_value = builder
 
         module_build = module_build_service.models.ModuleBuild.query.filter_by(id=2).one()
@@ -88,6 +89,7 @@ class TestTagTagged(unittest.TestCase):
         for c in module_build.up_to_current_batch():
             c.state = koji.BUILD_STATES["COMPLETE"]
             c.tagged = True
+            c.tagged_in_final = True
 
         module_build.batch = 2
         for c in module_build.current_batch():
@@ -99,6 +101,11 @@ class TestTagTagged(unittest.TestCase):
             'id', 'module-testmodule-build', "perl-Tangerine")
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
+        # Tag the first component to the final tag.
+        msg = module_build_service.messaging.KojiTagChange(
+            'id', 'module-testmodule', "perl-Tangerine")
+        module_build_service.scheduler.handlers.tags.tagged(
+            config=conf, session=db.session, msg=msg)
 
         # newRepo should not be called, because there are still components
         # to tag.
@@ -107,6 +114,16 @@ class TestTagTagged(unittest.TestCase):
         # Tag the second component to the buildroot.
         msg = module_build_service.messaging.KojiTagChange(
             'id', 'module-testmodule-build', "perl-List-Compare")
+        module_build_service.scheduler.handlers.tags.tagged(
+            config=conf, session=db.session, msg=msg)
+
+        # newRepo should not be called, because the component has not been
+        # tagged to final tag so far.
+        self.assertTrue(not koji_session.newRepo.called)
+
+        # Tag the first component to the final tag.
+        msg = module_build_service.messaging.KojiTagChange(
+            'id', 'module-testmodule', "perl-List-Compare")
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
 
@@ -138,6 +155,7 @@ class TestTagTagged(unittest.TestCase):
         builder = mock.MagicMock()
         builder.koji_session = koji_session
         builder.buildroot_ready.return_value = False
+        builder.module_build_tag = {"name": "module-testmodule-build"}
         create_builder.return_value = builder
 
         module_build = module_build_service.models.ModuleBuild.query.filter_by(id=2).one()
@@ -150,6 +168,11 @@ class TestTagTagged(unittest.TestCase):
         # Tag the perl-List-Compare component to the buildroot.
         msg = module_build_service.messaging.KojiTagChange(
             'id', 'module-testmodule-build', "perl-Tangerine")
+        module_build_service.scheduler.handlers.tags.tagged(
+            config=conf, session=db.session, msg=msg)
+        # Tag the perl-List-Compare component to final tag.
+        msg = module_build_service.messaging.KojiTagChange(
+            'id', 'module-testmodule', "perl-Tangerine")
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
 
@@ -174,6 +197,7 @@ class TestTagTagged(unittest.TestCase):
         builder = mock.MagicMock()
         builder.koji_session = koji_session
         builder.buildroot_ready.return_value = False
+        builder.module_build_tag = {"name": "module-testmodule-build"}
         create_builder.return_value = builder
 
         module_build = module_build_service.models.ModuleBuild.query.filter_by(id=2).one()
@@ -183,6 +207,7 @@ class TestTagTagged(unittest.TestCase):
         for c in module_build.up_to_current_batch():
             c.state = koji.BUILD_STATES["COMPLETE"]
             c.tagged = True
+            c.tagged_in_final = True
 
         module_build.batch = 2
         component = module_build_service.models.ComponentBuild.query\
@@ -196,6 +221,11 @@ class TestTagTagged(unittest.TestCase):
         # Tag the perl-List-Compare component to the buildroot.
         msg = module_build_service.messaging.KojiTagChange(
             'id', 'module-testmodule-build', "perl-List-Compare")
+        module_build_service.scheduler.handlers.tags.tagged(
+            config=conf, session=db.session, msg=msg)
+        # Tag the perl-List-Compare component to final tag.
+        msg = module_build_service.messaging.KojiTagChange(
+            'id', 'module-testmodule', "perl-List-Compare")
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
 
@@ -231,6 +261,7 @@ class TestTagTagged(unittest.TestCase):
         builder = mock.MagicMock()
         builder.koji_session = koji_session
         builder.buildroot_ready.return_value = False
+        builder.module_build_tag = {"name": "module-testmodule-build"}
         create_builder.return_value = builder
 
         module_build = module_build_service.models.ModuleBuild.query.filter_by(id=2).one()
@@ -244,6 +275,11 @@ class TestTagTagged(unittest.TestCase):
             'id', 'module-testmodule-build', "perl-Tangerine")
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
+        # Tag the first component to the final tag.
+        msg = module_build_service.messaging.KojiTagChange(
+            'id', 'module-testmodule', "perl-Tangerine")
+        module_build_service.scheduler.handlers.tags.tagged(
+            config=conf, session=db.session, msg=msg)
 
         # newRepo should not be called, because there are still components
         # to tag.
@@ -252,6 +288,11 @@ class TestTagTagged(unittest.TestCase):
         # Tag the second component to the buildroot.
         msg = module_build_service.messaging.KojiTagChange(
             'id', 'module-testmodule-build', "perl-List-Compare")
+        module_build_service.scheduler.handlers.tags.tagged(
+            config=conf, session=db.session, msg=msg)
+        # Tag the second component to final tag.
+        msg = module_build_service.messaging.KojiTagChange(
+            'id', 'module-testmodule', "perl-List-Compare")
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
 
@@ -264,8 +305,85 @@ class TestTagTagged(unittest.TestCase):
             'id', 'module-testmodule-build', "module-build-macros")
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
+        # Tag the component from first batch to final tag.
+        msg = module_build_service.messaging.KojiTagChange(
+            'id', 'module-testmodule', "module-build-macros")
+        module_build_service.scheduler.handlers.tags.tagged(
+            config=conf, session=db.session, msg=msg)
 
         # newRepo should be called now - all components have been tagged.
+        koji_session.newRepo.assert_called_once_with("module-testmodule-build")
+
+        # Refresh our module_build object.
+        db.session.expunge(module_build)
+        module_build = module_build_service.models.ModuleBuild.query.filter_by(id=2).one()
+
+        # newRepo task_id should be stored in database, so we can check its
+        # status later in poller.
+        self.assertEqual(module_build.new_repo_task_id, 123456)
+
+
+    @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
+           return_value={'build': [], 'srpm-build': []})
+    @patch("module_build_service.builder.KojiModuleBuilder.get_session")
+    @patch("module_build_service.builder.GenericBuilder.create_from_module")
+    def test_newrepo_build_time_only(
+            self, create_builder, koji_get_session, dbg):
+        """
+        Test the component.build_time_only is respected in tag handler.
+        """
+        koji_session = mock.MagicMock()
+        koji_session.getTag = lambda tag_name: {'name': tag_name}
+        koji_session.getTaskInfo.return_value = {'state': koji.TASK_STATES['CLOSED']}
+        koji_session.newRepo.return_value = 123456
+        koji_get_session.return_value = koji_session
+
+        builder = mock.MagicMock()
+        builder.koji_session = koji_session
+        builder.buildroot_ready.return_value = False
+        builder.module_build_tag = {"name": "module-testmodule-build"}
+        create_builder.return_value = builder
+
+        module_build = module_build_service.models.ModuleBuild.query.filter_by(id=2).one()
+
+        # Set previous components as COMPLETE and tagged.
+        module_build.batch = 1
+        for c in module_build.up_to_current_batch():
+            c.state = koji.BUILD_STATES["COMPLETE"]
+            c.tagged = True
+            c.tagged_in_final = True
+
+        module_build.batch = 2
+        component = module_build_service.models.ComponentBuild.query\
+            .filter_by(package='perl-Tangerine', module_id=module_build.id).one()
+        component.state = koji.BUILD_STATES["COMPLETE"]
+        component.build_time_only = True
+        component.tagged = False
+        component.tagged_in_final = False
+        component = module_build_service.models.ComponentBuild.query\
+            .filter_by(package='perl-List-Compare', module_id=module_build.id).one()
+        component.state = koji.BUILD_STATES["COMPLETE"]
+        db.session.commit()
+
+        # Tag the perl-Tangerine component to the buildroot.
+        msg = module_build_service.messaging.KojiTagChange(
+            'id', 'module-testmodule-build', "perl-Tangerine")
+        module_build_service.scheduler.handlers.tags.tagged(
+            config=conf, session=db.session, msg=msg)
+        self.assertTrue(not koji_session.newRepo.called)
+        # Tag the perl-List-Compare component to the buildroot.
+        msg = module_build_service.messaging.KojiTagChange(
+            'id', 'module-testmodule-build', "perl-List-Compare")
+        module_build_service.scheduler.handlers.tags.tagged(
+            config=conf, session=db.session, msg=msg)
+        # Tag the perl-List-Compare component to final tag.
+        msg = module_build_service.messaging.KojiTagChange(
+            'id', 'module-testmodule', "perl-List-Compare")
+        module_build_service.scheduler.handlers.tags.tagged(
+            config=conf, session=db.session, msg=msg)
+
+        # newRepo should be called now - all successfully built
+        # components have been tagged.
         koji_session.newRepo.assert_called_once_with("module-testmodule-build")
 
         # Refresh our module_build object.
