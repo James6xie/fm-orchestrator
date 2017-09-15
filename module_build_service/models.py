@@ -245,7 +245,7 @@ class ModuleBuild(MBSBase):
         module_build_service.messaging.publish(
             service='mbs',
             topic='module.state.change',
-            msg=module.json(),  # Note the state is "init" here...
+            msg=module.extended_json(),  # Note the state is "init" here...
             conf=conf,
         )
         return module
@@ -274,7 +274,7 @@ class ModuleBuild(MBSBase):
             module_build_service.messaging.publish(
                 service='mbs',
                 topic='module.state.change',
-                msg=self.json(),  # Note the state is "init" here...
+                msg=self.extended_json(),
                 conf=conf,
             )
 
