@@ -326,6 +326,14 @@ class Config(object):
             'type': bool,
             'default': True,
             'desc': 'Remove empty or otherwise useless log files.'},
+        'arch_autodetect': {
+            'type': bool,
+            'default': True,
+            'desc': 'Auto-detect machine arch when configuring builder.'},
+        'arch_fallback': {
+            'type': str,
+            'default': 'x86_64',
+            'desc': 'Fallback arch if auto-detection is off or unable to determine it.'},
         'scmurls': {
             'type': list,
             'default': [],
