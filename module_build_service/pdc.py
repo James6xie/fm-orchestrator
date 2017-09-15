@@ -187,17 +187,17 @@ def get_module(session, module_info, strict=False):
     #query['ordering'] = '-variant_release'
     retval = session['unreleasedvariants/'](page_size=1, **query)
 
-    # Jump to last page to latest module release.
-    if retval['count'] != 1:
-        query['page'] = retval['count']
-        retval = session['unreleasedvariants/'](page_size=1, **query)
-
     # Error handling
     if not retval or len(retval["results"]) == 0:
         if strict:
             raise ValueError("Failed to find module in PDC %r" % query)
         else:
             return None
+
+    # Jump to last page to latest module release.
+    if retval['count'] != 1:
+        query['page'] = retval['count']
+        retval = session['unreleasedvariants/'](page_size=1, **query)
 
     results = retval["results"]
     assert len(results) <= 1, pprint.pformat(retval)
