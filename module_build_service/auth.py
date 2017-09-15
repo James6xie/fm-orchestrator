@@ -38,11 +38,15 @@ try:
 except ImportError:
     from flask import _request_ctx_stack as stack
 from werkzeug.exceptions import Unauthorized as FlaskUnauthorized
-import ldap3
 from dogpile.cache import make_region
 
 from module_build_service.errors import Unauthorized, Forbidden
 from module_build_service import app, log, conf
+
+try:
+    import ldap3
+except ImportError:
+    log.warn("ldap3 import not found.  ldap/krb disabled.")
 
 
 client_secrets = None
