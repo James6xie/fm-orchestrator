@@ -454,8 +454,13 @@ class ComponentBuild(MBSBase):
     state_reason = db.Column(db.String)
     # This stays as None until the build completes.
     nvr = db.Column(db.String)
-    # True when this component build is tagged into buildroot.
+    # True when this component build is tagged into buildroot (-build tag).
     tagged = db.Column(db.Boolean, default=False)
+    # True when this component build is tagged into final tag.
+    tagged_in_final = db.Column(db.Boolean, default=False)
+    # True when this component build is build-time only (should be tagged only
+    # to -build tag)
+    build_time_only = db.Column(db.Boolean, default=False)
 
     # A monotonically increasing integer that represents which batch or
     # iteration this *component* is currently in.  This relates to the owning
