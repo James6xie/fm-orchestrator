@@ -32,7 +32,6 @@ from mock import patch, PropertyMock, MagicMock
 from shutil import copyfile
 from os import path, mkdir
 from os.path import dirname
-from parameterized import parameterized
 import hashlib
 
 from tests import app, init_data
@@ -287,15 +286,23 @@ class TestViews(unittest.TestCase):
 
     component_builds_filters = ['tagged', 'ref', 'format']
 
-    @parameterized.expand([
-        ('format', 'rpms', 60),
-        ('ref', 'this-filter-query-should-return-zero-items', 0),
-        ('tagged', 'this-filter-query-should-return-zero-items', 0),
-    ])
-    def test_query_component_builds_filters(self, f, s, c):
-        rv = self.client.get('/module-build-service/1/component-builds/?{}={}'.format(f, s))
+    def test_query_component_builds_filter_format(self):
+        rv = self.client.get('/module-build-service/1/component-builds/'
+                             '?format=rpms')
         data = json.loads(rv.data)
-        self.assertEquals(data['meta']['total'], c)
+        self.assertEquals(data['meta']['total'], 60)
+
+    def test_query_component_builds_filter_ref(self):
+        rv = self.client.get('/module-build-service/1/component-builds/'
+                             '?ref=this-filter-query-should-return-zero-items')
+        data = json.loads(rv.data)
+        self.assertEquals(data['meta']['total'], 0)
+
+    def test_query_component_builds_filter_tagged(self):
+        rv = self.client.get('/module-build-service/1/component-builds/'
+                             '?tagged=this-filter-query-should-return-zero-items')
+        data = json.loads(rv.data)
+        self.assertEquals(data['meta']['total'], 0)
 
     def test_query_component_builds_filter_nvr(self):
         rv = self.client.get('/module-build-service/1/component-builds/?nvr=nginx-1.10.1-2.module_nginx_1_2')
