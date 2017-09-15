@@ -137,6 +137,23 @@ class KojiModuleBuilder(GenericBuilder):
         version = "0.1"
         release = "1"
         today = datetime.date.today().strftime('%a %b %d %Y')
+        mmd = module_build.mmd()
+
+        # Generate "Conflicts: name = version-release". This is workaround for
+        # Koji build system, because it does not filter out RPMs from the
+        # build-requires based on their "mmd.filter.rpms". So we set the
+        # module-build-macros to conflict with these filtered RPMs to ensure
+        # they won't be installed to buildroot.
+        filter_conflicts = ""
+        for req_name, req_data in mmd.xmd["mbs"]["buildrequires"].items():
+            if req_data["filtered_rpms"]:
+                filter_conflicts += "# Filtered rpms from %s module:\n" % (
+                    req_name)
+            for nvr in req_data["filtered_rpms"]:
+                parsed_nvr = kobo.rpmlib.parse_nvr(nvr)
+                filter_conflicts += "Conflicts: %s = %s:%s-%s\n" % (
+                    parsed_nvr["name"], parsed_nvr["epoch"],
+                    parsed_nvr["version"], parsed_nvr["release"])
 
         spec_content = """
 %global dist {disttag}
@@ -155,6 +172,8 @@ License:    MIT
 URL:        http://fedoraproject.org
 
 Source1:    macros.modules
+
+{filter_conflicts}
 
 %description
 This package is used for building modules with a different dist tag.
@@ -184,9 +203,9 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
            release=release,
            module_name=module_build.name,
            module_stream=module_build.stream,
-           module_version=module_build.version)
+           module_version=module_build.version,
+           filter_conflicts=filter_conflicts)
 
-        mmd = module_build.mmd()
         modulemd_macros = ""
         if mmd.buildopts and mmd.buildopts.rpms:
             modulemd_macros = mmd.buildopts.rpms.macros

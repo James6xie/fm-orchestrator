@@ -35,6 +35,7 @@ import pprint
 import logging
 import six
 import copy
+import kobo.rpmlib
 log = logging.getLogger()
 
 
@@ -427,37 +428,6 @@ def get_module_build_dependencies(session, module_info, strict=False):
     return module_tags
 
 
-def get_module_commit_hash_and_version(session, module_info):
-    """
-    Gets the commit hash and version of a module stored in PDC
-    :param module_info: a dict containing filters for PDC
-    :param session: a PDC session instance
-    :return: a tuple containing the string of the commit hash and the version
-    of the module stored in PDC. If a value is not found, None is
-    returned for the values that aren't found.
-    """
-    commit_hash = None
-    version = None
-    module = get_module(session, module_info)
-    if module:
-        if module.get('modulemd'):
-            mmd = modulemd.ModuleMetadata()
-            mmd.loads(module['modulemd'])
-            if mmd.xmd.get('mbs') and mmd.xmd['mbs'].get('commit'):
-                commit_hash = mmd.xmd['mbs']['commit']
-        if module.get('variant_release'):
-            version = module['variant_release']
-    if not commit_hash:
-        # TODO: Should this eventually be an exception?
-        log.warn(
-            'The commit hash for {0!r} was not part of the modulemd in PDC'
-            .format(module_info))
-    if not version:
-        # TODO: Should this eventually be an exception?
-        log.warn(
-            'The version for {0!r} was not in PDC'.format(module_info))
-    return commit_hash, version
-
 def resolve_requires(session, requires):
     """
     Takes `requires` dict with module_name as key and module_stream as value.
@@ -469,6 +439,7 @@ def resolve_requires(session, requires):
             "ref": module_commit_hash,
             "stream": original_module_stream,
             "version": module_version,
+            "filtered_rpms": ["nvr", ...]
         },
         ...
     }
@@ -490,7 +461,11 @@ def resolve_requires(session, requires):
                 # The commit ID isn't currently saved in modules.yaml
                 'ref': None,
                 'stream': local_build.stream,
-                'version': local_build.version
+                'version': local_build.version,
+                # No need to set filtered_rpms for local builds, because MBS
+                # filters the RPMs automatically when the module build is
+                # done.
+                'filtered_rpms': []
             }
             continue
 
@@ -499,13 +474,41 @@ def resolve_requires(session, requires):
             'name': module_name,
             'version': module_stream,
             'active': True}
-        commit_hash, version = get_module_commit_hash_and_version(
-            session, module_info)
+        module = get_module(session, module_info)
+
+        commit_hash = None
+        version = None
+        filtered_rpms = []
+        module = get_module(session, module_info, strict=True)
+        if module.get('modulemd'):
+            mmd = modulemd.ModuleMetadata()
+            mmd.loads(module['modulemd'])
+            if mmd.xmd.get('mbs') and mmd.xmd['mbs'].get('commit'):
+                commit_hash = mmd.xmd['mbs']['commit']
+
+            # Find out the particular NVR of filtered packages
+            if "rpms" in module and mmd.filter and mmd.filter.rpms:
+                for rpm in module["rpms"]:
+                    nvr = kobo.rpmlib.parse_nvra(rpm)
+                    # If the package is not filtered, continue
+                    if not nvr["name"] in mmd.filter.rpms:
+                        continue
+
+                    # If the nvr is already in filtered_rpms, continue
+                    nvr = kobo.rpmlib.make_nvr(nvr, force_epoch=True)
+                    if nvr in filtered_rpms:
+                        continue
+                    filtered_rpms.append(nvr)
+
+        if module.get('variant_release'):
+            version = module['variant_release']
+
         if version and commit_hash:
             new_requires[module_name] = {
                 'ref': commit_hash,
                 'stream': module_stream,
-                'version': str(version)
+                'version': str(version),
+                'filtered_rpms': filtered_rpms,
             }
         else:
             raise RuntimeError(
