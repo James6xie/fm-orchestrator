@@ -173,3 +173,6 @@ class ProdConfiguration(BaseConfiguration):
 class LocalBuildConfiguration(BaseConfiguration):
     LOG_LEVEL = 'debug'
     MESSAGING = 'in_memory'
+
+    ARCH_AUTODETECT = True
+    ARCH_FALLBACK = 'x86_64'

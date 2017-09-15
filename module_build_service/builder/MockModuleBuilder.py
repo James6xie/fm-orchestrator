@@ -28,6 +28,7 @@ import koji
 import kobo.rpmlib
 import modulemd
 import pipes
+import platform
 import re
 import threading
 
@@ -91,8 +92,20 @@ class MockModuleBuilder(GenericBuilder):
         self.tag_name = tag_name
         self.config = config
         self.groups = []
-        self.arch = "x86_64"  # TODO: We may need to change that in the future
         self.yum_conf = MockModuleBuilder.yum_config_template
+
+        # Auto-detect arch (if possible) or fallback to the configured one
+        if conf.arch_autodetect:
+            arch_detected = platform.machine()
+            if arch_detected:
+                self.arch = arch_detected
+            else:
+                log.warning("Couldn't determine machine arch. Falling back "
+                            "to configured arch.")
+                self.arch = conf.arch_fallback
+        else:
+            self.arch = conf.arch_fallback
+        log.info("Machine arch setting: {}".format(self.arch))
 
         # Create main directory for this tag
         self.tag_dir = os.path.join(self.config.mock_resultsdir, tag_name)
