@@ -61,42 +61,29 @@ class MockModuleBuilder(GenericBuilder):
     _build_id = 1
     _config_lock = threading.Lock()
 
-    MOCK_CONFIG_TEMPLATE = """
-config_opts['root'] = '$root'
-config_opts['target_arch'] = '$arch'
-config_opts['legal_host_arches'] = ('$arch',)
-config_opts['chroot_setup_cmd'] = 'install $group'
-config_opts['dist'] = ''
-config_opts['extra_chroot_dirs'] = [ '/run/lock', ]
-config_opts['releasever'] = ''
-config_opts['package_manager'] = 'dnf'
-config_opts['nosync'] = True
-config_opts['use_bootstrap_container'] = False
+    # Load mock config file template
+    for cf in conf.mock_config_file:
+        try:
+            with open(cf) as f:
+                mock_config_template = f.read()
+            break
+        except IOError:
+            pass
+    else:
+        raise IOError("None of {} mock config files found."
+                      .format(conf.mock_config_file))
 
-config_opts['yum.conf'] = \"\"\"
-$yum_conf
-\"\"\"
-"""
-
-    MOCK_YUM_CONF_TEMPLATE = """
-[main]
-keepcache=1
-debuglevel=2
-reposdir=/dev/null
-logfile=/var/log/yum.log
-retries=20
-obsoletes=1
-gpgcheck=0
-assumeyes=1
-syslog_ident=mock
-syslog_device=
-install_weak_deps=0
-metadata_expire=3600
-mdpolicy=group:primary
-
-# repos
-
-"""
+    # Load yum config file template
+    for cf in conf.yum_config_file:
+        try:
+            with open(cf) as f:
+                yum_config_template = f.read()
+            break
+        except IOError:
+            pass
+    else:
+        raise IOError("None of {} yum config files found."
+                      .format(conf.yum_config_file))
 
     @module_build_service.utils.validate_koji_tag('tag_name')
     def __init__(self, owner, module, config, tag_name, components):
@@ -105,7 +92,7 @@ mdpolicy=group:primary
         self.config = config
         self.groups = []
         self.arch = "x86_64"  # TODO: We may need to change that in the future
-        self.yum_conf = MockModuleBuilder.MOCK_YUM_CONF_TEMPLATE
+        self.yum_conf = MockModuleBuilder.yum_config_template
 
         # Create main directory for this tag
         self.tag_dir = os.path.join(self.config.mock_resultsdir, tag_name)
@@ -204,7 +191,7 @@ mdpolicy=group:primary
         self.yum_conf += "name=%s\n" % name
         self.yum_conf += "baseurl=%s\n" % baseurl
         self.yum_conf += extra
-        self.yum_conf += "enabled=1\n"
+        self.yum_conf += "enabled=1\n\n"
 
     def _load_mock_config(self):
         """
@@ -238,7 +225,7 @@ mdpolicy=group:primary
         """
 
         with MockModuleBuilder._config_lock:
-            config = str(MockModuleBuilder.MOCK_CONFIG_TEMPLATE)
+            config = str(MockModuleBuilder.mock_config_template)
             config = config.replace("$root", "%s-%s" % (self.tag_name,
                                                         str(threading.current_thread().name)))
             config = config.replace("$arch", self.arch)
