@@ -525,6 +525,11 @@ class Config(object):
         s = str(s)
         if s.lower() not in ('oidc', 'kerberos'):
             raise ValueError('Unsupported authentication method')
+        if s.lower() == 'kerberos':
+            try:
+                import ldap3
+            except ImportError:
+                raise ValueError("ldap3 is required for kerberos authz")
         self._auth_method = s.lower()
 
     def _setifok_kerberos_keytab(self, s):
