@@ -653,6 +653,11 @@ chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
 
         opts['extra'] = {
             'mock.package_manager': 'dnf',
+            # This is needed to include all the Koji builds (and therefore
+            # all the packages) from all inherited tags into this tag.
+            # See https://pagure.io/koji/issue/588 and
+            # https://pagure.io/fm-orchestrator/issue/660 for background.
+            'repo_include_all': True,
         }
 
         # edit tag with opts
