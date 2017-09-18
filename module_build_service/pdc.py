@@ -127,6 +127,9 @@ def get_variant_dict(data):
         if 'release' in data:
             result['variant_release'] = data['release']
 
+        if 'active' in data:
+            result['active'] = data['active']
+
     if not result:
         raise ValueError("Couldn't get variant_dict from %s" % data)
 
