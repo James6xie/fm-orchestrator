@@ -51,6 +51,24 @@ class TestPDCModule(unittest.TestCase):
     def tearDown(self):
         self.vcr.__exit__()
 
+    def test_get_variant_dict_module_dict_active(self):
+        """
+        Tests that "active" is honored by get_variant_dict(...).
+        """
+        dep = {
+            'name': "platform",
+            'version': "master",
+            'active': True,
+        }
+        expected = {
+            'active': True,
+            'variant_id': 'platform',
+            'variant_version': 'master'
+        }
+
+        variant_dict = mbs_pdc.get_variant_dict(dep)
+        self.assertEqual(variant_dict, expected)
+
     def test_get_module_simple_as_dict(self):
         query = {'name': 'testmodule', 'version': 'master'}
         result = mbs_pdc.get_module(self.pdc, query)
