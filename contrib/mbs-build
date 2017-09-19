@@ -13,6 +13,7 @@ import operator
 from tabulate import tabulate
 from multiprocessing.dummy import Pool as ThreadPool
 from copy import copy
+import urllib3
 
 try:
     from urllib.parse import urljoin
@@ -325,7 +326,7 @@ def cancel_module_build(server, id_provider, build_id, verify=True):
     logging.info(resp.text)
 
 
-def show_overview(server, finished, limit=30):
+def show_overview(server, finished, limit=30, verify=True):
     if not server:
         server = DEFAULT_MBS_SERVER
 
@@ -340,7 +341,7 @@ def show_overview(server, finished, limit=30):
         """
         Yields modules with state `state`.
         """
-        response = requests.get(baseurl, params=dict(page=page, state=state))
+        response = requests.get(baseurl, params=dict(page=page, state=state), verify=verify)
         data = response.json()
         for item in data['items']:
             yield item
@@ -488,6 +489,9 @@ def main():
         loglevel = logging.WARNING
     logging.basicConfig(level=loglevel, format="%(levelname)s: %(message)s")
 
+    if args.verify is False:
+        urllib3.disable_warnings()
+
     if args.cmd_name == "submit":
         # Submit the module build.
         build_id, errmsg = submit_module_build(args.scm_url, args.branch, args.server,
@@ -514,7 +518,7 @@ def main():
         # Cancel the module build
         cancel_module_build(args.server, args.idprovider, args.build_id, args.verify)
     elif args.cmd_name == "overview":
-        show_overview(args.server, finished=args.finished, limit=args.limit)
+        show_overview(args.server, finished=args.finished, limit=args.limit, verify=args.verify)
     elif args.cmd_name == "info":
         show_module_info(args.server, args.build_id)
 
