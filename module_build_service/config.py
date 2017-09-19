@@ -508,8 +508,9 @@ class Config(object):
         installed_backends = [e.name for e in entrypoints]
         s = str(s)
         if s not in installed_backends:
-            raise ValueError("Uninstalled messaging system. %r not in %r" % (
-                s, installed_backends))
+            raise ValueError('The messaging plugin for "{0}" is not installed.'
+                             ' The following are installed: {1}'
+                             .format(s, ', '.join(installed_backends)))
         self._messaging = s
 
     def _setifok_amq_recv_addresses(self, l):
