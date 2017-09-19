@@ -98,7 +98,12 @@ def at_concurrent_component_threshold(config, session):
 
     if config.num_concurrent_builds and config.num_concurrent_builds <= \
         session.query(models.ComponentBuild).filter_by(
-            state=koji.BUILD_STATES['BUILDING']).count():
+            state=koji.BUILD_STATES['BUILDING'],
+            # Components which are reused should not be counted in, because
+            # we do not submit new build for them. They are in BUILDING state
+            # just internally in MBS to be handled by
+            # scheduler.handlers.components.complete.
+            reused_component_id=None).count():
         return True
 
     return False
