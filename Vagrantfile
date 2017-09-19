@@ -60,7 +60,7 @@ Vagrant.configure("2") do |config|
   config.vm.provision "shell", inline: $script
   config.vm.provision "shell", inline: $script_services, run: "always"
   config.vm.provider "libvirt" do |v, override|
-    override.vm.synced_folder "./", "/tmp/module_build_service", type: "sshfs"
+    override.vm.synced_folder "./", "/tmp/module_build_service", type: "sshfs", sshfs_opts_append: "-o nonempty"
     v.memory = 1024
     #v.cpus = 2
   end
