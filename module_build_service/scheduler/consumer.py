@@ -27,7 +27,13 @@ to use.
 
 import inspect
 import itertools
-import queue
+
+try:
+    # python3
+    import queue
+except ImportError:
+    # python2
+    import Queue as queue
 
 import koji
 import fedmsg.consumers
