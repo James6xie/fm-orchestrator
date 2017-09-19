@@ -33,7 +33,7 @@ setup(name='module-build-service',
           'mbs.messaging_backends': [
               'fedmsg = module_build_service.messaging:_fedmsg_backend',
               'in_memory = module_build_service.messaging:_in_memory_backend',
-              #'custom = your_organization._custom_backend',
+              #'custom = your_organization:_custom_backend',
       ]
       },
       scripts=["contrib/mbs-build"],
