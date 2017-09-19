@@ -25,9 +25,11 @@ This class reads and processes messages from the message bus it is configured
 to use.
 """
 
-import koji
 import inspect
 import itertools
+import queue
+
+import koji
 import fedmsg.consumers
 import moksha.hub
 
@@ -44,13 +46,6 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
     """ This is triggered by running fedmsg-hub. This class is responsible for
     ingesting and processing messages from the message bus.
     """
-    topic = ['{}.{}.'.format(pref.rstrip('.'), cat)
-             for pref, cat
-             in itertools.product(conf.messaging_topic_prefix,
-                                  module_build_service.messaging._messaging_backends[conf.messaging]['services'])]
-    if not topic:
-        topic = '*'
-    log.debug('Setting topics: {}'.format(', '.join(topic)))
     config_key = 'mbsconsumer'
 
     # It is set to the id of currently handled module build. It is used to
@@ -59,7 +54,28 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
     current_module_build_id = None
 
     def __init__(self, hub):
+        # Topic setting needs to be done *before* the call to `super`.
+
+        backends = module_build_service.messaging._messaging_backends
+        prefixes = conf.messaging_topic_prefix # This is a list.
+        services = backends[conf.messaging]['services']
+        suffix = backends[conf.messaging]['topic_suffix']
+        self.topic = [
+            '{}.{}{}'.format(prefix.rstrip('.'), category, suffix)
+            for prefix, category in itertools.product(prefixes, services)
+        ]
+        if not self.topic:
+            self.topic = '*'
+        log.debug('Setting topics: {}'.format(', '.join(self.topic)))
+
+        # The call to `super` takes action based on the setting of topics above
         super(MBSConsumer, self).__init__(hub)
+
+        # Our call to `super` above should have initialized an `incoming` queue
+        # for us.. but in certain test situations, it does not.  So here,
+        # establish a fake `incoming` queue.
+        if not hasattr(self, 'incoming'):
+            self.incoming = queue.Queue()
 
         # These two values are typically provided either by the unit tests or
         # by the local build command.  They are empty in the production environ
@@ -144,17 +160,13 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
             self.shutdown()
 
     def get_abstracted_msg(self, message):
-        # Convert the message to an abstracted message
-        if conf.messaging == 'fedmsg':
-            msg = module_build_service.messaging.BaseMessage.from_fedmsg(
-                message['body']['topic'], message['body'])
-        elif conf.messaging == 'amq':
-            msg = module_build_service.messaging.BaseMessage.from_amq(
-                message['body']['topic'], message['body'])
+        parser = module_build_service.messaging.\
+                 _messaging_backends[conf.messaging].get('parser')
+        if parser:
+            return parser.parse(message)
         else:
-            raise ValueError('The messaging format "{0}" is not supported'
+            raise ValueError('{0} backend does not define a message parser'
                              .format(conf.messaging))
-        return msg
 
     def sanity_check(self):
         """ On startup, make sure our implementation is sane. """

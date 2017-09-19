@@ -72,6 +72,8 @@ class TestConsumer(unittest.TestCase):
         hub = MagicMock(config={})
         consumer = MBSConsumer(hub)
         msg = {
+            "topic": "org.fedoraproject.prod.buildsys.repo.done",
+            "headers": {},
             "body": {
                 "username": "apache",
                 "source_name": "datanommer",
