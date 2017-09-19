@@ -354,7 +354,7 @@ _in_memory_backend = {
 _messaging_backends = {}
 for entrypoint in pkg_resources.iter_entry_points('mbs.messaging_backends'):
     _messaging_backends[entrypoint.name] = ep = entrypoint.load()
-    required = ['publish', 'services', 'parser']
+    required = ['publish', 'services', 'parser', 'topic_suffix']
     if any([key not in ep for key in required]):
         raise ValueError('messaging backend %r is malformed: %r' % (
             entrypoint.name, ep))
