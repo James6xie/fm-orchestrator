@@ -37,7 +37,8 @@ import hashlib
 from tests import app, init_data
 from module_build_service.errors import UnprocessableEntity
 from module_build_service.models import ComponentBuild, ModuleBuild
-from module_build_service import conf, db
+from module_build_service import conf, db, version
+import module_build_service.config as mbs_config
 import module_build_service.scheduler.handlers.modules
 
 
@@ -928,3 +929,11 @@ class TestViews(unittest.TestCase):
         allow_custom_scmurls.return_value = True
         res2 = submit('git://some.custom.url.org/modules/testmodule.git?#68931c9')
         self.assertEquals(res2.status_code, 201)
+
+    def test_about(self):
+        with patch.object(mbs_config.Config, 'auth_method', new_callable=PropertyMock) as auth:
+            auth.return_value = 'kerberos'
+            rv = self.client.get('/module-build-service/1/about/')
+        data = json.loads(rv.data)
+        self.assertEqual(rv.status_code, 200)
+        self.assertEquals(data, {'auth_method': 'kerberos', 'version': version})

@@ -40,6 +40,7 @@ for a number of tasks:
   infrastructure services can pick up the work.
 """
 
+import pkg_resources
 from flask import Flask, has_app_context, url_for
 from flask_sqlalchemy import SQLAlchemy
 from logging import getLogger
@@ -53,6 +54,10 @@ from module_build_service.errors import (
 from module_build_service.config import init_config
 from module_build_service.proxy import ReverseProxy
 
+try:
+    version = pkg_resources.get_distribution('module-build-service').version
+except pkg_resources.DistributionNotFound:
+    version = 'unknown'
 
 app = Flask(__name__)
 app.wsgi_app = ReverseProxy(app.wsgi_app)

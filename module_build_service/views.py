@@ -31,14 +31,13 @@ import module_build_service.auth
 from flask import request, jsonify
 from flask.views import MethodView
 
-from module_build_service import app, conf, log
-from module_build_service import models, db
+from module_build_service import app, conf, log, models, db, version
 from module_build_service.utils import (
     pagination_metadata, filter_module_builds, filter_component_builds,
     submit_module_build_from_scm, submit_module_build_from_yaml,
     get_scm_url_re)
 from module_build_service.errors import (
-    ValidationError, Forbidden, NotFound)
+    ValidationError, Forbidden, NotFound, ProgrammingError)
 
 api_v1 = {
     'module_builds': {
@@ -73,6 +72,12 @@ api_v1 = {
             'methods': ['GET'],
         }
     },
+    'about': {
+        'url': '/module-build-service/1/about/',
+        'options': {
+            'methods': ['GET']
+        }
+    }
 }
 
 
@@ -203,6 +208,20 @@ class ModuleBuildAPI(MethodView):
         return jsonify(module.json()), 200
 
 
+class AboutAPI(MethodView):
+    def get(self):
+        json = {'version': version}
+        config_items = ['auth_method']
+        for item in config_items:
+            config_item = getattr(conf, item)
+            # All config items have a default, so if doesn't exist it is a programming error
+            if not config_item:
+                raise ProgrammingError(
+                    'An invalid config item of "{0}" was specified'.format(item))
+            json[item] = config_item
+        return jsonify(json), 200
+
+
 class BaseHandler(object):
     def __init__(self, request):
         self.username, self.groups = module_build_service.auth.get_user(request)
@@ -291,6 +310,7 @@ def register_api_v1():
     """ Registers version 1 of MBS API. """
     module_view = ModuleBuildAPI.as_view('module_builds')
     component_view = ComponentBuildAPI.as_view('component_builds')
+    about_view = AboutAPI.as_view('about')
     for key, val in api_v1.items():
         if key.startswith('component_build'):
             app.add_url_rule(val['url'],
@@ -302,7 +322,13 @@ def register_api_v1():
                              endpoint=key,
                              view_func=module_view,
                              **val['options'])
+        elif key.startswith('about'):
+            app.add_url_rule(val['url'],
+                             endpoint=key,
+                             view_func=about_view,
+                             **val['options'])
         else:
             raise NotImplementedError("Unhandled api key.")
+
 
 register_api_v1()
