@@ -30,6 +30,11 @@ setup(name='module-build-service',
                               'mbs-manager = module_build_service.manage:manager_wrapper'],
           'moksha.consumer': 'mbsconsumer = module_build_service.scheduler.consumer:MBSConsumer',
           'moksha.producer': 'mbspoller = module_build_service.scheduler.producer:MBSProducer',
+          'mbs.messaging_backends': [
+              'fedmsg = module_build_service.messaging:_fedmsg_backend',
+              'in_memory = module_build_service.messaging:_in_memory_backend',
+              #'custom = your_organization:_custom_backend',
+      ]
       },
       scripts=["contrib/mbs-build"],
       data_files=[('/etc/module-build-service/', ['conf/cacert.pem',

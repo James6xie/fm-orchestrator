@@ -26,9 +26,9 @@
 
 import imp
 import os
+import pkg_resources
 import re
-
-from os import sys
+import sys
 
 from module_build_service import logger
 
@@ -500,9 +500,17 @@ class Config(object):
         self._log_level = logger.str_to_log_level(level)
 
     def _setifok_messaging(self, s):
+        """ Validate that the specified messaging backend corresponds with one
+        of the installed plugins.  The MBS core provides two such plugins, but
+        a third-party could install another usable one.
+        """
+        entrypoints = pkg_resources.iter_entry_points('mbs.messaging_backends')
+        installed_backends = [e.name for e in entrypoints]
         s = str(s)
-        if s not in ("fedmsg", "amq", "in_memory"):
-            raise ValueError("Unsupported messaging system.")
+        if s not in installed_backends:
+            raise ValueError('The messaging plugin for "{0}" is not installed.'
+                             ' The following are installed: {1}'
+                             .format(s, ', '.join(installed_backends)))
         self._messaging = s
 
     def _setifok_amq_recv_addresses(self, l):

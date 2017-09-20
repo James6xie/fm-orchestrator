@@ -23,8 +23,8 @@
 
 import unittest
 from module_build_service import messaging
+from module_build_service.messaging import KojiRepoChange
 from mock import patch, PropertyMock
-
 
 class TestFedmsgMessaging(unittest.TestCase):
 
@@ -48,8 +48,7 @@ class TestFedmsgMessaging(unittest.TestCase):
             'topic': 'org.fedoraproject.prod.buildsys.build.state.change'
         }
 
-        topic = 'org.fedoraproject.prod.buildsys.build.state.change'
-        msg = messaging.BaseMessage.from_fedmsg(topic, buildsys_state_change_msg)
+        msg = messaging.FedmsgMessageParser().parse(buildsys_state_change_msg)
 
         self.assertEqual(msg.build_id, 614503)
         self.assertEqual(msg.build_new_state, 1)
@@ -78,8 +77,7 @@ class TestFedmsgMessaging(unittest.TestCase):
             'username': 'copr'
         }
 
-        topic = 'org.fedoraproject.prod.copr.build.end'
-        msg = messaging.BaseMessage.from_fedmsg(topic, copr_build_end_msg)
+        msg = messaging.FedmsgMessageParser().parse(copr_build_end_msg)
         self.assertIsInstance(msg, messaging.KojiBuildChange)
         self.assertEqual(msg.msg_id, '2013-b05a323d-37ee-4396-9635-7b5dfaf5441b')
         self.assertEqual(msg.build_id, 100)
@@ -110,8 +108,7 @@ class TestFedmsgMessaging(unittest.TestCase):
             'topic': 'org.fedoraproject.prod.buildsys.tag'
         }
 
-        topic = 'org.fedoraproject.prod.buildsys.tag'
-        msg = messaging.BaseMessage.from_fedmsg(topic, buildsys_tag_msg)
+        msg = messaging.FedmsgMessageParser().parse(buildsys_tag_msg)
 
         self.assertEqual(msg.tag, "module-debugging-tools-master-20170405115403-build")
         self.assertEqual(msg.artifact, "module-build-macros")
@@ -130,7 +127,6 @@ class TestFedmsgMessaging(unittest.TestCase):
             'topic': 'org.fedoraproject.prod.buildsys.repo.done'
         }
 
-        topic = 'org.fedoraproject.prod.buildsys.repo.done'
-        msg = messaging.BaseMessage.from_fedmsg(topic, buildsys_tag_msg)
+        msg = messaging.FedmsgMessageParser().parse(buildsys_tag_msg)
 
         self.assertEqual(msg.repo_tag, "module-f0f7e44f3c6cccab-build")
