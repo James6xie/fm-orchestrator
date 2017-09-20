@@ -493,6 +493,26 @@ parameters::
       }
     }
 
+
+Listing about
+-------------
+
+This API shows information about the MBS server::
+
+    GET /module-build-service/1/about/
+
+::
+
+    HTTP 200 OK
+
+::
+
+    {
+      "auth_method": "oidc",
+      "version": "1.3.26"
+    }
+
+
 HTTP Response Codes
 -------------------
 

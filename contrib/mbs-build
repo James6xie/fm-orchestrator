@@ -13,6 +13,9 @@ import operator
 from tabulate import tabulate
 from multiprocessing.dummy import Pool as ThreadPool
 from copy import copy
+import urllib3
+import json
+import requests_kerberos
 
 try:
     from urllib.parse import urljoin
@@ -21,7 +24,8 @@ except ImportError:
 
 DEFAULT_ID_PROVIDER = "https://id.fedoraproject.org/openidc/"
 DEFAULT_MBS_SERVER = "https://mbs.fedoraproject.org"
-DEFAULT_MBS_REST_API = "/module-build-service/1/module-builds/"
+DEFAULT_MBS_REST_PREFIX = "/module-build-service/1/"
+DEFAULT_MBS_REST_API = "{0}module-builds/".format(DEFAULT_MBS_REST_PREFIX)
 DEFAULT_KOJI_TASK_URL = "https://koji.fedoraproject.org/koji/taskinfo"
 
 openidc_client.WEB_PORTS = [13747]
@@ -36,6 +40,17 @@ BUILD_STATES = {
 }
 
 INVERSE_BUILD_STATES = {v: k for k, v in BUILD_STATES.items()}
+
+
+def get_auth_method(server, verify=True):
+    config_url = '{0}{1}about/'.format(server.rstrip('/'), DEFAULT_MBS_REST_PREFIX)
+    rv = requests.get(config_url, timeout=30, verify=verify)
+    # Assume that if the connection fails, it's because the config API doesn't
+    # exist on the server yet
+    if not rv.ok:
+        return 'oidc'
+    rv_json = rv.json()
+    return rv_json['auth_method']
 
 
 def fetch_module_info(server, build_id):
@@ -175,29 +190,50 @@ def _send_oidc_request(oidc, verb, *args, **kwargs):
         return resp
 
 
-def send_authorized_request(verb, server, id_provider, url, body, **kwargs):
+def send_authorized_request(verb, server, url, body, id_provider=None, **kwargs):
     """
     Sends authorized request to server.
     """
     if not server:
         server = DEFAULT_MBS_SERVER
-    if not id_provider:
-        id_provider = DEFAULT_ID_PROVIDER
 
-    logging.info("Trying to get the token from %s", id_provider)
+    full_url = urljoin(server, url)
+    verify = kwargs.get('verify', True)
+    auth_method = get_auth_method(server, verify=verify)
 
-    # Get the auth token using the OpenID client.
-    oidc = openidc_client.OpenIDCClient(
-        "mbs_build", id_provider,
-        {'Token': 'Token', 'Authorization': 'Authorization'},
-        'mbs-authorizer', "notsecret")
+    if auth_method == 'oidc':
+        if not id_provider:
+            id_provider = DEFAULT_ID_PROVIDER
 
-    scopes = ['openid', 'https://id.fedoraproject.org/scope/groups',
-              'https://mbs.fedoraproject.org/oidc/submit-build']
+        logging.info("Trying to get the token from %s", id_provider)
 
-    logging.debug("Sending body: %s", body)
-    resp = _send_oidc_request(oidc, verb, urljoin(server, url), json=body,
-                              scopes=scopes, **kwargs)
+        # Get the auth token using the OpenID client.
+        oidc = openidc_client.OpenIDCClient(
+            "mbs_build", id_provider,
+            {'Token': 'Token', 'Authorization': 'Authorization'},
+            'mbs-authorizer', "notsecret")
+
+        scopes = ['openid', 'https://id.fedoraproject.org/scope/groups',
+                  'https://mbs.fedoraproject.org/oidc/submit-build']
+
+        logging.debug("Sending body: %s", body)
+        resp = _send_oidc_request(oidc, verb, full_url, json=body,
+                                  scopes=scopes, **kwargs)
+    elif auth_method == 'kerberos':
+        if type(body) is dict:
+            data = json.dumps(body)
+        else:
+            data = body
+        auth = requests_kerberos.HTTPKerberosAuth(mutual_authentication=requests_kerberos.OPTIONAL)
+        resp = requests.request(verb, full_url, data=data, auth=auth, verify=verify)
+        if resp.status_code == 401:
+            logging.error('Authentication using Kerberos failed. Make sure you have a valid '
+                          'Kerberos ticket.')
+            sys.exit(1)
+    else:
+        logging.exception('The MBS server requires an unsupported authentication method of '
+                          '"{0}"'.format(auth_method))
+        sys.exit(1)
     return resp
 
 
@@ -270,8 +306,7 @@ def submit_module_build(scm_url, branch, server, id_provider, pyrpkg, verify=Tru
         return -5, "Optional arguments are not in a proper arg=value format."
     body.update(optional_dict)
     resp = send_authorized_request(
-        "POST", server, id_provider, DEFAULT_MBS_REST_API,
-        body, verify=verify)
+        "POST", server, DEFAULT_MBS_REST_API,  body, id_provider=id_provider, verify=verify)
     logging.info(resp.text)
 
     data = resp.json()
@@ -319,13 +354,12 @@ def cancel_module_build(server, id_provider, build_id, verify=True):
     """
     logging.info("Cancelling module build %s", build_id)
     resp = send_authorized_request(
-        "PATCH", server, id_provider,
-        "%s/%s" % (DEFAULT_MBS_REST_API, build_id),
-        {'state': 'failed'}, verify=verify)
+        "PATCH", server, "%s/%s" % (DEFAULT_MBS_REST_API, build_id),
+        {'state': 'failed'}, id_provider=id_provider, verify=verify)
     logging.info(resp.text)
 
 
-def show_overview(server, finished, limit=30):
+def show_overview(server, finished, limit=30, verify=True):
     if not server:
         server = DEFAULT_MBS_SERVER
 
@@ -340,7 +374,7 @@ def show_overview(server, finished, limit=30):
         """
         Yields modules with state `state`.
         """
-        response = requests.get(baseurl, params=dict(page=page, state=state))
+        response = requests.get(baseurl, params=dict(page=page, state=state), verify=verify)
         data = response.json()
         for item in data['items']:
             yield item
@@ -488,6 +522,9 @@ def main():
         loglevel = logging.WARNING
     logging.basicConfig(level=loglevel, format="%(levelname)s: %(message)s")
 
+    if args.verify is False:
+        urllib3.disable_warnings()
+
     if args.cmd_name == "submit":
         # Submit the module build.
         build_id, errmsg = submit_module_build(args.scm_url, args.branch, args.server,
@@ -514,7 +551,7 @@ def main():
         # Cancel the module build
         cancel_module_build(args.server, args.idprovider, args.build_id, args.verify)
     elif args.cmd_name == "overview":
-        show_overview(args.server, finished=args.finished, limit=args.limit)
+        show_overview(args.server, finished=args.finished, limit=args.limit, verify=args.verify)
     elif args.cmd_name == "info":
         show_module_info(args.server, args.build_id)
 
