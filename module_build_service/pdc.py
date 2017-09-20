@@ -188,7 +188,11 @@ def get_module(session, module_info, strict=False):
     # results set and jump to last one in another query. The last one is always
     # the latest one (the one with the highest version).
     #query['ordering'] = '-variant_release'
-    retval = session['unreleasedvariants/'](page_size=1, **query)
+    try:
+        retval = session['unreleasedvariants/'](page_size=1, **query)
+    except Exception as ex:
+        log.debug("error during PDC lookup: %r" % ex)
+        raise RuntimeError("Error during PDC lookup for module %s" % module_info["name"])
 
     # Error handling
     if not retval or len(retval["results"]) == 0:
