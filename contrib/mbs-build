@@ -68,7 +68,7 @@ def show_module_info(server, build_id):
 
     data = fetch_module_info(server, build_id)
     table = []
-    for package_name, task_data in data["tasks"]["rpms"].items():
+    for package_name, task_data in data["tasks"].get("rpms", {}).items():
         try:
             koji_task_url = "%s?taskID=%s" % (DEFAULT_KOJI_TASK_URL, task_data['task_id'])
         except KeyError:
