@@ -389,7 +389,25 @@ class Config(object):
             'type': str,
             'default': '',
             'desc': ('The distinguished name of the container or organizational unit containing '
-                     'the groups in LDAP')}
+                     'the groups in LDAP')},
+        'base_module_names': {
+            'type': set,
+            'default': set(['platform', 'bootstrap']),
+            'desc': "Set of module names which defines the product version "
+                    "(by their stream) of modules depending on them."},
+        'koji_cg_build_tag_template': {
+            'type': str,
+            'default': "{}-modular-updates-candidate",
+            'desc': "Name of a Koji tag where the top-level Content Generator "
+                    "build is tagged to. The '{}' string is replaced by a "
+                    "stream name of a base module on top of which the "
+                    "module is built."},
+        'koji_cg_default_build_tag': {
+            'type': str,
+            'default': "modular-updates-candidate",
+            'desc': "The name of Koji tag which should be used as fallback "
+                    "when koji_cg_build_tag_template tag is not found in "
+                    "Koji."},
     }
 
     def __init__(self, conf_section_obj):

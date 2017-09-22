@@ -359,6 +359,42 @@ class KojiContentGenerator(object):
 
         return serverdir
 
+    def _tag_cg_build(self):
+        """
+        Tags the Content Generator build to module.cg_build_koji_tag.
+        """
+        session = KojiModuleBuilder.get_session(self.config, self.owner)
+
+        tag_name = self.module.cg_build_koji_tag
+        if not tag_name:
+            log.info("%r: Not tagging Content Generator build, no "
+                     "cg_build_koji_tag set", self.module)
+            return
+
+        tag_names_to_try = [tag_name, self.config.koji_cg_default_build_tag]
+        for tag in tag_names_to_try:
+            log.info("Trying %s", tag)
+            tag_info = session.getTag(tag)
+            if tag_info:
+                break
+
+            log.info("%r: Tag %s not found in Koji, trying next one.",
+                     self.module, tag)
+
+        if not tag_info:
+            log.warn("%r:, Not tagging Content Generator build, no "
+                     "available tag found, tried %r", self.module,
+                     tag_names_to_try)
+            return
+
+        build = self._get_build()
+        nvr = "%s-%s-%s" % (build["name"], build["version"], build["release"])
+
+        log.info("Content generator build %s will be tagged as %s in "
+                 "Koji", nvr, tag)
+        session.tagBuild(tag_info["id"], nvr)
+
+
     def koji_import(self):
         """This method imports given module into the configured koji instance as
         a content generator based build
@@ -371,6 +407,7 @@ class KojiContentGenerator(object):
         try:
             serverdir = self._upload_outputs(session, metadata, file_dir)
             build_info = session.CGImport(metadata, serverdir)
+            self._tag_cg_build()
             log.info("Content generator import done.")
             log.debug(json.dumps(build_info, sort_keys=True, indent=4))
 

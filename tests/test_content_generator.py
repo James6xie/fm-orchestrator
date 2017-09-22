@@ -32,7 +32,7 @@ import module_build_service.messaging
 import module_build_service.scheduler.handlers.repos
 from module_build_service import models, conf, build_logs
 
-from mock import patch, Mock
+from mock import patch, Mock, MagicMock, call
 
 from tests import init_data
 
@@ -52,6 +52,7 @@ class TestBuild(unittest.TestCase):
     def setUp(self):
         init_data()
         module = models.ModuleBuild.query.filter_by(id=1).one()
+        module.cg_build_koji_tag = "f27-module-candidate"
         self.cg = KojiContentGenerator(module, conf)
 
         filename = cassette_dir + self.id()
@@ -158,3 +159,52 @@ class TestBuild(unittest.TestCase):
         dir_path = self.cg._prepare_file_directory()
         with open(path.join(dir_path, "modulemd.txt")) as mmd:
             self.assertEqual(len(mmd.read()), 1134)
+
+    @patch("module_build_service.builder.KojiModuleBuilder.get_session")
+    def test_tag_cg_build(self, get_session):
+        """ Test that the CG build is tagged. """
+        koji_session = MagicMock()
+        koji_session.getTag.return_value = {'id': 123}
+        get_session.return_value = koji_session
+
+        self.cg._tag_cg_build()
+
+        koji_session.getTag.assert_called_once_with(self.cg.module.cg_build_koji_tag)
+        koji_session.tagBuild.assert_called_once_with(123, "nginx-1-2")
+
+    @patch("module_build_service.builder.KojiModuleBuilder.get_session")
+    def test_tag_cg_build_fallback_to_default_tag(self, get_session):
+        """ Test that the CG build is tagged to default tag. """
+        koji_session = MagicMock()
+        koji_session.getTag.side_effect = [{}, {'id': 123}]
+        get_session.return_value = koji_session
+
+        self.cg._tag_cg_build()
+
+        self.assertEqual(koji_session.getTag.mock_calls,
+                         [call(self.cg.module.cg_build_koji_tag),
+                          call(conf.koji_cg_default_build_tag)])
+        koji_session.tagBuild.assert_called_once_with(123, "nginx-1-2")
+
+    @patch("module_build_service.builder.KojiModuleBuilder.get_session")
+    def test_tag_cg_build_no_tag_set(self, get_session):
+        """ Test that the CG build is not tagged when no tag set. """
+        koji_session = MagicMock()
+        koji_session.getTag.side_effect = [{}, {'id': 123}]
+        get_session.return_value = koji_session
+
+        self.cg.module.cg_build_koji_tag = None
+        self.cg._tag_cg_build()
+
+        koji_session.tagBuild.assert_not_called()
+
+    @patch("module_build_service.builder.KojiModuleBuilder.get_session")
+    def test_tag_cg_build_no_tag_available(self, get_session):
+        """ Test that the CG build is not tagged when no tag available. """
+        koji_session = MagicMock()
+        koji_session.getTag.side_effect = [{}, {}]
+        get_session.return_value = koji_session
+
+        self.cg._tag_cg_build()
+
+        koji_session.tagBuild.assert_not_called()

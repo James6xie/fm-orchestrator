@@ -172,13 +172,15 @@ def wait(config, session, msg):
         are going to build. We use private method here to allow "retry"
         on failure.
         """
+        cg_build_koji_tag = conf.koji_cg_default_build_tag
+
         if conf.system != "koji":
             # In case of non-koji backend, we want to get the dependencies
             # of the local module build based on ModuleMetadata, because the
             # local build is not stored in PDC and therefore we cannot query
             # it using the `pdc_query` as for Koji below.
             dependencies = module_build_service.pdc.get_module_build_dependencies(
-                pdc_session, build.mmd(), strict=True)
+                pdc_session, build.mmd(), strict=True).keys()
 
             # We also don't want to get the tag name from the PDC, but just
             # generate it locally instead.
@@ -194,16 +196,28 @@ def wait(config, session, msg):
                 'release': module_info['version'],
             }
             log.info("Getting %s deps from pdc (query %r)" % (module_info['name'], pdc_query))
-            dependencies = module_build_service.pdc.get_module_build_dependencies(
+            deps_dict = module_build_service.pdc.get_module_build_dependencies(
                 pdc_session, pdc_query, strict=True)
+            dependencies = set(deps_dict.keys())
+
+            # Find out the name of Koji tag to which the module's Content
+            # Generator build should be tagged once the build finishes.
+            module_names_streams = {mmd.name:mmd.stream
+                                    for mmd in deps_dict.values()}
+            for base_module_name in conf.base_module_names:
+                if base_module_name in module_names_streams:
+                    cg_build_koji_tag = conf.koji_cg_build_tag_template.format(
+                        module_names_streams[base_module_name])
+                    break
+
             log.info("Getting %s tag from pdc (query %r)" % (module_info['name'], pdc_query))
             tag = module_build_service.pdc.get_module_tag(
                 pdc_session, pdc_query, strict=True)
 
-        return dependencies, tag
+        return dependencies, tag, cg_build_koji_tag
 
     try:
-        dependencies, tag = _get_deps_and_tag()
+        dependencies, tag, cg_build_koji_tag = _get_deps_and_tag()
     except ValueError:
         reason = "Failed to get module info from PDC. Max retries reached."
         log.exception(reason)
@@ -218,6 +232,10 @@ def wait(config, session, msg):
     # relevant.
     log.debug("Assigning koji tag=%s to module build" % tag)
     build.koji_tag = tag
+
+    log.debug("Assigning Content Generator build koji tag=%s to module "
+              "build", cg_build_koji_tag)
+    build.cg_build_koji_tag = cg_build_koji_tag
 
     builder = module_build_service.builder.GenericBuilder.create_from_module(
         session, build, config)

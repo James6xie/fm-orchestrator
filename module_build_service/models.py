@@ -148,6 +148,8 @@ class ModuleBuild(MBSBase):
     state_reason = db.Column(db.String)
     modulemd = db.Column(db.String, nullable=False)
     koji_tag = db.Column(db.String)  # This gets set after 'wait'
+    # Koji tag to which tag the Content Generator Koji build.
+    cg_build_koji_tag = db.Column(db.String) # This gets set after wait
     copr_owner = db.Column(db.String)
     copr_project = db.Column(db.String)
     scmurl = db.Column(db.String)

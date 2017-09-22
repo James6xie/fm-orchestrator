@@ -31,7 +31,7 @@ import vcr
 import koji
 from tests import conf, db, app, scheduler_init_data
 from module_build_service import build_logs
-from module_build_service.models import ComponentBuild
+from module_build_service.models import ComponentBuild, ModuleBuild
 
 base_dir = os.path.dirname(os.path.dirname(__file__))
 cassette_dir = base_dir + '/vcr-request-data/'
@@ -154,3 +154,81 @@ class TestModuleWait(unittest.TestCase):
             module_build_service.scheduler.handlers.modules.wait(
                 config=conf, session=db.session, msg=msg)
             self.assertTrue(koji_session.newRepo.called)
+
+    @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
+           return_value={'build': [], 'srpm-build': []})
+    @patch("module_build_service.builder.KojiModuleBuilder.get_session")
+    @patch("module_build_service.builder.GenericBuilder.create_from_module")
+    @patch('module_build_service.pdc')
+    def test_set_cg_build_koji_tag_fallback_to_default(
+            self, pdc, create_builder, koji_get_session, dbg):
+        """
+        Test that build.cg_build_koji_tag fallbacks to default tag.
+        """
+        with app.app_context():
+            pdc.get_module_tag.return_value = "module-testmodule-master-20170109091357"
+            base_mmd = _modulemd.ModuleMetadata()
+            base_mmd.name = "base-runtime"
+            base_mmd.stream = "f27"
+            pdc.get_module_build_dependencies.return_value = {
+                "module-bootstrap-tag": base_mmd}
+
+            scheduler_init_data()
+            koji_session = mock.MagicMock()
+            koji_session.newRepo.return_value = 123456
+            koji_get_session.return_value = koji_session
+
+            builder = mock.MagicMock()
+            builder.koji_session = koji_session
+            builder.module_build_tag = {"name": "module-123-build"}
+            builder.get_disttag_srpm.return_value = 'some srpm disttag'
+            builder.build.return_value = 1234, koji.BUILD_STATES['BUILDING'], "", "module-build-macros-1-1"
+            create_builder.return_value = builder
+
+            msg = module_build_service.messaging.MBSModule(msg_id=None, module_build_id=1,
+                                                           module_build_state='some state')
+            module_build_service.scheduler.handlers.modules.wait(
+                config=conf, session=db.session, msg=msg)
+            module_build = ModuleBuild.query.filter_by(id=1).one()
+            self.assertEqual(module_build.cg_build_koji_tag, "modular-updates-candidate")
+
+
+    @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
+           return_value={'build': [], 'srpm-build': []})
+    @patch("module_build_service.builder.KojiModuleBuilder.get_session")
+    @patch("module_build_service.builder.GenericBuilder.create_from_module")
+    @patch('module_build_service.pdc')
+    @patch("module_build_service.config.Config.base_module_names",
+           new_callable=mock.PropertyMock, return_value=set(["base-runtime"]))
+    def test_set_cg_build_koji_tag(
+            self, cfg, pdc, create_builder, koji_get_session, dbg):
+        """
+        Test that build.cg_build_koji_tag is set.
+        """
+        with app.app_context():
+            pdc.get_module_tag.return_value = "module-testmodule-master-20170109091357"
+            base_mmd = _modulemd.ModuleMetadata()
+            base_mmd.name = "base-runtime"
+            base_mmd.stream = "f27"
+            pdc.get_module_build_dependencies.return_value = {
+                "module-bootstrap-tag": base_mmd}
+
+            scheduler_init_data()
+            koji_session = mock.MagicMock()
+            koji_session.newRepo.return_value = 123456
+            koji_get_session.return_value = koji_session
+
+            builder = mock.MagicMock()
+            builder.koji_session = koji_session
+            builder.module_build_tag = {"name": "module-123-build"}
+            builder.get_disttag_srpm.return_value = 'some srpm disttag'
+            builder.build.return_value = 1234, koji.BUILD_STATES['BUILDING'], "", "module-build-macros-1-1"
+            create_builder.return_value = builder
+
+            msg = module_build_service.messaging.MBSModule(msg_id=None, module_build_id=1,
+                                                           module_build_state='some state')
+            module_build_service.scheduler.handlers.modules.wait(
+                config=conf, session=db.session, msg=msg)
+            module_build = ModuleBuild.query.filter_by(id=1).one()
+            self.assertEqual(module_build.cg_build_koji_tag,
+                             "f27-modular-updates-candidate")
