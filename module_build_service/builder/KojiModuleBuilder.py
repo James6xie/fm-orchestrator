@@ -186,13 +186,13 @@ It should NEVER be installed on any system as it will really mess up
 %build
 
 %install
-mkdir -p %buildroot/%_rpmconfigdir/macros.d 2>/dev/null |:
-cp %SOURCE1 %buildroot/%_rpmconfigdir/macros.d/macros.modules
-chmod 644 %buildroot/%_rpmconfigdir/macros.d/macros.modules
+mkdir -p %buildroot/%_sysconfdir/rpm 2>/dev/null |:
+cp %SOURCE1 %buildroot/%_sysconfdir/rpm/macros.zz-modules
+chmod 644 %buildroot/%_sysconfdir/rpm/macros.zz-modules
 
 
 %files
-%_rpmconfigdir/macros.d/macros.modules
+%_sysconfdir/rpm/macros.zz-modules
 
 
 
