@@ -86,7 +86,7 @@ class TestPDCModule(unittest.TestCase):
             'version': 'master',
             'release': '20170315134803',
         }
-        result = mbs_pdc.get_module_build_dependencies(self.pdc, query)
+        result = mbs_pdc.get_module_build_dependencies(self.pdc, query).keys()
         expected = [
             u'module-bootstrap-rawhide',
         ]
@@ -103,7 +103,7 @@ class TestPDCModule(unittest.TestCase):
             'version': 'master',
             'release': '20170322155247'
         }
-        result = mbs_pdc.get_module_build_dependencies(self.pdc, query)
+        result = mbs_pdc.get_module_build_dependencies(self.pdc, query).keys()
         expected = [
             u'module-base-runtime-master-20170315134803',
         ]
@@ -127,7 +127,7 @@ class TestPDCModule(unittest.TestCase):
             
             build = module_build_service.models.ModuleBuild.local_modules(
                 db.session, "child", "master")
-            result = mbs_pdc.get_module_build_dependencies(self.pdc, build[0].mmd())
+            result = mbs_pdc.get_module_build_dependencies(self.pdc, build[0].mmd()).keys()
 
             local_path = os.path.join(base_dir, 'staged_data', "local_builds")
 

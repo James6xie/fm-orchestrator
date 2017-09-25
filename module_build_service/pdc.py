@@ -389,7 +389,7 @@ def get_module_build_dependencies(session, module_info, strict=False):
     instance.
     :param strict: Normally this function returns None if no module can be
            found.  If strict=True, then a ValueError is raised.
-    :return final list of koji tags
+    :return dict with koji_tag as a key and ModuleMetadata object as value.
 
     Example minimal module_info:
         {
@@ -402,7 +402,7 @@ def get_module_build_dependencies(session, module_info, strict=False):
     # XXX get definitive list of modules
 
     # This is the set we're going to build up and return.
-    module_tags = set()
+    module_tags = {}
 
     if not isinstance(module_info, modulemd.ModuleMetadata):
         queried_module = get_module(session, module_info, strict=strict)
@@ -430,7 +430,10 @@ def get_module_build_dependencies(session, module_info, strict=False):
         modules = _get_recursively_required_modules(
             session, modified_dep, strict=strict)
         tags = [m["koji_tag"] for m in modules]
-        module_tags = module_tags.union(set(tags))
+        for m in modules:
+            if m["koji_tag"] in module_tags:
+                continue
+            module_tags[m["koji_tag"]] = _extract_modulemd(m["modulemd"])
 
     return module_tags
 
