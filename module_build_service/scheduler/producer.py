@@ -85,7 +85,9 @@ class MBSProducer(PollingProducer):
                 # to new module tag. Checking them would be waste of resources.
                 if component_build.reused_component_id:
                     log.debug('Skipping check for task "{0}", '
-                              'the component has been reused.'.format(task_id))
+                              'the component has been reused ("{1}").'.format(
+                                  component_build.task_id,
+                                  component_build.reused_component_id))
                     continue
 
                 task_id = component_build.task_id
