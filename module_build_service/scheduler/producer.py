@@ -44,8 +44,7 @@ class MBSProducer(PollingProducer):
         with models.make_session(conf) as session:
             try:
                 self.log_summary(session)
-                # XXX: detect whether it's actually stuck first
-                # self.process_waiting_module_builds(session)
+                self.process_waiting_module_builds(session)
                 self.process_open_component_builds(session)
                 self.fail_lost_builds(session)
                 self.process_paused_module_builds(conf, session)
@@ -166,18 +165,24 @@ class MBSProducer(PollingProducer):
         builds = models.ModuleBuild.by_state(session, 'wait')
         log.info(' {0!r} module builds in the wait state...'
                  .format(len(builds)))
+        now = datetime.utcnow()
+        ten_minutes = timedelta(minutes=10)
         for build in builds:
-            # Fake a message to kickstart the build anew
+
+            # Only give builds a nudge if stuck for more than ten minutes
+            if (now - build.time_modified) < ten_minutes:
+                continue
+
+            # Pretend the build is modified, so we don't tight spin.
+            build.time_modified = now
+            session.commit()
+
+            # Fake a message to kickstart the build anew in the consumer
+            state = module_build_service.models.BUILD_STATES['wait']
             msg = module_build_service.messaging.MBSModule(
-                'fake message',
-                build.id,
-                module_build_service.models.BUILD_STATES['wait']
-            )
-            further_work = module_build_service.scheduler.handlers.modules.wait(
-                conf, session, msg) or []
-            for event in further_work:
-                log.info("  Scheduling faked event %r" % event)
-                module_build_service.scheduler.consumer.work_queue_put(event)
+                'fake message', build.id, state)
+            log.info("  Scheduling faked event %r" % msg)
+            module_build_service.scheduler.consumer.work_queue_put(msg)
 
     def process_open_component_builds(self, session):
         log.warning('process_open_component_builds is not yet implemented...')
