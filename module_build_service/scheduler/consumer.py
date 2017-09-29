@@ -169,7 +169,10 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
         parser = module_build_service.messaging.\
                  _messaging_backends[conf.messaging].get('parser')
         if parser:
-            return parser.parse(message)
+            try:
+                return parser.parse(message)
+            except module_build_service.messaging.IgnoreMessage:
+                pass
         else:
             raise ValueError('{0} backend does not define a message parser'
                              .format(conf.messaging))
