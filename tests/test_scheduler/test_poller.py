@@ -255,3 +255,84 @@ class TestPoller(unittest.TestCase):
 
             if state_name in ["done", "ready", "failed"]:
                 koji_session.deleteBuildTarget.assert_called_once_with(852)
+
+    def test_process_waiting_module_build(
+        self, create_builder, koji_get_session, global_consumer, dbg):
+        """ Test that processing old waiting module builds works. """
+
+        consumer = mock.MagicMock()
+        consumer.incoming = queue.Queue()
+        global_consumer.return_value = consumer
+
+        hub = mock.MagicMock()
+        poller = MBSProducer(hub)
+
+        # Change the batch to 2, so the module build is in state where
+        # it is not building anything, but the state is "build".
+        module_build = models.ModuleBuild.query.filter_by(id=2).one()
+        module_build.state = 1
+        original = datetime.utcnow() - timedelta(minutes=11)
+        module_build.time_modified = original
+        db.session.commit()
+        db.session.refresh(module_build)
+
+        # Ensure the queue is empty before we start.
+        self.assertEquals(consumer.incoming.qsize(), 0)
+
+        # Poll :)
+        poller.process_waiting_module_builds(db.session)
+
+        self.assertEquals(consumer.incoming.qsize(), 1)
+        module_build = models.ModuleBuild.query.filter_by(id=2).one()
+        # ensure the time_modified was changed.
+        self.assertGreater(module_build.time_modified, original)
+
+
+    def test_process_waiting_module_build_not_old_enough(
+        self, create_builder, koji_get_session, global_consumer, dbg):
+        """ Test that we do not process young waiting builds. """
+
+        consumer = mock.MagicMock()
+        consumer.incoming = queue.Queue()
+        global_consumer.return_value = consumer
+
+        hub = mock.MagicMock()
+        poller = MBSProducer(hub)
+
+        # Change the batch to 2, so the module build is in state where
+        # it is not building anything, but the state is "build".
+        module_build = models.ModuleBuild.query.filter_by(id=2).one()
+        module_build.state = 1
+        original = datetime.utcnow() - timedelta(minutes=9)
+        module_build.time_modified = original
+        db.session.commit()
+        db.session.refresh(module_build)
+
+        # Ensure the queue is empty before we start.
+        self.assertEquals(consumer.incoming.qsize(), 0)
+
+        # Poll :)
+        poller.process_waiting_module_builds(db.session)
+
+        # Ensure we did *not* process the 9 minute-old build.
+        self.assertEquals(consumer.incoming.qsize(), 0)
+
+    def test_process_waiting_module_build_none_found(
+        self, create_builder, koji_get_session, global_consumer, dbg):
+        """ Test nothing happens when no module builds are waiting. """
+
+        consumer = mock.MagicMock()
+        consumer.incoming = queue.Queue()
+        global_consumer.return_value = consumer
+
+        hub = mock.MagicMock()
+        poller = MBSProducer(hub)
+
+        # Ensure the queue is empty before we start.
+        self.assertEquals(consumer.incoming.qsize(), 0)
+
+        # Poll :)
+        poller.process_waiting_module_builds(db.session)
+
+        # Ensure we did *not* process any of the non-waiting builds.
+        self.assertEquals(consumer.incoming.qsize(), 0)
