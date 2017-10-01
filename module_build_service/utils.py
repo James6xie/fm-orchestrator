@@ -578,7 +578,7 @@ def _scm_get_latest(pkg):
     }
 
 
-def load_local_builds(local_build_nsvs):
+def load_local_builds(local_build_nsvs, session=None):
     """
     Loads previously finished local module builds from conf.mock_resultsdir
     and imports them to database.
@@ -588,6 +588,9 @@ def load_local_builds(local_build_nsvs):
     """
     if not local_build_nsvs:
         return
+
+    if not session:
+        session = db.session
 
     if type(local_build_nsvs) != list:
         local_build_nsvs = [local_build_nsvs]
@@ -643,7 +646,7 @@ def load_local_builds(local_build_nsvs):
 
         # Create ModuleBuild in database.
         module = models.ModuleBuild.create(
-            db.session,
+            session,
             conf,
             name=mmd.name,
             stream=mmd.stream,
@@ -652,7 +655,7 @@ def load_local_builds(local_build_nsvs):
             scmurl="",
             username="mbs")
         module.koji_tag = path
-        db.session.commit()
+        session.commit()
 
         if (found_build[0] != module.name
                 or found_build[1] != module.stream
@@ -662,7 +665,7 @@ def load_local_builds(local_build_nsvs):
         log.info("Loaded local module build %r", module)
 
 
-def format_mmd(mmd, scmurl):
+def format_mmd(mmd, scmurl, session=None):
     """
     Prepares the modulemd for the MBS. This does things such as replacing the
     branches of components with commit hashes and adding metadata in the xmd
@@ -674,9 +677,12 @@ def format_mmd(mmd, scmurl):
     # them because of dep-chain.
     from module_build_service.scm import SCM
 
+    if not session:
+        session = db.session
+
     mmd.xmd['mbs'] = {'scmurl': scmurl, 'commit': None}
 
-    local_modules = models.ModuleBuild.local_modules(db.session)
+    local_modules = models.ModuleBuild.local_modules(session)
     local_modules = {m.name + "-" + m.stream: m for m in local_modules}
 
     # If module build was submitted via yaml file, there is no scmurl
@@ -767,18 +773,21 @@ def merge_included_mmd(mmd, included_mmd):
 
 
 def record_component_builds(mmd, module, initial_batch=1,
-                            previous_buildorder=None, main_mmd=None):
+                            previous_buildorder=None, main_mmd=None, session=None):
     import koji  # Placed here to avoid py2/py3 conflicts...
+
+    if not session:
+        session = db.session
 
     # Format the modulemd by putting in defaults and replacing streams that
     # are branches with commit hashes
     try:
-        format_mmd(mmd, module.scmurl)
+        format_mmd(mmd, module.scmurl, session=session)
     except Exception as e:
         module.transition(conf, models.BUILD_STATES["failed"],
                           "Failed to validate modulemd file: %s" % str(e))
-        db.session.add(module)
-        db.session.commit()
+        session.add(module)
+        session.commit()
         raise
 
     # When main_mmd is set, merge the metadata from this mmd to main_mmd,
@@ -795,8 +804,8 @@ def record_component_builds(mmd, module, initial_batch=1,
                 .format(mmd.name, main_mmd.name,
                         ', '.join(duplicate_components)))
             module.transition(conf, models.BUILD_STATES["failed"], error_msg)
-            db.session.add(module)
-            db.session.commit()
+            session.add(module)
+            session.commit()
             raise RuntimeError(error_msg)
         merge_included_mmd(main_mmd, mmd)
     else:
@@ -828,7 +837,7 @@ def record_component_builds(mmd, module, initial_batch=1,
                 # of every URL have been already checked in format_mmd(...).
                 included_mmd = _fetch_mmd(full_url, whitelist_url=True)[0]
                 batch = record_component_builds(included_mmd, module, batch,
-                                                previous_buildorder, main_mmd)
+                                                previous_buildorder, main_mmd, session=session)
                 continue
 
             pkgref = mmd.xmd['mbs']['rpms'][pkg.name]['ref']
@@ -839,7 +848,7 @@ def record_component_builds(mmd, module, initial_batch=1,
             if existing_build:
                 if existing_build.state != koji.BUILD_STATES['COMPLETE']:
                     existing_build.state = None
-                    db.session.add(existing_build)
+                    session.add(existing_build)
             else:
                 # XXX: what about components that were present in previous
                 # builds but are gone now (component reduction)?
@@ -851,7 +860,7 @@ def record_component_builds(mmd, module, initial_batch=1,
                     batch=batch,
                     ref=pkgref
                 )
-                db.session.add(build)
+                session.add(build)
 
         return batch
 
