@@ -304,7 +304,7 @@ class MockModuleBuilder(GenericBuilder):
             if tag.startswith(conf.mock_resultsdir):
                 repo_name = os.path.basename(tag)
                 if repo_name.startswith("module-"):
-                    repo_name = name[7:]
+                    repo_name = repo_name[7:]
                 repo_dir = tag
             else:
                 repo_name = tag
