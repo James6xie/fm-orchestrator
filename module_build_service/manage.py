@@ -68,27 +68,6 @@ See also:
     return wrapped
 
 
-def _establish_ssl_context():
-    if not conf.ssl_enabled:
-        return None
-    # First, do some validation of the configuration
-    attributes = (
-        'ssl_certificate_file',
-        'ssl_certificate_key_file',
-        'ssl_ca_certificate_file',
-    )
-
-    for attribute in attributes:
-        value = getattr(conf, attribute, None)
-        if not value:
-            raise ValueError("%r could not be found" % attribute)
-        if not os.path.exists(value):
-            raise OSError("%s: %s file not found." % (attribute, value))
-
-    return (os.path.abspath(conf.ssl_certificate_file),
-            os.path.abspath(conf.ssl_certificate_key_file))
-
-
 @console_script_help
 @manager.command
 def upgradedb():
@@ -149,48 +128,8 @@ def build_module_locally(url, branch, local_build_nsvs=None, skiptests=False):
 
 @console_script_help
 @manager.command
-def generatelocalhostcert():
-    """ Creates a public/private key pair for the frontend
-    """
-    from OpenSSL import crypto
-    cert_key = crypto.PKey()
-    cert_key.generate_key(crypto.TYPE_RSA, 2048)
-
-    with open(conf.ssl_certificate_key_file, 'w') as cert_key_file:
-        os.chmod(conf.ssl_certificate_key_file, 0o600)
-        cert_key_file.write(
-            crypto.dump_privatekey(crypto.FILETYPE_PEM, cert_key))
-
-    cert = crypto.X509()
-    msg_cert_subject = cert.get_subject()
-    msg_cert_subject.C = 'US'
-    msg_cert_subject.ST = 'MA'
-    msg_cert_subject.L = 'Boston'
-    msg_cert_subject.O = 'Development'
-    msg_cert_subject.CN = 'localhost'
-    cert.set_serial_number(random.randint(2, 99999999))
-    cert.gmtime_adj_notBefore(0)
-    cert.gmtime_adj_notAfter(315360000)  # 10 years
-    cert.set_issuer(cert.get_subject())
-    cert.set_pubkey(cert_key)
-    cert_extensions = [
-        crypto.X509Extension(
-            'keyUsage', True,
-            'digitalSignature, keyEncipherment, nonRepudiation'),
-        crypto.X509Extension('extendedKeyUsage', True, 'serverAuth'),
-    ]
-    cert.add_extensions(cert_extensions)
-    cert.sign(cert_key, 'sha256')
-
-    with open(conf.ssl_certificate_file, 'w') as cert_file:
-        cert_file.write(
-            crypto.dump_certificate(crypto.FILETYPE_PEM, cert))
-
-
-@console_script_help
-@manager.command
-def runssl(host=None, port=None, debug=None):
-    """ Runs the Flask app with the HTTPS settings configured in config.py
+def run(host=None, port=None, debug=None):
+    """ Runs the Flask app, locally.
     """
     host = host or conf.host
     port = port or conf.port
@@ -198,11 +137,9 @@ def runssl(host=None, port=None, debug=None):
 
     logging.info('Starting Module Build Service frontend')
 
-    ssl_ctx = _establish_ssl_context()
     app.run(
         host=host,
         port=port,
-        ssl_context=ssl_ctx,
         debug=debug
     )
 

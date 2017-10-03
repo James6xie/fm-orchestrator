@@ -3,7 +3,7 @@ services:
 
   base:
     build: .
-    command: bash -c "mbs-upgradedb && mbs-gencert && touch /etc/module-build-service/.ready"
+    command: bash -c "mbs-upgradedb && touch /etc/module-build-service/.ready"
     volumes:
       - ./:/tmp/module_build_service:z
       - /etc/module-build-service

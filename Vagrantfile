@@ -42,7 +42,6 @@ SCRIPT
 $script_services = <<SCRIPT_SERVICES
     cd /tmp/module_build_service
     mbs-upgradedb > /tmp/mbs-base.out 2>&1
-    mbs-gencert >> /tmp/mbs-base.out 2>&1
     fedmsg-relay < /dev/null >& /tmp/fedmsg-relay.out &
     fedmsg-hub < /dev/null >& /tmp/fedmsg-hub.out &
     mbs-frontend < /dev/null >& /tmp/mbs-frontend.out &

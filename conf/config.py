@@ -15,7 +15,7 @@ class BaseConfiguration(object):
     SQLALCHEMY_DATABASE_URI = 'sqlite:///{0}'.format(path.join(
         dbdir, 'module_build_service.db'))
     SQLALCHEMY_TRACK_MODIFICATIONS = True
-    # Where we should run when running "manage.py runssl" directly.
+    # Where we should run when running "manage.py run" directly.
     HOST = '0.0.0.0'
     PORT = 5000
 
@@ -57,11 +57,6 @@ class BaseConfiguration(object):
 
     MODULES_DEFAULT_REPOSITORY = 'git://pkgs.fedoraproject.org/modules/'
     MODULES_ALLOW_REPOSITORY = False
-
-    SSL_ENABLED = True
-    SSL_CERTIFICATE_FILE = '/etc/module-build-service/server.crt'
-    SSL_CERTIFICATE_KEY_FILE = '/etc/module-build-service/server.key'
-    SSL_CA_CERTIFICATE_FILE = '/etc/module-build-service/cacert.pem'
 
     ALLOWED_GROUPS = set([
         'packager',
@@ -136,10 +131,6 @@ class DevConfiguration(BaseConfiguration):
 
     OIDC_CLIENT_SECRETS = path.join(confdir, 'client_secrets.json')
     OIDC_REQUIRED_SCOPE = 'https://mbs.fedoraproject.org/oidc/submit-build'
-
-    SSL_CERTIFICATE_FILE = path.join(confdir, 'server.crt')
-    SSL_CERTIFICATE_KEY_FILE = path.join(confdir, 'server.key')
-    SSL_CA_CERTIFICATE_FILE = path.join(confdir, 'cacert.pem')
 
     COPR_CONFIG = path.join(confdir, 'copr.conf')
 

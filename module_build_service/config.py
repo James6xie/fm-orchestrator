@@ -227,18 +227,6 @@ class Config(object):
             'type': bool,
             'default': False,
             'desc': 'Allow custom included modules repositories.'},
-        'ssl_certificate_file': {
-            'type': str,
-            'default': '',
-            'desc': ''},
-        'ssl_certificate_key_file': {
-            'type': str,
-            'default': '',
-            'desc': ''},
-        'ssl_ca_certificate_file': {
-            'type': str,
-            'default': '',
-            'desc': ''},
         'allowed_groups': {
             'type': set,
             'default': set(['packager']),
