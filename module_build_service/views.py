@@ -80,15 +80,16 @@ api_v1 = {
     }
 }
 
+class AbstractQueryableBuildAPI(MethodView):
+    """ An abstract class, housing some common functionality. """
 
-class ComponentBuildAPI(MethodView):
 
     def get(self, id):
         verbose_flag = request.args.get('verbose', 'false')
 
         if id is None:
             # Lists all tracked builds
-            p_query = filter_component_builds(request)
+            p_query = self.query_filter(request)
 
             json_data = {
                 'meta': pagination_metadata(p_query, request.args)
@@ -102,49 +103,29 @@ class ComponentBuildAPI(MethodView):
 
             return jsonify(json_data), 200
         else:
-            # Lists details for the specified component builds
-            component = models.ComponentBuild.query.filter_by(id=id).first()
-
-            if component:
+            # Lists details for the specified build
+            instance = self.model.query.filter_by(id=id).first()
+            if instance:
                 if verbose_flag.lower() == 'true' or verbose_flag == '1':
-                    return jsonify(component.extended_json()), 200
+                    return jsonify(instance.extended_json()), 200
                 else:
-                    return jsonify(component.json()), 200
+                    return jsonify(instance.json()), 200
             else:
-                raise NotFound('No such component found.')
+                raise NotFound('No such %s found.' % self.kind)
 
 
-class ModuleBuildAPI(MethodView):
+class ComponentBuildAPI(AbstractQueryableBuildAPI):
+    kind = 'component'
+    query_filter = staticmethod(filter_component_builds)
+    model = models.ComponentBuild
 
-    def get(self, id):
-        verbose_flag = request.args.get('verbose', 'false')
 
-        if id is None:
-            # Lists all tracked module builds
-            p_query = filter_module_builds(request)
+class ModuleBuildAPI(AbstractQueryableBuildAPI):
+    kind = 'module'
+    query_filter = staticmethod(filter_module_builds)
+    model = models.ModuleBuild
 
-            json_data = {
-                'meta': pagination_metadata(p_query, request.args)
-            }
-
-            if verbose_flag.lower() == 'true' or verbose_flag == '1':
-                json_data['items'] = [item.extended_json() for item in p_query.items]
-            else:
-                json_data['items'] = [{'id': item.id, 'state': item.state} for
-                                      item in p_query.items]
-
-            return jsonify(json_data), 200
-        else:
-            # Lists details for the specified module builds
-            module = models.ModuleBuild.query.filter_by(id=id).first()
-
-            if module:
-                if verbose_flag.lower() == 'true' or verbose_flag == '1':
-                    return jsonify(module.extended_json()), 200
-                else:
-                    return jsonify(module.json()), 200
-            else:
-                raise NotFound('No such module found.')
+    # Additional POST and DELETE handlers for modules follow.
 
     def post(self):
         if "multipart/form-data" in request.headers.get("Content-Type", ""):
