@@ -29,6 +29,7 @@ import modulemd
 from pdc_client import PDCClient
 from module_build_service import db
 from module_build_service import models
+from module_build_service.errors import UnprocessableEntity
 
 import inspect
 import pprint
@@ -163,7 +164,7 @@ def get_module(session, module_info, strict=False):
     :param session : PDCClient instance
     :param module_info: pdc variant_dict, str, mmd or module dict
     :param strict: Normally this function returns None if no module can be
-           found.  If strict=True, then a ValueError is raised.
+           found.  If strict=True, then an UnprocessableEntity is raised.
 
     :return final list of module_info which pass repoclosure
     """
@@ -197,7 +198,7 @@ def get_module(session, module_info, strict=False):
     # Error handling
     if not retval or len(retval["results"]) == 0:
         if strict:
-            raise ValueError("Failed to find module in PDC %r" % query)
+            raise UnprocessableEntity("Failed to find module in PDC %r" % query)
         else:
             return None
 
@@ -216,7 +217,7 @@ def get_module_tag(session, module_info, strict=False):
     :param session : PDCClient instance
     :param module_info: list of module_info dicts
     :param strict: Normally this function returns None if no module can be
-           found.  If strict=True, then a ValueError is raised.
+           found.  If strict=True, then an UnprocessableEntity is raised.
     :return: koji tag string
     """
     return get_module(session, module_info, strict=strict)['koji_tag']
@@ -227,7 +228,7 @@ def get_module_modulemd(session, module_info, strict=False):
     :param session : PDCClient instance
     :param module_info: list of module_info dicts
     :param strict: Normally this function returns None if no module can be
-           found.  If strict=True, then a ValueError is raised.
+           found.  If strict=True, then an UnprocessableEntity is raised.
     :return: ModuleMetadata instance
     """
     yaml = None
@@ -237,8 +238,8 @@ def get_module_modulemd(session, module_info, strict=False):
 
     if not yaml:
         if strict:
-            raise ValueError("Failed to find modulemd entry in PDC for "
-                             "%r" % module_info)
+            raise UnprocessableEntity(
+                "Failed to find modulemd entry in PDC for %r" % module_info)
         else:
             return None
 
@@ -259,7 +260,7 @@ def _get_recursively_required_modules(session, info, modules=None,
     :param modules: Used by recursion only, list of modules found by previous
                     iteration of this method.
     :param strict: Normally this function returns empty list if no module can
-                   be found.  If strict=True, then a ValueError is raised.
+                   be found.  If strict=True, then an UnprocessableEntity is raised.
 
     Returns list of modules by recursively querying PDC based on a "requires"
     list of an input module represented by `info`. The returned list
@@ -388,7 +389,7 @@ def get_module_build_dependencies(session, module_info, strict=False):
     :param module_info : a dict containing filters for pdc or ModuleMetadata
     instance.
     :param strict: Normally this function returns None if no module can be
-           found.  If strict=True, then a ValueError is raised.
+           found.  If strict=True, then an UnprocessableEntity is raised.
     :return dict with koji_tag as a key and ModuleMetadata object as value.
 
     Example minimal module_info:
