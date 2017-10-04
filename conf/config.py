@@ -168,3 +168,5 @@ class LocalBuildConfiguration(BaseConfiguration):
 
     ARCH_AUTODETECT = True
     ARCH_FALLBACK = 'x86_64'
+
+    ALLOW_CUSTOM_SCMURLS = True
