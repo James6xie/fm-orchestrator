@@ -85,7 +85,7 @@ class AbstractQueryableBuildAPI(MethodView):
 
 
     def get(self, id):
-        verbose_flag = request.args.get('verbose', 'false')
+        verbose_flag = request.args.get('verbose', 'true')
 
         if id is None:
             # Lists all tracked builds
