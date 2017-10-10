@@ -442,7 +442,7 @@ chmod 644 %buildroot/%_sysconfdir/rpm/macros.zz-modules
 
                 # Now, make the same query we made earlier to return a dict
                 # with the same schema.
-                tagged = self.koji_session.listTagged(tag, **opts)
+                tagged = self.koji_session.listTagged(tag, package=artifact_name)
                 if not tagged:
                     # Should be impossible.
                     raise ValueError("Just tagged %s but didn't find it" % nvr)
