@@ -396,9 +396,9 @@ def filter_component_builds(flask_request):
     if search_query:
         query = query.filter_by(**search_query)
 
-    # Order the results by any column in the ModuleBuild table.
-    order_by = flask_request.args.get("order_by", None)
-    order_desc_by = flask_request.args.get("order_desc_by", None)
+    # Order the results by any column in the ModuleBuild table but default to id.
+    order_by = flask_request.args.get('order_by', 'id')
+    order_desc_by = flask_request.args.get('order_desc_by', None)
     if order_by or order_desc_by:
         column = getattr(models.ComponentBuild, order_desc_by or order_by, None)
         if column:

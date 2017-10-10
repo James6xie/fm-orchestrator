@@ -107,9 +107,10 @@ The response, in case of a successful submission, would include the task ID.
 ::
 
     {
-        id: 42
+        "id": 42,
+        "state": "wait",
+        ...
     }
-
 
 When ``YAML_SUBMIT_ALLOWED`` is enabled, it is also possible to submit
 raw modulemd yaml file by sending ``multipart/form-data`` request with
@@ -119,11 +120,11 @@ Module build state query
 ------------------------
 
 Once created, the client can query the current build state by requesting the
-build task's URL. Querying the BPO service might be preferred, however.
+build task's URL.
 
 ::
 
-    GET /module-build-service/1/module-builds/42
+    GET /module-build-service/1/module-builds/1042
 
 The response, if the task exists, would include various pieces of information
 about the referenced build task.
@@ -135,40 +136,59 @@ about the referenced build task.
 ::
 
     {
-        "id": 42,
-        "state": "build",
-        "tasks": {
-            "rpms": {
-                "foo": {
-                    "task_id": 6378,
-                    "state": 1,
-                    "state_reason": None,
-                    "nvr": "foo-1.2.3-1...",
-                },
-                "bar": {
-                    "task_id": 6379,
-                    "state": 0,
-                    "state_reason": None,
-                    "nvr": None,
-                }
-
-            }
-        },
-        ...
+      "id": 1042,
+      "koji_tag": "module-f8c7dcdcc884bf1d",
+      "name": "cloud-init",
+      "owner": "karsten",
+      "scmurl": "git://pkgs.fedoraproject.org/modules/cloud-init?#d5fc9ab58f359b618e67ebdd0c7b143962242546",
+      "state": 5,
+      "state_name": "ready",
+      "state_reason": null,
+      "tasks": {
+        "rpms": {
+          "cloud-init": {
+            "nvr": "cloud-init-0.7.9-9.module_f8c7dcdc",
+            "state": 1,
+            "state_reason": "",
+            "task_id": 22264880
+          },
+          "module-build-macros": {
+            "nvr": "module-build-macros-0.1-1.module_f8c7dcdc",
+            "state": 1,
+            "state_reason": "",
+            "task_id": 22264426
+          },
+          "pyserial": {
+            "nvr": "pyserial-3.1.1-5.module_f8c7dcdc",
+            "state": 1,
+            "state_reason": "",
+            "task_id": 22264727
+          },
+          ...
+        }
+      },
+      "time_completed": "2017-10-05T11:58:44Z",
+      "time_modified": "2017-10-05T11:58:58Z",
+      "time_submitted": "2017-10-05T11:37:39Z"
     }
 
-"id" is the ID of the task. "state" refers to the MBS module build state and
-might be one of "init", "wait", "build", "done", "failed" or "ready". "tasks"
-is a dictionary of information about the individual component builds including
-their IDs in the backend buildsystem, their state, a reason for their state,
-and the NVR (if known).
+The response includes:
 
-By adding ``?verbose=1`` to the request, additional detailed information
-about the module can be obtained.
+- ``id`` - the ID of the module build.
+- ``koji_tag`` - the Koji tag the component builds are tagged in.
+- ``name`` - the name of the module.
+- ``owner`` - the username of the owner or person who submitted the module build.
+- ``scmurl`` - the source control URL used to build the module.
+- ``state`` - the numerical state of the module build.
+- ``state_name`` - the named state of the module build. See the section called
+  "Module Build States" for more information.
+- ``state_reason`` - the reason why the module build is in this state. This is useful
+  when the build fails.
+- ``tasks`` - a dictionary of information about the individual component builds.
+- ``time_completed`` - Zulu ISO 8601 timestamp of when the module build completed.
+- ``time_modified`` - Zulu ISO 8601 timestamp of when the module build was last modified.
+- ``time_submitted`` - Zulu ISO 8601 timestamp of when the module build was submitted.
 
-::
-
-    GET /module-build-service/1/module-builds/42?verbose=1
 
 Listing all module builds
 -------------------------
@@ -179,16 +199,137 @@ There are a number of configurable GET parameters to change how the
 module builds are displayed. These parameters are:
 
 - ``verbose`` - Shows the builds with the same amount of detail as querying
-  them individually (i.e. ``verbose=True``). This value defaults to False.
+  them individually (i.e. ``verbose=True``). This value defaults to ``True``.
 - ``page`` - Specifies which page should be displayed (e.g. ``page=3``). This
   value defaults to 1.
 - ``per_page`` - Specifies how many items per page should be displayed
   (e.g. ``per_page=20``). This value defaults to 10.
+- ``order_by`` - a database column to order the API by in ascending order. This defaults to
+  ``id``.
+- ``order_desc_by`` - a database column to order the API by in descending order.
 
-An example of querying the "module-builds" resource without any additional
+An example of querying the "module-builds" resource with the "per_page" and the "page"
 parameters::
 
-    GET /module-build-service/1/module-builds/
+    GET /module-build-service/1/module-builds/?per_page=2&page=1
+
+::
+
+    HTTP 200 OK
+
+::
+
+    {
+      "items": [
+        {
+          "component_builds": [
+            57047,
+            57048
+          ],
+          "id": 123,
+          "koji_tag": "module-de66baf89b40367c",
+          "modulemd": "...."
+          "name": "testmodule",
+          "owner": "mprahl",
+          "scmurl": "git://pkgs.fedoraproject.org/modules/testmodule?#86d9cfe53d20118d863ae051641fc3784d91d981",
+          "state": 5,
+          "state_name": "ready",
+          "state_reason": null,
+          "state_trace": [
+            {
+              "reason": null,
+              "state": 1,
+              "state_name": "wait",
+              "time": "2017-10-05T18:34:50Z"
+            },
+            ...
+          ],
+          "state_url": "/module-build-service/1/module-builds/1053",
+          "stream": "master",
+          "tasks": {
+            "rpms": {
+              "ed": {
+                "nvr": "ed-1.14.1-4.module_d2a2f5c8",
+                "state": 1,
+                "state_reason": "Reused component from previous module build",
+                "task_id": 22267993
+              },
+              "mksh": {
+                "nvr": "mksh-56b-1.module_d2a2f5c8",
+                "state": 1,
+                "state_reason": "Reused component from previous module build",
+                "task_id": 22268059
+              }
+            }
+          },
+          "time_completed": "2017-10-05T18:45:56Z",
+          "time_modified": "2017-10-05T18:46:10Z",
+          "time_submitted": "2017-10-05T18:34:39Z",
+          "version": "20171005183359"
+        },
+        {
+          "component_builds": [
+            57045,
+            57046
+          ],
+          "id": 124,
+          "koji_tag": "module-4620ad476f3d2b5c",
+          "modulemd": "...."
+          "name": "testmodule",
+          "owner": "mprahl",
+          "scmurl": "git://pkgs.fedoraproject.org/modules/testmodule?#373bb6eccccbfebbcb222a2723e643e7095c7973",
+          "state": 5,
+          "state_name": "ready",
+          "state_reason": null,
+          "state_trace": [
+            {
+              "reason": null,
+              "state": 1,
+              "state_name": "wait",
+              "time": "2017-10-05T18:24:19Z"
+            },
+            ...
+          ],
+          "state_url": "/module-build-service/1/module-builds/1052",
+          "stream": "master",
+          "tasks": {
+            "rpms": {
+              "ed": {
+                "nvr": "ed-1.14.1-4.module_d2a2f5c8",
+                "state": 1,
+                "state_reason": "Reused component from previous module build",
+                "task_id": 22267993
+              },
+              "mksh": {
+                "nvr": "mksh-56b-1.module_d2a2f5c8",
+                "state": 1,
+                "state_reason": "Reused component from previous module build",
+                "task_id": 22268059
+              }
+            }
+          },
+          "time_completed": "2017-10-05T18:45:50Z",
+          "time_modified": "2017-10-05T18:46:01Z",
+          "time_submitted": "2017-10-05T18:24:09Z",
+          "version": "20171005182359"
+        }
+      ],
+      "meta": {
+        "first": "http://mbs.fedoraproject.org/module-build-service/1/module-builds/?per_page=2&page=1",
+        "last": "http://mbs.fedoraproject.org/module-build-service/1/module-builds/?per_page=2&page=340",
+        "next": "http://mbs.fedoraproject.org/module-build-service/1/module-builds/?per_page=2&page=2",
+        "page": 1,
+        "pages": 340,
+        "per_page": 2,
+        "prev": null,
+        "total": 1020
+      }
+    }
+
+
+An example of querying the "module-builds" resource with minimal information::
+
+    GET /module-build-service/1/module-builds/?verbose=false
 
 ::
 
@@ -240,9 +381,9 @@ parameters::
         }
       ],
       "meta": {
-        "first": "https://127.0.0.1:5000/module-build-service/1/module-builds/?per_page=10&page=1",
-        "last": "https://127.0.0.1:5000/module-build-service/1/module-builds/?per_page=10&page=3",
-        "next": "https://127.0.0.1:5000/module-build-service/1/module-builds/?per_page=10&page=2",
+        "first": "https://127.0.0.1:5000/module-build-service/1/module-builds/?per_page=10&page=1&verbose=false",
+        "last": "https://127.0.0.1:5000/module-build-service/1/module-builds/?per_page=10&page=3&verbose=false",
+        "next": "https://127.0.0.1:5000/module-build-service/1/module-builds/?per_page=10&page=2&verbose=false",
         "page": 1,
         "pages": 3,
         "per_page": 10,
@@ -251,106 +392,12 @@ parameters::
     }
 
 
-An example of querying the "module-builds" resource with the "verbose",
-"per_page", and the "page" parameters::
-
-    GET /module-build-service/1/module-builds/?verbose=true&per_page=3&page=1
-
-::
-
-    HTTP 200 OK
-
-::
-
-    {
-      "items": [
-        {
-          "id": 1,
-          "name": "testmodule",
-          "owner": "mprahl",
-          "state": 3,
-          "tasks": {
-            "rpms": {
-              "bash": {
-                "task_id": 90109464,
-                "state": 1,
-                ...
-              },
-              "module-build-macros": {
-                "task_id": 90109446,
-                "state": 1,
-                ...
-              }
-            }
-          },
-          "time_completed": "2016-08-22T09:44:11Z",
-          "time_modified": "2016-08-22T09:44:11Z",
-          "time_submitted": "2016-08-22T09:40:07Z"
-        },
-        {
-          "id": 2,
-          "name": "testmodule",
-          "owner": "ralph",
-          "state": 3,
-          "tasks": {
-            "rpms": {
-              "bash": {
-                "task_id": 90109465,
-                "state": 1,
-                ...
-              },
-              "module-build-macros": {
-                "task_id": 90109450,
-                "state": 1,
-                ...
-              }
-            }
-          },
-          "time_completed": "2016-08-22T09:54:04Z",
-          "time_modified": "2016-08-22T09:54:04Z",
-          "time_submitted": "2016-08-22T09:48:11Z"
-        },
-        {
-          "id": 3,
-          "name": "testmodule",
-          "owner": "mprahl",
-          "state": 3,
-          "tasks": {
-            "rpms": {
-              "bash": {
-                "task_id": 90109497,
-                "state": 1,
-                ...
-              },
-              "module-build-macros": {
-                "task_id": 90109480,
-                "state": 1,
-                ...
-              }
-            }
-          },
-          "time_completed": "2016-08-22T10:05:08Z",
-          "time_modified": "2016-08-22T10:05:08Z",
-          "time_submitted": "2016-08-22T09:58:04Z"
-        }
-      ],
-      "meta": {
-        "first": "https://127.0.0.1:5000/module-build-service/1/module-builds/?per_page=3&page=1",
-        "last": "https://127.0.0.1:5000/module-build-service/1/module-builds/?per_page=3&page=10",
-        "next": "https://127.0.0.1:5000/module-build-service/1/module-builds/?per_page=3&page=2",
-        "page": 1,
-        "pages": 10,
-        "per_page": 3,
-        "total": 30
-      }
-    }
-
 
 Filtering module builds
 -----------------------
 
 The module-builds can be filtered by a variety of GET parameters. These
-paramters are:
+parameters are:
 
 - ``name`` - Shows builds of modules with a particular name (e.g.
   ``name=testmodule``)
@@ -388,15 +435,18 @@ and the "submitted_before" parameters::
       "items": [
         {
           "id": 1,
-          "state": 3
+          "state": 3,
+          ...
         },
         {
           "id": 2,
-          "state": 3
+          "state": 3,
+          ...
         },
         {
           "id": 3,
-          "state": 3
+          "state": 3,
+          ...
         }
       ],
       "meta": {
@@ -427,29 +477,40 @@ about the referenced component build.
 ::
 
     {
-        "format": "rpms", 
-        "id": 1, 
-        "module_build": 1, 
-        "package": "nginx", 
-        "state": 1, 
-        "state_name": "COMPLETE", 
-        "state_reason": null, 
-        "task_id": 12312345
+      "format": "rpms",
+      "id": 854,
+      "module_build": 42,
+      "package": "pth",
+      "state": 1,
+      "state_name": "COMPLETE",
+      "state_reason": "",
+      "state_trace": [
+        {
+          "reason": "Submitted pth to Koji",
+          "state": 0,
+          "state_name": "init",
+          "time": "2017-03-14T00:07:43Z"
+        },
+        ...
+      ],
+      "task_id": 18367215
     }
 
-"id" is the ID of the component build. "state_name" refers to the MBS component
-build state and might be one of "COMPLETE", "FAILED", "CANCELED". "task_id"
-is a related task ID in the backend buildsystem, their state and a reason
-for their state. "module_build" refers to the module build ID for which this
-component was built. "format" is typically "rpms", since we're building it
-and "package" is simply the package name.
 
-By adding ``?verbose=1`` to the request, additional detailed information
-about the component can be obtained.
+The response includes:
 
-::
+- ``id`` - the ID of the component build.
+- ``format`` - typically "rpms".
+- ``package`` - the package name.
+- ``state`` - the numerical state of the component build.
+- ``state_name`` - the named component build state and can be "COMPLETE",
+  "FAILED", or "CANCELED".
+- ``state_reason`` - the reason why the component build is in this state. This is useful
+  when the build fails.
+- ``state_trace`` - a list of events the component build went through. This is useful for
+  debugging.
+- ``task_id`` - the related task ID in the backend buildsystem.
 
-    GET /module-build-service/1/component-builds/1?verbose=1
 
 Listing component builds
 ------------------------
@@ -468,28 +529,46 @@ parameters::
     {
       "items": [
         {
+          "format": "rpms",
           "id": 854,
-          "state": 1
+          "module_build": 42,
+          "package": "pth",
+          "state": 1,
+          "state_name": "COMPLETE",
+          "state_reason": "",
+          "state_trace": [
+            {
+              "reason": "Submitted pth to Koji",
+              "state": 0,
+              "state_name": "init",
+              "time": "2017-03-14T00:07:43Z"
+            },
+            {
+              "reason": "",
+              "state": 1,
+              "state_name": "wait",
+              "time": "2017-03-14T00:13:30Z"
+            },
+            {
+              "reason": "",
+              "state": 1,
+              "state_name": "wait",
+              "time": "2017-03-14T14:41:21Z"
+            }
+          ],
+          "task_id": 18367215
         },
-        {
-          "id": 107,
-          "state": 1
-        },
-        {
-          "id": 104,
-          "state": 1
-        },
-        ....
+        ...
       ],
       "meta": {
-        "first": "https://127.0.0.1:5000/module-build-service/1/component-builds/?per_page=10&page=1",
-        "last": "https://127.0.0.1:5000/module-build-service/1/component-builds/?per_page=10&page=4237",
-        "next": "https://127.0.0.1:5000/module-build-service/1/component-builds/?per_page=10&page=2",
+        "first": "http://mbs.fedoraproject.org/module-build-service/1/component-builds/?per_page=10&page=1",
+        "last": "http://mbs.fedoraproject.org/module-build-service/1/component-builds/?per_page=10&page=5604",
+        "next": "http://mbs.fedoraproject.org/module-build-service/1/component-builds/?per_page=10&page=2",
         "page": 1,
-        "pages": 4237,
+        "pages": 5604,
         "per_page": 10,
         "prev": null,
-        "total": 42366
+        "total": 56033
       }
     }
 

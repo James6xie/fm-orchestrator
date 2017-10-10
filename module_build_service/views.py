@@ -85,7 +85,7 @@ class AbstractQueryableBuildAPI(MethodView):
 
 
     def get(self, id):
-        verbose_flag = request.args.get('verbose', 'false')
+        verbose_flag = request.args.get('verbose', 'true')
 
         if id is None:
             # Lists all tracked builds
@@ -186,7 +186,7 @@ class ModuleBuildAPI(AbstractQueryableBuildAPI):
         db.session.add(module)
         db.session.commit()
 
-        return jsonify(module.json()), 200
+        return jsonify(module.extended_json()), 200
 
 
 class AboutAPI(MethodView):

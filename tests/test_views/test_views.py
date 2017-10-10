@@ -226,12 +226,6 @@ class TestViews(unittest.TestCase):
 
     def test_query_builds(self):
         rv = self.client.get('/module-build-service/1/module-builds/?per_page=2')
-        items = json.loads(rv.data)['items']
-        self.assertEquals(items,
-                          [{u'state': 3, u'id': 1}, {u'state': 3, u'id': 2}])
-
-    def test_query_builds_verbose(self):
-        rv = self.client.get('/module-build-service/1/module-builds/?per_page=2&verbose=True')
         item = json.loads(rv.data)['items'][0]
         self.assertEquals(item['id'], 1)
         self.assertEquals(item['name'], 'nginx')
@@ -257,20 +251,13 @@ class TestViews(unittest.TestCase):
         self.assertEquals(item['time_modified'], '2016-09-03T11:25:32Z')
         self.assertEquals(item['time_submitted'], '2016-09-03T11:23:20Z')
 
-    def test_query_component_build(self):
-        rv = self.client.get('/module-build-service/1/component-builds/1')
-        data = json.loads(rv.data)
-        self.assertEquals(data['id'], 1)
-        self.assertEquals(data['format'], 'rpms')
-        self.assertEquals(data['module_build'], 1)
-        self.assertEquals(data['package'], 'nginx')
-        self.assertEquals(data['state'], 1)
-        self.assertEquals(data['state_name'], 'COMPLETE')
-        self.assertEquals(data['state_reason'], None)
-        self.assertEquals(data['task_id'], 12312345)
+    def test_query_builds_not_verbose(self):
+        rv = self.client.get('/module-build-service/1/module-builds/?per_page=2&verbose=false')
+        items = json.loads(rv.data)['items']
+        self.assertEquals(items, [{u'state': 3, u'id': 1}, {u'state': 3, u'id': 2}])
 
-    def test_query_component_build_verbose(self):
-        rv = self.client.get('/module-build-service/1/component-builds/3?verbose=1')
+    def test_query_component_build(self):
+        rv = self.client.get('/module-build-service/1/component-builds/3')
         data = json.loads(rv.data)
         self.assertEquals(data['id'], 3)
         self.assertEquals(data['format'], 'rpms')
@@ -284,6 +271,18 @@ class TestViews(unittest.TestCase):
         self.assertTrue(data['state_trace'][0]['time'] is not None)
         self.assertEquals(data['state_trace'][0]['state'], 1)
         self.assertEquals(data['state_trace'][0]['state_name'], 'wait')
+
+    def test_query_component_build_not_verbose(self):
+        rv = self.client.get('/module-build-service/1/component-builds/1?verbose=false')
+        data = json.loads(rv.data)
+        self.assertEquals(data['id'], 1)
+        self.assertEquals(data['format'], 'rpms')
+        self.assertEquals(data['module_build'], 1)
+        self.assertEquals(data['package'], 'nginx')
+        self.assertEquals(data['state'], 1)
+        self.assertEquals(data['state_name'], 'COMPLETE')
+        self.assertEquals(data['state_reason'], None)
+        self.assertEquals(data['task_id'], 12312345)
 
     component_builds_filters = ['tagged', 'ref', 'format']
 
@@ -389,12 +388,15 @@ class TestViews(unittest.TestCase):
         self.assertEquals(data['status'], 400)
 
     def test_query_builds_order_by(self):
+        build = db.session.query(module_build_service.models.ModuleBuild).filter_by(id=2).one()
+        build.name = 'candy'
+        db.session.add(build)
+        db.session.commit()
         rv = self.client.get('/module-build-service/1/module-builds/?'
-                             'per_page=10&order_by=id')
+                             'per_page=10&order_by=name')
         items = json.loads(rv.data)['items']
-        # Check that the id is 1, 2, 3, ..., 10
-        for idx, item in enumerate(items):
-            self.assertEquals(item["id"], idx + 1)
+        self.assertEqual(items[0]['name'], 'candy')
+        self.assertEqual(items[1]['name'], 'nginx')
 
     def test_query_builds_order_desc_by(self):
         rv = self.client.get('/module-build-service/1/module-builds/?'
