@@ -239,6 +239,7 @@ class ModuleBuild(MBSBase):
             scmurl=scmurl,
             owner=username,
             time_submitted=now,
+            time_modified=now,
             copr_owner=copr_owner,
             copr_project=copr_project
         )
