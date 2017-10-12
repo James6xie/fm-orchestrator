@@ -128,10 +128,6 @@ def init(config, session, msg):
     """ Called whenever a module enters the 'init' state."""
     build = models.ModuleBuild.from_module_event(session, msg)
 
-    build.transition(config, "init", state_reason="Checking out the module components")
-    session.add(build)
-    session.commit()
-
     try:
         mmd = build.mmd()
         record_component_builds(mmd, build, session=session)
