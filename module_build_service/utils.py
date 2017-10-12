@@ -910,7 +910,7 @@ def submit_module_build_from_scm(username, url, branch, allow_local_url=False,
 def submit_module_build(username, url, mmd, scm, yaml, optional_params=None):
     # Import it here, because SCM uses utils methods
     # and fails to import them because of dep-chain.
-
+    validate_mmd(mmd)
     module = models.ModuleBuild.query.filter_by(
         name=mmd.name, stream=mmd.stream, version=str(mmd.version)).first()
     if module:
@@ -945,8 +945,6 @@ def submit_module_build(username, url, mmd, scm, yaml, optional_params=None):
             **(optional_params or {})
         )
 
-    validate_mmd(mmd)
-    module.modulemd = mmd.dumps()
     db.session.add(module)
     db.session.commit()
     log.info("%s submitted build of %s, stream=%s, version=%s", username,
