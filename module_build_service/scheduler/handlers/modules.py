@@ -41,6 +41,7 @@ import koji
 
 import logging
 import os
+import time
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -126,6 +127,9 @@ def done(config, session, msg):
 
 def init(config, session, msg):
     """ Called whenever a module enters the 'init' state."""
+    # Sleep for a few seconds to make sure the module in the database is committed
+    # TODO: Remove this once messaging is implemented in SQLAlchemy hooks
+    time.sleep(3)
     build = models.ModuleBuild.from_module_event(session, msg)
 
     try:
