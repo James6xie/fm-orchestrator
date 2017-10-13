@@ -29,6 +29,7 @@
 # TODO: Ensure the RPM %dist tag is set according to the policy.
 
 import six
+import dogpile.cache
 from abc import ABCMeta, abstractmethod
 from requests.exceptions import ConnectionError
 
@@ -36,6 +37,7 @@ from module_build_service import conf, log, db
 from module_build_service import pdc, models
 import module_build_service.scm
 import module_build_service.utils
+from module_build_service.utils import create_dogpile_key_generator_func
 
 
 """
@@ -60,7 +62,6 @@ Koji workflow
 8) (optional) wait for selected builds to be available in buildroot
 
 """
-
 
 class GenericBuilder(six.with_metaclass(ABCMeta)):
     """
@@ -91,6 +92,14 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
 
     backend = "generic"
     backends = {}
+
+    # Create region to cache the default_buildroot_groups results.
+    # We are skipping the caching based on the first two arguments of
+    # default_buildroot_groups, because they are "self" and db.session
+    # instance which are different each call we call that method.
+    default_buildroot_groups_cache = dogpile.cache.make_region(
+        function_key_generator=create_dogpile_key_generator_func(2)).configure(
+            'dogpile.cache.memory')
 
     @classmethod
     def register_backend_class(cls, backend_class):
@@ -275,7 +284,16 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
         raise NotImplementedError()
 
     @classmethod
+    def clear_cache(cls, module_build):
+        """
+        Clears the per module build default_buildroot_groups cache.
+        """
+        cls.default_buildroot_groups_cache.delete(
+            "default_buildroot_groups_" + str(module_build.id))
+
+    @classmethod
     @module_build_service.utils.retry(wait_on=(ConnectionError))
+    @default_buildroot_groups_cache.cache_on_arguments()
     def default_buildroot_groups(cls, session, module):
         local_modules = models.ModuleBuild.local_modules(db.session)
         local_modules = {m.name + "-" + m.stream: m for m in local_modules}
