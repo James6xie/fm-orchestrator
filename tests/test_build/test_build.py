@@ -215,8 +215,8 @@ class TestModuleBuilder(GenericBuilder):
         pass
 
 
-@patch("module_build_service.config.Config.system",
-       new_callable=PropertyMock, return_value="test")
+@patch.object(module_build_service.config.Config, 'system', new_callable=PropertyMock,
+              return_value='test')
 @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
        return_value={
            'srpm-build':
@@ -292,7 +292,7 @@ class TestBuild(unittest.TestCase):
         # Check that the components are added to buildroot after the batch
         # is built.
         buildroot_groups = []
-        buildroot_groups.append(set([u'module-build-macros-0.1-1.module+fc4ed5f7.src.rpm-1-1']))
+        buildroot_groups.append(set([u'module-build-macros-0.1-1.module+24957a32.src.rpm-1-1']))
         buildroot_groups.append(set([u'perl-Tangerine?#f24-1-1', u'perl-List-Compare?#f25-1-1']))
         buildroot_groups.append(set([u'tangerine?#f23-1-1']))
 
@@ -318,30 +318,44 @@ class TestBuild(unittest.TestCase):
     @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build_from_yaml(self, mocked_scm, mocked_get_user, conf_system, dbg):
+    def test_submit_build_from_yaml_not_allowed(
+            self, mocked_scm, mocked_get_user, conf_system, dbg):
         MockedSCM(mocked_scm, "testmodule", "testmodule.yaml")
 
         testmodule = os.path.join(base_dir, 'staged_data', 'testmodule.yaml')
         with open(testmodule) as f:
             yaml = f.read()
 
-        def submit():
+        with patch.object(module_build_service.config.Config, 'yaml_submit_allowed',
+                          new_callable=PropertyMock, return_value=False):
             rv = self.client.post('/module-build-service/1/module-builds/',
                                   content_type='multipart/form-data',
                                   data={'yaml': (testmodule, yaml)})
-            return json.loads(rv.data)
-
-        with patch("module_build_service.config.Config.yaml_submit_allowed",
-                   new_callable=PropertyMock, return_value=True):
-            conf.set_item("yaml_submit_allowed", True)
-            data = submit()
-            self.assertEqual(data['id'], 1)
-
-        with patch("module_build_service.config.Config.yaml_submit_allowed",
-                   new_callable=PropertyMock, return_value=False):
-            data = submit()
+            data = json.loads(rv.data)
             self.assertEqual(data['status'], 403)
             self.assertEqual(data['message'], 'YAML submission is not enabled')
+
+    @timed(30)
+    @patch('module_build_service.auth.get_user', return_value=user)
+    @patch('module_build_service.scm.SCM')
+    def test_submit_build_from_yaml_allowed(self, mocked_scm, mocked_get_user, conf_system, dbg):
+        MockedSCM(mocked_scm, "testmodule", "testmodule.yaml")
+
+        testmodule = os.path.join(base_dir, 'staged_data', 'testmodule.yaml')
+        with open(testmodule) as f:
+            yaml = f.read()
+
+        with patch.object(module_build_service.config.Config, 'yaml_submit_allowed',
+                          new_callable=PropertyMock, return_value=True):
+            rv = self.client.post('/module-build-service/1/module-builds/',
+                                  content_type='multipart/form-data',
+                                  data={'yaml': (testmodule, yaml)})
+            data = json.loads(rv.data)
+            self.assertEqual(data['id'], 1)
+
+        msgs = []
+        stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
+        module_build_service.scheduler.main(msgs, stop)
 
     @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
@@ -874,4 +888,3 @@ class TestLocalBuild(unittest.TestCase):
                 self.assertEqual(build.state, koji.BUILD_STATES['COMPLETE'])
                 self.assertTrue(build.module_build.state in [
                     models.BUILD_STATES["done"], models.BUILD_STATES["ready"]])
-

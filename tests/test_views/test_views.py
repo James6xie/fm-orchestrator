@@ -440,7 +440,7 @@ class TestViews(unittest.TestCase):
         data = json.loads(rv.data)
 
         assert 'component_builds' in data, data
-        self.assertEquals(data['component_builds'], [61, 62, 63])
+        self.assertEquals(data['component_builds'], [])
         self.assertEquals(data['name'], 'testmodule')
         self.assertEquals(data['scmurl'],
                           ('git://pkgs.stg.fedoraproject.org/modules/testmodule'
@@ -452,34 +452,10 @@ class TestViews(unittest.TestCase):
         self.assertEquals(data['stream'], 'master')
         self.assertEquals(data['owner'], 'Homer J. Simpson')
         self.assertEquals(data['id'], 31)
-        self.assertEquals(data['state_name'], 'wait')
+        self.assertEquals(data['state_name'], 'init')
         self.assertEquals(data['state_url'], '/module-build-service/1/module-builds/31')
-        self.assertEquals(data['state_trace'][0]['reason'], None)
-        self.assertTrue(data['state_trace'][0]['time'] is not None)
-        self.assertEquals(data['state_trace'][0]['state'], 1)
-        self.assertEquals(data['state_trace'][0]['state_name'], 'wait')
-        self.assertDictEqual(data['tasks'], {
-            'rpms': {
-                'perl-List-Compare': {
-                    'task_id': None,
-                    'state': None,
-                    'state_reason': None,
-                    'nvr': None,
-                },
-                'perl-Tangerine': {
-                    'task_id': None,
-                    'state': None,
-                    'state_reason': None,
-                    'nvr': None,
-                },
-                'tangerine': {
-                    'task_id': None,
-                    'state': None,
-                    'state_reason': None,
-                    'nvr': None,
-                },
-            },
-        })
+        self.assertEquals(data['state_trace'], [])
+        self.assertDictEqual(data['tasks'], {})
         mmd = _modulemd.ModuleMetadata()
         mmd.loads(data["modulemd"])
 
@@ -506,7 +482,7 @@ class TestViews(unittest.TestCase):
         self.assertEquals(data['stream'], 'master')
         self.assertEquals(data['owner'], 'Homer J. Simpson')
         self.assertEquals(data['id'], 31)
-        self.assertEquals(data['state_name'], 'wait')
+        self.assertEquals(data['state_name'], 'init')
 
     def test_submit_build_auth_error(self):
         base_dir = path.abspath(path.dirname(__file__))
@@ -557,112 +533,6 @@ class TestViews(unittest.TestCase):
         self.assertTrue(data['message'].startswith('Invalid modulemd:'))
         self.assertEquals(data['status'], 422)
         self.assertEquals(data['error'], 'Unprocessable Entity')
-
-    @patch('module_build_service.auth.get_user', return_value=user)
-    @patch('module_build_service.scm.SCM')
-    def test_submit_build_scm_parallalization(self, mocked_scm,
-                                              mocked_get_user):
-        def mocked_scm_get_latest(branch="master"):
-            time.sleep(1)
-            return branch
-
-        MockedSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
-                  '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
-        mocked_scm.return_value.is_available = mocked_scm_get_latest
-
-        start = time.time()
-        rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
-            {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
-                'testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49'}))
-        data = json.loads(rv.data)
-
-        self.assertEquals(len(data['component_builds']), 3)
-        self.assertEquals(data['name'], 'testmodule')
-        self.assertEquals(data['scmurl'],
-                          ('git://pkgs.stg.fedoraproject.org/modules/testmodule'
-                          '.git?#68931c90de214d9d13feefbd35246a81b6cb8d49'))
-        self.assertTrue(data['time_submitted'] is not None)
-        self.assertTrue(data['time_modified'] is not None)
-        self.assertEquals(data['time_completed'], None)
-        self.assertEquals(data['owner'], 'Homer J. Simpson')
-        self.assertEquals(data['id'], 31)
-        self.assertEquals(data['state_name'], 'wait')
-
-        # SCM availability check is parallelized, so 5 components should not
-        # take longer than 3 second, because each takes 1 second, but they
-        # are execute in 10 threads. They should take around 1 or 2 seconds
-        # max to complete.
-        self.assertTrue(time.time() - start < 3)
-
-    @patch('module_build_service.auth.get_user', return_value=user)
-    @patch('module_build_service.scm.SCM')
-    def test_submit_build_scm_non_available(self, mocked_scm, mocked_get_user):
-
-        def mocked_scm_get_latest():
-            raise RuntimeError("Failed in mocked_scm_get_latest")
-
-        MockedSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
-                  '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
-        mocked_scm.return_value.get_latest = mocked_scm_get_latest
-
-        rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
-            {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
-                'testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49'}))
-        data = json.loads(rv.data)
-
-        self.assertEquals(data['status'], 422)
-        self.assertEquals(data['message'][:31], "Failed to get the latest commit")
-        self.assertEquals(data['error'], "Unprocessable Entity")
-
-    @patch('module_build_service.auth.get_user', return_value=user)
-    @patch('module_build_service.scm.SCM')
-    @patch("module_build_service.config.Config.modules_allow_repository",
-           new_callable=PropertyMock, return_value=True)
-    def test_submit_build_includedmodule(self, conf, mocked_scm, mocked_get_user):
-        MockedSCM(mocked_scm, "includedmodules", ["includedmodules.yaml",
-                                                  "testmodule.yaml"])
-
-        rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
-            {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
-                'testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49'}))
-        data = json.loads(rv.data)
-
-        assert 'component_builds' in data, data
-        self.assertEquals(data['component_builds'], [61, 62, 63, 64, 65])
-        self.assertEquals(data['name'], 'includedmodules')
-        self.assertEquals(data['scmurl'],
-                          ('git://pkgs.stg.fedoraproject.org/modules/testmodule'
-                          '.git?#68931c90de214d9d13feefbd35246a81b6cb8d49'))
-        self.assertEquals(data['version'], '1')
-        self.assertTrue(data['time_submitted'] is not None)
-        self.assertTrue(data['time_modified'] is not None)
-        self.assertEquals(data['time_completed'], None)
-        self.assertEquals(data['stream'], 'master')
-        self.assertEquals(data['owner'], 'Homer J. Simpson')
-        self.assertEquals(data['id'], 31)
-        self.assertEquals(data['state_name'], 'wait')
-        self.assertEquals(data['state_url'], '/module-build-service/1/module-builds/31')
-
-        batches = {}
-        for build in ComponentBuild.query.filter_by(module_id=31).all():
-            batches[build.package] = build.batch
-
-        self.assertEquals(batches['ed'], 2)
-        self.assertEquals(batches['perl-List-Compare'], 2)
-        self.assertEquals(batches['perl-Tangerine'], 2)
-        self.assertEquals(batches['tangerine'], 3)
-        self.assertEquals(batches["file"], 4)
-
-        build = ModuleBuild.query.filter(ModuleBuild.id == data['id']).one()
-        mmd = build.mmd()
-
-        # Test that RPMs are properly merged in case of included modules in mmd.
-        xmd_rpms = {'ed': {'ref': '40bd001563'},
-                    'perl-List-Compare': {'ref': '2ee8474e44'},
-                    'tangerine': {'ref': 'd29d5c24b8'},
-                    'file': {'ref': 'a2740663f8'},
-                    'perl-Tangerine': {'ref': '27785f9f05'}}
-        self.assertEqual(mmd.xmd['mbs']['rpms'], xmd_rpms)
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
@@ -879,36 +749,6 @@ class TestViews(unittest.TestCase):
                       data['message'])
         self.assertEquals(data['status'], 422)
         self.assertEquals(data['error'], 'Unprocessable Entity')
-
-    @patch('module_build_service.auth.get_user', return_value=user)
-    @patch('module_build_service.scm.SCM')
-    @patch('module_build_service.models.ModuleBuild.from_module_event')
-    def test_submit_build_get_latest_raises(
-            self, from_module_event, mocked_scm, mocked_get_user):
-        MockedSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
-                  '7035bd33614972ac66559ac1fdd019ff6027ad22', get_latest_raise=True)
-
-        with app.app_context():
-            rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
-                {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
-                    'testmodule.git?#7035bd33614972ac66559ac1fdd019ff6027ad22'}))
-            data = json.loads(rv.data)
-            self.assertEquals(data['status'], 422)
-            self.assertEquals(data['error'], 'Unprocessable Entity')
-
-            # Get the last module and check it has the state_reason set.
-            build = ModuleBuild.query.order_by(ModuleBuild.id).all()[-1]
-            db.session.add(build)
-            from_module_event.return_value = build
-            self.assertIn("Failed to validate modulemd file", build.state_reason)
-
-            # Check that after the failed message is handled, the state_reason
-            # remains the same.
-            module_build_service.scheduler.handlers.modules.failed(
-                conf, db.session, MagicMock())
-            db.session.expunge(build)
-            build = ModuleBuild.query.order_by(ModuleBuild.id).all()[-1]
-            self.assertIn("Failed to validate modulemd file", build.state_reason)
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
