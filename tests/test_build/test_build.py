@@ -51,7 +51,7 @@ cassette_dir = base_dir + '/vcr-request-data/'
 user = ('Homer J. Simpson', set(['packager']))
 
 
-class MockedSCM(object):
+class FakeSCM(object):
     def __init__(self, mocked_scm, name, mmd_filename, commit=None):
         self.mocked_scm = mocked_scm
         self.name = name
@@ -269,7 +269,7 @@ class TestBuild(unittest.TestCase):
         Tests the build of testmodule.yaml using FakeModuleBuilder which
         succeeds everytime.
         """
-        MockedSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
+        FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
                   '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
@@ -320,7 +320,7 @@ class TestBuild(unittest.TestCase):
     @patch('module_build_service.scm.SCM')
     def test_submit_build_from_yaml_not_allowed(
             self, mocked_scm, mocked_get_user, conf_system, dbg):
-        MockedSCM(mocked_scm, "testmodule", "testmodule.yaml")
+        FakeSCM(mocked_scm, "testmodule", "testmodule.yaml")
 
         testmodule = os.path.join(base_dir, 'staged_data', 'testmodule.yaml')
         with open(testmodule) as f:
@@ -339,7 +339,7 @@ class TestBuild(unittest.TestCase):
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     def test_submit_build_from_yaml_allowed(self, mocked_scm, mocked_get_user, conf_system, dbg):
-        MockedSCM(mocked_scm, "testmodule", "testmodule.yaml")
+        FakeSCM(mocked_scm, "testmodule", "testmodule.yaml")
 
         testmodule = os.path.join(base_dir, 'staged_data', 'testmodule.yaml')
         with open(testmodule) as f:
@@ -382,7 +382,7 @@ class TestBuild(unittest.TestCase):
         """
         Submit all builds for a module and cancel the module build later.
         """
-        MockedSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
+        FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
                   '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
@@ -435,7 +435,7 @@ class TestBuild(unittest.TestCase):
         Tests the build of testmodule.yaml using FakeModuleBuilder which
         succeeds everytime.
         """
-        MockedSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
+        FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
                   '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
@@ -470,7 +470,7 @@ class TestBuild(unittest.TestCase):
         Tests the build of testmodule.yaml using FakeModuleBuilder with
         num_concurrent_builds set to 1.
         """
-        MockedSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
+        FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
                   '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
@@ -515,7 +515,7 @@ class TestBuild(unittest.TestCase):
         the previous one finished without waiting for all
         the num_concurrent_builds to finish.
         """
-        MockedSCM(mocked_scm, 'testmodule-more-components', 'testmodule-more-components.yaml',
+        FakeSCM(mocked_scm, 'testmodule-more-components', 'testmodule-more-components.yaml',
                   '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
@@ -568,7 +568,7 @@ class TestBuild(unittest.TestCase):
         Tests that if the build in batch fails, other components in a batch
         are still build, but next batch is not started.
         """
-        MockedSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
+        FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
                   '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
@@ -628,7 +628,7 @@ class TestBuild(unittest.TestCase):
         Tests that if the build in batch fails, other components in a batch
         are still build, but next batch is not started.
         """
-        MockedSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
+        FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
                   '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
@@ -778,7 +778,7 @@ class TestBuild(unittest.TestCase):
         Tests that resuming the build works even when previous batches
         are already built.
         """
-        MockedSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
+        FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
                   '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
@@ -856,7 +856,7 @@ class TestLocalBuild(unittest.TestCase):
         """
         with app.app_context():
             module_build_service.utils.load_local_builds(["base-runtime"])
-            MockedSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
+            FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
                     '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
             rv = self.client.post(

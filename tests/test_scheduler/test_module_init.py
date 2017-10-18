@@ -26,7 +26,7 @@ from mock import patch, PropertyMock
 import vcr
 
 from tests import conf, db
-from tests.test_views.test_views import MockedSCM
+from tests.test_views.test_views import FakeSCM
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.modules
 from module_build_service import build_logs
@@ -68,7 +68,7 @@ class TestModuleInit(unittest.TestCase):
 
     @patch('module_build_service.scm.SCM')
     def test_init_basic(self, mocked_scm):
-        MockedSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
+        FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
                   '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
         msg = module_build_service.messaging.MBSModule(
             msg_id=None, module_build_id=1, module_build_state='init')
@@ -85,7 +85,7 @@ class TestModuleInit(unittest.TestCase):
         def mocked_scm_get_latest():
             raise RuntimeError("Failed in mocked_scm_get_latest")
 
-        MockedSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
+        FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
                   '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
         mocked_scm.return_value.get_latest = mocked_scm_get_latest
         msg = module_build_service.messaging.MBSModule(
@@ -101,7 +101,7 @@ class TestModuleInit(unittest.TestCase):
            new_callable=PropertyMock, return_value=True)
     @patch('module_build_service.scm.SCM')
     def test_init_includedmodule(self, mocked_scm, mocked_mod_allow_repo):
-        MockedSCM(mocked_scm, "includedmodules", ['testmodule.yaml'])
+        FakeSCM(mocked_scm, "includedmodules", ['testmodule.yaml'])
         includedmodules_yml_path = os.path.join(
             self.staged_data_dir, 'includedmodules.yaml')
         with open(includedmodules_yml_path, 'r') as f:
@@ -137,7 +137,7 @@ class TestModuleInit(unittest.TestCase):
     @patch('module_build_service.models.ModuleBuild.from_module_event')
     @patch('module_build_service.scm.SCM')
     def test_init_when_get_latest_raises(self, mocked_scm, mocked_from_module_event):
-        MockedSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
+        FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
                   '7035bd33614972ac66559ac1fdd019ff6027ad22',
                   get_latest_raise=True)
         msg = module_build_service.messaging.MBSModule(

@@ -41,7 +41,7 @@ CASSETTES_DIR = path.join(
     path.abspath(path.dirname(__file__)), '..', 'vcr-request-data')
 
 
-class MockedSCM(object):
+class FakeSCM(object):
     def __init__(self, mocked_scm, name, mmd_filename, commit=None):
         self.mocked_scm = mocked_scm
         self.name = name
@@ -578,7 +578,7 @@ class TestUtils(unittest.TestCase):
         Tests that the module resubmit reintializes the module state and
         component states properly.
         """
-        MockedSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
+        FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
                   '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
         with app.app_context():
             test_reuse_component_init_data()
