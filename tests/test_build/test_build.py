@@ -84,9 +84,9 @@ class MockedSCM(object):
         return path.join(self.sourcedir, self.name + ".yaml")
 
 
-class TestModuleBuilder(GenericBuilder):
+class FakeModuleBuilder(GenericBuilder):
     """
-    Test module builder which succeeds for every build.
+    Fake module builder which succeeds for every build.
     """
 
     backend = "test"
@@ -110,16 +110,16 @@ class TestModuleBuilder(GenericBuilder):
 
     @classmethod
     def reset(cls):
-        TestModuleBuilder.BUILD_STATE = "COMPLETE"
-        TestModuleBuilder.INSTANT_COMPLETE = False
-        TestModuleBuilder.on_build_cb = None
-        TestModuleBuilder.on_cancel_cb = None
-        TestModuleBuilder.on_buildroot_add_artifacts_cb = None
-        TestModuleBuilder.on_tag_artifacts_cb = None
-        TestModuleBuilder.DEFAULT_GROUPS = None
+        FakeModuleBuilder.BUILD_STATE = "COMPLETE"
+        FakeModuleBuilder.INSTANT_COMPLETE = False
+        FakeModuleBuilder.on_build_cb = None
+        FakeModuleBuilder.on_cancel_cb = None
+        FakeModuleBuilder.on_buildroot_add_artifacts_cb = None
+        FakeModuleBuilder.on_tag_artifacts_cb = None
+        FakeModuleBuilder.DEFAULT_GROUPS = None
 
     def buildroot_connect(self, groups):
-        default_groups = TestModuleBuilder.DEFAULT_GROUPS or {
+        default_groups = FakeModuleBuilder.DEFAULT_GROUPS or {
             'srpm-build':
                 set(['shadow-utils', 'fedora-release', 'redhat-rpm-config',
                      'rpm-build', 'fedpkg-minimal', 'gnupg2', 'bash']),
@@ -130,7 +130,7 @@ class TestModuleBuilder(GenericBuilder):
                      'diffutils', 'make', 'patch', 'shadow-utils',
                      'coreutils', 'which', 'rpm-build', 'gzip', 'gcc-c++'])}
         if groups != default_groups:
-            raise ValueError("Wrong groups in TestModuleBuilder.buildroot_connect()")
+            raise ValueError("Wrong groups in FakeModuleBuilder.buildroot_connect()")
 
     def buildroot_prep(self):
         pass
@@ -145,16 +145,16 @@ class TestModuleBuilder(GenericBuilder):
         pass
 
     def buildroot_add_artifacts(self, artifacts, install=False):
-        if TestModuleBuilder.on_buildroot_add_artifacts_cb:
-            TestModuleBuilder.on_buildroot_add_artifacts_cb(self, artifacts, install)
+        if FakeModuleBuilder.on_buildroot_add_artifacts_cb:
+            FakeModuleBuilder.on_buildroot_add_artifacts_cb(self, artifacts, install)
         self._send_repo_done()
 
     def buildroot_add_repos(self, dependencies):
         pass
 
     def tag_artifacts(self, artifacts):
-        if TestModuleBuilder.on_tag_artifacts_cb:
-            TestModuleBuilder.on_tag_artifacts_cb(self, artifacts)
+        if FakeModuleBuilder.on_tag_artifacts_cb:
+            FakeModuleBuilder.on_tag_artifacts_cb(self, artifacts)
 
     @property
     def module_build_tag(self):
@@ -184,23 +184,23 @@ class TestModuleBuilder(GenericBuilder):
     def build(self, artifact_name, source):
         print("Starting building artifact %s: %s" % (artifact_name, source))
 
-        TestModuleBuilder._build_id += 1
+        FakeModuleBuilder._build_id += 1
 
-        if TestModuleBuilder.on_build_cb:
-            TestModuleBuilder.on_build_cb(self, artifact_name, source)
+        if FakeModuleBuilder.on_build_cb:
+            FakeModuleBuilder.on_build_cb(self, artifact_name, source)
 
-        if TestModuleBuilder.BUILD_STATE != "BUILDING":
+        if FakeModuleBuilder.BUILD_STATE != "BUILDING":
             self._send_build_change(
-                koji.BUILD_STATES[TestModuleBuilder.BUILD_STATE], source,
-                TestModuleBuilder._build_id)
+                koji.BUILD_STATES[FakeModuleBuilder.BUILD_STATE], source,
+                FakeModuleBuilder._build_id)
 
-        if TestModuleBuilder.INSTANT_COMPLETE:
+        if FakeModuleBuilder.INSTANT_COMPLETE:
             state = koji.BUILD_STATES['COMPLETE']
         else:
             state = koji.BUILD_STATES['BUILDING']
 
         reason = "Submitted %s to Koji" % (artifact_name)
-        return TestModuleBuilder._build_id, state, reason, None
+        return FakeModuleBuilder._build_id, state, reason, None
 
     @staticmethod
     def get_disttag_srpm(disttag, module_build):
@@ -208,8 +208,8 @@ class TestModuleBuilder(GenericBuilder):
         return KojiModuleBuilder.get_disttag_srpm(disttag, module_build)
 
     def cancel_build(self, task_id):
-        if TestModuleBuilder.on_cancel_cb:
-            TestModuleBuilder.on_cancel_cb(self, task_id)
+        if FakeModuleBuilder.on_cancel_cb:
+            FakeModuleBuilder.on_cancel_cb(self, task_id)
 
     def list_tasks_for_components(self, component_builds=None, state='active'):
         pass
@@ -234,7 +234,7 @@ class TestBuild(unittest.TestCase):
     _global_var = None
 
     def setUp(self):
-        GenericBuilder.register_backend_class(TestModuleBuilder)
+        GenericBuilder.register_backend_class(FakeModuleBuilder)
         self.client = app.test_client()
 
         init_data()
@@ -246,7 +246,7 @@ class TestBuild(unittest.TestCase):
         self.vcr.__enter__()
 
     def tearDown(self):
-        TestModuleBuilder.reset()
+        FakeModuleBuilder.reset()
 
         # Necessary to restart the twisted reactor for the next test.
         import sys
@@ -266,7 +266,7 @@ class TestBuild(unittest.TestCase):
     @patch('module_build_service.scm.SCM')
     def test_submit_build(self, mocked_scm, mocked_get_user, conf_system, dbg):
         """
-        Tests the build of testmodule.yaml using TestModuleBuilder which
+        Tests the build of testmodule.yaml using FakeModuleBuilder which
         succeeds everytime.
         """
         MockedSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
@@ -287,7 +287,7 @@ class TestBuild(unittest.TestCase):
         def on_tag_artifacts_cb(cls, artifacts):
             self.assertEqual(tag_groups.pop(0), set(artifacts))
 
-        TestModuleBuilder.on_tag_artifacts_cb = on_tag_artifacts_cb
+        FakeModuleBuilder.on_tag_artifacts_cb = on_tag_artifacts_cb
 
         # Check that the components are added to buildroot after the batch
         # is built.
@@ -299,7 +299,7 @@ class TestBuild(unittest.TestCase):
         def on_buildroot_add_artifacts_cb(cls, artifacts, install):
             self.assertEqual(buildroot_groups.pop(0), set(artifacts))
 
-        TestModuleBuilder.on_buildroot_add_artifacts_cb = on_buildroot_add_artifacts_cb
+        FakeModuleBuilder.on_buildroot_add_artifacts_cb = on_buildroot_add_artifacts_cb
 
         msgs = []
         stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
@@ -392,7 +392,7 @@ class TestBuild(unittest.TestCase):
         data = json.loads(rv.data)
         module_build_id = data['id']
 
-        # This callback is called before return of TestModuleBuilder.build()
+        # This callback is called before return of FakeModuleBuilder.build()
         # method. We just cancel the build here using the web API to simulate
         # user cancelling the build in the middle of building.
         def on_build_cb(cls, artifact_name, source):
@@ -405,10 +405,10 @@ class TestBuild(unittest.TestCase):
             cancelled_tasks.append(task_id)
 
         # We do not want the builds to COMPLETE, but instead we want them
-        # to be in the BULDING state after the TestModuleBuilder.build().
-        TestModuleBuilder.BUILD_STATE = "BUILDING"
-        TestModuleBuilder.on_build_cb = on_build_cb
-        TestModuleBuilder.on_cancel_cb = on_cancel_cb
+        # to be in the BULDING state after the FakeModuleBuilder.build().
+        FakeModuleBuilder.BUILD_STATE = "BUILDING"
+        FakeModuleBuilder.on_build_cb = on_build_cb
+        FakeModuleBuilder.on_cancel_cb = on_cancel_cb
 
         msgs = []
         stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
@@ -432,7 +432,7 @@ class TestBuild(unittest.TestCase):
     @patch('module_build_service.scm.SCM')
     def test_submit_build_instant_complete(self, mocked_scm, mocked_get_user, conf_system, dbg):
         """
-        Tests the build of testmodule.yaml using TestModuleBuilder which
+        Tests the build of testmodule.yaml using FakeModuleBuilder which
         succeeds everytime.
         """
         MockedSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
@@ -445,8 +445,8 @@ class TestBuild(unittest.TestCase):
         data = json.loads(rv.data)
         module_build_id = data['id']
 
-        TestModuleBuilder.BUILD_STATE = "BUILDING"
-        TestModuleBuilder.INSTANT_COMPLETE = True
+        FakeModuleBuilder.BUILD_STATE = "BUILDING"
+        FakeModuleBuilder.INSTANT_COMPLETE = True
 
         msgs = []
         stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
@@ -467,7 +467,7 @@ class TestBuild(unittest.TestCase):
                                                mocked_scm, mocked_get_user,
                                                conf_system, dbg):
         """
-        Tests the build of testmodule.yaml using TestModuleBuilder with
+        Tests the build of testmodule.yaml using FakeModuleBuilder with
         num_concurrent_builds set to 1.
         """
         MockedSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
@@ -581,17 +581,17 @@ class TestBuild(unittest.TestCase):
         def on_build_cb(cls, artifact_name, source):
             # fail perl-Tangerine build
             if artifact_name.startswith("perl-Tangerine"):
-                TestModuleBuilder.BUILD_STATE = "FAILED"
+                FakeModuleBuilder.BUILD_STATE = "FAILED"
             else:
-                TestModuleBuilder.BUILD_STATE = "COMPLETE"
+                FakeModuleBuilder.BUILD_STATE = "COMPLETE"
 
-        TestModuleBuilder.on_build_cb = on_build_cb
+        FakeModuleBuilder.on_build_cb = on_build_cb
 
         # Check that no components are tagged when single component fails
         # in batch.
         def on_tag_artifacts_cb(cls, artifacts):
             raise ValueError("No component should be tagged.")
-        TestModuleBuilder.on_tag_artifacts_cb = on_tag_artifacts_cb
+        FakeModuleBuilder.on_tag_artifacts_cb = on_tag_artifacts_cb
 
         msgs = []
         stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
@@ -642,9 +642,9 @@ class TestBuild(unittest.TestCase):
             # Next components *after* the module-build-macros will fail
             # to build.
             if not artifact_name.startswith("module-build-macros"):
-                TestModuleBuilder.BUILD_STATE = "FAILED"
+                FakeModuleBuilder.BUILD_STATE = "FAILED"
 
-        TestModuleBuilder.on_build_cb = on_build_cb
+        FakeModuleBuilder.on_build_cb = on_build_cb
 
         msgs = []
         stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
@@ -678,7 +678,7 @@ class TestBuild(unittest.TestCase):
 
         def on_build_cb(cls, artifact_name, source):
             raise ValueError("All components should be reused, not build.")
-        TestModuleBuilder.on_build_cb = on_build_cb
+        FakeModuleBuilder.on_build_cb = on_build_cb
 
         # Check that components are tagged after the batch is built.
         tag_groups = []
@@ -689,7 +689,7 @@ class TestBuild(unittest.TestCase):
 
         def on_tag_artifacts_cb(cls, artifacts):
             self.assertEqual(tag_groups.pop(0), set(artifacts))
-        TestModuleBuilder.on_tag_artifacts_cb = on_tag_artifacts_cb
+        FakeModuleBuilder.on_tag_artifacts_cb = on_tag_artifacts_cb
 
         buildtag_groups = []
         buildtag_groups.append(set(
@@ -699,7 +699,7 @@ class TestBuild(unittest.TestCase):
 
         def on_buildroot_add_artifacts_cb(cls, artifacts, install):
             self.assertEqual(buildtag_groups.pop(0), set(artifacts))
-        TestModuleBuilder.on_buildroot_add_artifacts_cb = on_buildroot_add_artifacts_cb
+        FakeModuleBuilder.on_buildroot_add_artifacts_cb = on_buildroot_add_artifacts_cb
 
         msgs = [MBSModule("local module build", 2, 1)]
         stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
@@ -736,7 +736,7 @@ class TestBuild(unittest.TestCase):
 
         def on_build_cb(cls, artifact_name, source):
             raise ValueError("All components should be reused, not build.")
-        TestModuleBuilder.on_build_cb = on_build_cb
+        FakeModuleBuilder.on_build_cb = on_build_cb
 
         # Check that components are tagged after the batch is built.
         tag_groups = []
@@ -747,7 +747,7 @@ class TestBuild(unittest.TestCase):
 
         def on_tag_artifacts_cb(cls, artifacts):
             self.assertEqual(tag_groups.pop(0), set(artifacts))
-        TestModuleBuilder.on_tag_artifacts_cb = on_tag_artifacts_cb
+        FakeModuleBuilder.on_tag_artifacts_cb = on_tag_artifacts_cb
 
         buildtag_groups = []
         buildtag_groups.append(set(
@@ -757,7 +757,7 @@ class TestBuild(unittest.TestCase):
 
         def on_buildroot_add_artifacts_cb(cls, artifacts, install):
             self.assertEqual(buildtag_groups.pop(0), set(artifacts))
-        TestModuleBuilder.on_buildroot_add_artifacts_cb = on_buildroot_add_artifacts_cb
+        FakeModuleBuilder.on_buildroot_add_artifacts_cb = on_buildroot_add_artifacts_cb
 
         msgs = [MBSModule("local module build", 2, 1)]
         stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
@@ -788,8 +788,8 @@ class TestBuild(unittest.TestCase):
         data = json.loads(rv.data)
         module_build_id = data['id']
 
-        TestModuleBuilder.BUILD_STATE = "BUILDING"
-        TestModuleBuilder.INSTANT_COMPLETE = True
+        FakeModuleBuilder.BUILD_STATE = "BUILDING"
+        FakeModuleBuilder.INSTANT_COMPLETE = True
 
         # Set the components from batch 2 to COMPLETE
         components = models.ComponentBuild.query.filter_by(module_id=module_build_id)
@@ -815,7 +815,7 @@ class TestBuild(unittest.TestCase):
 class TestLocalBuild(unittest.TestCase):
 
     def setUp(self):
-        GenericBuilder.register_backend_class(TestModuleBuilder)
+        GenericBuilder.register_backend_class(FakeModuleBuilder)
         self.client = app.test_client()
 
         init_data()
@@ -827,7 +827,7 @@ class TestLocalBuild(unittest.TestCase):
         self.vcr.__enter__()
 
     def tearDown(self):
-        TestModuleBuilder.reset()
+        FakeModuleBuilder.reset()
 
         # Necessary to restart the twisted reactor for the next test.
         import sys
@@ -870,7 +870,7 @@ class TestLocalBuild(unittest.TestCase):
 
             # Local base-runtime has changed profiles, so we can detect we use
             # the local one and not the main one.
-            TestModuleBuilder.DEFAULT_GROUPS = {
+            FakeModuleBuilder.DEFAULT_GROUPS = {
                 'srpm-build':
                     set(['bar']),
                 'build':
