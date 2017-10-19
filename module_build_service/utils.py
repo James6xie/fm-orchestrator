@@ -156,30 +156,20 @@ def continue_batch_build(config, module, session, builder, components=None):
         log.debug("Cannot continue building module %s. No component to build." % module)
         return []
 
-    # Get the list of components to be build in this batch. We are not
-    # building all `unbuilt_components`, because we can a) meet
-    # the num_concurrent_builds threshold or b) reuse previous build.
+    # Get the list of components to be built in this batch. We are not building
+    # all `unbuilt_components`, because we can meet the num_concurrent_builds
+    # threshold
     further_work = []
     components_to_build = []
     for c in unbuilt_components:
-        # Check to see if we can reuse a previous component build
-        # instead of rebuilding it
-        previous_component_build = get_reusable_component(
-            session, module, c.package)
-        # If a component build can't be reused, we need to check
-        # the concurrent threshold.
-        if (not previous_component_build and
-           at_concurrent_component_threshold(config, session)):
+        # Check the concurrent build threshold.
+        if at_concurrent_component_threshold(config, session):
             log.info('Concurrent build threshold met')
             break
 
-        if previous_component_build:
-            further_work += reuse_component(c, previous_component_build)
-            continue
-
-        # We set state to BUILDING here, because we are going to build the
-        # component anyway and at_concurrent_component_threshold() works
-        # by counting components in BUILDING state.
+        # We set state to "BUILDING" here because at this point we are committed
+        # to build the component and at_concurrent_component_threshold() works by
+        # counting the number of components in the "BUILDING" state.
         c.state = koji.BUILD_STATES['BUILDING']
         components_to_build.append(c)
 
@@ -229,6 +219,9 @@ def start_next_batch_build(config, module, session, builder, components=None):
     has_unbuilt_components_in_batch = False
     has_building_components_in_batch = False
     has_failed_components = False
+    # This is used to determine if it's worth checking if a component can be reused
+    # later on in the code
+    all_reused_in_prev_batch = True
     for c in module.component_builds:
         if c.state in [None, koji.BUILD_STATES['BUILDING']]:
             has_unbuilt_components = True
@@ -241,6 +234,9 @@ def start_next_batch_build(config, module, session, builder, components=None):
         elif (c.state in [koji.BUILD_STATES['FAILED'],
                           koji.BUILD_STATES['CANCELED']]):
             has_failed_components = True
+
+        if c.batch == module.batch and not c.reused_component_id:
+            all_reused_in_prev_batch = False
 
     # Do not start new batch if there are no components to build.
     if not has_unbuilt_components:
@@ -294,6 +290,8 @@ def start_next_batch_build(config, module, session, builder, components=None):
                  "Waiting." % artifacts)
         return []
 
+    # Although this variable isn't necessary, it is easier to read code later on with it
+    prev_batch = module.batch
     module.batch += 1
 
     # The user can either pass in a list of components to 'seed' the batch, or
@@ -317,8 +315,37 @@ def start_next_batch_build(config, module, session, builder, components=None):
     log.info("Starting build of next batch %d, %s" % (module.batch,
              unbuilt_components))
 
-    return continue_batch_build(
-        config, module, session, builder, unbuilt_components)
+    # Attempt to reuse any components possible in the batch before attempting to build any
+    further_work = []
+    # Try to figure out if it's even worth checking if the components can be
+    # reused by checking to see if the previous batch had all their builds
+    # reused except for when the previous batch was 1 because that always
+    # has the module-build-macros component built
+    unbuilt_components_after_reuse = []
+    components_reused = False
+    if prev_batch == 1 or all_reused_in_prev_batch:
+        for c in unbuilt_components:
+            previous_component_build = get_reusable_component(
+                session, module, c.package)
+
+            if previous_component_build:
+                components_reused = True
+                further_work += reuse_component(c, previous_component_build)
+            else:
+                unbuilt_components_after_reuse.append(c)
+        # Commit the changes done by reuse_component
+        if components_reused:
+            session.commit()
+
+    # If all the components were reused in the batch then make a KojiRepoChange
+    # message and return
+    if components_reused and not unbuilt_components_after_reuse:
+        further_work.append(module_build_service.messaging.KojiRepoChange(
+            'start_build_batch: fake msg', builder.module_build_tag['name']))
+        return further_work
+
+    return further_work + continue_batch_build(
+        config, module, session, builder, unbuilt_components_after_reuse)
 
 
 def pagination_metadata(p_query, request_args):

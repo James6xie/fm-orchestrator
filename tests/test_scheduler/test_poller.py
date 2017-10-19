@@ -47,7 +47,8 @@ class TestPoller(unittest.TestCase):
     def tearDown(self):
         init_data()
 
-    def test_process_paused_module_builds(self, create_builder,
+    @patch('module_build_service.utils.start_build_component')
+    def test_process_paused_module_builds(self, start_build_component, create_builder,
                                           koji_get_session, global_consumer,
                                           dbg):
         """
@@ -82,6 +83,7 @@ class TestPoller(unittest.TestCase):
         components = module_build.current_batch()
         for component in components:
             self.assertEqual(component.state, koji.BUILD_STATES["BUILDING"])
+        self.assertEqual(len(start_build_component.mock_calls), 2)
 
     def test_trigger_new_repo_when_failed(self, create_builder,
                                           koji_get_session, global_consumer,
