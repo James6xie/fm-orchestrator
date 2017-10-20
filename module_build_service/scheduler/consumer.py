@@ -238,12 +238,14 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
             try:
                 further_work = handler(conf, session, msg) or []
             except Exception as e:
-                if build:
-                    build.transition(conf, state=models.BUILD_STATES['failed'],
-                                     state_reason=str(e))
                 msg = 'Could not process message handler. See the traceback.'
                 log.exception(msg)
-                session.commit()
+                session.rollback()
+                if build:
+                    session.refresh(build)
+                    build.transition(conf, state=models.BUILD_STATES['failed'],
+                                     state_reason=str(e))
+                    session.commit()
 
             log.debug("Done with %s" % idx)
 
