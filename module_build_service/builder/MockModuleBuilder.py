@@ -93,6 +93,7 @@ class MockModuleBuilder(GenericBuilder):
         self.config = config
         self.groups = []
         self.yum_conf = MockModuleBuilder.yum_config_template
+        self.koji_session = None
 
         # Auto-detect arch (if possible) or fallback to the configured one
         if conf.arch_autodetect:
@@ -539,3 +540,23 @@ class SCMBuilder(BaseBuilder):
             if source.startswith(host):
                 return cmds
         raise KeyError("No defined commands for {}".format(source))
+
+    def get_average_build_time(self, component):
+        """
+        Get the average build time of the component from Koji
+        :param component: a ComponentBuild object
+        :return: a float of the average build time in seconds
+        """
+        # We currently don't track build times in MBS directly, so we can use Koji to get a decent
+        # estimate
+        if not self.koji_session:
+            # If Koji is not configured on the system, then just return 0.0 for components
+            try:
+                self.koji_session = KojiModuleBuilder.get_session(self.config, self.owner)
+                # If the component has not been built before, then None is returned. Instead,
+                # let's return 0.0 so the type is consistent
+                return self.koji_session.getAverageBuildDuration(component.package) or 0.0
+            except:
+                log.debug('The Koji call to getAverageBuildDuration failed. Is Koji properly '
+                          'configured?')
+                return 0.0

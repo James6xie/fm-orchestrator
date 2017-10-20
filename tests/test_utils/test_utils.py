@@ -813,6 +813,42 @@ class TestBatches(unittest.TestCase):
         mock_sbc.assert_called_once()
 
     @patch('module_build_service.utils.start_build_component')
+    def test_start_next_batch_build_smart_scheduling(self, mock_sbc, default_buildroot_groups):
+        """
+        Tests that components with the longest build time will be scheduled first
+        """
+        module_build = models.ModuleBuild.query.filter_by(id=2).one()
+        module_build.batch = 1
+        pt_component = models.ComponentBuild.query.filter_by(
+            module_id=2, package='perl-Tangerine').one()
+        pt_component.ref = '6ceea46add2366d8b8c5a623b2fb563b625bfabe'
+        plc_component = models.ComponentBuild.query.filter_by(
+            module_id=2, package='perl-List-Compare').one()
+        plc_component.ref = '5ceea46add2366d8b8c5a623a2fb563b625b9abd'
+
+        builder = mock.MagicMock()
+        # The call order of get_average_build_time should be by the component's ID. Having this
+        # side_effect tells continue_batch_build to build the second component in the build batch
+        # first and the first component in the build batch second.
+        builder.get_average_build_time.side_effect = [1234.56, 2345.67]
+        further_work = module_build_service.utils.start_next_batch_build(
+            conf, module_build, db.session, builder)
+
+        # Batch number should increase.
+        self.assertEqual(module_build.batch, 2)
+
+        # Make sure we don't have any messages returned since no components should be reused
+        self.assertEqual(len(further_work), 0)
+        # Make sure both components are set to the build state but not reused
+        self.assertEqual(pt_component.state, koji.BUILD_STATES['BUILDING'])
+        self.assertIsNone(pt_component.reused_component_id)
+        self.assertEqual(plc_component.state, koji.BUILD_STATES['BUILDING'])
+        self.assertIsNone(plc_component.reused_component_id)
+        # Test the order of the scheduling
+        expected_calls = [mock.call(builder, plc_component), mock.call(builder, pt_component)]
+        self.assertEqual(mock_sbc.mock_calls, expected_calls)
+
+    @patch('module_build_service.utils.start_build_component')
     def test_start_next_batch_continue(self, mock_sbc, default_buildroot_groups):
         """
         Tests that start_next_batch_build does not start new batch when

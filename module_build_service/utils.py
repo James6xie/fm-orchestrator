@@ -161,6 +161,12 @@ def continue_batch_build(config, module, session, builder, components=None):
     # threshold
     further_work = []
     components_to_build = []
+    # Sort the unbuilt_components so that the components that take the longest to build are
+    # first
+    log.info('Sorting the unbuilt components by their average build time')
+    unbuilt_components.sort(key=lambda c: builder.get_average_build_time(c), reverse=True)
+    log.info('Done sorting the unbuilt components by their average build time')
+
     for c in unbuilt_components:
         # Check the concurrent build threshold.
         if at_concurrent_component_threshold(config, session):

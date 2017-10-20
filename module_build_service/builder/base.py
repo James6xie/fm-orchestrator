@@ -312,3 +312,13 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
         for component builds.
         """
         raise NotImplementedError()
+
+    @classmethod
+    def get_average_build_time(self, component):
+        """
+        Placeholder function for the builders to report the average time it takes to build the
+        specified component. If this function is not overridden, then 0.0 is returned.
+        :param component: a ComponentBuild object
+        :return: a float of 0.0
+        """
+        return 0.0

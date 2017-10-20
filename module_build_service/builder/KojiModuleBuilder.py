@@ -753,3 +753,13 @@ chmod 644 %buildroot/%_sysconfdir/rpm/macros.zz-modules
                     tasks.append(task)
 
         return tasks
+
+    def get_average_build_time(self, component):
+        """
+        Get the average build time of the component from Koji
+        :param component: a ComponentBuild object
+        :return: a float of the average build time in seconds
+        """
+        # If the component has not been built before, then None is returned. Instead, let's
+        # return 0.0 so the type is consistent
+        return self.koji_session.getAverageBuildDuration(component.package) or 0.0
