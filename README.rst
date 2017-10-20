@@ -208,9 +208,9 @@ module builds are displayed. These parameters are:
   value defaults to 1.
 - ``per_page`` - Specifies how many items per page should be displayed
   (e.g. ``per_page=20``). This value defaults to 10.
-- ``order_by`` - a database column to order the API by in ascending order. This defaults to
+- ``order_by`` - a database column to order the API by in ascending order.
+- ``order_desc_by`` - a database column to order the API by in descending order. This defaults to
   ``id``.
-- ``order_desc_by`` - a database column to order the API by in descending order.
 
 An example of querying the "module-builds" resource with the "per_page" and the "page"
 parameters::
@@ -226,7 +226,7 @@ parameters::
     {
       "items": [
         {
-          "id": 123,
+          "id": 124,
           "koji_tag": "module-de66baf89b40367c",
           "name": "testmodule",
           "owner": "mprahl",
@@ -257,7 +257,7 @@ parameters::
           "version": "20171005183359"
         },
         {
-          "id": 124,
+          "id": 123,
           "koji_tag": "module-4620ad476f3d2b5c",
           "name": "testmodule",
           "owner": "mprahl",
@@ -293,10 +293,10 @@ parameters::
         "last": "http://mbs.fedoraproject.org/module-build-service/1/module-builds/?per_page=2&page=340",
         "next": "http://mbs.fedoraproject.org/module-build-service/1/module-builds/?per_page=2&page=2",
         "page": 1,
-        "pages": 340,
+        "pages": 60,
         "per_page": 2,
         "prev": null,
-        "total": 1020
+        "total": 120
       }
     }
 
@@ -319,7 +319,7 @@ parameters::
             57047,
             57048
           ],
-          "id": 123,
+          "id": 124,
           "koji_tag": "module-de66baf89b40367c",
           "modulemd": "...."
           "name": "testmodule",
@@ -365,7 +365,7 @@ parameters::
             57045,
             57046
           ],
-          "id": 124,
+          "id": 123,
           "koji_tag": "module-4620ad476f3d2b5c",
           "modulemd": "...."
           "name": "testmodule",
@@ -412,10 +412,10 @@ parameters::
         "last": "http://mbs.fedoraproject.org/module-build-service/1/module-builds/?verbose=true&per_page=2&page=340",
         "next": "http://mbs.fedoraproject.org/module-build-service/1/module-builds/?verbose=true&per_page=2&page=2",
         "page": 1,
-        "pages": 340,
+        "pages": 120,
         "per_page": 2,
         "prev": null,
-        "total": 1020
+        "total": 60
       }
     }
 
@@ -460,7 +460,7 @@ and the "submitted_before" parameters::
     {
       "items": [
         {
-          "id": 1,
+          "id": 3,
           "state": 3,
           ...
         },
@@ -470,7 +470,7 @@ and the "submitted_before" parameters::
           ...
         },
         {
-          "id": 3,
+          "id": 1,
           "state": 3,
           ...
         }

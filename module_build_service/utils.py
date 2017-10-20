@@ -404,6 +404,34 @@ def pagination_metadata(p_query, request_args):
     return pagination_data
 
 
+def _add_order_by_clause(flask_request, query, column_source):
+    """
+    Orders the given SQLAlchemy query based on the GET arguments provided
+    :param flask_request: a Flask request object
+    :param query: a SQLAlchemy query object
+    :param column_source: a SQLAlchemy database model
+    :return: a SQLAlchemy query object
+    """
+    colname = "id"
+    descending = True
+    order_desc_by = flask_request.args.get("order_desc_by", None)
+    if order_desc_by:
+        colname = order_desc_by
+    else:
+        order_by = flask_request.args.get("order_by", None)
+        if order_by:
+            colname = order_by
+            descending = False
+
+    column = getattr(column_source, colname, None)
+    if not column:
+        raise ValidationError('An invalid order_by or order_desc_by key '
+                              'was supplied')
+    if descending:
+        column = column.desc()
+    return query.order_by(column)
+
+
 def filter_component_builds(flask_request):
     """
     Returns a flask_sqlalchemy.Pagination object based on the request parameters
@@ -433,18 +461,7 @@ def filter_component_builds(flask_request):
     if search_query:
         query = query.filter_by(**search_query)
 
-    # Order the results by any column in the ModuleBuild table but default to id.
-    order_by = flask_request.args.get('order_by', 'id')
-    order_desc_by = flask_request.args.get('order_desc_by', None)
-    if order_by or order_desc_by:
-        column = getattr(models.ComponentBuild, order_desc_by or order_by, None)
-        if column:
-            if order_desc_by:
-                column = column.desc()
-            query = query.order_by(column)
-        else:
-            raise ValidationError('An invalid order_by or order_desc_by key '
-                                  'was supplied')
+    query = _add_order_by_clause(flask_request, query, models.ComponentBuild)
 
     page = flask_request.args.get('page', 1, type=int)
     per_page = flask_request.args.get('per_page', 10, type=int)
@@ -507,18 +524,7 @@ def filter_module_builds(flask_request):
                 elif context == 'before':
                     query = query.filter(column <= item_datetime)
 
-    # Order the results by any column in the ModuleBuild table.
-    order_by = flask_request.args.get("order_by", None)
-    order_desc_by = flask_request.args.get("order_desc_by", None)
-    if order_by or order_desc_by:
-        column = getattr(models.ModuleBuild, order_desc_by or order_by, None)
-        if column:
-            if order_desc_by:
-                column = column.desc()
-            query = query.order_by(column)
-        else:
-            raise ValidationError('An invalid order_by or order_desc_by key '
-                                  'was supplied')
+    query = _add_order_by_clause(flask_request, query, models.ModuleBuild)
 
     page = flask_request.args.get('page', 1, type=int)
     per_page = flask_request.args.get('per_page', 10, type=int)

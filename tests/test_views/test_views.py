@@ -225,74 +225,47 @@ class TestViews(unittest.TestCase):
 
     def test_query_builds(self):
         rv = self.client.get('/module-build-service/1/module-builds/?per_page=2')
-        item = json.loads(rv.data)['items'][0]
-        self.assertEquals(item['id'], 1)
-        self.assertEquals(item['name'], 'nginx')
-        self.assertEquals(item['owner'], 'Moe Szyslak')
-        self.assertEquals(item['state'], 3)
-        self.assertDictEqual(item['tasks'], {
-            'rpms': {
-                'module-build-macros': {
-                    'task_id': 12312321,
-                    'state': 1,
-                    'state_reason': None,
-                    'nvr': 'module-build-macros-01-1.module_nginx_1_2',
-                },
-                'nginx': {
-                    'task_id': 12312345,
-                    'state': 1,
-                    'state_reason': None,
-                    'nvr': 'nginx-1.10.1-2.module_nginx_1_2',
-                },
-            },
-        })
-        self.assertEquals(item['time_completed'], '2016-09-03T11:25:32Z')
-        self.assertEquals(item['time_modified'], '2016-09-03T11:25:32Z')
-        self.assertEquals(item['time_submitted'], '2016-09-03T11:23:20Z')
-
-    def test_query_builds_not_verbose(self):
-        rv = self.client.get('/module-build-service/1/module-builds/?per_page=2')
         items = json.loads(rv.data)['items']
         expected = [
             {
-                'id': 1,
-                'koji_tag': 'module-nginx-1.2',
-                'name': 'nginx',
-                'owner': 'Moe Szyslak',
-                'scmurl': ('git://pkgs.domain.local/modules/nginx?#ba95886c7a443b36a9ce31abda1f9b'
-                           'ef22f2f8c9'),
-                'state': 3,
-                'state_name': 'done',
+                'id': 30,
+                'koji_tag': None,
+                'name': 'testmodule',
+                'owner': 'some_other_user',
+                'scmurl': ('git://pkgs.domain.local/modules/testmodule?'
+                           '#ca95886c7a443b36a9ce31abda1f9bef22f2f8c9'),
+                'state': 1,
+                'state_name': 'wait',
                 'state_reason': None,
-                'stream': '1',
+                'stream': '4.3.43',
                 'tasks': {
                     'rpms': {
                         'module-build-macros': {
-                            'nvr': 'module-build-macros-01-1.module_nginx_1_2',
+                            'nvr': 'module-build-macros-01-1.module_postgresql_1_2',
                             'state': 1,
                             'state_reason': None,
-                            'task_id': 12312321
+                            'task_id': 47384002
                         },
-                        'nginx': {
-                            'nvr': 'nginx-1.10.1-2.module_nginx_1_2',
-                            'state': 1,
+                        'rubygem-rails': {
+                            'nvr': 'postgresql-9.5.3-4.module_postgresql_1_2',
+                            'state': 3,
                             'state_reason': None,
-                            'task_id': 12312345
+                            'task_id': 2433442
                         }
                     }
                 },
-                'time_completed': '2016-09-03T11:25:32Z',
-                'time_modified': '2016-09-03T11:25:32Z',
-                'time_submitted': '2016-09-03T11:23:20Z',
-                'version': '2'
+                'time_completed': None,
+                'time_modified': '2016-09-03T13:58:40Z',
+                'time_submitted': '2016-09-03T13:58:33Z',
+                'version': '6'
             },
-            {
-                'id': 2,
+                {
+                'id': 29,
                 'koji_tag': 'module-postgressql-1.2',
                 'name': 'postgressql',
                 'owner': 'some_user',
-                'scmurl': ('git://pkgs.domain.local/modules/postgressql?#aa95886c7a443b36a'
-                           '9ce31abda1f9bef22f2f8c9'),
+                'scmurl': ('git://pkgs.domain.local/modules/postgressql?'
+                           '#aa95886c7a443b36a9ce31abda1f9bef22f2f8c9'),
                 'state': 3,
                 'state_name': 'done',
                 'state_reason': None,
@@ -303,19 +276,19 @@ class TestViews(unittest.TestCase):
                             'nvr': 'module-build-macros-01-1.module_postgresql_1_2',
                             'state': 1,
                             'state_reason': None,
-                            'task_id': 47383993
+                            'task_id': 47384002
                         },
                         'postgresql': {
                             'nvr': 'postgresql-9.5.3-4.module_postgresql_1_2',
                             'state': 1,
                             'state_reason': None,
-                            'task_id': 2433433
+                            'task_id': 2433442
                         }
                     }
                 },
-                'time_completed': '2016-09-03T11:27:19Z',
-                'time_modified': '2016-09-03T12:27:19Z',
-                'time_submitted': '2016-09-03T12:25:33Z',
+                'time_completed': '2016-09-03T12:57:19Z',
+                'time_modified': '2016-09-03T13:57:19Z',
+                'time_submitted': '2016-09-03T13:55:33Z',
                 'version': '2'
             }
         ]
