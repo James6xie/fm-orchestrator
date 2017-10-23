@@ -23,8 +23,10 @@
 import os
 import shutil
 import tempfile
+import subprocess as sp
 
 import unittest
+from mock import patch
 from nose.tools import raises
 
 import module_build_service.scm
@@ -36,12 +38,17 @@ repo_path = 'file://' + os.path.dirname(__file__) + "/scm_data/testrepo"
 class TestSCMModule(unittest.TestCase):
 
     def setUp(self):
+        # this var holds path to a cloned repo. For some tests we need a working
+        # tree not only a bare repo
+        self.temp_cloned_repo = None
         self.tempdir = tempfile.mkdtemp()
         self.repodir = self.tempdir + '/testrepo'
 
     def tearDown(self):
         if os.path.exists(self.tempdir):
             shutil.rmtree(self.tempdir)
+        if self.temp_cloned_repo and os.path.exists(self.temp_cloned_repo):
+            shutil.rmtree(self.temp_cloned_repo)
 
     def test_simple_local_checkout(self):
         """ See if we can clone a local git repo. """
@@ -115,3 +122,80 @@ class TestSCMModule(unittest.TestCase):
         scm.checkout(self.tempdir)
         scm.verify()
         scm.get_module_yaml()
+
+    @raises(UnprocessableEntity)
+    def test_get_latest_incorect_component_branch(self):
+        scm = module_build_service.scm.SCM(repo_path)
+        scm.get_latest(branch='foobar')
+
+    def test_patch_with_uncommited_changes(self):
+        cloned_repo, repo_link = self._clone_from_bare_repo()
+        with open(cloned_repo + "/foo", "a") as fd:
+            fd.write("Winter is comming!")
+        scm = module_build_service.scm.SCM(repo_link, allow_local=True)
+        scm.checkout(self.tempdir)
+        with open(self.repodir + "/foo", "r") as fd:
+            foo = fd.read()
+
+        assert "Winter is comming!" in foo
+
+    def test_dont_patch_if_commit_ref(self):
+        target = '7035bd33614972ac66559ac1fdd019ff6027ad21'
+        cloned_repo, repo_link = self._clone_from_bare_repo()
+        scm = module_build_service.scm.SCM(repo_link + "?#" + target, "dev", allow_local=True)
+        with open(cloned_repo + "/foo", "a") as fd:
+            fd.write("Winter is comming!")
+        scm.checkout(self.tempdir)
+        with open(self.repodir + "/foo", "r") as fd:
+            foo = fd.read()
+
+        assert "Winter is comming!" not in foo
+
+    @patch("module_build_service.scm.open")
+    @patch("module_build_service.scm.log")
+    def test_patch_with_exception(self, mock_log, mock_open):
+        cloned_repo, repo_link = self._clone_from_bare_repo()
+        with open(cloned_repo + "/foo", "a") as fd:
+            fd.write("Winter is comming!")
+        mock_open.side_effect = Exception("Can't write to patch file!")
+        scm = module_build_service.scm.SCM(repo_link, allow_local=True)
+        with self.assertRaises(Exception) as ex:
+            scm.checkout(self.tempdir)
+            mock_open.assert_called_once_with(self.repodir + "/patch", "w+")
+            err_msg = "Failed to update repo %s with uncommited changes." % self.repodir
+            mock_log.assert_called_once_with(err_msg)
+            assert ex is mock_open.side_effect
+            assert 0
+
+    def test_is_bare_repo(self):
+        scm = module_build_service.scm.SCM(repo_path)
+        assert scm.bare_repo
+
+    def _clone_from_bare_repo(self):
+        """
+        Helper method which will clone the bare test repo. Also it will create
+        a dev branch and track it to the remote bare repo.
+
+        Returns:
+            str: returns the path to the cloned repo
+            str: returns the file link (file://) to the repo
+        """
+        self.temp_cloned_repo = tempfile.mkdtemp()
+        cloned_repo = self.temp_cloned_repo + "/testrepo"
+        clone_cmd = ["git", "clone", "-q", repo_path]
+        get_dev_branch_cmd = ["git", "branch", "--track", "dev", "origin/dev"]
+        proc = sp.Popen(clone_cmd, stdout=sp.PIPE, stderr=sp.PIPE,
+                        cwd=self.temp_cloned_repo)
+        stdout, stderr = proc.communicate()
+        if stderr:
+            raise Exception("Failed to clone repo: %s, err code: %s"
+                            % (stderr, proc.returncode))
+        proc = sp.Popen(get_dev_branch_cmd, stdout=sp.PIPE, stderr=sp.PIPE,
+                        cwd=cloned_repo)
+        stdout, stderr = proc.communicate()
+        if stderr:
+            raise Exception("Failed to create and track dev branch: %s, err code: %s"
+                            % (stderr, proc.returncode))
+        repo_link = "".join(["file://", cloned_repo])
+
+        return cloned_repo, repo_link

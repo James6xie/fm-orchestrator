@@ -907,7 +907,7 @@ def record_component_builds(mmd, module, initial_batch=1,
         return batch
 
 
-def submit_module_build_from_yaml(username, handle, optional_params=None):
+def submit_module_build_from_yaml(username, handle, stream=None, **kwargs):
     yaml = handle.read()
     mmd = load_mmd(yaml)
 
@@ -920,16 +920,17 @@ def submit_module_build_from_yaml(username, handle, optional_params=None):
     def_version = int(dt.strftime("%Y%m%d%H%M%S"))
 
     mmd.name = mmd.name or def_name
-    mmd.stream = mmd.stream or "master"
+    mmd.stream = mmd.stream or stream or "master"
     mmd.version = mmd.version or def_version
-    return submit_module_build(username, None, mmd, None, optional_params)
+
+    return submit_module_build(username, None, mmd, None, yaml, **kwargs)
 
 
 _url_check_re = re.compile(r"^[^:/]+:.*$")
 
 
 def submit_module_build_from_scm(username, url, branch, allow_local_url=False,
-                                 skiptests=False, optional_params=None):
+                                 skiptests=False, **kwargs):
     # Translate local paths into file:// URL
     if allow_local_url and not _url_check_re.match(url):
         log.info(
@@ -939,12 +940,14 @@ def submit_module_build_from_scm(username, url, branch, allow_local_url=False,
     mmd, scm = _fetch_mmd(url, branch, allow_local_url)
     if skiptests:
         mmd.buildopts.rpms.macros += "\n\n%__spec_check_pre exit 0\n"
-    return submit_module_build(username, url, mmd, scm, optional_params)
+    return submit_module_build(username, url, mmd, scm, yaml, **kwargs)
 
 
 def submit_module_build(username, url, mmd, scm, optional_params=None):
     import koji  # Placed here to avoid py2/py3 conflicts...
 
+
+def submit_module_build(username, url, mmd, scm, yaml, **kwargs):
     # Import it here, because SCM uses utils methods
     # and fails to import them because of dep-chain.
     validate_mmd(mmd)
@@ -989,7 +992,7 @@ def submit_module_build(username, url, mmd, scm, optional_params=None):
             modulemd=mmd.dumps(),
             scmurl=url,
             username=username,
-            **(optional_params or {})
+            **(kwargs or {})
         )
 
     db.session.add(module)

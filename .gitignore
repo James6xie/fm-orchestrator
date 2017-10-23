@@ -19,3 +19,4 @@ tests/vcr-request-data
 .vscode
 .ropeproject
 tests/test_module_build_service.db-journal
+*.swp
