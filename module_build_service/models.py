@@ -354,6 +354,8 @@ class ModuleBuild(MBSBase):
             'state': self.state,
             'state_name': INVERSE_BUILD_STATES[self.state],
             'state_reason': self.state_reason,
+            'stream': self.stream,
+            'version': self.version,
             'owner': self.owner,
             'name': self.name,
             'scmurl': self.scmurl,
@@ -367,9 +369,6 @@ class ModuleBuild(MBSBase):
     def extended_json(self):
         json = self.json()
         json.update({
-            'stream': self.stream,
-            'version': self.version,
-            'state_url': get_url_for('module_build', id=self.id),
             # TODO, show their entire .json() ?
             'component_builds': [build.id for build in self.component_builds],
             'modulemd': self.modulemd,
@@ -378,7 +377,8 @@ class ModuleBuild(MBSBase):
                              'state_name': INVERSE_BUILD_STATES[record.state],
                              'reason': record.state_reason}
                             for record
-                            in self.state_trace(self.id)]
+                            in self.state_trace(self.id)],
+            'state_url': get_url_for('module_build', id=self.id)
         })
 
         return json

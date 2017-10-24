@@ -85,7 +85,7 @@ class AbstractQueryableBuildAPI(MethodView):
 
 
     def get(self, id):
-        verbose_flag = request.args.get('verbose', 'true')
+        verbose_flag = request.args.get('verbose', 'false').lower()
 
         if id is None:
             # Lists all tracked builds
@@ -95,18 +95,17 @@ class AbstractQueryableBuildAPI(MethodView):
                 'meta': pagination_metadata(p_query, request.args)
             }
 
-            if verbose_flag.lower() == 'true' or verbose_flag == '1':
+            if verbose_flag == 'true' or verbose_flag == '1':
                 json_data['items'] = [item.extended_json() for item in p_query.items]
             else:
-                json_data['items'] = [{'id': item.id, 'state': item.state} for
-                                      item in p_query.items]
+                json_data['items'] = [item.json() for item in p_query.items]
 
             return jsonify(json_data), 200
         else:
             # Lists details for the specified build
             instance = self.model.query.filter_by(id=id).first()
             if instance:
-                if verbose_flag.lower() == 'true' or verbose_flag == '1':
+                if verbose_flag == 'true' or verbose_flag == '1':
                     return jsonify(instance.extended_json()), 200
                 else:
                     return jsonify(instance.json()), 200

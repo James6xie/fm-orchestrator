@@ -156,7 +156,7 @@ class TestViews(unittest.TestCase):
         self.assertEquals(data['time_submitted'], '2016-09-03T11:23:20Z')
 
     def test_query_build_with_verbose_mode(self):
-        rv = self.client.get('/module-build-service/1/module-builds/1?verbose=1')
+        rv = self.client.get('/module-build-service/1/module-builds/1?verbose=true')
         data = json.loads(rv.data)
         self.assertEquals(data['component_builds'], [1, 2])
         self.assertEquals(data['id'], 1)
@@ -252,12 +252,90 @@ class TestViews(unittest.TestCase):
         self.assertEquals(item['time_submitted'], '2016-09-03T11:23:20Z')
 
     def test_query_builds_not_verbose(self):
-        rv = self.client.get('/module-build-service/1/module-builds/?per_page=2&verbose=false')
+        rv = self.client.get('/module-build-service/1/module-builds/?per_page=2')
         items = json.loads(rv.data)['items']
-        self.assertEquals(items, [{u'state': 3, u'id': 1}, {u'state': 3, u'id': 2}])
+        expected = [
+            {
+                'id': 1,
+                'koji_tag': 'module-nginx-1.2',
+                'name': 'nginx',
+                'owner': 'Moe Szyslak',
+                'scmurl': ('git://pkgs.domain.local/modules/nginx?#ba95886c7a443b36a9ce31abda1f9b'
+                           'ef22f2f8c9'),
+                'state': 3,
+                'state_name': 'done',
+                'state_reason': None,
+                'stream': '1',
+                'tasks': {
+                    'rpms': {
+                        'module-build-macros': {
+                            'nvr': 'module-build-macros-01-1.module_nginx_1_2',
+                            'state': 1,
+                            'state_reason': None,
+                            'task_id': 12312321
+                        },
+                        'nginx': {
+                            'nvr': 'nginx-1.10.1-2.module_nginx_1_2',
+                            'state': 1,
+                            'state_reason': None,
+                            'task_id': 12312345
+                        }
+                    }
+                },
+                'time_completed': '2016-09-03T11:25:32Z',
+                'time_modified': '2016-09-03T11:25:32Z',
+                'time_submitted': '2016-09-03T11:23:20Z',
+                'version': '2'
+            },
+            {
+                'id': 2,
+                'koji_tag': 'module-postgressql-1.2',
+                'name': 'postgressql',
+                'owner': 'some_user',
+                'scmurl': ('git://pkgs.domain.local/modules/postgressql?#aa95886c7a443b36a'
+                           '9ce31abda1f9bef22f2f8c9'),
+                'state': 3,
+                'state_name': 'done',
+                'state_reason': None,
+                'stream': '1',
+                'tasks': {
+                    'rpms': {
+                        'module-build-macros': {
+                            'nvr': 'module-build-macros-01-1.module_postgresql_1_2',
+                            'state': 1,
+                            'state_reason': None,
+                            'task_id': 47383993
+                        },
+                        'postgresql': {
+                            'nvr': 'postgresql-9.5.3-4.module_postgresql_1_2',
+                            'state': 1,
+                            'state_reason': None,
+                            'task_id': 2433433
+                        }
+                    }
+                },
+                'time_completed': '2016-09-03T11:27:19Z',
+                'time_modified': '2016-09-03T12:27:19Z',
+                'time_submitted': '2016-09-03T12:25:33Z',
+                'version': '2'
+            }
+        ]
+        self.assertEquals(items, expected)
 
     def test_query_component_build(self):
-        rv = self.client.get('/module-build-service/1/component-builds/3')
+        rv = self.client.get('/module-build-service/1/component-builds/1')
+        data = json.loads(rv.data)
+        self.assertEquals(data['id'], 1)
+        self.assertEquals(data['format'], 'rpms')
+        self.assertEquals(data['module_build'], 1)
+        self.assertEquals(data['package'], 'nginx')
+        self.assertEquals(data['state'], 1)
+        self.assertEquals(data['state_name'], 'COMPLETE')
+        self.assertEquals(data['state_reason'], None)
+        self.assertEquals(data['task_id'], 12312345)
+
+    def test_query_component_build_verbose(self):
+        rv = self.client.get('/module-build-service/1/component-builds/3?verbose=true')
         data = json.loads(rv.data)
         self.assertEquals(data['id'], 3)
         self.assertEquals(data['format'], 'rpms')
@@ -271,18 +349,6 @@ class TestViews(unittest.TestCase):
         self.assertTrue(data['state_trace'][0]['time'] is not None)
         self.assertEquals(data['state_trace'][0]['state'], 1)
         self.assertEquals(data['state_trace'][0]['state_name'], 'wait')
-
-    def test_query_component_build_not_verbose(self):
-        rv = self.client.get('/module-build-service/1/component-builds/1?verbose=false')
-        data = json.loads(rv.data)
-        self.assertEquals(data['id'], 1)
-        self.assertEquals(data['format'], 'rpms')
-        self.assertEquals(data['module_build'], 1)
-        self.assertEquals(data['package'], 'nginx')
-        self.assertEquals(data['state'], 1)
-        self.assertEquals(data['state_name'], 'COMPLETE')
-        self.assertEquals(data['state_reason'], None)
-        self.assertEquals(data['task_id'], 12312345)
 
     component_builds_filters = ['tagged', 'ref', 'format']
 
