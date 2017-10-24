@@ -24,7 +24,6 @@
 
 import logging
 import os
-import re
 import koji
 import tempfile
 import threading
@@ -95,7 +94,8 @@ class CoprModuleBuilder(GenericBuilder):
     def _get_copr_safe(self):
         kwargs = {
             "ownername": self.module.copr_owner or self.owner,
-            "projectname": self.module.copr_project or CoprModuleBuilder._tag_to_copr_name(self.tag_name)
+            "projectname": self.module.copr_project or
+            CoprModuleBuilder._tag_to_copr_name(self.tag_name)
         }
 
         try:
@@ -117,7 +117,8 @@ class CoprModuleBuilder(GenericBuilder):
         detail = copr.get_project_details().data["detail"]
         current_chroots = detail["yum_repos"].keys()
         if chroot not in current_chroots:
-            self.client.modify_project(copr.projectname, copr.username, chroots=current_chroots + [chroot])
+            self.client.modify_project(copr.projectname, copr.username,
+                                       chroots=current_chroots + [chroot])
 
     def _create_module_safe(self):
         from copr.exceptions import CoprRequestException
@@ -127,7 +128,8 @@ class CoprModuleBuilder(GenericBuilder):
 
         kwargs = {
             "username": self.module.copr_owner or self.owner,
-            "projectname": self.module.copr_project or CoprModuleBuilder._tag_to_copr_name(self.tag_name),
+            "projectname": self.module.copr_project or
+            CoprModuleBuilder._tag_to_copr_name(self.tag_name),
             "modulemd": modulemd,
             "create": True,
             "build": False,
@@ -263,7 +265,8 @@ class CoprModuleBuilder(GenericBuilder):
 
     def build_srpm(self, artifact_name, source, build_id=None):
         # Build package from `source`
-        return self.client.create_new_build(self.copr.projectname, [source], username=self.copr.username,
+        return self.client.create_new_build(self.copr.projectname, [source],
+                                            username=self.copr.username,
                                             chroots=[self.chroot])
 
     def build_scm(self, source):
@@ -275,14 +278,16 @@ class CoprModuleBuilder(GenericBuilder):
         branch = git_branch_contains(cod, commit)
         rmdir(cod)
         return self.client.create_new_build_distgit(self.copr.projectname, url, branch=branch,
-                                                    username=self.copr.username, chroots=[self.chroot])
+                                                    username=self.copr.username,
+                                                    chroots=[self.chroot])
 
     def finalize(self):
         modulemd = tempfile.mktemp()
         self.module.mmd().dump(modulemd)
 
         # Create a module from previous project
-        result = self.client.make_module(username=self.copr.username, projectname=self.copr.projectname,
+        result = self.client.make_module(username=self.copr.username,
+                                         projectname=self.copr.projectname,
                                          modulemd=modulemd, create=False, build=True)
         os.remove(modulemd)
         if result.output != "ok":

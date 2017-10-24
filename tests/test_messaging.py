@@ -23,8 +23,9 @@
 
 import unittest
 from module_build_service import messaging
-from module_build_service.messaging import KojiRepoChange
+from module_build_service.messaging import KojiRepoChange # noqa
 from mock import patch, PropertyMock
+
 
 class TestFedmsgMessaging(unittest.TestCase):
 
@@ -68,7 +69,8 @@ class TestFedmsgMessaging(unittest.TestCase):
                 'status': 1,
                 'user': 'fatka',
                 'version': '1.5.23.1-1.20150203.git.c8504a8a.fc21',
-                'what': 'build end: user:fatka copr:mutt-kz build:100 ip:172.16.3.3  pid:12010 status:1',
+                'what': ('build end: user:fatka copr:mutt-kz build:100 ip:172.16.3.3  '
+                         'pid:12010 status:1'),
                 'who': 'worker-2'
             },
             'msg_id': '2013-b05a323d-37ee-4396-9635-7b5dfaf5441b',
@@ -87,7 +89,8 @@ class TestFedmsgMessaging(unittest.TestCase):
         self.assertEqual(msg.build_version, '1.5.23.1')
         self.assertEqual(msg.build_release, '1.20150203.git.c8504a8a.fc21')
         self.assertEqual(msg.state_reason,
-                         'build end: user:fatka copr:mutt-kz build:100 ip:172.16.3.3  pid:12010 status:1')
+                         ('build end: user:fatka copr:mutt-kz build:100 ip:172.16.3.3  '
+                          'pid:12010 status:1'))
 
     def test_buildsys_tag(self):
         # https://fedora-fedmsg.readthedocs.io/en/latest/topics.html#id134

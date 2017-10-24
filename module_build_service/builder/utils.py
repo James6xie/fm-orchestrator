@@ -7,7 +7,6 @@ import errno
 import logging
 import urlgrabber.grabber as grabber
 import urlgrabber.progress as progress
-import module_build_service
 from module_build_service import log
 
 

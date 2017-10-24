@@ -43,7 +43,9 @@ def uncompress_vcrpy_cassette():
         with tarfile.open(archive, mode='r:gz') as t:
             t.extractall(base_dir)
 
+
 uncompress_vcrpy_cassette()
+
 
 def init_data():
     db.session.remove()

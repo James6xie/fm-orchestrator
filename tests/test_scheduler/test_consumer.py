@@ -23,6 +23,7 @@ from mock import patch, MagicMock
 from module_build_service.scheduler.consumer import MBSConsumer
 from module_build_service.messaging import KojiTagChange, KojiRepoChange
 
+
 class TestConsumer(unittest.TestCase):
 
     @patch('module_build_service.messaging.conf.messaging', new='fedmsg')

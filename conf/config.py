@@ -80,9 +80,11 @@ class BaseConfiguration(object):
     # AMQ prefixed variables are required only while using 'amq' as messaging backend
     # Addresses to listen to
     AMQ_RECV_ADDRESSES = ['amqps://messaging.mydomain.com/Consumer.m8y.VirtualTopic.eng.koji',
-                          'amqps://messaging.mydomain.com/Consumer.m8y.VirtualTopic.eng.module_build_service']
+                          ('amqps://messaging.mydomain.com/Consumer.m8y.VirtualTopic.eng.'
+                           'module_build_service')]
     # Address for sending messages
-    AMQ_DEST_ADDRESS = 'amqps://messaging.mydomain.com/Consumer.m8y.VirtualTopic.eng.module_build_service'
+    AMQ_DEST_ADDRESS = ('amqps://messaging.mydomain.com/Consumer.m8y.'
+                        'VirtualTopic.eng.module_build_service')
     AMQ_CERT_FILE = '/etc/module_build_service/msg-m8y-client.crt'
     AMQ_PRIVATE_KEY_FILE = '/etc/module_build_service/msg-m8y-client.key'
     AMQ_TRUSTED_CERT_FILE = '/etc/module_build_service/Root-CA.crt'
@@ -121,7 +123,10 @@ class DevConfiguration(BaseConfiguration):
     else:
         # This requires that your principal be listed server side in
         # ProxyPrincipals, and that is only true for our modularity system
-        # user.  See:   https://infrastructure.fedoraproject.org/cgit/ansible.git/commit/?id=a28a93dad75248c30c1792ec35f588c8e317c067
+        # user.
+        # See:
+        # https://infrastructure.fedoraproject.org/cgit/ansible.git/commit/?id=a28a93dad75248c30c1792ec35f588c8e317c067
+        # noqa
         KOJI_PROXYUSER = False
 
     KOJI_CONFIG = path.join(confdir, 'koji.conf')

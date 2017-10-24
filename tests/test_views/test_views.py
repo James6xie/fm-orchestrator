@@ -22,13 +22,12 @@
 
 import unittest
 import json
-import time
 import vcr
 
 import modulemd as _modulemd
 import module_build_service.scm
 
-from mock import patch, PropertyMock, MagicMock
+from mock import patch, PropertyMock
 from shutil import copyfile
 from os import path, mkdir
 from os.path import dirname
@@ -36,8 +35,8 @@ import hashlib
 
 from tests import app, init_data
 from module_build_service.errors import UnprocessableEntity
-from module_build_service.models import ComponentBuild, ModuleBuild
-from module_build_service import conf, db, version
+from module_build_service.models import ModuleBuild
+from module_build_service import db, version
 import module_build_service.config as mbs_config
 import module_build_service.scheduler.handlers.modules
 
@@ -93,7 +92,7 @@ class FakeSCM(object):
     def checkout(self, temp_dir):
         try:
             mmd_filename = self.mmd_filenames[self.checkout_id]
-        except:
+        except Exception:
             mmd_filename = self.mmd_filenames[0]
 
         self.sourcedir = path.join(temp_dir, self.name)
@@ -371,7 +370,9 @@ class TestViews(unittest.TestCase):
         self.assertEquals(data['meta']['total'], 0)
 
     def test_query_component_builds_filter_nvr(self):
-        rv = self.client.get('/module-build-service/1/component-builds/?nvr=nginx-1.10.1-2.module_nginx_1_2')
+        rv = self.client.get(
+            '/module-build-service/1/component-builds/?nvr=nginx-1.10.1-2.module_nginx_1_2'
+        )
         data = json.loads(rv.data)
         self.assertEquals(data['meta']['total'], 10)
 
@@ -498,7 +499,7 @@ class TestViews(unittest.TestCase):
     @patch('module_build_service.scm.SCM')
     def test_submit_build(self, mocked_scm, mocked_get_user):
         FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
-                  '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
@@ -529,7 +530,7 @@ class TestViews(unittest.TestCase):
     @patch('module_build_service.scm.SCM')
     def test_submit_componentless_build(self, mocked_scm, mocked_get_user):
         FakeSCM(mocked_scm, 'fakemodule', 'fakemodule.yaml',
-                  '3da541559918a808c2402bba5012f6c60b27661c')
+                '3da541559918a808c2402bba5012f6c60b27661c')
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
@@ -605,7 +606,7 @@ class TestViews(unittest.TestCase):
     def test_submit_build_includedmodule_custom_repo_not_allowed(self,
                                                                  mocked_scm, mocked_get_user):
         FakeSCM(mocked_scm, "includedmodules", ["includedmodules.yaml",
-                                                  "testmodule.yaml"])
+                                                "testmodule.yaml"])
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                 'testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49'}))
@@ -707,7 +708,7 @@ class TestViews(unittest.TestCase):
     @patch('module_build_service.scm.SCM')
     def test_submit_build_version_set_error(self, mocked_scm, mocked_get_user):
         FakeSCM(mocked_scm, 'testmodule', 'testmodule-version-set.yaml',
-                  '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
@@ -725,7 +726,7 @@ class TestViews(unittest.TestCase):
     @patch('module_build_service.scm.SCM')
     def test_submit_build_wrong_stream(self, mocked_scm, mocked_get_user):
         FakeSCM(mocked_scm, 'testmodule', 'testmodule-wrong-stream.yaml',
-                  '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
@@ -753,10 +754,11 @@ class TestViews(unittest.TestCase):
 
     @patch('module_build_service.auth.get_user', return_value=anonymous_user)
     @patch('module_build_service.scm.SCM')
-    @patch("module_build_service.config.Config.no_auth", new_callable=PropertyMock, return_value=True)
+    @patch("module_build_service.config.Config.no_auth", new_callable=PropertyMock,
+           return_value=True)
     def test_submit_build_no_auth_set_owner(self, mocked_conf, mocked_scm, mocked_get_user):
         FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
-                  '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
         data = {
             'branch': 'master',
@@ -775,7 +777,7 @@ class TestViews(unittest.TestCase):
     @patch("module_build_service.config.Config.no_auth", new_callable=PropertyMock)
     def test_patch_set_different_owner(self, mocked_no_auth, mocked_scm, mocked_get_user):
         FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
-                  '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
         mocked_no_auth.return_value = True
         data = {
@@ -803,7 +805,7 @@ class TestViews(unittest.TestCase):
     @patch('module_build_service.scm.SCM')
     def test_submit_build_commit_hash_not_found(self, mocked_scm, mocked_get_user):
         FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
-                  '7035bd33614972ac66559ac1fdd019ff6027ad22', checkout_raise=True)
+                '7035bd33614972ac66559ac1fdd019ff6027ad22', checkout_raise=True)
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
@@ -821,7 +823,7 @@ class TestViews(unittest.TestCase):
     @patch("module_build_service.config.Config.allow_custom_scmurls", new_callable=PropertyMock)
     def test_submit_custom_scmurl(self, allow_custom_scmurls, mocked_scm, mocked_get_user):
         FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
-                  '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
         def submit(scmurl):
             return self.client.post('/module-build-service/1/module-builds/', data=json.dumps(

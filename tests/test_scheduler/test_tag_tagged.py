@@ -322,7 +322,6 @@ class TestTagTagged(unittest.TestCase):
         # status later in poller.
         self.assertEqual(module_build.new_repo_task_id, 123456)
 
-
     @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
            return_value={'build': [], 'srpm-build': []})
     @patch("module_build_service.builder.KojiModuleBuilder.get_session")

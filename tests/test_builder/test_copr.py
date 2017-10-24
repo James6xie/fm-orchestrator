@@ -42,7 +42,8 @@ class TestCoprBuilder(unittest.TestCase):
 
     @mock.patch("copr.CoprClient.get_module_repo")
     def test_tag_to_repo(self, get_module_repo):
-        # Mock the CoprClient.get_module_repo to return something, without requesting a Copr instance
+        # Mock the CoprClient.get_module_repo to return something, without requesting a Copr
+        # instance
         def get_module_repo_mock(owner, nvr):
             return ResponseMock({
                 "output": "ok",
@@ -52,7 +53,8 @@ class TestCoprBuilder(unittest.TestCase):
 
         repo = module_build_service.builder.GenericBuilder.tag_to_repo(
             "copr", self.config, "foo-module-name-0.25-9", None)
-        self.assertEquals(repo, "http://copr-be-instance/results/@copr/foo-module-name-0.25-9/modules")
+        self.assertEquals(repo,
+                          "http://copr-be-instance/results/@copr/foo-module-name-0.25-9/modules")
 
     @mock.patch("copr.CoprClient.get_module_repo")
     def test_non_existing_tag_to_repo(self, get_module_repo):
@@ -104,7 +106,6 @@ class TestCoprModuleBuilder(unittest.TestCase):
         self.config.koji_repository_url = conf.koji_repository_url
         self.module = module_build_service.models.ModuleBuild.query.filter_by(id=1).one()
 
-
     @mock.patch("copr.client.CoprClient.create_from_file_config")
     def create_builder(self, create_from_file_config):
         builder = CoprModuleBuilder(owner=self.module.owner,
@@ -112,16 +113,17 @@ class TestCoprModuleBuilder(unittest.TestCase):
                                     config=conf,
                                     tag_name='module-nginx-1.2',
                                     components=[])
-        builder.client = CoprClient(username="myself", login="", token="", copr_url="http://example.com/")
+        builder.client = CoprClient(username="myself", login="", token="",
+                                    copr_url="http://example.com/")
         builder.copr = Munch(projectname="someproject", username="myself")
         return builder
 
-    ####################################################################################################################
-    #                                                                                                                  #
-    #  ModuleBuilder common operations                                                                                 #
-    #  e.g. finalizing the module build process                                                                        #
-    #                                                                                                                  #
-    ####################################################################################################################
+    ###############################################################################################
+    #                                                                                             #
+    #  ModuleBuilder common operations                                                            #
+    #  e.g. finalizing the module build process                                                   #
+    #                                                                                             #
+    ###############################################################################################
 
     @mock.patch("copr.client.CoprClient.make_module")
     def test_finalize(self, make_module):
@@ -133,12 +135,12 @@ class TestCoprModuleBuilder(unittest.TestCase):
         self.assertIsInstance(kwargs["modulemd"], str)
         self.assertTrue(os.path.isabs(kwargs["modulemd"]))
 
-    ####################################################################################################################
-    #                                                                                                                  #
-    #  ModuleBuilder operations for connecting to the buildroot                                                        #
-    #  e.g. creating copr projects and modules in it                                                                   #
-    #                                                                                                                  #
-    ####################################################################################################################
+    ###############################################################################################
+    #                                                                                             #
+    #  ModuleBuilder operations for connecting to the buildroot                                   #
+    #  e.g. creating copr projects and modules in it                                              #
+    #                                                                                             #
+    ###############################################################################################
 
     @mock.patch(COPR_MODULE_BUILDER + "._update_chroot")
     @mock.patch(COPR_MODULE_BUILDER + "._get_copr_safe")
@@ -154,7 +156,8 @@ class TestCoprModuleBuilder(unittest.TestCase):
     @mock.patch(COPR_MODULE_BUILDER + "._get_copr")
     @mock.patch(COPR_MODULE_BUILDER + "._create_copr")
     @mock.patch(COPR_MODULE_BUILDER + "._create_chroot_safe")
-    @mock.patch("copr.client.CoprClient.create_project")  # So that python-copr-1.79-1 is not required
+    # So that python-copr-1.79-1 is not required
+    @mock.patch("copr.client.CoprClient.create_project")
     def test_get_copr_safe(self, create_project, create_chroot_safe, create_copr, get_copr):
         builder = self.create_builder()
 
@@ -176,7 +179,7 @@ class TestCoprModuleBuilder(unittest.TestCase):
         builder = self.create_builder()
         copr = builder._get_copr("myself", "someproject")
         self.assertEqual(copr.username, "myself")
-        self.assertEqual(copr.projectname , "someproject")
+        self.assertEqual(copr.projectname, "someproject")
 
     @mock.patch("copr.client.CoprClient.create_project")
     def test_create_copr(self, create_project):
@@ -198,12 +201,12 @@ class TestCoprModuleBuilder(unittest.TestCase):
         builder = self.create_builder()
         self.assertTrue(builder.buildroot_ready(artifacts=["a1", "a2", "a3"]))
 
-    ####################################################################################################################
-    #                                                                                                                  #
-    #  ModuleBuilder operations with buildroot                                                                         #
-    #  e.g. adding repositories and packages into the buildroot                                                        #
-    #                                                                                                                  #
-    ####################################################################################################################
+    ##############################################################################################
+    #                                                                                            #
+    #  ModuleBuilder operations with buildroot                                                   #
+    #  e.g. adding repositories and packages into the buildroot                                  #
+    #                                                                                            #
+    ##############################################################################################
 
     @mock.patch("copr.client.CoprClient.get_chroot", return_value=FakeCoprAPI.get_chroot())
     @mock.patch("copr.client.CoprClient.edit_chroot")
@@ -225,7 +228,8 @@ class TestCoprModuleBuilder(unittest.TestCase):
                                        repos=mock.ANY, packages=mock.ANY)
         args, kwargs = edit_chroot.call_args
         self.assertEqual(set(kwargs["packages"].split()), {"pkg1", "pkg2", "pkg3"})
-        self.assertEqual(set(kwargs["repos"].split()), {"http://repo1.ex/", "http://repo2.ex/", "http://repo3.ex/"})
+        self.assertEqual(set(kwargs["repos"].split()), {"http://repo1.ex/", "http://repo2.ex/",
+                                                        "http://repo3.ex/"})
 
         # Update multiple buildroot options at the same time
         builder._update_chroot(packages=["pkg4", "pkg5"], repos=["http://repo3.ex/"])
@@ -233,7 +237,8 @@ class TestCoprModuleBuilder(unittest.TestCase):
                                        repos=mock.ANY, packages=mock.ANY)
         args, kwargs = edit_chroot.call_args
         self.assertEqual(set(kwargs["packages"].split()), {"pkg1", "pkg2", "pkg3", "pkg4", "pkg5"})
-        self.assertEqual(set(kwargs["repos"].split()), {"http://repo1.ex/", "http://repo2.ex/", "http://repo3.ex/"})
+        self.assertEqual(set(kwargs["repos"].split()), {"http://repo1.ex/", "http://repo2.ex/",
+                                                        "http://repo3.ex/"})
 
     def test_buildroot_add_artifacts(self):
         pass
@@ -249,15 +254,16 @@ class TestCoprModuleBuilder(unittest.TestCase):
             conf.koji_repository_url + "/baz/latest/x86_64",
 
             # We always add this repo as a workaround, see the code for details
-            "https://kojipkgs.fedoraproject.org/compose/latest-Fedora-Modular-26/compose/Server/x86_64/os/",
+            ("https://kojipkgs.fedoraproject.org/compose"
+             "/latest-Fedora-Modular-26/compose/Server/x86_64/os/"),
         })
 
-    ####################################################################################################################
-    #                                                                                                                  #
-    #  ModuleBuilder package build operations                                                                          #
-    #  e.g. building a package from SCM or SRPM                                                                        #
-    #                                                                                                                  #
-    ####################################################################################################################
+    ##############################################################################################
+    #                                                                                            #
+    #  ModuleBuilder package build operations                                                    #
+    #  e.g. building a package from SCM or SRPM                                                  #
+    #                                                                                            #
+    ##############################################################################################
 
     @mock.patch(COPR_MODULE_BUILDER + ".build_srpm")
     @mock.patch(COPR_MODULE_BUILDER + ".build_scm")

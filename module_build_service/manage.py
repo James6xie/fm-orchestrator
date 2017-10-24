@@ -21,7 +21,6 @@
 #
 # Written by Matt Prahl <mprahl@redhat.com> except for the test functions
 
-import random
 from flask_script import Manager
 from functools import wraps
 import flask_migrate
@@ -146,6 +145,7 @@ def run(host=None, port=None, debug=None):
 
 def manager_wrapper():
     manager.run()
+
 
 if __name__ == "__main__":
     manager_wrapper()

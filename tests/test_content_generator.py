@@ -29,7 +29,7 @@ from os import path
 from os.path import dirname
 
 import module_build_service.messaging
-import module_build_service.scheduler.handlers.repos
+import module_build_service.scheduler.handlers.repos # noqa
 from module_build_service import models, conf, build_logs
 
 from mock import patch, Mock, MagicMock, call
@@ -72,7 +72,7 @@ class TestBuild(unittest.TestCase):
         del sys.modules['twisted.internet.reactor']
         del sys.modules['moksha.hub.reactor']
         del sys.modules['moksha.hub']
-        import moksha.hub.reactor
+        import moksha.hub.reactor # noqa
         self.vcr.__exit__()
         try:
             path = build_logs.path(self.cg.module.id)
@@ -84,7 +84,8 @@ class TestBuild(unittest.TestCase):
     @patch("pkg_resources.get_distribution")
     @patch("platform.linux_distribution")
     @patch("platform.machine")
-    @patch("module_build_service.builder.KojiContentGenerator.KojiContentGenerator._koji_rpms_in_tag")
+    @patch(("module_build_service.builder.KojiContentGenerator.KojiContentGenerator."
+           "_koji_rpms_in_tag"))
     def test_get_generator_json(self, rpms_in_tag, machine, distro, pkg_res, popen):
         """ Test generation of content generator json """
         distro.return_value = ("Fedora", "25", "Twenty Five")
@@ -124,7 +125,8 @@ class TestBuild(unittest.TestCase):
     @patch("pkg_resources.get_distribution")
     @patch("platform.linux_distribution")
     @patch("platform.machine")
-    @patch("module_build_service.builder.KojiContentGenerator.KojiContentGenerator._koji_rpms_in_tag")
+    @patch(("module_build_service.builder.KojiContentGenerator.KojiContentGenerator."
+           "_koji_rpms_in_tag"))
     def test_get_generator_json_no_log(self, rpms_in_tag, machine, distro, pkg_res, popen):
         """ Test generation of content generator json """
         distro.return_value = ("Fedora", "25", "Twenty Five")

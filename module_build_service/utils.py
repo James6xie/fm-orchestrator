@@ -184,7 +184,8 @@ def continue_batch_build(config, module, session, builder, components=None):
     if config.num_concurrent_builds > 0:
         max_workers = config.num_concurrent_builds
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {executor.submit(start_build_component, builder, c): c for c in components_to_build}
+        futures = {executor.submit(start_build_component, builder, c):
+                   c for c in components_to_build}
         concurrent.futures.wait(futures)
         # In case there has been an excepion generated directly in the
         # start_build_component, the future.result() will re-raise it in the
@@ -276,8 +277,11 @@ def start_next_batch_build(config, module, session, builder, components=None):
     active_tasks = builder.list_tasks_for_components(module.component_builds,
                                                      state='active')
     if isinstance(active_tasks, list) and active_tasks:
-        state_reason = "Cannot start a batch, because some components are already in 'building' state."
-        state_reason += " See tasks (ID): {}".format(', '.join([str(t['id']) for t in active_tasks]))
+        state_reason = ("Cannot start a batch, because some components are already"
+                        " in 'building' state.")
+        state_reason += " See tasks (ID): {}".format(
+            ', '.join([str(t['id']) for t in active_tasks])
+        )
         module.transition(config, state=models.BUILD_STATES['failed'],
                           state_reason=state_reason)
         session.commit()
@@ -475,8 +479,9 @@ def filter_module_builds(flask_request):
         query = query.filter_by(**search_query)
 
     # This is used when filtering the date request parameters, but it is here to avoid recompiling
-    utc_iso_datetime_regex = re.compile(r'^(?P<datetime>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.\d+)?'
-                                        r'(?:Z|[-+]00(?::00)?)?$')
+    utc_iso_datetime_regex = re.compile(
+        r'^(?P<datetime>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.\d+)?'
+        r'(?:Z|[-+]00(?::00)?)?$')
 
     # Filter the query based on date request parameters
     for item in ('submitted', 'modified', 'completed'):
@@ -488,10 +493,12 @@ def filter_module_builds(flask_request):
                 iso_datetime_matches = re.match(utc_iso_datetime_regex, iso_datetime_arg)
 
                 if not iso_datetime_matches or not iso_datetime_matches.group('datetime'):
-                    raise ValidationError('An invalid Zulu ISO 8601 timestamp was provided for the "%s" parameter'
+                    raise ValidationError(('An invalid Zulu ISO 8601 timestamp was provided'
+                                           ' for the "%s" parameter')
                                           % request_arg)
                 # Converts the ISO 8601 string to a datetime object for SQLAlchemy to use to filter
-                item_datetime = datetime.strptime(iso_datetime_matches.group('datetime'), '%Y-%m-%dT%H:%M:%S')
+                item_datetime = datetime.strptime(iso_datetime_matches.group('datetime'),
+                                                  '%Y-%m-%dT%H:%M:%S')
                 # Get the database column to filter against
                 column = getattr(models.ModuleBuild, 'time_' + item)
 
@@ -690,11 +697,11 @@ def load_local_builds(local_build_nsvs, session=None):
         module.koji_tag = path
         session.commit()
 
-        if (found_build[0] != module.name
-                or found_build[1] != module.stream
-                or str(found_build[2]) != module.version):
+        if (found_build[0] != module.name or found_build[1] != module.stream or
+                str(found_build[2]) != module.version):
             raise RuntimeError(
-                'Parsed metadata results for "{0}" don\'t match the directory name'.format(found_build[3]))
+                'Parsed metadata results for "{0}" don\'t match the directory name'
+                .format(found_build[3]))
         log.info("Loaded local module build %r", module)
 
 

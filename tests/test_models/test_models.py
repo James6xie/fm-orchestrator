@@ -41,7 +41,8 @@ class TestModels(unittest.TestCase):
             component_build.format = 'rpms'
             component_build.task_id = 999999999
             component_build.state = 1
-            component_build.nvr = 'before_models_committed-0.0.0-0.module_before_models_committed_0_0'
+            component_build.nvr = ('before_models_committed-0.0.0-0'
+                                   '.module_before_models_committed_0_0')
             component_build.batch = 1
             component_build.module_id = 1
 

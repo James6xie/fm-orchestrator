@@ -45,7 +45,7 @@ def init_config(app):
     try:
         with open(config_file):
             config_section = 'ProdConfiguration'
-    except:
+    except Exception:
         pass
     #   - Flask app within mod_wsgi presets ProdConfiguration
     flask_app_env = hasattr(app, 'request') and hasattr(app.request, 'environ')
@@ -73,7 +73,8 @@ def init_config(app):
         if 'MBS_CONFIG_SECTION' in app.request.environ:
             config_section = app.request.environ['MBS_CONFIG_SECTION']
     # TestConfiguration shall only be used for running tests, otherwise...
-    if any(['nosetests' in arg or 'noserunner.py' in arg or 'py.test' in arg or 'pytest' in arg for arg in sys.argv]):
+    if any(['nosetests' in arg or 'noserunner.py' in arg or 'py.test' in arg or 'pytest' in arg
+            for arg in sys.argv]):
         config_section = 'TestConfiguration'
         from conf import config
         config_module = config
@@ -100,7 +101,7 @@ def init_config(app):
         try:
             config_module = imp.load_source('mbs_runtime_config',
                                             config_file)
-        except:
+        except Exception:
             raise SystemError("Configuration file {} was not found."
                               .format(config_file))
 
@@ -452,11 +453,12 @@ class Config(object):
                     # Do no try to convert None...
                     if value is not None:
                         value = convert(value)
-                except:
+                except Exception:
                     raise TypeError("Configuration value conversion failed for name: %s" % key)
             # unknown type/unsupported conversion, or conversion not needed
             elif convert is not None and convert not in [Path]:
-                raise TypeError("Unsupported type %s for configuration item name: %s" % (convert, key))
+                raise TypeError("Unsupported type %s for configuration item name: %s"
+                                % (convert, key))
 
         # Set the attribute to the correct value
         setattr(self, key, value)
@@ -541,7 +543,7 @@ class Config(object):
             raise ValueError('Unsupported authentication method')
         if s.lower() == 'kerberos':
             try:
-                import ldap3
+                import ldap3 # noqa
             except ImportError:
                 raise ValueError("ldap3 is required for kerberos authz")
         self._auth_method = s.lower()

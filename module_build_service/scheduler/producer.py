@@ -196,7 +196,8 @@ class MBSProducer(PollingProducer):
 
         # Check to see if module builds that are in build state but don't have
         # any component builds being built can be worked on
-        for module_build in session.query(models.ModuleBuild).filter_by(state=models.BUILD_STATES['build']).all():
+        for module_build in session.query(models.ModuleBuild) \
+                .filter_by(state=models.BUILD_STATES['build']).all():
             # If there are no components in the build state on the module build,
             # then no possible event will start off new component builds.
             # But do not try to start new builds when we are waiting for the
@@ -230,7 +231,8 @@ class MBSProducer(PollingProducer):
         koji_session = module_build_service.builder.KojiModuleBuilder\
             .get_session(config, None)
 
-        for module_build in session.query(models.ModuleBuild).filter_by(state=models.BUILD_STATES['build']).all():
+        for module_build in session.query(models.ModuleBuild) \
+                .filter_by(state=models.BUILD_STATES['build']).all():
             if not module_build.new_repo_task_id:
                 continue
 

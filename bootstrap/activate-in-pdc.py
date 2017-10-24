@@ -13,7 +13,7 @@ pdc = pdc_client.PDCClient(servername, token=token)
 
 print("Querying for %r to see if it is inactive" % variant_uid)
 obj = pdc['unreleasedvariants'][variant_uid]()
-assert obj['active'] == False, obj['active']
+assert obj['active'] is False, obj['active']
 
 print("Submitting PATCH to activate.")
 pdc['unreleasedvariants'][variant_uid] += {'variant_uid': variant_uid, 'active': True}

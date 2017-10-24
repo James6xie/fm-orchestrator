@@ -579,7 +579,7 @@ class TestUtils(unittest.TestCase):
         component states properly.
         """
         FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
-                  '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
         with app.app_context():
             test_reuse_component_init_data()
             # Mark the module build as failed, so we can resubmit it.
@@ -716,7 +716,8 @@ class DummyModuleBuilder(GenericBuilder):
         pass
 
 
-@patch("module_build_service.builder.GenericBuilder.default_buildroot_groups", return_value={'build': [], 'srpm-build': []})
+@patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
+       return_value={'build': [], 'srpm-build': []})
 class TestBatches(unittest.TestCase):
 
     def setUp(self):
@@ -927,7 +928,7 @@ class TestLocalBuilds(unittest.TestCase):
         with app.app_context():
             with self.assertRaises(RuntimeError):
                 module_build_service.utils.load_local_builds("testmodule:x")
-                local_modules = models.ModuleBuild.local_modules(db.session)
+                models.ModuleBuild.local_modules(db.session)
 
     def test_load_local_builds_name_stream_version(
             self, conf_system, conf_resultsdir):
@@ -944,7 +945,7 @@ class TestLocalBuilds(unittest.TestCase):
         with app.app_context():
             with self.assertRaises(RuntimeError):
                 module_build_service.utils.load_local_builds("testmodule:master:123")
-                local_modules = models.ModuleBuild.local_modules(db.session)
+                models.ModuleBuild.local_modules(db.session)
 
     def test_load_local_builds_base_runtime(
             self, conf_system, conf_resultsdir):

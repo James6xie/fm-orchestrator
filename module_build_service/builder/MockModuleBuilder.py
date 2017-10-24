@@ -445,7 +445,8 @@ class MockModuleBuilder(GenericBuilder):
         # generate the thread-specific mock config by writing it to fs again.
         self._load_mock_config()
         self._write_mock_config()
-        mock_config = os.path.join(self.configdir, "mock-%s.cfg" % str(threading.current_thread().name))
+        mock_config = os.path.join(self.configdir, "mock-%s.cfg"
+                                   % str(threading.current_thread().name))
 
         # Get the build-id in thread-safe manner.
         build_id = None
@@ -556,7 +557,7 @@ class SCMBuilder(BaseBuilder):
                 # If the component has not been built before, then None is returned. Instead,
                 # let's return 0.0 so the type is consistent
                 return self.koji_session.getAverageBuildDuration(component.package) or 0.0
-            except:
+            except Exception:
                 log.debug('The Koji call to getAverageBuildDuration failed. Is Koji properly '
                           'configured?')
                 return 0.0

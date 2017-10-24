@@ -253,12 +253,12 @@ class TestBuild(unittest.TestCase):
         del sys.modules['twisted.internet.reactor']
         del sys.modules['moksha.hub.reactor']
         del sys.modules['moksha.hub']
-        import moksha.hub.reactor
+        import moksha.hub.reactor # noqa
         self.vcr.__exit__()
         for i in range(20):
             try:
                 os.remove(build_logs.path(i))
-            except:
+            except Exception:
                 pass
 
     @timed(30)
@@ -270,7 +270,7 @@ class TestBuild(unittest.TestCase):
         succeeds everytime.
         """
         FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
-                  '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
@@ -309,7 +309,8 @@ class TestBuild(unittest.TestCase):
         # or "ready" state.
         for build in models.ComponentBuild.query.filter_by(module_id=module_build_id).all():
             self.assertEqual(build.state, koji.BUILD_STATES['COMPLETE'])
-            self.assertTrue(build.module_build.state in [models.BUILD_STATES["done"], models.BUILD_STATES["ready"]])
+            self.assertTrue(build.module_build.state in [models.BUILD_STATES["done"],
+                                                         models.BUILD_STATES["ready"]])
 
         # All components has to be tagged, so tag_groups and buildroot_groups are empty...
         self.assertEqual(tag_groups, [])
@@ -383,7 +384,7 @@ class TestBuild(unittest.TestCase):
         Submit all builds for a module and cancel the module build later.
         """
         FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
-                  '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
@@ -436,7 +437,7 @@ class TestBuild(unittest.TestCase):
         succeeds everytime.
         """
         FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
-                  '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
@@ -456,7 +457,8 @@ class TestBuild(unittest.TestCase):
         # or "ready" state.
         for build in models.ComponentBuild.query.filter_by(module_id=module_build_id).all():
             self.assertEqual(build.state, koji.BUILD_STATES['COMPLETE'])
-            self.assertTrue(build.module_build.state in [models.BUILD_STATES["done"], models.BUILD_STATES["ready"]])
+            self.assertTrue(build.module_build.state in [models.BUILD_STATES["done"],
+                                                         models.BUILD_STATES["ready"]])
 
     @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
@@ -471,7 +473,7 @@ class TestBuild(unittest.TestCase):
         num_concurrent_builds set to 1.
         """
         FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
-                  '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
@@ -500,7 +502,8 @@ class TestBuild(unittest.TestCase):
             self.assertEqual(build.state, koji.BUILD_STATES['COMPLETE'])
             # When this fails, it can mean that num_concurrent_builds
             # threshold has been met.
-            self.assertTrue(build.module_build.state in [models.BUILD_STATES["done"], models.BUILD_STATES["ready"]])
+            self.assertTrue(build.module_build.state in [models.BUILD_STATES["done"],
+                                                         models.BUILD_STATES["ready"]])
 
     @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
@@ -516,14 +519,11 @@ class TestBuild(unittest.TestCase):
         the num_concurrent_builds to finish.
         """
         FakeSCM(mocked_scm, 'testmodule-more-components', 'testmodule-more-components.yaml',
-                  '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
-        rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
+        self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                 'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}))
-
-        data = json.loads(rv.data)
-        module_build_id = data['id']
 
         # Holds the number of concurrent component builds during
         # the module build.
@@ -569,7 +569,7 @@ class TestBuild(unittest.TestCase):
         are still build, but next batch is not started.
         """
         FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
-                  '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
@@ -629,7 +629,7 @@ class TestBuild(unittest.TestCase):
         are still build, but next batch is not started.
         """
         FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
-                  '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
@@ -712,7 +712,8 @@ class TestBuild(unittest.TestCase):
         # or "ready" state.
         for build in models.ComponentBuild.query.filter_by(module_id=2).all():
             self.assertEqual(build.state, koji.BUILD_STATES['COMPLETE'])
-            self.assertTrue(build.module_build.state in [models.BUILD_STATES["done"], models.BUILD_STATES["ready"]])
+            self.assertTrue(build.module_build.state in [models.BUILD_STATES["done"],
+                                                         models.BUILD_STATES["ready"]])
 
             self.assertEqual(build.reused_component_id,
                              reused_component_ids[build.package])
@@ -767,7 +768,8 @@ class TestBuild(unittest.TestCase):
         # or "ready" state.
         for build in models.ComponentBuild.query.filter_by(module_id=2).all():
             self.assertEqual(build.state, koji.BUILD_STATES['COMPLETE'])
-            self.assertTrue(build.module_build.state in [models.BUILD_STATES["done"], models.BUILD_STATES["ready"]])
+            self.assertTrue(build.module_build.state in [models.BUILD_STATES["done"],
+                                                         models.BUILD_STATES["ready"]])
             self.assertNotEqual(build.package, "module-build-macros")
 
     @timed(60)
@@ -779,7 +781,7 @@ class TestBuild(unittest.TestCase):
         are already built.
         """
         FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
-                  '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
@@ -808,7 +810,9 @@ class TestBuild(unittest.TestCase):
         # or "ready" state.
         for build in models.ComponentBuild.query.filter_by(module_id=module_build_id).all():
             self.assertEqual(build.state, koji.BUILD_STATES['COMPLETE'])
-            self.assertTrue(build.module_build.state in [models.BUILD_STATES["done"], models.BUILD_STATES["ready"]])
+            self.assertTrue(build.module_build.state in [models.BUILD_STATES["done"],
+                                                         models.BUILD_STATES["ready"]])
+
 
 @patch("module_build_service.config.Config.system",
        new_callable=PropertyMock, return_value="test")
@@ -834,21 +838,20 @@ class TestLocalBuild(unittest.TestCase):
         del sys.modules['twisted.internet.reactor']
         del sys.modules['moksha.hub.reactor']
         del sys.modules['moksha.hub']
-        import moksha.hub.reactor
+        import moksha.hub.reactor # noqa
         self.vcr.__exit__()
         for i in range(20):
             try:
                 os.remove(build_logs.path(i))
-            except:
+            except Exception:
                 pass
 
     @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     @patch("module_build_service.config.Config.mock_resultsdir",
-        new_callable=PropertyMock,
-        return_value=path.join(
-            base_dir, 'staged_data', "local_builds"))
+           new_callable=PropertyMock,
+           return_value=path.join(base_dir, 'staged_data', "local_builds"))
     def test_submit_build_local_dependency(
             self, resultsdir, mocked_scm, mocked_get_user, conf_system):
         """
@@ -863,7 +866,7 @@ class TestLocalBuild(unittest.TestCase):
                 '/module-build-service/1/module-builds/', data=json.dumps(
                     {'branch': 'master',
                      'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
-                    'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}))
+                     'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}))
 
             data = json.loads(rv.data)
             module_build_id = data['id']

@@ -60,7 +60,8 @@ class TestRepoDone(unittest.TestCase):
 
     @mock.patch('module_build_service.builder.KojiModuleBuilder.get_average_build_time',
                 return_value=0.0)
-    @mock.patch('module_build_service.builder.KojiModuleBuilder.list_tasks_for_components', return_value=[])
+    @mock.patch('module_build_service.builder.KojiModuleBuilder.list_tasks_for_components',
+                return_value=[])
     @mock.patch('module_build_service.builder.KojiModuleBuilder.buildroot_ready', return_value=True)
     @mock.patch('module_build_service.builder.KojiModuleBuilder.get_session')
     @mock.patch('module_build_service.builder.KojiModuleBuilder.build')
@@ -77,11 +78,13 @@ class TestRepoDone(unittest.TestCase):
             config=conf, session=db.session, msg=msg)
         build_fn.assert_called_once_with(
             artifact_name='communicator',
-            source='git://pkgs.domain.local/rpms/communicator?#da95886c8a443b36a9ce31abda1f9bed22f2f9c2')
+            source=('git://pkgs.domain.local/rpms/communicator'
+                    '?#da95886c8a443b36a9ce31abda1f9bed22f2f9c2'))
 
     @mock.patch('module_build_service.builder.KojiModuleBuilder.get_average_build_time',
                 return_value=0.0)
-    @mock.patch('module_build_service.builder.KojiModuleBuilder.list_tasks_for_components', return_value=[])
+    @mock.patch('module_build_service.builder.KojiModuleBuilder.list_tasks_for_components',
+                return_value=[])
     @mock.patch('module_build_service.builder.KojiModuleBuilder.buildroot_ready', return_value=True)
     @mock.patch('module_build_service.builder.KojiModuleBuilder.get_session')
     @mock.patch('module_build_service.builder.KojiModuleBuilder.build')
@@ -100,18 +103,21 @@ class TestRepoDone(unittest.TestCase):
             config=conf, session=db.session, msg=msg)
         build_fn.assert_called_once_with(
             artifact_name='communicator',
-            source='git://pkgs.domain.local/rpms/communicator?#da95886c8a443b36a9ce31abda1f9bed22f2f9c2')
+            source=('git://pkgs.domain.local/rpms/communicator'
+                    '?#da95886c8a443b36a9ce31abda1f9bed22f2f9c2'))
         component_build = module_build_service.models.ComponentBuild.query\
             .filter_by(package='communicator').one()
         self.assertEquals(component_build.state_reason,
                           'Failed to submit artifact communicator to Koji')
 
-    @mock.patch('module_build_service.builder.KojiModuleBuilder.list_tasks_for_components', return_value=[])
+    @mock.patch('module_build_service.builder.KojiModuleBuilder.list_tasks_for_components',
+                return_value=[])
     @mock.patch('module_build_service.builder.KojiModuleBuilder.buildroot_ready', return_value=True)
     @mock.patch('module_build_service.builder.KojiModuleBuilder.get_session')
     @mock.patch('module_build_service.builder.KojiModuleBuilder.build')
     @mock.patch('module_build_service.builder.KojiModuleBuilder.buildroot_connect')
-    @mock.patch("module_build_service.builder.GenericBuilder.default_buildroot_groups", return_value={'build': [], 'srpm-build': []})
+    @mock.patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
+                return_value={'build': [], 'srpm-build': []})
     def test_failed_component_build(self, dbg, connect, build_fn, config, ready, list_tasks_fn):
         """ Test that when a KojiModuleBuilder.build fails, the build is
         marked as failed with proper state_reason.
@@ -128,4 +134,5 @@ class TestRepoDone(unittest.TestCase):
             module_build = module_build_service.models.ModuleBuild.query\
                 .filter_by(name='starcommand').one()
 
-            self.assertEquals(module_build.state, module_build_service.models.BUILD_STATES["failed"])
+            self.assertEquals(module_build.state,
+                              module_build_service.models.BUILD_STATES["failed"])

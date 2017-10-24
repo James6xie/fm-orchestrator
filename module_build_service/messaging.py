@@ -240,7 +240,8 @@ class CoprBuildEnd(KojiBuildChange):
      object for a build info from Copr
 
      @TODO There should be a base class for CoprBuildEnd and KojiBuildChange
-     and conditions in the code should check for it's descendants instead of KojiBuildChange directly.
+     and conditions in the code should check for it's descendants instead of KojiBuildChange
+     directly.
      In such case this class would not have to inherit from koji class
 
     :param msg_id: the id of the msg (e.g. 2016-SomeGUID)

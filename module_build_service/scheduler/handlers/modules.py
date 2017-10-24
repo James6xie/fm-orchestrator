@@ -224,7 +224,7 @@ def wait(config, session, msg):
 
             # Find out the name of Koji tag to which the module's Content
             # Generator build should be tagged once the build finishes.
-            module_names_streams = {mmd.name:mmd.stream
+            module_names_streams = {mmd.name: mmd.stream
                                     for mmd in deps_dict.values()}
             for base_module_name in conf.base_module_names:
                 if base_module_name in module_names_streams:

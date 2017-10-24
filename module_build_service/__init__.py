@@ -125,6 +125,7 @@ def notfound_error(e):
     """Flask error handler for Conflict exceptions"""
     return json_error(404, 'Not Found', e.args[0])
 
+
 init_logging(conf)
 log = getLogger(__name__)
 build_logs = ModuleBuildLogs(conf.build_logs_dir)
@@ -145,5 +146,6 @@ def get_url_for(*args, **kwargs):
                   "app_context. That can lead to SQLAlchemy errors caused by "
                   "multiple session being used in the same time.")
         return url_for(*args, **kwargs)
+
 
 load_views()

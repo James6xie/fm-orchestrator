@@ -169,7 +169,7 @@ def init_logging(conf):
         logging.basicConfig(level=conf.log_level, format=log_format)
         try:
             from systemd import journal
-        except:
+        except Exception:
             raise ValueError("systemd.journal module is not installed")
 
         log = logging.getLogger()

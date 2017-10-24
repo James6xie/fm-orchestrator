@@ -80,9 +80,9 @@ api_v1 = {
     }
 }
 
+
 class AbstractQueryableBuildAPI(MethodView):
     """ An abstract class, housing some common functionality. """
-
 
     def get(self, id):
         verbose_flag = request.args.get('verbose', 'false').lower()
@@ -148,13 +148,14 @@ class ModuleBuildAPI(AbstractQueryableBuildAPI):
 
         try:
             r = json.loads(request.get_data().decode("utf-8"))
-        except:
+        except Exception:
             log.error('Invalid JSON submitted')
             raise ValidationError('Invalid JSON submitted')
 
         if "owner" in r:
             if conf.no_auth is not True:
-                raise ValidationError("The request contains 'owner' parameter, however NO_AUTH is not allowed")
+                raise ValidationError(("The request contains 'owner' parameter,"
+                                       " however NO_AUTH is not allowed"))
             elif username == "anonymous":
                 username = r["owner"]
 
@@ -212,18 +213,22 @@ class BaseHandler(object):
         return {k: v for k, v in self.data.items() if k not in ["owner", "scmurl", "branch"]}
 
     def validate_optional_params(self):
-        forbidden_params = [k for k in self.data if k not in models.ModuleBuild.__table__.columns and
+        forbidden_params = [k for k in self.data
+                            if k not in models.ModuleBuild.__table__.columns and
                             k not in ["branch"]]
         if forbidden_params:
-            raise ValidationError('The request contains unspecified parameters: {}'.format(", ".join(forbidden_params)))
+            raise ValidationError('The request contains unspecified parameters: {}'
+                                  .format(", ".join(forbidden_params)))
 
         forbidden_params = [k for k in self.data if k.startswith("copr_")]
         if conf.system != "copr" and forbidden_params:
-            raise ValidationError('The request contains parameters specific to Copr builder: {} even though {} is used'
+            raise ValidationError(('The request contains parameters specific to Copr builder:'
+                                   ' {} even though {} is used')
                                   .format(", ".join(forbidden_params), conf.system))
 
         if not conf.no_auth and "owner" in self.data:
-            raise ValidationError("The request contains 'owner' parameter, however NO_AUTH is not allowed")
+            raise ValidationError(("The request contains 'owner' parameter,"
+                                   " however NO_AUTH is not allowed"))
 
 
 class SCMHandler(BaseHandler):
@@ -231,7 +236,7 @@ class SCMHandler(BaseHandler):
         super(SCMHandler, self).__init__(request)
         try:
             self.data = json.loads(request.get_data().decode("utf-8"))
-        except:
+        except Exception:
             log.error('Invalid JSON submitted')
             raise ValidationError('Invalid JSON submitted')
 
@@ -265,7 +270,8 @@ class SCMHandler(BaseHandler):
             branch = branch.encode('utf-8')
 
         return submit_module_build_from_scm(self.username, url, branch,
-                                            allow_local_url=False, optional_params=self.optional_params)
+                                            allow_local_url=False,
+                                            optional_params=self.optional_params)
 
 
 class YAMLFileHandler(BaseHandler):
@@ -283,7 +289,8 @@ class YAMLFileHandler(BaseHandler):
 
     def post(self):
         handle = request.files["yaml"]
-        return submit_module_build_from_yaml(self.username, handle, optional_params=self.optional_params)
+        return submit_module_build_from_yaml(self.username, handle,
+                                             optional_params=self.optional_params)
 
 
 def register_api_v1():

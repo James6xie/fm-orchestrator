@@ -142,7 +142,12 @@ def variant_dict_from_str(module_str):
     :param module_str: a string to match in PDC
     :return module_info dict
 
-    Example minimal module_info {'variant_id': module_name, 'variant_version': module_version, 'variant_type': 'module'}
+    Example minimal module_info:
+        {
+            'variant_id': module_name,
+            'variant_version': module_version,
+            'variant_type': 'module'
+        }
     """
     log.debug("variant_dict_from_str(%r)" % module_str)
     # best match due several filters not being provided such as variant type ...
@@ -184,11 +189,10 @@ def get_module(session, module_info, strict=False):
     # TODO: So far sorting on Fedora prod PDC instance is broken and it sorts
     # only by variant_uid by default. Once the sorting is fixed, we can start
     # using '-variant_release' ordering and just get the first variant from
-    # there. But in the meantime, we have to get the first variant with 
+    # there. But in the meantime, we have to get the first variant with
     # page_size set to 1 to find out how many variants (pages) are there in
     # results set and jump to last one in another query. The last one is always
     # the latest one (the one with the highest version).
-    #query['ordering'] = '-variant_release'
     try:
         retval = session['unreleasedvariants/'](page_size=1, **query)
     except Exception as ex:
@@ -306,7 +310,6 @@ def _get_recursively_required_modules(session, info, modules=None,
 
     modules.append(module_info)
 
-
     # We want to use the same stream as the one used in the time this
     # module was built. But we still should fallback to plain mmd.requires
     # in case this module depends on some older module for which we did
@@ -355,7 +358,7 @@ def resolve_profiles(session, mmd, keys):
         if local_modules:
             local_module = local_modules[0]
             log.info("Using local module %r to resolve profiles.",
-                        local_module)
+                     local_module)
             dep_mmd = local_module.mmd()
             for key in keys:
                 if key in dep_mmd.profiles:
@@ -430,7 +433,6 @@ def get_module_build_dependencies(session, module_info, strict=False):
         }
         modules = _get_recursively_required_modules(
             session, modified_dep, strict=strict)
-        tags = [m["koji_tag"] for m in modules]
         for m in modules:
             if m["koji_tag"] in module_tags:
                 continue

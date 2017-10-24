@@ -53,7 +53,7 @@ class TestModuleWait(unittest.TestCase):
         try:
             path = build_logs.path(1)
             os.remove(path)
-        except:
+        except Exception:
             pass
 
     @mock.patch('module_build_service.builder.GenericBuilder.create_from_module')
@@ -110,7 +110,8 @@ class TestModuleWait(unittest.TestCase):
             builder.koji_session = koji_session
             builder.module_build_tag = {"name": "module-123-build"}
             builder.get_disttag_srpm.return_value = 'some srpm disttag'
-            builder.build.return_value = 1234, koji.BUILD_STATES['COMPLETE'], "", "module-build-macros-1-1"
+            builder.build.return_value = (1234, koji.BUILD_STATES['COMPLETE'], "",
+                                          "module-build-macros-1-1")
             create_builder.return_value = builder
 
             msg = module_build_service.messaging.MBSModule(msg_id=None, module_build_id=1,
@@ -146,7 +147,8 @@ class TestModuleWait(unittest.TestCase):
             builder.koji_session = koji_session
             builder.module_build_tag = {"name": "module-123-build"}
             builder.get_disttag_srpm.return_value = 'some srpm disttag'
-            builder.build.return_value = 1234, koji.BUILD_STATES['BUILDING'], "", "module-build-macros-1-1"
+            builder.build.return_value = (1234, koji.BUILD_STATES['BUILDING'], "",
+                                          "module-build-macros-1-1")
             create_builder.return_value = builder
 
             msg = module_build_service.messaging.MBSModule(msg_id=None, module_build_id=1,
@@ -182,7 +184,8 @@ class TestModuleWait(unittest.TestCase):
             builder.koji_session = koji_session
             builder.module_build_tag = {"name": "module-123-build"}
             builder.get_disttag_srpm.return_value = 'some srpm disttag'
-            builder.build.return_value = 1234, koji.BUILD_STATES['BUILDING'], "", "module-build-macros-1-1"
+            builder.build.return_value = (1234, koji.BUILD_STATES['BUILDING'], "",
+                                          "module-build-macros-1-1")
             create_builder.return_value = builder
 
             msg = module_build_service.messaging.MBSModule(msg_id=None, module_build_id=1,
@@ -191,7 +194,6 @@ class TestModuleWait(unittest.TestCase):
                 config=conf, session=db.session, msg=msg)
             module_build = ModuleBuild.query.filter_by(id=1).one()
             self.assertEqual(module_build.cg_build_koji_tag, "modular-updates-candidate")
-
 
     @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
            return_value={'build': [], 'srpm-build': []})
@@ -222,7 +224,8 @@ class TestModuleWait(unittest.TestCase):
             builder.koji_session = koji_session
             builder.module_build_tag = {"name": "module-123-build"}
             builder.get_disttag_srpm.return_value = 'some srpm disttag'
-            builder.build.return_value = 1234, koji.BUILD_STATES['BUILDING'], "", "module-build-macros-1-1"
+            builder.build.return_value = (1234, koji.BUILD_STATES['BUILDING'], "",
+                                          "module-build-macros-1-1")
             create_builder.return_value = builder
 
             msg = module_build_service.messaging.MBSModule(msg_id=None, module_build_id=1,

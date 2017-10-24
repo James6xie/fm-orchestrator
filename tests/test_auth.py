@@ -28,7 +28,6 @@ import mock
 from mock import patch, PropertyMock, Mock
 import kerberos
 import ldap3
-from flask import Response
 from werkzeug.exceptions import Unauthorized as FlaskUnauthorized
 
 import module_build_service.auth
@@ -61,7 +60,8 @@ class TestAuthModule(unittest.TestCase):
             # https://www.youtube.com/watch?v=G-LtddOgUCE
             name = "Joey Jo Jo Junior Shabadoo"
             mocked_get_token_info = {"active": False, "username": name,
-                                     "scope": "openid https://id.fedoraproject.org/scope/groups mbs-scope"}
+                                     "scope": ("openid https://id.fedoraproject.org/scope/groups"
+                                               " mbs-scope")}
             get_token_info.return_value = mocked_get_token_info
 
             get_user_info.return_value = {"groups": ["group"]}
@@ -89,7 +89,8 @@ class TestAuthModule(unittest.TestCase):
             # https://www.youtube.com/watch?v=G-LtddOgUCE
             name = "Joey Jo Jo Junior Shabadoo"
             mocked_get_token_info = {"active": True, "username": name,
-                                     "scope": "openid https://id.fedoraproject.org/scope/groups mbs-scope"}
+                                     "scope": ("openid https://id.fedoraproject.org/scope/groups"
+                                               " mbs-scope")}
             get_token_info.return_value = mocked_get_token_info
 
             get_user_info.return_value = {"groups": ["group"]}

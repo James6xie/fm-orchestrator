@@ -258,8 +258,8 @@ class TestPoller(unittest.TestCase):
             if state_name in ["done", "ready", "failed"]:
                 koji_session.deleteBuildTarget.assert_called_once_with(852)
 
-    def test_process_waiting_module_build(
-        self, create_builder, koji_get_session, global_consumer, dbg):
+    def test_process_waiting_module_build(self, create_builder, koji_get_session,
+                                          global_consumer, dbg):
         """ Test that processing old waiting module builds works. """
 
         consumer = mock.MagicMock()
@@ -289,9 +289,8 @@ class TestPoller(unittest.TestCase):
         # ensure the time_modified was changed.
         self.assertGreater(module_build.time_modified, original)
 
-
-    def test_process_waiting_module_build_not_old_enough(
-        self, create_builder, koji_get_session, global_consumer, dbg):
+    def test_process_waiting_module_build_not_old_enough(self, create_builder, koji_get_session,
+                                                         global_consumer, dbg):
         """ Test that we do not process young waiting builds. """
 
         consumer = mock.MagicMock()
@@ -319,8 +318,8 @@ class TestPoller(unittest.TestCase):
         # Ensure we did *not* process the 9 minute-old build.
         self.assertEquals(consumer.incoming.qsize(), 0)
 
-    def test_process_waiting_module_build_none_found(
-        self, create_builder, koji_get_session, global_consumer, dbg):
+    def test_process_waiting_module_build_none_found(self, create_builder, koji_get_session,
+                                                     global_consumer, dbg):
         """ Test nothing happens when no module builds are waiting. """
 
         consumer = mock.MagicMock()

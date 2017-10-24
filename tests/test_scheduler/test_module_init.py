@@ -63,13 +63,13 @@ class TestModuleInit(unittest.TestCase):
         try:
             path = build_logs.path(1)
             os.remove(path)
-        except:
+        except Exception:
             pass
 
     @patch('module_build_service.scm.SCM')
     def test_init_basic(self, mocked_scm):
         FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
-                  '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
         msg = module_build_service.messaging.MBSModule(
             msg_id=None, module_build_id=1, module_build_state='init')
         with make_session(conf) as session:
@@ -86,7 +86,7 @@ class TestModuleInit(unittest.TestCase):
             raise RuntimeError("Failed in mocked_scm_get_latest")
 
         FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
-                  '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
         mocked_scm.return_value.get_latest = mocked_scm_get_latest
         msg = module_build_service.messaging.MBSModule(
             msg_id=None, module_build_id=1, module_build_state='init')
@@ -138,8 +138,8 @@ class TestModuleInit(unittest.TestCase):
     @patch('module_build_service.scm.SCM')
     def test_init_when_get_latest_raises(self, mocked_scm, mocked_from_module_event):
         FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
-                  '7035bd33614972ac66559ac1fdd019ff6027ad22',
-                  get_latest_raise=True)
+                '7035bd33614972ac66559ac1fdd019ff6027ad22',
+                get_latest_raise=True)
         msg = module_build_service.messaging.MBSModule(
             msg_id=None, module_build_id=1, module_build_state='init')
         with make_session(conf) as session:

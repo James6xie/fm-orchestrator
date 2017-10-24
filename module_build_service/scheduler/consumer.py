@@ -63,7 +63,7 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
         # Topic setting needs to be done *before* the call to `super`.
 
         backends = module_build_service.messaging._messaging_backends
-        prefixes = conf.messaging_topic_prefix # This is a list.
+        prefixes = conf.messaging_topic_prefix  # This is a list.
         services = backends[conf.messaging]['services']
         suffix = backends[conf.messaging]['topic_suffix']
         self.topic = [
@@ -167,8 +167,7 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
             self.shutdown()
 
     def get_abstracted_msg(self, message):
-        parser = module_build_service.messaging.\
-                 _messaging_backends[conf.messaging].get('parser')
+        parser = module_build_service.messaging._messaging_backends[conf.messaging].get('parser')
         if parser:
             try:
                 return parser.parse(message)

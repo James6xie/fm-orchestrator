@@ -36,7 +36,6 @@ import time
 
 import koji
 
-import module_build_service
 from module_build_service import log, build_logs
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
 
@@ -64,14 +63,15 @@ class KojiContentGenerator(object):
     @staticmethod
     def parse_rpm_output(output, tags, separator=';'):
         """
-        Copied from https://github.com/projectatomic/atomic-reactor/blob/master/atomic_reactor/plugins/exit_koji_promote.py
+        Copied from:
+        https://github.com/projectatomic/atomic-reactor/blob/master/atomic_reactor/plugins/exit_koji_promote.py
         License: BSD 3-clause
 
         Parse output of the rpm query.
         :param output: list, decoded output (str) from the rpm subprocess
         :param tags: list, str fields used for query output
         :return: list, dicts describing each rpm package
-        """
+        """ # noqa
 
         def field(tag):
             """
@@ -129,7 +129,7 @@ class KojiContentGenerator(object):
 
         Build a list of installed RPMs in the format required for the
         metadata.
-        """
+        """ # noqa
 
         tags = [
             'NAME',
@@ -393,7 +393,6 @@ class KojiContentGenerator(object):
         log.info("Content generator build %s will be tagged as %s in "
                  "Koji", nvr, tag)
         session.tagBuild(tag_info["id"], nvr)
-
 
     def koji_import(self):
         """This method imports given module into the configured koji instance as

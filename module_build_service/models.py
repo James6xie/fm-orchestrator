@@ -125,7 +125,7 @@ def make_session(conf):
         try:
             yield session
             session.commit()
-        except:
+        except Exception:
             # This is a no-op if no transaction is in progress.
             session.rollback()
             raise
@@ -149,7 +149,7 @@ class ModuleBuild(MBSBase):
     modulemd = db.Column(db.String, nullable=False)
     koji_tag = db.Column(db.String)  # This gets set after 'wait'
     # Koji tag to which tag the Content Generator Koji build.
-    cg_build_koji_tag = db.Column(db.String) # This gets set after wait
+    cg_build_koji_tag = db.Column(db.String)  # This gets set after wait
     copr_owner = db.Column(db.String)
     copr_project = db.Column(db.String)
     scmurl = db.Column(db.String)
@@ -205,7 +205,7 @@ class ModuleBuild(MBSBase):
         mmd = _modulemd.ModuleMetadata()
         try:
             mmd.loads(self.modulemd)
-        except:
+        except Exception:
             raise ValueError("Invalid modulemd")
         return mmd
 
@@ -410,9 +410,10 @@ class ModuleBuild(MBSBase):
             module_id=module_id).order_by(ModuleBuildTrace.state_time).all()
 
     def __repr__(self):
-        return "<ModuleBuild %s, id=%d, stream=%s, version=%s, state %r, batch %r, state_reason %r>" % (
-            self.name, self.id, self.stream, self.version,
-            INVERSE_BUILD_STATES[self.state], self.batch, self.state_reason)
+        return (("<ModuleBuild %s, id=%d, stream=%s, version=%s, state %r,"
+                 " batch %r, state_reason %r>")
+                % (self.name, self.id, self.stream, self.version, INVERSE_BUILD_STATES[self.state],
+                   self.batch, self.state_reason))
 
 
 class ModuleBuildTrace(MBSBase):
@@ -437,8 +438,8 @@ class ModuleBuildTrace(MBSBase):
         return retval
 
     def __repr__(self):
-        return "<ModuleBuildTrace %s, module_id: %s, state_time: %r, state: %s, state_reason: %s>" % (
-            self.id, self.module_id, self.state_time, self.state, self.state_reason)
+        return ("<ModuleBuildTrace %s, module_id: %s, state_time: %r, state: %s, state_reason: %s>"
+                % (self.id, self.module_id, self.state_time, self.state, self.state_reason))
 
 
 class ComponentBuild(MBSBase):
@@ -546,7 +547,8 @@ class ComponentBuildTrace(MBSBase):
     state_reason = db.Column(db.String, nullable=True)
     task_id = db.Column(db.Integer, nullable=True)
 
-    component_build = db.relationship('ComponentBuild', backref='component_builds_trace', lazy=False)
+    component_build = db.relationship('ComponentBuild', backref='component_builds_trace',
+                                      lazy=False)
 
     def json(self):
         retval = {
@@ -561,8 +563,9 @@ class ComponentBuildTrace(MBSBase):
         return retval
 
     def __repr__(self):
-        return "<ComponentBuildTrace %s, component_id: %s, state_time: %r, state: %s, state_reason: %s, task_id: %s>" % (
-            self.id, self.component_id, self.state_time, self.state, self.state_reason, self.task_id)
+        return ("<ComponentBuildTrace %s, component_id: %s, state_time: %r, state: %s,"
+                " state_reason: %s, task_id: %s>") % (self.id, self.component_id, self.state_time,
+                                                      self.state, self.state_reason, self.task_id)
 
 
 def session_before_commit_handlers(session):

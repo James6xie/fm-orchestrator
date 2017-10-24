@@ -301,9 +301,9 @@ chmod 644 %buildroot/%_sysconfdir/rpm/macros.zz-modules
         log.info("%r connecting buildroot." % self)
 
         # Create or update individual tags
+        # the main tag needs arches so pungi can dump it
         self.module_tag = self._koji_create_tag(
-            self.tag_name, self.arches, perm="admin")  # the main tag needs arches so pungi can dump it
-
+            self.tag_name, self.arches, perm="admin")
         self.module_build_tag = self._koji_create_tag(
             self.tag_name + "-build", self.arches, perm="admin")
 
@@ -453,7 +453,8 @@ chmod 644 %buildroot/%_sysconfdir/rpm/macros.zz-modules
     def build(self, artifact_name, source):
         """
         :param source : scmurl to spec repository
-        : param artifact_name: name of artifact (which we couldn't get from spec due involved macros)
+        : param artifact_name: name of artifact (which we couldn't get
+            from spec due involved macros)
         :return 4-tuple of the form (koji build task id, state, reason, nvr)
         """
 
@@ -474,7 +475,8 @@ chmod 644 %buildroot/%_sysconfdir/rpm/macros.zz-modules
                 # more digits of precision than str(time.time())
                 # Unnamed Engineer: Guido v. R., I am disappoint
                 return '%s/%r.%s' % (prefix, time.time(),
-                                     ''.join([random.choice(string.ascii_letters) for i in range(8)]))
+                                     ''.join([random.choice(string.ascii_letters)
+                                              for i in range(8)]))
 
             if not self.__prep:
                 raise RuntimeError("Buildroot is not prep-ed")
@@ -484,7 +486,8 @@ chmod 644 %buildroot/%_sysconfdir/rpm/macros.zz-modules
             if task_info:
                 log.info("skipping build of %s. Build already exists (task_id=%s), via %s" % (
                     source, task_info['task_id'], self))
-                return task_info['task_id'], koji.BUILD_STATES['COMPLETE'], 'Build already exists.', task_info['nvr']
+                return (task_info['task_id'], koji.BUILD_STATES['COMPLETE'],
+                        'Build already exists.', task_info['nvr'])
 
             self._koji_whitelist_packages([artifact_name])
             if '://' not in source:
@@ -550,7 +553,8 @@ chmod 644 %buildroot/%_sysconfdir/rpm/macros.zz-modules
     def _koji_add_many_tag_inheritance(self, tag_name, parent_tags):
         tag = self._get_tag(tag_name)
         # highest priority num is at the end
-        inheritance_data = sorted(self.koji_session.getInheritanceData(tag['name']) or [], key=lambda k: k['priority'])
+        inheritance_data = sorted(self.koji_session.getInheritanceData(tag['name']) or
+                                  [], key=lambda k: k['priority'])
         # Set initial priority to last record in inheritance data or 0
         priority = 0
         if inheritance_data:
@@ -599,7 +603,8 @@ chmod 644 %buildroot/%_sysconfdir/rpm/macros.zz-modules
         for group, packages in groups.items():
             group_id = existing_groups.get(group, None)
             if group_id is not None:
-                log.debug("Group %s already exists for tag %s. Skipping creation." % (group, dest_tag))
+                log.debug("Group %s already exists for tag %s. Skipping creation."
+                          % (group, dest_tag))
                 continue
 
             self.koji_session.groupListAdd(dest_tag, group)
@@ -640,7 +645,8 @@ chmod 644 %buildroot/%_sysconfdir/rpm/macros.zz-modules
 
         if perm:
             if taginfo['locked']:
-                raise SystemError("Tag %s: master lock already set. Can't edit tag" % taginfo['name'])
+                raise SystemError("Tag %s: master lock already set. Can't edit tag"
+                                  % taginfo['name'])
 
             perm_ids = self.getPerms()
 
@@ -671,7 +677,8 @@ chmod 644 %buildroot/%_sysconfdir/rpm/macros.zz-modules
         # This will help with potential resubmiting of failed builds
         pkglists = {}
         for tag in tags:
-            pkglists[tag['id']] = dict([(p['package_name'], p['package_id']) for p in self.koji_session.listPackages(tagID=tag['id'])])
+            pkglists[tag['id']] = dict([(p['package_name'], p['package_id'])
+                                        for p in self.koji_session.listPackages(tagID=tag['id'])])
 
         self.koji_session.multicall = True
         for tag in tags:
@@ -691,9 +698,9 @@ chmod 644 %buildroot/%_sysconfdir/rpm/macros.zz-modules
         :param build-tag: build_tag name
         :param dest_tag: dest tag name
 
-        This call is safe to call multiple times. Raises SystemError() if the existing target doesn't match params.
-        The reason not to touch existing target, is that we don't want to accidentaly alter a target
-        which was already used to build some artifacts.
+        This call is safe to call multiple times. Raises SystemError() if the existing target
+        doesn't match params. The reason not to touch existing target, is that we don't want to
+        accidentaly alter a target which was already used to build some artifacts.
         """
         build_tag = self._get_tag(build_tag)
         dest_tag = self._get_tag(dest_tag)
@@ -703,13 +710,18 @@ chmod 644 %buildroot/%_sysconfdir/rpm/macros.zz-modules
         assert barches, "Build tag %s has no arches defined." % build_tag['name']
 
         if not target_info:
-            target_info = self.koji_session.createBuildTarget(name, build_tag['name'], dest_tag['name'])
+            target_info = self.koji_session.createBuildTarget(name, build_tag['name'],
+                                                              dest_tag['name'])
 
         else:  # verify whether build and destination tag matches
             if build_tag['name'] != target_info['build_tag_name']:
-                raise SystemError("Target references unexpected build_tag_name. Got '%s', expected '%s'. Please contact administrator." % (target_info['build_tag_name'], build_tag['name']))
+                raise SystemError(("Target references unexpected build_tag_name. "
+                                   "Got '%s', expected '%s'. Please contact administrator.")
+                                  % (target_info['build_tag_name'], build_tag['name']))
             if dest_tag['name'] != target_info['dest_tag_name']:
-                raise SystemError("Target references unexpected dest_tag_name. Got '%s', expected '%s'. Please contact administrator." % (target_info['dest_tag_name'], dest_tag['name']))
+                raise SystemError(("Target references unexpected dest_tag_name. "
+                                   "Got '%s', expected '%s'. Please contact administrator.")
+                                  % (target_info['dest_tag_name'], dest_tag['name']))
 
         return self.koji_session.getBuildTarget(name)
 

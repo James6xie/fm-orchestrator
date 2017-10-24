@@ -280,7 +280,7 @@ class SCM(object):
             td = tempfile.mkdtemp()
             self.checkout(td)
             return True
-        except:
+        except Exception:
             if strict:
                 raise
             return False
