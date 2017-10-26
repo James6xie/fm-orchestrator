@@ -327,13 +327,16 @@ def start_next_batch_build(config, module, session, builder, components=None):
 
     # Attempt to reuse any components possible in the batch before attempting to build any
     further_work = []
-    # Try to figure out if it's even worth checking if the components can be
-    # reused by checking to see if the previous batch had all their builds
-    # reused except for when the previous batch was 1 because that always
-    # has the module-build-macros component built
     unbuilt_components_after_reuse = []
     components_reused = False
-    if prev_batch == 1 or all_reused_in_prev_batch:
+    should_try_reuse = True
+    # If the rebuild strategy is "changed-and-after", try to figure out if it's worth checking if
+    # the components can be reused to save on resources
+    if module.rebuild_strategy == 'changed-and-after':
+        # Check to see if the previous batch had all their builds reused except for when the
+        # previous batch was 1 because that always has the module-build-macros component built
+        should_try_reuse = all_reused_in_prev_batch or prev_batch == 1
+    if should_try_reuse:
         for c in unbuilt_components:
             previous_component_build = get_reusable_component(
                 session, module, c.package)
@@ -968,6 +971,11 @@ def submit_module_build(username, url, mmd, scm, yaml, optional_params=None):
                        'a failed build is allowed.' % module.state)
             log.error(err_msg)
             raise Conflict(err_msg)
+        if optional_params:
+            rebuild_strategy = optional_params.get('rebuild_strategy')
+            if rebuild_strategy and module.rebuild_strategy != rebuild_strategy:
+                raise ValidationError('You cannot change the module\'s "rebuild_strategy" when '
+                                      'resuming a module build')
         log.debug('Resuming existing module build %r' % module)
         module.username = username
         module.transition(conf, models.BUILD_STATES["init"],
@@ -1152,6 +1160,11 @@ def get_reusable_component(session, module, component_name):
     if conf.system not in ['koji', 'test']:
         return None
 
+    # If the rebuild strategy is "all", that means that nothing can be reused
+    if module.rebuild_strategy == 'all':
+        log.info('Cannot re-use the component because the rebuild strategy is "all".')
+        return None
+
     mmd = module.mmd()
     # Find the latest module that is in the done or ready state
     previous_module_build = session.query(models.ModuleBuild)\
@@ -1159,8 +1172,13 @@ def get_reusable_component(session, module, component_name):
         .filter_by(stream=mmd.stream)\
         .filter(models.ModuleBuild.state.in_([3, 5]))\
         .filter(models.ModuleBuild.scmurl.isnot(None))\
-        .order_by(models.ModuleBuild.time_completed.desc())\
-        .first()
+        .order_by(models.ModuleBuild.time_completed.desc())
+    # If we are rebuilding with the "changed-and-after" option, then we can't reuse
+    # components from modules that were built more liberally
+    if module.rebuild_strategy == 'changed-and-after':
+        previous_module_build = previous_module_build.filter(
+            models.ModuleBuild.rebuild_strategy.in_(['all', 'changed-and-after']))
+    previous_module_build = previous_module_build.first()
     # The component can't be reused if there isn't a previous build in the done
     # or ready state
     if not previous_module_build:
@@ -1188,39 +1206,6 @@ def get_reusable_component(session, module, component_name):
             .format(previous_module_build.version, previous_module_build.name))
         return None
 
-    # If the mmd.buildopts.macros.rpms changed, we cannot reuse
-    modulemd_macros = ""
-    old_modulemd_macros = ""
-    if mmd.buildopts and mmd.buildopts.rpms:
-        modulemd_macros = mmd.buildopts.rpms.macros
-    if old_mmd.buildopts and old_mmd.buildopts.rpms:
-        modulemd_macros = old_mmd.buildopts.rpms.macros
-    if modulemd_macros != old_modulemd_macros:
-        log.info('Cannot re-use.  Old modulemd macros do not match the new.')
-        return None
-
-    # If the module buildrequires are different, then we can't reuse the
-    # component
-    if mmd.buildrequires.keys() != old_mmd.buildrequires.keys():
-        log.info('Cannot re-use.  The set of module buildrequires changed')
-        return None
-
-    # Make sure that the module buildrequires commit hashes are exactly the same
-    for br_module_name, br_module in \
-            mmd.xmd['mbs']['buildrequires'].items():
-        # Assumes that the streams have been replaced with commit hashes, so we
-        # can compare to see if they have changed. Since a build is unique to
-        # a commit hash, this is a safe test.
-        ref1 = br_module.get('ref')
-        ref2 = old_mmd.xmd['mbs']['buildrequires'][br_module_name].get('ref')
-        if not (ref1 and ref2) or ref1 != ref2:
-            log.info('Cannot re-use.  The module buildrequires hashes changed')
-            return None
-
-    # At this point we've determined that both module builds depend(ed) on the
-    # same exact module builds. Now it's time to determine if the batch of the
-    # components have changed
-    #
     # If the chosen component for some reason was not found in the database,
     # or the ref is missing, something has gone wrong and the component cannot
     # be reused
@@ -1241,58 +1226,95 @@ def get_reusable_component(session, module, component_name):
         log.info('Cannot re-use.  Previous component not found in the db.')
         return None
 
-    # Make sure the batch number for the component that is trying to be reused
-    # hasn't changed since the last build
-    if prev_module_build_component.batch != new_module_build_component.batch:
-        log.info('Cannot re-use.  Batch numbers do not match.')
-        return None
-
     # Make sure the ref for the component that is trying to be reused
     # hasn't changed since the last build
     if prev_module_build_component.ref != new_module_build_component.ref:
         log.info('Cannot re-use.  Component commit hashes do not match.')
         return None
 
-    # Convert the component_builds to a list and sort them by batch
-    new_component_builds = list(module.component_builds)
-    new_component_builds.sort(key=lambda x: x.batch)
-    prev_component_builds = list(previous_module_build.component_builds)
-    prev_component_builds.sort(key=lambda x: x.batch)
+    # At this point we've determined that both module builds contain the component
+    # and the components share the same commit hash
+    if module.rebuild_strategy == 'changed-and-after':
+        # Make sure the batch number for the component that is trying to be reused
+        # hasn't changed since the last build
+        if prev_module_build_component.batch != new_module_build_component.batch:
+            log.info('Cannot re-use.  Batch numbers do not match.')
+            return None
 
-    new_module_build_components = []
-    previous_module_build_components = []
-    # Create separate lists for the new and previous module build. These lists
-    # will have an entry for every build batch *before* the component's
-    # batch except for 1, which is reserved for the module-build-macros RPM.
-    # Each batch entry will contain a set of "(name, ref)" with the name and
-    # ref (commit) of the component.
-    for i in range(new_module_build_component.batch - 1):
-        # This is the first batch which we want to skip since it will always
-        # contain only the module-build-macros RPM and it gets built every time
-        if i == 0:
-            continue
+        # If the mmd.buildopts.macros.rpms changed, we cannot reuse
+        modulemd_macros = ""
+        old_modulemd_macros = ""
+        if mmd.buildopts and mmd.buildopts.rpms:
+            modulemd_macros = mmd.buildopts.rpms.macros
+        if old_mmd.buildopts and old_mmd.buildopts.rpms:
+            modulemd_macros = old_mmd.buildopts.rpms.macros
+        if modulemd_macros != old_modulemd_macros:
+            log.info('Cannot re-use.  Old modulemd macros do not match the new.')
+            return None
 
-        new_module_build_components.append(set([
-            (value.package, value.ref) for value in
-            new_component_builds if value.batch == i + 1
-        ]))
+        # If the module buildrequires are different, then we can't reuse the
+        # component
+        if mmd.buildrequires.keys() != old_mmd.buildrequires.keys():
+            log.info('Cannot re-use.  The set of module buildrequires changed')
+            return None
 
-        previous_module_build_components.append(set([
-            (value.package, value.ref) for value in
-            prev_component_builds if value.batch == i + 1
-        ]))
+        # Make sure that the module buildrequires commit hashes are exactly the same
+        for br_module_name, br_module in \
+                mmd.xmd['mbs']['buildrequires'].items():
+            # Assumes that the streams have been replaced with commit hashes, so we
+            # can compare to see if they have changed. Since a build is unique to
+            # a commit hash, this is a safe test.
+            ref1 = br_module.get('ref')
+            ref2 = old_mmd.xmd['mbs']['buildrequires'][br_module_name].get('ref')
+            if not (ref1 and ref2) or ref1 != ref2:
+                log.info('Cannot re-use.  The module buildrequires hashes changed')
+                return None
 
-    # If the previous batches have the same ordering and hashes, then the
-    # component can be reused
-    if previous_module_build_components == new_module_build_components:
-        reusable_component = models.ComponentBuild.query.filter_by(
-            package=component_name, module_id=previous_module_build.id).one()
-        log.debug('Found reusable component!')
-        return reusable_component
+        # At this point we've determined that both module builds contain the component
+        # with the same commit hash and they are in the same batch. We've also determined
+        # that both module builds depend(ed) on the same exact module builds. Now it's time
+        # to determine if the components before it have changed.
+        #
+        # Convert the component_builds to a list and sort them by batch
+        new_component_builds = list(module.component_builds)
+        new_component_builds.sort(key=lambda x: x.batch)
+        prev_component_builds = list(previous_module_build.component_builds)
+        prev_component_builds.sort(key=lambda x: x.batch)
 
-    log.info('Cannot re-use.  Ordering or commit hashes of '
-             'previous batches differ.')
-    return None
+        new_module_build_components = []
+        previous_module_build_components = []
+        # Create separate lists for the new and previous module build. These lists
+        # will have an entry for every build batch *before* the component's
+        # batch except for 1, which is reserved for the module-build-macros RPM.
+        # Each batch entry will contain a set of "(name, ref)" with the name and
+        # ref (commit) of the component.
+        for i in range(new_module_build_component.batch - 1):
+            # This is the first batch which we want to skip since it will always
+            # contain only the module-build-macros RPM and it gets built every time
+            if i == 0:
+                continue
+
+            new_module_build_components.append(set([
+                (value.package, value.ref) for value in
+                new_component_builds if value.batch == i + 1
+            ]))
+
+            previous_module_build_components.append(set([
+                (value.package, value.ref) for value in
+                prev_component_builds if value.batch == i + 1
+            ]))
+
+        # If the previous batches don't have the same ordering and hashes, then the
+        # component can't be reused
+        if previous_module_build_components != new_module_build_components:
+            log.info('Cannot re-use.  Ordering or commit hashes of '
+                     'previous batches differ.')
+            return None
+
+    reusable_component = models.ComponentBuild.query.filter_by(
+        package=component_name, module_id=previous_module_build.id).one()
+    log.debug('Found reusable component!')
+    return reusable_component
 
 
 def validate_koji_tag(tag_arg_names, pre='', post='-', dict_key='name'):

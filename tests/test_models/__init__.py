@@ -26,7 +26,7 @@ import module_build_service
 import modulemd
 
 from datetime import datetime
-from module_build_service import db
+from tests import db, clean_database
 from module_build_service.config import init_config
 from module_build_service.models import ModuleBuild, BUILD_STATES
 
@@ -53,13 +53,12 @@ def module_build_from_modulemd(yaml):
     build.time_submitted = datetime(2016, 9, 3, 12, 28, 33)
     build.time_modified = datetime(2016, 9, 3, 12, 28, 40)
     build.time_completed = None
+    build.rebuild_strategy = 'changed-and-after'
     return build
 
 
 def init_data():
-    db.session.remove()
-    db.drop_all()
-    db.create_all()
+    clean_database()
     for filename in os.listdir(datadir):
         with open(datadir + filename, 'r') as f:
             yaml = f.read()

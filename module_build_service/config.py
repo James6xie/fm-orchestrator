@@ -33,6 +33,11 @@ import sys
 from module_build_service import logger
 
 
+# TODO: It'd be nice to reuse this from models.ModuleBuild.rebuild_strategies but models.py
+# currently relies on this file, so we can't import it
+SUPPORTED_STRATEGIES = ['changed-and-after', 'only-changed', 'all']
+
+
 def init_config(app):
     """ Configure MBS and the Flask app
     """
@@ -397,6 +402,20 @@ class Config(object):
             'desc': "The name of Koji tag which should be used as fallback "
                     "when koji_cg_build_tag_template tag is not found in "
                     "Koji."},
+        'rebuild_strategy': {
+            'type': str,
+            'default': 'changed-and-after',
+            'desc': 'The module rebuild strategy to use by default.'},
+        'rebuild_strategy_allow_override': {
+            'type': bool,
+            'default': False,
+            'desc': ('Allows a user to specify the rebuild strategy they want to use when '
+                     'submitting a module build.')},
+        'rebuild_strategies_allowed': {
+            'type': list,
+            'default': SUPPORTED_STRATEGIES,
+            'desc': ('The allowed module rebuild strategies. This is only used when '
+                     'REBUILD_STRATEGY_ALLOW_OVERRIDE is True.')}
     }
 
     def __init__(self, conf_section_obj):
@@ -564,3 +583,22 @@ class Config(object):
             raise ValueError('LDAP_URI is invalid. It must start with "ldap://" or "ldaps://"')
 
         self._ldap_uri = ldap_uri
+
+    def _setifok_rebuild_strategy(self, strategy):
+        if strategy not in SUPPORTED_STRATEGIES:
+            raise ValueError('The strategy "{0}" is not supported. Chose from: {1}'
+                             .format(strategy, ', '.join(SUPPORTED_STRATEGIES)))
+        self._rebuild_strategy = strategy
+
+    def _setifok_rebuild_strategies_allowed(self, strategies):
+        if not isinstance(strategies, list):
+            raise ValueError('REBUILD_STRATEGIES_ALLOWED must be a list')
+        elif not strategies:
+            raise ValueError('REBUILD_STRATEGIES_ALLOWED must contain at least one rebuild '
+                             'strategy')
+        for strategy in strategies:
+            if strategy not in SUPPORTED_STRATEGIES:
+                raise ValueError('REBUILD_STRATEGIES_ALLOWED must be one of: {0}'
+                                 .format(', '.join(SUPPORTED_STRATEGIES)))
+
+        self._rebuild_strategies_allowed = strategies

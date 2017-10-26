@@ -153,6 +153,7 @@ class TestViews(unittest.TestCase):
         self.assertEquals(data['time_completed'], '2016-09-03T11:25:32Z')
         self.assertEquals(data['time_modified'], '2016-09-03T11:25:32Z')
         self.assertEquals(data['time_submitted'], '2016-09-03T11:23:20Z')
+        self.assertEqual(data['rebuild_strategy'], 'changed-and-after')
 
     def test_query_build_with_verbose_mode(self):
         rv = self.client.get('/module-build-service/1/module-builds/1?verbose=true')
@@ -195,6 +196,7 @@ class TestViews(unittest.TestCase):
         self.assertEquals(data['time_modified'], u'2016-09-03T11:25:32Z')
         self.assertEquals(data['time_submitted'], u'2016-09-03T11:23:20Z')
         self.assertEquals(data['version'], '2')
+        self.assertEqual(data['rebuild_strategy'], 'changed-and-after')
 
     def test_pagination_metadata(self):
         rv = self.client.get('/module-build-service/1/module-builds/?per_page=8&page=2')
@@ -231,6 +233,7 @@ class TestViews(unittest.TestCase):
                 'id': 30,
                 'koji_tag': None,
                 'name': 'testmodule',
+                'rebuild_strategy': 'changed-and-after',
                 'owner': 'some_other_user',
                 'scmurl': ('git://pkgs.domain.local/modules/testmodule?'
                            '#ca95886c7a443b36a9ce31abda1f9bef22f2f8c9'),
@@ -259,11 +262,12 @@ class TestViews(unittest.TestCase):
                 'time_submitted': '2016-09-03T13:58:33Z',
                 'version': '6'
             },
-                {
+            {
                 'id': 29,
                 'koji_tag': 'module-postgressql-1.2',
                 'name': 'postgressql',
                 'owner': 'some_user',
+                'rebuild_strategy': 'changed-and-after',
                 'scmurl': ('git://pkgs.domain.local/modules/postgressql?'
                            '#aa95886c7a443b36a9ce31abda1f9bef22f2f8c9'),
                 'state': 3,
@@ -492,12 +496,72 @@ class TestViews(unittest.TestCase):
         self.assertEquals(data['stream'], 'master')
         self.assertEquals(data['owner'], 'Homer J. Simpson')
         self.assertEquals(data['id'], 31)
+        self.assertEquals(data['rebuild_strategy'], 'changed-and-after')
         self.assertEquals(data['state_name'], 'init')
         self.assertEquals(data['state_url'], '/module-build-service/1/module-builds/31')
         self.assertEquals(data['state_trace'], [])
         self.assertDictEqual(data['tasks'], {})
         mmd = _modulemd.ModuleMetadata()
         mmd.loads(data["modulemd"])
+
+    @patch('module_build_service.auth.get_user', return_value=user)
+    @patch('module_build_service.scm.SCM')
+    @patch('module_build_service.config.Config.rebuild_strategy_allow_override',
+           new_callable=PropertyMock, return_value=True)
+    def test_submit_build_rebuild_strategy(self, mocked_rmao, mocked_scm, mocked_get_user):
+        FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+
+        rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
+            {'branch': 'master', 'rebuild_strategy': 'only-changed',
+             'scmurl': ('git://pkgs.stg.fedoraproject.org/modules/testmodule.git?'
+                        '#68931c90de214d9d13feefbd35246a81b6cb8d49')}))
+        data = json.loads(rv.data)
+        self.assertEquals(data['rebuild_strategy'], 'only-changed')
+
+    @patch('module_build_service.auth.get_user', return_value=user)
+    @patch('module_build_service.scm.SCM')
+    @patch('module_build_service.config.Config.rebuild_strategies_allowed',
+           new_callable=PropertyMock, return_value=['all'])
+    @patch('module_build_service.config.Config.rebuild_strategy_allow_override',
+           new_callable=PropertyMock, return_value=True)
+    def test_submit_build_rebuild_strategy_not_allowed(self, mock_rsao, mock_rsa, mocked_scm,
+                                                       mocked_get_user):
+        FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+
+        rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
+            {'branch': 'master', 'rebuild_strategy': 'only-changed',
+                'scmurl': ('git://pkgs.stg.fedoraproject.org/modules/testmodule.git?'
+                        '#68931c90de214d9d13feefbd35246a81b6cb8d49')}))
+        data = json.loads(rv.data)
+        self.assertEqual(rv.status_code, 400)
+        expected_error = {
+            'error': 'Bad Request',
+            'message': ('The rebuild method of "only-changed" is not allowed. Chose from: all.'),
+            'status': 400
+        }
+        self.assertEqual(data, expected_error)
+
+    @patch('module_build_service.auth.get_user', return_value=user)
+    @patch('module_build_service.scm.SCM')
+    def test_submit_build_rebuild_strategy_override_not_allowed(self, mocked_scm, mocked_get_user):
+        FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+
+        rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
+            {'branch': 'master', 'rebuild_strategy': 'only-changed',
+             'scmurl': ('git://pkgs.stg.fedoraproject.org/modules/testmodule.git?'
+                        '#68931c90de214d9d13feefbd35246a81b6cb8d49')}))
+        data = json.loads(rv.data)
+        self.assertEqual(rv.status_code, 400)
+        expected_error = {
+            'error': 'Bad Request',
+            'message': ('The request contains the "rebuild_strategy" parameter but overriding '
+                        'the default isn\'t allowed'),
+            'status': 400
+        }
+        self.assertEqual(data, expected_error)
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
@@ -523,6 +587,7 @@ class TestViews(unittest.TestCase):
         self.assertEquals(data['owner'], 'Homer J. Simpson')
         self.assertEquals(data['id'], 31)
         self.assertEquals(data['state_name'], 'init')
+        self.assertEquals(data['rebuild_strategy'], 'changed-and-after')
 
     def test_submit_build_auth_error(self):
         base_dir = path.abspath(path.dirname(__file__))
@@ -820,3 +885,95 @@ class TestViews(unittest.TestCase):
         data = json.loads(rv.data)
         self.assertEqual(rv.status_code, 200)
         self.assertEquals(data, {'auth_method': 'kerberos', 'version': version})
+
+    def test_rebuild_strategy_api(self):
+        rv = self.client.get('/module-build-service/1/rebuild-strategies/')
+        data = json.loads(rv.data)
+        self.assertEqual(rv.status_code, 200)
+        expected = {
+            'items': [
+                {
+                    'allowed': False,
+                    'default': False,
+                    'description': 'All components will be rebuilt',
+                    'name': 'all'
+                },
+                {
+                    'allowed': True,
+                    'default': True,
+                    'description': ('All components that have changed and those in subsequent '
+                                    'batches will be rebuilt'),
+                    'name': 'changed-and-after'
+                },
+                {
+                    'allowed': False,
+                    'default': False,
+                    'description': 'All changed components will be rebuilt',
+                    'name': 'only-changed'
+                }
+            ]
+        }
+        self.assertEquals(data, expected)
+
+    def test_rebuild_strategy_api_only_changed_default(self):
+        with patch.object(mbs_config.Config, 'rebuild_strategy', new_callable=PropertyMock) as r_s:
+            r_s.return_value = 'only-changed'
+            rv = self.client.get('/module-build-service/1/rebuild-strategies/')
+        data = json.loads(rv.data)
+        self.assertEqual(rv.status_code, 200)
+        expected = {
+            'items': [
+                {
+                    'allowed': False,
+                    'default': False,
+                    'description': 'All components will be rebuilt',
+                    'name': 'all'
+                },
+                {
+                    'allowed': False,
+                    'default': False,
+                    'description': ('All components that have changed and those in subsequent '
+                                    'batches will be rebuilt'),
+                    'name': 'changed-and-after'
+                },
+                {
+                    'allowed': True,
+                    'default': True,
+                    'description': 'All changed components will be rebuilt',
+                    'name': 'only-changed'
+                }
+            ]
+        }
+        self.assertEquals(data, expected)
+
+    def test_rebuild_strategy_api_override_allowed(self):
+        with patch.object(mbs_config.Config, 'rebuild_strategy_allow_override',
+                          new_callable=PropertyMock) as rsao:
+            rsao.return_value = True
+            rv = self.client.get('/module-build-service/1/rebuild-strategies/')
+        data = json.loads(rv.data)
+        self.assertEqual(rv.status_code, 200)
+        expected = {
+            'items': [
+                {
+                    'allowed': True,
+                    'default': False,
+                    'description': 'All components will be rebuilt',
+                    'name': 'all'
+                },
+                {
+                    'allowed': True,
+                    'default': True,
+                    'description': ('All components that have changed and those in subsequent '
+                                    'batches will be rebuilt'),
+                    'name': 'changed-and-after'
+                },
+                {
+                    'allowed': True,
+                    'default': False,
+                    'description': 'All changed components will be rebuilt',
+                    'name': 'only-changed'
+                }
+            ]
+        }
+        self.assertEquals(data, expected)

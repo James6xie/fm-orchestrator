@@ -25,7 +25,7 @@ import unittest
 from mock import patch, PropertyMock
 import vcr
 
-from tests import conf, db
+from tests import conf, db, clean_database
 from tests.test_views.test_views import FakeSCM
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.modules
@@ -46,10 +46,7 @@ class TestModuleInit(unittest.TestCase):
         with open(testmodule_yml_path, 'r') as f:
             yaml = f.read()
         scmurl = ('git://pkgs.domain.local/modules/testmodule?#da95886')
-        db.session.remove()
-        db.drop_all()
-        db.create_all()
-        db.session.commit()
+        clean_database()
         with make_session(conf) as session:
             ModuleBuild.create(
                 session, conf, 'testmodule', '1', 3, yaml, scmurl, 'mprahl')

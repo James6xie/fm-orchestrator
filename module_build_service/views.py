@@ -77,6 +77,12 @@ api_v1 = {
         'options': {
             'methods': ['GET']
         }
+    },
+    'rebuild_strategies_list': {
+        'url': '/module-build-service/1/rebuild-strategies/',
+        'options': {
+            'methods': ['GET']
+        }
     }
 }
 
@@ -203,6 +209,30 @@ class AboutAPI(MethodView):
         return jsonify(json), 200
 
 
+class RebuildStrategies(MethodView):
+    def get(self):
+        items = []
+        # Sort the items list by name
+        for strategy in sorted(models.ModuleBuild.rebuild_strategies.keys()):
+            default = False
+            if strategy == conf.rebuild_strategy:
+                default = True
+                allowed = True
+            elif conf.rebuild_strategy_allow_override and \
+                    strategy in conf.rebuild_strategies_allowed:
+                allowed = True
+            else:
+                allowed = False
+            items.append({
+                'name': strategy,
+                'description': models.ModuleBuild.rebuild_strategies[strategy],
+                'allowed': allowed,
+                'default': default
+            })
+
+        return jsonify({'items': items}), 200
+
+
 class BaseHandler(object):
     def __init__(self, request):
         self.username, self.groups = module_build_service.auth.get_user(request)
@@ -215,7 +245,7 @@ class BaseHandler(object):
     def validate_optional_params(self):
         forbidden_params = [k for k in self.data
                             if k not in models.ModuleBuild.__table__.columns and
-                            k not in ["branch"]]
+                            k not in ["branch", "rebuild_strategy"]]
         if forbidden_params:
             raise ValidationError('The request contains unspecified parameters: {}'
                                   .format(", ".join(forbidden_params)))
@@ -229,6 +259,17 @@ class BaseHandler(object):
         if not conf.no_auth and "owner" in self.data:
             raise ValidationError(("The request contains 'owner' parameter,"
                                    " however NO_AUTH is not allowed"))
+
+        if not conf.rebuild_strategy_allow_override and 'rebuild_strategy' in self.data:
+            raise ValidationError('The request contains the "rebuild_strategy" parameter but '
+                                  'overriding the default isn\'t allowed')
+
+        if 'rebuild_strategy' in self.data:
+            if self.data['rebuild_strategy'] not in conf.rebuild_strategies_allowed:
+                raise ValidationError(
+                    'The rebuild method of "{0}" is not allowed. Chose from: {1}.'
+                    .format(self.data['rebuild_strategy'],
+                            ', '.join(conf.rebuild_strategies_allowed)))
 
 
 class SCMHandler(BaseHandler):
@@ -298,6 +339,7 @@ def register_api_v1():
     module_view = ModuleBuildAPI.as_view('module_builds')
     component_view = ComponentBuildAPI.as_view('component_builds')
     about_view = AboutAPI.as_view('about')
+    rebuild_strategies_view = RebuildStrategies.as_view('rebuild_strategies')
     for key, val in api_v1.items():
         if key.startswith('component_build'):
             app.add_url_rule(val['url'],
@@ -313,6 +355,11 @@ def register_api_v1():
             app.add_url_rule(val['url'],
                              endpoint=key,
                              view_func=about_view,
+                             **val['options'])
+        elif key == 'rebuild_strategies_list':
+            app.add_url_rule(val['url'],
+                             endpoint=key,
+                             view_func=rebuild_strategies_view,
                              **val['options'])
         else:
             raise NotImplementedError("Unhandled api key.")

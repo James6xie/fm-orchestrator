@@ -158,11 +158,19 @@ class ModuleBuild(MBSBase):
     time_modified = db.Column(db.DateTime)
     time_completed = db.Column(db.DateTime)
     new_repo_task_id = db.Column(db.Integer)
+    rebuild_strategy = db.Column(db.String, nullable=False)
 
     # A monotonically increasing integer that represents which batch or
     # iteration this module is currently on for successive rebuilds of its
     # components.  Think like 'mockchain --recurse'
     batch = db.Column(db.Integer, default=0)
+
+    rebuild_strategies = {
+        'all': 'All components will be rebuilt',
+        'changed-and-after': ('All components that have changed and those in subsequent batches '
+                              'will be rebuilt'),
+        'only-changed': 'All changed components will be rebuilt'
+    }
 
     def current_batch(self, state=None):
         """ Returns all components of this module in the current batch. """
@@ -221,6 +229,14 @@ class ModuleBuild(MBSBase):
             return BUILD_STATES[field]
         raise ValueError("%s: %s, not in %r" % (key, field, BUILD_STATES))
 
+    @validates('rebuild_strategy')
+    def validate_rebuild_stategy(self, key, rebuild_strategy):
+        if rebuild_strategy not in self.rebuild_strategies.keys():
+            choices = ', '.join(self.rebuild_strategies.keys())
+            raise ValueError('The rebuild_strategy of "{0}" is invalid. Chose from: {1}'
+                             .format(rebuild_strategy, choices))
+        return rebuild_strategy
+
     @classmethod
     def from_module_event(cls, session, event):
         if type(event) == module_build_service.messaging.MBSModule:
@@ -232,7 +248,7 @@ class ModuleBuild(MBSBase):
 
     @classmethod
     def create(cls, session, conf, name, stream, version, modulemd, scmurl, username,
-               copr_owner=None, copr_project=None):
+               copr_owner=None, copr_project=None, rebuild_strategy=None):
         now = datetime.utcnow()
         module = cls(
             name=name,
@@ -245,7 +261,9 @@ class ModuleBuild(MBSBase):
             time_submitted=now,
             time_modified=now,
             copr_owner=copr_owner,
-            copr_project=copr_project
+            copr_project=copr_project,
+            # If the rebuild_strategy isn't specified, use the default
+            rebuild_strategy=rebuild_strategy or conf.rebuild_strategy
         )
         session.add(module)
         session.commit()
@@ -362,6 +380,7 @@ class ModuleBuild(MBSBase):
             'version': self.version,
             'owner': self.owner,
             'name': self.name,
+            'rebuild_strategy': self.rebuild_strategy,
             'scmurl': self.scmurl,
             'time_submitted': _utc_datetime_to_iso(self.time_submitted),
             'time_modified': _utc_datetime_to_iso(self.time_modified),

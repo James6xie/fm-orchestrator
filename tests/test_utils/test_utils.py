@@ -814,6 +814,93 @@ class TestBatches(unittest.TestCase):
         mock_sbc.assert_called_once()
 
     @patch('module_build_service.utils.start_build_component')
+    @patch('module_build_service.config.Config.rebuild_strategy',
+           new_callable=mock.PropertyMock, return_value='all')
+    def test_start_next_batch_build_rebuild_strategy_all(
+            self, mock_rm, mock_sbc, default_buildroot_groups):
+        """
+        Tests that start_next_batch_build can't reuse any components in the batch because the
+        rebuild method is set to "all".
+        """
+        module_build = models.ModuleBuild.query.filter_by(id=2).one()
+        module_build.rebuild_strategy = 'all'
+        module_build.batch = 1
+
+        builder = mock.MagicMock()
+        further_work = module_build_service.utils.start_next_batch_build(
+            conf, module_build, db.session, builder)
+
+        # Batch number should increase.
+        self.assertEqual(module_build.batch, 2)
+        # No component reuse messages should be returned
+        self.assertEqual(len(further_work), 0)
+        # Make sure that both components in the batch were submitted
+        self.assertEqual(len(mock_sbc.mock_calls), 2)
+
+    @patch('module_build_service.utils.start_build_component')
+    @patch('module_build_service.config.Config.rebuild_strategy',
+           new_callable=mock.PropertyMock, return_value='only-changed')
+    def test_start_next_batch_build_rebuild_strategy_only_changed(
+            self, mock_rm, mock_sbc, default_buildroot_groups):
+        """
+        Tests that start_next_batch_build reuses all unchanged components in the batch because the
+        rebuild method is set to "only-changed". This means that one component is reused in batch
+        2, and even though the other component in batch 2 changed and was rebuilt, the component
+        in batch 3 can be reused.
+        """
+        module_build = models.ModuleBuild.query.filter_by(id=2).one()
+        module_build.rebuild_strategy = 'only-changed'
+        module_build.batch = 1
+        # perl-List-Compare changed
+        plc_component = models.ComponentBuild.query.filter_by(
+            module_id=2, package='perl-List-Compare').one()
+        plc_component.ref = '5ceea46add2366d8b8c5a623a2fb563b625b9abd'
+
+        builder = mock.MagicMock()
+        further_work = module_build_service.utils.start_next_batch_build(
+            conf, module_build, db.session, builder)
+
+        # Batch number should increase
+        self.assertEqual(module_build.batch, 2)
+
+        # Make sure we only have one message returned for the one reused component
+        self.assertEqual(len(further_work), 1)
+        # The KojiBuildChange message in further_work should have build_new_state
+        # set to COMPLETE, but the current component build state in the DB should be set
+        # to BUILDING, so KojiBuildChange message handler handles the change
+        # properly.
+        self.assertEqual(further_work[0].build_new_state, koji.BUILD_STATES['COMPLETE'])
+        component_build = models.ComponentBuild.from_component_event(db.session, further_work[0])
+        self.assertEqual(component_build.state, koji.BUILD_STATES['BUILDING'])
+        self.assertEqual(component_build.package, 'perl-Tangerine')
+        self.assertIsNotNone(component_build.reused_component_id)
+        # Make sure perl-List-Compare is set to the build state as well but not reused
+        self.assertEqual(plc_component.state, koji.BUILD_STATES['BUILDING'])
+        self.assertIsNone(plc_component.reused_component_id)
+        mock_sbc.assert_called_once()
+        mock_sbc.reset_mock()
+
+        # Complete the build
+        plc_component.state = koji.BUILD_STATES['COMPLETE']
+        pt_component = models.ComponentBuild.query.filter_by(
+            module_id=2, package='perl-Tangerine').one()
+        pt_component.state = koji.BUILD_STATES['COMPLETE']
+
+        # Start the next build batch
+        further_work = module_build_service.utils.start_next_batch_build(
+            conf, module_build, db.session, builder)
+        # Batch number should increase
+        self.assertEqual(module_build.batch, 3)
+        # Verify that tangerine was reused even though perl-Tangerine was rebuilt in the previous
+        # batch
+        self.assertEqual(further_work[0].build_new_state, koji.BUILD_STATES['COMPLETE'])
+        component_build = models.ComponentBuild.from_component_event(db.session, further_work[0])
+        self.assertEqual(component_build.state, koji.BUILD_STATES['BUILDING'])
+        self.assertEqual(component_build.package, 'tangerine')
+        self.assertIsNotNone(component_build.reused_component_id)
+        mock_sbc.assert_not_called()
+
+    @patch('module_build_service.utils.start_build_component')
     def test_start_next_batch_build_smart_scheduling(self, mock_sbc, default_buildroot_groups):
         """
         Tests that components with the longest build time will be scheduled first

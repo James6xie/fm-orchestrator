@@ -47,11 +47,14 @@ def uncompress_vcrpy_cassette():
 uncompress_vcrpy_cassette()
 
 
-def init_data():
+def clean_database():
     db.session.remove()
     db.drop_all()
     db.create_all()
-    db.session.commit()
+
+
+def init_data():
+    clean_database()
     for index in range(10):
         build_one = ModuleBuild()
         build_one.name = 'nginx'
@@ -72,6 +75,7 @@ def init_data():
             datetime(2016, 9, 3, 11, 25, 32) + timedelta(minutes=(index * 10))
         build_one.time_completed = \
             datetime(2016, 9, 3, 11, 25, 32) + timedelta(minutes=(index * 10))
+        build_one.rebuild_strategy = 'changed-and-after'
 
         component_one_build_one = ComponentBuild()
         component_one_build_one.package = 'nginx'
@@ -115,6 +119,7 @@ def init_data():
             datetime(2016, 9, 3, 12, 27, 19) + timedelta(minutes=(index * 10))
         build_two.time_completed = \
             datetime(2016, 9, 3, 11, 27, 19) + timedelta(minutes=(index * 10))
+        build_two.rebuild_strategy = 'changed-and-after'
 
         component_one_build_two = ComponentBuild()
         component_one_build_two.package = 'postgresql'
@@ -157,6 +162,7 @@ def init_data():
         build_three.time_modified = \
             datetime(2016, 9, 3, 12, 28, 40) + timedelta(minutes=(index * 10))
         build_three.time_completed = None
+        build_three.rebuild_strategy = 'changed-and-after'
 
         component_one_build_three = ComponentBuild()
         component_one_build_three.package = 'rubygem-rails'
@@ -197,10 +203,7 @@ def init_data():
 
 
 def scheduler_init_data(communicator_state=None):
-    db.session.remove()
-    db.drop_all()
-    db.create_all()
-    db.session.commit()
+    clean_database()
 
     current_dir = os.path.dirname(__file__)
     star_command_yml_path = os.path.join(
@@ -222,6 +225,7 @@ def scheduler_init_data(communicator_state=None):
     build_one.owner = 'Buzz Lightyear'
     build_one.time_submitted = datetime(2016, 12, 9, 11, 23, 20)
     build_one.time_modified = datetime(2016, 12, 9, 11, 25, 32)
+    build_one.rebuild_strategy = 'changed-and-after'
 
     component_one_build_one = module_build_service.models.ComponentBuild()
     component_one_build_one.package = 'communicator'
@@ -256,10 +260,7 @@ def scheduler_init_data(communicator_state=None):
 
 
 def test_reuse_component_init_data():
-    db.session.remove()
-    db.drop_all()
-    db.create_all()
-    db.session.commit()
+    clean_database()
 
     current_dir = os.path.dirname(__file__)
     formatted_testmodule_yml_path = os.path.join(
@@ -281,6 +282,7 @@ def test_reuse_component_init_data():
     build_one.time_submitted = datetime(2017, 2, 15, 16, 8, 18)
     build_one.time_modified = datetime(2017, 2, 15, 16, 19, 35)
     build_one.time_completed = datetime(2017, 2, 15, 16, 19, 35)
+    build_one.rebuild_strategy = 'changed-and-after'
 
     component_one_build_one = module_build_service.models.ComponentBuild()
     component_one_build_one.package = 'perl-Tangerine'
@@ -353,6 +355,7 @@ def test_reuse_component_init_data():
     build_two.owner = 'Tom Brady'
     build_two.time_submitted = datetime(2017, 2, 19, 16, 8, 18)
     build_two.time_modified = datetime(2017, 2, 19, 16, 8, 18)
+    build_two.rebuild_strategy = 'changed-and-after'
 
     component_one_build_two = module_build_service.models.ComponentBuild()
     component_one_build_two.package = 'perl-Tangerine'
@@ -412,10 +415,7 @@ def test_reuse_component_init_data():
 
 
 def test_reuse_shared_userspace_init_data():
-    db.session.remove()
-    db.drop_all()
-    db.create_all()
-    db.session.commit()
+    clean_database()
 
     with make_session(conf) as session:
         mmd = modulemd.ModuleMetadata()
@@ -443,6 +443,7 @@ def test_reuse_shared_userspace_init_data():
         build_one.time_submitted = datetime(2017, 2, 15, 16, 8, 18)
         build_one.time_modified = datetime(2017, 2, 15, 16, 19, 35)
         build_one.time_completed = datetime(2017, 2, 15, 16, 19, 35)
+        build_one.rebuild_strategy = 'changed-and-after'
 
         session.add(build_one)
 
@@ -490,6 +491,7 @@ def test_reuse_shared_userspace_init_data():
         build_one.time_submitted = datetime(2017, 2, 15, 16, 8, 18)
         build_one.time_modified = datetime(2017, 2, 15, 16, 19, 35)
         build_one.time_completed = datetime(2017, 2, 15, 16, 19, 35)
+        build_one.rebuild_strategy = 'changed-and-after'
 
         session.add(build_one)
 
