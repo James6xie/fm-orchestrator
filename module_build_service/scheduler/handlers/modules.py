@@ -96,6 +96,7 @@ def failed(config, session, msg):
     build.transition(config, state="failed")
     session.commit()
     build_logs.stop(build.id)
+    module_build_service.builder.GenericBuilder.clear_cache(build)
 
 
 def done(config, session, msg):
@@ -123,6 +124,7 @@ def done(config, session, msg):
     session.commit()
 
     build_logs.stop(build.id)
+    module_build_service.builder.GenericBuilder.clear_cache(build)
 
 
 def init(config, session, msg):
