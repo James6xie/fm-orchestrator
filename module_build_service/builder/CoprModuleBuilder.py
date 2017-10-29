@@ -83,9 +83,9 @@ class CoprModuleBuilder(GenericBuilder):
         self.copr = self._get_copr_safe()
         self._create_module_safe()
 
-        # @FIXME Not able to use gcc-c++ in chroot (RhBug: 1440889)
-        packages = groups["build"] - {"gcc-c++"}
-        self._update_chroot(packages=list(packages))
+        buildrequires = ["@{}:{}/{}".format(n, s, "buildroot")
+                         for n, s in self.module.mmd().buildrequires.items()]
+        self._update_chroot(packages=buildrequires)
 
         if self.copr and self.copr.projectname and self.copr.username:
             self.__prep = True
