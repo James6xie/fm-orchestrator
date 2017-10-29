@@ -105,6 +105,8 @@ class CoprModuleBuilder(GenericBuilder):
             copr = self._get_copr(**kwargs)
 
         self._create_chroot_safe(copr, self.chroot)
+        self.client.modify_project(copr.projectname, copr.username,
+                                   use_bootstrap_container=True)
         return copr
 
     def _get_copr(self, ownername, projectname):
@@ -193,8 +195,19 @@ class CoprModuleBuilder(GenericBuilder):
         # Kojipkgs repos have been prematurely disabled without providing any
         # suitable alternative for Copr. This is a temporary workaround until
         # we figure out how to solve this permanently.
-        repos.append("https://kojipkgs.fedoraproject.org/compose/"
-                     "latest-Fedora-Modular-26/compose/Server/x86_64/os/")
+        compose = ("https://kojipkgs.fedoraproject.org/compose/"
+                   "latest-Fedora-Modular-{}/compose/Server/x86_64/os/")
+
+        # We need to enable copr repositories with modularity DNF
+        # so we can install modules into the buildroot
+        copr = ("https://copr-be.cloud.fedoraproject.org/results/"
+                "@copr/{}/fedora-26-x86_64/")
+
+        repos.extend([
+            compose.format("Bikeshed"),
+            copr.format("dnf-modularity-nightly"),
+            copr.format("dnf-modularity-buildroot-deps"),
+        ])
 
         self._update_chroot(repos=repos)
 
