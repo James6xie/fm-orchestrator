@@ -178,10 +178,11 @@ class MockModuleBuilder(GenericBuilder):
             if not rpm.endswith(".rpm"):
                 continue
 
-            # If RPM is filtered-out, do not add it to artifacts list.
-            nvr = kobo.rpmlib.parse_nvr(rpm)
-            if nvr["name"] in m1_mmd.filter.rpms:
-                continue
+            if m1.last_batch_id() == m1.batch:
+                # If RPM is filtered-out, do not add it to artifacts list.
+                nvr = kobo.rpmlib.parse_nvr(rpm)
+                if nvr["name"] in m1_mmd.filter.rpms:
+                    continue
 
             pkglist_f.write(rpm + '\n')
             rpm = rpm[:-len(".rpm")]

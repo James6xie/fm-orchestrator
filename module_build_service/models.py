@@ -181,6 +181,10 @@ class ModuleBuild(MBSBase):
                 if component.batch == self.batch
             ]
 
+    def last_batch_id(self):
+        """ Returns the id of the last batch """
+        return max([build.batch for build in self.component_builds])
+
     def up_to_current_batch(self, state=None):
         """
         Returns all components of this module in the current batch and
