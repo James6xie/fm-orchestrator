@@ -1382,6 +1382,7 @@ def get_rpm_release_from_mmd(mmd):
     dist_hash = hashlib.sha1(dist_str).hexdigest()[:8]
     return conf.default_dist_tag_prefix + dist_hash
 
+
 def create_dogpile_key_generator_func(skip_first_n_args=0):
     """
     Creates dogpile key_generator function with additional features:
@@ -1398,6 +1399,7 @@ def create_dogpile_key_generator_func(skip_first_n_args=0):
     """
     def key_generator(namespace, fn):
         fname = fn.__name__
+
         def generate_key(*arg, **kwarg):
             key_template = fname + "_"
             for s in arg[skip_first_n_args:]:

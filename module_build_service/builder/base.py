@@ -63,6 +63,7 @@ Koji workflow
 
 """
 
+
 class GenericBuilder(six.with_metaclass(ABCMeta)):
     """
     External Api for builders
