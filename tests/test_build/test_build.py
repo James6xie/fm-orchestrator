@@ -319,6 +319,33 @@ class TestBuild(unittest.TestCase):
     @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
+    def test_submit_build_no_components(self, mocked_scm, mocked_get_user, conf_system, dbg):
+        """
+        Tests the build of a module with no components
+        """
+        FakeSCM(mocked_scm, 'python3', 'python3-no-components.yaml',
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+
+        rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
+            {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+                'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}))
+
+        data = json.loads(rv.data)
+        module_build_id = data['id']
+
+        msgs = []
+        stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
+        module_build_service.scheduler.main(msgs, stop)
+
+        module_build = models.ModuleBuild.query.filter_by(id=module_build_id).one()
+        # Make sure no component builds were registered
+        self.assertEqual(len(module_build.component_builds), 0)
+        # Make sure the build is done
+        self.assertEqual(module_build.state, models.BUILD_STATES['ready'])
+
+    @timed(30)
+    @patch('module_build_service.auth.get_user', return_value=user)
+    @patch('module_build_service.scm.SCM')
     def test_submit_build_from_yaml_not_allowed(
             self, mocked_scm, mocked_get_user, conf_system, dbg):
         FakeSCM(mocked_scm, "testmodule", "testmodule.yaml")

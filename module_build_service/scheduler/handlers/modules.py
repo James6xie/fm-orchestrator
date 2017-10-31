@@ -267,6 +267,16 @@ def wait(config, session, msg):
     log.debug("Adding dependencies %s into buildroot for module %s" % (dependencies, module_info))
     builder.buildroot_add_repos(dependencies)
 
+    if not build.component_builds:
+        log.info("There are no components in module %r, skipping build" % build)
+        build.transition(config, state="build")
+        session.add(build)
+        session.commit()
+        # Return a KojiRepoChange message so that the build can be transitioned to done
+        # in the repos handler
+        return [module_build_service.messaging.KojiRepoChange(
+            'handlers.modules.wait: fake msg', builder.module_build_tag['name'])]
+
     # If all components in module build will be reused, we don't have to build
     # module-build-macros, because there won't be any build done.
     if attempt_to_reuse_all_components(builder, session, build):

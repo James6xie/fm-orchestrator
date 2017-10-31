@@ -54,7 +54,11 @@ def done(config, session, msg):
         log.info("Ignoring repo regen for already failed %r" % module_build)
         return
 
-    current_batch = module_build.current_batch()
+    # If there are no components in this module build, then current_batch will be empty
+    if not module_build.component_builds:
+        current_batch = []
+    else:
+        current_batch = module_build.current_batch()
 
     # If any in the current batch are still running.. just wait.
     running = [c.state == koji.BUILD_STATES['BUILDING'] for c in current_batch]
@@ -74,7 +78,7 @@ def done(config, session, msg):
     # logic over in the component handler which should fail the module build
     # first before we ever get here.  This is here as a race condition safety
     # valve.
-    if not good:
+    if module_build.component_builds and not good:
         module_build.transition(config, models.BUILD_STATES['failed'],
                                 "Some components failed to build.")
         session.commit()

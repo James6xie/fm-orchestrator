@@ -1,0 +1,34 @@
+# This module is left empty because python3 is contained in the
+# Platform module of Fedora 27 Modular Server edition.
+
+# Other modules can depend on this empty one so that, when the
+# implementation of python3 is moved out of the Platform module,
+# other modules should not be affected.
+
+document: modulemd
+version: 1
+data:
+    summary: Python programming language, version 3
+    description: >-
+        Python is an interpreted, interactive, object-oriented programming
+        language often compared to Tcl, Perl, Scheme or Java. Python includes
+        modules, classes, exceptions, very high level dynamic data types
+        and dynamic typing. Python supports interfaces to many system calls and
+        libraries, as well as to various windowing systems (X11, Motif, Tk,
+        Mac and MFC).
+
+        Programmers can write new built-in modules for Python in C or C++.
+        Python can be used as an extension language for applications that
+        need a programmable interface.
+    license:
+        module:
+            - MIT
+    dependencies:
+        buildrequires:
+            bootstrap: master
+        requires:
+            platform: master
+    references:
+        community: https://www.python.org/
+        documentation: https://docs.python.org/3/
+        tracker: https://src.fedoraproject.org/modules/python3

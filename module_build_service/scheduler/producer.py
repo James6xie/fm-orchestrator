@@ -194,10 +194,13 @@ class MBSProducer(PollingProducer):
                       'the concurrent build threshold being met')
             return
 
-        # Check to see if module builds that are in build state but don't have
-        # any component builds being built can be worked on
-        for module_build in session.query(models.ModuleBuild) \
-                .filter_by(state=models.BUILD_STATES['build']).all():
+        # Check for module builds that are in the build state but don't have any active component
+        # builds. Exclude module builds in batch 0. This is likely a build of a module without
+        # components.
+        module_builds = session.query(models.ModuleBuild).filter(
+            models.ModuleBuild.state == models.BUILD_STATES['build'],
+            models.ModuleBuild.batch > 0).all()
+        for module_build in module_builds:
             # If there are no components in the build state on the module build,
             # then no possible event will start off new component builds.
             # But do not try to start new builds when we are waiting for the
