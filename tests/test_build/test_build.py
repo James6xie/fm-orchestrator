@@ -840,6 +840,32 @@ class TestBuild(unittest.TestCase):
             self.assertTrue(build.module_build.state in [models.BUILD_STATES["done"],
                                                          models.BUILD_STATES["ready"]])
 
+    @patch('module_build_service.auth.get_user', return_value=user)
+    @patch('module_build_service.scm.SCM')
+    def test_submit_build_resume_init_fail(self, mocked_scm, mocked_get_user, conf_system, dbg):
+        """
+        Tests that resuming the build fails when the build is in init state
+        """
+        FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+        # Post so a module is in the init phase
+        rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
+            {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+                'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}))
+        self.assertEqual(rv.status_code, 201)
+        # Post again and make sure it fails
+        rv2 = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
+            {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+                'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}))
+        data = json.loads(rv2.data)
+        expected = {
+            'error': 'Conflict',
+            'message': ('Module (state=0) already exists. Only a new build or resubmission of a '
+                        'failed build is allowed.'),
+            'status': 409
+        }
+        self.assertEqual(data, expected)
+
 
 @patch("module_build_service.config.Config.system",
        new_callable=PropertyMock, return_value="test")
