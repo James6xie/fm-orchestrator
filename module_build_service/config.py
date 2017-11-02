@@ -586,7 +586,7 @@ class Config(object):
 
     def _setifok_rebuild_strategy(self, strategy):
         if strategy not in SUPPORTED_STRATEGIES:
-            raise ValueError('The strategy "{0}" is not supported. Chose from: {1}'
+            raise ValueError('The strategy "{0}" is not supported. Choose from: {1}'
                              .format(strategy, ', '.join(SUPPORTED_STRATEGIES)))
         self._rebuild_strategy = strategy
 

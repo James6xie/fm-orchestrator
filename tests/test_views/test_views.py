@@ -538,7 +538,7 @@ class TestViews(unittest.TestCase):
         self.assertEqual(rv.status_code, 400)
         expected_error = {
             'error': 'Bad Request',
-            'message': ('The rebuild method of "only-changed" is not allowed. Chose from: all.'),
+            'message': ('The rebuild method of "only-changed" is not allowed. Choose from: all.'),
             'status': 400
         }
         self.assertEqual(data, expected_error)

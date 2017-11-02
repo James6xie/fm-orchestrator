@@ -233,7 +233,7 @@ class ModuleBuild(MBSBase):
     def validate_rebuild_stategy(self, key, rebuild_strategy):
         if rebuild_strategy not in self.rebuild_strategies.keys():
             choices = ', '.join(self.rebuild_strategies.keys())
-            raise ValueError('The rebuild_strategy of "{0}" is invalid. Chose from: {1}'
+            raise ValueError('The rebuild_strategy of "{0}" is invalid. Choose from: {1}'
                              .format(rebuild_strategy, choices))
         return rebuild_strategy
 

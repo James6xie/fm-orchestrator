@@ -267,7 +267,7 @@ class BaseHandler(object):
         if 'rebuild_strategy' in self.data:
             if self.data['rebuild_strategy'] not in conf.rebuild_strategies_allowed:
                 raise ValidationError(
-                    'The rebuild method of "{0}" is not allowed. Chose from: {1}.'
+                    'The rebuild method of "{0}" is not allowed. Choose from: {1}.'
                     .format(self.data['rebuild_strategy'],
                             ', '.join(conf.rebuild_strategies_allowed)))
 
