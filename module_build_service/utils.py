@@ -593,7 +593,8 @@ def _fetch_mmd(url, branch=None, allow_local_url=False, whitelist_url=False):
     else:
         mmd.version = int(scm.version)
 
-    return mmd, scm, yaml
+
+    return mmd, scm
 
 
 def load_mmd(yaml):
@@ -936,7 +937,7 @@ def submit_module_build_from_yaml(username, handle, optional_params=None):
     mmd.name = mmd.name or def_name
     mmd.stream = mmd.stream or "master"
     mmd.version = mmd.version or def_version
-    return submit_module_build(username, None, mmd, None, yaml, optional_params)
+    return submit_module_build(username, None, mmd, None, optional_params)
 
 
 _url_check_re = re.compile(r"^[^:/]+:.*$")
@@ -950,13 +951,13 @@ def submit_module_build_from_scm(username, url, branch, allow_local_url=False,
             "'{}' is not a valid URL, assuming local path".format(url))
         url = os.path.abspath(url)
         url = "file://" + url
-    mmd, scm, yaml = _fetch_mmd(url, branch, allow_local_url)
+    mmd, scm = _fetch_mmd(url, branch, allow_local_url)
     if skiptests:
         mmd.buildopts.rpms.macros += "\n\n%__spec_check_pre exit 0\n"
-    return submit_module_build(username, url, mmd, scm, yaml, optional_params)
+    return submit_module_build(username, url, mmd, scm, optional_params)
 
 
-def submit_module_build(username, url, mmd, scm, yaml, optional_params=None):
+def submit_module_build(username, url, mmd, scm, optional_params=None):
     # Import it here, because SCM uses utils methods
     # and fails to import them because of dep-chain.
     validate_mmd(mmd)
@@ -991,7 +992,7 @@ def submit_module_build(username, url, mmd, scm, yaml, optional_params=None):
             name=mmd.name,
             stream=mmd.stream,
             version=str(mmd.version),
-            modulemd=yaml,
+            modulemd=mmd.dumps(),
             scmurl=url,
             username=username,
             **(optional_params or {})
@@ -1397,6 +1398,9 @@ def get_rpm_release_from_mmd(mmd):
     """
     Returns the dist tag based on the modulemd metadata and MBS configuration.
     """
+
+    if not mmd.name or not mmd.stream or not mmd.version:
+        raise ValueError("Modulemd name, stream, and version are required.")
 
     dist_str = '.'.join([mmd.name, mmd.stream, str(mmd.version)])
     dist_hash = hashlib.sha1(dist_str).hexdigest()[:8]

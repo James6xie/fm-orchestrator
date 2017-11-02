@@ -292,7 +292,7 @@ class TestBuild(unittest.TestCase):
         # Check that the components are added to buildroot after the batch
         # is built.
         buildroot_groups = []
-        buildroot_groups.append(set([u'module-build-macros-0.1-1.module+24957a32.src.rpm-1-1']))
+        buildroot_groups.append(set([u'module-build-macros-0.1-1.module+fc4ed5f7.src.rpm-1-1']))
         buildroot_groups.append(set([u'perl-Tangerine?#f24-1-1', u'perl-List-Compare?#f25-1-1']))
         buildroot_groups.append(set([u'tangerine?#f23-1-1']))
 
