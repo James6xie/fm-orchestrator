@@ -125,9 +125,7 @@ class CoprModuleBuilder(GenericBuilder):
     def _create_module_safe(self):
         from copr.exceptions import CoprRequestException
 
-        modulemd = tempfile.mktemp()
-        self.module.mmd().dump(modulemd)
-
+        modulemd = self._dump_mmd()
         kwargs = {
             "username": self.module.copr_owner or self.owner,
             "projectname": self.module.copr_project or
@@ -143,6 +141,18 @@ class CoprModuleBuilder(GenericBuilder):
                 raise RuntimeError("Buildroot is not prep-ed")
         finally:
             os.remove(modulemd)
+
+    def _dump_mmd(self):
+        # Write module's name, stream and version into the modulemd file
+        # so Copr can parse it from there
+        mmd = self.module.mmd()
+        mmd.name = str(self.module.name)
+        mmd.stream = str(self.module.stream)
+        mmd.version = int(self.module.version)
+
+        modulemd = tempfile.mktemp()
+        mmd.dump(modulemd)
+        return modulemd
 
     def buildroot_ready(self, artifacts=None):
         """
@@ -295,8 +305,7 @@ class CoprModuleBuilder(GenericBuilder):
                                                     chroots=[self.chroot])
 
     def finalize(self):
-        modulemd = tempfile.mktemp()
-        self.module.mmd().dump(modulemd)
+        modulemd = self._dump_mmd()
 
         # Create a module from previous project
         result = self.client.make_module(username=self.copr.username,
