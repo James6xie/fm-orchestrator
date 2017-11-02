@@ -123,8 +123,6 @@ class CoprModuleBuilder(GenericBuilder):
                                        chroots=current_chroots + [chroot])
 
     def _create_module_safe(self):
-        from copr.exceptions import CoprRequestException
-
         modulemd = self._dump_mmd()
         kwargs = {
             "username": self.module.copr_owner or self.owner,
