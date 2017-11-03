@@ -4,9 +4,9 @@ which fedpkg-stage || (echo "sudo dnf install fedpkg-stage" && exit 1)
 which jq || (echo "sudo dnf install jq" && exit 1)
 
 FAS=$USER
-rm -rf /var/tmp/mbs-test
-mkdir /var/tmp/mbs-test
-cd /var/tmp/mbs-test
+rm -rf /var/tmp/mbs-test-rebuild
+mkdir /var/tmp/mbs-test-rebuild
+cd /var/tmp/mbs-test-rebuild
 
 git clone ssh://$FAS@pkgs.stg.fedoraproject.org/rpms/perl-List-Compare
 git clone ssh://$FAS@pkgs.stg.fedoraproject.org/modules/testmodule
