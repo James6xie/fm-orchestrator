@@ -65,10 +65,8 @@ class TestSCMModule(unittest.TestCase):
         scm = module_build_service.scm.SCM(repo_path)
         assert scm.scheme == 'git', scm.scheme
         fname = tempfile.mktemp(suffix='mbs-scm-test')
-        try:
-            scm.get_latest(branch='master; touch %s' % fname)
-        except UnprocessableEntity:
-            assert not os.path.exists(fname), "%r exists!  Vulnerable." % fname
+        scm.get_latest(branch='master; touch %s' % fname)
+        assert not os.path.exists(fname), "%r exists!  Vulnerable." % fname
 
     def test_local_extract_name(self):
         scm = module_build_service.scm.SCM(repo_path)
@@ -117,8 +115,3 @@ class TestSCMModule(unittest.TestCase):
         scm.checkout(self.tempdir)
         scm.verify()
         scm.get_module_yaml()
-
-    @raises(UnprocessableEntity)
-    def test_get_latest_incorect_component_branch(self):
-        scm = module_build_service.scm.SCM(repo_path)
-        scm.get_latest(branch='foobar')

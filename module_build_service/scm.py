@@ -134,7 +134,7 @@ class SCM(object):
         if stderr:
             log.warning(stderr)
         if proc.returncode != 0:
-            raise UnprocessableEntity("Failed on %r, retcode %r, out %r, err %r" % (
+            raise RuntimeError("Failed on %r, retcode %r, out %r, err %r" % (
                 cmd, proc.returncode, stdout, stderr))
         return proc.returncode, stdout, stderr
 
@@ -186,7 +186,7 @@ class SCM(object):
         """
         if self.scheme == "git":
             log.debug("Getting/verifying commit hash for %s" % self.repository)
-            output = SCM._run(["git", "ls-remote", "--exit-code", self.repository, branch])[1]
+            output = SCM._run(["git", "ls-remote", self.repository, branch])[1]
             if output:
                 self.commit = output.split("\t")[0]
                 return self.commit
