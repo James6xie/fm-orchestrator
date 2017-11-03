@@ -773,9 +773,12 @@ def format_mmd(mmd, scmurl, session=None):
         for pkgname, pkg in mmd.components.rpms.items():
             if pkg.repository and not conf.rpms_allow_repository:
                 raise Forbidden(
-                    "Custom component repositories aren't allowed")
+                    "Custom component repositories aren't allowed.  "
+                    "%r bears repository %r" % (pkgname, pkg.repository))
             if pkg.cache and not conf.rpms_allow_cache:
-                raise Forbidden("Custom component caches aren't allowed")
+                raise Forbidden(
+                    "Custom component caches aren't allowed.  "
+                    "%r bears cache %r" % (pkgname, pkg.cache))
             if not pkg.repository:
                 pkg.repository = conf.rpms_default_repository + pkgname
             if not pkg.cache:
@@ -787,7 +790,8 @@ def format_mmd(mmd, scmurl, session=None):
         for modname, mod in mmd.components.modules.items():
             if mod.repository and not conf.modules_allow_repository:
                 raise Forbidden(
-                    "Custom component repositories aren't allowed")
+                    "Custom module repositories aren't allowed.  "
+                    "%r bears repository %r" % (modname, mod.repository))
             if not mod.repository:
                 mod.repository = conf.modules_default_repository + modname
             if not mod.ref:
@@ -814,7 +818,8 @@ def validate_mmd(mmd):
     for modname, mod in mmd.components.modules.items():
         if mod.repository and not conf.modules_allow_repository:
             raise Forbidden(
-                "Custom component repositories aren't allowed")
+                "Custom module repositories aren't allowed.  "
+                "%r bears repository %r" % (modname, mod.repository))
 
 
 def merge_included_mmd(mmd, included_mmd):
