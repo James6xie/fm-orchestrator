@@ -603,13 +603,13 @@ class TestUtils(unittest.TestCase):
                 "Tom Brady", 'git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#8fea453',
                 'master')
 
-            self.assertEqual(module_build.state, models.BUILD_STATES['init'])
+            self.assertEqual(module_build.state, models.BUILD_STATES['wait'])
             self.assertEqual(module_build.batch, 0)
             self.assertEqual(module_build.state_reason, "Resubmitted by Tom Brady")
             self.assertEqual(complete_component.state, koji.BUILD_STATES['COMPLETE'])
-            # These are still cancelled and failed until the init handler runs
-            self.assertEqual(failed_component.state, koji.BUILD_STATES['FAILED'])
-            self.assertEqual(canceled_component.state, koji.BUILD_STATES['CANCELED'])
+            # The failed/cancelled components are now stateless
+            self.assertIsNone(failed_component.state)
+            self.assertIsNone(canceled_component.state)
 
     @vcr.use_cassette(
         path.join(CASSETTES_DIR, ('tests.test_utils.TestUtils.'

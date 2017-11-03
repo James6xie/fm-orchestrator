@@ -27,6 +27,7 @@ import os
 from os import path, mkdir
 from os.path import dirname
 from shutil import copyfile
+from datetime import datetime
 
 from nose.tools import timed
 
@@ -37,7 +38,7 @@ from module_build_service import db, models, conf, build_logs
 
 from mock import patch, PropertyMock
 
-from tests import app, init_data, test_reuse_component_init_data
+from tests import app, test_reuse_component_init_data, clean_database
 import json
 import itertools
 
@@ -236,10 +237,7 @@ class TestBuild(unittest.TestCase):
     def setUp(self):
         GenericBuilder.register_backend_class(FakeModuleBuilder)
         self.client = app.test_client()
-
-        init_data()
-        models.ModuleBuild.query.delete()
-        models.ComponentBuild.query.delete()
+        clean_database()
 
         filename = cassette_dir + self.id()
         self.vcr = vcr.use_cassette(filename)
@@ -807,12 +805,63 @@ class TestBuild(unittest.TestCase):
         Tests that resuming the build works even when previous batches
         are already built.
         """
-        FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
-                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+        # Create a module in the failed state
+        build_one = models.ModuleBuild()
+        build_one.name = 'testmodule'
+        build_one.stream = 'master'
+        build_one.version = 1
+        build_one.state = models.BUILD_STATES['failed']
+        current_dir = os.path.dirname(__file__)
+        formatted_testmodule_yml_path = os.path.join(
+            current_dir, '..', 'staged_data', 'formatted_testmodule.yaml')
+        with open(formatted_testmodule_yml_path, 'r') as f:
+            build_one.modulemd = f.read()
+        build_one.koji_tag = 'module-testmodule-master-1'
+        build_one.scmurl = 'git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#7fea453'
+        build_one.batch = models.BUILD_STATES['failed']
+        build_one.owner = 'Homer J. Simpson'
+        build_one.time_submitted = datetime(2017, 2, 15, 16, 8, 18)
+        build_one.time_modified = datetime(2017, 2, 15, 16, 19, 35)
+        build_one.time_completed = datetime(2017, 2, 15, 16, 19, 35)
+        build_one.rebuild_strategy = 'changed-and-after'
+        # Successful component
+        component_one = models.ComponentBuild()
+        component_one.package = 'perl-Tangerine'
+        component_one.format = 'rpms'
+        component_one.scmurl = 'git://pkgs.stg.fedoraproject.org/rpms/perl-Tangerine.git?#f24'
+        component_one.state = koji.BUILD_STATES['COMPLETE']
+        component_one.nvr = 'perl-Tangerine-0.23-1.module_testmodule_master_1'
+        component_one.batch = 2
+        component_one.module_id = 1
+        component_one.ref = '4ceea43add2366d8b8c5a622a2fb563b625b9abf'
+        # Failed component
+        component_two = models.ComponentBuild()
+        component_two.package = 'perl-List-Compare'
+        component_two.format = 'rpms'
+        component_two.scmurl = 'git://pkgs.stg.fedoraproject.org/rpms/perl-List-Compare.git?#f24'
+        component_two.state = koji.BUILD_STATES['FAILED']
+        component_two.batch = 2
+        component_two.module_id = 1
+        # Component that isn't started yet
+        component_three = models.ComponentBuild()
+        component_three.package = 'tangerine'
+        component_three.format = 'rpms'
+        component_three.scmurl = 'git://pkgs.stg.fedoraproject.org/rpms/tangerine.git?#f24'
+        component_three.batch = 3
+        component_three.module_id = 1
 
+        db.session.add(build_one),
+        db.session.add(component_one)
+        db.session.add(component_two)
+        db.session.add(component_three)
+        db.session.commit()
+        db.session.expire_all()
+
+        FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml', '7fea453')
+        # Resubmit the failed module
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
-                'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}))
+                'testmodule.git?#7fea453'}))
 
         data = json.loads(rv.data)
         module_build_id = data['id']
@@ -820,15 +869,17 @@ class TestBuild(unittest.TestCase):
         FakeModuleBuilder.BUILD_STATE = "BUILDING"
         FakeModuleBuilder.INSTANT_COMPLETE = True
 
-        # Set the components from batch 2 to COMPLETE
-        components = models.ComponentBuild.query.filter_by(module_id=module_build_id)
-        for c in components:
-            print(c)
-            if c.batch == 2:
-                c.state = koji.BUILD_STATES["COMPLETE"]
-        db.session.commit()
+        module_build = models.ModuleBuild.query.filter_by(id=module_build_id).one()
+        components = models.ComponentBuild.query.filter_by(
+            module_id=module_build_id, batch=2).order_by(models.ComponentBuild.id)
+        # Make sure the build went from failed to wait
+        self.assertEqual(module_build.state, models.BUILD_STATES["wait"])
+        self.assertEqual(module_build.state_reason, 'Resubmitted by Homer J. Simpson')
+        # Make sure the state was reset on the failed component
+        self.assertIsNone(components[1].state)
         db.session.expire_all()
 
+        # Run the backend
         msgs = []
         stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
         module_build_service.scheduler.main(msgs, stop)
@@ -874,10 +925,7 @@ class TestLocalBuild(unittest.TestCase):
     def setUp(self):
         GenericBuilder.register_backend_class(FakeModuleBuilder)
         self.client = app.test_client()
-
-        init_data()
-        models.ModuleBuild.query.delete()
-        models.ComponentBuild.query.delete()
+        clean_database()
 
         filename = cassette_dir + self.id()
         self.vcr = vcr.use_cassette(filename)

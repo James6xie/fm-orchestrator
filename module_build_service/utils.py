@@ -899,25 +899,15 @@ def record_component_builds(mmd, module, initial_batch=1,
 
             pkgref = mmd.xmd['mbs']['rpms'][pkg.name]['ref']
             full_url = pkg.repository + "?#" + pkgref
-
-            existing_build = models.ComponentBuild.query.filter_by(
-                module_id=module.id, package=pkg.name).first()
-            if existing_build:
-                if existing_build.state != koji.BUILD_STATES['COMPLETE']:
-                    existing_build.state = None
-                    session.add(existing_build)
-            else:
-                # XXX: what about components that were present in previous
-                # builds but are gone now (component reduction)?
-                build = models.ComponentBuild(
-                    module_id=module.id,
-                    package=pkg.name,
-                    format="rpms",
-                    scmurl=full_url,
-                    batch=batch,
-                    ref=pkgref
-                )
-                session.add(build)
+            build = models.ComponentBuild(
+                module_id=module.id,
+                package=pkg.name,
+                format="rpms",
+                scmurl=full_url,
+                batch=batch,
+                ref=pkgref
+            )
+            session.add(build)
 
         return batch
 
@@ -958,6 +948,8 @@ def submit_module_build_from_scm(username, url, branch, allow_local_url=False,
 
 
 def submit_module_build(username, url, mmd, scm, optional_params=None):
+    import koji  # Placed here to avoid py2/py3 conflicts...
+
     # Import it here, because SCM uses utils methods
     # and fails to import them because of dep-chain.
     validate_mmd(mmd)
@@ -978,8 +970,13 @@ def submit_module_build(username, url, mmd, scm, optional_params=None):
                 raise ValidationError('You cannot change the module\'s "rebuild_strategy" when '
                                       'resuming a module build')
         log.debug('Resuming existing module build %r' % module)
+        # Reset all component builds that didn't complete
+        for component in module.component_builds:
+            if component.state and component.state != koji.BUILD_STATES['COMPLETE']:
+                component.state = None
+                db.session.add(component)
         module.username = username
-        module.transition(conf, models.BUILD_STATES["init"],
+        module.transition(conf, models.BUILD_STATES["wait"],
                           "Resubmitted by %s" % username)
         module.batch = 0
         log.info("Resumed existing module build in previous state %s"
