@@ -93,7 +93,9 @@ def failed(config, session, msg):
             session.commit()
             return
 
-    build.transition(config, state="failed")
+    # Don't transition it again if it's already been transitioned
+    if build.state != models.BUILD_STATES["failed"]:
+        build.transition(config, state="failed")
     session.commit()
     build_logs.stop(build.id)
     module_build_service.builder.GenericBuilder.clear_cache(build)

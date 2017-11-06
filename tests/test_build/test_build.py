@@ -34,6 +34,7 @@ from nose.tools import timed
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.repos
 import module_build_service.utils
+from module_build_service.errors import Forbidden
 from module_build_service import db, models, conf, build_logs
 
 from mock import patch, PropertyMock
@@ -216,6 +217,15 @@ class FakeModuleBuilder(GenericBuilder):
         pass
 
 
+def cleanup_moksha():
+    # Necessary to restart the twisted reactor for the next test.
+    import sys
+    del sys.modules['twisted.internet.reactor']
+    del sys.modules['moksha.hub.reactor']
+    del sys.modules['moksha.hub']
+    import moksha.hub.reactor # noqa
+
+
 @patch.object(module_build_service.config.Config, 'system', new_callable=PropertyMock,
               return_value='test')
 @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
@@ -245,13 +255,7 @@ class TestBuild(unittest.TestCase):
 
     def tearDown(self):
         FakeModuleBuilder.reset()
-
-        # Necessary to restart the twisted reactor for the next test.
-        import sys
-        del sys.modules['twisted.internet.reactor']
-        del sys.modules['moksha.hub.reactor']
-        del sys.modules['moksha.hub']
-        import moksha.hub.reactor # noqa
+        cleanup_moksha()
         self.vcr.__exit__()
         for i in range(20):
             try:
@@ -911,45 +915,32 @@ class TestBuild(unittest.TestCase):
         """
         Tests that resuming the build works when the build failed during the init step
         """
-        now = datetime.utcnow()
-        submitted_time = now - timedelta(minutes=3)
-        # Create a module in the failed state
-        build_one = models.ModuleBuild()
-        build_one.name = 'testmodule'
-        build_one.stream = 'master'
-        build_one.version = 1
-        build_one.state = models.BUILD_STATES['failed']
-        current_dir = os.path.dirname(__file__)
-        formatted_testmodule_yml_path = os.path.join(
-            current_dir, '..', 'staged_data', 'formatted_testmodule.yaml')
-        with open(formatted_testmodule_yml_path, 'r') as f:
-            build_one.modulemd = f.read()
-        build_one.koji_tag = 'module-testmodule-master-1'
-        build_one.scmurl = 'git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#7fea453'
-        build_one.batch = models.BUILD_STATES['failed']
-        build_one.owner = 'Homer J. Simpson'
-        build_one.time_submitted = submitted_time
-        build_one.time_modified = now
-        build_one.rebuild_strategy = 'changed-and-after'
-        # This module failed during init
-        mbt_one = models.ModuleBuildTrace(
-            state_time=submitted_time, state=models.BUILD_STATES['init'])
-        mbt_two = models.ModuleBuildTrace(state_time=now, state=build_one.state)
-        build_one.module_builds_trace.append(mbt_one)
-        build_one.module_builds_trace.append(mbt_two)
-
-        db.session.add(build_one)
-        db.session.commit()
-        db.session.expire_all()
-
         FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml', '7fea453')
+        stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
+
+        with patch('module_build_service.utils.format_mmd') as mock_format_mmd:
+            mock_format_mmd.side_effect = Forbidden(
+                'Custom component repositories aren\'t allowed.')
+            rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
+                {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+                    'testmodule.git?#7fea453'}))
+            # Run the backend so that it fails in the "init" handler
+            module_build_service.scheduler.main([], stop)
+            cleanup_moksha()
+
+        module_build_id = json.loads(rv.data)['id']
+        module_build = models.ModuleBuild.query.filter_by(id=module_build_id).one()
+        self.assertEqual(module_build.state, models.BUILD_STATES['failed'])
+        self.assertEqual(
+            module_build.state_reason, 'Custom component repositories aren\'t allowed.')
+        self.assertEqual(len(module_build.module_builds_trace), 2)
+        self.assertEqual(module_build.module_builds_trace[0].state, models.BUILD_STATES['init'])
+        self.assertEqual(module_build.module_builds_trace[1].state, models.BUILD_STATES['failed'])
+
         # Resubmit the failed module
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
-            {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
-                'testmodule.git?#7fea453'}))
-
-        data = json.loads(rv.data)
-        module_build_id = data['id']
+                {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+                    'testmodule.git?#7fea453'}))
 
         FakeModuleBuilder.BUILD_STATE = 'BUILDING'
         FakeModuleBuilder.INSTANT_COMPLETE = True
@@ -964,10 +955,8 @@ class TestBuild(unittest.TestCase):
         self.assertEqual(components, [])
         db.session.expire_all()
 
-        # Run the backend
-        msgs = []
-        stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
-        module_build_service.scheduler.main(msgs, stop)
+        # Run the backend again
+        module_build_service.scheduler.main([], stop)
 
         # All components should be built and module itself should be in "done"
         # or "ready" state.
