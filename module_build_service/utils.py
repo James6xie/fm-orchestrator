@@ -962,8 +962,6 @@ def submit_module_build(username, url, mmd, scm, optional_params=None):
         name=mmd.name, stream=mmd.stream, version=str(mmd.version)).first()
     if module:
         log.debug('Checking whether module build already exist.')
-        # TODO: make this configurable, we might want to allow
-        # resubmitting any stuck build on DEV no matter the state
         if module.state != models.BUILD_STATES['failed']:
             err_msg = ('Module (state=%s) already exists. Only a new build or resubmission of '
                        'a failed build is allowed.' % module.state)
