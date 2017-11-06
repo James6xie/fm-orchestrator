@@ -969,9 +969,7 @@ def submit_module_build(username, url, mmd, scm, optional_params=None):
                 component.state = None
                 db.session.add(component)
         module.username = username
-        # The last transition in the trace will be "failed", but we want to determine what the
-        # state was previous to the failure.
-        prev_state = module.module_builds_trace[-2].state
+        prev_state = module.previous_non_failed_state
         if prev_state == models.BUILD_STATES['init']:
             transition_to = models.BUILD_STATES['init']
         else:

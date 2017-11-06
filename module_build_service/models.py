@@ -221,6 +221,12 @@ class ModuleBuild(MBSBase):
             raise ValueError("Invalid modulemd")
         return mmd
 
+    @property
+    def previous_non_failed_state(self):
+        for trace in reversed(self.module_builds_trace):
+            if trace.state != BUILD_STATES['failed']:
+                return trace.state
+
     @validates('state')
     def validate_state(self, key, field):
         if field in BUILD_STATES.values():
