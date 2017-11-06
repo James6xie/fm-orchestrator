@@ -843,14 +843,7 @@ def record_component_builds(mmd, module, initial_batch=1,
 
     # Format the modulemd by putting in defaults and replacing streams that
     # are branches with commit hashes
-    try:
-        format_mmd(mmd, module.scmurl, session=session)
-    except Exception as e:
-        module.transition(conf, models.BUILD_STATES["failed"],
-                          "Failed to validate modulemd file: %s" % str(e))
-        session.add(module)
-        session.commit()
-        raise
+    format_mmd(mmd, module.scmurl, session=session)
 
     # When main_mmd is set, merge the metadata from this mmd to main_mmd,
     # otherwise our current mmd is main_mmd.
@@ -865,10 +858,7 @@ def record_component_builds(mmd, module, initial_batch=1,
                 'conflicting components: {2}'
                 .format(mmd.name, main_mmd.name,
                         ', '.join(duplicate_components)))
-            module.transition(conf, models.BUILD_STATES["failed"], error_msg)
-            session.add(module)
-            session.commit()
-            raise RuntimeError(error_msg)
+            raise UnprocessableEntity(error_msg)
         merge_included_mmd(main_mmd, mmd)
     else:
         main_mmd = mmd
@@ -979,9 +969,15 @@ def submit_module_build(username, url, mmd, scm, optional_params=None):
                 component.state = None
                 db.session.add(component)
         module.username = username
-        module.transition(conf, models.BUILD_STATES["wait"],
-                          "Resubmitted by %s" % username)
-        module.batch = 0
+        # The last transition in the trace will be "failed", but we want to determine what the
+        # state was previous to the failure.
+        prev_state = module.module_builds_trace[-2].state
+        if prev_state == models.BUILD_STATES['init']:
+            transition_to = models.BUILD_STATES['init']
+        else:
+            transition_to = models.BUILD_STATES['wait']
+            module.batch = 0
+        module.transition(conf, transition_to, "Resubmitted by %s" % username)
         log.info("Resumed existing module build in previous state %s"
                  % module.state)
     else:

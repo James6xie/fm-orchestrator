@@ -499,7 +499,8 @@ class TestViews(unittest.TestCase):
         self.assertEquals(data['rebuild_strategy'], 'changed-and-after')
         self.assertEquals(data['state_name'], 'init')
         self.assertEquals(data['state_url'], '/module-build-service/1/module-builds/31')
-        self.assertEquals(data['state_trace'], [])
+        self.assertEquals(len(data['state_trace']), 1)
+        self.assertEquals(data['state_trace'][0]['state'], 0)
         self.assertDictEqual(data['tasks'], {})
         mmd = _modulemd.ModuleMetadata()
         mmd.loads(data["modulemd"])
@@ -661,6 +662,19 @@ class TestViews(unittest.TestCase):
 
         self.assertEquals(data['state'], 4)
         self.assertEquals(data['state_reason'], 'Canceled by some_other_user.')
+
+    @patch('module_build_service.auth.get_user', return_value=other_user)
+    def test_cancel_build_already_failed(self, mocked_get_user):
+        module = ModuleBuild.query.filter_by(id=30).one()
+        module.state = 4
+        db.session.add(module)
+        db.session.commit()
+        rv = self.client.patch('/module-build-service/1/module-builds/30',
+                               data=json.dumps({'state': 'failed'}))
+        data = json.loads(rv.data)
+
+        self.assertEquals(data['status'], 403)
+        self.assertEquals(data['error'], 'Forbidden')
 
     @patch('module_build_service.auth.get_user', return_value=('sammy', set()))
     def test_cancel_build_unauthorized_no_groups(self, mocked_get_user):

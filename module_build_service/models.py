@@ -265,6 +265,9 @@ class ModuleBuild(MBSBase):
             # If the rebuild_strategy isn't specified, use the default
             rebuild_strategy=rebuild_strategy or conf.rebuild_strategy
         )
+        # Add a state transition to "init"
+        mbt = ModuleBuildTrace(state_time=now, state=module.state)
+        module.module_builds_trace.append(mbt)
         session.add(module)
         session.commit()
         module_build_service.messaging.publish(

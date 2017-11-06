@@ -32,7 +32,7 @@ from module_build_service.utils import (
     attempt_to_reuse_all_components,
     record_component_builds,
     get_rpm_release_from_mmd)
-from module_build_service.errors import UnprocessableEntity
+from module_build_service.errors import UnprocessableEntity, Forbidden, ValidationError
 from module_build_service.builder.KojiContentGenerator import KojiContentGenerator
 
 from requests.exceptions import ConnectionError
@@ -139,8 +139,17 @@ def init(config, session, msg):
         record_component_builds(mmd, build, session=session)
         build.modulemd = mmd.dumps()
         build.transition(conf, models.BUILD_STATES["wait"])
-    except UnprocessableEntity:
-        build.transition(conf, models.BUILD_STATES["failed"])
+    # Catch custom exceptions that we can expose to the user
+    except (UnprocessableEntity, Forbidden, ValidationError, RuntimeError) as e:
+        # Rollback changes underway
+        session.rollback()
+        build.transition(conf, models.BUILD_STATES["failed"], state_reason=str(e))
+    except Exception as e:
+        log.exception(str(e))
+        # Rollback changes underway
+        session.rollback()
+        msg = "An unknown error occurred while validating the modulemd"
+        build.transition(conf, models.BUILD_STATES["failed"], state_reason=msg)
     finally:
         session.add(build)
         session.commit()

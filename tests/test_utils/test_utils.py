@@ -21,13 +21,14 @@
 import unittest
 from os import path, mkdir
 from shutil import copyfile
+from datetime import datetime
 import vcr
 import modulemd
 from mock import patch
 import module_build_service.utils
 import module_build_service.scm
 from module_build_service import models, conf
-from module_build_service.errors import ProgrammingError, ValidationError
+from module_build_service.errors import ProgrammingError, ValidationError, UnprocessableEntity
 from tests import (test_reuse_component_init_data, init_data, db,
                    test_reuse_shared_userspace_init_data)
 import mock
@@ -588,6 +589,19 @@ class TestUtils(unittest.TestCase):
             module_build.state = models.BUILD_STATES['failed']
             module_build.state_reason = "Cancelled"
             module_build.version = 1
+            now = datetime.utcnow()
+            mbt_one = models.ModuleBuildTrace(
+                state_time=now, state=models.BUILD_STATES['init'])
+            mbt_two = models.ModuleBuildTrace(
+                state_time=now, state=models.BUILD_STATES['wait'])
+            mbt_three = models.ModuleBuildTrace(
+                state_time=now, state=models.BUILD_STATES['build'])
+            mbt_four = models.ModuleBuildTrace(
+                state_time=now, state=models.BUILD_STATES['failed'])
+            module_build.module_builds_trace.append(mbt_one)
+            module_build.module_builds_trace.append(mbt_two)
+            module_build.module_builds_trace.append(mbt_three)
+            module_build.module_builds_trace.append(mbt_four)
 
             # Mark the components as COMPLETE/FAILED/CANCELED
             components = module_build.component_builds
@@ -646,12 +660,9 @@ class TestUtils(unittest.TestCase):
             try:
                 module_build_service.utils.record_component_builds(
                     testmodule_variant_mmd, module_build, main_mmd=mmd)
-                assert False, 'A RuntimeError was expected but was not raised'
-            except RuntimeError as e:
+                assert False, 'A UnprocessableEntity was expected but was not raised'
+            except UnprocessableEntity as e:
                 self.assertEqual(e.message, error_msg)
-
-            self.assertEqual(module_build.state, models.BUILD_STATES['failed'])
-            self.assertEqual(module_build.state_reason, error_msg)
 
 
 class DummyModuleBuilder(GenericBuilder):
