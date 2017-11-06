@@ -249,9 +249,9 @@ class SCM(object):
             with open(path_to_yaml):
                 return path_to_yaml
         except IOError:
-            raise UnprocessableEntity(
-                "get_module_yaml: SCM repository doesn't seem to contain a "
-                "module YAML file. Couldn't access: %s" % path_to_yaml)
+            log.error("get_module_yaml: The SCM repository doesn't contain a modulemd file. "
+                      "Couldn't access: %s" % path_to_yaml)
+            raise UnprocessableEntity("The SCM repository doesn't contain a modulemd file")
 
     @staticmethod
     def is_full_commit_hash(scheme, commit):
