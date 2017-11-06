@@ -113,8 +113,8 @@ class TestBuild(unittest.TestCase):
             expected_output = json.load(expected_output_file)
 
         # create the build.log
-        build_logs.start(self.cg.module.id)
-        build_logs.stop(self.cg.module.id)
+        build_logs.start(self.cg.module)
+        build_logs.stop(self.cg.module)
 
         file_dir = self.cg._prepare_file_directory()
         ret = self.cg._get_content_generator_metadata(file_dir)
