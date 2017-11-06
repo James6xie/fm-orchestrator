@@ -147,4 +147,4 @@ class TestModuleInit(unittest.TestCase):
             session.refresh(build)
             # Make sure the module entered the failed state
             assert build.state == 4, build.state
-            assert 'Failed to validate modulemd file' in build.state_reason
+            assert 'Failed to get the latest commit for' in build.state_reason

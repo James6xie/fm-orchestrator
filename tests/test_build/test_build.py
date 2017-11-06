@@ -27,7 +27,7 @@ import os
 from os import path, mkdir
 from os.path import dirname
 from shutil import copyfile
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from nose.tools import timed
 
@@ -805,6 +805,8 @@ class TestBuild(unittest.TestCase):
         Tests that resuming the build works even when previous batches
         are already built.
         """
+        now = datetime.utcnow()
+        submitted_time = now - timedelta(minutes=3)
         # Create a module in the failed state
         build_one = models.ModuleBuild()
         build_one.name = 'testmodule'
@@ -820,10 +822,21 @@ class TestBuild(unittest.TestCase):
         build_one.scmurl = 'git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#7fea453'
         build_one.batch = models.BUILD_STATES['failed']
         build_one.owner = 'Homer J. Simpson'
-        build_one.time_submitted = datetime(2017, 2, 15, 16, 8, 18)
-        build_one.time_modified = datetime(2017, 2, 15, 16, 19, 35)
-        build_one.time_completed = datetime(2017, 2, 15, 16, 19, 35)
+        build_one.time_submitted = submitted_time
+        build_one.time_modified = now
         build_one.rebuild_strategy = 'changed-and-after'
+        # It went from init, to wait, to build, and then failed
+        mbt_one = models.ModuleBuildTrace(
+            state_time=submitted_time, state=models.BUILD_STATES['init'])
+        mbt_two = models.ModuleBuildTrace(
+            state_time=now - timedelta(minutes=2), state=models.BUILD_STATES['wait'])
+        mbt_three = models.ModuleBuildTrace(
+            state_time=now - timedelta(minutes=1), state=models.BUILD_STATES['build'])
+        mbt_four = models.ModuleBuildTrace(state_time=now, state=build_one.state)
+        build_one.module_builds_trace.append(mbt_one)
+        build_one.module_builds_trace.append(mbt_two)
+        build_one.module_builds_trace.append(mbt_three)
+        build_one.module_builds_trace.append(mbt_four)
         # Successful component
         component_one = models.ComponentBuild()
         component_one.package = 'perl-Tangerine'
@@ -850,7 +863,7 @@ class TestBuild(unittest.TestCase):
         component_three.batch = 3
         component_three.module_id = 1
 
-        db.session.add(build_one),
+        db.session.add(build_one)
         db.session.add(component_one)
         db.session.add(component_two)
         db.session.add(component_three)
@@ -866,14 +879,14 @@ class TestBuild(unittest.TestCase):
         data = json.loads(rv.data)
         module_build_id = data['id']
 
-        FakeModuleBuilder.BUILD_STATE = "BUILDING"
+        FakeModuleBuilder.BUILD_STATE = 'BUILDING'
         FakeModuleBuilder.INSTANT_COMPLETE = True
 
         module_build = models.ModuleBuild.query.filter_by(id=module_build_id).one()
         components = models.ComponentBuild.query.filter_by(
-            module_id=module_build_id, batch=2).order_by(models.ComponentBuild.id)
+            module_id=module_build_id, batch=2).order_by(models.ComponentBuild.id).all()
         # Make sure the build went from failed to wait
-        self.assertEqual(module_build.state, models.BUILD_STATES["wait"])
+        self.assertEqual(module_build.state, models.BUILD_STATES['wait'])
         self.assertEqual(module_build.state_reason, 'Resubmitted by Homer J. Simpson')
         # Make sure the state was reset on the failed component
         self.assertIsNone(components[1].state)
@@ -888,8 +901,80 @@ class TestBuild(unittest.TestCase):
         # or "ready" state.
         for build in models.ComponentBuild.query.filter_by(module_id=module_build_id).all():
             self.assertEqual(build.state, koji.BUILD_STATES['COMPLETE'])
-            self.assertTrue(build.module_build.state in [models.BUILD_STATES["done"],
-                                                         models.BUILD_STATES["ready"]])
+            self.assertTrue(build.module_build.state in [models.BUILD_STATES['done'],
+                                                         models.BUILD_STATES['ready']])
+
+    @timed(60)
+    @patch('module_build_service.auth.get_user', return_value=user)
+    @patch('module_build_service.scm.SCM')
+    def test_submit_build_resume_failed_init(self, mocked_scm, mocked_get_user, conf_system, dbg):
+        """
+        Tests that resuming the build works when the build failed during the init step
+        """
+        now = datetime.utcnow()
+        submitted_time = now - timedelta(minutes=3)
+        # Create a module in the failed state
+        build_one = models.ModuleBuild()
+        build_one.name = 'testmodule'
+        build_one.stream = 'master'
+        build_one.version = 1
+        build_one.state = models.BUILD_STATES['failed']
+        current_dir = os.path.dirname(__file__)
+        formatted_testmodule_yml_path = os.path.join(
+            current_dir, '..', 'staged_data', 'formatted_testmodule.yaml')
+        with open(formatted_testmodule_yml_path, 'r') as f:
+            build_one.modulemd = f.read()
+        build_one.koji_tag = 'module-testmodule-master-1'
+        build_one.scmurl = 'git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#7fea453'
+        build_one.batch = models.BUILD_STATES['failed']
+        build_one.owner = 'Homer J. Simpson'
+        build_one.time_submitted = submitted_time
+        build_one.time_modified = now
+        build_one.rebuild_strategy = 'changed-and-after'
+        # This module failed during init
+        mbt_one = models.ModuleBuildTrace(
+            state_time=submitted_time, state=models.BUILD_STATES['init'])
+        mbt_two = models.ModuleBuildTrace(state_time=now, state=build_one.state)
+        build_one.module_builds_trace.append(mbt_one)
+        build_one.module_builds_trace.append(mbt_two)
+
+        db.session.add(build_one)
+        db.session.commit()
+        db.session.expire_all()
+
+        FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml', '7fea453')
+        # Resubmit the failed module
+        rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
+            {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+                'testmodule.git?#7fea453'}))
+
+        data = json.loads(rv.data)
+        module_build_id = data['id']
+
+        FakeModuleBuilder.BUILD_STATE = 'BUILDING'
+        FakeModuleBuilder.INSTANT_COMPLETE = True
+
+        module_build = models.ModuleBuild.query.filter_by(id=module_build_id).one()
+        components = models.ComponentBuild.query.filter_by(
+            module_id=module_build_id, batch=2).order_by(models.ComponentBuild.id).all()
+        # Make sure the build went from failed to init
+        self.assertEqual(module_build.state, models.BUILD_STATES['init'])
+        self.assertEqual(module_build.state_reason, 'Resubmitted by Homer J. Simpson')
+        # Make sure there are no components
+        self.assertEqual(components, [])
+        db.session.expire_all()
+
+        # Run the backend
+        msgs = []
+        stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
+        module_build_service.scheduler.main(msgs, stop)
+
+        # All components should be built and module itself should be in "done"
+        # or "ready" state.
+        for build in models.ComponentBuild.query.filter_by(module_id=module_build_id).all():
+            self.assertEqual(build.state, koji.BUILD_STATES['COMPLETE'])
+            self.assertTrue(build.module_build.state in [models.BUILD_STATES['done'],
+                                                         models.BUILD_STATES['ready']])
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')

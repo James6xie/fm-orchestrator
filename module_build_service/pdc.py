@@ -132,7 +132,7 @@ def get_variant_dict(data):
             result['active'] = data['active']
 
     if not result:
-        raise ValueError("Couldn't get variant_dict from %s" % data)
+        raise RuntimeError("Couldn't get variant_dict from %s" % data)
 
     return result
 

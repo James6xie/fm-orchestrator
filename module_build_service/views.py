@@ -181,6 +181,9 @@ class ModuleBuildAPI(AbstractQueryableBuildAPI):
             log.error('Invalid JSON submitted')
             raise ValidationError('Invalid JSON submitted')
 
+        if module.state == models.BUILD_STATES['failed']:
+            raise Forbidden('You can\'t cancel a failed module')
+
         if r['state'] == 'failed' \
                 or r['state'] == str(models.BUILD_STATES['failed']):
             module.transition(conf, models.BUILD_STATES["failed"],
