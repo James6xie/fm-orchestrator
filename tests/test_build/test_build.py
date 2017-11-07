@@ -1021,6 +1021,7 @@ class TestLocalBuild(unittest.TestCase):
             except Exception:
                 pass
 
+    @unittest.skip('This hangs when run on CentOS CI')
     @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
