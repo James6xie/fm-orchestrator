@@ -28,7 +28,7 @@ node('factory2'){
             // We are using the system version of python-moksha-hub because it uses a version of Twisted that is 
             // compatible with the system version of pyOpenSSL. This can all be shifted into a virtualenv once
             // koji is on PyPi.
-            onmyduffynode 'yum -y install @development python-pip python-devel krb5-devel openssl-devel koji python-moksha-hub swig python-tox createrepo_c'
+            onmyduffynode 'yum -y install @development python-pip python-devel krb5-devel openssl-devel koji python-moksha-hub swig createrepo_c'
         }
 
         stage('Clone Test Suite') {
@@ -36,7 +36,7 @@ node('factory2'){
         }
 
         stage('Run Test Suite') {
-            onmyduffynode 'cd fm-orchestrator && pip install -r requirements.txt && tox -e py27'
+            onmyduffynode 'cd fm-orchestrator && pip install -r requirements.txt && pip install -r test-requirements.txt && python setup.py develop && pytest -v tests/'
         }
 
     }catch (e){
