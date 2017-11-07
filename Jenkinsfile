@@ -25,7 +25,10 @@ node('factory2'){
     try{
         stage('Pre Setup Node'){
             onmyduffynode 'yum -y install epel-release'
-            onmyduffynode 'yum -y install @development python-pip python-devel krb5-devel openssl-devel koji swig python-tox'
+            // We are using the system version of python-moksha-hub because it uses a version of Twisted that is 
+            // compatible with the system version of pyOpenSSL. This can all be shifted into a virtualenv once
+            // koji is on PyPi.
+            onmyduffynode 'yum -y install @development python-pip python-devel krb5-devel openssl-devel koji python-moksha-hub swig python-tox'
         }
 
         stage('Clone Test Suite') {
