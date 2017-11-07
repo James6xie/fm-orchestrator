@@ -267,7 +267,7 @@ def get_scm_url(scm_url, pyrpkg, local=False):
         return scm_url
 
 
-def get_scm_branch(branch):
+def get_scm_branch(branch=None):
     """
     If `branch` it not set, returns the branch name based on git repository
     in the `os.getcwd()`.
@@ -317,39 +317,36 @@ def submit_module_build(scm_url, branch, server, id_provider, pyrpkg, verify=Tru
     return -3, None
 
 
-def do_local_build(scm_url, branch, skiptests, local_builds_nsvs, log_flag=None,
-                   yaml_file=None, stream=None):
+def do_local_build(local_builds_nsvs, log_flag=None, yaml_file=None, stream=None):
     """
     Starts the local build using the 'mbs-manager build_module_locally'
     command. Returns exit code of that command or None when scm_url or
     branch are not set and cannot be obtained from the CWD.
     """
     command = ['mbs-manager']
+    command.append('build_module_locally')
+    if local_builds_nsvs:
+        for build_id in local_builds_nsvs:
+            command += ['--add-local-build', build_id]
+
     if yaml_file:
-        command.append('build_module_locally_from_file')
-        logging.info("Starting local build from yaml file %s" % yaml_file)
         command.extend(["--file", yaml_file])
-        if stream:
-            command.extend(["--stream", stream])
     else:
-        command.append('build_module_locally')
-        scm_url = get_scm_url(scm_url, None, local=True)
-        branch = get_scm_branch(branch)
-        if not scm_url or not branch:
-            return None
+        module_dir = os.getcwd()
+        module_name = os.path.basename(module_dir)
+        yaml_file = os.path.join(module_dir, module_name + ".yaml")
+        command.extend(["--file", yaml_file])
 
-        logging.info("Starting local build of %s, branch %s", scm_url, branch)
-        if log_flag:
-            command.append(log_flag)
-        if skiptests:
-            command.append('--skiptests')
-            logging.info("Tests will be skipped due to --skiptests option.")
+    if stream:
+        command.extend(["--stream", stream])
+    else:
+        branch = get_scm_branch()
+        command.extend(["--stream", branch])
 
-        if local_builds_nsvs:
-            for build_id in local_builds_nsvs:
-                command += ['--add-local-build', build_id]
+    if log_flag:
+        command.append(log_flag)
 
-        command.extend([scm_url, branch])
+    logging.info("Starting local build of %s, branch %s", yaml_file, branch)
 
     process = subprocess.Popen(command)
     process.communicate()
@@ -496,12 +493,8 @@ def main():
         "When 'scm_url' or 'branch' is not set, it presumes you are "
         "executing this command in the directory with the cloned git "
         "repository with a module.")
-    parser_local.add_argument("scm_url", nargs='?')
-    parser_local.add_argument("branch", nargs='?')
     parser_local.add_argument("--add-local-build", "-l", action='append',
                               dest="local_builds_nsvs", metavar='BUILD_ID')
-    parser_local.add_argument('--skiptests', dest='skiptests', action='store_true',
-                              help="add macro for skipping check section/phase")
     parser_local.add_argument('--file', dest='file', action='store',
                               help="Path to the modulemd yaml file")
     parser_local.add_argument('--stream', dest='stream', action='store',
@@ -552,9 +545,7 @@ def main():
         else:
             print("Submitted module build %r" % build_id)
     elif args.cmd_name == "local":
-        sys.exit(do_local_build(args.scm_url, args.branch, args.skiptests,
-                                args.local_builds_nsvs, log_flag, args.file,
-                                args.stream))
+        sys.exit(do_local_build(args.local_builds_nsvs, log_flag, args.file, args.stream))
     elif args.cmd_name == "watch":
         # Watch the module build.
         try:

@@ -91,9 +91,10 @@ class SCM(object):
             # non-local bare repositories
             self.local = False
             self.bare_repo = True
-            if url.startswith("file://") and allow_local:
+            if self.repository.startswith("file://") and allow_local:
                 self.local = True
-                self.bare_repo = self._is_bare_repo(self.repository[7:])
+                abs_repo_path = self.repository[7:]
+                self.bare_repo = self._is_bare_repo(abs_repo_path)
             if not self.commit:
                 self.commit = self.get_latest(self.branch)
                 self.latest = True
@@ -274,24 +275,24 @@ class SCM(object):
 
     def patch_with_uncommited_changes(self, source_dir):
         """
-        This method patches the given tmp git repository with uncommented changes from it
-        origin git dir. Creates a patch file witch holds result for `git diff` command
+        This method patches the given tmp git repository with uncommented changes from its
+        origin git dir. Creates a patch file which holds the result for `git diff` command
         executed in the origin repo.
 
         source_dir (str): path to the temp git repo
         """
         module_diff = ['git', 'diff']
-        # striping the self.repository from 'file://'
+        # stripping the 'file:// from self.repository'
         _, diff, _ = SCM._run(module_diff, chdir=self.repository[7:])
         if diff:
             try:
                 log.debug("Working with local, non-bare repository. Applying uncommited changes.")
-                patch_file = source_dir + "/patch"
-                with open(patch_file, "w+") as fd:
+                patch_file = os.path.join(source_dir, "patch")
+                with open(patch_file, "w") as fd:
                     fd.write(diff)
                 module_patch = ['git', 'apply', 'patch']
                 SCM._run(module_patch, chdir=source_dir)
-            except Exception as e:
+            except Exception:
                 log.exception("Failed to update repo %s with uncommited changes."
                               % source_dir)
                 raise

@@ -32,7 +32,6 @@ from werkzeug.datastructures import FileStorage
 from module_build_service import app, conf, db, create_app
 from module_build_service import models
 from module_build_service.utils import (
-    submit_module_build_from_scm,
     submit_module_build_from_yaml,
     load_local_builds,
 )
@@ -90,11 +89,10 @@ def cleardb():
     models.ComponentBuild.query.delete()
 
 
-@manager.option('branch')
-@manager.option('url')
-@manager.option('--skiptests', action='store_true')
+@manager.option('--stream', action='store', dest="stream")
+@manager.option('--file', action='store', dest="yaml_file")
 @manager.option('-l', '--add-local-build', action='append', default=None, dest='local_build_nsvs')
-def build_module_locally(url, branch, local_build_nsvs=None, skiptests=False, yaml_file=None, stream=None):
+def build_module_locally(local_build_nsvs=None, yaml_file=None, stream=None):
     """ Performs local module build using Mock
     """
     if 'SERVER_NAME' not in app.config or not app.config['SERVER_NAME']:
@@ -121,23 +119,16 @@ def build_module_locally(url, branch, local_build_nsvs=None, skiptests=False, ya
         if yaml_file and yaml_file.endswith(".yaml"):
             yaml_file_path = os.path.abspath(yaml_file)
             with open(yaml_file_path) as fd:
-                filename = yaml_file.split("/")[-1]
+                filename = os.path.basename(yaml_file)
                 handle = FileStorage(fd)
                 handle.filename = filename
-                submit_module_build_from_yaml(username, handle, stream)
+                submit_module_build_from_yaml(username, handle, str(stream))
         else:
-            submit_module_build_from_scm(username, url, branch, allow_local_url=True,
-                                         skiptests=skiptests)
+            raise IOError("Provided modulemd file is not a yaml file.")
         stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
 
         # Run the consumer until stop_condition returns True
         module_build_service.scheduler.main([], stop)
-
-
-@manager.option('--file', action='store', dest="yaml_file")
-@manager.option('--stream', action='store', dest="stream")
-def build_module_locally_from_file(yaml_file, stream=None):
-    build_module_locally(None, None, yaml_file=yaml_file, stream=str(stream))
 
 
 @console_script_help
