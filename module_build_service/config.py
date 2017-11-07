@@ -60,9 +60,7 @@ def init_config(app):
 
     # Load LocalBuildConfiguration section in case we are building modules
     # locally.
-    local_build_cmds = ["build_module_locally", "build_module_locally_from_file"]
-    local = [cmd for cmd in sys.argv if cmd in local_build_cmds]
-    if local:
+    if "build_module_locally" in sys.argv:
         config_section = "LocalBuildConfiguration"
 
     # try getting config_file from os.environ

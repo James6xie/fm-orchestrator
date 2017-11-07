@@ -317,7 +317,8 @@ class SCMHandler(BaseHandler):
             branch = branch.encode('utf-8')
 
         return submit_module_build_from_scm(self.username, url, branch,
-                                            allow_local_url=False, **self.optional_params)
+                                            allow_local_url=False,
+                                            optional_params=self.optional_params)
 
 
 class YAMLFileHandler(BaseHandler):
@@ -335,7 +336,8 @@ class YAMLFileHandler(BaseHandler):
 
     def post(self):
         handle = request.files["yaml"]
-        return submit_module_build_from_yaml(self.username, handle, **self.optional_params)
+        return submit_module_build_from_yaml(self.username, handle,
+                                             optional_params=self.optional_params)
 
 
 def register_api_v1():

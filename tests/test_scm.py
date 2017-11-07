@@ -115,8 +115,3 @@ class TestSCMModule(unittest.TestCase):
         scm.checkout(self.tempdir)
         scm.verify()
         scm.get_module_yaml()
-
-    @raises(UnprocessableEntity)
-    def test_get_latest_incorect_component_branch(self):
-        scm = module_build_service.scm.SCM(repo_path)
-        scm.get_latest(branch='foobar')

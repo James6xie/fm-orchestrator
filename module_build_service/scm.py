@@ -86,18 +86,8 @@ class SCM(object):
                 self.name = self.name[:-4]
             self.commit = match.group("commit")
             self.branch = branch if branch else "master"
-            self.latest = False
-            # if not stated otherwise the default behaviour is that we work with
-            # non-local bare repositories
-            self.local = False
-            self.bare_repo = True
-            if self.repository.startswith("file://") and allow_local:
-                self.local = True
-                abs_repo_path = self.repository[7:]
-                self.bare_repo = self._is_bare_repo(abs_repo_path)
             if not self.commit:
                 self.commit = self.get_latest(self.branch)
-                self.latest = True
             self.version = None
         else:
             raise ValidationError("Unhandled SCM scheme: %s" % self.scheme)
@@ -180,11 +170,7 @@ class SCM(object):
                             "within the repository. Perhaps you forgot to push. "
                             "The original message was: %s" % e.message)
                     raise
-            # will patch the temp git repo with uncommited changes only if there
-            # is no commit repo present in repo definition and its a local dir
-            # and not a bare repo.
-            if self.latest and self.local and not self.bare_repo:
-                self.patch_with_uncommited_changes(self.sourcedir)
+
             timestamp = SCM._run(["git", "show", "-s", "--format=%ct"], chdir=self.sourcedir)[1]
             dt = datetime.datetime.utcfromtimestamp(int(timestamp))
             self.version = dt.strftime("%Y%m%d%H%M%S")
@@ -210,12 +196,6 @@ class SCM(object):
                 return branch
         else:
             raise RuntimeError("get_latest: Unhandled SCM scheme.")
-
-    def _is_bare_repo(self, repo_path):
-        """ Checks if the repository is a bare repo """
-        is_bare_repo_cmd = ["git", "config", "core.bare"]
-        _, is_bare, _ = SCM._run(is_bare_repo_cmd, chdir=repo_path)
-        return is_bare.rstrip() == "true"
 
     def get_full_commit_hash(self, commit_hash=None):
         """
@@ -272,30 +252,6 @@ class SCM(object):
             log.error("get_module_yaml: The SCM repository doesn't contain a modulemd file. "
                       "Couldn't access: %s" % path_to_yaml)
             raise UnprocessableEntity("The SCM repository doesn't contain a modulemd file")
-
-    def patch_with_uncommited_changes(self, source_dir):
-        """
-        This method patches the given tmp git repository with uncommented changes from its
-        origin git dir. Creates a patch file which holds the result for `git diff` command
-        executed in the origin repo.
-
-        source_dir (str): path to the temp git repo
-        """
-        module_diff = ['git', 'diff']
-        # stripping the 'file:// from self.repository'
-        _, diff, _ = SCM._run(module_diff, chdir=self.repository[7:])
-        if diff:
-            try:
-                log.debug("Working with local, non-bare repository. Applying uncommited changes.")
-                patch_file = os.path.join(source_dir, "patch")
-                with open(patch_file, "w") as fd:
-                    fd.write(diff)
-                module_patch = ['git', 'apply', 'patch']
-                SCM._run(module_patch, chdir=source_dir)
-            except Exception:
-                log.exception("Failed to update repo %s with uncommited changes."
-                              % source_dir)
-                raise
 
     @staticmethod
     def is_full_commit_hash(scheme, commit):

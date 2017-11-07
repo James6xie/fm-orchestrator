@@ -907,7 +907,7 @@ def record_component_builds(mmd, module, initial_batch=1,
         return batch
 
 
-def submit_module_build_from_yaml(username, handle, stream=None, **kwargs):
+def submit_module_build_from_yaml(username, handle, stream=None, optional_params=None):
     yaml = handle.read()
     mmd = load_mmd(yaml)
 
@@ -923,14 +923,14 @@ def submit_module_build_from_yaml(username, handle, stream=None, **kwargs):
     mmd.stream = mmd.stream or stream or "master"
     mmd.version = mmd.version or def_version
 
-    return submit_module_build(username, None, mmd, None, yaml, **kwargs)
+    return submit_module_build(username, None, mmd, None, yaml, optional_params)
 
 
 _url_check_re = re.compile(r"^[^:/]+:.*$")
 
 
 def submit_module_build_from_scm(username, url, branch, allow_local_url=False,
-                                 skiptests=False, **kwargs):
+                                 skiptests=False, optional_params=None):
     # Translate local paths into file:// URL
     if allow_local_url and not _url_check_re.match(url):
         log.info(
@@ -940,14 +940,12 @@ def submit_module_build_from_scm(username, url, branch, allow_local_url=False,
     mmd, scm = _fetch_mmd(url, branch, allow_local_url)
     if skiptests:
         mmd.buildopts.rpms.macros += "\n\n%__spec_check_pre exit 0\n"
-    return submit_module_build(username, url, mmd, scm, yaml, **kwargs)
+    return submit_module_build(username, url, mmd, scm, yaml, optional_params)
 
 
-def submit_module_build(username, url, mmd, scm, optional_params=None):
+def submit_module_build(username, url, mmd, scm, yaml, optional_params=None):
     import koji  # Placed here to avoid py2/py3 conflicts...
 
-
-def submit_module_build(username, url, mmd, scm, yaml, **kwargs):
     # Import it here, because SCM uses utils methods
     # and fails to import them because of dep-chain.
     validate_mmd(mmd)
@@ -992,7 +990,7 @@ def submit_module_build(username, url, mmd, scm, yaml, **kwargs):
             modulemd=mmd.dumps(),
             scmurl=url,
             username=username,
-            **(kwargs or {})
+            **(optional_params or {})
         )
 
     db.session.add(module)
