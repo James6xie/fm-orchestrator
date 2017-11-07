@@ -25,7 +25,7 @@ node('factory2'){
     try{
         stage('Pre Setup Node'){
             onmyduffynode 'yum -y install epel-release'
-            onmyduffynode 'yum -y install @development python-pip python-devel krb5-devel openssl-devel koji swig'
+            onmyduffynode 'yum -y install @development python-pip python-devel krb5-devel openssl-devel koji swig python-tox'
         }
 
         stage('Clone Test Suite') {
