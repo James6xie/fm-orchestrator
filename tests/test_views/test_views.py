@@ -533,7 +533,7 @@ class TestViews(unittest.TestCase):
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'branch': 'master', 'rebuild_strategy': 'only-changed',
-                'scmurl': ('git://pkgs.stg.fedoraproject.org/modules/testmodule.git?'
+             'scmurl': ('git://pkgs.stg.fedoraproject.org/modules/testmodule.git?'
                         '#68931c90de214d9d13feefbd35246a81b6cb8d49')}))
         data = json.loads(rv.data)
         self.assertEqual(rv.status_code, 400)

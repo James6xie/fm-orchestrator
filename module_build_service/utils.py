@@ -593,7 +593,6 @@ def _fetch_mmd(url, branch=None, allow_local_url=False, whitelist_url=False):
     else:
         mmd.version = int(scm.version)
 
-
     return mmd, scm
 
 
@@ -836,8 +835,6 @@ def merge_included_mmd(mmd, included_mmd):
 
 def record_component_builds(mmd, module, initial_batch=1,
                             previous_buildorder=None, main_mmd=None, session=None):
-    import koji  # Placed here to avoid py2/py3 conflicts...
-
     if not session:
         session = db.session
 

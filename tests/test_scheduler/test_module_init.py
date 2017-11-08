@@ -25,7 +25,7 @@ import unittest
 from mock import patch, PropertyMock
 import vcr
 
-from tests import conf, db, clean_database
+from tests import conf, clean_database
 from tests.test_views.test_views import FakeSCM
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.modules

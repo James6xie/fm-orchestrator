@@ -939,8 +939,8 @@ class TestBuild(unittest.TestCase):
 
         # Resubmit the failed module
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
-                {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
-                    'testmodule.git?#7fea453'}))
+            {'branch': 'master', 'scmurl': ('git://pkgs.stg.fedoraproject.org/modules/'
+                                            'testmodule.git?#7fea453')}))
 
         FakeModuleBuilder.BUILD_STATE = 'BUILDING'
         FakeModuleBuilder.INSTANT_COMPLETE = True

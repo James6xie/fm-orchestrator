@@ -21,12 +21,11 @@
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
 import unittest
-import koji
 
 import module_build_service.models
 import module_build_service.builder
 
-from tests import conf, init_data, db
+from tests import init_data, db
 
 from module_build_service.builder import GenericBuilder
 from mock import patch
