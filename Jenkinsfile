@@ -35,8 +35,14 @@ node('factory2'){
             onmyduffynode "git clone -b \"${env.BRANCH_NAME}\" https://pagure.io/fm-orchestrator"
         }
 
+        stage('Prepare Node') {
+            onmyduffynode 'cd fm-orchestrator && pip install -r requirements.txt && pip install -r test-requirements.txt && python setup.py develop'
+        }
+
         stage('Run Test Suite') {
-            onmyduffynode 'cd fm-orchestrator && pip install -r requirements.txt && pip install -r test-requirements.txt && python setup.py develop && flake8 --ignore E731 --exclude .tox,.git,module_build_service/migrations && pytest -v tests/'
+            timeout(600) {
+                onmyduffynode 'cd fm-orchestrator && flake8 --ignore E731 --exclude .tox,.git,module_build_service/migrations && pytest -v tests/'
+            }
         }
 
     }catch (e){
