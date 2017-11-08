@@ -128,7 +128,7 @@ def notfound_error(e):
 
 init_logging(conf)
 log = getLogger(__name__)
-build_logs = ModuleBuildLogs(conf.build_logs_dir)
+build_logs = ModuleBuildLogs(conf.build_logs_dir, conf.build_logs_name_format)
 
 
 def get_url_for(*args, **kwargs):

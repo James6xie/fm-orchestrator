@@ -97,7 +97,7 @@ def failed(config, session, msg):
     if build.state != models.BUILD_STATES["failed"]:
         build.transition(config, state="failed")
     session.commit()
-    build_logs.stop(build.id)
+    build_logs.stop(build)
     module_build_service.builder.GenericBuilder.clear_cache(build)
 
 
@@ -125,7 +125,7 @@ def done(config, session, msg):
     build.transition(config, state="ready")
     session.commit()
 
-    build_logs.stop(build.id)
+    build_logs.stop(build)
     module_build_service.builder.GenericBuilder.clear_cache(build)
 
 
@@ -180,7 +180,7 @@ def wait(config, session, msg):
                            .format(build))
 
     build = _get_build_containing_xmd_for_mbs()
-    build_logs.start(build.id)
+    build_logs.start(build)
 
     log.info("Found build=%r from message" % build)
     log.info("%r", build.modulemd)

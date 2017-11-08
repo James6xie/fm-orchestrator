@@ -87,55 +87,63 @@ class ModuleBuildLogs(object):
     """
     Manages ModuleBuildFileHandler logging handlers.
     """
-    def __init__(self, build_logs_dir):
+    def __init__(self, build_logs_dir, build_logs_name_format):
         """
         Creates new ModuleBuildLogs instance. Module build logs are stored
         to `build_logs_dir` directory.
         """
         self.handlers = {}
         self.build_logs_dir = build_logs_dir
+        self.build_logs_name_format = build_logs_name_format
 
-    def path(self, build_id):
+    def path(self, build):
         """
         Returns the full path to build log of module with id `build_id`.
         """
-        path = os.path.join(self.build_logs_dir, "build-%d.log" % build_id)
+        path = os.path.join(self.build_logs_dir, self.name(build))
         return path
 
-    def start(self, build_id):
+    def name(self, build):
+        """
+        Returns the filename for a module build
+        """
+        name = self.build_logs_name_format.format(**build.json())
+        return name
+
+    def start(self, build):
         """
         Starts logging build log for module with `build_id` id.
         """
         if not self.build_logs_dir:
             return
 
-        if build_id in self.handlers:
+        if build.id in self.handlers:
             return
 
         # Create and add ModuleBuildFileHandler.
-        handler = ModuleBuildFileHandler(build_id, self.path(build_id))
+        handler = ModuleBuildFileHandler(build.id, self.path(build))
         handler.setFormatter(logging.Formatter(log_format, None))
         log = logging.getLogger()
         log.addHandler(handler)
 
-        self.handlers[build_id] = handler
+        self.handlers[build.id] = handler
 
-    def stop(self, build_id):
+    def stop(self, build):
         """
         Stops logging build log for module with `build_id` id. It does *not*
         remove the build log from fs.
         """
-        if build_id not in self.handlers:
+        if build.id not in self.handlers:
             return
 
-        handler = self.handlers[build_id]
+        handler = self.handlers[build.id]
         handler.flush()
         handler.close()
 
         # Remove the log handler.
         log = logging.getLogger()
         log.removeHandler(handler)
-        del self.handlers[build_id]
+        del self.handlers[build.id]
 
 
 def str_to_log_level(level):
