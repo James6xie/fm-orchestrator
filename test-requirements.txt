@@ -3,3 +3,4 @@ mock
 nose
 pytest
 vcrpy
+flake8

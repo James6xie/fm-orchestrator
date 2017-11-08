@@ -36,7 +36,7 @@ node('factory2'){
         }
 
         stage('Run Test Suite') {
-            onmyduffynode 'cd fm-orchestrator && pip install -r requirements.txt && pip install -r test-requirements.txt && python setup.py develop && pytest -v tests/'
+            onmyduffynode 'cd fm-orchestrator && pip install -r requirements.txt && pip install -r test-requirements.txt && python setup.py develop && flake8 --ignore E731 --exclude .tox,.git,module_build_service/migrations && pytest -v tests/'
         }
 
     }catch (e){
