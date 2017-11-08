@@ -317,6 +317,13 @@ class TestBuild(unittest.TestCase):
         # All components has to be tagged, so tag_groups and buildroot_groups are empty...
         self.assertEqual(tag_groups, [])
         self.assertEqual(buildroot_groups, [])
+        module_build = models.ModuleBuild.query.get(module_build_id)
+        self.assertEqual(module_build.module_builds_trace[0].state, models.BUILD_STATES['init'])
+        self.assertEqual(module_build.module_builds_trace[1].state, models.BUILD_STATES['wait'])
+        self.assertEqual(module_build.module_builds_trace[2].state, models.BUILD_STATES['build'])
+        self.assertEqual(module_build.module_builds_trace[3].state, models.BUILD_STATES['done'])
+        self.assertEqual(module_build.module_builds_trace[4].state, models.BUILD_STATES['ready'])
+        self.assertEqual(len(module_build.module_builds_trace), 5)
 
     @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)

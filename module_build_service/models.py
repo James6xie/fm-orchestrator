@@ -603,17 +603,8 @@ class ComponentBuildTrace(MBSBase):
 def session_before_commit_handlers(session):
     # new and updated items
     for item in (set(session.new) | set(session.dirty)):
-
-        # handlers for module builds
-        if isinstance(item, ModuleBuild):
-            mbt = ModuleBuildTrace(
-                state_time=datetime.utcnow(),
-                state=item.state,
-                state_reason=item.state_reason)
-            item.module_builds_trace.append(mbt)
-
         # handlers for component builds
-        elif isinstance(item, ComponentBuild):
+        if isinstance(item, ComponentBuild):
             cbt = ComponentBuildTrace(
                 state_time=datetime.utcnow(),
                 state=item.state,
