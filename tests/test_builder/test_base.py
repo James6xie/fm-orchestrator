@@ -68,3 +68,7 @@ class TestGenericBuilder(unittest.TestCase):
         ret = GenericBuilder.default_buildroot_groups(db.session, self.module)
         self.assertEqual(ret, expected_groups)
         resolve_profiles.assert_called_once()
+
+    def test_get_build_weights(self):
+        weights = GenericBuilder.get_build_weights(["httpd", "apr"])
+        self.assertEqual(weights, {"httpd": 1.5, "apr": 1.5})

@@ -40,14 +40,103 @@ import threading
 import munch
 from OpenSSL.SSL import SysCallError
 
-from module_build_service import log
+from module_build_service import log, conf
 import module_build_service.scm
 import module_build_service.utils
 from module_build_service.builder.utils import execute_cmd
+from module_build_service.errors import ProgrammingError
 
 from base import GenericBuilder
 
 logging.basicConfig(level=logging.DEBUG)
+
+
+def koji_multicall_map(koji_session, koji_session_fnc, list_of_args=None, list_of_kwargs=None):
+    """
+    Calls the `koji_session_fnc` using Koji multicall feature N times based on the list of
+    arguments passed in `list_of_args` and `list_of_kwargs`.
+    Returns list of responses sorted the same way as input args/kwargs. In case of error,
+    the error message is logged and None is returned.
+
+    For example to get the package ids of "httpd" and "apr" packages:
+        ids = koji_multicall_map(session, session.getPackageID, ["httpd", "apr"])
+        # ids is now [280, 632]
+
+    :param KojiSessions koji_session: KojiSession to use for multicall.
+    :param object koji_session_fnc: Python object representing the KojiSession method to call.
+    :param list list_of_args: List of args which are passed to each call of koji_session_fnc.
+    :param list list_of_kwargs: List of kwargs which are passed to each call of koji_session_fnc.
+    """
+    if list_of_args is None and list_of_kwargs is None:
+        raise ProgrammingError("One of list_of_args or list_of_kwargs must be set.")
+
+    if (type(list_of_args) not in [type(None), list] or
+            type(list_of_kwargs) not in [type(None), list]):
+        raise ProgrammingError("list_of_args and list_of_kwargs must be list or None.")
+
+    if list_of_kwargs is None:
+        list_of_kwargs = [{}] * len(list_of_args)
+    if list_of_args is None:
+        list_of_args = [[]] * len(list_of_kwargs)
+
+    if len(list_of_args) != len(list_of_kwargs):
+        raise ProgrammingError("Length of list_of_args and list_of_kwargs must be the same.")
+
+    koji_session.multicall = True
+    for args, kwargs in zip(list_of_args, list_of_kwargs):
+        if type(args) != list:
+            args = [args]
+        if type(kwargs) != dict:
+            raise ProgrammingError("Every item in list_of_kwargs must be a dict")
+        koji_session_fnc(*args, **kwargs)
+
+    try:
+        responses = koji_session.multiCall(strict=True)
+    except Exception:
+        log.exception("Exception raised for multicall of method %r with args %r, %r:",
+                      koji_session_fnc, args, kwargs)
+        return None
+
+    if not responses:
+        log.error("Koji did not return response for multicall of %r", koji_session_fnc)
+        return None
+    if type(responses) != list:
+        log.error("Fault element was returned for multicall of method %r: %r",
+                  koji_session_fnc, responses)
+        return None
+
+    results = []
+
+    # For the response specification, see
+    # https://web.archive.org/web/20060624230303/http://www.xmlrpc.com/discuss/msgReader$1208?mode=topic
+    # Relevant part of this:
+    # Multicall returns an array of responses. There will be one response for each call in
+    # the original array. The result will either be a one-item array containing the result value,
+    # or a struct of the form found inside the standard <fault> element.
+    for response, args, kwargs in zip(responses, list_of_args, list_of_kwargs):
+        if type(response) == list:
+            if not response:
+                log.error("Empty list returned for multicall of method %r with args %r, %r",
+                          koji_session_fnc, args, kwargs)
+                return None
+            results.append(response[0])
+        else:
+            log.error("Unexpected data returned for multicall of method %r with args %r, %r: %r",
+                      koji_session_fnc, args, kwargs, response)
+            return None
+
+    return results
+
+
+@module_build_service.utils.retry(wait_on=(xmlrpclib.ProtocolError, koji.GenericError))
+def koji_retrying_multicall_map(*args, **kwargs):
+    """
+    Retrying version of koji_multicall_map. This tries to retry the Koji call
+    in case of koji.GenericError or xmlrpclib.ProtocolError.
+
+    Please refer to koji_multicall_map for further specification of arguments.
+    """
+    return koji_multicall_map(*args, **kwargs)
 
 
 class KojiModuleBuilder(GenericBuilder):
@@ -809,7 +898,8 @@ chmod 644 %buildroot/%_sysconfdir/rpm/macros.zz-modules
 
         return tasks
 
-    def get_average_build_time(self, component):
+    @classmethod
+    def get_average_build_time(cls, component):
         """
         Get the average build time of the component from Koji
         :param component: a ComponentBuild object
@@ -817,4 +907,99 @@ chmod 644 %buildroot/%_sysconfdir/rpm/macros.zz-modules
         """
         # If the component has not been built before, then None is returned. Instead, let's
         # return 0.0 so the type is consistent
-        return self.koji_session.getAverageBuildDuration(component.package) or 0.0
+        koji_session = KojiModuleBuilder.get_session(conf, None)
+        return koji_session.getAverageBuildDuration(component) or 0.0
+
+    @classmethod
+    def get_build_weights(cls, components):
+        """
+        Returns a dict with component name as a key and float number
+        representing the overall Koji weight of a component build.
+        The weight is sum of weights of all tasks in a previously done modular
+        build of a component.
+
+        :param list components: List of component names.
+        :rtype: dict
+        :return: {component_name: weight_as_float, ...}
+        """
+
+        koji_session = KojiModuleBuilder.get_session(conf, None)
+
+        # Get our own userID, so we can limit the builds to only modular builds
+        user_info = koji_session.getLoggedInUser()
+        if not user_info or "id" not in user_info:
+            log.warn("Koji.getLoggedInUser() failed while getting build weight.")
+            return cls.compute_weights_from_build_time(components)
+        mbs_user_id = user_info["id"]
+
+        # Get the Koji PackageID for every component in single Koji call.
+        # If some package does not exist in Koji, component_ids will be None.
+        component_ids = koji_retrying_multicall_map(
+            koji_session, koji_session.getPackageID, list_of_args=components)
+        if not component_ids:
+            return cls.compute_weights_from_build_time(components)
+
+        # Prepare list of queries to call koji_session.listBuilds
+        build_queries = []
+        for component_id in component_ids:
+            build_queries.append({
+                "packageID": component_id,
+                "userID": mbs_user_id,
+                "state": koji.BUILD_STATES["COMPLETE"],
+                "queryOpts": {"order": "-build_id", "limit": 1}})
+
+        # Get the latest Koji build created by MBS for every component in single Koji call.
+        builds_per_component = koji_retrying_multicall_map(
+            koji_session, koji_session.listBuilds, list_of_kwargs=build_queries)
+        if not builds_per_component:
+            return cls.compute_weights_from_build_time(components)
+
+        # Get list of task_ids associated with the latest build in builds.
+        # For some packages, there may not be a build done by MBS yet.
+        # We store such packages in `components_without_build` and later
+        # compute the weight by compute_weights_from_build_time().
+        # For others, we will continue by examining weights of all tasks
+        # belonging to that build later.
+        task_ids = []
+        components_with_build = []
+        components_without_build = []
+        for builds, component_name in zip(builds_per_component, components):
+            if not builds:
+                # No build for this component.
+                components_without_build.append(component_name)
+                continue
+
+            latest_build = builds[0]
+            task_id = latest_build["task_id"]
+
+            if not task_id:
+                # No task_id for this component, this can happen for imported
+                # component builds.
+                components_without_build.append(component_name)
+                continue
+
+            components_with_build.append(component_name)
+            task_ids.append(task_id)
+
+        weights = {}
+
+        # For components without any build, fallback to weights computation based on
+        # the average time to build.
+        weights.update(cls.compute_weights_from_build_time(components_without_build))
+
+        # For components with a build, get the list of tasks associated with this build
+        # and compute the weight for each component build as sum of weights of all tasks.
+        tasks_per_latest_build = koji_retrying_multicall_map(
+            koji_session, koji_session.getTaskDescendents, list_of_args=task_ids)
+        if not tasks_per_latest_build:
+            return cls.compute_weights_from_build_time(components_with_build)
+
+        for tasks, component_name in zip(tasks_per_latest_build, components_with_build):
+            # Compute overall weight of this build. This is sum of weights
+            # of all tasks in a build.
+            weight = 0
+            for task in tasks.values():
+                weight += sum([t["weight"] for t in task])
+            weights[component_name] = weight
+
+        return weights

@@ -165,9 +165,7 @@ def continue_batch_build(config, module, session, builder, components=None):
     components_to_build = []
     # Sort the unbuilt_components so that the components that take the longest to build are
     # first
-    log.info('Sorting the unbuilt components by their average build time')
-    unbuilt_components.sort(key=lambda c: builder.get_average_build_time(c), reverse=True)
-    log.info('Done sorting the unbuilt components by their average build time')
+    unbuilt_components.sort(key=lambda c: c.weight, reverse=True)
 
     # Check for builds that exist in the build system but MBS doesn't know about
     for component in unbuilt_components:
@@ -860,6 +858,9 @@ def merge_included_mmd(mmd, included_mmd):
 
 def record_component_builds(mmd, module, initial_batch=1,
                             previous_buildorder=None, main_mmd=None, session=None):
+    # Imported here to allow import of utils in GenericBuilder.
+    import module_build_service.builder
+
     if not session:
         session = db.session
 
@@ -889,6 +890,9 @@ def record_component_builds(mmd, module, initial_batch=1,
     if mmd.components:
         components = mmd.components.all
         components.sort(key=lambda x: x.buildorder)
+
+        weights = module_build_service.builder.GenericBuilder.get_build_weights(
+            [c.name for c in components])
 
         # We do not start with batch = 0 here, because the first batch is
         # reserved for module-build-macros. First real components must be
@@ -922,7 +926,8 @@ def record_component_builds(mmd, module, initial_batch=1,
                 format="rpms",
                 scmurl=full_url,
                 batch=batch,
-                ref=pkgref
+                ref=pkgref,
+                weight=weights[pkg.name]
             )
             session.add(build)
 

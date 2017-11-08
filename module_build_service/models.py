@@ -527,6 +527,10 @@ class ComponentBuild(MBSBase):
     reused_component_id = db.Column(
         db.Integer, db.ForeignKey('component_builds.id'))
 
+    # Weight defines the complexity of the component build as calculated by the builder's
+    # get_build_weights function
+    weight = db.Column(db.Float, default=0)
+
     @classmethod
     def from_component_event(cls, session, event):
         if isinstance(event, module_build_service.messaging.KojiBuildChange):

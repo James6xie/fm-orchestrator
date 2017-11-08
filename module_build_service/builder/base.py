@@ -356,3 +356,72 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
         :return: a float of 0.0
         """
         return 0.0
+
+    @classmethod
+    def get_build_weights(cls, components):
+        """
+        Returns a dict with component name as a key and float number
+        representing the overall Koji weight of a component build.
+
+        :param list components: List of component names.
+        :rtype: dict
+        :return: {component_name: weight_as_float, ...}
+        """
+        return cls.compute_weights_from_build_time(components)
+
+    @classmethod
+    def compute_weights_from_build_time(cls, components, arches=None):
+        """
+        Computes the weights of ComponentBuilds based on average time to build
+        and list of arches for which the component is going to be built.
+
+        This method should be used as a fallback only when KojiModuleBuilder
+        cannot be used, because the weight this method produces is not 100% accurate.
+
+        :param components: List of comopnent names to compute the weight for.
+        :param arches: List of arches to build for or None. If the value is None,
+            conf.koji_arches will be used instead.
+        :rtype: dict
+        :return: {component_name: weight_as_float, ...}
+        """
+        if not arches:
+            arches = conf.koji_arches
+
+        weights = {}
+
+        for component in components:
+            average_time_to_build = cls.get_average_build_time(component)
+
+            # The way how `weight` is computed is based on hardcoded weight values
+            # in kojid.py.
+            # The weight computed here is not 100% accurate, because there are
+            # multiple smaller tasks in koji like waitrepo or createrepo and we
+            # cannot say if they will be executed as part of this component build.
+            # The weight computed here is used only to limit the number of builds
+            # and we generally do not care about waitrepo/createrepo weights in MBS.
+
+            # 1.5 is what Koji hardcodes as a default weight for BuildArchTask.
+            weight = 1.5
+            if not average_time_to_build:
+                weights[component] = weight
+                continue
+
+            if average_time_to_build < 0:
+                log.warn("Negative average build duration for component %s: %s",
+                         component, str(average_time_to_build))
+                weights[component] = weight
+                continue
+
+            # Increase the task weight by 0.75 for every hour of build duration.
+            adj = (average_time_to_build / ((60 * 60) / 0.75))
+            # cap the adjustment at +4.5
+            weight += min(4.5, adj)
+
+            # We build for all arches, so multiply the weight by number of arches.
+            weight = weight * len(arches)
+
+            # 1.5 here is hardcoded Koji weight of single BuildSRPMFromSCMTask
+            weight += 1.5
+            weights[component] = weight
+
+        return weights

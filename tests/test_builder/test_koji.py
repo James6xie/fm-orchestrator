@@ -243,6 +243,101 @@ class TestKojiBuilder(unittest.TestCase):
         builder.koji_session.tagBuild.assert_called_once_with(
             builder.module_tag["id"], "new-1.0-1.module_e0095747")
 
+    @patch('module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session')
+    def test_get_build_weights(self, get_session):
+        session = MagicMock()
+        session.getLoggedInUser.return_value = {"id": 123}
+        session.multiCall.side_effect = [
+            # getPackageID response
+            [[1], [2]],
+            # listBuilds response
+            [[[{"task_id": 456}]], [[{"task_id": 789}]]],
+            # getTaskDescendents response
+            [[{'1': [], '2': [], '3': [{'weight': 1.0}, {'weight': 1.0}]}],
+             [{'1': [], '2': [], '3': [{'weight': 1.0}, {'weight': 1.0}]}]]
+        ]
+        get_session.return_value = session
+
+        weights = KojiModuleBuilder.get_build_weights(["httpd", "apr"])
+        self.assertEqual(weights, {"httpd": 2, "apr": 2})
+
+        expected_calls = [mock.call(456), mock.call(789)]
+        self.assertEqual(session.getTaskDescendents.mock_calls, expected_calls)
+
+    @patch('module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session')
+    def test_get_build_weights_no_task_id(self, get_session):
+        session = MagicMock()
+        session.getLoggedInUser.return_value = {"id": 123}
+        session.multiCall.side_effect = [
+            # getPackageID response
+            [[1], [2]],
+            # listBuilds response
+            [[[{"task_id": 456}]], [[{"task_id": None}]]],
+            # getTaskDescendents response
+            [[{'1': [], '2': [], '3': [{'weight': 1.0}, {'weight': 1.0}]}]]
+        ]
+        get_session.return_value = session
+
+        weights = KojiModuleBuilder.get_build_weights(["httpd", "apr"])
+        self.assertEqual(weights, {"httpd": 2, "apr": 1.5})
+
+        expected_calls = [mock.call(456)]
+        self.assertEqual(session.getTaskDescendents.mock_calls, expected_calls)
+
+    @patch('module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session')
+    def test_get_build_weights_no_build(self, get_session):
+        session = MagicMock()
+        session.getLoggedInUser.return_value = {"id": 123}
+        session.multiCall.side_effect = [
+            # getPackageID response
+            [[1], [2]],
+            # listBuilds response
+            [[[{"task_id": 456}]], [[]]],
+            # getTaskDescendents response
+            [[{'1': [], '2': [], '3': [{'weight': 1.0}, {'weight': 1.0}]}]]
+        ]
+        get_session.return_value = session
+
+        weights = KojiModuleBuilder.get_build_weights(["httpd", "apr"])
+        self.assertEqual(weights, {"httpd": 2, "apr": 1.5})
+
+        expected_calls = [mock.call(456)]
+        self.assertEqual(session.getTaskDescendents.mock_calls, expected_calls)
+
+    @patch('module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session')
+    def test_get_build_weights_listBuilds_failed(self, get_session):
+        session = MagicMock()
+        session.getLoggedInUser.return_value = {"id": 123}
+        session.multiCall.side_effect = [[[1], [2]], []]
+        get_session.return_value = session
+
+        weights = KojiModuleBuilder.get_build_weights(["httpd", "apr"])
+        self.assertEqual(weights, {"httpd": 1.5, "apr": 1.5})
+
+        expected_calls = [mock.call(packageID=1, userID=123, state=1,
+                                    queryOpts={'limit': 1, 'order': '-build_id'}),
+                          mock.call(packageID=2, userID=123, state=1,
+                                    queryOpts={'limit': 1, 'order': '-build_id'})]
+        self.assertEqual(session.listBuilds.mock_calls, expected_calls)
+
+    @patch('module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session')
+    def test_get_build_weights_getPackageID_failed(self, get_session):
+        session = MagicMock()
+        session.getLoggedInUser.return_value = {"id": 123}
+        session.multiCall.side_effect = [[], []]
+        get_session.return_value = session
+
+        weights = KojiModuleBuilder.get_build_weights(["httpd", "apr"])
+        self.assertEqual(weights, {"httpd": 1.5, "apr": 1.5})
+
+        expected_calls = [mock.call("httpd"), mock.call("apr")]
+        self.assertEqual(session.getPackageID.mock_calls, expected_calls)
+
+    @patch('module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session')
+    def test_get_build_weights_getLoggedInUser_failed(self, get_session):
+        weights = KojiModuleBuilder.get_build_weights(["httpd", "apr"])
+        self.assertEqual(weights, {"httpd": 1.5, "apr": 1.5})
+
 
 class TestGetKojiClientSession(unittest.TestCase):
 

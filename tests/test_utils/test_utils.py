@@ -32,7 +32,8 @@ import module_build_service.scm
 from module_build_service import models, conf
 from module_build_service.errors import ProgrammingError, ValidationError, UnprocessableEntity
 from tests import (test_reuse_component_init_data, init_data, db,
-                   test_reuse_shared_userspace_init_data)
+                   test_reuse_shared_userspace_init_data,
+                   clean_database)
 import mock
 import koji
 import module_build_service.scheduler.handlers.components
@@ -704,6 +705,43 @@ class TestUtils(unittest.TestCase):
             assert username_arg == username
         rmtree(module_dir)
 
+    @vcr.use_cassette(
+        path.join(CASSETTES_DIR, ('tests.test_utils.TestUtils.'
+                                  'test_record_component_builds_set_weight')))
+    @patch('module_build_service.scm.SCM')
+    def test_record_component_builds_set_weight(self, mocked_scm):
+        with app.app_context():
+            clean_database()
+            mocked_scm.return_value.commit = \
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4'
+            # For all the RPMs in testmodule, get_latest is called
+            hashes_returned = {
+                'f25': '4ceea43add2366d8b8c5a622a2fb563b625b9abf',
+                'f24': 'fbed359411a1baa08d4a88e0d12d426fbf8f602c'}
+
+            def mocked_get_latest(branch="master"):
+                return hashes_returned[branch]
+
+            mocked_scm.return_value.get_latest = mocked_get_latest
+
+            testmodule_variant_mmd_path = path.join(
+                BASE_DIR, '..', 'staged_data', 'testmodule-variant.yaml')
+            testmodule_variant_mmd = modulemd.ModuleMetadata()
+            with open(testmodule_variant_mmd_path) as mmd_file:
+                testmodule_variant_mmd.loads(mmd_file)
+
+            mmd = testmodule_variant_mmd
+            module_build = models.ModuleBuild.create(
+                db.session, conf, "test", "stream", "1", mmd.dumps(), "scmurl", "owner")
+
+            module_build_service.utils.record_component_builds(
+                mmd, module_build)
+
+            self.assertEqual(module_build.state, models.BUILD_STATES['init'])
+            db.session.refresh(module_build)
+            for c in module_build.component_builds:
+                self.assertEqual(c.weight, 1.5)
+
 
 class DummyModuleBuilder(GenericBuilder):
     """
@@ -971,12 +1009,13 @@ class TestBatches(unittest.TestCase):
             module_id=2, package='perl-List-Compare').one()
         plc_component.ref = '5ceea46add2366d8b8c5a623a2fb563b625b9abd'
 
+        # Components are by default built by component id. To find out that weight is respected,
+        # we have to set bigger weight to component with lower id.
+        pt_component.weight = 3 if pt_component.id < plc_component.id else 4
+        plc_component.weight = 4 if pt_component.id < plc_component.id else 3
+
         builder = mock.MagicMock()
         builder.recover_orphaned_artifact.return_value = []
-        # The call order of get_average_build_time should be by the component's ID. Having this
-        # side_effect tells continue_batch_build to build the second component in the build batch
-        # first and the first component in the build batch second.
-        builder.get_average_build_time.side_effect = [1234.56, 2345.67]
         further_work = module_build_service.utils.start_next_batch_build(
             conf, module_build, db.session, builder)
 
