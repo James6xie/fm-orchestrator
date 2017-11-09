@@ -326,7 +326,7 @@ class KojiContentGenerator(object):
 
         log_path = os.path.join(prepdir, "build.log")
         try:
-            source = build_logs.path(self.module.id)
+            source = build_logs.path(self.module)
             log.info("Moving logs from %r to %r" % (source, log_path))
             shutil.copy(source, log_path)
         except IOError as e:

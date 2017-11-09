@@ -66,12 +66,14 @@ class TestModuleWait(unittest.TestCase):
         builder.module_build_tag = {'name': 'some-tag-build'}
         create_builder.return_value = builder
         mocked_module_build = mock.Mock()
-        mocked_module_build.extended_json.return_value = {
+        mocked_module_build.json.return_value = {
             'name': 'foo',
             'stream': 1,
             'version': 1,
             'state': 'some state',
+            'id': 1
         }
+        mocked_module_build.extended_json = mocked_module_build.json
 
         mmd = _modulemd.ModuleMetadata()
         formatted_testmodule_yml_path = os.path.join(

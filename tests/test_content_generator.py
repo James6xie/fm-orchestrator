@@ -61,7 +61,7 @@ class TestBuild(unittest.TestCase):
 
         # Ensure that there is no build log from other tests
         try:
-            path = build_logs.path(self.cg.module.id)
+            path = build_logs.path(self.cg.module)
             os.remove(path)
         except OSError:
             pass
@@ -75,7 +75,7 @@ class TestBuild(unittest.TestCase):
         import moksha.hub.reactor # noqa
         self.vcr.__exit__()
         try:
-            path = build_logs.path(self.cg.module.id)
+            path = build_logs.path(self.cg.module)
             os.remove(path)
         except OSError:
             pass
