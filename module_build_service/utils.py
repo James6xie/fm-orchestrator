@@ -703,8 +703,10 @@ def load_local_builds(local_build_nsvs, session=None):
             version=str(mmd.version),
             modulemd=mmd.dumps(),
             scmurl="",
-            username="mbs")
+            username="mbs",
+            publish_msg=False)
         module.koji_tag = path
+        module.state = models.BUILD_STATES['done']
         session.commit()
 
         if (found_build[0] != module.name or found_build[1] != module.stream or

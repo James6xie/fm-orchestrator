@@ -254,7 +254,7 @@ class ModuleBuild(MBSBase):
 
     @classmethod
     def create(cls, session, conf, name, stream, version, modulemd, scmurl, username,
-               copr_owner=None, copr_project=None, rebuild_strategy=None):
+               copr_owner=None, copr_project=None, rebuild_strategy=None, publish_msg=True):
         now = datetime.utcnow()
         module = cls(
             name=name,
@@ -276,12 +276,13 @@ class ModuleBuild(MBSBase):
         module.module_builds_trace.append(mbt)
         session.add(module)
         session.commit()
-        module_build_service.messaging.publish(
-            service='mbs',
-            topic='module.state.change',
-            msg=module.extended_json(),  # Note the state is "init" here...
-            conf=conf,
-        )
+        if publish_msg:
+            module_build_service.messaging.publish(
+                service='mbs',
+                topic='module.state.change',
+                msg=module.extended_json(),  # Note the state is "init" here...
+                conf=conf,
+            )
         return module
 
     def transition(self, conf, state, state_reason=None):
