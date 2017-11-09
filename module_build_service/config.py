@@ -256,7 +256,8 @@ class Config(object):
         'build_logs_name_format': {
             'type': str,
             'default': "build-{id}.log",
-            'desc': 'Format of a module build log\'s name. Use `Build` attributes as formatting kwargs'},
+            'desc': ('Format of a module build log\'s name. Use `Build` attributes as formatting '
+                     'kwargs')},
         'krb_keytab': {
             'type': None,
             'default': None,
