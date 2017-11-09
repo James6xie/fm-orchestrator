@@ -110,6 +110,27 @@ class TestRepoDone(unittest.TestCase):
         self.assertEquals(component_build.state_reason,
                           'Failed to submit artifact communicator to Koji')
 
+    @mock.patch('module_build_service.scheduler.handlers.repos.log.info')
+    def test_erroneous_regen_repo_received(self, mock_log_info):
+        """ Test that when an unexpected KojiRepoRegen message is received, the module doesn't
+        complete or go to the next build batch.
+        """
+        scheduler_init_data(1)
+        msg = module_build_service.messaging.KojiRepoChange(
+            'some_msg_id', 'module-starcommand-1.3-build')
+        component_build = module_build_service.models.ComponentBuild.query\
+            .filter_by(package='communicator').one()
+        component_build.tagged = False
+        db.session.add(component_build)
+        db.session.commit()
+        module_build_service.scheduler.handlers.repos.done(
+            config=conf, session=db.session, msg=msg)
+        mock_log_info.assert_called_once_with(
+            'Ignoring repo regen, because not all components are tagged.')
+        module_build = module_build_service.models.ModuleBuild.query.get(1)
+        # Make sure the module build didn't transition since all the components weren't tagged
+        self.assertEqual(module_build.state, module_build_service.models.BUILD_STATES['build'])
+
     @mock.patch('module_build_service.builder.KojiModuleBuilder.list_tasks_for_components',
                 return_value=[])
     @mock.patch('module_build_service.builder.KojiModuleBuilder.buildroot_ready', return_value=True)

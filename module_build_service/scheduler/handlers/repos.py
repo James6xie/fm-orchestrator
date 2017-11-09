@@ -54,6 +54,18 @@ def done(config, session, msg):
         log.info("Ignoring repo regen for already failed %r" % module_build)
         return
 
+    # Get the list of untagged components in current/previous batches which
+    # have been built successfully
+    if config.system in ('koji', 'test') and module_build.component_builds:
+        untagged_components = [
+            c for c in module_build.up_to_current_batch()
+            if (not c.tagged or (not c.tagged_in_final and not c.build_time_only)) and
+            c.state == koji.BUILD_STATES['COMPLETE']
+        ]
+        if untagged_components:
+            log.info("Ignoring repo regen, because not all components are tagged.")
+            return
+
     # If there are no components in this module build, then current_batch will be empty
     if not module_build.component_builds:
         current_batch = []

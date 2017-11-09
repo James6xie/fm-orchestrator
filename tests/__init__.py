@@ -88,6 +88,8 @@ def init_data():
         component_one_build_one.nvr = 'nginx-1.10.1-2.module_nginx_1_2'
         component_one_build_one.batch = 1
         component_one_build_one.module_id = 1 + index * 3
+        component_one_build_one.tagged = True
+        component_one_build_one.tagged_in_final = True
 
         component_two_build_one = ComponentBuild()
         component_two_build_one.package = 'module-build-macros'
@@ -101,6 +103,8 @@ def init_data():
             'module-build-macros-01-1.module_nginx_1_2'
         component_two_build_one.batch = 2
         component_two_build_one.module_id = 1 + index * 3
+        component_two_build_one.tagged = True
+        component_two_build_one.tagged_in_final = True
 
         build_two = ModuleBuild()
         build_two.name = 'postgressql'
@@ -132,6 +136,8 @@ def init_data():
         component_one_build_two.nvr = 'postgresql-9.5.3-4.module_postgresql_1_2'
         component_one_build_two.batch = 2
         component_one_build_two.module_id = 2 + index * 3
+        component_one_build_two.tagged = True
+        component_one_build_two.tagged_in_final = True
 
         component_two_build_two = ComponentBuild()
         component_two_build_two.package = 'module-build-macros'
@@ -145,6 +151,8 @@ def init_data():
             'module-build-macros-01-1.module_postgresql_1_2'
         component_two_build_two.batch = 1
         component_two_build_two.module_id = 2 + index * 3
+        component_one_build_two.tagged = True
+        component_one_build_two.build_time_only = True
 
         build_three = ModuleBuild()
         build_three.name = 'testmodule'
@@ -188,6 +196,8 @@ def init_data():
             'module-build-macros-01-1.module_postgresql_1_2'
         component_two_build_three.batch = 1
         component_two_build_three.module_id = 3 + index * 3
+        component_two_build_three.tagged = True
+        component_two_build_three.build_time_only = True
 
         with make_session(conf) as session:
             session.add(build_one)
@@ -235,6 +245,9 @@ def scheduler_init_data(communicator_state=None):
     component_one_build_one.format = 'rpms'
     component_one_build_one.task_id = 12312345
     component_one_build_one.state = communicator_state
+    if component_one_build_one.state == 1:
+        component_one_build_one.tagged = True
+        component_one_build_one.tagged_in_final = True
     component_one_build_one.nvr = 'communicator-1.10.1-2.module_starcommand_1_3'
     component_one_build_one.batch = 2
     component_one_build_one.module_id = 1
@@ -247,6 +260,9 @@ def scheduler_init_data(communicator_state=None):
     component_two_build_one.format = 'rpms'
     component_two_build_one.task_id = 12312321
     component_two_build_one.state = 1
+    if component_two_build_one.state == 1:
+        component_two_build_one.tagged = True
+        component_two_build_one.tagged_in_final = True
     component_two_build_one.nvr = \
         'module-build-macros-01-1.module_starcommand_1_3'
     component_two_build_one.batch = 2
@@ -297,6 +313,8 @@ def test_reuse_component_init_data():
     component_one_build_one.batch = 2
     component_one_build_one.module_id = 1
     component_one_build_one.ref = '4ceea43add2366d8b8c5a622a2fb563b625b9abf'
+    component_one_build_one.tagged = True
+    component_one_build_one.tagged_in_final = True
 
     component_two_build_one = module_build_service.models.ComponentBuild()
     component_two_build_one.package = 'perl-List-Compare'
@@ -311,6 +329,8 @@ def test_reuse_component_init_data():
     component_two_build_one.batch = 2
     component_two_build_one.module_id = 1
     component_two_build_one.ref = '76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb'
+    component_two_build_one.tagged = True
+    component_two_build_one.tagged_in_final = True
 
     component_three_build_one = module_build_service.models.ComponentBuild()
     component_three_build_one.package = 'tangerine'
@@ -325,6 +345,8 @@ def test_reuse_component_init_data():
     component_three_build_one.batch = 3
     component_three_build_one.module_id = 1
     component_three_build_one.ref = 'fbed359411a1baa08d4a88e0d12d426fbf8f602c'
+    component_three_build_one.tagged = True
+    component_three_build_one.tagged_in_final = True
 
     component_four_build_one = module_build_service.models.ComponentBuild()
     component_four_build_one.package = 'module-build-macros'
@@ -338,6 +360,8 @@ def test_reuse_component_init_data():
         'module-build-macros-0.1-1.module_testmodule_master_20170109091357'
     component_four_build_one.batch = 1
     component_four_build_one.module_id = 1
+    component_four_build_one.tagged = True
+    component_four_build_one.build_time_only = True
 
     mmd = modulemd.ModuleMetadata()
     mmd.loads(yaml)
@@ -351,7 +375,7 @@ def test_reuse_component_init_data():
     build_two.koji_tag = 'module-testmodule'
     build_two.scmurl = ('git://pkgs.stg.fedoraproject.org/modules/testmodule.'
                         'git?#55f4a0a')
-    build_two.batch = 0
+    build_two.batch = 1
     build_two.owner = 'Tom Brady'
     build_two.time_submitted = datetime(2017, 2, 19, 16, 8, 18)
     build_two.time_modified = datetime(2017, 2, 19, 16, 8, 18)
@@ -399,6 +423,8 @@ def test_reuse_component_init_data():
         'module-build-macros-0.1-1.module_testmodule_master_20170219191323'
     component_four_build_two.batch = 1
     component_four_build_two.module_id = 2
+    component_four_build_two.tagged = True
+    component_four_build_two.build_time_only = True
 
     with make_session(conf) as session:
         session.add(build_one)
@@ -466,7 +492,9 @@ def test_reuse_shared_userspace_init_data():
                 scmurl=full_url,
                 batch=batch,
                 ref=pkgref,
-                state=1
+                state=1,
+                tagged=True,
+                tagged_in_final=True
             )
             session.add(build)
 

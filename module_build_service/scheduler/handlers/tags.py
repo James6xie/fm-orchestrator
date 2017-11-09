@@ -34,8 +34,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 def tagged(config, session, msg):
     """ Called whenever koji tags a build to tag. """
-
-    if not config.system == "koji":
+    if config.system not in ("koji", "test"):
         return []
 
     # Find our ModuleBuild associated with this tagged artifact.

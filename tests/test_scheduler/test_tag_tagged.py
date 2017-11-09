@@ -266,6 +266,10 @@ class TestTagTagged(unittest.TestCase):
 
         module_build = module_build_service.models.ModuleBuild.query.filter_by(id=2).one()
         module_build.batch = 2
+        mbm = module_build_service.models.ComponentBuild.query.filter_by(
+            module_id=2, package='module-build-macros').one()
+        mbm.tagged = False
+        db.session.add(mbm)
         for c in module_build.current_batch():
             c.state = koji.BUILD_STATES["COMPLETE"]
         db.session.commit()
@@ -300,14 +304,14 @@ class TestTagTagged(unittest.TestCase):
         # to tag.
         self.assertTrue(not koji_session.newRepo.called)
 
-        # Tag the component from first batch to the buildroot.
-        msg = module_build_service.messaging.KojiTagChange(
-            'id', 'module-testmodule-build', "module-build-macros")
-        module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, session=db.session, msg=msg)
         # Tag the component from first batch to final tag.
         msg = module_build_service.messaging.KojiTagChange(
             'id', 'module-testmodule', "module-build-macros")
+        module_build_service.scheduler.handlers.tags.tagged(
+            config=conf, session=db.session, msg=msg)
+        # Tag the component from first batch to the buildroot.
+        msg = module_build_service.messaging.KojiTagChange(
+            'id', 'module-testmodule-build', "module-build-macros")
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
 

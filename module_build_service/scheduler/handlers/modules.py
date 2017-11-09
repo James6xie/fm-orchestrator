@@ -329,6 +329,7 @@ def wait(config, session, msg):
             state_reason=reason,
             nvr=nvr,
             batch=1,
+            build_time_only=True
         )
         session.add(component_build)
 

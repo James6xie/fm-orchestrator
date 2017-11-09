@@ -37,7 +37,7 @@ import module_build_service.utils
 from module_build_service.errors import Forbidden
 from module_build_service import db, models, conf, build_logs
 
-from mock import patch, PropertyMock
+from mock import patch, PropertyMock, Mock
 
 from tests import app, test_reuse_component_init_data, clean_database
 import json
@@ -86,6 +86,14 @@ class FakeSCM(object):
         return path.join(self.sourcedir, self.name + ".yaml")
 
 
+def _on_build_cb(cls, artifact_name, source):
+    # Tag the build in the -build tag
+    cls._send_tag(artifact_name)
+    if not artifact_name.startswith("module-build-macros"):
+        # Tag the build in the final tag
+        cls._send_tag(artifact_name, build=False)
+
+
 class FakeModuleBuilder(GenericBuilder):
     """
     Fake module builder which succeeds for every build.
@@ -99,7 +107,7 @@ class FakeModuleBuilder(GenericBuilder):
     INSTANT_COMPLETE = False
     DEFAULT_GROUPS = None
 
-    on_build_cb = None
+    on_build_cb = _on_build_cb
     on_cancel_cb = None
     on_buildroot_add_artifacts_cb = None
     on_tag_artifacts_cb = None
@@ -109,16 +117,18 @@ class FakeModuleBuilder(GenericBuilder):
         self.module_str = module
         self.tag_name = tag_name
         self.config = config
+        self.on_build_cb = _on_build_cb
 
     @classmethod
     def reset(cls):
         FakeModuleBuilder.BUILD_STATE = "COMPLETE"
         FakeModuleBuilder.INSTANT_COMPLETE = False
-        FakeModuleBuilder.on_build_cb = None
+        FakeModuleBuilder.on_build_cb = _on_build_cb
         FakeModuleBuilder.on_cancel_cb = None
         FakeModuleBuilder.on_buildroot_add_artifacts_cb = None
         FakeModuleBuilder.on_tag_artifacts_cb = None
         FakeModuleBuilder.DEFAULT_GROUPS = None
+        FakeModuleBuilder.backend = 'test'
 
     def buildroot_connect(self, groups):
         default_groups = FakeModuleBuilder.DEFAULT_GROUPS or {
@@ -157,6 +167,19 @@ class FakeModuleBuilder(GenericBuilder):
     def tag_artifacts(self, artifacts):
         if FakeModuleBuilder.on_tag_artifacts_cb:
             FakeModuleBuilder.on_tag_artifacts_cb(self, artifacts)
+        for nvr in artifacts:
+            # tag_artifacts received a list of NVRs, but the tag message expects the
+            # component name
+            artifact = models.ComponentBuild.query.filter_by(nvr=nvr).one().package
+            self._send_tag(artifact)
+            if not artifact.startswith('module-build-macros'):
+                self._send_tag(artifact, build=False)
+
+    @property
+    def koji_session(self):
+        session = Mock()
+        session.newRepo.return_value = 123
+        return session
 
     @property
     def module_build_tag(self):
@@ -166,6 +189,18 @@ class FakeModuleBuilder(GenericBuilder):
         msg = module_build_service.messaging.KojiRepoChange(
             msg_id='a faked internal message',
             repo_tag=self.tag_name + "-build",
+        )
+        module_build_service.scheduler.consumer.work_queue_put(msg)
+
+    def _send_tag(self, artifact, build=True):
+        if build:
+            tag = self.tag_name + "-build"
+        else:
+            tag = self.tag_name
+        msg = module_build_service.messaging.KojiTagChange(
+            msg_id='a faked internal message',
+            tag=tag,
+            artifact=artifact
         )
         module_build_service.scheduler.consumer.work_queue_put(msg)
 
@@ -620,6 +655,11 @@ class TestBuild(unittest.TestCase):
                 FakeModuleBuilder.BUILD_STATE = "FAILED"
             else:
                 FakeModuleBuilder.BUILD_STATE = "COMPLETE"
+                # Tag the build in the -build tag
+                cls._send_tag(artifact_name)
+                if not artifact_name.startswith("module-build-macros"):
+                    # Tag the build in the final tag
+                    cls._send_tag(artifact_name, build=False)
 
         FakeModuleBuilder.on_build_cb = on_build_cb
 
@@ -677,7 +717,9 @@ class TestBuild(unittest.TestCase):
         def on_build_cb(cls, artifact_name, source):
             # Next components *after* the module-build-macros will fail
             # to build.
-            if not artifact_name.startswith("module-build-macros"):
+            if artifact_name.startswith("module-build-macros"):
+                cls._send_tag(artifact_name)
+            else:
                 FakeModuleBuilder.BUILD_STATE = "FAILED"
 
         FakeModuleBuilder.on_build_cb = on_build_cb
@@ -858,6 +900,8 @@ class TestBuild(unittest.TestCase):
         component_one.batch = 2
         component_one.module_id = 1
         component_one.ref = '4ceea43add2366d8b8c5a622a2fb563b625b9abf'
+        component_one.tagged = True
+        component_one.tagged_in_final = True
         # Failed component
         component_two = models.ComponentBuild()
         component_two.package = 'perl-List-Compare'
@@ -1000,10 +1044,12 @@ class TestBuild(unittest.TestCase):
 
 
 @patch("module_build_service.config.Config.system",
-       new_callable=PropertyMock, return_value="test")
+       new_callable=PropertyMock, return_value="testlocal")
 class TestLocalBuild(unittest.TestCase):
 
     def setUp(self):
+        FakeModuleBuilder.on_build_cb = None
+        FakeModuleBuilder.backend = 'testlocal'
         GenericBuilder.register_backend_class(FakeModuleBuilder)
         self.client = app.test_client()
         clean_database()
@@ -1014,13 +1060,7 @@ class TestLocalBuild(unittest.TestCase):
 
     def tearDown(self):
         FakeModuleBuilder.reset()
-
-        # Necessary to restart the twisted reactor for the next test.
-        import sys
-        del sys.modules['twisted.internet.reactor']
-        del sys.modules['moksha.hub.reactor']
-        del sys.modules['moksha.hub']
-        import moksha.hub.reactor # noqa
+        cleanup_moksha()
         self.vcr.__exit__()
         for i in range(20):
             try:
