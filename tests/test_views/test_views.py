@@ -81,7 +81,7 @@ class FakeSCM(object):
         self.mocked_scm.return_value.commit = self.commit
         if get_latest_raise:
             self.mocked_scm.return_value.get_latest.side_effect = \
-                RuntimeError("Failed to get_latest commit")
+                UnprocessableEntity("Failed to get_latest commit")
         else:
             self.mocked_scm.return_value.get_latest = self.get_latest
         self.mocked_scm.return_value.repository_root = "git://pkgs.stg.fedoraproject.org/modules/"
