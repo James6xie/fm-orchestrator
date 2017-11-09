@@ -35,7 +35,7 @@ from module_build_service import app, conf, log, models, db, version
 from module_build_service.utils import (
     pagination_metadata, filter_module_builds, filter_component_builds,
     submit_module_build_from_scm, submit_module_build_from_yaml,
-    get_scm_url_re)
+    get_scm_url_re, cors_header)
 from module_build_service.errors import (
     ValidationError, Forbidden, NotFound, ProgrammingError)
 
@@ -90,6 +90,7 @@ api_v1 = {
 class AbstractQueryableBuildAPI(MethodView):
     """ An abstract class, housing some common functionality. """
 
+    @cors_header()
     def get(self, id):
         verbose_flag = request.args.get('verbose', 'false').lower()
 
@@ -199,6 +200,7 @@ class ModuleBuildAPI(AbstractQueryableBuildAPI):
 
 
 class AboutAPI(MethodView):
+    @cors_header()
     def get(self):
         json = {'version': version}
         config_items = ['auth_method']
@@ -213,6 +215,7 @@ class AboutAPI(MethodView):
 
 
 class RebuildStrategies(MethodView):
+    @cors_header()
     def get(self):
         items = []
         # Sort the items list by name

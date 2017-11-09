@@ -32,11 +32,12 @@ import os
 import kobo.rpmlib
 import inspect
 import hashlib
+from functools import wraps
 
 import modulemd
 import yaml
 
-from flask import request, url_for
+from flask import request, url_for, Response
 from datetime import datetime
 
 from module_build_service import log, models
@@ -1426,3 +1427,27 @@ def create_dogpile_key_generator_func(skip_first_n_args=0):
 
         return generate_key
     return key_generator
+
+
+def cors_header(allow='*'):
+    """
+    A decorator that sets the Access-Control-Allow-Origin header to the desired value on a Flask
+    route
+    :param allow: a string of the domain to allow. This defaults to '*'.
+    """
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            rv = func(*args, **kwargs)
+            if rv:
+                # If a tuple was provided, then the Flask Response should be the first object
+                if isinstance(rv, tuple):
+                    response = rv[0]
+                else:
+                    response = rv
+                # Make sure we are dealing with a Flask Response object
+                if isinstance(response, Response):
+                    response.headers.add('Access-Control-Allow-Origin', allow)
+            return rv
+        return wrapper
+    return decorator

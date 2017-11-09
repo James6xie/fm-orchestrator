@@ -991,3 +991,7 @@ class TestViews(unittest.TestCase):
             ]
         }
         self.assertEquals(data, expected)
+
+    def test_cors_header_decorator(self):
+        rv = self.client.get('/module-build-service/1/module-builds/')
+        self.assertEquals(rv.headers['Access-Control-Allow-Origin'], '*')
