@@ -58,14 +58,20 @@ class TestRepoDone(unittest.TestCase):
         module_build_service.scheduler.handlers.repos.done(
             config=conf, session=db.session, msg=msg)
 
-    @mock.patch('module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_average_build_time',
+    @mock.patch('module_build_service.builder.KojiModuleBuilder.'
+                'KojiModuleBuilder.get_average_build_time',
                 return_value=0.0)
-    @mock.patch('module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.list_tasks_for_components',
+    @mock.patch('module_build_service.builder.KojiModuleBuilder.'
+                'KojiModuleBuilder.list_tasks_for_components',
                 return_value=[])
-    @mock.patch('module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.buildroot_ready', return_value=True)
-    @mock.patch('module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session')
-    @mock.patch('module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.build')
-    @mock.patch('module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.buildroot_connect')
+    @mock.patch('module_build_service.builder.KojiModuleBuilder.'
+                'KojiModuleBuilder.buildroot_ready', return_value=True)
+    @mock.patch('module_build_service.builder.KojiModuleBuilder.'
+                'KojiModuleBuilder.get_session')
+    @mock.patch('module_build_service.builder.KojiModuleBuilder.'
+                'KojiModuleBuilder.build')
+    @mock.patch('module_build_service.builder.KojiModuleBuilder.'
+                'KojiModuleBuilder.buildroot_connect')
     def test_a_single_match(self, connect, build_fn, get_session, ready, list_tasks_fn, mock_gabt):
         """ Test that when a repo msg hits us and we have a single match.
         """
@@ -81,14 +87,20 @@ class TestRepoDone(unittest.TestCase):
             source=('git://pkgs.domain.local/rpms/communicator'
                     '?#da95886c8a443b36a9ce31abda1f9bed22f2f9c2'))
 
-    @mock.patch('module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_average_build_time',
+    @mock.patch('module_build_service.builder.KojiModuleBuilder.'
+                'KojiModuleBuilder.get_average_build_time',
                 return_value=0.0)
-    @mock.patch('module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.list_tasks_for_components',
+    @mock.patch('module_build_service.builder.KojiModuleBuilder.'
+                'KojiModuleBuilder.list_tasks_for_components',
                 return_value=[])
-    @mock.patch('module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.buildroot_ready', return_value=True)
-    @mock.patch('module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session')
-    @mock.patch('module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.build')
-    @mock.patch('module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.buildroot_connect')
+    @mock.patch('module_build_service.builder.KojiModuleBuilder.'
+                'KojiModuleBuilder.buildroot_ready', return_value=True)
+    @mock.patch('module_build_service.builder.KojiModuleBuilder.'
+                'KojiModuleBuilder.get_session')
+    @mock.patch('module_build_service.builder.KojiModuleBuilder.'
+                'KojiModuleBuilder.build')
+    @mock.patch('module_build_service.builder.KojiModuleBuilder.'
+                'KojiModuleBuilder.buildroot_connect')
     def test_a_single_match_build_fail(self, connect, build_fn, config, ready, list_tasks_fn,
                                        mock_gabt):
         """ Test that when a KojiModuleBuilder.build fails, the build is
@@ -131,12 +143,17 @@ class TestRepoDone(unittest.TestCase):
         # Make sure the module build didn't transition since all the components weren't tagged
         self.assertEqual(module_build.state, module_build_service.models.BUILD_STATES['build'])
 
-    @mock.patch('module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.list_tasks_for_components',
+    @mock.patch('module_build_service.builder.KojiModuleBuilder.'
+                'KojiModuleBuilder.list_tasks_for_components',
                 return_value=[])
-    @mock.patch('module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.buildroot_ready', return_value=True)
-    @mock.patch('module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session')
-    @mock.patch('module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.build')
-    @mock.patch('module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.buildroot_connect')
+    @mock.patch('module_build_service.builder.KojiModuleBuilder.'
+                'KojiModuleBuilder.buildroot_ready', return_value=True)
+    @mock.patch('module_build_service.builder.KojiModuleBuilder.'
+                'KojiModuleBuilder.get_session')
+    @mock.patch('module_build_service.builder.KojiModuleBuilder.'
+                'KojiModuleBuilder.build')
+    @mock.patch('module_build_service.builder.KojiModuleBuilder.'
+                'KojiModuleBuilder.buildroot_connect')
     @mock.patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
                 return_value={'build': [], 'srpm-build': []})
     def test_failed_component_build(self, dbg, connect, build_fn, config, ready, list_tasks_fn):
