@@ -4,3 +4,4 @@ nose
 pytest
 vcrpy
 flake8
+tox
