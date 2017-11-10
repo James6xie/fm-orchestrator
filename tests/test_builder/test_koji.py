@@ -34,7 +34,7 @@ from mock import patch, MagicMock
 
 from tests import conf, init_data
 
-from module_build_service.builder import KojiModuleBuilder
+from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
 
 
 class FakeKojiModuleBuilder(KojiModuleBuilder):

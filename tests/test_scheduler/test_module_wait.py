@@ -93,7 +93,7 @@ class TestModuleWait(unittest.TestCase):
 
     @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
            return_value={'build': [], 'srpm-build': []})
-    @patch("module_build_service.builder.KojiModuleBuilder.get_session")
+    @patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
     @patch("module_build_service.builder.GenericBuilder.create_from_module")
     @patch('module_build_service.pdc')
     def test_new_repo_called_when_macros_reused(
@@ -130,7 +130,7 @@ class TestModuleWait(unittest.TestCase):
 
     @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
            return_value={'build': [], 'srpm-build': []})
-    @patch("module_build_service.builder.KojiModuleBuilder.get_session")
+    @patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
     @patch("module_build_service.builder.GenericBuilder.create_from_module")
     @patch('module_build_service.pdc')
     def test_new_repo_not_called_when_macros_not_reused(
@@ -161,7 +161,7 @@ class TestModuleWait(unittest.TestCase):
 
     @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
            return_value={'build': [], 'srpm-build': []})
-    @patch("module_build_service.builder.KojiModuleBuilder.get_session")
+    @patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
     @patch("module_build_service.builder.GenericBuilder.create_from_module")
     @patch('module_build_service.pdc')
     def test_set_cg_build_koji_tag_fallback_to_default(
@@ -199,7 +199,7 @@ class TestModuleWait(unittest.TestCase):
 
     @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
            return_value={'build': [], 'srpm-build': []})
-    @patch("module_build_service.builder.KojiModuleBuilder.get_session")
+    @patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
     @patch("module_build_service.builder.GenericBuilder.create_from_module")
     @patch('module_build_service.pdc')
     @patch("module_build_service.config.Config.base_module_names",

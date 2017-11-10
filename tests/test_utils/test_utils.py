@@ -34,7 +34,8 @@ from tests import (test_reuse_component_init_data, init_data, db,
 import mock
 import koji
 import module_build_service.scheduler.handlers.components
-from module_build_service.builder import GenericBuilder, KojiModuleBuilder
+from module_build_service.builder.base import GenericBuilder
+from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
 from tests import app
 
 BASE_DIR = path.abspath(path.dirname(__file__))

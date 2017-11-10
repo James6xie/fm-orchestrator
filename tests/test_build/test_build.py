@@ -43,7 +43,8 @@ from tests import app, test_reuse_component_init_data, clean_database
 import json
 import itertools
 
-from module_build_service.builder import KojiModuleBuilder, GenericBuilder
+from module_build_service.builder.base import GenericBuilder
+from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
 import module_build_service.scheduler.consumer
 from module_build_service.messaging import MBSModule
 
