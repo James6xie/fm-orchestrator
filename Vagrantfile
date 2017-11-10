@@ -52,7 +52,6 @@ Vagrant.configure("2") do |config|
   # Disable the default share
   config.vm.synced_folder ".", "/vagrant", disabled: true
   config.vm.network "forwarded_port", guest_ip: "0.0.0.0", guest: 5000, host: 5000
-  config.vm.network "forwarded_port", guest_ip: "0.0.0.0", guest: 2001, host: 5001
   config.vm.network "forwarded_port", guest_ip: "0.0.0.0", guest: 13747, host: 13747
   config.vm.provision "shell", inline: $script
   config.vm.provision "shell", inline: $script_services, run: "always"

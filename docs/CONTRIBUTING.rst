@@ -53,36 +53,6 @@ refer to the `Running Tests` section first.
 We have two mechanisms for quickly setting up a development environment,
 `docker-compose` and `vagrant`.
 
-
-PDC and pdc-updater
--------------------
-
-To be able to communicate with PDC, your development instance will need to
-be able to access the URL defined in the configuration option `PDC_URL`,
-located in your local `conf/config.py`
-
-To communicate with pdc-updater, you will need to configure SSH on your host
-machine to forward remote ports from pdc-updater's devel instance, typically
-`modularity.fedorainfracloud.org`. This enables communication between PDC
-and your Module Build Service development instance.
-
-Your `ssh_config` should look like this::
-
-    Host MODULARITY-DEV
-        HostName modularity.fedorainfracloud.org
-        User fedora
-        RemoteForward 300x 127.0.0.1:5001  # x is one of 0...9
-
-The configuration above assumes that the development instance with
-pdc-updater has the following endpoints configured (typically in
-`/etc/fedmsg.d/endpoints.py`)::
-
-    endpoints={
-        "rida.local": [
-            "tcp://127.0.0.1:300%i" % i for i in range(10)
-        ],
-        ...
-
 Docker
 ------
 

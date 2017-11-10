@@ -17,8 +17,6 @@ services:
     expose:
       - 2001
       - 2003
-    ports:
-      - "5001:2001"
     volumes_from:
       - base
 
