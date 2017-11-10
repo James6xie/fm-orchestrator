@@ -53,17 +53,6 @@ refer to the `Running Tests` section first.
 We have two mechanisms for quickly setting up a development environment,
 `docker-compose` and `vagrant`.
 
-In order to to setup a development environment, it is required that you have
-your Fedora kerberos credentials generated in a *special location*. Before
-starting your development environment, run the following::
-
-    $ KRB5CCNAME=FILE:/tmp/mbs-krbcc kinit YOUR_USERNAME@STG.FEDORAPROJECT.ORG
-
-If you have problems in later steps with kerberos reading those credentials
-inside the `scheduler` container, you should check that `/var/tmp/krbcc` exists
-on your machine and that *it is not a directory*. Try removing it with `$ sudo
-rm -rf /var/tmp/krbcc` and running `kinit` again. Also, check for permissions
-and SELinux context of the credentials cache file.
 
 PDC and pdc-updater
 -------------------

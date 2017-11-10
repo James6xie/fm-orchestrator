@@ -3,8 +3,7 @@
 
 $script = <<SCRIPT
     grep -q '^127\.0\.0\.1 fedmsg-relay$' /etc/hosts || echo "127.0.0.1 fedmsg-relay" >> /etc/hosts
-    echo "export KRB5CCNAME=FILE:/var/tmp/krbcc" > /etc/profile.d/module_build_service_developer_env.sh
-    echo "export MODULE_BUILD_SERVICE_DEVELOPER_ENV=1" >> /etc/profile.d/module_build_service_developer_env.sh
+    echo "export MODULE_BUILD_SERVICE_DEVELOPER_ENV=1" > /etc/profile.d/module_build_service_developer_env.sh
     source /etc/profile.d/module_build_service_developer_env.sh
     dnf install -y \
         fedmsg-hub \
@@ -52,7 +51,6 @@ Vagrant.configure("2") do |config|
   config.vm.synced_folder "./", "/tmp/module_build_service"
   # Disable the default share
   config.vm.synced_folder ".", "/vagrant", disabled: true
-  config.vm.provision "file", source: "/tmp/mbs-krbcc", destination: "/var/tmp/krbcc", run: "always"
   config.vm.network "forwarded_port", guest_ip: "0.0.0.0", guest: 5000, host: 5000
   config.vm.network "forwarded_port", guest_ip: "0.0.0.0", guest: 2001, host: 5001
   config.vm.network "forwarded_port", guest_ip: "0.0.0.0", guest: 13747, host: 13747
