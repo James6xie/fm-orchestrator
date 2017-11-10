@@ -32,7 +32,7 @@ node('factory2'){
         }
 
         stage('Clone Test Suite') {
-            onmyduffynode "git clone -b \"${env.BRANCH_NAME}\" https://pagure.io/fm-orchestrator"
+            onmyduffynode "git clone -b \"${env.BRANCH_NAME}\" --single-branch --depth 1 https://pagure.io/fm-orchestrator"
         }
 
         stage('Prepare Node') {
