@@ -319,9 +319,7 @@ def submit_module_build(scm_url, branch, server, id_provider, pyrpkg, verify=Tru
 
 def do_local_build(local_builds_nsvs, log_flag=None, yaml_file=None, stream=None):
     """
-    Starts the local build using the 'mbs-manager build_module_locally'
-    command. Returns exit code of that command or None when scm_url or
-    branch are not set and cannot be obtained from the CWD.
+    Starts the local build using `mbs-manager build_module_locally`.
     """
     command = ['mbs-manager']
     command.append('build_module_locally')
@@ -490,9 +488,9 @@ def main():
     parser_local = subparsers.add_parser(
         'local', help="do local build of module",
         description="Starts local build of a module using the Mock backend. "
-        "When 'scm_url' or 'branch' is not set, it presumes you are "
+        "When --file or --stream are not set, it presumes you are "
         "executing this command in the directory with the cloned git "
-        "repository with a module.")
+        "repository with a modulemd yaml file present.")
     parser_local.add_argument("--add-local-build", "-l", action='append',
                               dest="local_builds_nsvs", metavar='BUILD_ID')
     parser_local.add_argument('--file', dest='file', action='store',
