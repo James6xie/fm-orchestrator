@@ -170,10 +170,9 @@ class TestViews(unittest.TestCase):
         self.assertEquals(data['state'], 3)
         self.assertEquals(data['state_name'], 'done')
         self.assertEquals(data['state_reason'], None)
-        self.assertEquals(data['state_trace'][0]['reason'], None)
-        self.assertTrue(data['state_trace'][0]['time'] is not None)
-        self.assertEquals(data['state_trace'][0]['state'], 3)
-        self.assertEquals(data['state_trace'][0]['state_name'], 'done')
+        # State trace is empty because we directly created these builds and didn't have them
+        # transition, which creates these entries
+        self.assertEquals(data['state_trace'], [])
         self.assertEquals(data['state_url'], '/module-build-service/1/module-builds/1')
         self.assertEquals(data['stream'], '1')
         self.assertDictEqual(data['tasks'], {
