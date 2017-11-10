@@ -327,24 +327,31 @@ def do_local_build(local_builds_nsvs, log_flag=None, yaml_file=None, stream=None
         for build_id in local_builds_nsvs:
             command += ['--add-local-build', build_id]
 
-    if yaml_file:
-        command.extend(["--file", yaml_file])
-    else:
+    if not yaml_file:
         module_dir = os.getcwd()
         module_name = os.path.basename(module_dir)
         yaml_file = os.path.join(module_dir, module_name + ".yaml")
-        command.extend(["--file", yaml_file])
 
-    if stream:
-        command.extend(["--stream", stream])
-    else:
-        branch = get_scm_branch()
-        command.extend(["--stream", branch])
+    command.extend(["--file", yaml_file])
+
+    if not stream:
+        stream = get_scm_branch()
+
+    command.extend(["--stream", stream])
 
     if log_flag:
         command.append(log_flag)
 
-    logging.info("Starting local build of %s, branch %s", yaml_file, branch)
+    # Some last minute sanity checks before passing off to the other command.
+    if not os.path.exists(yaml_file):
+        logging.error("%s does not exist.  Specify --file or check pwd.", yaml_file)
+        return 1
+    if not stream:
+        logging.error("Unable to determine stream.  Either execute "
+                      "from a git checkout or pass --stream.")
+        return 1
+
+    logging.info("Starting local build of %s, stream %s", yaml_file, stream)
 
     process = subprocess.Popen(command)
     process.communicate()
