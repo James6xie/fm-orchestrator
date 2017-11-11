@@ -125,7 +125,7 @@ class SCM(object):
         return None
 
     @staticmethod
-    @module_build_service.utils.retry(wait_on=RuntimeError)
+    @module_build_service.utils.retry(wait_on=UnprocessableEntity)
     def _run(cmd, chdir=None, log_stdout=False):
         proc = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE, cwd=chdir)
         stdout, stderr = proc.communicate()
@@ -134,7 +134,7 @@ class SCM(object):
         if stderr:
             log.warning(stderr)
         if proc.returncode != 0:
-            raise RuntimeError("Failed on %r, retcode %r, out %r, err %r" % (
+            raise UnprocessableEntity("Failed on %r, retcode %r, out %r, err %r" % (
                 cmd, proc.returncode, stdout, stderr))
         return proc.returncode, stdout, stderr
 
@@ -186,13 +186,22 @@ class SCM(object):
         """
         if self.scheme == "git":
             log.debug("Getting/verifying commit hash for %s" % self.repository)
-            output = SCM._run(["git", "ls-remote", self.repository, branch])[1]
-            if output:
-                self.commit = output.split("\t")[0]
-                return self.commit
-
-            # Hopefully `branch` is really a commit hash.  Code later needs to verify this.
-            if self.is_available(True):
+            # check all branches on the remote
+            output = SCM._run(["git", "ls-remote", "--exit-code", self.repository])[1]
+            branch_data = [b.split("\t") for b in output.strip().split("\n")]
+            branches = {}
+            # pair branch names and their latest refs into a dict
+            for data in branch_data:
+                branch_name = data[1].split("/")[-1]
+                branches[branch_name] = data[0]
+            # first check if the branch name is in the repo
+            if branch in branches:
+                return branches[branch]
+            # if the branch is not in the repo it may be a ref.
+            else:
+                # if the ref does not exist in the repo, _run will raise and UnprocessableEntity
+                # error.
+                SCM._run(["git", "fetch", "--dry-run", self.repository, branch])
                 return branch
         else:
             raise RuntimeError("get_latest: Unhandled SCM scheme.")

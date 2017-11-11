@@ -65,8 +65,10 @@ class TestSCMModule(unittest.TestCase):
         scm = module_build_service.scm.SCM(repo_path)
         assert scm.scheme == 'git', scm.scheme
         fname = tempfile.mktemp(suffix='mbs-scm-test')
-        scm.get_latest(branch='master; touch %s' % fname)
-        assert not os.path.exists(fname), "%r exists!  Vulnerable." % fname
+        try:
+            scm.get_latest(branch='master; touch %s' % fname)
+        except UnprocessableEntity:
+            assert not os.path.exists(fname), "%r exists!  Vulnerable." % fname
 
     def test_local_extract_name(self):
         scm = module_build_service.scm.SCM(repo_path)
@@ -115,3 +117,26 @@ class TestSCMModule(unittest.TestCase):
         scm.checkout(self.tempdir)
         scm.verify()
         scm.get_module_yaml()
+
+    @raises(UnprocessableEntity)
+    def test_get_latest_incorect_component_branch(self):
+        scm = module_build_service.scm.SCM(repo_path)
+        scm.get_latest(branch='foobar')
+
+    def test_get_latest_component_branch(self):
+        ref = "5481faa232d66589e660cc301179867fb00842c9"
+        branch = "master"
+        scm = module_build_service.scm.SCM(repo_path)
+        commit = scm.get_latest(branch=branch)
+        assert commit == ref
+
+    def test_get_latest_component_ref(self):
+        ref = "5481faa232d66589e660cc301179867fb00842c9"
+        scm = module_build_service.scm.SCM(repo_path)
+        commit = scm.get_latest(branch=ref)
+        assert commit == ref
+
+    @raises(UnprocessableEntity)
+    def test_get_latest_incorect_component_ref(self):
+        scm = module_build_service.scm.SCM(repo_path)
+        scm.get_latest(branch='15481faa232d66589e660cc301179867fb00842c9')
