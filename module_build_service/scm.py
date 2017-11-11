@@ -178,15 +178,16 @@ class SCM(object):
             raise RuntimeError("checkout: Unhandled SCM scheme.")
         return self.sourcedir
 
-    def get_latest(self, branch='master'):
-        """Get the latest commit ID.
+    def get_latest(self, ref='master'):
+        """ Get the latest commit hash based on the provided git ref
 
-        :returns: str -- the latest commit ID, e.g. the git $BRANCH HEAD
+        :param ref: a string of a git ref (either a branch or commit hash)
+        :returns: a string of the latest commit hash
         :raises: RuntimeError
         """
         if self.scheme == "git":
             log.debug("Getting/verifying commit hash for %s" % self.repository)
-            # check all branches on the remote
+            # get all the branches on the remote
             output = SCM._run(["git", "ls-remote", "--exit-code", self.repository])[1]
             # pair branch names and their latest refs into a dict. The output of the above command
             # is multiple lines of "bf028e573e7c18533d89c7873a411de92d4d913e	refs/heads/master".
@@ -200,14 +201,14 @@ class SCM(object):
                 cur_ref = branch_and_ref.split("\t")[0]
                 branches[cur_branch] = cur_ref
             # first check if the branch name is in the repo
-            if branch in branches:
-                return branches[branch]
+            if ref in branches:
+                return branches[ref]
             # if the branch is not in the repo it may be a ref.
             else:
-                # if the ref does not exist in the repo, _run will raise and UnprocessableEntity
-                # error.
-                SCM._run(["git", "fetch", "--dry-run", self.repository, branch])
-                return branch
+                # if the ref does not exist in the repo, _run will raise an UnprocessableEntity
+                # exception
+                SCM._run(["git", "fetch", "--dry-run", self.repository, ref])
+                return ref
         else:
             raise RuntimeError("get_latest: Unhandled SCM scheme.")
 

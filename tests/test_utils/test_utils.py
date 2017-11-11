@@ -68,8 +68,8 @@ class FakeSCM(object):
 
         return self.sourcedir
 
-    def get_latest(self, branch='master'):
-        return self.commit if self.commit else branch
+    def get_latest(self, ref='master'):
+        return self.commit if self.commit else ref
 
     def get_module_yaml(self):
         return path.join(self.sourcedir, self.name + ".yaml")
@@ -240,8 +240,8 @@ class TestUtils(unittest.TestCase):
             'f25': '76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb'}
         original_refs = ["f23", "f24", "f25"]
 
-        def mocked_get_latest(branch="master"):
-            return hashes_returned[branch]
+        def mocked_get_latest(ref="master"):
+            return hashes_returned[ref]
 
         mocked_scm.return_value.get_latest = mocked_get_latest
         mmd = modulemd.ModuleMetadata()
@@ -639,8 +639,8 @@ class TestUtils(unittest.TestCase):
                 'f25': '4ceea43add2366d8b8c5a622a2fb563b625b9abf',
                 'f24': 'fbed359411a1baa08d4a88e0d12d426fbf8f602c'}
 
-            def mocked_get_latest(branch="master"):
-                return hashes_returned[branch]
+            def mocked_get_latest(ref="master"):
+                return hashes_returned[ref]
 
             mocked_scm.return_value.get_latest = mocked_get_latest
 
