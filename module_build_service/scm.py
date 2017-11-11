@@ -205,10 +205,10 @@ class SCM(object):
                 return branches[ref]
             # if the branch is not in the repo it may be a ref.
             else:
-                # if the ref does not exist in the repo, _run will raise an UnprocessableEntity
-                # exception
-                SCM._run(["git", "fetch", "--dry-run", self.repository, ref])
-                return ref
+                # The call below will either return the commit hash as is (if a full one was
+                # provided) or the full commit hash (if a short hash was provided). If ref is not
+                # a commit hash, then this will raise an exception.
+                return self.get_full_commit_hash(commit_hash=ref)
         else:
             raise RuntimeError("get_latest: Unhandled SCM scheme.")
 
@@ -233,7 +233,7 @@ class SCM(object):
             td = None
             try:
                 td = tempfile.mkdtemp()
-                SCM._run(['git', 'clone', '-q', self.repository, td])
+                SCM._run(['git', 'clone', '-q', self.repository, td, '--bare'])
                 output = SCM._run(
                     ['git', 'rev-parse', commit_to_check], chdir=td)[1]
             finally:
@@ -243,7 +243,7 @@ class SCM(object):
             if output:
                 return str(output.strip('\n'))
 
-            raise RuntimeError(
+            raise UnprocessableEntity(
                 'The full commit hash of "{0}" for "{1}" could not be found'
                 .format(commit_hash, self.repository))
         else:
