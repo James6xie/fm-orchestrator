@@ -188,12 +188,17 @@ class SCM(object):
             log.debug("Getting/verifying commit hash for %s" % self.repository)
             # check all branches on the remote
             output = SCM._run(["git", "ls-remote", "--exit-code", self.repository])[1]
-            branch_data = [b.split("\t") for b in output.strip().split("\n")]
+            # pair branch names and their latest refs into a dict. The output of the above command
+            # is multiple lines of "bf028e573e7c18533d89c7873a411de92d4d913e	refs/heads/master".
+            # So the dictionary ends up in the format of
+            # {"master": "bf028e573e7c18533d89c7873a411de92d4d913e"...}.
             branches = {}
-            # pair branch names and their latest refs into a dict
-            for data in branch_data:
-                branch_name = data[1].split("/")[-1]
-                branches[branch_name] = data[0]
+            for branch_and_ref in output.strip().split("\n"):
+                # This grabs the last bit of text after the last "/", which is the branch name
+                cur_branch = branch_and_ref.split("\t")[-1].split("/")[-1]
+                # This grabs the text before the first tab, which is the commit hash
+                cur_ref = branch_and_ref.split("\t")[0]
+                branches[cur_branch] = cur_ref
             # first check if the branch name is in the repo
             if branch in branches:
                 return branches[branch]
