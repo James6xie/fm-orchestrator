@@ -95,7 +95,8 @@ Module submission is done via posting the modulemd SCM URL.
 ::
 
     {
-        "scmurl": "git://pkgs.fedoraproject.org/modules/foo.git/foo.yaml?#f1d2d2f924e986ac86fdf7b36c94bcdf32beec15
+        "scmurl": "git://pkgs.fedoraproject.org/modules/foo.git/foo.yaml?#f1d2d2f924e986ac86fdf7b36c94bcdf32beec15",
+        "branch": "master"
     }
 
 The response, in case of a successful submission, would include the task ID.
