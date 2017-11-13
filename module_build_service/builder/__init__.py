@@ -1,17 +1,10 @@
-from module_build_service import conf
+import pkg_resources
+
 from base import GenericBuilder
-from KojiModuleBuilder import KojiModuleBuilder
-from MockModuleBuilder import MockModuleBuilder
 
 __all__ = [
     GenericBuilder
 ]
 
-
-GenericBuilder.register_backend_class(KojiModuleBuilder)
-
-GenericBuilder.register_backend_class(MockModuleBuilder)
-
-if conf.system == "copr":
-    from CoprModuleBuilder import CoprModuleBuilder
-    GenericBuilder.register_backend_class(CoprModuleBuilder)
+for entrypoint in pkg_resources.iter_entry_points('mbs.builder_backends'):
+    GenericBuilder.register_backend_class(entrypoint.load())

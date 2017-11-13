@@ -37,7 +37,7 @@ CASSETTES_DIR = path.join(
 @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
        return_value={'build': [], 'srpm-build': []})
 @patch("module_build_service.scheduler.consumer.get_global_consumer")
-@patch("module_build_service.builder.KojiModuleBuilder.get_session")
+@patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
 @patch("module_build_service.builder.GenericBuilder.create_from_module")
 class TestPoller(unittest.TestCase):
 

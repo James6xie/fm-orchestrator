@@ -9,7 +9,7 @@ import kobo.rpmlib
 
 from module_build_service import conf
 from module_build_service.models import ModuleBuild, ComponentBuild, make_session
-from module_build_service.builder import MockModuleBuilder
+from module_build_service.builder.MockModuleBuilder import MockModuleBuilder
 from tests import db, init_data
 
 
