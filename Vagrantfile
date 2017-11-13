@@ -31,10 +31,10 @@ $script = <<SCRIPT
         rpm-build \
         swig \
         systemd-devel
-    mkdir /etc/module-build-service/
     cd /tmp/module_build_service
     python setup.py develop
     python setup.py egg_info
+    ln -s /tmp/module_build_service/conf /etc/module-build-service
     pip install -r test-requirements.txt
 SCRIPT
 

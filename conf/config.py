@@ -95,51 +95,6 @@ class BaseConfiguration(object):
     CACHE_DIR = '~/modulebuild/cache'
 
 
-class DevConfiguration(BaseConfiguration):
-    DEBUG = True
-    LOG_BACKEND = 'console'
-    LOG_LEVEL = 'debug'
-
-    MESSAGING_TOPIC_PREFIX = ['org.fedoraproject.dev', 'org.fedoraproject.stg']
-
-    ALLOWED_GROUPS = set([
-        'packager',
-        # Make this convenient for f2.0 developers
-        'factory2',
-        'modularity-wg',
-    ])
-
-    # Global network-related values, in seconds
-    NET_TIMEOUT = 5
-    NET_RETRY_INTERVAL = 1
-
-    # Uncomment next line for local builds
-    # SYSTEM = 'mock'
-
-    if path.exists('/home/fedora/modularity.keytab'):
-        KRB_PRINCIPAL = 'modularity@STG.FEDORAPROJECT.ORG'
-        KRB_KEYTAB = '/home/fedora/modularity.keytab'
-        KRB_CCACHE = '/var/tmp/krb5cc'
-    else:
-        # This requires that your principal be listed server side in
-        # ProxyPrincipals, and that is only true for our modularity system
-        # user.
-        # See:
-        # https://infrastructure.fedoraproject.org/cgit/ansible.git/commit/?id=a28a93dad75248c30c1792ec35f588c8e317c067
-        # noqa
-        KOJI_PROXYUSER = False
-
-    KOJI_CONFIG = path.join(confdir, 'koji.conf')
-    KOJI_PROFILE = 'staging'
-    KOJI_ARCHES = ['x86_64']
-    KOJI_REPOSITORY_URL = 'http://kojipkgs.stg.fedoraproject.org/repos'
-
-    OIDC_CLIENT_SECRETS = path.join(confdir, 'client_secrets.json')
-    OIDC_REQUIRED_SCOPE = 'https://mbs.fedoraproject.org/oidc/submit-build'
-
-    COPR_CONFIG = path.join(confdir, 'copr.conf')
-
-
 class TestConfiguration(BaseConfiguration):
     BUILD_LOGS_DIR = '/tmp'
     BUILD_LOGS_NAME_FORMAT = 'build-{id}.log'
@@ -176,3 +131,9 @@ class LocalBuildConfiguration(BaseConfiguration):
     ARCH_FALLBACK = 'x86_64'
 
     ALLOW_CUSTOM_SCMURLS = True
+
+
+class DevConfiguration(LocalBuildConfiguration):
+    DEBUG = True
+    LOG_BACKEND = 'console'
+    COPR_CONFIG = path.join(confdir, 'copr.conf')
