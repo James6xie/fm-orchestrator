@@ -20,7 +20,7 @@ echo "Working with module build $build_id"
 fedpkg-stage module-build-watch $build_id
 url=https://mbs.stg.fedoraproject.org/module-build-service/1/module-builds/$build_id
 state=$(curl $url | jq '.state')
-if [ "$state" -ne "5" ]; then
+if [ "$state" -ne "3" ] && [ "$state" -ne "5" ]; then
     echo "initial module build state for #$build_id was $state"; exit 1;
 fi
 baseline_task_id_1=$(curl $url | jq '.tasks.rpms."perl-List-Compare".task_id')
@@ -40,7 +40,7 @@ fedpkg-stage module-build-watch $build_id
 
 url=https://mbs.stg.fedoraproject.org/module-build-service/1/module-builds/$build_id
 state=$(curl $url | jq '.state')
-if [ "$state" -ne "5" ]; then
+if [ "$state" -ne "3" ] && [ "$state" -ne "5" ]; then
     echo "module build state for #$build_id was $state"; exit 1;
 fi
 
