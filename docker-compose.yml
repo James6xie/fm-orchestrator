@@ -17,8 +17,6 @@ services:
     expose:
       - 2001
       - 2003
-    ports:
-      - "5001:2001"
     volumes_from:
       - base
 
@@ -29,16 +27,8 @@ services:
     command: bash -c "while [ ! -f /etc/module-build-service/.ready ] ; do sleep 1 ; done ; fedmsg-hub"
     links:
       - fedmsg-relay
-    environment:
-      # Check /var/tmp/krbcc and make sure that it is not a directory.  If it
-      # is, then delete it with 'sudo rm -rf /var/tmp/krbcc'.
-      # Initialize the file before running 'docker-compose up' with:
-      # $ KRB5CCNAME=FILE:/var/tmp/krbcc kinit YOUR_USERNAME@FEDORAPROJECT.ORG
-      - KRB5CCNAME=FILE:/var/tmp/krbcc
     volumes_from:
       - base
-    volumes:
-      - /tmp/mbs-krbcc:/var/tmp/krbcc:Z
 
   frontend:
     depends_on:

@@ -53,47 +53,6 @@ refer to the `Running Tests` section first.
 We have two mechanisms for quickly setting up a development environment,
 `docker-compose` and `vagrant`.
 
-In order to to setup a development environment, it is required that you have
-your Fedora kerberos credentials generated in a *special location*. Before
-starting your development environment, run the following::
-
-    $ KRB5CCNAME=FILE:/tmp/mbs-krbcc kinit YOUR_USERNAME@STG.FEDORAPROJECT.ORG
-
-If you have problems in later steps with kerberos reading those credentials
-inside the `scheduler` container, you should check that `/var/tmp/krbcc` exists
-on your machine and that *it is not a directory*. Try removing it with `$ sudo
-rm -rf /var/tmp/krbcc` and running `kinit` again. Also, check for permissions
-and SELinux context of the credentials cache file.
-
-PDC and pdc-updater
--------------------
-
-To be able to communicate with PDC, your development instance will need to
-be able to access the URL defined in the configuration option `PDC_URL`,
-located in your local `conf/config.py`
-
-To communicate with pdc-updater, you will need to configure SSH on your host
-machine to forward remote ports from pdc-updater's devel instance, typically
-`modularity.fedorainfracloud.org`. This enables communication between PDC
-and your Module Build Service development instance.
-
-Your `ssh_config` should look like this::
-
-    Host MODULARITY-DEV
-        HostName modularity.fedorainfracloud.org
-        User fedora
-        RemoteForward 300x 127.0.0.1:5001  # x is one of 0...9
-
-The configuration above assumes that the development instance with
-pdc-updater has the following endpoints configured (typically in
-`/etc/fedmsg.d/endpoints.py`)::
-
-    endpoints={
-        "rida.local": [
-            "tcp://127.0.0.1:300%i" % i for i in range(10)
-        ],
-        ...
-
 Docker
 ------
 
