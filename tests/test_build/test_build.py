@@ -80,8 +80,8 @@ class FakeSCM(object):
 
         return self.sourcedir
 
-    def get_latest(self, branch='master'):
-        return branch
+    def get_latest(self, ref='master'):
+        return ref
 
     def get_module_yaml(self):
         return path.join(self.sourcedir, self.name + ".yaml")

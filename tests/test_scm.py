@@ -53,7 +53,7 @@ class TestSCMModule(unittest.TestCase):
     def test_local_get_latest_is_sane(self):
         """ See that a hash is returned by scm.get_latest. """
         scm = module_build_service.scm.SCM(repo_path)
-        latest = scm.get_latest(branch='master')
+        latest = scm.get_latest('master')
         target = '5481faa232d66589e660cc301179867fb00842c9'
         assert latest == target, "%r != %r" % (latest, target)
 
@@ -66,7 +66,7 @@ class TestSCMModule(unittest.TestCase):
         assert scm.scheme == 'git', scm.scheme
         fname = tempfile.mktemp(suffix='mbs-scm-test')
         try:
-            scm.get_latest(branch='master; touch %s' % fname)
+            scm.get_latest('master; touch %s' % fname)
         except UnprocessableEntity:
             assert not os.path.exists(fname), "%r exists!  Vulnerable." % fname
 
@@ -121,22 +121,22 @@ class TestSCMModule(unittest.TestCase):
     @raises(UnprocessableEntity)
     def test_get_latest_incorect_component_branch(self):
         scm = module_build_service.scm.SCM(repo_path)
-        scm.get_latest(branch='foobar')
+        scm.get_latest('foobar')
 
     def test_get_latest_component_branch(self):
         ref = "5481faa232d66589e660cc301179867fb00842c9"
         branch = "master"
         scm = module_build_service.scm.SCM(repo_path)
-        commit = scm.get_latest(branch=branch)
+        commit = scm.get_latest(branch)
         assert commit == ref
 
     def test_get_latest_component_ref(self):
         ref = "5481faa232d66589e660cc301179867fb00842c9"
         scm = module_build_service.scm.SCM(repo_path)
-        commit = scm.get_latest(branch=ref)
+        commit = scm.get_latest(ref)
         assert commit == ref
 
     @raises(UnprocessableEntity)
     def test_get_latest_incorect_component_ref(self):
         scm = module_build_service.scm.SCM(repo_path)
-        scm.get_latest(branch='15481faa232d66589e660cc301179867fb00842c9')
+        scm.get_latest('15481faa232d66589e660cc301179867fb00842c9')

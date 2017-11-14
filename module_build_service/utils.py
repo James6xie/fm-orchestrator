@@ -614,7 +614,7 @@ def _scm_get_latest(pkg):
         # to the specific commit available at the time of
         # submission (now).
         pkgref = module_build_service.scm.SCM(
-            pkg.repository).get_latest(branch=pkg.ref)
+            pkg.repository).get_latest(pkg.ref)
     except Exception as e:
         log.exception(e)
         return {

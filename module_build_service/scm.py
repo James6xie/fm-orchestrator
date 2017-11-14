@@ -178,31 +178,37 @@ class SCM(object):
             raise RuntimeError("checkout: Unhandled SCM scheme.")
         return self.sourcedir
 
-    def get_latest(self, branch='master'):
-        """Get the latest commit ID.
+    def get_latest(self, ref='master'):
+        """ Get the latest commit hash based on the provided git ref
 
-        :returns: str -- the latest commit ID, e.g. the git $BRANCH HEAD
+        :param ref: a string of a git ref (either a branch or commit hash)
+        :returns: a string of the latest commit hash
         :raises: RuntimeError
         """
         if self.scheme == "git":
             log.debug("Getting/verifying commit hash for %s" % self.repository)
-            # check all branches on the remote
+            # get all the branches on the remote
             output = SCM._run(["git", "ls-remote", "--exit-code", self.repository])[1]
-            branch_data = [b.split("\t") for b in output.strip().split("\n")]
+            # pair branch names and their latest refs into a dict. The output of the above command
+            # is multiple lines of "bf028e573e7c18533d89c7873a411de92d4d913e	refs/heads/master".
+            # So the dictionary ends up in the format of
+            # {"master": "bf028e573e7c18533d89c7873a411de92d4d913e"...}.
             branches = {}
-            # pair branch names and their latest refs into a dict
-            for data in branch_data:
-                branch_name = data[1].split("/")[-1]
-                branches[branch_name] = data[0]
+            for branch_and_ref in output.strip().split("\n"):
+                # This grabs the last bit of text after the last "/", which is the branch name
+                cur_branch = branch_and_ref.split("\t")[-1].split("/")[-1]
+                # This grabs the text before the first tab, which is the commit hash
+                cur_ref = branch_and_ref.split("\t")[0]
+                branches[cur_branch] = cur_ref
             # first check if the branch name is in the repo
-            if branch in branches:
-                return branches[branch]
+            if ref in branches:
+                return branches[ref]
             # if the branch is not in the repo it may be a ref.
             else:
-                # if the ref does not exist in the repo, _run will raise and UnprocessableEntity
-                # error.
-                SCM._run(["git", "fetch", "--dry-run", self.repository, branch])
-                return branch
+                # The call below will either return the commit hash as is (if a full one was
+                # provided) or the full commit hash (if a short hash was provided). If ref is not
+                # a commit hash, then this will raise an exception.
+                return self.get_full_commit_hash(commit_hash=ref)
         else:
             raise RuntimeError("get_latest: Unhandled SCM scheme.")
 
@@ -227,7 +233,7 @@ class SCM(object):
             td = None
             try:
                 td = tempfile.mkdtemp()
-                SCM._run(['git', 'clone', '-q', self.repository, td])
+                SCM._run(['git', 'clone', '-q', self.repository, td, '--bare'])
                 output = SCM._run(
                     ['git', 'rev-parse', commit_to_check], chdir=td)[1]
             finally:
@@ -237,7 +243,7 @@ class SCM(object):
             if output:
                 return str(output.strip('\n'))
 
-            raise RuntimeError(
+            raise UnprocessableEntity(
                 'The full commit hash of "{0}" for "{1}" could not be found'
                 .format(commit_hash, self.repository))
         else:
