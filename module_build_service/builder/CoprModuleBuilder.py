@@ -212,7 +212,8 @@ class CoprModuleBuilder(GenericBuilder):
                 "@copr/{}/fedora-26-x86_64/")
 
         repos.extend([
-            compose.format("Bikeshed"),
+            compose.format("27"),
+            compose.format("Rawhide"),
             copr.format("dnf-modularity-nightly"),
             copr.format("dnf-modularity-buildroot-deps"),
         ])
