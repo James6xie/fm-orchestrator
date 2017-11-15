@@ -66,6 +66,8 @@ def create_local_repo_from_koji_tag(config, tag, repo_dir, archs=None):
         profile_name=config.koji_profile,
         user_config=config.koji_config,
     ))
+    # Timeout after 10 minutes.  The default is 12 hours.
+    koji_config["timeout"] = 60 * 10
 
     address = koji_config.server
     log.info("Connecting to koji %r" % address)

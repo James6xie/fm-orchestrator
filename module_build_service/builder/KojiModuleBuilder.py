@@ -258,6 +258,8 @@ chmod 644 %buildroot/%_sysconfdir/rpm/macros.zz-modules
             profile_name=config.koji_profile,
             user_config=config.koji_config,
         ))
+        # Timeout after 10 minutes.  The default is 12 hours.
+        koji_config["timeout"] = 60 * 10
 
         # In "production" scenarios, our service principal may be blessed to
         # allow us to authenticate as the owner of this request.  But, in local
