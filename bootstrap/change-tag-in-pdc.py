@@ -23,10 +23,10 @@ if not answer.lower() in ('y', 'yes'):
 
 print("Submitting PATCH to new_tag.")
 # Do it this way once we fix that ugly PATCH bug.
-#pdc['unreleasedvariants'][variant_uid] += {
+# pdc['unreleasedvariants'][variant_uid] += {
 #    'variant_uid': variant_uid,
 #    'koji_tag': new_tag,
-#}
+# }
 try:
     # This way works, but it *always* throws a TypeError.
     pdc['unreleasedvariants/'] += {variant_uid: {'koji_tag': new_tag}}
