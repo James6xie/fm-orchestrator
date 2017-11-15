@@ -382,6 +382,26 @@ chmod 644 %buildroot/%_sysconfdir/rpm/macros.zz-modules
             self.koji_session.tagBuild(dest_tag, nvr)
         self.koji_session.multiCall(strict=True)
 
+    def untag_artifacts(self, artifacts):
+        """
+        """
+        dest_tag = self._get_tag(self.module_tag)['id']
+        build_tag = self._get_tag(self.module_build_tag)['id']
+        # Get the NVRs in the tags to make sure the builds exist and they're tagged before
+        # untagging them
+        dest_tagged_nvrs = self._get_tagged_nvrs(self.module_tag['name'])
+        build_tagged_nvrs = self._get_tagged_nvrs(self.module_build_tag['name'])
+
+        self.koji_session.multicall = True
+        for nvr in artifacts:
+            if nvr in dest_tagged_nvrs:
+                log.info("%r untagging %r from %r" % (self, nvr, dest_tag))
+                self.koji_session.untagBuild(dest_tag, nvr)
+            if nvr in build_tagged_nvrs:
+                log.info("%r untagging %r from %r" % (self, nvr, build_tag))
+                self.koji_session.untagBuild(build_tag, nvr)
+        self.koji_session.multiCall(strict=True)
+
     def wait_task(self, task_id):
         """
         :param task_id

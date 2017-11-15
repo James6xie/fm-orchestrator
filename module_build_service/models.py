@@ -74,6 +74,9 @@ BUILD_STATES = {
     # larger compose. perhaps it is set by an external service that knows
     # about the Grand Plan.
     "ready": 5,
+
+    # If the module has failed and was garbage collected by MBS
+    "garbage": 6
 }
 
 INVERSE_BUILD_STATES = {v: k for k, v in BUILD_STATES.items()}

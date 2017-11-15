@@ -50,6 +50,7 @@ class MBSProducer(PollingProducer):
                 self.process_paused_module_builds(conf, session)
                 self.trigger_new_repo_when_stalled(conf, session)
                 self.delete_old_koji_targets(conf, session)
+                self.cleanup_stale_failed_builds(conf, session)
             except Exception:
                 msg = 'Error in poller execution:'
                 log.exception(msg)
@@ -137,6 +138,41 @@ class MBSProducer(PollingProducer):
 
         elif conf.system == 'mock':
             pass
+
+    def cleanup_stale_failed_builds(self, conf, session):
+        """ Does various clean up tasks on stale failed module builds
+        :param conf: the MBS configuration object
+        :param session: a SQLAlchemy database session
+        """
+        if conf.system == 'koji':
+            stale_date = datetime.utcnow() - timedelta(
+                days=conf.cleanup_failed_builds_time)
+            stale_module_builds = session.query(models.ModuleBuild).filter(
+                models.ModuleBuild.state == models.BUILD_STATES['failed'],
+                models.ModuleBuild.time_modified <= stale_date).all()
+            if stale_module_builds:
+                log.info('{0} stale failed module build(s) will be cleaned up'.format(
+                    len(stale_module_builds)))
+            for module in stale_module_builds:
+                log.info('{0!r} is stale and is being cleaned up'.format(module))
+                # Find completed artifacts in the stale build
+                artifacts = [c for c in module.component_builds
+                             if c.state == koji.BUILD_STATES['COMPLETE']]
+                # Set proxy_user=False to not authenticate as the module owner for these tasks
+                builder = GenericBuilder.create_from_module(
+                    session, module, conf, proxy_user=False)
+                builder.untag_artifacts([c.nvr for c in artifacts])
+                # Mark the artifacts as untagged in the database
+                for c in artifacts:
+                    c.tagged = False
+                    c.tagged_in_final = False
+                    session.add(c)
+                state_reason = ('The module was garbage collected since it has failed over {0}'
+                                ' day(s) ago'.format(conf.cleanup_failed_builds_time))
+                module.transition(
+                    conf, models.BUILD_STATES['garbage'], state_reason=state_reason)
+                session.add(module)
+                session.commit()
 
     def log_summary(self, session):
         log.info('Current status:')

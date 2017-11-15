@@ -121,6 +121,7 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
                 "done"]: module_build_service.scheduler.handlers.modules.done,
             # XXX: DIRECT TRANSITION TO READY
             models.BUILD_STATES["ready"]: NO_OP,
+            models.BUILD_STATES["garbage"]: NO_OP
         }
         # Only one kind of repo change event, though...
         self.on_repo_change = module_build_service.scheduler.handlers.repos.done

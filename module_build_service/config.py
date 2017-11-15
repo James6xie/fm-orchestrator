@@ -420,7 +420,12 @@ class Config(object):
             'type': list,
             'default': SUPPORTED_STRATEGIES,
             'desc': ('The allowed module rebuild strategies. This is only used when '
-                     'REBUILD_STRATEGY_ALLOW_OVERRIDE is True.')}
+                     'REBUILD_STRATEGY_ALLOW_OVERRIDE is True.')},
+        'cleanup_failed_builds_time': {
+            'type': int,
+            'default': 180,
+            'desc': ('Time in days when to cleanup failed module builds and transition them to '
+                     'the "garbage" state.')}
     }
 
     def __init__(self, conf_section_obj):
@@ -607,3 +612,8 @@ class Config(object):
                                  .format(', '.join(SUPPORTED_STRATEGIES)))
 
         self._rebuild_strategies_allowed = strategies
+
+    def _setifok_cleanup_failed_builds_time(self, num_days):
+        if num_days < 1:
+            raise ValueError('CLEANUP_FAILED_BUILDS_TIME must be set to 1 or more days')
+        self._cleanup_failed_builds_time = num_days
