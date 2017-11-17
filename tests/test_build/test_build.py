@@ -658,9 +658,6 @@ class TestBuild(unittest.TestCase):
                 FakeModuleBuilder.BUILD_STATE = "COMPLETE"
                 # Tag the build in the -build tag
                 cls._send_tag(artifact_name)
-                if not artifact_name.startswith("module-build-macros"):
-                    # Tag the build in the final tag
-                    cls._send_tag(artifact_name, build=False)
 
         FakeModuleBuilder.on_build_cb = on_build_cb
 
