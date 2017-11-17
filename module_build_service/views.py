@@ -103,7 +103,7 @@ class AbstractQueryableBuildAPI(MethodView):
             }
 
             if verbose_flag == 'true' or verbose_flag == '1':
-                json_data['items'] = [item.extended_json() for item in p_query.items]
+                json_data['items'] = [item.extended_json(True) for item in p_query.items]
             else:
                 json_data['items'] = [item.json() for item in p_query.items]
 
@@ -113,7 +113,7 @@ class AbstractQueryableBuildAPI(MethodView):
             instance = self.model.query.filter_by(id=id).first()
             if instance:
                 if verbose_flag == 'true' or verbose_flag == '1':
-                    return jsonify(instance.extended_json()), 200
+                    return jsonify(instance.extended_json(True)), 200
                 else:
                     return jsonify(instance.json()), 200
             else:
@@ -148,7 +148,7 @@ class ModuleBuildAPI(AbstractQueryableBuildAPI):
 
         handler.validate()
         module = handler.post()
-        return jsonify(module.extended_json()), 201
+        return jsonify(module.extended_json(True)), 201
 
     def patch(self, id):
         username, groups = module_build_service.auth.get_user(request)
@@ -196,7 +196,7 @@ class ModuleBuildAPI(AbstractQueryableBuildAPI):
         db.session.add(module)
         db.session.commit()
 
-        return jsonify(module.extended_json()), 200
+        return jsonify(module.extended_json(True)), 200
 
 
 class AboutAPI(MethodView):

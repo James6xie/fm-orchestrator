@@ -399,8 +399,17 @@ class ModuleBuild(MBSBase):
             'tasks': self.tasks(),
         }
 
-    def extended_json(self):
+    def extended_json(self, show_state_url=False):
+        """
+        :kwarg show_state_url: this will determine if `get_url_for` should be run to determine
+        what the `state_url` is. This should be set to `False` when extended_json is called from
+        the backend because it forces an app context to be created, which causes issues with
+        SQLAlchemy sessions.
+        """
         json = self.json()
+        state_url = None
+        if show_state_url:
+            state_url = get_url_for('module_build', id=self.id)
         json.update({
             # TODO, show their entire .json() ?
             'component_builds': [build.id for build in self.component_builds],
@@ -411,7 +420,7 @@ class ModuleBuild(MBSBase):
                              'reason': record.state_reason}
                             for record
                             in self.state_trace(self.id)],
-            'state_url': get_url_for('module_build', id=self.id)
+            'state_url': state_url
         })
 
         return json
@@ -553,15 +562,25 @@ class ComponentBuild(MBSBase):
 
         return retval
 
-    def extended_json(self):
+    def extended_json(self, show_state_url=False):
+        """
+        :kwarg show_state_url: this will determine if `get_url_for` should be run to determine
+        what the `state_url` is. This should be set to `False` when extended_json is called from
+        the backend because it forces an app context to be created, which causes issues with
+        SQLAlchemy sessions.
+        """
         json = self.json()
+        state_url = None
+        if show_state_url:
+            state_url = get_url_for('component_build', id=self.id)
         json.update({
             'state_trace': [{'time': _utc_datetime_to_iso(record.state_time),
                              'state': record.state,
                              'state_name': INVERSE_BUILD_STATES[record.state],
                              'reason': record.state_reason}
                             for record
-                            in self.state_trace(self.id)]
+                            in self.state_trace(self.id)],
+            'state_url': state_url
         })
 
         return json

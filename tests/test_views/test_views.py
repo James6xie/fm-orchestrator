@@ -324,6 +324,7 @@ class TestViews(unittest.TestCase):
         self.assertTrue(data['state_trace'][0]['time'] is not None)
         self.assertEquals(data['state_trace'][0]['state'], 1)
         self.assertEquals(data['state_trace'][0]['state_name'], 'wait')
+        self.assertEquals(data['state_url'], '/module-build-service/1/component-builds/3')
 
     component_builds_filters = ['tagged', 'ref', 'format']
 
