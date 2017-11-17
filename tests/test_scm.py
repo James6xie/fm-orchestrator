@@ -25,6 +25,7 @@ import shutil
 import tempfile
 
 import unittest
+from mock import patch
 from nose.tools import raises
 
 import module_build_service.scm
@@ -140,3 +141,15 @@ class TestSCMModule(unittest.TestCase):
     def test_get_latest_incorect_component_ref(self):
         scm = module_build_service.scm.SCM(repo_path)
         scm.get_latest('15481faa232d66589e660cc301179867fb00842c9')
+
+    @patch.object(module_build_service.scm.SCM, '_run')
+    def test_get_latest_ignore_origin(self, mock_run):
+        output = """\
+58379ef7887cbc91b215bacd32430628c92bc869\tHEAD
+58379ef7887cbc91b215bacd32430628c92bc869\trefs/heads/master
+10a651f39911a07d85fe87fcfe91999545e44ae0\trefs/remotes/origin/master
+"""
+        mock_run.return_value = (0, output, '')
+        scm = module_build_service.scm.SCM(repo_path)
+        commit = scm.get_latest(None)
+        self.assertEquals(commit, '58379ef7887cbc91b215bacd32430628c92bc869')

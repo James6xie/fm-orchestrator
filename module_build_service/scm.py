@@ -185,6 +185,8 @@ class SCM(object):
         :returns: a string of the latest commit hash
         :raises: RuntimeError
         """
+        if ref is None:
+            ref = 'master'
         if self.scheme == "git":
             log.debug("Getting/verifying commit hash for %s" % self.repository)
             # get all the branches on the remote
@@ -195,8 +197,11 @@ class SCM(object):
             # {"master": "bf028e573e7c18533d89c7873a411de92d4d913e"...}.
             branches = {}
             for branch_and_ref in output.strip().split("\n"):
+                # Only look at refs/heads/* and not refs/remotes/origin/*
+                if "refs/heads/" not in branch_and_ref:
+                    continue
                 # This grabs the last bit of text after the last "/", which is the branch name
-                cur_branch = branch_and_ref.split("\t")[-1].split("/")[-1]
+                cur_branch = branch_and_ref.split("\t")[-1].split("refs/heads/")[-1]
                 # This grabs the text before the first tab, which is the commit hash
                 cur_ref = branch_and_ref.split("\t")[0]
                 branches[cur_branch] = cur_ref
