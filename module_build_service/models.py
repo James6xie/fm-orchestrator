@@ -383,16 +383,21 @@ class ModuleBuild(MBSBase):
 
         return query.first()
 
-    def json(self):
+    def short_json(self):
         return {
             'id': self.id,
             'state': self.state,
             'state_name': INVERSE_BUILD_STATES[self.state],
-            'state_reason': self.state_reason,
             'stream': self.stream,
             'version': self.version,
-            'owner': self.owner,
             'name': self.name,
+        }
+
+    def json(self):
+        json = self.short_json()
+        json.update({
+            'state_reason': self.state_reason,
+            'owner': self.owner,
             'rebuild_strategy': self.rebuild_strategy,
             'scmurl': self.scmurl,
             'time_submitted': _utc_datetime_to_iso(self.time_submitted),
@@ -400,7 +405,8 @@ class ModuleBuild(MBSBase):
             'time_completed': _utc_datetime_to_iso(self.time_completed),
             'koji_tag': self.koji_tag,
             'tasks': self.tasks(),
-        }
+        })
+        return json
 
     def extended_json(self, show_state_url=False):
         """
@@ -414,7 +420,6 @@ class ModuleBuild(MBSBase):
         if show_state_url:
             state_url = get_url_for('module_build', id=self.id)
         json.update({
-            # TODO, show their entire .json() ?
             'component_builds': [build.id for build in self.component_builds],
             'modulemd': self.modulemd,
             'state_trace': [{'time': _utc_datetime_to_iso(record.state_time),

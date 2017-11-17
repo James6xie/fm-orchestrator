@@ -93,6 +93,9 @@ class AbstractQueryableBuildAPI(MethodView):
     @cors_header()
     def get(self, id):
         verbose_flag = request.args.get('verbose', 'false').lower()
+        short_flag = request.args.get('short', 'false').lower()
+        json_func_kwargs = {}
+        json_func_name = 'json'
 
         if id is None:
             # Lists all tracked builds
@@ -103,9 +106,13 @@ class AbstractQueryableBuildAPI(MethodView):
             }
 
             if verbose_flag == 'true' or verbose_flag == '1':
-                json_data['items'] = [item.extended_json(True) for item in p_query.items]
-            else:
-                json_data['items'] = [item.json() for item in p_query.items]
+                json_func_name = 'extended_json'
+                json_func_kwargs['show_state_url'] = True
+            elif short_flag == 'true' or short_flag == '1':
+                if hasattr(p_query.items[0], 'short_json'):
+                    json_func_name = 'short_json'
+            json_data['items'] = [getattr(item, json_func_name)(**json_func_kwargs)
+                                  for item in p_query.items]
 
             return jsonify(json_data), 200
         else:
@@ -113,9 +120,12 @@ class AbstractQueryableBuildAPI(MethodView):
             instance = self.model.query.filter_by(id=id).first()
             if instance:
                 if verbose_flag == 'true' or verbose_flag == '1':
-                    return jsonify(instance.extended_json(True)), 200
-                else:
-                    return jsonify(instance.json()), 200
+                    json_func_name = 'extended_json'
+                    json_func_kwargs['show_state_url'] = True
+                elif short_flag == 'true' or short_flag == '1':
+                    if getattr(instance, 'short_json', None):
+                        json_func_name = 'short_json'
+                return jsonify(getattr(instance, json_func_name)(**json_func_kwargs)), 200
             else:
                 raise NotFound('No such %s found.' % self.kind)
 

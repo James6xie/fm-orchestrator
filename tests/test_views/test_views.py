@@ -132,6 +132,7 @@ class TestViews(unittest.TestCase):
         self.assertEquals(data['id'], 1)
         self.assertEquals(data['name'], 'nginx')
         self.assertEquals(data['owner'], 'Moe Szyslak')
+        self.assertEquals(data['stream'], '1')
         self.assertEquals(data['state'], 3)
         self.assertEquals(data['state_reason'], None)
         self.assertDictEqual(data['tasks'], {
@@ -154,6 +155,17 @@ class TestViews(unittest.TestCase):
         self.assertEquals(data['time_modified'], '2016-09-03T11:25:32Z')
         self.assertEquals(data['time_submitted'], '2016-09-03T11:23:20Z')
         self.assertEqual(data['rebuild_strategy'], 'changed-and-after')
+        self.assertEquals(data['version'], '2')
+
+    def test_query_build_short(self):
+        rv = self.client.get('/module-build-service/1/module-builds/1?short=True')
+        data = json.loads(rv.data)
+        self.assertEquals(data['id'], 1)
+        self.assertEquals(data['name'], 'nginx')
+        self.assertEquals(data['state'], 3)
+        self.assertEquals(data['state_name'], 'done')
+        self.assertEquals(data['stream'], '1')
+        self.assertEquals(data['version'], '2')
 
     def test_query_build_with_verbose_mode(self):
         rv = self.client.get('/module-build-service/1/module-builds/1?verbose=true')
@@ -299,6 +311,18 @@ class TestViews(unittest.TestCase):
 
     def test_query_component_build(self):
         rv = self.client.get('/module-build-service/1/component-builds/1')
+        data = json.loads(rv.data)
+        self.assertEquals(data['id'], 1)
+        self.assertEquals(data['format'], 'rpms')
+        self.assertEquals(data['module_build'], 1)
+        self.assertEquals(data['package'], 'nginx')
+        self.assertEquals(data['state'], 1)
+        self.assertEquals(data['state_name'], 'COMPLETE')
+        self.assertEquals(data['state_reason'], None)
+        self.assertEquals(data['task_id'], 12312345)
+
+    def test_query_component_build_short(self):
+        rv = self.client.get('/module-build-service/1/component-builds/1?short=True')
         data = json.loads(rv.data)
         self.assertEquals(data['id'], 1)
         self.assertEquals(data['format'], 'rpms')
