@@ -376,3 +376,44 @@ class TestPoller(unittest.TestCase):
             self.assertFalse(component.tagged_in_final)
         # Make sure module_build_one stayed the same
         self.assertEqual(module_build_one.state, models.BUILD_STATES['failed'])
+
+    def test_cleanup_stale_failed_builds_no_components(self, create_builder, koji_get_session,
+                                                       global_consumer, dbg):
+        """ Test that a module build without any components built gets to the garbage state when
+        running cleanup_stale_failed_builds.
+        """
+        module_build_one = models.ModuleBuild.query.get(1)
+        module_build_two = models.ModuleBuild.query.get(2)
+        module_build_one.state = models.BUILD_STATES['failed']
+        module_build_one.time_modified = datetime.utcnow()
+        module_build_two.state = models.BUILD_STATES['failed']
+        module_build_two.time_modified = datetime.utcnow() - timedelta(
+            days=conf.cleanup_failed_builds_time + 1)
+        module_build_two.koji_tag = None
+        module_build_two.cg_build_koji_tag = None
+        for c in module_build_two.component_builds:
+            c.state = None
+            db.session.add(c)
+        db.session.add(module_build_one)
+        db.session.add(module_build_two)
+        db.session.commit()
+
+        consumer = mock.MagicMock()
+        consumer.incoming = queue.Queue()
+        global_consumer.return_value = consumer
+        hub = mock.MagicMock()
+        poller = MBSProducer(hub)
+
+        # Ensure the queue is empty before we start
+        self.assertEquals(consumer.incoming.qsize(), 0)
+        poller.cleanup_stale_failed_builds(conf, db.session)
+        db.session.refresh(module_build_two)
+        # Make sure module_build_two was transitioned to garbage
+        self.assertEqual(module_build_two.state, models.BUILD_STATES['garbage'])
+        state_reason = ('The module was garbage collected since it has failed over {0} day(s) ago'
+                        .format(conf.cleanup_failed_builds_time))
+        self.assertEqual(module_build_two.state_reason, state_reason)
+        # Make sure module_build_one stayed the same
+        self.assertEqual(module_build_one.state, models.BUILD_STATES['failed'])
+        # Make sure that the builder was never instantiated
+        create_builder.assert_not_called()

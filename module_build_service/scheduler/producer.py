@@ -158,15 +158,17 @@ class MBSProducer(PollingProducer):
                 # Find completed artifacts in the stale build
                 artifacts = [c for c in module.component_builds
                              if c.state == koji.BUILD_STATES['COMPLETE']]
-                # Set proxy_user=False to not authenticate as the module owner for these tasks
-                builder = GenericBuilder.create_from_module(
-                    session, module, conf, proxy_user=False)
-                builder.untag_artifacts([c.nvr for c in artifacts])
-                # Mark the artifacts as untagged in the database
-                for c in artifacts:
-                    c.tagged = False
-                    c.tagged_in_final = False
-                    session.add(c)
+                # If there are no completed artifacts, then there is nothing to tag
+                if artifacts:
+                    # Set proxy_user=False to not authenticate as the module owner for these tasks
+                    builder = GenericBuilder.create_from_module(
+                        session, module, conf, proxy_user=False)
+                    builder.untag_artifacts([c.nvr for c in artifacts])
+                    # Mark the artifacts as untagged in the database
+                    for c in artifacts:
+                        c.tagged = False
+                        c.tagged_in_final = False
+                        session.add(c)
                 state_reason = ('The module was garbage collected since it has failed over {0}'
                                 ' day(s) ago'.format(conf.cleanup_failed_builds_time))
                 module.transition(
