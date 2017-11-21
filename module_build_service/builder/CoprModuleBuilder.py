@@ -82,9 +82,15 @@ class CoprModuleBuilder(GenericBuilder):
         """
         self.copr = self._get_copr_safe()
         self._create_module_safe()
+        mmd = self.module.mmd()
 
         buildrequires = ["@{}:{}/{}".format(n, s, "buildroot")
-                         for n, s in self.module.mmd().buildrequires.items()]
+                         for n, s in mmd.buildrequires.items()]
+
+        buildroot_profile = mmd.profiles.get("buildroot")
+        if buildroot_profile:
+            buildrequires.extend(buildroot_profile.rpms)
+
         self._update_chroot(packages=buildrequires)
 
         if self.copr and self.copr.projectname and self.copr.username:
