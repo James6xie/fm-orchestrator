@@ -383,7 +383,9 @@ chmod 644 %buildroot/%_sysconfdir/rpm/macros.zz-modules
         self.koji_session.multiCall(strict=True)
 
     def untag_artifacts(self, artifacts):
-        """
+        """ Untag the provided artifacts from the module destination and build tag
+        :param artifacts: a list of NVRs to untag
+        :return: None
         """
         dest_tag = self._get_tag(self.module_tag)['id']
         build_tag = self._get_tag(self.module_build_tag)['id']
