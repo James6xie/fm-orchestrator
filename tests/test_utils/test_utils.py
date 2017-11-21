@@ -19,16 +19,19 @@
 # SOFTWARE.
 
 import unittest
+import tempfile
 from os import path, mkdir
-from shutil import copyfile
+from shutil import copyfile, rmtree
 from datetime import datetime
 import vcr
 import modulemd
+from werkzeug.datastructures import FileStorage
 from mock import patch
 import module_build_service.utils
 import module_build_service.scm
 from module_build_service import models, conf
 from module_build_service.errors import ProgrammingError, ValidationError, UnprocessableEntity
+from module_build_service.utils import load_mmd
 from tests import (test_reuse_component_init_data, init_data, db,
                    test_reuse_shared_userspace_init_data)
 import mock
@@ -665,6 +668,42 @@ class TestUtils(unittest.TestCase):
             except UnprocessableEntity as e:
                 self.assertEqual(e.message, error_msg)
 
+    @patch("module_build_service.utils.submit_module_build")
+    def test_submit_module_build_from_yaml_with_skiptests(self, mock_submit):
+        """
+        Tests local module build from a yaml file with the skiptests option
+
+        Args:
+            mock_submit (MagickMock): mocked function submit_module_build, which we then
+                inspect if it was called with correct arguments
+        """
+        test_reuse_component_init_data()
+
+        module_dir = tempfile.mkdtemp()
+        module = models.ModuleBuild.query.filter_by(id=2).one()
+        mmd = module.mmd()
+        modulemd_yaml = mmd.dumps()
+        modulemd_file_path = path.join(module_dir, "testmodule.yaml")
+
+        username = "test"
+        stream = "dev"
+
+        with open(modulemd_file_path, "w") as fd:
+            fd.write(modulemd_yaml)
+
+        with open(modulemd_file_path, "r") as fd:
+            handle = FileStorage(fd)
+            module_build_service.utils.submit_module_build_from_yaml(username, handle,
+                                                                     stream=stream, skiptests=True)
+            mock_submit_args = mock_submit.call_args[0]
+            username_arg = mock_submit_args[0]
+            mmd_arg = mock_submit_args[2]
+            modulemd_yaml_arg = mock_submit_args[4]
+            assert mmd_arg.stream == stream
+            assert "\n\n%__spec_check_pre exit 0\n" in mmd_arg.buildopts.rpms.macros
+            assert modulemd_yaml_arg == modulemd_yaml
+            assert username_arg == username
+        rmtree(module_dir)
 
 class DummyModuleBuilder(GenericBuilder):
     """

@@ -317,7 +317,7 @@ def submit_module_build(scm_url, branch, server, id_provider, pyrpkg, verify=Tru
     return -3, None
 
 
-def do_local_build(local_builds_nsvs, log_flag=None, yaml_file=None, stream=None):
+def do_local_build(local_builds_nsvs, log_flag=None, yaml_file=None, stream=None, skiptests=False):
     """
     Starts the local build using `mbs-manager build_module_locally`.
     """
@@ -341,6 +341,9 @@ def do_local_build(local_builds_nsvs, log_flag=None, yaml_file=None, stream=None
 
     if log_flag:
         command.append(log_flag)
+
+    if skiptests:
+        command.append("--skiptests")
 
     # Some last minute sanity checks before passing off to the other command.
     if not os.path.exists(yaml_file):
@@ -505,6 +508,8 @@ def main():
     parser_local.add_argument('--stream', dest='stream', action='store',
                               help=("Name of the stream of this build."
                                     " (builds from files only)"))
+    parser_local.add_argument('--skiptests', dest='skiptests', action='store_true',
+                              help="Path to the modulemd yaml file")
 
     parser_overview = subparsers.add_parser(
         'overview', help="show overview of module builds",
@@ -550,7 +555,8 @@ def main():
         else:
             print("Submitted module build %r" % build_id)
     elif args.cmd_name == "local":
-        sys.exit(do_local_build(args.local_builds_nsvs, log_flag, args.file, args.stream))
+        sys.exit(do_local_build(args.local_builds_nsvs, log_flag, args.file, args.stream,
+                                args.skiptests))
     elif args.cmd_name == "watch":
         # Watch the module build.
         try:

@@ -907,7 +907,8 @@ def record_component_builds(mmd, module, initial_batch=1,
         return batch
 
 
-def submit_module_build_from_yaml(username, handle, stream=None, optional_params=None):
+def submit_module_build_from_yaml(username, handle, stream=None, skiptests=False,
+                                  optional_params=None):
     yaml = handle.read()
     mmd = load_mmd(yaml)
 
@@ -918,10 +919,11 @@ def submit_module_build_from_yaml(username, handle, stream=None, optional_params
     dt = datetime.utcfromtimestamp(int(time.time()))
     def_name = str(handle.filename.split(".")[0])
     def_version = int(dt.strftime("%Y%m%d%H%M%S"))
-
     mmd.name = mmd.name or def_name
-    mmd.stream = mmd.stream or stream or "master"
+    mmd.stream = stream or mmd.stream or "master"
     mmd.version = mmd.version or def_version
+    if skiptests:
+        mmd.buildopts.rpms.macros += "\n\n%__spec_check_pre exit 0\n"
 
     return submit_module_build(username, None, mmd, None, yaml, optional_params)
 
@@ -930,7 +932,7 @@ _url_check_re = re.compile(r"^[^:/]+:.*$")
 
 
 def submit_module_build_from_scm(username, url, branch, allow_local_url=False,
-                                 skiptests=False, optional_params=None):
+                                 optional_params=None):
     # Translate local paths into file:// URL
     if allow_local_url and not _url_check_re.match(url):
         log.info(
@@ -938,8 +940,7 @@ def submit_module_build_from_scm(username, url, branch, allow_local_url=False,
         url = os.path.abspath(url)
         url = "file://" + url
     mmd, scm = _fetch_mmd(url, branch, allow_local_url)
-    if skiptests:
-        mmd.buildopts.rpms.macros += "\n\n%__spec_check_pre exit 0\n"
+
     return submit_module_build(username, url, mmd, scm, yaml, optional_params)
 
 
