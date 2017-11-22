@@ -62,6 +62,10 @@ class SCM(object):
                 raise Forbidden(
                     '%s is not in the list of allowed SCMs' % url)
 
+        # If we are given the option for the git protocol or the http(s) protocol,
+        # then just use http(s)
+        if re.match(r'(git\+http(?:s)?:\/\/)', url):
+            url = url[4:]
         url = url.rstrip('/')
 
         self.url = url
