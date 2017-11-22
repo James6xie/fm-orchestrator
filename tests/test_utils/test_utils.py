@@ -745,6 +745,9 @@ class DummyModuleBuilder(GenericBuilder):
     def tag_artifacts(self, artifacts):
         pass
 
+    def recover_orphaned_artifact(self, component_build):
+        return []
+
     @property
     def module_build_tag(self):
         return {"name": self.tag_name + "-build"}
@@ -842,6 +845,7 @@ class TestBatches(unittest.TestCase):
         plc_component.ref = '5ceea46add2366d8b8c5a623a2fb563b625b9abd'
 
         builder = mock.MagicMock()
+        builder.recover_orphaned_artifact.return_value = []
         further_work = module_build_service.utils.start_next_batch_build(
             conf, module_build, db.session, builder)
 
@@ -878,6 +882,7 @@ class TestBatches(unittest.TestCase):
         module_build.batch = 1
 
         builder = mock.MagicMock()
+        builder.recover_orphaned_artifact.return_value = []
         further_work = module_build_service.utils.start_next_batch_build(
             conf, module_build, db.session, builder)
 
@@ -908,6 +913,7 @@ class TestBatches(unittest.TestCase):
         plc_component.ref = '5ceea46add2366d8b8c5a623a2fb563b625b9abd'
 
         builder = mock.MagicMock()
+        builder.recover_orphaned_artifact.return_value = []
         further_work = module_build_service.utils.start_next_batch_build(
             conf, module_build, db.session, builder)
 
@@ -966,6 +972,7 @@ class TestBatches(unittest.TestCase):
         plc_component.ref = '5ceea46add2366d8b8c5a623a2fb563b625b9abd'
 
         builder = mock.MagicMock()
+        builder.recover_orphaned_artifact.return_value = []
         # The call order of get_average_build_time should be by the component's ID. Having this
         # side_effect tells continue_batch_build to build the second component in the build batch
         # first and the first component in the build batch second.

@@ -368,18 +368,26 @@ chmod 644 %buildroot/%_sysconfdir/rpm/macros.zz-modules
                 self.koji_session.groupPackageListAdd(build_tag, group, name)
         self.koji_session.multiCall(strict=True)
 
-    def tag_artifacts(self, artifacts):
-        dest_tag = self._get_tag(self.module_tag)['id']
-
-        tagged_nvrs = self._get_tagged_nvrs(self.module_tag['name'])
+    def tag_artifacts(self, artifacts, dest_tag=True):
+        """ Tag the provided artifacts to the module tag
+        :param artifacts: a list of NVRs to tag
+        :kwarg dest_tag: a boolean determining if the destination or build tag should be used
+        :return: None
+        """
+        if dest_tag:
+            tag = self._get_tag(self.module_tag)['id']
+            tagged_nvrs = self._get_tagged_nvrs(self.module_tag['name'])
+        else:
+            tag = self._get_tag(self.module_build_tag)['id']
+            tagged_nvrs = self._get_tagged_nvrs(self.module_build_tag['name'])
 
         self.koji_session.multicall = True
         for nvr in artifacts:
             if nvr in tagged_nvrs:
                 continue
 
-            log.info("%r tagging %r into %r" % (self, nvr, dest_tag))
-            self.koji_session.tagBuild(dest_tag, nvr)
+            log.info("%r tagging %r into %r" % (self, nvr, tag))
+            self.koji_session.tagBuild(tag, nvr)
         self.koji_session.multiCall(strict=True)
 
     def untag_artifacts(self, artifacts):
@@ -423,63 +431,80 @@ chmod 644 %buildroot/%_sysconfdir/rpm/macros.zz-modules
 
         return get_result()
 
-    def _get_build_by_artifact(self, artifact_name):
+    def recover_orphaned_artifact(self, component_build):
         """
-        :param artifact_name: e.g. bash
-
-        Searches for a complete build of artifact belonging to this module.
-        The returned build can be even untagged.
-
-        Returns koji_session.getBuild response or None.
-
+        Searches for a complete build of an artifact belonging to the module and sets the
+        component_build in the MBS database to the found build. This usually returns nothing since
+        these builds should *not* exist.
+        :param artifact_name: a ComponentBuild object
+        :return: a list of msgs that MBS needs to process
         """
-        # yaml file can hold only one reference to a package name, so
-        # I expect that we can have only one build of package within single module
-        # Rules for searching:
-        #  * latest: True so I can return only single task_id.
-        #  * we do want only build explicitly tagged in the module tag (inherit: False)
+        opts = {'latest': True, 'package': component_build.package, 'inherit': False}
+        build_tagged = self.koji_session.listTagged(self.module_build_tag['name'], **opts)
+        dest_tagged = None
+        # Only check the destination tag if the component is not a build_time_only component
+        if not component_build.build_time_only:
+            dest_tagged = self.koji_session.listTagged(self.module_tag['name'], **opts)
+        for rv in [build_tagged, dest_tagged]:
+            if rv and len(rv) != 1:
+                raise ValueError("Expected exactly one item in list. Got %s" % rv)
 
-        opts = {'latest': True, 'package': artifact_name, 'inherit': False}
+        build = None
+        if build_tagged:
+            build = build_tagged[0]
+        elif dest_tagged:
+            build = dest_tagged[0]
 
-        if artifact_name == "module-build-macros":
-            tag = self.module_build_tag['name']
+        if not build:
+            # If the build cannot be found in the tags, it may be untagged as a result
+            # of some earlier inconsistent situation. Let's find the task_info
+            # based on the list of untagged builds
+            release = module_build_service.utils.get_rpm_release_from_mmd(self.mmd)
+            untagged = self.koji_session.untaggedBuilds(name=component_build.package)
+            for untagged_build in untagged:
+                if untagged_build["release"].endswith(release):
+                    nvr = "{name}-{version}-{release}".format(**untagged_build)
+                    build = self.koji_session.getBuild(nvr)
+                    break
+        further_work = []
+        # If the build doesn't exist, then return
+        if not build:
+            return further_work
+
+        # Start setting up MBS' database to use the existing build
+        log.info('Skipping build of "{0}" since it already exists.'.format(build['nvr']))
+        # Set it to COMPLETE so it doesn't count towards the concurrent component threshold
+        component_build.state = koji.BUILD_STATES['COMPLETE']
+        component_build.nvr = build['nvr']
+        component_build.task_id = build['task_id']
+        component_build.state_reason = 'Found existing build'
+        nvr_dict = kobo.rpmlib.parse_nvr(component_build.nvr)
+        # Trigger a completed build message
+        further_work.append(module_build_service.messaging.KojiBuildChange(
+            'recover_orphaned_artifact: fake message', build['build_id'],
+            build['task_id'], koji.BUILD_STATES['COMPLETE'], component_build.package,
+            nvr_dict['version'], nvr_dict['release'], component_build.module_build.id))
+
+        component_tagged_in = []
+        if build_tagged:
+            component_tagged_in.append(self.module_build_tag['name'])
         else:
-            tag = self.module_tag['name']
-
-        tagged = self.koji_session.listTagged(tag, **opts)
-
-        if tagged:
-            assert len(tagged) == 1, "Expected exactly one item in list. Got %s" % tagged
-            return tagged[0]
-
-        # If the build cannot be found in tag, it may be untagged as a result
-        # of some earlier inconsistent situation. Let's find the task_info
-        # based on the list of untagged builds
-        release = module_build_service.utils.get_rpm_release_from_mmd(self.mmd)
-        opts = {'name': artifact_name}
-        untagged = self.koji_session.untaggedBuilds(**opts)
-        for build in untagged:
-            if build["release"].endswith(release):
-                # Tag it.
-                nvr = "{name}-{version}-{release}".format(**build)
-                self.tag_artifacts([nvr])
-
-                # Now, make the same query we made earlier to return a dict
-                # with the same schema.
-                tagged = self.koji_session.listTagged(tag, package=artifact_name)
-                if not tagged:
-                    # Should be impossible.
-                    raise ValueError("Just tagged %s but didn't find it" % nvr)
-                return tagged[0]
-
-        return None
+            # Tag it in the build tag if it's not there
+            self.tag_artifacts([component_build.nvr], dest_tag=False)
+        if dest_tagged:
+            component_tagged_in.append(self.module_tag['name'])
+        for tag in component_tagged_in:
+            log.info('The build being skipped isn\'t tagged in the "{0}" tag. Will send a '
+                     'message to the tag handler'.format(tag))
+            further_work.append(module_build_service.messaging.KojiTagChange(
+                'recover_orphaned_artifact: fake message', tag, component_build.package))
+        return further_work
 
     def build(self, artifact_name, source):
         """
-        :param source : scmurl to spec repository
-        : param artifact_name: name of artifact (which we couldn't get
-            from spec due involved macros)
-        :return 4-tuple of the form (koji build task id, state, reason, nvr)
+        :param artifact_name: a string of the name of the artifact
+        :param source: a string of the scmurl to the spec repository
+        :return: 4-tuple of the form (koji build task id, state, reason, nvr)
         """
 
         # TODO: If we are sure that this method is thread-safe, we can just
@@ -504,14 +529,6 @@ chmod 644 %buildroot/%_sysconfdir/rpm/macros.zz-modules
 
             if not self.__prep:
                 raise RuntimeError("Buildroot is not prep-ed")
-
-            # Skip existing builds
-            task_info = self._get_build_by_artifact(artifact_name)
-            if task_info:
-                log.info("skipping build of %s. Build already exists (task_id=%s), via %s" % (
-                    source, task_info['task_id'], self))
-                return (task_info['task_id'], koji.BUILD_STATES['COMPLETE'],
-                        'Build already exists.', task_info['nvr'])
 
             self._koji_whitelist_packages([artifact_name])
             if '://' not in source:

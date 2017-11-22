@@ -28,6 +28,7 @@ from os import path, mkdir
 from os.path import dirname
 from shutil import copyfile
 from datetime import datetime, timedelta
+from random import randint
 
 from nose.tools import timed
 
@@ -38,6 +39,7 @@ from module_build_service.errors import Forbidden
 from module_build_service import db, models, conf, build_logs
 
 from mock import patch, PropertyMock, Mock
+import kobo
 
 from tests import app, test_reuse_component_init_data, clean_database
 import json
@@ -87,14 +89,6 @@ class FakeSCM(object):
         return path.join(self.sourcedir, self.name + ".yaml")
 
 
-def _on_build_cb(cls, artifact_name, source):
-    # Tag the build in the -build tag
-    cls._send_tag(artifact_name)
-    if not artifact_name.startswith("module-build-macros"):
-        # Tag the build in the final tag
-        cls._send_tag(artifact_name, build=False)
-
-
 class FakeModuleBuilder(GenericBuilder):
     """
     Fake module builder which succeeds for every build.
@@ -105,10 +99,11 @@ class FakeModuleBuilder(GenericBuilder):
     _build_id = 1
 
     BUILD_STATE = "COMPLETE"
+    # Simulates a situation when a component is already built in Koji
     INSTANT_COMPLETE = False
     DEFAULT_GROUPS = None
 
-    on_build_cb = _on_build_cb
+    on_build_cb = None
     on_cancel_cb = None
     on_buildroot_add_artifacts_cb = None
     on_tag_artifacts_cb = None
@@ -118,13 +113,12 @@ class FakeModuleBuilder(GenericBuilder):
         self.module_str = module
         self.tag_name = tag_name
         self.config = config
-        self.on_build_cb = _on_build_cb
 
     @classmethod
     def reset(cls):
         FakeModuleBuilder.BUILD_STATE = "COMPLETE"
         FakeModuleBuilder.INSTANT_COMPLETE = False
-        FakeModuleBuilder.on_build_cb = _on_build_cb
+        FakeModuleBuilder.on_build_cb = None
         FakeModuleBuilder.on_cancel_cb = None
         FakeModuleBuilder.on_buildroot_add_artifacts_cb = None
         FakeModuleBuilder.on_tag_artifacts_cb = None
@@ -165,21 +159,24 @@ class FakeModuleBuilder(GenericBuilder):
     def buildroot_add_repos(self, dependencies):
         pass
 
-    def tag_artifacts(self, artifacts):
+    def tag_artifacts(self, artifacts, dest_tag=True):
         if FakeModuleBuilder.on_tag_artifacts_cb:
-            FakeModuleBuilder.on_tag_artifacts_cb(self, artifacts)
+            FakeModuleBuilder.on_tag_artifacts_cb(self, artifacts, dest_tag=dest_tag)
+
         for nvr in artifacts:
             # tag_artifacts received a list of NVRs, but the tag message expects the
             # component name
             artifact = models.ComponentBuild.query.filter_by(nvr=nvr).one().package
-            self._send_tag(artifact)
-            if not artifact.startswith('module-build-macros'):
-                self._send_tag(artifact, build=False)
+            self._send_tag(artifact, dest_tag=dest_tag)
 
     @property
     def koji_session(self):
         session = Mock()
-        session.newRepo.return_value = 123
+
+        def _newRepo(tag):
+            session.newRepo = self._send_repo_done()
+            return 123
+        session.newRepo = _newRepo
         return session
 
     @property
@@ -193,11 +190,11 @@ class FakeModuleBuilder(GenericBuilder):
         )
         module_build_service.scheduler.consumer.work_queue_put(msg)
 
-    def _send_tag(self, artifact, build=True):
-        if build:
-            tag = self.tag_name + "-build"
-        else:
+    def _send_tag(self, artifact, dest_tag=True):
+        if dest_tag:
             tag = self.tag_name
+        else:
+            tag = self.tag_name + "-build"
         msg = module_build_service.messaging.KojiTagChange(
             msg_id='a faked internal message',
             tag=tag,
@@ -221,7 +218,6 @@ class FakeModuleBuilder(GenericBuilder):
 
     def build(self, artifact_name, source):
         print("Starting building artifact %s: %s" % (artifact_name, source))
-
         FakeModuleBuilder._build_id += 1
 
         if FakeModuleBuilder.on_build_cb:
@@ -232,13 +228,12 @@ class FakeModuleBuilder(GenericBuilder):
                 koji.BUILD_STATES[FakeModuleBuilder.BUILD_STATE], source,
                 FakeModuleBuilder._build_id)
 
-        if FakeModuleBuilder.INSTANT_COMPLETE:
-            state = koji.BUILD_STATES['COMPLETE']
-        else:
-            state = koji.BUILD_STATES['BUILDING']
+        if FakeModuleBuilder.BUILD_STATE == 'COMPLETE':
+            # Tag the build in the -build tag
+            self._send_tag(artifact_name, dest_tag=False)
 
         reason = "Submitted %s to Koji" % (artifact_name)
-        return FakeModuleBuilder._build_id, state, reason, None
+        return FakeModuleBuilder._build_id, koji.BUILD_STATES['BUILDING'], reason, None
 
     @staticmethod
     def get_disttag_srpm(disttag, module_build):
@@ -251,6 +246,28 @@ class FakeModuleBuilder(GenericBuilder):
 
     def list_tasks_for_components(self, component_builds=None, state='active'):
         pass
+
+    def recover_orphaned_artifact(self, component_build):
+        msgs = []
+        if self.INSTANT_COMPLETE:
+            disttag = module_build_service.utils.get_rpm_release_from_mmd(
+                component_build.module_build.mmd())
+            # We don't know the version or release, so just use a random one here
+            nvr = '{0}-1.0-1.{1}'.format(component_build.package, disttag)
+            component_build.nvr = nvr
+            component_build.task_id = self._build_id + 51234
+            component_build.state = koji.BUILD_STATES['BUILDING']
+            nvr_dict = kobo.rpmlib.parse_nvr(component_build.nvr)
+            # Send a message stating the build is complete
+            msgs.append(module_build_service.messaging.KojiBuildChange(
+                'recover_orphaned_artifact: fake message', randint(1, 9999999),
+                component_build.task_id, koji.BUILD_STATES['COMPLETE'], component_build.package,
+                nvr_dict['version'], nvr_dict['release'], component_build.module_build.id))
+            # Send a message stating that the build was tagged in the build tag
+            msgs.append(module_build_service.messaging.KojiTagChange(
+                'recover_orphaned_artifact: fake message',
+                component_build.module_build.koji_tag + '-build', component_build.package))
+        return msgs
 
 
 def cleanup_moksha():
@@ -322,7 +339,7 @@ class TestBuild(unittest.TestCase):
         tag_groups.append(set([u'perl-Tangerine?#f24-1-1', u'perl-List-Compare?#f25-1-1']))
         tag_groups.append(set([u'tangerine?#f23-1-1']))
 
-        def on_tag_artifacts_cb(cls, artifacts):
+        def on_tag_artifacts_cb(cls, artifacts, dest_tag=True):
             self.assertEqual(tag_groups.pop(0), set(artifacts))
 
         FakeModuleBuilder.on_tag_artifacts_cb = on_tag_artifacts_cb
@@ -517,8 +534,6 @@ class TestBuild(unittest.TestCase):
 
         data = json.loads(rv.data)
         module_build_id = data['id']
-
-        FakeModuleBuilder.BUILD_STATE = "BUILDING"
         FakeModuleBuilder.INSTANT_COMPLETE = True
 
         msgs = []
@@ -629,7 +644,7 @@ class TestBuild(unittest.TestCase):
         num_builds = [k for k, g in itertools.groupby(TestBuild._global_var)]
         self.assertEqual(num_builds.count(1), 2)
 
-    @timed(30)
+    @timed(60)
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     @patch("module_build_service.config.Config.num_concurrent_builds",
@@ -656,14 +671,12 @@ class TestBuild(unittest.TestCase):
                 FakeModuleBuilder.BUILD_STATE = "FAILED"
             else:
                 FakeModuleBuilder.BUILD_STATE = "COMPLETE"
-                # Tag the build in the -build tag
-                cls._send_tag(artifact_name)
 
         FakeModuleBuilder.on_build_cb = on_build_cb
 
         # Check that no components are tagged when single component fails
         # in batch.
-        def on_tag_artifacts_cb(cls, artifacts):
+        def on_tag_artifacts_cb(cls, artifacts, dest_tag=True):
             raise ValueError("No component should be tagged.")
         FakeModuleBuilder.on_tag_artifacts_cb = on_tag_artifacts_cb
 
@@ -763,8 +776,9 @@ class TestBuild(unittest.TestCase):
              'perl-List-Compare-0.53-5.module_testmodule_master_20170109091357',
              'tangerine-0.22-3.module_testmodule_master_20170109091357']))
 
-        def on_tag_artifacts_cb(cls, artifacts):
-            self.assertEqual(tag_groups.pop(0), set(artifacts))
+        def on_tag_artifacts_cb(cls, artifacts, dest_tag=True):
+            if dest_tag is True:
+                self.assertEqual(tag_groups.pop(0), set(artifacts))
         FakeModuleBuilder.on_tag_artifacts_cb = on_tag_artifacts_cb
 
         buildtag_groups = []
@@ -822,8 +836,9 @@ class TestBuild(unittest.TestCase):
              'perl-List-Compare-0.53-5.module_testmodule_master_20170109091357',
              'tangerine-0.22-3.module_testmodule_master_20170109091357']))
 
-        def on_tag_artifacts_cb(cls, artifacts):
-            self.assertEqual(tag_groups.pop(0), set(artifacts))
+        def on_tag_artifacts_cb(cls, artifacts, dest_tag=True):
+            if dest_tag is True:
+                self.assertEqual(tag_groups.pop(0), set(artifacts))
         FakeModuleBuilder.on_tag_artifacts_cb = on_tag_artifacts_cb
 
         buildtag_groups = []
@@ -871,7 +886,7 @@ class TestBuild(unittest.TestCase):
             build_one.modulemd = f.read()
         build_one.koji_tag = 'module-testmodule-master-1'
         build_one.scmurl = 'git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#7fea453'
-        build_one.batch = models.BUILD_STATES['failed']
+        build_one.batch = 2
         build_one.owner = 'Homer J. Simpson'
         build_one.time_submitted = submitted_time
         build_one.time_modified = now
@@ -915,11 +930,24 @@ class TestBuild(unittest.TestCase):
         component_three.scmurl = 'git://pkgs.stg.fedoraproject.org/rpms/tangerine.git?#f24'
         component_three.batch = 3
         component_three.module_id = 1
+        # module-build-macros
+        component_four = models.ComponentBuild()
+        component_four.package = 'module-build-macros'
+        component_four.format = 'rpms'
+        component_four.state = koji.BUILD_STATES['COMPLETE']
+        component_four.scmurl = (
+            '/tmp/module_build_service-build-macrosqr4AWH/SRPMS/module-build-macros-0.1-1.'
+            'module_testmodule_master_20170109091357.src.rpm')
+        component_four.batch = 1
+        component_four.module_id = 1
+        component_four.tagged = True
+        component_four.build_time_only = True
 
         db.session.add(build_one)
         db.session.add(component_one)
         db.session.add(component_two)
         db.session.add(component_three)
+        db.session.add(component_four)
         db.session.commit()
         db.session.expire_all()
 
@@ -931,10 +959,6 @@ class TestBuild(unittest.TestCase):
 
         data = json.loads(rv.data)
         module_build_id = data['id']
-
-        FakeModuleBuilder.BUILD_STATE = 'BUILDING'
-        FakeModuleBuilder.INSTANT_COMPLETE = True
-
         module_build = models.ModuleBuild.query.filter_by(id=module_build_id).one()
         components = models.ComponentBuild.query.filter_by(
             module_id=module_build_id, batch=2).order_by(models.ComponentBuild.id).all()
@@ -990,9 +1014,6 @@ class TestBuild(unittest.TestCase):
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'branch': 'master', 'scmurl': ('git://pkgs.stg.fedoraproject.org/modules/'
                                             'testmodule.git?#7fea453')}))
-
-        FakeModuleBuilder.BUILD_STATE = 'BUILDING'
-        FakeModuleBuilder.INSTANT_COMPLETE = True
 
         module_build = models.ModuleBuild.query.filter_by(id=module_build_id).one()
         components = models.ComponentBuild.query.filter_by(
