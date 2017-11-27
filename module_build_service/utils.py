@@ -466,8 +466,13 @@ def filter_component_builds(flask_request):
         if state.isdigit():
             search_query['state'] = state
         else:
-            if state in models.BUILD_STATES:
-                search_query['state'] = models.BUILD_STATES[state]
+            try:
+                import koji
+            except ImportError:
+                raise ValidationError('Cannot filter by state names because koji isn\'t installed')
+
+            if state.upper() in koji.BUILD_STATES:
+                search_query['state'] = koji.BUILD_STATES[state.upper()]
             else:
                 raise ValidationError('An invalid state was supplied')
 
