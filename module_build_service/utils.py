@@ -39,6 +39,7 @@ import yaml
 
 from flask import request, url_for, Response
 from datetime import datetime
+from sqlalchemy.sql.sqltypes import Boolean as sqlalchemy_boolean
 
 from module_build_service import log, models
 from module_build_service.errors import (ValidationError, UnprocessableEntity,
@@ -436,6 +437,15 @@ def _add_order_by_clause(flask_request, query, column_source):
     return query.order_by(column)
 
 
+def str_to_bool(value):
+    """
+    Parses a string to determine its boolean value
+    :param value: a string
+    :return: a boolean
+    """
+    return value.lower() in ["true", "1"]
+
+
 def filter_component_builds(flask_request):
     """
     Returns a flask_sqlalchemy.Pagination object based on the request parameters
@@ -443,8 +453,15 @@ def filter_component_builds(flask_request):
     :return: flask_sqlalchemy.Pagination
     """
     search_query = dict()
-    state = flask_request.args.get('state', None)
+    for key in request.args.keys():
+        # Only filter on valid database columns
+        if key in models.ComponentBuild.__table__.columns.keys():
+            if isinstance(models.ComponentBuild.__table__.columns[key].type, sqlalchemy_boolean):
+                search_query[key] = str_to_bool(flask_request.args[key])
+            else:
+                search_query[key] = flask_request.args[key]
 
+    state = flask_request.args.get('state', None)
     if state:
         if state.isdigit():
             search_query['state'] = state
@@ -454,11 +471,9 @@ def filter_component_builds(flask_request):
             else:
                 raise ValidationError('An invalid state was supplied')
 
-    # Lookup module_build from task_id, ref, format, nvr or tagged attribute
-    # of a component build.
-    for key in ['task_id', 'ref', 'nvr', 'format', 'tagged']:
-        if flask_request.args.get(key, None):
-            search_query[key] = flask_request.args[key]
+    # Allow the user to specify the module build ID with a more intuitive key name
+    if 'module_build' in flask_request.args:
+        search_query['module_id'] = flask_request.args['module_build']
 
     query = models.ComponentBuild.query
 
@@ -479,8 +494,14 @@ def filter_module_builds(flask_request):
     :return: flask_sqlalchemy.Pagination
     """
     search_query = dict()
-    state = flask_request.args.get('state', None)
+    special_columns = ['time_submitted', 'time_modified', 'time_completed', 'state']
+    for key in request.args.keys():
+        # Only filter on valid database columns but skip columns that are treated specially or
+        # ignored
+        if key not in special_columns and key in models.ModuleBuild.__table__.columns.keys():
+            search_query[key] = flask_request.args[key]
 
+    state = flask_request.args.get('state', None)
     if state:
         if state.isdigit():
             search_query['state'] = state
@@ -489,10 +510,6 @@ def filter_module_builds(flask_request):
                 search_query['state'] = models.BUILD_STATES[state]
             else:
                 raise ValidationError('An invalid state was supplied')
-
-    for key in ['name', 'owner', 'koji_tag']:
-        if flask_request.args.get(key, None):
-            search_query[key] = flask_request.args[key]
 
     query = models.ModuleBuild.query
 

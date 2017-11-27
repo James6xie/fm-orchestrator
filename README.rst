@@ -492,29 +492,27 @@ parameters::
 Filtering module builds
 -----------------------
 
-The module-builds can be filtered by a variety of GET parameters. These
-parameters are:
+The module builds can be filtered by a variety of GET parameters. Some of these
+parameters include:
 
-- ``name`` - Shows builds of modules with a particular name (e.g.
-  ``name=testmodule``)
-- ``koji_tag`` - Shows builds tagged with a particular Koji tag (e.g.
-  ``koji_tag=module-984ed60dd37b9361``)
-- ``owner`` - Shows builds submitted by a particular user (e.g.
-  ``owner=mprahl``)
-- ``state`` - Shows builds in a particular state (can be the state name or
-  the state ID) (e.g. ``state=done``)
-- ``submitted_before`` - Shows builds that were submitted before a particular
-  Zulu ISO 8601 timestamp (e.g. ``submitted_before=2016-08-23T09:40:07Z``)
-- ``submitted_after`` - Shows builds that were submitted after a particular
-  Zulu ISO 8601 timestamp (e.g. ``submitted_after=2016-08-22T09:40:07Z``)
-- ``modified_before`` - Shows builds that were modified before a particular
-  Zulu ISO 8601 timestamp (e.g. ``modified_before=2016-08-23T09:40:07Z``)
-- ``modified_after`` - Shows builds that were modified after a particular
-  Zulu ISO 8601 timestamp (e.g. ``modified_after=2016-08-22T09:40:07Z``)
-- ``completed_before`` - Shows builds that were completed before a particular
-  Zulu ISO 8601 timestamp (e.g. ``completed_before=2016-08-22T09:40:07Z``)
-- ``completed_after`` - Shows builds that were completed after a particular
-  Zulu ISO 8601 timestamp (e.g. ``completed_after=2016-08-23T09:40:07Z``)
+- ``batch``
+- ``cg_build_koji_tag``
+- ``completed_after`` (Zulu ISO 8601 format e.g. ``completed_after=2016-08-23T09:40:07Z``)
+- ``completed_before`` (Zulu ISO 8601 format e.g. ``completed_before=2016-08-22T09:40:07Z``)
+- ``koji_tag``
+- ``modified_after`` (Zulu ISO 8601 format e.g. ``modified_after=2016-08-22T09:40:07Z``)
+- ``modified_before`` (Zulu ISO 8601 format e.g. ``modified_before=2016-08-23T09:40:07Z``)
+- ``name``
+- ``new_repo_task_id``
+- ``owner``
+- ``rebuild_strategy``
+- ``scmurl``
+- ``state`` (can be the state name or the state ID e.g. ``state=done``)
+- ``state_reason``
+- ``stream``
+- ``submitted_after`` (Zulu ISO 8601 format e.g. ``submitted_after=2016-08-22T09:40:07Z``)
+- ``submitted_before`` (Zulu ISO 8601 format e.g. ``submitted_before=2016-08-23T09:40:07Z``)
+- ``version``
 
 An example of querying the "module-builds" resource with the "state",
 and the "submitted_before" parameters::
@@ -656,6 +654,28 @@ parameters::
         "total": 56033
       }
     }
+
+
+
+Filtering component builds
+--------------------------
+
+The component builds can be filtered by a variety of GET parameters. Some of these
+parameters include:
+
+- ``batch``
+- ``build_time_only`` (boolean e.g. "true" or "false")
+- ``format``
+- ``module_id`` or ``module_build``
+- ``nvr``
+- ``package``
+- ``ref``
+- ``scmurl``
+- ``state``
+- ``state_reason``
+- ``tagged`` (boolean e.g. "true" or "false")
+- ``tagged_in_final`` (boolean e.g. "true" or "false")
+- ``task_id``
 
 
 Listing about

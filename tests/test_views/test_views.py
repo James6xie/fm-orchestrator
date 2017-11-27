@@ -365,10 +365,9 @@ class TestViews(unittest.TestCase):
         self.assertEquals(data['meta']['total'], 0)
 
     def test_query_component_builds_filter_tagged(self):
-        rv = self.client.get('/module-build-service/1/component-builds/'
-                             '?tagged=this-filter-query-should-return-zero-items')
+        rv = self.client.get('/module-build-service/1/component-builds/?tagged=true')
         data = json.loads(rv.data)
-        self.assertEquals(data['meta']['total'], 0)
+        self.assertEquals(data['meta']['total'], 40)
 
     def test_query_component_builds_filter_nvr(self):
         rv = self.client.get(
@@ -445,6 +444,17 @@ class TestViews(unittest.TestCase):
                              '&modified_after=2016-09-03T12:25:00Z')
         data = json.loads(rv.data)
         self.assertEquals(data['meta']['total'], 4)
+
+    def test_query_builds_filter_nsv(self):
+        rv = self.client.get(
+            '/module-build-service/1/module-builds/?name=postgressql&stream=1&version=2')
+        data = json.loads(rv.data)
+        # TODO: The nsv should really be unique in the test data
+        for item in data['items']:
+            self.assertEqual(item['name'], 'postgressql')
+            self.assertEqual(item['stream'], '1')
+            self.assertEqual(item['version'], '2')
+        self.assertEquals(data['meta']['total'], 10)
 
     def test_query_builds_filter_invalid_date(self):
         rv = self.client.get(
