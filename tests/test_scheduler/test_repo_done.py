@@ -59,6 +59,8 @@ class TestRepoDone(unittest.TestCase):
             config=conf, session=db.session, msg=msg)
 
     @mock.patch('module_build_service.builder.KojiModuleBuilder.'
+                'KojiModuleBuilder.recover_orphaned_artifact', return_value=[])
+    @mock.patch('module_build_service.builder.KojiModuleBuilder.'
                 'KojiModuleBuilder.get_average_build_time',
                 return_value=0.0)
     @mock.patch('module_build_service.builder.KojiModuleBuilder.'
@@ -72,7 +74,8 @@ class TestRepoDone(unittest.TestCase):
                 'KojiModuleBuilder.build')
     @mock.patch('module_build_service.builder.KojiModuleBuilder.'
                 'KojiModuleBuilder.buildroot_connect')
-    def test_a_single_match(self, connect, build_fn, get_session, ready, list_tasks_fn, mock_gabt):
+    def test_a_single_match(self, connect, build_fn, get_session, ready, list_tasks_fn, mock_gabt,
+                            mock_uea):
         """ Test that when a repo msg hits us and we have a single match.
         """
         get_session.return_value = mock.Mock(), 'development'
@@ -88,6 +91,8 @@ class TestRepoDone(unittest.TestCase):
                     '?#da95886c8a443b36a9ce31abda1f9bed22f2f9c2'))
 
     @mock.patch('module_build_service.builder.KojiModuleBuilder.'
+                'KojiModuleBuilder.recover_orphaned_artifact', return_value=[])
+    @mock.patch('module_build_service.builder.KojiModuleBuilder.'
                 'KojiModuleBuilder.get_average_build_time',
                 return_value=0.0)
     @mock.patch('module_build_service.builder.KojiModuleBuilder.'
@@ -102,7 +107,7 @@ class TestRepoDone(unittest.TestCase):
     @mock.patch('module_build_service.builder.KojiModuleBuilder.'
                 'KojiModuleBuilder.buildroot_connect')
     def test_a_single_match_build_fail(self, connect, build_fn, config, ready, list_tasks_fn,
-                                       mock_gabt):
+                                       mock_gabt, mock_uea):
         """ Test that when a KojiModuleBuilder.build fails, the build is
         marked as failed with proper state_reason.
         """

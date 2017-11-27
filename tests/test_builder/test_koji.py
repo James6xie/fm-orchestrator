@@ -72,30 +72,8 @@ class TestKojiBuilder(unittest.TestCase):
         self.assertEquals(repo, "https://kojipkgs.stg.fedoraproject.org/repos"
                           "/module-base-runtime-0.25-9/latest/x86_64")
 
-    def test_get_build_by_artifact_when_tagged(self):
-        """ Test the _get_build_by_artifact happy path. """
-        builder = FakeKojiModuleBuilder(owner=self.module.owner,
-                                        module=self.module,
-                                        config=conf,
-                                        tag_name='module-foo',
-                                        components=[])
-
-        builder.module_tag = {"name": "module-foo", "id": 1}
-        builder.module_build_tag = {"name": "module-foo-build", "id": 2}
-
-        # Set listTagged to return test data
-        tagged = [{"nvr": "foo-1.0-1.module_e0095747"}]
-        builder.koji_session.listTagged.return_value = tagged
-
-        actual = builder._get_build_by_artifact('foo')
-        expected = {'nvr': 'foo-1.0-1.module_e0095747'}
-        self.assertEquals(actual, expected)
-        self.assertEquals(builder.koji_session.tagBuild.call_count, 0)
-
-    def test_get_build_by_artifact_when_untagged(self):
-        """ Test the _get_build_by_artifact un-happy path.
-
-        If there's an untagged build that matches, tag it and return it.
+    def test_recover_orphaned_artifact_when_tagged(self):
+        """ Test recover_orphaned_artifact when the artifact is found and tagged in both tags
         """
         builder = FakeKojiModuleBuilder(owner=self.module.owner,
                                         module=self.module,
@@ -106,22 +84,50 @@ class TestKojiBuilder(unittest.TestCase):
         builder.module_tag = {"name": "module-foo", "id": 1}
         builder.module_build_tag = {"name": "module-foo-build", "id": 2}
 
-        tagged_build = {
-            "id": 9000,
-            "name": "foo",
-            "version": "1.0",
-            "release": "1.module_e0095747",
-            "nvr": "foo-1.0-1.module_e0095747",
-        }
         # Set listTagged to return test data
-        builder.koji_session.listTagged.side_effect = [
-            # Return nothing the first time
-            [],
-            # Return nothing the second time
-            [],
-            # But something the third time.
-            [tagged_build],
-        ]
+        build_tagged = [{"nvr": "foo-1.0-1.module+e0095747", "task_id": 12345, 'build_id': 91}]
+        dest_tagged = [{"nvr": "foo-1.0-1.module+e0095747", "task_id": 12345, 'build_id': 91}]
+        builder.koji_session.listTagged.side_effect = [build_tagged, dest_tagged]
+        module_build = module_build_service.models.ModuleBuild.query.get(30)
+        component_build = module_build.component_builds[0]
+        component_build.task_id = None
+        component_build.state = None
+        component_build.nvr = None
+
+        actual = builder.recover_orphaned_artifact(component_build)
+        self.assertEqual(len(actual), 3)
+        self.assertEquals(type(actual[0]), module_build_service.messaging.KojiBuildChange)
+        self.assertEquals(actual[0].build_id, 91)
+        self.assertEquals(actual[0].task_id, 12345)
+        self.assertEquals(actual[0].build_new_state, koji.BUILD_STATES['COMPLETE'])
+        self.assertEquals(actual[0].build_name, 'rubygem-rails')
+        self.assertEquals(actual[0].build_version, '1.0')
+        self.assertEquals(actual[0].build_release, '1.module+e0095747')
+        self.assertEquals(actual[0].module_build_id, 30)
+        self.assertEquals(type(actual[1]), module_build_service.messaging.KojiTagChange)
+        self.assertEquals(actual[1].tag, 'module-foo-build')
+        self.assertEquals(actual[1].artifact, 'rubygem-rails')
+        self.assertEquals(type(actual[2]), module_build_service.messaging.KojiTagChange)
+        self.assertEquals(actual[2].tag, 'module-foo')
+        self.assertEquals(actual[2].artifact, 'rubygem-rails')
+        self.assertEqual(component_build.state, koji.BUILD_STATES['COMPLETE'])
+        self.assertEqual(component_build.task_id, 12345)
+        self.assertEqual(component_build.state_reason, 'Found existing build')
+        self.assertEquals(builder.koji_session.tagBuild.call_count, 0)
+
+    def test_recover_orphaned_artifact_when_untagged(self):
+        """ Tests recover_orphaned_artifact when the build is found but untagged
+        """
+        builder = FakeKojiModuleBuilder(owner=self.module.owner,
+                                        module=self.module,
+                                        config=conf,
+                                        tag_name='module-foo',
+                                        components=[])
+
+        builder.module_tag = {"name": "module-foo", "id": 1}
+        builder.module_build_tag = {"name": "module-foo-build", "id": 2}
+        # Set listTagged to return test data
+        builder.koji_session.listTagged.side_effect = [[], [], []]
         untagged = [{
             "id": 9000,
             "name": "foo",
@@ -129,18 +135,35 @@ class TestKojiBuilder(unittest.TestCase):
             "release": "1.module+e0095747",
         }]
         builder.koji_session.untaggedBuilds.return_value = untagged
+        build_info = {
+            'nvr': 'foo-1.0-1.module+e0095747',
+            'task_id': 12345,
+            'build_id': 91
+        }
+        builder.koji_session.getBuild.return_value = build_info
+        module_build = module_build_service.models.ModuleBuild.query.get(30)
+        component_build = module_build.component_builds[0]
+        component_build.task_id = None
+        component_build.nvr = None
+        component_build.state = None
 
-        actual = builder._get_build_by_artifact('foo')
-        expected = tagged_build
-        self.assertEquals(actual, expected)
-        builder.koji_session.tagBuild.assert_called_once_with(
-            1, 'foo-1.0-1.module+e0095747')
+        actual = builder.recover_orphaned_artifact(component_build)
+        self.assertEqual(len(actual), 1)
+        self.assertEquals(type(actual[0]), module_build_service.messaging.KojiBuildChange)
+        self.assertEquals(actual[0].build_id, 91)
+        self.assertEquals(actual[0].task_id, 12345)
+        self.assertEquals(actual[0].build_new_state, koji.BUILD_STATES['COMPLETE'])
+        self.assertEquals(actual[0].build_name, 'rubygem-rails')
+        self.assertEquals(actual[0].build_version, '1.0')
+        self.assertEquals(actual[0].build_release, '1.module+e0095747')
+        self.assertEquals(actual[0].module_build_id, 30)
+        self.assertEqual(component_build.state, koji.BUILD_STATES['COMPLETE'])
+        self.assertEqual(component_build.task_id, 12345)
+        self.assertEqual(component_build.state_reason, 'Found existing build')
+        builder.koji_session.tagBuild.assert_called_once_with(2, 'foo-1.0-1.module+e0095747')
 
-    def test_get_build_by_artifact_when_nothing_exists(self):
-        """ Test the _get_build_by_artifact super un-happy path.
-
-        If there's an untagged build but it doesn't match our module... we'd
-        better not touch it or try to tag it.  Confirm!
+    def test_recover_orphaned_artifact_when_nothing_exists(self):
+        """ Test recover_orphaned_artifact when the build is not found
         """
         builder = FakeKojiModuleBuilder(owner=self.module.owner,
                                         module=self.module,
@@ -154,16 +177,20 @@ class TestKojiBuilder(unittest.TestCase):
         # Set listTagged to return nothing...
         tagged = []
         builder.koji_session.listTagged.return_value = tagged
-        # See how this is nope and not module_e0095747?
         untagged = [{
             "nvr": "foo-1.0-1.nope",
             "release": "nope",
         }]
         builder.koji_session.untaggedBuilds.return_value = untagged
+        module_build = module_build_service.models.ModuleBuild.query.get(30)
+        component_build = module_build.component_builds[0]
+        component_build.task_id = None
+        component_build.nvr = None
+        component_build.state = None
 
-        actual = builder._get_build_by_artifact('foo')
-        expected = None
-        self.assertEquals(actual, expected)
+        actual = builder.recover_orphaned_artifact(component_build)
+        self.assertEqual(actual, [])
+        # Make sure nothing erroneous gets tag
         self.assertEquals(builder.koji_session.tagBuild.call_count, 0)
 
     @patch('koji.util')

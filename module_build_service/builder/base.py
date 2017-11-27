@@ -337,6 +337,17 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
         raise NotImplementedError()
 
     @classmethod
+    def recover_orphaned_artifact(cls, component_build):
+        """
+        Searches for a complete build of an artifact belonging to the module and sets the
+        component_build in the MBS database to the found build. This usually returns nothing since
+        these builds should *not* exist.
+        :param artifact_name: a ComponentBuild object
+        :return: a list of msgs that MBS needs to process
+        """
+        return []
+
+    @classmethod
     def get_average_build_time(self, component):
         """
         Placeholder function for the builders to report the average time it takes to build the

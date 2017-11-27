@@ -309,30 +309,37 @@ def wait(config, session, msg):
     session.commit()
 
     artifact_name = "module-build-macros"
-    task_id, state, reason, nvr = builder.build(artifact_name=artifact_name, source=srpm)
 
     component_build = models.ComponentBuild.from_component_name(
         session, artifact_name, build.id)
-    if component_build:
-        component_build.task_id = task_id
-        component_build.state = state
-        component_build.state_reason = reason
-        component_build.nvr = nvr
-    else:
+    further_work = []
+    if not component_build:
         component_build = models.ComponentBuild(
             module_id=build.id,
             package=artifact_name,
             format="rpms",
             scmurl=srpm,
-            task_id=task_id,
-            state=state,
-            state_reason=reason,
-            nvr=nvr,
             batch=1,
             build_time_only=True
         )
         session.add(component_build)
+        # Commit and refresh so that the SQLAlchemy relationships are available
+        session.commit()
+        session.refresh(component_build)
+        msgs = builder.recover_orphaned_artifact(component_build)
+        if msgs:
+            further_work += msgs
+        # There was no existing artifact found, so lets submit the build instead
+        else:
+            task_id, state, reason, nvr = builder.build(artifact_name=artifact_name, source=srpm)
+            component_build.task_id = task_id
+            component_build.state = state
+            component_build.reason = reason
+            component_build.nvr = nvr
+    elif component_build.state != koji.BUILD_STATES['COMPLETE']:
+        task_id, state, reason, nvr = builder.build(artifact_name=artifact_name, source=srpm)
 
+    session.add(component_build)
     build.transition(config, state="build")
     session.add(build)
     session.commit()
@@ -345,5 +352,6 @@ def wait(config, session, msg):
         build.new_repo_task_id = task_id
         session.commit()
     else:
-        return [module_build_service.messaging.KojiRepoChange(
-            'fake msg', builder.module_build_tag['name'])]
+        further_work.append(module_build_service.messaging.KojiRepoChange(
+            'fake msg', builder.module_build_tag['name']))
+    return further_work

@@ -169,7 +169,19 @@ def continue_batch_build(config, module, session, builder, components=None):
     unbuilt_components.sort(key=lambda c: builder.get_average_build_time(c), reverse=True)
     log.info('Done sorting the unbuilt components by their average build time')
 
+    # Check for builds that exist in the build system but MBS doesn't know about
+    for component in unbuilt_components:
+        # Only evaluate new components
+        if component.state is not None:
+            continue
+        msgs = builder.recover_orphaned_artifact(component)
+        further_work += msgs
+
     for c in unbuilt_components:
+        # If a previous build of the component was found, then the state will be marked as
+        # COMPLETE so we should skip this
+        if c.state == koji.BUILD_STATES['COMPLETE']:
+            continue
         # Check the concurrent build threshold.
         if at_concurrent_component_threshold(config, session):
             log.info('Concurrent build threshold met')
@@ -195,17 +207,6 @@ def continue_batch_build(config, module, session, builder, components=None):
         for future in futures:
             future.result()
 
-    # If all components in this batch are already done, it can mean that they
-    # have been built in the past and have been skipped in this module build.
-    # We therefore have to generate fake KojiRepoChange message, because the
-    # repo has been also done in the past and build system will not send us
-    # any message now.
-    if (all(c.state in [koji.BUILD_STATES['COMPLETE'],
-                        koji.BUILD_STATES['FAILED']] or c.reused_component_id
-            for c in unbuilt_components) and builder.module_build_tag):
-        further_work += [module_build_service.messaging.KojiRepoChange(
-            'start_build_batch: fake msg', builder.module_build_tag['name'])]
-
     session.commit()
     return further_work
 
@@ -219,7 +220,6 @@ def start_next_batch_build(config, module, session, builder, components=None):
 
     :return: a list of BaseMessage instances to be handled by the MBSConsumer.
     """
-
     import koji  # Placed here to avoid py2/py3 conflicts...
 
     # Check the status of the module build and current batch so we can
@@ -1157,7 +1157,8 @@ def attempt_to_reuse_all_components(builder, session, module):
 
     # Tag them
     builder.buildroot_add_artifacts(components_to_tag, install=False)
-    builder.tag_artifacts(components_to_tag)
+    builder.tag_artifacts(components_to_tag, dest_tag=False)
+    builder.tag_artifacts(components_to_tag, dest_tag=True)
 
     return True
 
