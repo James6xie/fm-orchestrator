@@ -443,6 +443,8 @@ def show_overview(server, finished, limit=30, verify=True):
 
 
 def main():
+    print('mbs-build is deprecated in favor of fedpkg and rhpkg. Please transition to '
+          'using those.', file=sys.stderr)
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="Submits and manages module builds.")
     subparsers = parser.add_subparsers(dest="cmd_name")
