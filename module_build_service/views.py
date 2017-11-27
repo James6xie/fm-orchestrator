@@ -28,7 +28,7 @@ This is the implementation of the orchestrator's public RESTful API.
 
 import json
 import module_build_service.auth
-from flask import request, jsonify
+from flask import request, jsonify, url_for
 from flask.views import MethodView
 
 from module_build_service import app, conf, log, models, db, version
@@ -92,6 +92,12 @@ class AbstractQueryableBuildAPI(MethodView):
 
     @cors_header()
     def get(self, id):
+        id_flag = request.args.get('id')
+        if id_flag:
+            endpoint = request.endpoint.split('s_list')[0]
+            raise ValidationError(
+                'The "id" query option is invalid. Did you mean to go to "{0}"?'.format(
+                    url_for(endpoint, id=id_flag)))
         verbose_flag = request.args.get('verbose', 'false').lower()
         short_flag = request.args.get('short', 'false').lower()
         json_func_kwargs = {}

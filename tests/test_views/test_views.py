@@ -309,6 +309,18 @@ class TestViews(unittest.TestCase):
         ]
         self.assertEquals(items, expected)
 
+    def test_query_builds_with_id_error(self):
+        rv = self.client.get('/module-build-service/1/module-builds/?id=1')
+        actual = json.loads(rv.data)
+        msg = ('The "id" query option is invalid. Did you mean to go to '
+               '"/module-build-service/1/module-builds/1"?')
+        expected = {
+            'error': 'Bad Request',
+            'message': msg,
+            "status": 400
+        }
+        self.assertEqual(actual, expected)
+
     def test_query_component_build(self):
         rv = self.client.get('/module-build-service/1/component-builds/1')
         data = json.loads(rv.data)
