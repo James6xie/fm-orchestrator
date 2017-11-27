@@ -31,7 +31,6 @@ import module_build_service.utils
 import module_build_service.scm
 from module_build_service import models, conf
 from module_build_service.errors import ProgrammingError, ValidationError, UnprocessableEntity
-from module_build_service.utils import load_mmd
 from tests import (test_reuse_component_init_data, init_data, db,
                    test_reuse_shared_userspace_init_data)
 import mock
@@ -704,6 +703,7 @@ class TestUtils(unittest.TestCase):
             assert modulemd_yaml_arg == modulemd_yaml
             assert username_arg == username
         rmtree(module_dir)
+
 
 class DummyModuleBuilder(GenericBuilder):
     """
