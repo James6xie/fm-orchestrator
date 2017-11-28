@@ -161,8 +161,9 @@ class MBSProducer(PollingProducer):
                 # If there are no completed artifacts, then there is nothing to tag
                 if artifacts:
                     # Set proxy_user=False to not authenticate as the module owner for these tasks
+                    # Set buildroot_connect=False so it doesn't recreate the Koji target and etc.
                     builder = GenericBuilder.create_from_module(
-                        session, module, conf, proxy_user=False)
+                        session, module, conf, proxy_user=False, buildroot_connect=False)
                     builder.untag_artifacts([c.nvr for c in artifacts])
                     # Mark the artifacts as untagged in the database
                     for c in artifacts:

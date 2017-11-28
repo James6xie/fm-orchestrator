@@ -486,21 +486,34 @@ chmod 644 %buildroot/%_sysconfdir/rpm/macros.zz-modules
         :param artifacts: a list of NVRs to untag
         :return: None
         """
-        dest_tag = self._get_tag(self.module_tag)['id']
-        build_tag = self._get_tag(self.module_build_tag)['id']
+        build_tag_name = self.tag_name + '-build'
+        dest_tag = self._get_tag(self.tag_name, strict=False)
+        build_tag = self._get_tag(build_tag_name, strict=False)
         # Get the NVRs in the tags to make sure the builds exist and they're tagged before
         # untagging them
-        dest_tagged_nvrs = self._get_tagged_nvrs(self.module_tag['name'])
-        build_tagged_nvrs = self._get_tagged_nvrs(self.module_build_tag['name'])
+        if dest_tag:
+            dest_tagged_nvrs = self._get_tagged_nvrs(dest_tag['name'])
+        else:
+            log.info('The tag "{0}" doesn\'t exist'.format(self.tag_name))
+            dest_tagged_nvrs = []
+        if build_tag:
+            build_tagged_nvrs = self._get_tagged_nvrs(build_tag['name'])
+        else:
+            log.info('The tag "{0}" doesn\'t exist'.format(build_tag_name))
+            build_tagged_nvrs = []
+
+        # If there is nothing to untag, then just return
+        if not dest_tagged_nvrs and not build_tagged_nvrs:
+            return
 
         self.koji_session.multicall = True
         for nvr in artifacts:
             if nvr in dest_tagged_nvrs:
-                log.info("%r untagging %r from %r" % (self, nvr, dest_tag))
-                self.koji_session.untagBuild(dest_tag, nvr)
+                log.info("%r untagging %r from %r" % (self, nvr, dest_tag['id']))
+                self.koji_session.untagBuild(dest_tag['id'], nvr)
             if nvr in build_tagged_nvrs:
-                log.info("%r untagging %r from %r" % (self, nvr, build_tag))
-                self.koji_session.untagBuild(build_tag, nvr)
+                log.info("%r untagging %r from %r" % (self, nvr, build_tag['id']))
+                self.koji_session.untagBuild(build_tag['id'], nvr)
         self.koji_session.multiCall(strict=True)
 
     def wait_task(self, task_id):

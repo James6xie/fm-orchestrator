@@ -124,7 +124,7 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
             raise ValueError("Builder backend='%s' not recognized" % backend)
 
     @classmethod
-    def create_from_module(cls, session, module, config, proxy_user=True):
+    def create_from_module(cls, session, module, config, proxy_user=True, buildroot_connect=True):
         """
         Creates new GenericBuilder instance based on the data from module
         and config and connects it to buildroot.
@@ -132,7 +132,10 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
         :param session: SQLAlchemy databa session.
         :param module: module_build_service.models.ModuleBuild instance.
         :param config: module_build_service.config.Config instance.
-        :param proxy_user: a boolean that determines if the Koji session should use the module
+        :kwarg proxy_user: a boolean that determines if the builder should use the module owner as
+        a proxy user.
+        :kwarg buildroot_connect: a boolean that determines if the builder should run
+        buildroot_connect on instantiation.
         owner as a proxy user.
         """
         owner = None
@@ -142,7 +145,8 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
         builder = GenericBuilder.create(
             owner, module, config.system, config, tag_name=module.koji_tag, components=components)
         groups = GenericBuilder.default_buildroot_groups(session, module)
-        builder.buildroot_connect(groups)
+        if buildroot_connect is True:
+            builder.buildroot_connect(groups)
         return builder
 
     @classmethod

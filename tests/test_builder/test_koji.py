@@ -243,6 +243,26 @@ class TestKojiBuilder(unittest.TestCase):
         builder.koji_session.tagBuild.assert_called_once_with(
             builder.module_tag["id"], "new-1.0-1.module_e0095747")
 
+    @patch.object(FakeKojiModuleBuilder, 'get_session')
+    @patch.object(FakeKojiModuleBuilder, '_get_tagged_nvrs')
+    def test_untagged_artifacts(self, mock_get_tagged_nvrs, mock_get_session):
+        """
+        Tests that only tagged artifacts will be untagged
+        """
+        mock_session = mock.Mock()
+        mock_session.getTag.side_effect = [
+            {'name': 'foobar', 'id': 1}, {'name': 'foobar-build', 'id': 2}]
+        mock_get_session.return_value = mock_session
+        mock_get_tagged_nvrs.side_effect = [['foo', 'bar'], ['foo']]
+        builder = FakeKojiModuleBuilder(
+            owner=self.module.owner, module=self.module, config=conf, tag_name='module-foo',
+            components=[])
+
+        builder.untag_artifacts(['foo', 'bar'])
+        self.assertEqual(mock_session.untagBuild.call_count, 3)
+        expected_calls = [mock.call(1, 'foo'), mock.call(2, 'foo'), mock.call(1, 'bar')]
+        self.assertEqual(mock_session.untagBuild.mock_calls, expected_calls)
+
     @patch('module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session')
     def test_get_build_weights(self, get_session):
         session = MagicMock()
