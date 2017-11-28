@@ -241,8 +241,10 @@ chmod 644 %buildroot/%_sysconfdir/rpm/macros.zz-modules
 
         # We are not interested in the rpmbuild stdout...
         null_fd = open(os.devnull, 'w')
-        execute_cmd(['rpmbuild', '-bs', '%s.spec' % name, '--define',
-                     '_topdir %s' % td], cwd=td, stdout=null_fd)
+        execute_cmd(['rpmbuild', '-bs', '%s.spec' % name,
+                     '--define', '_topdir %s' % td,
+                     '--define', '_sourcedir %s' % sources_dir],
+                    cwd=td, stdout=null_fd)
         null_fd.close()
         sdir = os.path.join(td, "SRPMS")
         srpm_paths = glob.glob("%s/*.src.rpm" % sdir)
