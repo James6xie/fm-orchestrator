@@ -154,7 +154,16 @@ class FakeModuleBuilder(GenericBuilder):
     def buildroot_add_artifacts(self, artifacts, install=False):
         if FakeModuleBuilder.on_buildroot_add_artifacts_cb:
             FakeModuleBuilder.on_buildroot_add_artifacts_cb(self, artifacts, install)
-        self._send_repo_done()
+        if self.backend == 'test':
+            for nvr in artifacts:
+                # buildroot_add_artifacts received a list of NVRs, but the tag message expects the
+                # component name. At this point, the NVR may not be set if we are trying to reuse
+                # all components, so we can't search the database. We must parse the package name
+                # from the nvr and then tag it in the build tag.
+                nvr_dict = kobo.rpmlib.parse_nvr(nvr)
+                self._send_tag(nvr_dict['name'], dest_tag=False)
+        elif self.backend == 'testlocal':
+            self._send_repo_done()
 
     def buildroot_add_repos(self, dependencies):
         pass
@@ -163,11 +172,12 @@ class FakeModuleBuilder(GenericBuilder):
         if FakeModuleBuilder.on_tag_artifacts_cb:
             FakeModuleBuilder.on_tag_artifacts_cb(self, artifacts, dest_tag=dest_tag)
 
-        for nvr in artifacts:
-            # tag_artifacts received a list of NVRs, but the tag message expects the
-            # component name
-            artifact = models.ComponentBuild.query.filter_by(nvr=nvr).one().package
-            self._send_tag(artifact, dest_tag=dest_tag)
+        if self.backend == 'test':
+            for nvr in artifacts:
+                # tag_artifacts received a list of NVRs, but the tag message expects the
+                # component name
+                artifact = models.ComponentBuild.query.filter_by(nvr=nvr).one().package
+                self._send_tag(artifact, dest_tag=dest_tag)
 
     @property
     def koji_session(self):
@@ -228,7 +238,7 @@ class FakeModuleBuilder(GenericBuilder):
                 koji.BUILD_STATES[FakeModuleBuilder.BUILD_STATE], source,
                 FakeModuleBuilder._build_id)
 
-        if FakeModuleBuilder.BUILD_STATE == 'COMPLETE':
+        if self.backend == 'test' and FakeModuleBuilder.BUILD_STATE == 'COMPLETE':
             # Tag the build in the -build tag
             self._send_tag(artifact_name, dest_tag=False)
 

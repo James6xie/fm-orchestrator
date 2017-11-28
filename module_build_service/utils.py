@@ -1157,7 +1157,6 @@ def attempt_to_reuse_all_components(builder, session, module):
 
     # Tag them
     builder.buildroot_add_artifacts(components_to_tag, install=False)
-    builder.tag_artifacts(components_to_tag, dest_tag=False)
     builder.tag_artifacts(components_to_tag, dest_tag=True)
 
     return True
