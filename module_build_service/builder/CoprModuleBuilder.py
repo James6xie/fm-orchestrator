@@ -82,10 +82,16 @@ class CoprModuleBuilder(GenericBuilder):
         """
         self.copr = self._get_copr_safe()
         self._create_module_safe()
+        mmd = self.module.mmd()
 
-        # @FIXME Not able to use gcc-c++ in chroot (RhBug: 1440889)
-        packages = groups["build"] - {"gcc-c++"}
-        self._update_chroot(packages=list(packages))
+        buildrequires = ["@{}:{}/{}".format(n, s, "buildroot")
+                         for n, s in mmd.buildrequires.items()]
+
+        buildroot_profile = mmd.profiles.get("buildroot")
+        if buildroot_profile:
+            buildrequires.extend(buildroot_profile.rpms)
+
+        self._update_chroot(packages=buildrequires)
 
         if self.copr and self.copr.projectname and self.copr.username:
             self.__prep = True
@@ -105,6 +111,8 @@ class CoprModuleBuilder(GenericBuilder):
             copr = self._get_copr(**kwargs)
 
         self._create_chroot_safe(copr, self.chroot)
+        self.client.modify_project(copr.projectname, copr.username,
+                                   use_bootstrap_container=True)
         return copr
 
     def _get_copr(self, ownername, projectname):
@@ -121,11 +129,7 @@ class CoprModuleBuilder(GenericBuilder):
                                        chroots=current_chroots + [chroot])
 
     def _create_module_safe(self):
-        from copr.exceptions import CoprRequestException
-
-        modulemd = tempfile.mktemp()
-        self.module.mmd().dump(modulemd)
-
+        modulemd = self._dump_mmd()
         kwargs = {
             "username": self.module.copr_owner or self.owner,
             "projectname": self.module.copr_project or
@@ -141,6 +145,18 @@ class CoprModuleBuilder(GenericBuilder):
                 raise RuntimeError("Buildroot is not prep-ed")
         finally:
             os.remove(modulemd)
+
+    def _dump_mmd(self):
+        # Write module's name, stream and version into the modulemd file
+        # so Copr can parse it from there
+        mmd = self.module.mmd()
+        mmd.name = str(self.module.name)
+        mmd.stream = str(self.module.stream)
+        mmd.version = int(self.module.version)
+
+        modulemd = tempfile.mktemp()
+        mmd.dump(modulemd)
+        return modulemd
 
     def buildroot_ready(self, artifacts=None):
         """
@@ -193,8 +209,20 @@ class CoprModuleBuilder(GenericBuilder):
         # Kojipkgs repos have been prematurely disabled without providing any
         # suitable alternative for Copr. This is a temporary workaround until
         # we figure out how to solve this permanently.
-        repos.append("https://kojipkgs.fedoraproject.org/compose/"
-                     "latest-Fedora-Modular-26/compose/Server/x86_64/os/")
+        compose = ("https://kojipkgs.fedoraproject.org/compose/"
+                   "latest-Fedora-Modular-{}/compose/Server/x86_64/os/")
+
+        # We need to enable copr repositories with modularity DNF
+        # so we can install modules into the buildroot
+        copr = ("https://copr-be.cloud.fedoraproject.org/results/"
+                "@copr/{}/fedora-26-x86_64/")
+
+        repos.extend([
+            compose.format("27"),
+            compose.format("Rawhide"),
+            copr.format("dnf-modularity-nightly"),
+            copr.format("dnf-modularity-buildroot-deps"),
+        ])
 
         self._update_chroot(repos=repos)
 
@@ -282,8 +310,7 @@ class CoprModuleBuilder(GenericBuilder):
                                                     chroots=[self.chroot])
 
     def finalize(self):
-        modulemd = tempfile.mktemp()
-        self.module.mmd().dump(modulemd)
+        modulemd = self._dump_mmd()
 
         # Create a module from previous project
         result = self.client.make_module(username=self.copr.username,
