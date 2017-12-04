@@ -343,17 +343,24 @@ class TestPoller(unittest.TestCase):
         """ Test that one of the two module builds gets to the garbage state when running
         cleanup_stale_failed_builds.
         """
+        builder = mock.MagicMock()
+        create_builder.return_value = builder
         module_build_one = models.ModuleBuild.query.get(1)
         module_build_two = models.ModuleBuild.query.get(2)
         module_build_one.state = models.BUILD_STATES['failed']
-        module_build_one.time_modified = datetime.utcnow()
-        module_build_two.state = models.BUILD_STATES['failed']
-        module_build_two.time_modified = datetime.utcnow() - timedelta(
+        module_build_one.time_modified = datetime.utcnow() - timedelta(
             days=conf.cleanup_failed_builds_time + 1)
+        module_build_two.time_modified = datetime.utcnow()
+        module_build_two.state = models.BUILD_STATES['failed']
+        failed_component = models.ComponentBuild.query.filter_by(
+            package='tangerine', module_id=2).one()
+        failed_component.state = koji.BUILD_STATES['FAILED']
+        failed_component.tagged = False
+        failed_component.tagged_in_final = False
+        db.session.add(failed_component)
         db.session.add(module_build_one)
         db.session.add(module_build_two)
         db.session.commit()
-        db.session.expire(module_build_two)
 
         consumer = mock.MagicMock()
         consumer.incoming = queue.Queue()
@@ -365,17 +372,24 @@ class TestPoller(unittest.TestCase):
         self.assertEquals(consumer.incoming.qsize(), 0)
         poller.cleanup_stale_failed_builds(conf, db.session)
         db.session.refresh(module_build_two)
-        # Make sure module_build_two was transitioned to garbage
-        self.assertEqual(module_build_two.state, models.BUILD_STATES['garbage'])
+        # Make sure module_build_one was transitioned to garbage
+        self.assertEqual(module_build_one.state, models.BUILD_STATES['garbage'])
         state_reason = ('The module was garbage collected since it has failed over {0} day(s) ago'
                         .format(conf.cleanup_failed_builds_time))
-        self.assertEqual(module_build_two.state_reason, state_reason)
+        self.assertEqual(module_build_one.state_reason, state_reason)
         # Make sure all the components are marked as untagged in the database
-        for component in module_build_two.component_builds:
+        for component in module_build_one.component_builds:
             self.assertFalse(component.tagged)
             self.assertFalse(component.tagged_in_final)
-        # Make sure module_build_one stayed the same
-        self.assertEqual(module_build_one.state, models.BUILD_STATES['failed'])
+        # Make sure module_build_two stayed the same
+        self.assertEqual(module_build_two.state, models.BUILD_STATES['failed'])
+        # Make sure the builds were untagged
+        builder.untag_artifacts.assert_called_once_with([
+            'perl-Tangerine-0.23-1.module_testmodule_master_20170109091357',
+            'perl-List-Compare-0.53-5.module_testmodule_master_20170109091357',
+            'tangerine-0.22-3.module_testmodule_master_20170109091357',
+            'module-build-macros-0.1-1.module_testmodule_master_20170109091357'
+        ])
 
     def test_cleanup_stale_failed_builds_no_components(self, create_builder, koji_get_session,
                                                        global_consumer, dbg):
