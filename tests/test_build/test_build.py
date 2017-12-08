@@ -1168,6 +1168,9 @@ class TestBuild(unittest.TestCase):
             {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                 'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}))
         self.assertEqual(rv.status_code, 201)
+        # Run the backend
+        stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
+        module_build_service.scheduler.main([], stop)
         # Post again and make sure it fails
         rv2 = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
@@ -1175,7 +1178,7 @@ class TestBuild(unittest.TestCase):
         data = json.loads(rv2.data)
         expected = {
             'error': 'Conflict',
-            'message': ('Module (state=0) already exists. Only a new build or resubmission of a '
+            'message': ('Module (state=5) already exists. Only a new build or resubmission of a '
                         'failed build is allowed.'),
             'status': 409
         }
