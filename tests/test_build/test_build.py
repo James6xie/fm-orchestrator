@@ -96,7 +96,7 @@ class FakeModuleBuilder(GenericBuilder):
 
     backend = "test"
     # Global build_id/task_id we increment when new build is executed.
-    _build_id = 1
+    _build_id = 0
 
     BUILD_STATE = "COMPLETE"
     # Simulates a situation when a component is already built in Koji
@@ -159,9 +159,12 @@ class FakeModuleBuilder(GenericBuilder):
                 # buildroot_add_artifacts received a list of NVRs, but the tag message expects the
                 # component name. At this point, the NVR may not be set if we are trying to reuse
                 # all components, so we can't search the database. We must parse the package name
-                # from the nvr and then tag it in the build tag.
-                nvr_dict = kobo.rpmlib.parse_nvr(nvr)
-                self._send_tag(nvr_dict['name'], dest_tag=False)
+                # from the nvr and then tag it in the build tag. Kobo doesn't work when parsing
+                # the NVR of a component with a module dist-tag, so we must manually do it.
+                package_name = nvr.split('.module')[0].rsplit('-', 2)[0]
+                # When INSTANT_COMPLETE is on, the components are already in the build tag
+                if self.INSTANT_COMPLETE is False:
+                    self._send_tag(package_name, dest_tag=False)
         elif self.backend == 'testlocal':
             self._send_repo_done()
 
@@ -212,14 +215,14 @@ class FakeModuleBuilder(GenericBuilder):
         )
         module_build_service.scheduler.consumer.work_queue_put(msg)
 
-    def _send_build_change(self, state, source, build_id):
+    def _send_build_change(self, state, name, build_id):
         # build_id=1 and task_id=1 are OK here, because we are building just
         # one RPM at the time.
         msg = module_build_service.messaging.KojiBuildChange(
             msg_id='a faked internal message',
             build_id=build_id,
             task_id=build_id,
-            build_name=path.basename(source),
+            build_name=name,
             build_new_state=state,
             build_release="1",
             build_version="1"
@@ -235,12 +238,8 @@ class FakeModuleBuilder(GenericBuilder):
 
         if FakeModuleBuilder.BUILD_STATE != "BUILDING":
             self._send_build_change(
-                koji.BUILD_STATES[FakeModuleBuilder.BUILD_STATE], source,
+                koji.BUILD_STATES[FakeModuleBuilder.BUILD_STATE], artifact_name,
                 FakeModuleBuilder._build_id)
-
-        if self.backend == 'test' and FakeModuleBuilder.BUILD_STATE == 'COMPLETE':
-            # Tag the build in the -build tag
-            self._send_tag(artifact_name, dest_tag=False)
 
         reason = "Submitted %s to Koji" % (artifact_name)
         return FakeModuleBuilder._build_id, koji.BUILD_STATES['BUILDING'], reason, None
@@ -264,9 +263,10 @@ class FakeModuleBuilder(GenericBuilder):
                 component_build.module_build.mmd())
             # We don't know the version or release, so just use a random one here
             nvr = '{0}-1.0-1.{1}'.format(component_build.package, disttag)
+            component_build.state = koji.BUILD_STATES['COMPLETE']
             component_build.nvr = nvr
-            component_build.task_id = self._build_id + 51234
-            component_build.state = koji.BUILD_STATES['BUILDING']
+            component_build.task_id = component_build.id + 51234
+            component_build.state_reason = 'Found existing build'
             nvr_dict = kobo.rpmlib.parse_nvr(component_build.nvr)
             # Send a message stating the build is complete
             msgs.append(module_build_service.messaging.KojiBuildChange(
@@ -346,8 +346,8 @@ class TestBuild(unittest.TestCase):
 
         # Check that components are tagged after the batch is built.
         tag_groups = []
-        tag_groups.append(set([u'perl-Tangerine?#f24-1-1', u'perl-List-Compare?#f25-1-1']))
-        tag_groups.append(set([u'tangerine?#f23-1-1']))
+        tag_groups.append(set(['perl-Tangerine-1-1', 'perl-List-Compare-1-1']))
+        tag_groups.append(set(['tangerine-1-1']))
 
         def on_tag_artifacts_cb(cls, artifacts, dest_tag=True):
             self.assertEqual(tag_groups.pop(0), set(artifacts))
@@ -357,9 +357,9 @@ class TestBuild(unittest.TestCase):
         # Check that the components are added to buildroot after the batch
         # is built.
         buildroot_groups = []
-        buildroot_groups.append(set([u'module-build-macros-0.1-1.module+fc4ed5f7.src.rpm-1-1']))
-        buildroot_groups.append(set([u'perl-Tangerine?#f24-1-1', u'perl-List-Compare?#f25-1-1']))
-        buildroot_groups.append(set([u'tangerine?#f23-1-1']))
+        buildroot_groups.append(set(['module-build-macros-1-1']))
+        buildroot_groups.append(set(['perl-Tangerine-1-1', 'perl-List-Compare-1-1']))
+        buildroot_groups.append(set(['tangerine-1-1']))
 
         def on_buildroot_add_artifacts_cb(cls, artifacts, install):
             self.assertEqual(buildroot_groups.pop(0), set(artifacts))
@@ -738,9 +738,7 @@ class TestBuild(unittest.TestCase):
         def on_build_cb(cls, artifact_name, source):
             # Next components *after* the module-build-macros will fail
             # to build.
-            if artifact_name.startswith("module-build-macros"):
-                cls._send_tag(artifact_name)
-            else:
+            if not artifact_name.startswith("module-build-macros"):
                 FakeModuleBuilder.BUILD_STATE = "FAILED"
 
         FakeModuleBuilder.on_build_cb = on_build_cb
