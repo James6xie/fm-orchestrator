@@ -85,13 +85,13 @@ def _finalize(config, session, msg, state):
     ]
     if not unbuilt_components_in_batch:
         failed_components_in_batch = [
-            c.nvr for c in parent.current_batch()
+            c for c in parent.current_batch()
             if (c.state in [koji.BUILD_STATES['FAILED'],
                             koji.BUILD_STATES['CANCELED']])
         ]
 
         built_components_in_batch = [
-            c.nvr for c in parent.current_batch()
+            c for c in parent.current_batch()
             if c.state == koji.BUILD_STATES['COMPLETE']
         ]
 
@@ -115,16 +115,25 @@ def _finalize(config, session, msg, state):
                 'components::_finalize: fake msg',
                 builder.module_build_tag['name'])]
         else:
+            built_component_nvrs_in_batch = [c.nvr for c in built_components_in_batch]
             # tag && add to srpm-build group if neccessary
-            log.info("Batch done.  Tagging %i components." % len(
-                built_components_in_batch))
-            log.debug("%r" % built_components_in_batch)
+            log.info("Batch done.  Tagging %i component(s) in the build tag." % len(
+                built_component_nvrs_in_batch))
+            log.debug("%r" % built_component_nvrs_in_batch)
+            # TODO: install=component_build.build_time_only works here because module-build-macros
+            # is alone in its batch and the only component with build_time_only set. All other
+            # batches will have install=False. If we expand to have batches with a mix of
+            # build_time_only and not components, then this logic will need to change.
             builder.buildroot_add_artifacts(
-                built_components_in_batch, install=component_build.build_time_only)
+                built_component_nvrs_in_batch, install=component_build.build_time_only)
 
-            # Do not tag packages which belong to -build tag to final tag.
-            if not component_build.build_time_only:
-                builder.tag_artifacts(built_components_in_batch)
+            # Do not tag packages which only belong to the build tag to the dest tag
+            component_nvrs_to_tag_in_dest = [c.nvr for c in built_components_in_batch
+                                             if c.build_time_only is False]
+            log.info("Tagging %i component(s) in the dest tag." % len(
+                component_nvrs_to_tag_in_dest))
+            if component_nvrs_to_tag_in_dest:
+                builder.tag_artifacts(component_nvrs_to_tag_in_dest)
 
         session.commit()
     elif (any([c.state != koji.BUILD_STATES['BUILDING']
