@@ -298,12 +298,6 @@ def wait(config, session, msg):
         session.commit()
         return []
 
-    # Build the module-build-macros
-    # inject dist-tag into buildroot
-    srpm = builder.get_disttag_srpm(
-        disttag=".%s" % get_rpm_release_from_mmd(build.mmd()),
-        module_build=build)
-
     log.debug("Starting build batch 1")
     build.batch = 1
     session.commit()
@@ -314,6 +308,9 @@ def wait(config, session, msg):
         session, artifact_name, build.id)
     further_work = []
     if not component_build:
+        srpm = builder.get_disttag_srpm(
+            disttag=".%s" % get_rpm_release_from_mmd(build.mmd()),
+            module_build=build)
         component_build = models.ComponentBuild(
             module_id=build.id,
             package=artifact_name,
@@ -328,6 +325,7 @@ def wait(config, session, msg):
         session.refresh(component_build)
         msgs = builder.recover_orphaned_artifact(component_build)
         if msgs:
+            log.info('Found an existing module-build-macros build')
             further_work += msgs
         # There was no existing artifact found, so lets submit the build instead
         else:
@@ -342,6 +340,7 @@ def wait(config, session, msg):
         # first
         msgs = builder.recover_orphaned_artifact(component_build)
         if msgs:
+            log.info('Found an existing module-build-macros build')
             further_work += msgs
         else:
             task_id, state, reason, nvr = builder.build(artifact_name=artifact_name, source=srpm)
