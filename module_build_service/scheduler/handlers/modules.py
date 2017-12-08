@@ -337,7 +337,14 @@ def wait(config, session, msg):
             component_build.reason = reason
             component_build.nvr = nvr
     elif component_build.state != koji.BUILD_STATES['COMPLETE']:
-        task_id, state, reason, nvr = builder.build(artifact_name=artifact_name, source=srpm)
+        # It's possible that the build succeeded in the builder but some other step failed which
+        # caused module-build-macros to be marked as failed in MBS, so check to see if it exists
+        # first
+        msgs = builder.recover_orphaned_artifact(component_build)
+        if msgs:
+            further_work += msgs
+        else:
+            task_id, state, reason, nvr = builder.build(artifact_name=artifact_name, source=srpm)
 
     session.add(component_build)
     build.transition(config, state="build")
