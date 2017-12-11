@@ -936,8 +936,8 @@ def record_component_builds(mmd, module, initial_batch=1,
 
 def submit_module_build_from_yaml(username, handle, stream=None, skiptests=False,
                                   optional_params=None):
-    yaml = handle.read()
-    mmd = load_mmd(yaml)
+    yaml_file = handle.read()
+    mmd = load_mmd(yaml_file)
 
     # Mimic the way how default values are generated for modules that are stored in SCM
     # We can take filename as the module name as opposed to repo name,
@@ -952,7 +952,7 @@ def submit_module_build_from_yaml(username, handle, stream=None, skiptests=False
     if skiptests:
         mmd.buildopts.rpms.macros += "\n\n%__spec_check_pre exit 0\n"
 
-    return submit_module_build(username, None, mmd, None, yaml, optional_params)
+    return submit_module_build(username, None, mmd, None, optional_params)
 
 
 _url_check_re = re.compile(r"^[^:/]+:.*$")
@@ -968,10 +968,10 @@ def submit_module_build_from_scm(username, url, branch, allow_local_url=False,
         url = "file://" + url
     mmd, scm = _fetch_mmd(url, branch, allow_local_url)
 
-    return submit_module_build(username, url, mmd, scm, yaml, optional_params)
+    return submit_module_build(username, url, mmd, scm, optional_params)
 
 
-def submit_module_build(username, url, mmd, scm, yaml, optional_params=None):
+def submit_module_build(username, url, mmd, scm, optional_params=None):
     import koji  # Placed here to avoid py2/py3 conflicts...
 
     # Import it here, because SCM uses utils methods

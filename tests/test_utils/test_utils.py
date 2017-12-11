@@ -698,10 +698,8 @@ class TestUtils(unittest.TestCase):
             mock_submit_args = mock_submit.call_args[0]
             username_arg = mock_submit_args[0]
             mmd_arg = mock_submit_args[2]
-            modulemd_yaml_arg = mock_submit_args[4]
             assert mmd_arg.stream == stream
             assert "\n\n%__spec_check_pre exit 0\n" in mmd_arg.buildopts.rpms.macros
-            assert modulemd_yaml_arg == modulemd_yaml
             assert username_arg == username
         rmtree(module_dir)
 
