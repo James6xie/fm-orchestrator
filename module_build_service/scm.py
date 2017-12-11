@@ -129,7 +129,7 @@ class SCM(object):
         return None
 
     @staticmethod
-    @module_build_service.utils.retry(wait_on=UnprocessableEntity)
+    @module_build_service.utils.retry(timeout=60, interval=15, wait_on=UnprocessableEntity)
     def _run(cmd, chdir=None, log_stdout=False):
         proc = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE, cwd=chdir)
         stdout, stderr = proc.communicate()
