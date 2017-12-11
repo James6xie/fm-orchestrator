@@ -48,8 +48,7 @@ from module_build_service import conf, db
 from module_build_service.errors import (Forbidden, Conflict)
 import module_build_service.messaging
 from multiprocessing.dummy import Pool as ThreadPool
-import module_build_service.pdc
-from module_build_service.pdc import resolve_requires
+import module_build_service.resolver
 
 import concurrent.futures
 
@@ -773,18 +772,18 @@ def format_mmd(mmd, scmurl, session=None):
         else:
             mmd.xmd['mbs']['commit'] = scm.get_latest()
 
-    pdc = module_build_service.pdc.get_pdc_client_session(conf)
+    resolver = module_build_service.resolver.GenericResolver.create(conf)
 
     # Resolve Build-requires.
     if mmd.buildrequires:
-        mmd.xmd['mbs']['buildrequires'] = resolve_requires(
-            pdc, mmd.buildrequires)
+        mmd.xmd['mbs']['buildrequires'] = resolver.resolve_requires(
+            mmd.buildrequires)
     else:
         mmd.xmd['mbs']['buildrequires'] = {}
 
     # Resolve Requires.
     if mmd.requires:
-        mmd.xmd['mbs']['requires'] = resolve_requires(pdc, mmd.requires)
+        mmd.xmd['mbs']['requires'] = resolver.resolve_requires(mmd.requires)
     else:
         mmd.xmd['mbs']['requires'] = {}
 

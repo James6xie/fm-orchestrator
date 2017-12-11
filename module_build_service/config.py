@@ -37,6 +37,11 @@ from module_build_service import logger
 # currently relies on this file, so we can't import it
 SUPPORTED_STRATEGIES = ['changed-and-after', 'only-changed', 'all']
 
+SUPPORTED_RESOLVERS = {
+    'pdc': {'builders': ['koji', 'mock', 'copr']},
+    'copr': {'builders': ['copr', 'mock']}
+}
+
 
 def init_config(app):
     """ Configure MBS and the Flask app
@@ -433,7 +438,12 @@ class Config(object):
             'type': int,
             'default': 180,
             'desc': ('Time in days when to cleanup failed module builds and transition them to '
-                     'the "garbage" state.')}
+                     'the "garbage" state.')},
+        'resolver': {
+            'type': str,
+            'default': 'pdc',
+            'desc': 'Where to look up for modules. Note that this can (and '
+                    'probably will) be builder-specific.'},
     }
 
     def __init__(self, conf_section_obj):
@@ -625,3 +635,9 @@ class Config(object):
         if num_days < 1:
             raise ValueError('CLEANUP_FAILED_BUILDS_TIME must be set to 1 or more days')
         self._cleanup_failed_builds_time = num_days
+
+    def _setifok_resolver(self, s):
+        if s not in SUPPORTED_RESOLVERS.keys():
+            raise ValueError('The resolver "{0}" is not supported. Choose from: {1}'
+                             .format(s, ', '.join(SUPPORTED_RESOLVERS.keys())))
+        self._resolver = s

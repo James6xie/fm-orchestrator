@@ -57,6 +57,9 @@ setup(name='module-build-service',
               # iterate without us blocking him.
               'copr = module_build_service.builder.CoprModuleBuilder:CoprModuleBuilder',
           ],
+          'mbs.resolver_backends': [
+              'pdc = module_build_service.resolver.PDCResolver:PDCResolver',
+          ],
       },
       scripts=["contrib/mbs-build"],
       data_files=[('/etc/module-build-service/', ['conf/cacert.pem',

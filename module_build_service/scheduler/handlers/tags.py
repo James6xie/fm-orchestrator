@@ -24,7 +24,6 @@
 """ Handlers for repo change events on the message bus. """
 
 import module_build_service.builder
-import module_build_service.pdc
 import logging
 import koji
 from module_build_service import models, log, messaging

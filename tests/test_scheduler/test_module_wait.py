@@ -56,10 +56,10 @@ class TestModuleWait(unittest.TestCase):
         except Exception:
             pass
 
-    @mock.patch('module_build_service.builder.GenericBuilder.create_from_module')
-    @mock.patch('module_build_service.models.ModuleBuild.from_module_event')
-    @mock.patch('module_build_service.pdc')
-    def test_init_basic(self, pdc, from_module_event, create_builder):
+    @patch('module_build_service.builder.GenericBuilder.create_from_module')
+    @patch('module_build_service.models.ModuleBuild.from_module_event')
+    @patch('module_build_service.resolver.GenericResolver')
+    def test_init_basic(self, resolver, from_module_event, create_builder):
         builder = mock.Mock()
         builder.get_disttag_srpm.return_value = 'some srpm disttag'
         builder.build.return_value = 1234, 1, "", None
@@ -95,14 +95,14 @@ class TestModuleWait(unittest.TestCase):
            return_value={'build': [], 'srpm-build': []})
     @patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
     @patch("module_build_service.builder.GenericBuilder.create_from_module")
-    @patch('module_build_service.pdc')
+    @patch('module_build_service.resolver.PDCResolver')
+    @patch('module_build_service.resolver.GenericResolver')
     def test_new_repo_called_when_macros_reused(
-            self, pdc, create_builder, koji_get_session, dbg):
+            self, generic_resolver, resolver, create_builder, koji_get_session, dbg):
         """
         Test that newRepo is called when module-build-macros build is reused.
         """
         with app.app_context():
-            pdc.get_module_tag.return_value = "module-testmodule-master-20170109091357"
             scheduler_init_data()
             koji_session = mock.MagicMock()
             koji_session.newRepo.return_value = 123456
@@ -115,6 +115,11 @@ class TestModuleWait(unittest.TestCase):
             builder.build.return_value = (1234, koji.BUILD_STATES['COMPLETE'], "",
                                           "module-build-macros-1-1")
             create_builder.return_value = builder
+
+            resolver = mock.MagicMock()
+            resolver.backend = 'pdc'
+            resolver.get_module_tag.return_value = "module-testmodule-master-20170109091357"
+            generic_resolver.create.return_value = resolver
 
             msg = module_build_service.messaging.MBSModule(msg_id=None, module_build_id=1,
                                                            module_build_state='some state')
@@ -132,14 +137,14 @@ class TestModuleWait(unittest.TestCase):
            return_value={'build': [], 'srpm-build': []})
     @patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
     @patch("module_build_service.builder.GenericBuilder.create_from_module")
-    @patch('module_build_service.pdc')
+    @patch('module_build_service.resolver.PDCResolver')
+    @patch('module_build_service.resolver.GenericResolver')
     def test_new_repo_not_called_when_macros_not_reused(
-            self, pdc, create_builder, koji_get_session, dbg):
+            self, generic_resolver, resolver, create_builder, koji_get_session, dbg):
         """
         Test that newRepo is called everytime for module-build-macros
         """
         with app.app_context():
-            pdc.get_module_tag.return_value = "module-testmodule-master-20170109091357"
             scheduler_init_data()
             koji_session = mock.MagicMock()
             koji_session.newRepo.return_value = 123456
@@ -152,6 +157,11 @@ class TestModuleWait(unittest.TestCase):
             builder.build.return_value = (1234, koji.BUILD_STATES['BUILDING'], "",
                                           "module-build-macros-1-1")
             create_builder.return_value = builder
+
+            resolver = mock.MagicMock()
+            resolver.backend = 'pdc'
+            resolver.get_module_tag.return_value = "module-testmodule-master-20170109091357"
+            generic_resolver.create.return_value = resolver
 
             msg = module_build_service.messaging.MBSModule(msg_id=None, module_build_id=1,
                                                            module_build_state='some state')
@@ -163,19 +173,17 @@ class TestModuleWait(unittest.TestCase):
            return_value={'build': [], 'srpm-build': []})
     @patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
     @patch("module_build_service.builder.GenericBuilder.create_from_module")
-    @patch('module_build_service.pdc')
+    @patch('module_build_service.resolver.PDCResolver')
+    @patch('module_build_service.resolver.GenericResolver')
     def test_set_cg_build_koji_tag_fallback_to_default(
-            self, pdc, create_builder, koji_get_session, dbg):
+            self, generic_resolver, resolver, create_builder, koji_get_session, dbg):
         """
         Test that build.cg_build_koji_tag fallbacks to default tag.
         """
         with app.app_context():
-            pdc.get_module_tag.return_value = "module-testmodule-master-20170109091357"
             base_mmd = _modulemd.ModuleMetadata()
             base_mmd.name = "base-runtime"
             base_mmd.stream = "f27"
-            pdc.get_module_build_dependencies.return_value = {
-                "module-bootstrap-tag": base_mmd}
 
             scheduler_init_data()
             koji_session = mock.MagicMock()
@@ -189,6 +197,13 @@ class TestModuleWait(unittest.TestCase):
             builder.build.return_value = (1234, koji.BUILD_STATES['BUILDING'], "",
                                           "module-build-macros-1-1")
             create_builder.return_value = builder
+
+            resolver = mock.MagicMock()
+            resolver.backend = 'pdc'
+            resolver.get_module_tag.return_value = "module-testmodule-master-20170109091357"
+            resolver.get_module_build_dependencies.return_value = {
+                "module-bootstrap-tag": base_mmd}
+            generic_resolver.create.return_value = resolver
 
             msg = module_build_service.messaging.MBSModule(msg_id=None, module_build_id=1,
                                                            module_build_state='some state')
@@ -201,21 +216,19 @@ class TestModuleWait(unittest.TestCase):
            return_value={'build': [], 'srpm-build': []})
     @patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
     @patch("module_build_service.builder.GenericBuilder.create_from_module")
-    @patch('module_build_service.pdc')
+    @patch('module_build_service.resolver.PDCResolver')
+    @patch('module_build_service.resolver.GenericResolver')
     @patch("module_build_service.config.Config.base_module_names",
            new_callable=mock.PropertyMock, return_value=set(["base-runtime"]))
     def test_set_cg_build_koji_tag(
-            self, cfg, pdc, create_builder, koji_get_session, dbg):
+            self, cfg, generic_resolver, resolver, create_builder, koji_get_session, dbg):
         """
         Test that build.cg_build_koji_tag is set.
         """
         with app.app_context():
-            pdc.get_module_tag.return_value = "module-testmodule-master-20170109091357"
             base_mmd = _modulemd.ModuleMetadata()
             base_mmd.name = "base-runtime"
             base_mmd.stream = "f27"
-            pdc.get_module_build_dependencies.return_value = {
-                "module-bootstrap-tag": base_mmd}
 
             scheduler_init_data()
             koji_session = mock.MagicMock()
@@ -229,6 +242,13 @@ class TestModuleWait(unittest.TestCase):
             builder.build.return_value = (1234, koji.BUILD_STATES['BUILDING'], "",
                                           "module-build-macros-1-1")
             create_builder.return_value = builder
+
+            resolver = mock.MagicMock()
+            resolver.backend = 'pdc'
+            resolver.get_module_tag.return_value = "module-testmodule-master-20170109091357"
+            resolver.get_module_build_dependencies.return_value = {
+                "module-bootstrap-tag": base_mmd}
+            generic_resolver.create.return_value = resolver
 
             msg = module_build_service.messaging.MBSModule(msg_id=None, module_build_id=1,
                                                            module_build_state='some state')

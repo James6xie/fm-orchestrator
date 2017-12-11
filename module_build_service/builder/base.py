@@ -34,7 +34,8 @@ from abc import ABCMeta, abstractmethod
 from requests.exceptions import ConnectionError
 
 from module_build_service import conf, log, db
-from module_build_service import pdc, models
+from module_build_service import models
+import module_build_service.resolver
 import module_build_service.scm
 import module_build_service.utils
 from module_build_service.utils import create_dogpile_key_generator_func
@@ -117,6 +118,13 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
         Any additional arguments are optional extras which can be passed along
         and are implementation-dependent.
         """
+        # check if the backend is within allowed backends for the used resolver
+        resolver = module_build_service.resolver.GenericResolver.create(config)
+        if not resolver.is_builder_compatible(backend):
+            raise ValueError("Builder backend '{}' is not compatible with "
+                             "resolver backend '{}'. Check your configuration."
+                             .format(backend, resolver.backend))
+
         if backend in GenericBuilder.backends:
             return GenericBuilder.backends[backend](owner=owner, module=module,
                                                     config=config, **extra)
@@ -309,16 +317,16 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
 
         try:
             mmd = module.mmd()
-            pdc_session = pdc.get_pdc_client_session(conf)
+            resolver = module_build_service.resolver.GenericResolver.create(conf)
 
             # Resolve default buildroot groups using the PDC, but only for
             # non-local modules.
-            pdc_groups = pdc.resolve_profiles(pdc_session, mmd,
-                                              ('buildroot', 'srpm-buildroot'))
+            groups = resolver.resolve_profiles(
+                mmd, ('buildroot', 'srpm-buildroot'))
 
             groups = {
-                'build': pdc_groups['buildroot'],
-                'srpm-build': pdc_groups['srpm-buildroot'],
+                'build': groups['buildroot'],
+                'srpm-build': groups['srpm-buildroot'],
             }
         except ValueError:
             reason = "Failed to gather buildroot groups from SCM."

@@ -26,7 +26,6 @@
 import logging
 
 import module_build_service.builder
-import module_build_service.pdc
 
 import koji
 

@@ -25,7 +25,7 @@
 
 from module_build_service import conf, models, log, build_logs
 import module_build_service.builder
-import module_build_service.pdc
+import module_build_service.resolver
 import module_build_service.utils
 import module_build_service.messaging
 from module_build_service.utils import (
@@ -201,7 +201,7 @@ def wait(config, session, msg):
     tag = None
     dependencies = []
 
-    pdc_session = module_build_service.pdc.get_pdc_client_session(config)
+    resolver = module_build_service.resolver.GenericResolver.create(config)
 
     @module_build_service.utils.retry(
         interval=10, timeout=120,
@@ -218,9 +218,9 @@ def wait(config, session, msg):
             # In case of non-koji backend, we want to get the dependencies
             # of the local module build based on ModuleMetadata, because the
             # local build is not stored in PDC and therefore we cannot query
-            # it using the `pdc_query` as for Koji below.
-            dependencies = module_build_service.pdc.get_module_build_dependencies(
-                pdc_session, build.mmd(), strict=True).keys()
+            # it using the `query` as for Koji below.
+            dependencies = resolver.get_module_build_dependencies(
+                build.mmd(), strict=True).keys()
 
             # We also don't want to get the tag name from the PDC, but just
             # generate it locally instead.
@@ -228,16 +228,16 @@ def wait(config, session, msg):
                             module_info['name'],
                             str(module_info['stream']), str(module_info['version'])])
         else:
-            # For Koji backend, query the PDC for the module we are going to
+            # For Koji backend, query for the module we are going to
             # build to get the koji_tag and deps from it.
-            pdc_query = {
+            query = {
                 'name': module_info['name'],
                 'version': module_info['stream'],
                 'release': module_info['version'],
             }
-            log.info("Getting %s deps from pdc (query %r)" % (module_info['name'], pdc_query))
-            deps_dict = module_build_service.pdc.get_module_build_dependencies(
-                pdc_session, pdc_query, strict=True)
+            log.info("Getting %s deps (query %r)" % (module_info['name'], query))
+            deps_dict = resolver.get_module_build_dependencies(
+                query, strict=True)
             dependencies = set(deps_dict.keys())
 
             # Find out the name of Koji tag to which the module's Content
@@ -250,9 +250,9 @@ def wait(config, session, msg):
                         module_names_streams[base_module_name])
                     break
 
-            log.info("Getting %s tag from pdc (query %r)" % (module_info['name'], pdc_query))
-            tag = module_build_service.pdc.get_module_tag(
-                pdc_session, pdc_query, strict=True)
+            log.info("Getting %s tag (query %r)" % (module_info['name'], query))
+            tag = resolver.get_module_tag(
+                query, strict=True)
 
         return dependencies, tag, cg_build_koji_tag
 

@@ -23,11 +23,10 @@
 import os
 import tarfile
 from datetime import datetime, timedelta
+from mock import patch
 
 import modulemd
-
 import module_build_service
-import module_build_service.pdc
 from module_build_service import db
 from module_build_service.utils import get_rpm_release
 from module_build_service.config import init_config
@@ -37,6 +36,18 @@ from module_build_service.models import ModuleBuild, ComponentBuild, make_sessio
 base_dir = os.path.dirname(__file__)
 app = module_build_service.app
 conf = init_config(app)
+
+
+def patch_config():
+    # add test builders for all resolvers
+    with_test_builders = dict()
+    for k, v in module_build_service.config.SUPPORTED_RESOLVERS.items():
+        v['builders'].extend(['test', 'testlocal'])
+        with_test_builders[k] = v
+    patch("module_build_service.config.SUPPORTED_RESOLVERS", with_test_builders)
+
+
+patch_config()
 
 
 def uncompress_vcrpy_cassette():
