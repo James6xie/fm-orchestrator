@@ -87,7 +87,7 @@ class ModuleBuildLogs(object):
     """
     Manages ModuleBuildFileHandler logging handlers.
     """
-    def __init__(self, build_logs_dir, build_logs_name_format):
+    def __init__(self, build_logs_dir, build_logs_name_format, level=logging.INFO):
         """
         Creates new ModuleBuildLogs instance. Module build logs are stored
         to `build_logs_dir` directory.
@@ -95,6 +95,7 @@ class ModuleBuildLogs(object):
         self.handlers = {}
         self.build_logs_dir = build_logs_dir
         self.build_logs_name_format = build_logs_name_format
+        self.level = level
 
     def path(self, build):
         """
@@ -122,8 +123,10 @@ class ModuleBuildLogs(object):
 
         # Create and add ModuleBuildFileHandler.
         handler = ModuleBuildFileHandler(build.id, self.path(build))
+        handler.setLevel(self.level)
         handler.setFormatter(logging.Formatter(log_format, None))
         log = logging.getLogger()
+        log.setLevel(self.level)
         log.addHandler(handler)
 
         self.handlers[build.id] = handler

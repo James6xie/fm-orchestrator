@@ -88,7 +88,8 @@ class TestLogger(unittest.TestCase):
         self.assertTrue(os.path.exists(path))
         with open(path, "r") as f:
             data = f.read()
-            for level in ["DEBUG", "INFO", "WARNING", "ERROR"]:
+            # Note that DEBUG is not present unless configured server-wide.
+            for level in ["INFO", "WARNING", "ERROR"]:
                 self.assertTrue(data.find("%s - ignore this test msg1" % level) != -1)
 
         # Try to log more messages when build_log for module 1 is stopped.
