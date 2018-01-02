@@ -10,7 +10,6 @@ $script = <<SCRIPT
         fedmsg-relay \
         fedpkg \
         gcc \
-        gcc \
         gcc-c++ \
         git \
         koji \

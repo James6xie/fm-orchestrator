@@ -9,6 +9,7 @@ futures # Python 2 only
 httplib2
 kerberos
 kobo>=0.5.0
+koji
 ldap3
 m2crypto
 m2ext
