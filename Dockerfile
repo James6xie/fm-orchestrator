@@ -14,7 +14,6 @@ RUN dnf install -y \
         python-pip \
         python-qpid \
         python-futures \
-        python-urlgrabber \
         python2-cffi \
         python2-cryptography \
         python2-pdc-client \

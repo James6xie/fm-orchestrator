@@ -24,7 +24,6 @@ $script = <<SCRIPT
         python-m2ext \
         python-mock \
         python-qpid \
-        python-urlgrabber \
         python-virtualenv \
         python-futures \
         redhat-rpm-config \

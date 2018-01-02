@@ -21,9 +21,8 @@ psutil
 pyOpenSSL
 python-fedora
 qpid-python
-requests # Client only
+requests
 requests_kerberos # Client only
 six
 sqlalchemy
 tabulate
-urlgrabber

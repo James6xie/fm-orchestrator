@@ -1,12 +1,13 @@
 import os
-import sys
 import shutil
 import subprocess
 import munch
 import errno
 import logging
-import urlgrabber.grabber as grabber
-import urlgrabber.progress as progress
+from multiprocessing.dummy import Pool as ThreadPool
+
+import requests
+
 from module_build_service import log
 
 
@@ -85,8 +86,11 @@ def create_local_repo_from_koji_tag(config, tag, repo_dir, archs=None):
     # Prepare pathinfo we will use to generate the URL.
     pathinfo = koji.PathInfo(topdir=session.opts["topurl"])
 
+    # When True, we want to run the createrepo_c.
+    repo_changed = False
+
     # Prepare the list of URLs to download
-    urls = []
+    download_args = []
     for rpm in rpms:
         build_info = builds[rpm['build_id']]
 
@@ -96,10 +100,18 @@ def create_local_repo_from_koji_tag(config, tag, repo_dir, archs=None):
             continue
 
         fname = pathinfo.rpm(rpm)
-        url = pathinfo.build(build_info) + '/' + fname
-        urls.append((url, os.path.basename(fname), rpm['size']))
+        relpath = os.path.basename(fname)
+        local_fn = os.path.join(repo_dir, relpath)
+        # Download only when the RPM is not downloaded or the size does not match.
+        if not os.path.exists(local_fn) or os.path.getsize(local_fn) != rpm['size']:
+            if os.path.exists(local_fn):
+                os.remove(local_fn)
+            repo_changed = True
+            url = pathinfo.build(build_info) + '/' + fname
+            download_args.append((url, local_fn))
 
-    log.info("Downloading %d packages from Koji tag %s to %s" % (len(urls), tag, repo_dir))
+    log.info(
+        "Downloading %d packages from Koji tag %s to %s" % (len(download_args), tag, repo_dir))
 
     # Create the output directory
     try:
@@ -108,25 +120,26 @@ def create_local_repo_from_koji_tag(config, tag, repo_dir, archs=None):
         if exception.errno != errno.EEXIST:
             raise
 
-    # When True, we want to run the createrepo_c.
-    repo_changed = False
+    def _download_file(url_and_dest):
+        """
+        Download a file in a memory efficient manner
+        :param url_and_dest: a tuple containing the URL and the destination to download to
+        :return: None
+        """
+        log.info("Downloading {0}...".format(url_and_dest[0]))
+        if len(url_and_dest) != 2:
+            raise ValueError("url_and_dest must have two values")
 
-    # Donload the RPMs.
-    pg = progress.TextMeter(sys.stdout)
-    multi_pg = progress.TextMultiFileMeter(sys.stdout)
-    for url, relpath, size in urls:
-        local_fn = os.path.join(repo_dir, relpath)
+        rv = requests.get(url_and_dest[0], stream=True, timeout=60)
+        with open(url_and_dest[1], "wb") as f:
+            for chunk in rv.iter_content(chunk_size=1024):
+                if chunk:
+                    f.write(chunk)
 
-        # Download only when RPM is missing or the size does not match.
-        if not os.path.exists(local_fn) or os.path.getsize(local_fn) != size:
-            if os.path.exists(local_fn):
-                os.remove(local_fn)
-            repo_changed = True
-            grabber.urlgrab(url, filename=local_fn, progress_obj=pg,
-                            multi_progress_obj=multi_pg, async=(tag, 5),
-                            text=relpath)
-
-    grabber.parallel_wait()
+    # Download the RPMs four at a time.
+    pool = ThreadPool(4)
+    pool.map(_download_file, download_args)
+    pool.close()
 
     # If we downloaded something, run the createrepo_c.
     if repo_changed:
