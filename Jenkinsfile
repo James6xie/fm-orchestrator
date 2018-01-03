@@ -41,7 +41,7 @@ node('factory2'){
 
         stage('Run Test Suite') {
             timeout(600) {
-                onmyduffynode 'cd fm-orchestrator && flake8 --ignore E731 --exclude .tox,.git,module_build_service/migrations && pytest -v tests/'
+                onmyduffynode 'cd fm-orchestrator && tox -r -e flake8 && tox -e py27'
             }
         }
 
