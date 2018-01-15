@@ -120,7 +120,7 @@ class TestSCMModule(unittest.TestCase):
         scm.get_module_yaml()
 
     @raises(UnprocessableEntity)
-    def test_get_latest_incorect_component_branch(self):
+    def test_get_latest_incorrect_component_branch(self):
         scm = module_build_service.scm.SCM(repo_path)
         scm.get_latest('foobar')
 
@@ -138,7 +138,7 @@ class TestSCMModule(unittest.TestCase):
         assert commit == ref
 
     @raises(UnprocessableEntity)
-    def test_get_latest_incorect_component_ref(self):
+    def test_get_latest_incorrect_component_ref(self):
         scm = module_build_service.scm.SCM(repo_path)
         scm.get_latest('15481faa232d66589e660cc301179867fb00842c9')
 
