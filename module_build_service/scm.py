@@ -34,7 +34,7 @@ import tempfile
 import shutil
 import datetime
 
-from module_build_service import log
+from module_build_service import log, conf
 from module_build_service.errors import (
     Forbidden, ValidationError, UnprocessableEntity, ProgrammingError)
 import module_build_service.utils
@@ -129,7 +129,10 @@ class SCM(object):
         return None
 
     @staticmethod
-    @module_build_service.utils.retry(timeout=60, interval=15, wait_on=UnprocessableEntity)
+    @module_build_service.utils.retry(
+        timeout=conf.scm_net_timeout,
+        interval=conf.scm_net_retry_interval,
+        wait_on=UnprocessableEntity)
     def _run(cmd, chdir=None, log_stdout=False):
         proc = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE, cwd=chdir)
         stdout, stderr = proc.communicate()

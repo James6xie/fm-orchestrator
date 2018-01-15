@@ -354,6 +354,14 @@ class Config(object):
             'type': int,
             'default': 30,
             'desc': 'Global network retry interval for read/write operations, in seconds.'},
+        'scm_net_timeout': {
+            'type': int,
+            'default': 60,
+            'desc': 'Network timeout for SCM operations, in seconds.'},
+        'scm_net_retry_interval': {
+            'type': int,
+            'default': 15,
+            'desc': 'Network retry interval for SCM operations, in seconds.'},
         'no_auth': {
             'type': bool,
             'default': False,
