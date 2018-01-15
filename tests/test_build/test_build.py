@@ -40,7 +40,6 @@ from module_build_service import db, models, conf, build_logs
 
 from mock import patch, PropertyMock, Mock
 import kobo
-from modulemd import ModuleMetadata
 
 from tests import app, test_reuse_component_init_data, clean_database
 import json

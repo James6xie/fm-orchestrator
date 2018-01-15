@@ -337,19 +337,6 @@ class TestUtils(unittest.TestCase):
             db.session, new_module, 'tangerine')
         self.assertEqual(rv.package, 'tangerine')
 
-    def test_get_reusable_component_empty_scmurl(self):
-        test_reuse_component_init_data()
-
-        new_module = models.ModuleBuild.query.filter_by(id=2).one()
-        mmd = new_module.mmd()
-        mmd.xmd['mbs']['buildrequires'] = {'base-runtime': {}}
-        new_module.modulemd = mmd.dumps()
-        db.session.commit()
-
-        rv = module_build_service.utils.get_reusable_component(
-            db.session, new_module, 'tangerine')
-        self.assertEqual(rv, None)
-
     def test_get_reusable_component_different_perl_tangerine(self):
         test_reuse_component_init_data()
         second_module_build = models.ModuleBuild.query.filter_by(id=2).one()
@@ -404,6 +391,7 @@ class TestUtils(unittest.TestCase):
         mmd.xmd['mbs']['buildrequires']['base-runtime']['ref'] = \
             'da39a3ee5e6b4b0d3255bfef95601890afd80709'
         second_module_build.modulemd = mmd.dumps()
+        second_module_build.build_context = '37c6c57bedf4305ef41249c1794760b5cb8fad17'
         db.session.commit()
 
         plc_rv = module_build_service.utils.get_reusable_component(
@@ -434,6 +422,7 @@ class TestUtils(unittest.TestCase):
             }
         }
         second_module_build.modulemd = mmd.dumps()
+        second_module_build.build_context = '37c6c57bedf4305ef41249c1794760b5cb8fad17'
         db.session.commit()
 
         plc_rv = module_build_service.utils.get_reusable_component(

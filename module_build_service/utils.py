@@ -1209,27 +1209,6 @@ def get_reusable_component(session, module, component_name):
         log.info("Cannot re-use.  %r is the first module build." % module)
         return None
 
-    old_mmd = previous_module_build.mmd()
-
-    # Perform a sanity check to make sure that the buildrequires are the same
-    # as the buildrequires in xmd for the passed in mmd
-    if set(mmd.buildrequires.keys()) != set(mmd.xmd['mbs']['buildrequires'].keys()):
-        log.error(
-            'Cannot re-use.  The submitted module "{0}" has different keys in '
-            'mmd.buildrequires than in '
-            'mmd.xmd[\'mbs\'][\'buildrequires\']'.format(mmd.name))
-        return None
-    # Perform a sanity check to make sure that the buildrequires are the same
-    # as the buildrequires in xmd for the mmd of the previous module build
-    if set(old_mmd.buildrequires.keys()) != \
-            set(old_mmd.xmd['mbs']['buildrequires'].keys()):
-        log.error(
-            'Cannot re-use.  Version "{0}" of the module "{1}" has different '
-            'keys in mmd.buildrequires than in '
-            'mmd.xmd[\'mbs\'][\'buildrequires\']'
-            .format(previous_module_build.version, previous_module_build.name))
-        return None
-
     # If the chosen component for some reason was not found in the database,
     # or the ref is missing, something has gone wrong and the component cannot
     # be reused
@@ -1259,6 +1238,13 @@ def get_reusable_component(session, module, component_name):
     # At this point we've determined that both module builds contain the component
     # and the components share the same commit hash
     if module.rebuild_strategy == 'changed-and-after':
+        # Check to see that the previous module build has a context. It will be a non-default
+        # value only when its build_context and runtime_context properties are set.
+        if previous_module_build.context == '00000000':
+            log.error('Cannot re-use.  The submitted module "{0!r}" doesn\'t have a context.'
+                      .format(module))
+            return None
+
         # Make sure the batch number for the component that is trying to be reused
         # hasn't changed since the last build
         if prev_module_build_component.batch != new_module_build_component.batch:
@@ -1266,6 +1252,7 @@ def get_reusable_component(session, module, component_name):
             return None
 
         # If the mmd.buildopts.macros.rpms changed, we cannot reuse
+        old_mmd = previous_module_build.mmd()
         modulemd_macros = ""
         old_modulemd_macros = ""
         if mmd.buildopts and mmd.buildopts.rpms:
@@ -1278,21 +1265,9 @@ def get_reusable_component(session, module, component_name):
 
         # If the module buildrequires are different, then we can't reuse the
         # component
-        if mmd.buildrequires.keys() != old_mmd.buildrequires.keys():
+        if module.build_context != previous_module_build.build_context:
             log.info('Cannot re-use.  The set of module buildrequires changed')
             return None
-
-        # Make sure that the module buildrequires commit hashes are exactly the same
-        for br_module_name, br_module in \
-                mmd.xmd['mbs']['buildrequires'].items():
-            # Assumes that the streams have been replaced with commit hashes, so we
-            # can compare to see if they have changed. Since a build is unique to
-            # a commit hash, this is a safe test.
-            ref1 = br_module.get('ref')
-            ref2 = old_mmd.xmd['mbs']['buildrequires'][br_module_name].get('ref')
-            if not (ref1 and ref2) or ref1 != ref2:
-                log.info('Cannot re-use.  The module buildrequires hashes changed')
-                return None
 
         # At this point we've determined that both module builds contain the component
         # with the same commit hash and they are in the same batch. We've also determined
