@@ -24,24 +24,21 @@ node('factory2'){
 
     try{
         stage('Pre Setup Node'){
-            onmyduffynode 'yum -y install epel-release'
-            // We are using the system version of python-moksha-hub because it uses a version of Twisted that is 
-            // compatible with the system version of pyOpenSSL. This can all be shifted into a virtualenv once
-            // koji is on PyPi.
-            onmyduffynode 'yum -y install @development python-pip python-devel krb5-devel openssl-devel koji python-moksha-hub swig createrepo_c'
+            // Install EPEL and the SCLs repo
+            onmyduffynode 'yum -y install epel-release yum-config-manager centos-release-scl && yum-config-manager --enable rhel-server-rhscl-7-rpms'
+            onmyduffynode 'yum -y install python27 @development python-devel krb5-devel openssl-devel libffi-devel swig createrepo_c'
+            // Update pip and setuptools and install tox in the SCL environment
+            onmyduffynode 'scl enable python27 \'pip install --upgrade pip setuptools tox\''
         }
 
         stage('Clone Test Suite') {
             onmyduffynode "git clone -b \"${env.BRANCH_NAME}\" --single-branch --depth 1 https://pagure.io/fm-orchestrator"
         }
 
-        stage('Prepare Node') {
-            onmyduffynode 'cd fm-orchestrator && pip install -r requirements.txt && pip install -r test-requirements.txt && python setup.py develop'
-        }
-
         stage('Run Test Suite') {
-            timeout(600) {
-                onmyduffynode 'cd fm-orchestrator && tox -r -e flake8 && tox -e py27'
+            timeout(20) {
+                // Run tox in the SCL environment
+                onmyduffynode 'cd fm-orchestrator && scl enable python27 \'tox -r -e flake8\' && scl enable python27 \'tox -r -e py27\''
             }
         }
 
