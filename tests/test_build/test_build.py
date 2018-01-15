@@ -40,6 +40,7 @@ from module_build_service import db, models, conf, build_logs
 
 from mock import patch, PropertyMock, Mock
 import kobo
+from modulemd import ModuleMetadata
 
 from tests import app, test_reuse_component_init_data, clean_database
 import json
@@ -259,8 +260,8 @@ class FakeModuleBuilder(GenericBuilder):
     def recover_orphaned_artifact(self, component_build):
         msgs = []
         if self.INSTANT_COMPLETE:
-            disttag = module_build_service.utils.get_rpm_release_from_mmd(
-                component_build.module_build.mmd())
+            disttag = module_build_service.utils.get_rpm_release(
+                component_build.module_build)
             # We don't know the version or release, so just use a random one here
             nvr = '{0}-1.0-1.{1}'.format(component_build.package, disttag)
             component_build.state = koji.BUILD_STATES['COMPLETE']
@@ -780,9 +781,9 @@ class TestBuild(unittest.TestCase):
         # Check that components are tagged after the batch is built.
         tag_groups = []
         tag_groups.append(set(
-            ['perl-Tangerine-0.23-1.module_testmodule_master_20170109091357',
-             'perl-List-Compare-0.53-5.module_testmodule_master_20170109091357',
-             'tangerine-0.22-3.module_testmodule_master_20170109091357']))
+            ['perl-Tangerine-0.23-1.module+814cfa39',
+             'perl-List-Compare-0.53-5.module+814cfa39',
+             'tangerine-0.22-3.module+814cfa39']))
 
         def on_tag_artifacts_cb(cls, artifacts, dest_tag=True):
             if dest_tag is True:
@@ -791,9 +792,9 @@ class TestBuild(unittest.TestCase):
 
         buildtag_groups = []
         buildtag_groups.append(set(
-            ['perl-Tangerine-0.23-1.module_testmodule_master_20170109091357',
-             'perl-List-Compare-0.53-5.module_testmodule_master_20170109091357',
-             'tangerine-0.22-3.module_testmodule_master_20170109091357']))
+            ['perl-Tangerine-0.23-1.module+814cfa39',
+             'perl-List-Compare-0.53-5.module+814cfa39',
+             'tangerine-0.22-3.module+814cfa39']))
 
         def on_buildroot_add_artifacts_cb(cls, artifacts, install):
             self.assertEqual(buildtag_groups.pop(0), set(artifacts))
@@ -840,9 +841,9 @@ class TestBuild(unittest.TestCase):
         # Check that components are tagged after the batch is built.
         tag_groups = []
         tag_groups.append(set(
-            ['perl-Tangerine-0.23-1.module_testmodule_master_20170109091357',
-             'perl-List-Compare-0.53-5.module_testmodule_master_20170109091357',
-             'tangerine-0.22-3.module_testmodule_master_20170109091357']))
+            ['perl-Tangerine-0.23-1.module+814cfa39',
+             'perl-List-Compare-0.53-5.module+814cfa39',
+             'tangerine-0.22-3.module+814cfa39']))
 
         def on_tag_artifacts_cb(cls, artifacts, dest_tag=True):
             if dest_tag is True:
@@ -851,9 +852,9 @@ class TestBuild(unittest.TestCase):
 
         buildtag_groups = []
         buildtag_groups.append(set(
-            ['perl-Tangerine-0.23-1.module_testmodule_master_20170109091357',
-             'perl-List-Compare-0.53-5.module_testmodule_master_20170109091357',
-             'tangerine-0.22-3.module_testmodule_master_20170109091357']))
+            ['perl-Tangerine-0.23-1.module+814cfa39',
+             'perl-List-Compare-0.53-5.module+814cfa39',
+             'tangerine-0.22-3.module+814cfa39']))
 
         def on_buildroot_add_artifacts_cb(cls, artifacts, install):
             self.assertEqual(buildtag_groups.pop(0), set(artifacts))
@@ -886,6 +887,8 @@ class TestBuild(unittest.TestCase):
         build_one.name = 'testmodule'
         build_one.stream = 'master'
         build_one.version = 1
+        build_one.build_context = 'ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0'
+        build_one.runtime_context = 'ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0'
         build_one.state = models.BUILD_STATES['failed']
         current_dir = os.path.dirname(__file__)
         formatted_testmodule_yml_path = os.path.join(
@@ -1006,6 +1009,8 @@ class TestBuild(unittest.TestCase):
         build_one.name = 'testmodule'
         build_one.stream = 'master'
         build_one.version = 1
+        build_one.build_context = 'ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0'
+        build_one.runtime_context = 'ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0'
         build_one.state = models.BUILD_STATES['failed']
         current_dir = os.path.dirname(__file__)
         formatted_testmodule_yml_path = os.path.join(

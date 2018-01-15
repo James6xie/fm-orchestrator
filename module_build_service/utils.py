@@ -1417,15 +1417,14 @@ def validate_koji_tag(tag_arg_names, pre='', post='-', dict_key='name'):
     return validation_decorator
 
 
-def get_rpm_release_from_mmd(mmd):
+def get_rpm_release(module_build):
     """
-    Returns the dist tag based on the modulemd metadata and MBS configuration.
+    Generates the dist tag for the specified module
+    :param module_build: a models.ModuleBuild object
+    :return: a string of the module's dist tag
     """
-
-    if not mmd.name or not mmd.stream or not mmd.version:
-        raise ValueError("Modulemd name, stream, and version are required.")
-
-    dist_str = '.'.join([mmd.name, mmd.stream, str(mmd.version)])
+    dist_str = '.'.join([module_build.name, module_build.stream, str(module_build.version),
+                         str(module_build.context)])
     dist_hash = hashlib.sha1(dist_str).hexdigest()[:8]
     return conf.default_dist_tag_prefix + dist_hash
 

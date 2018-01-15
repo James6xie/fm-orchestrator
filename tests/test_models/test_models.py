@@ -20,11 +20,14 @@
 #
 # Written by Ralph Bean <rbean@redhat.com>
 
+import os
 import unittest
+
+import modulemd
 
 from tests.test_models import init_data
 from module_build_service import conf
-from module_build_service.models import ComponentBuild, make_session
+from module_build_service.models import ComponentBuild, ModuleBuild, make_session
 
 
 class TestModels(unittest.TestCase):
@@ -56,3 +59,17 @@ class TestModels(unittest.TestCase):
             self.assertEquals(c.component_builds_trace[0].state, 1)
             self.assertEquals(c.component_builds_trace[0].state_reason, None)
             self.assertEquals(c.component_builds_trace[0].task_id, 999999999)
+
+    def test_context_functions(self):
+        """ Test that the build_context, runtime_context, and context hashes are correctly
+        determined"""
+        build = ModuleBuild.query.filter_by(id=1).one()
+        mmd = modulemd.ModuleMetadata()
+        yaml_path = os.path.join(
+            os.path.dirname(__file__), '..', 'staged_data', 'testmodule_dependencies.yaml')
+        mmd.load(yaml_path)
+        build.modulemd = mmd.dumps()
+        build.build_context, build.runtime_context = ModuleBuild.contexts_from_mmd(build.modulemd)
+        self.assertEqual(build.build_context, 'f6e2aeec7576196241b9afa0b6b22acf2b6873d7')
+        self.assertEqual(build.runtime_context, '1739827b08388842fc90ccc0b6070c59b7d856fc')
+        self.assertEqual(build.context, 'e7a3d35e')

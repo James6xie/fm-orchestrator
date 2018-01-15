@@ -347,6 +347,9 @@ data:
         common-build-dependencies: {ref: efe284a9c846412d36bee10bd034a833e49a2f3e,
           stream: f26, version: '20170531160555'}
         perl: {ref: 634417c4c8d86fd473056b3aeab29be91c23812f, stream: f26, version: '20170515072053'}
+      requires:
+        base-runtime: {ref: be993ba94f4bce554472382ccba917ef16265f12, stream: f26, version: '1'}
+        perl: {ref: 634417c4c8d86fd473056b3aeab29be91c23812f, stream: f26, version: '20170515072053'}
       commit: 7886687b3a64fc0c5473460e09bc2c7a26f19d5f
       rpms:
         PyYAML: {ref: f17d9a7c1f1c473779751401b5eb617abf452dbe}

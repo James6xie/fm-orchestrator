@@ -641,11 +641,12 @@
         "version": "1",
         "end_time": 1472901932,
         "name": "nginx",
-        "release": "2",
+        "release": "2.00000000",
         "extra": {
             "typeinfo": {
                 "module": {
                     "name": "nginx",
+                    "context": "00000000",
                     "stream": "1",
                     "version": "2",
                     "module_build_service_id": 1,

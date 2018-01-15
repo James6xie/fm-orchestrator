@@ -31,7 +31,7 @@ import module_build_service.messaging
 from module_build_service.utils import (
     attempt_to_reuse_all_components,
     record_component_builds,
-    get_rpm_release_from_mmd)
+    get_rpm_release)
 from module_build_service.errors import UnprocessableEntity, Forbidden, ValidationError
 from module_build_service.builder.KojiContentGenerator import KojiContentGenerator
 
@@ -139,6 +139,8 @@ def init(config, session, msg):
     try:
         mmd = build.mmd()
         record_component_builds(mmd, build, session=session)
+        build.build_context, build.runtime_context = build.contexts_from_mmd(mmd.dumps())
+        mmd.context = build.context
         build.modulemd = mmd.dumps()
         build.transition(conf, models.BUILD_STATES["wait"])
     # Catch custom exceptions that we can expose to the user
@@ -309,7 +311,7 @@ def wait(config, session, msg):
     further_work = []
     if not component_build:
         srpm = builder.get_disttag_srpm(
-            disttag=".%s" % get_rpm_release_from_mmd(build.mmd()),
+            disttag=".%s" % get_rpm_release(build),
             module_build=build)
         component_build = models.ComponentBuild(
             module_id=build.id,

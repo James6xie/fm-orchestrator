@@ -126,17 +126,18 @@ class TestKojiBuilder(unittest.TestCase):
 
         builder.module_tag = {"name": "module-foo", "id": 1}
         builder.module_build_tag = {"name": "module-foo-build", "id": 2}
+        dist_tag = 'module+b8661ee4'
         # Set listTagged to return test data
         builder.koji_session.listTagged.side_effect = [[], [], []]
         untagged = [{
             "id": 9000,
             "name": "foo",
             "version": "1.0",
-            "release": "1.module+e0095747",
+            "release": "1.{0}".format(dist_tag),
         }]
         builder.koji_session.untaggedBuilds.return_value = untagged
         build_info = {
-            'nvr': 'foo-1.0-1.module+e0095747',
+            'nvr': 'foo-1.0-1.{0}'.format(dist_tag),
             'task_id': 12345,
             'build_id': 91
         }
@@ -155,12 +156,13 @@ class TestKojiBuilder(unittest.TestCase):
         self.assertEquals(actual[0].build_new_state, koji.BUILD_STATES['COMPLETE'])
         self.assertEquals(actual[0].build_name, 'rubygem-rails')
         self.assertEquals(actual[0].build_version, '1.0')
-        self.assertEquals(actual[0].build_release, '1.module+e0095747')
+        self.assertEquals(
+            actual[0].build_release, '1.{0}'.format(dist_tag))
         self.assertEquals(actual[0].module_build_id, 30)
         self.assertEqual(component_build.state, koji.BUILD_STATES['COMPLETE'])
         self.assertEqual(component_build.task_id, 12345)
         self.assertEqual(component_build.state_reason, 'Found existing build')
-        builder.koji_session.tagBuild.assert_called_once_with(2, 'foo-1.0-1.module+e0095747')
+        builder.koji_session.tagBuild.assert_called_once_with(2, 'foo-1.0-1.{0}'.format(dist_tag))
 
     def test_recover_orphaned_artifact_when_nothing_exists(self):
         """ Test recover_orphaned_artifact when the build is not found

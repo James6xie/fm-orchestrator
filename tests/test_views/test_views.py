@@ -130,6 +130,7 @@ class TestViews(unittest.TestCase):
         rv = self.client.get('/module-build-service/1/module-builds/1')
         data = json.loads(rv.data)
         self.assertEquals(data['id'], 1)
+        self.assertEquals(data['context'], '00000000')
         self.assertEquals(data['name'], 'nginx')
         self.assertEquals(data['owner'], 'Moe Szyslak')
         self.assertEquals(data['stream'], '1')
@@ -141,13 +142,13 @@ class TestViews(unittest.TestCase):
                     'task_id': 12312321,
                     'state': 1,
                     'state_reason': None,
-                    'nvr': 'module-build-macros-01-1.module_nginx_1_2',
+                    'nvr': 'module-build-macros-01-1.module+b8661ee4',
                 },
                 'nginx': {
                     'task_id': 12312345,
                     'state': 1,
                     'state_reason': None,
-                    'nvr': 'nginx-1.10.1-2.module_nginx_1_2',
+                    'nvr': 'nginx-1.10.1-2.module+b8661ee4',
                 },
             },
         })
@@ -161,6 +162,7 @@ class TestViews(unittest.TestCase):
         rv = self.client.get('/module-build-service/1/module-builds/1?short=True')
         data = json.loads(rv.data)
         self.assertEquals(data['id'], 1)
+        self.assertEquals(data['context'], '00000000')
         self.assertEquals(data['name'], 'nginx')
         self.assertEquals(data['state'], 3)
         self.assertEquals(data['state_name'], 'done')
@@ -171,6 +173,10 @@ class TestViews(unittest.TestCase):
         rv = self.client.get('/module-build-service/1/module-builds/1?verbose=true')
         data = json.loads(rv.data)
         self.assertEquals(data['component_builds'], [1, 2])
+        self.assertEquals(data['context'], '00000000')
+        # There is no xmd information on this module, so these values should be null
+        self.assertIsNone(data['build_context'])
+        self.assertIsNone(data['runtime_context'])
         self.assertEquals(data['id'], 1)
         with open(path.join(base_dir, "staged_data", "nginx_mmd.yaml")) as mmd:
             self.assertEquals(data['modulemd'], mmd.read())
@@ -193,13 +199,13 @@ class TestViews(unittest.TestCase):
                     'task_id': 12312321,
                     'state': 1,
                     'state_reason': None,
-                    'nvr': 'module-build-macros-01-1.module_nginx_1_2',
+                    'nvr': 'module-build-macros-01-1.module+b8661ee4',
                 },
                 'nginx': {
                     'task_id': 12312345,
                     'state': 1,
                     'state_reason': None,
-                    'nvr': 'nginx-1.10.1-2.module_nginx_1_2',
+                    'nvr': 'nginx-1.10.1-2.module+b8661ee4',
                 },
             },
         })
@@ -242,6 +248,7 @@ class TestViews(unittest.TestCase):
         expected = [
             {
                 'id': 30,
+                'context': '00000000',
                 'koji_tag': None,
                 'name': 'testmodule',
                 'rebuild_strategy': 'changed-and-after',
@@ -255,13 +262,13 @@ class TestViews(unittest.TestCase):
                 'tasks': {
                     'rpms': {
                         'module-build-macros': {
-                            'nvr': 'module-build-macros-01-1.module_postgresql_1_2',
+                            'nvr': 'module-build-macros-01-1.module+8d3cee59',
                             'state': 1,
                             'state_reason': None,
                             'task_id': 47384002
                         },
                         'rubygem-rails': {
-                            'nvr': 'postgresql-9.5.3-4.module_postgresql_1_2',
+                            'nvr': 'postgresql-9.5.3-4.module+8d3cee59',
                             'state': 3,
                             'state_reason': None,
                             'task_id': 2433442
@@ -275,6 +282,7 @@ class TestViews(unittest.TestCase):
             },
             {
                 'id': 29,
+                'context': '00000000',
                 'koji_tag': 'module-postgressql-1.2',
                 'name': 'postgressql',
                 'owner': 'some_user',
@@ -288,13 +296,13 @@ class TestViews(unittest.TestCase):
                 'tasks': {
                     'rpms': {
                         'module-build-macros': {
-                            'nvr': 'module-build-macros-01-1.module_postgresql_1_2',
+                            'nvr': 'module-build-macros-01-1.module+0557c87d',
                             'state': 1,
                             'state_reason': None,
                             'task_id': 47384002
                         },
                         'postgresql': {
-                            'nvr': 'postgresql-9.5.3-4.module_postgresql_1_2',
+                            'nvr': 'postgresql-9.5.3-4.module+0557c87d',
                             'state': 1,
                             'state_reason': None,
                             'task_id': 2433442
@@ -382,9 +390,8 @@ class TestViews(unittest.TestCase):
         self.assertEquals(data['meta']['total'], 40)
 
     def test_query_component_builds_filter_nvr(self):
-        rv = self.client.get(
-            '/module-build-service/1/component-builds/?nvr=nginx-1.10.1-2.module_nginx_1_2'
-        )
+        rv = self.client.get('/module-build-service/1/component-builds/?nvr=nginx-1.10.1-2.'
+                             'module%2Bb8661ee4')
         data = json.loads(rv.data)
         self.assertEquals(data['meta']['total'], 10)
 

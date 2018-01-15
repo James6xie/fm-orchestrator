@@ -156,6 +156,7 @@ class KojiModuleBuilder(GenericBuilder):
         """
         self.owner = owner
         self.module_str = module.name
+        self.module = module
         self.mmd = module.mmd()
         self.config = config
         self.tag_name = tag_name
@@ -563,7 +564,7 @@ chmod 644 %buildroot/%_sysconfdir/rpm/macros.zz-modules
             # If the build cannot be found in the tags, it may be untagged as a result
             # of some earlier inconsistent situation. Let's find the task_info
             # based on the list of untagged builds
-            release = module_build_service.utils.get_rpm_release_from_mmd(self.mmd)
+            release = module_build_service.utils.get_rpm_release(self.module)
             untagged = self.koji_session.untaggedBuilds(name=component_build.package)
             for untagged_build in untagged:
                 if untagged_build["release"].endswith(release):

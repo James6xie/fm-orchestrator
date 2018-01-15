@@ -203,7 +203,9 @@ class KojiContentGenerator(object):
         ret = {}
         ret[u'name'] = self.module.name
         ret[u'version'] = self.module.stream.replace("-", "_")
-        ret[u'release'] = self.module.version
+        # Append the context to the version to make NVRs of modules unique in the event of
+        # module stream expansion
+        ret[u'release'] = '{0}.{1}'.format(self.module.version, self.module.context)
         ret[u'source'] = self.module.scmurl
         ret[u'start_time'] = calendar.timegm(
             self.module.time_submitted.utctimetuple())
@@ -217,7 +219,8 @@ class KojiContentGenerator(object):
                     u"modulemd_str": self.module.modulemd,
                     u"name": self.module.name,
                     u"stream": self.module.stream,
-                    u"version": self.module.version
+                    u"version": self.module.version,
+                    u"context": self.module.context
                 }
             }
         }

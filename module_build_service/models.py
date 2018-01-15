@@ -27,8 +27,10 @@
 """
 
 import contextlib
-
+import json
+from collections import OrderedDict
 from datetime import datetime
+import hashlib
 from sqlalchemy import engine_from_config, event
 from sqlalchemy.orm import validates, scoped_session, sessionmaker
 from flask import has_app_context
@@ -147,6 +149,8 @@ class ModuleBuild(MBSBase):
     name = db.Column(db.String, nullable=False)
     stream = db.Column(db.String, nullable=False)
     version = db.Column(db.String, nullable=False)
+    build_context = db.Column(db.String)
+    runtime_context = db.Column(db.String)
     state = db.Column(db.Integer, nullable=False)
     state_reason = db.Column(db.String)
     modulemd = db.Column(db.String, nullable=False)
@@ -254,6 +258,35 @@ class ModuleBuild(MBSBase):
         else:
             raise ValueError("%r is not a module message."
                              % type(event).__name__)
+
+    @staticmethod
+    def contexts_from_mmd(mmd_str):
+        mmd = _modulemd.ModuleMetadata()
+        mmd.loads(mmd_str)
+        mbs_xmd = mmd.xmd.get('mbs', {})
+        rv = []
+        for property_name in ['buildrequires', 'requires']:
+            if property_name not in mbs_xmd:
+                raise ValueError('The module\'s modulemd hasn\'t been formatted by MBS')
+            mmd_property = getattr(mmd, property_name)
+            if mbs_xmd[property_name].keys() != mmd_property.keys():
+                raise ValueError('The dependencies.{0} section of the modulemd doesn\'t match '
+                                 'what is in xmd'.format(property_name))
+            mmd_formatted_property = {
+                dep: info['ref'] for dep, info in mbs_xmd[property_name].items()}
+            property_json = json.dumps(OrderedDict(sorted(mmd_formatted_property.items())))
+            rv.append(hashlib.sha1(property_json).hexdigest())
+        return tuple(rv)
+
+    @property
+    def context(self):
+        if self.build_context and self.runtime_context:
+            combined_hashes = '{0}:{1}'.format(self.build_context, self.runtime_context)
+            return hashlib.sha1(combined_hashes).hexdigest()[:8]
+        else:
+            # We can't compute the context because the necessary data isn't there, so return a
+            # default value
+            return '00000000'
 
     @classmethod
     def create(cls, session, conf, name, stream, version, modulemd, scmurl, username,
@@ -391,6 +424,7 @@ class ModuleBuild(MBSBase):
             'stream': self.stream,
             'version': self.version,
             'name': self.name,
+            'context': self.context,
         }
 
     def json(self):
@@ -421,7 +455,9 @@ class ModuleBuild(MBSBase):
             state_url = get_url_for('module_build', id=self.id)
         json.update({
             'component_builds': [build.id for build in self.component_builds],
+            'build_context': self.build_context,
             'modulemd': self.modulemd,
+            'runtime_context': self.runtime_context,
             'state_trace': [{'time': _utc_datetime_to_iso(record.state_time),
                              'state': record.state,
                              'state_name': INVERSE_BUILD_STATES[record.state],

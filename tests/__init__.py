@@ -22,14 +22,17 @@
 
 import os
 import tarfile
-import module_build_service
-
 from datetime import datetime, timedelta
+
+import modulemd
+
+import module_build_service
+import module_build_service.pdc
 from module_build_service import db
+from module_build_service.utils import get_rpm_release
 from module_build_service.config import init_config
 from module_build_service.models import ModuleBuild, ComponentBuild, make_session
-import modulemd
-import module_build_service.pdc
+
 
 base_dir = os.path.dirname(__file__)
 app = module_build_service.app
@@ -76,6 +79,7 @@ def init_data():
         build_one.time_completed = \
             datetime(2016, 9, 3, 11, 25, 32) + timedelta(minutes=(index * 10))
         build_one.rebuild_strategy = 'changed-and-after'
+        build_one_component_release = get_rpm_release(build_one)
 
         component_one_build_one = ComponentBuild()
         component_one_build_one.package = 'nginx'
@@ -85,7 +89,7 @@ def init_data():
         component_one_build_one.format = 'rpms'
         component_one_build_one.task_id = 12312345 + index
         component_one_build_one.state = 1
-        component_one_build_one.nvr = 'nginx-1.10.1-2.module_nginx_1_2'
+        component_one_build_one.nvr = 'nginx-1.10.1-2.{0}'.format(build_one_component_release)
         component_one_build_one.batch = 1
         component_one_build_one.module_id = 1 + index * 3
         component_one_build_one.tagged = True
@@ -100,7 +104,7 @@ def init_data():
         component_two_build_one.task_id = 12312321 + index
         component_two_build_one.state = 1
         component_two_build_one.nvr = \
-            'module-build-macros-01-1.module_nginx_1_2'
+            'module-build-macros-01-1.{0}'.format(build_one_component_release)
         component_two_build_one.batch = 2
         component_two_build_one.module_id = 1 + index * 3
         component_two_build_one.tagged = True
@@ -124,6 +128,7 @@ def init_data():
         build_two.time_completed = \
             datetime(2016, 9, 3, 11, 27, 19) + timedelta(minutes=(index * 10))
         build_two.rebuild_strategy = 'changed-and-after'
+        build_two_component_release = get_rpm_release(build_two)
 
         component_one_build_two = ComponentBuild()
         component_one_build_two.package = 'postgresql'
@@ -133,7 +138,7 @@ def init_data():
         component_one_build_two.format = 'rpms'
         component_one_build_two.task_id = 2433433 + index
         component_one_build_two.state = 1
-        component_one_build_two.nvr = 'postgresql-9.5.3-4.module_postgresql_1_2'
+        component_one_build_two.nvr = 'postgresql-9.5.3-4.{0}'.format(build_two_component_release)
         component_one_build_two.batch = 2
         component_one_build_two.module_id = 2 + index * 3
         component_one_build_two.tagged = True
@@ -148,7 +153,7 @@ def init_data():
         component_two_build_two.task_id = 47383993 + index
         component_two_build_two.state = 1
         component_two_build_two.nvr = \
-            'module-build-macros-01-1.module_postgresql_1_2'
+            'module-build-macros-01-1.{0}'.format(build_two_component_release)
         component_two_build_two.batch = 1
         component_two_build_two.module_id = 2 + index * 3
         component_one_build_two.tagged = True
@@ -171,6 +176,7 @@ def init_data():
             datetime(2016, 9, 3, 12, 28, 40) + timedelta(minutes=(index * 10))
         build_three.time_completed = None
         build_three.rebuild_strategy = 'changed-and-after'
+        build_three_component_release = get_rpm_release(build_three)
 
         component_one_build_three = ComponentBuild()
         component_one_build_three.package = 'rubygem-rails'
@@ -180,7 +186,8 @@ def init_data():
         component_one_build_three.format = 'rpms'
         component_one_build_three.task_id = 2433433 + index
         component_one_build_three.state = 3
-        component_one_build_three.nvr = 'postgresql-9.5.3-4.module_postgresql_1_2'
+        component_one_build_three.nvr = \
+            'postgresql-9.5.3-4.{0}'.format(build_three_component_release)
         component_one_build_three.batch = 2
         component_one_build_three.module_id = 3 + index * 3
 
@@ -193,7 +200,7 @@ def init_data():
         component_two_build_three.task_id = 47383993 + index
         component_two_build_three.state = 1
         component_two_build_three.nvr = \
-            'module-build-macros-01-1.module_postgresql_1_2'
+            'module-build-macros-01-1.{0}'.format(build_three_component_release)
         component_two_build_three.batch = 1
         component_two_build_three.module_id = 3 + index * 3
         component_two_build_three.tagged = True
@@ -236,6 +243,7 @@ def scheduler_init_data(communicator_state=None):
     build_one.time_submitted = datetime(2016, 12, 9, 11, 23, 20)
     build_one.time_modified = datetime(2016, 12, 9, 11, 25, 32)
     build_one.rebuild_strategy = 'changed-and-after'
+    build_one_component_release = get_rpm_release(build_one)
 
     component_one_build_one = module_build_service.models.ComponentBuild()
     component_one_build_one.package = 'communicator'
@@ -248,7 +256,7 @@ def scheduler_init_data(communicator_state=None):
     if component_one_build_one.state == 1:
         component_one_build_one.tagged = True
         component_one_build_one.tagged_in_final = True
-    component_one_build_one.nvr = 'communicator-1.10.1-2.module_starcommand_1_3'
+    component_one_build_one.nvr = 'communicator-1.10.1-2.{0}'.format(build_one_component_release)
     component_one_build_one.batch = 2
     component_one_build_one.module_id = 1
 
@@ -264,7 +272,7 @@ def scheduler_init_data(communicator_state=None):
         component_two_build_one.tagged = True
         component_two_build_one.tagged_in_final = True
     component_two_build_one.nvr = \
-        'module-build-macros-01-1.module_starcommand_1_3'
+        'module-build-macros-01-1.{0}'.format(build_one_component_release)
     component_two_build_one.batch = 2
     component_two_build_one.module_id = 1
 
@@ -289,6 +297,8 @@ def test_reuse_component_init_data():
     build_one.stream = 'master'
     build_one.version = 20170109091357
     build_one.state = 5
+    build_one.build_context = 'ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0'
+    build_one.runtime_context = 'ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0'
     build_one.modulemd = yaml
     build_one.koji_tag = 'module-testmodule-master-20170109091357'
     build_one.scmurl = ('git://pkgs.stg.fedoraproject.org/modules/testmodule.'
@@ -299,6 +309,7 @@ def test_reuse_component_init_data():
     build_one.time_modified = datetime(2017, 2, 15, 16, 19, 35)
     build_one.time_completed = datetime(2017, 2, 15, 16, 19, 35)
     build_one.rebuild_strategy = 'changed-and-after'
+    build_one_component_release = get_rpm_release(build_one)
 
     component_one_build_one = module_build_service.models.ComponentBuild()
     component_one_build_one.package = 'perl-Tangerine'
@@ -309,7 +320,7 @@ def test_reuse_component_init_data():
     component_one_build_one.task_id = 90276227
     component_one_build_one.state = 1
     component_one_build_one.nvr = \
-        'perl-Tangerine-0.23-1.module_testmodule_master_20170109091357'
+        'perl-Tangerine-0.23-1.{0}'.format(build_one_component_release)
     component_one_build_one.batch = 2
     component_one_build_one.module_id = 1
     component_one_build_one.ref = '4ceea43add2366d8b8c5a622a2fb563b625b9abf'
@@ -325,7 +336,7 @@ def test_reuse_component_init_data():
     component_two_build_one.task_id = 90276228
     component_two_build_one.state = 1
     component_two_build_one.nvr = \
-        'perl-List-Compare-0.53-5.module_testmodule_master_20170109091357'
+        'perl-List-Compare-0.53-5.{0}'.format(build_one_component_release)
     component_two_build_one.batch = 2
     component_two_build_one.module_id = 1
     component_two_build_one.ref = '76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb'
@@ -341,7 +352,7 @@ def test_reuse_component_init_data():
     component_three_build_one.task_id = 90276315
     component_three_build_one.state = 1
     component_three_build_one.nvr = \
-        'tangerine-0.22-3.module_testmodule_master_20170109091357'
+        'tangerine-0.22-3.{0}'.format(build_one_component_release)
     component_three_build_one.batch = 3
     component_three_build_one.module_id = 1
     component_three_build_one.ref = 'fbed359411a1baa08d4a88e0d12d426fbf8f602c'
@@ -357,7 +368,7 @@ def test_reuse_component_init_data():
     component_four_build_one.task_id = 90276181
     component_four_build_one.state = 1
     component_four_build_one.nvr = \
-        'module-build-macros-0.1-1.module_testmodule_master_20170109091357'
+        'module-build-macros-0.1-1.{0}'.format(build_one_component_release)
     component_four_build_one.batch = 1
     component_four_build_one.module_id = 1
     component_four_build_one.tagged = True
@@ -371,6 +382,8 @@ def test_reuse_component_init_data():
     build_two.stream = 'master'
     build_two.version = 20170219191323
     build_two.state = 2
+    build_two.build_context = 'ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0'
+    build_two.runtime_context = 'ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0'
     build_two.modulemd = mmd.dumps()
     build_two.koji_tag = 'module-testmodule'
     build_two.scmurl = ('git://pkgs.stg.fedoraproject.org/modules/testmodule.'
@@ -380,6 +393,7 @@ def test_reuse_component_init_data():
     build_two.time_submitted = datetime(2017, 2, 19, 16, 8, 18)
     build_two.time_modified = datetime(2017, 2, 19, 16, 8, 18)
     build_two.rebuild_strategy = 'changed-and-after'
+    build_two_component_release = get_rpm_release(build_two)
 
     component_one_build_two = module_build_service.models.ComponentBuild()
     component_one_build_two.package = 'perl-Tangerine'
@@ -420,7 +434,7 @@ def test_reuse_component_init_data():
     component_four_build_two.task_id = 90276186
     component_four_build_two.state = 1
     component_four_build_two.nvr = \
-        'module-build-macros-0.1-1.module_testmodule_master_20170219191323'
+        'module-build-macros-0.1-1.{0}'.format(build_two_component_release)
     component_four_build_two.batch = 1
     component_four_build_two.module_id = 2
     component_four_build_two.tagged = True
@@ -459,6 +473,8 @@ def test_reuse_shared_userspace_init_data():
         build_one.name = mmd.name
         build_one.stream = mmd.stream
         build_one.version = mmd.version
+        build_one.build_context = 'e046b867a400a06a3571f3c71142d497895fefbe'
+        build_one.runtime_context = '50dd3eb5dde600d072e45d4120e1548ce66bc94a'
         build_one.state = 5
         build_one.modulemd = yaml
         build_one.koji_tag = 'module-testmodule-master-20170109091357'
@@ -509,6 +525,8 @@ def test_reuse_shared_userspace_init_data():
         build_one.name = mmd.name
         build_one.stream = mmd.stream
         build_one.version = mmd.version
+        build_one.build_context = 'e046b867a400a06a3571f3c71142d497895fefbe'
+        build_one.runtime_context = '50dd3eb5dde600d072e45d4120e1548ce66bc94a'
         build_one.state = 3
         build_one.modulemd = yaml
         build_one.koji_tag = 'module-testmodule-master-20170109091357'
