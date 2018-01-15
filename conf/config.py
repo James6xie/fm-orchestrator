@@ -109,6 +109,9 @@ class TestConfiguration(BaseConfiguration):
     # Global network-related values, in seconds
     NET_TIMEOUT = 3
     NET_RETRY_INTERVAL = 1
+    # SCM network-related values, in seconds
+    SCM_NET_TIMEOUT = 3
+    SCM_NET_RETRY_INTERVAL = 1
 
     KOJI_CONFIG = './conf/koji.conf'
     KOJI_PROFILE = 'staging'
