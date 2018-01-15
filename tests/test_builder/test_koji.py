@@ -126,7 +126,7 @@ class TestKojiBuilder(unittest.TestCase):
 
         builder.module_tag = {"name": "module-foo", "id": 1}
         builder.module_build_tag = {"name": "module-foo-build", "id": 2}
-        dist_tag = 'module+b8661ee4'
+        dist_tag = 'module+1+b8661ee4'
         # Set listTagged to return test data
         builder.koji_session.listTagged.side_effect = [[], [], []]
         untagged = [{

@@ -780,9 +780,9 @@ class TestBuild(unittest.TestCase):
         # Check that components are tagged after the batch is built.
         tag_groups = []
         tag_groups.append(set(
-            ['perl-Tangerine-0.23-1.module+814cfa39',
-             'perl-List-Compare-0.53-5.module+814cfa39',
-             'tangerine-0.22-3.module+814cfa39']))
+            ['perl-Tangerine-0.23-1.module+0+814cfa39',
+             'perl-List-Compare-0.53-5.module+0+814cfa39',
+             'tangerine-0.22-3.module+0+814cfa39']))
 
         def on_tag_artifacts_cb(cls, artifacts, dest_tag=True):
             if dest_tag is True:
@@ -791,9 +791,9 @@ class TestBuild(unittest.TestCase):
 
         buildtag_groups = []
         buildtag_groups.append(set(
-            ['perl-Tangerine-0.23-1.module+814cfa39',
-             'perl-List-Compare-0.53-5.module+814cfa39',
-             'tangerine-0.22-3.module+814cfa39']))
+            ['perl-Tangerine-0.23-1.module+0+814cfa39',
+             'perl-List-Compare-0.53-5.module+0+814cfa39',
+             'tangerine-0.22-3.module+0+814cfa39']))
 
         def on_buildroot_add_artifacts_cb(cls, artifacts, install):
             self.assertEqual(buildtag_groups.pop(0), set(artifacts))
@@ -840,9 +840,9 @@ class TestBuild(unittest.TestCase):
         # Check that components are tagged after the batch is built.
         tag_groups = []
         tag_groups.append(set(
-            ['perl-Tangerine-0.23-1.module+814cfa39',
-             'perl-List-Compare-0.53-5.module+814cfa39',
-             'tangerine-0.22-3.module+814cfa39']))
+            ['perl-Tangerine-0.23-1.module+0+814cfa39',
+             'perl-List-Compare-0.53-5.module+0+814cfa39',
+             'tangerine-0.22-3.module+0+814cfa39']))
 
         def on_tag_artifacts_cb(cls, artifacts, dest_tag=True):
             if dest_tag is True:
@@ -851,9 +851,9 @@ class TestBuild(unittest.TestCase):
 
         buildtag_groups = []
         buildtag_groups.append(set(
-            ['perl-Tangerine-0.23-1.module+814cfa39',
-             'perl-List-Compare-0.53-5.module+814cfa39',
-             'tangerine-0.22-3.module+814cfa39']))
+            ['perl-Tangerine-0.23-1.module+0+814cfa39',
+             'perl-List-Compare-0.53-5.module+0+814cfa39',
+             'tangerine-0.22-3.module+0+814cfa39']))
 
         def on_buildroot_add_artifacts_cb(cls, artifacts, install):
             self.assertEqual(buildtag_groups.pop(0), set(artifacts))

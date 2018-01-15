@@ -1401,7 +1401,11 @@ def get_rpm_release(module_build):
     dist_str = '.'.join([module_build.name, module_build.stream, str(module_build.version),
                          str(module_build.context)])
     dist_hash = hashlib.sha1(dist_str).hexdigest()[:8]
-    return conf.default_dist_tag_prefix + dist_hash
+    return "{prefix}{index}+{dist_hash}".format(
+        prefix=conf.default_dist_tag_prefix,
+        index=module_build.id or 0,
+        dist_hash=dist_hash,
+    )
 
 
 def create_dogpile_key_generator_func(skip_first_n_args=0):

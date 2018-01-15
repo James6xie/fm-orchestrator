@@ -80,6 +80,7 @@ class FakeSCM(object):
 
 
 class TestUtils(unittest.TestCase):
+    maxDiff = None
 
     def setUp(self):
         self.filtered_rpms = [

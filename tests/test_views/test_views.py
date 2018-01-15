@@ -142,13 +142,13 @@ class TestViews(unittest.TestCase):
                     'task_id': 12312321,
                     'state': 1,
                     'state_reason': None,
-                    'nvr': 'module-build-macros-01-1.module+b8661ee4',
+                    'nvr': 'module-build-macros-01-1.module+0+b8661ee4',
                 },
                 'nginx': {
                     'task_id': 12312345,
                     'state': 1,
                     'state_reason': None,
-                    'nvr': 'nginx-1.10.1-2.module+b8661ee4',
+                    'nvr': 'nginx-1.10.1-2.module+0+b8661ee4',
                 },
             },
         })
@@ -199,13 +199,13 @@ class TestViews(unittest.TestCase):
                     'task_id': 12312321,
                     'state': 1,
                     'state_reason': None,
-                    'nvr': 'module-build-macros-01-1.module+b8661ee4',
+                    'nvr': 'module-build-macros-01-1.module+0+b8661ee4',
                 },
                 'nginx': {
                     'task_id': 12312345,
                     'state': 1,
                     'state_reason': None,
-                    'nvr': 'nginx-1.10.1-2.module+b8661ee4',
+                    'nvr': 'nginx-1.10.1-2.module+0+b8661ee4',
                 },
             },
         })
@@ -262,13 +262,13 @@ class TestViews(unittest.TestCase):
                 'tasks': {
                     'rpms': {
                         'module-build-macros': {
-                            'nvr': 'module-build-macros-01-1.module+8d3cee59',
+                            'nvr': 'module-build-macros-01-1.module+0+8d3cee59',
                             'state': 1,
                             'state_reason': None,
                             'task_id': 47384002
                         },
                         'rubygem-rails': {
-                            'nvr': 'postgresql-9.5.3-4.module+8d3cee59',
+                            'nvr': 'postgresql-9.5.3-4.module+0+8d3cee59',
                             'state': 3,
                             'state_reason': None,
                             'task_id': 2433442
@@ -296,13 +296,13 @@ class TestViews(unittest.TestCase):
                 'tasks': {
                     'rpms': {
                         'module-build-macros': {
-                            'nvr': 'module-build-macros-01-1.module+0557c87d',
+                            'nvr': 'module-build-macros-01-1.module+0+0557c87d',
                             'state': 1,
                             'state_reason': None,
                             'task_id': 47384002
                         },
                         'postgresql': {
-                            'nvr': 'postgresql-9.5.3-4.module+0557c87d',
+                            'nvr': 'postgresql-9.5.3-4.module+0+0557c87d',
                             'state': 1,
                             'state_reason': None,
                             'task_id': 2433442
@@ -391,7 +391,7 @@ class TestViews(unittest.TestCase):
 
     def test_query_component_builds_filter_nvr(self):
         rv = self.client.get('/module-build-service/1/component-builds/?nvr=nginx-1.10.1-2.'
-                             'module%2Bb8661ee4')
+                             'module%2B0%2Bb8661ee4')
         data = json.loads(rv.data)
         self.assertEquals(data['meta']['total'], 10)
 
