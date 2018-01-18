@@ -58,6 +58,11 @@ def clean_database():
 
 def init_data():
     clean_database()
+    with make_session(conf) as session:
+        _populate_data(session)
+
+
+def _populate_data(session):
     for index in range(10):
         build_one = ModuleBuild()
         build_one.name = 'nginx'
@@ -79,6 +84,8 @@ def init_data():
         build_one.time_completed = \
             datetime(2016, 9, 3, 11, 25, 32) + timedelta(minutes=(index * 10))
         build_one.rebuild_strategy = 'changed-and-after'
+        session.add(build_one)
+        session.commit()
         build_one_component_release = get_rpm_release(build_one)
 
         component_one_build_one = ComponentBuild()
@@ -128,6 +135,8 @@ def init_data():
         build_two.time_completed = \
             datetime(2016, 9, 3, 11, 27, 19) + timedelta(minutes=(index * 10))
         build_two.rebuild_strategy = 'changed-and-after'
+        session.add(build_two)
+        session.commit()
         build_two_component_release = get_rpm_release(build_two)
 
         component_one_build_two = ComponentBuild()
@@ -176,6 +185,8 @@ def init_data():
             datetime(2016, 9, 3, 12, 28, 40) + timedelta(minutes=(index * 10))
         build_three.time_completed = None
         build_three.rebuild_strategy = 'changed-and-after'
+        session.add(build_three)
+        session.commit()
         build_three_component_release = get_rpm_release(build_three)
 
         component_one_build_three = ComponentBuild()
@@ -206,17 +217,13 @@ def init_data():
         component_two_build_three.tagged = True
         component_two_build_three.build_time_only = True
 
-        with make_session(conf) as session:
-            session.add(build_one)
-            session.add(component_one_build_one)
-            session.add(component_two_build_one)
-            session.add(component_one_build_two)
-            session.add(component_two_build_two)
-            session.add(component_one_build_three)
-            session.add(component_two_build_three)
-            session.add(build_two)
-            session.add(build_three)
-            session.commit()
+        session.add(component_one_build_one)
+        session.add(component_two_build_one)
+        session.add(component_one_build_two)
+        session.add(component_two_build_two)
+        session.add(component_one_build_three)
+        session.add(component_two_build_three)
+        session.commit()
 
 
 def scheduler_init_data(communicator_state=None):
