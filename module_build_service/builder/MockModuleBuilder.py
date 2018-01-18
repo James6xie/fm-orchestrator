@@ -43,6 +43,7 @@ from utils import (
     create_local_repo_from_koji_tag,
     execute_cmd,
     find_srpm,
+    get_koji_config
 )
 from KojiModuleBuilder import KojiModuleBuilder
 from module_build_service.models import ModuleBuild
@@ -308,12 +309,20 @@ class MockModuleBuilder(GenericBuilder):
                 if repo_name.startswith("module-"):
                     repo_name = repo_name[7:]
                 repo_dir = tag
+                baseurl = "file://" + repo_dir
             else:
                 repo_name = tag
-                repo_dir = os.path.join(self.config.cache_dir, "koji_tags", tag)
-                create_local_repo_from_koji_tag(self.config, tag, repo_dir,
-                                                [self.arch, "noarch"])
-            baseurl = "file://" + repo_dir
+                koji_config = get_koji_config(self.config)
+                koji_session = koji.ClientSession(koji_config.server, opts=koji_config)
+                repo = koji_session.getRepo(repo_name)
+                if repo:
+                    baseurl = koji.PathInfo(topdir=koji_config.topurl).repo(repo['id'], repo_name)
+                    baseurl = '{0}/{1}/'.format(baseurl, self.arch)
+                else:
+                    repo_dir = os.path.join(self.config.cache_dir, "koji_tags", tag)
+                    create_local_repo_from_koji_tag(self.config, tag, repo_dir,
+                                                    [self.arch, "noarch"])
+                    baseurl = "file://" + repo_dir
             self._add_repo(repo_name, baseurl)
         self._write_mock_config()
 
