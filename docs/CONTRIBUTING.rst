@@ -129,7 +129,7 @@ To start the frontend manually, run the following inside the guest::
     $ mbs-frontend
 
 To start the scheduler manually, run the following at
-`/tmp/module_build_service` inside the guest::
+`/opt/module_build_service` inside the guest::
 
     $ fedmsg-hub
 
