@@ -49,6 +49,24 @@ def execute_cmd(args, stdout=None, stderr=None, cwd=None):
     return out, err
 
 
+def get_koji_config(mbs_config):
+    """
+    Get the Koji config needed for MBS
+    :param mbs_config: an MBS config object
+    :return: a Munch object of the Koji config
+    """
+    # Placed here to avoid py2/py3 conflicts...
+    import koji
+
+    koji_config = munch.Munch(koji.read_config(
+        profile_name=mbs_config.koji_profile,
+        user_config=mbs_config.koji_config,
+    ))
+    # Timeout after 10 minutes.  The default is 12 hours.
+    koji_config["timeout"] = 60 * 10
+    return koji_config
+
+
 def create_local_repo_from_koji_tag(config, tag, repo_dir, archs=None):
     """
     Downloads the packages build for one of `archs` (defaults to ['x86_64',
@@ -63,13 +81,7 @@ def create_local_repo_from_koji_tag(config, tag, repo_dir, archs=None):
         archs = ["x86_64", "noarch"]
 
     # Load koji config and create Koji session.
-    koji_config = munch.Munch(koji.read_config(
-        profile_name=config.koji_profile,
-        user_config=config.koji_config,
-    ))
-    # Timeout after 10 minutes.  The default is 12 hours.
-    koji_config["timeout"] = 60 * 10
-
+    koji_config = get_koji_config(config)
     address = koji_config.server
     log.info("Connecting to koji %r" % address)
     session = koji.ClientSession(address, opts=koji_config)

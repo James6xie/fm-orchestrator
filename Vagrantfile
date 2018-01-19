@@ -15,6 +15,7 @@ $script = <<SCRIPT
         koji \
         krb5-workstation \
         libffi-devel \
+        mock-scm \
         openssl-devel \
         python \
         python-devel \
