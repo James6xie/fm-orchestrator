@@ -14,6 +14,12 @@ tasks:
 - Emitting bus messages about all state changes so that other infrastructure
   services can pick up the work.
 
+
+Change Log
+==========
+
+For a detailed change log, see ``docs/CHANGELOG.rst``.
+
 Supported build systems
 =======================
 
