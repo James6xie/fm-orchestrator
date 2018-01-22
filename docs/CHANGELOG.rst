@@ -1,6 +1,11 @@
 Change Log
 ==========
 
+v1.6.2
+------
+
+* Cancel new repo tasks on module build failures in Koji
+
 v1.6.1
 ------
 
