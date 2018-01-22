@@ -309,10 +309,10 @@ def wait(config, session, msg):
     component_build = models.ComponentBuild.from_component_name(
         session, artifact_name, build.id)
     further_work = []
+    srpm = builder.get_disttag_srpm(
+        disttag=".%s" % get_rpm_release(build),
+        module_build=build)
     if not component_build:
-        srpm = builder.get_disttag_srpm(
-            disttag=".%s" % get_rpm_release(build),
-            module_build=build)
         component_build = models.ComponentBuild(
             module_id=build.id,
             package=artifact_name,
