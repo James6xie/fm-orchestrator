@@ -1,6 +1,11 @@
 Change Log
 ==========
 
+v1.6.1
+------
+
+* Fix an error that occurs when a module build is resumed and module-build-macros was cancelled
+
 v1.6.0
 ------
 
