@@ -78,6 +78,9 @@ def failed(config, session, msg):
         builder = module_build_service.builder.GenericBuilder.create_from_module(
             session, build, config)
 
+        if build.new_repo_task_id:
+            builder.cancel_build(build.new_repo_task_id)
+
         for component in unbuilt_components:
             if component.task_id:
                 builder.cancel_build(component.task_id)
