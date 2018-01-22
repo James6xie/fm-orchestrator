@@ -31,15 +31,15 @@ $script = <<SCRIPT
         rpm-build \
         swig \
         systemd-devel
-    cd /tmp/module_build_service
+    cd /opt/module_build_service
     python setup.py develop
     python setup.py egg_info
-    ln -s /tmp/module_build_service/conf /etc/module-build-service
+    ln -s /opt/module_build_service/conf /etc/module-build-service
     pip install -r test-requirements.txt
 SCRIPT
 
 $script_services = <<SCRIPT_SERVICES
-    cd /tmp/module_build_service
+    cd /opt/module_build_service
     mbs-upgradedb > /tmp/mbs-base.out 2>&1
     fedmsg-relay < /dev/null >& /tmp/fedmsg-relay.out &
     fedmsg-hub < /dev/null >& /tmp/fedmsg-hub.out &
@@ -48,7 +48,7 @@ SCRIPT_SERVICES
 
 Vagrant.configure("2") do |config|
   config.vm.box = "fedora/26-cloud-base"
-  config.vm.synced_folder "./", "/tmp/module_build_service"
+  config.vm.synced_folder "./", "/opt/module_build_service"
   # Disable the default share
   config.vm.synced_folder ".", "/vagrant", disabled: true
   config.vm.network "forwarded_port", guest_ip: "0.0.0.0", guest: 5000, host: 5000
@@ -56,7 +56,7 @@ Vagrant.configure("2") do |config|
   config.vm.provision "shell", inline: $script
   config.vm.provision "shell", inline: $script_services, run: "always"
   config.vm.provider "libvirt" do |v, override|
-    override.vm.synced_folder "./", "/tmp/module_build_service", type: "sshfs", sshfs_opts_append: "-o nonempty"
+    override.vm.synced_folder "./", "/opt/module_build_service", type: "sshfs", sshfs_opts_append: "-o nonempty"
     v.memory = 1024
     #v.cpus = 2
   end
