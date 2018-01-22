@@ -671,7 +671,11 @@ chmod 644 %buildroot/%_sysconfdir/rpm/macros.zz-modules
             return task_id, state, reason, None
 
     def cancel_build(self, task_id):
-        self.koji_session.cancelTask(task_id)
+        try:
+            self.koji_session.cancelTask(task_id)
+        except Exception as error:
+            log.error('Failed to cancel task ID {0} in Koji. The error '
+                      'message was: {1}'.format(task_id, str(error)))
 
     @classmethod
     def repo_from_tag(cls, config, tag_name, arch):
