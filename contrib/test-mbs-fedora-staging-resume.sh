@@ -27,5 +27,17 @@ echo "Build cancellation submitted."
 
 sleep 10
 echo "Submitting build again.  Should resume."
-fedpkg-stage module-build --optional rebuild_strategy=only-changed -w
+build_id_two=$(fedpkg-stage module-build --optional rebuild_strategy=only-changed | tail -1 | awk '{ print $3 }' | cut -c 2-)
+if [ "$build_id_two" -ne "$build_id" ]; then
+    echo "The module build didn't resume."; exit 1;
+fi
+
+fedpkg-stage module-build-watch $build_id
+
+url=https://mbs.stg.fedoraproject.org/module-build-service/1/module-builds/$build_id
+state=$(curl $url | jq '.state')
+if [ "$state" -ne "3" ] && [ "$state" -ne "5" ]; then
+    echo "module build state for #$build_id was $state"; exit 1;
+fi
+
 echo "HOORAY!  It worked.. I think."
