@@ -1,6 +1,12 @@
 Change Log
 ==========
 
+v1.6.3
+------
+
+* Fix a bug that caused a module build to fail when it was cancelled during the module-build-macros phase and then resumed
+* Reset the "state_reason" field on all components after a module build is resumed
+
 v1.6.2
 ------
 
