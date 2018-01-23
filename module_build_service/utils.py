@@ -996,6 +996,7 @@ def submit_module_build(username, url, mmd, scm, optional_params=None):
         for component in module.component_builds:
             if component.state and component.state != koji.BUILD_STATES['COMPLETE']:
                 component.state = None
+                component.state_reason = None
                 db.session.add(component)
         module.username = username
         prev_state = module.previous_non_failed_state
