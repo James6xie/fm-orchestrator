@@ -349,6 +349,10 @@ def wait(config, session, msg):
             further_work += msgs
         else:
             task_id, state, reason, nvr = builder.build(artifact_name=artifact_name, source=srpm)
+            component_build.task_id = task_id
+            component_build.state = state
+            component_build.reason = reason
+            component_build.nvr = nvr
 
     session.add(component_build)
     build.transition(config, state="build")
