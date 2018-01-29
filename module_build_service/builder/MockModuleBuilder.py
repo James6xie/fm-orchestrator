@@ -316,7 +316,7 @@ class MockModuleBuilder(GenericBuilder):
                 koji_session = koji.ClientSession(koji_config.server, opts=koji_config)
                 repo = koji_session.getRepo(repo_name)
                 if repo:
-                    baseurl = koji.PathInfo(topdir=koji_config.topurl).repo(repo['id'], repo_name)
+                    baseurl = koji.PathInfo(topdir=koji_config.topurl).repo(repo["id"], repo_name)
                     baseurl = '{0}/{1}/'.format(baseurl, self.arch)
                 else:
                     repo_dir = os.path.join(self.config.cache_dir, "koji_tags", tag)
