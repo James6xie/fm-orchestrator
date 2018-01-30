@@ -224,6 +224,10 @@ class KojiContentGenerator(object):
                 }
             }
         }
+        session = KojiModuleBuilder.get_session(self.config, None)
+        # Only add the CG build owner if the user exists in Koji
+        if session.getUser(self.owner):
+            ret[u'owner'] = self.owner
         return ret
 
     def _get_buildroot(self):

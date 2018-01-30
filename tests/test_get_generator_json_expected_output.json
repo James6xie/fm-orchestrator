@@ -642,6 +642,7 @@
         "end_time": 1472901932,
         "name": "nginx",
         "release": "2.00000000",
+        "owner": "Moe Szyslak",
         "extra": {
             "typeinfo": {
                 "module": {
