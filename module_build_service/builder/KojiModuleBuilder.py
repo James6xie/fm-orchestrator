@@ -353,16 +353,9 @@ chmod 644 %buildroot/%_sysconfdir/rpm/macros.zz-modules
         # Timeout after 10 minutes.  The default is 12 hours.
         koji_config["timeout"] = 60 * 10
 
-        # In "production" scenarios, our service principal may be blessed to
-        # allow us to authenticate as the owner of this request.  But, in local
-        # development that is unreasonable so just submit the job as the
-        # module_build_service developer.
-        proxyuser = owner if config.koji_proxyuser else None
-
         address = koji_config.server
         authtype = koji_config.authtype
-        log.info("Connecting to koji %r with %r.  (proxyuser %r)" % (
-            address, authtype, proxyuser))
+        log.info("Connecting to koji %r with %r." % (address, authtype))
         koji_session = koji.ClientSession(address, opts=koji_config)
         if authtype == "kerberos":
             ccache = getattr(config, "krb_ccache", None)
@@ -374,8 +367,7 @@ chmod 644 %buildroot/%_sysconfdir/rpm/macros.zz-modules
                 koji_session.krb_login(
                     principal=principal,
                     keytab=keytab,
-                    ccache=ccache,
-                    proxyuser=proxyuser,
+                    ccache=ccache
                 )
             else:
                 koji_session.krb_login(ccache=ccache)
@@ -383,8 +375,7 @@ chmod 644 %buildroot/%_sysconfdir/rpm/macros.zz-modules
             koji_session.ssl_login(
                 os.path.expanduser(koji_config.cert),
                 None,
-                os.path.expanduser(koji_config.serverca),
-                proxyuser=proxyuser,
+                os.path.expanduser(koji_config.serverca)
             )
         else:
             raise ValueError("Unrecognized koji authtype %r" % authtype)

@@ -180,10 +180,6 @@ class Config(object):
             'type': list,
             'default': [],
             'desc': 'Koji architectures.'},
-        'koji_proxyuser': {
-            'type': bool,
-            'default': None,
-            'desc': 'Koji proxyuser flag.'},
         'koji_build_priority': {
             'type': int,
             'default': 10,

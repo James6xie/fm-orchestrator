@@ -359,24 +359,3 @@ class TestKojiBuilder(unittest.TestCase):
     def test_get_build_weights_getLoggedInUser_failed(self, get_session):
         weights = KojiModuleBuilder.get_build_weights(["httpd", "apr"])
         self.assertEqual(weights, {"httpd": 1.5, "apr": 1.5})
-
-
-class TestGetKojiClientSession(unittest.TestCase):
-
-    def setUp(self):
-        init_data()
-        self.config = mock.Mock()
-        self.config.koji_profile = conf.koji_profile
-        self.config.koji_config = conf.koji_config
-        self.module = module_build_service.models.ModuleBuild.query.filter_by(id=1).one()
-        self.tag_name = 'module-fool-1.2'
-
-    @patch.object(koji.ClientSession, 'krb_login')
-    def test_proxyuser(self, mocked_krb_login):
-        KojiModuleBuilder(owner=self.module.owner,
-                          module=self.module,
-                          config=self.config,
-                          tag_name=self.tag_name,
-                          components=[])
-        args, kwargs = mocked_krb_login.call_args
-        self.assertTrue(set([('proxyuser', self.module.owner)]).issubset(set(kwargs.items())))
