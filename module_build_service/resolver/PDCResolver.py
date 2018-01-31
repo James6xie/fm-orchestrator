@@ -200,7 +200,7 @@ class PDCResolver(GenericResolver):
         # results set and jump to last one in another query. The last one is always
         # the latest one (the one with the highest version).
         try:
-            retval = self.session['unreleasedvariants/'](page_size=1, **query)
+            retval = self.session['unreleasedvariants']._(page_size=1, **query)
         except Exception as ex:
             log.debug("error during PDC lookup: %r" % ex)
             raise RuntimeError("Error during PDC lookup for module %s" % module_info["name"])
@@ -215,7 +215,7 @@ class PDCResolver(GenericResolver):
         # Jump to last page to latest module release.
         if retval['count'] != 1:
             query['page'] = retval['count']
-            retval = self.session['unreleasedvariants/'](page_size=1, **query)
+            retval = self.session['unreleasedvariants']._(page_size=1, **query)
 
         results = retval["results"]
         assert len(results) <= 1, pprint.pformat(retval)
