@@ -27,7 +27,7 @@
 """PDC handler functions."""
 
 import modulemd
-from pdc_client import PDCClient
+import pdc_client
 from module_build_service import db
 from module_build_service import models
 from module_build_service.errors import UnprocessableEntity
@@ -55,16 +55,16 @@ class PDCResolver(GenericResolver):
         :param config: instance of module_build_service.config.Config
         :return pdc_client.PDCClient instance
         """
-        if 'ssl_verify' in inspect.getargspec(PDCClient.__init__).args:
+        if 'ssl_verify' in inspect.getargspec(pdc_client.PDCClient.__init__).args:
             # New API
-            return PDCClient(
+            return pdc_client.PDCClient(
                 server=self.config.pdc_url,
                 develop=self.config.pdc_develop,
                 ssl_verify=not self.config.pdc_insecure,
             )
         else:
             # Old API
-            return PDCClient(
+            return pdc_client.PDCClient(
                 server=self.config.pdc_url,
                 develop=self.config.pdc_develop,
                 insecure=self.config.pdc_insecure,
