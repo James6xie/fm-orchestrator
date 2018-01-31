@@ -38,10 +38,15 @@ from tests import init_data
 
 from module_build_service.builder.KojiContentGenerator import KojiContentGenerator
 
+GET_USER_RV = {
+    "id": 3686,
+    "krb_principal": "mszyslak@FEDORAPROJECT.ORG",
+    "name": "Moe Szyslak",
+    "status": 0,
+    "usertype": 0
+}
 base_dir = dirname(dirname(__file__))
 cassette_dir = base_dir + '/vcr-request-data/'
-
-user = ('Homer J. Simpson', set(['packager']))
 
 
 class TestBuild(unittest.TestCase):
@@ -80,14 +85,18 @@ class TestBuild(unittest.TestCase):
         except OSError:
             pass
 
+    @patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
     @patch("subprocess.Popen")
     @patch("pkg_resources.get_distribution")
     @patch("platform.linux_distribution")
     @patch("platform.machine")
     @patch(("module_build_service.builder.KojiContentGenerator.KojiContentGenerator."
            "_koji_rpms_in_tag"))
-    def test_get_generator_json(self, rpms_in_tag, machine, distro, pkg_res, popen):
+    def test_get_generator_json(self, rpms_in_tag, machine, distro, pkg_res, popen, get_session):
         """ Test generation of content generator json """
+        koji_session = MagicMock()
+        koji_session.getUser.return_value = GET_USER_RV
+        get_session.return_value = koji_session
         distro.return_value = ("Fedora", "25", "Twenty Five")
         self.maxDiff = None
         machine.return_value = "i686"
@@ -121,14 +130,19 @@ class TestBuild(unittest.TestCase):
         rpms_in_tag.assert_called_once()
         self.assertEqual(expected_output, ret)
 
+    @patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
     @patch("subprocess.Popen")
     @patch("pkg_resources.get_distribution")
     @patch("platform.linux_distribution")
     @patch("platform.machine")
     @patch(("module_build_service.builder.KojiContentGenerator.KojiContentGenerator."
            "_koji_rpms_in_tag"))
-    def test_get_generator_json_no_log(self, rpms_in_tag, machine, distro, pkg_res, popen):
+    def test_get_generator_json_no_log(self, rpms_in_tag, machine, distro, pkg_res, popen,
+                                       get_session):
         """ Test generation of content generator json """
+        koji_session = MagicMock()
+        koji_session.getUser.return_value = GET_USER_RV
+        get_session.return_value = koji_session
         distro.return_value = ("Fedora", "25", "Twenty Five")
         machine.return_value = "i686"
         pkg_res.return_value = Mock()
@@ -166,6 +180,7 @@ class TestBuild(unittest.TestCase):
     def test_tag_cg_build(self, get_session):
         """ Test that the CG build is tagged. """
         koji_session = MagicMock()
+        koji_session.getUser.return_value = GET_USER_RV
         koji_session.getTag.return_value = {'id': 123}
         get_session.return_value = koji_session
 
@@ -178,6 +193,7 @@ class TestBuild(unittest.TestCase):
     def test_tag_cg_build_fallback_to_default_tag(self, get_session):
         """ Test that the CG build is tagged to default tag. """
         koji_session = MagicMock()
+        koji_session.getUser.return_value = GET_USER_RV
         koji_session.getTag.side_effect = [{}, {'id': 123}]
         get_session.return_value = koji_session
 
@@ -192,6 +208,7 @@ class TestBuild(unittest.TestCase):
     def test_tag_cg_build_no_tag_set(self, get_session):
         """ Test that the CG build is not tagged when no tag set. """
         koji_session = MagicMock()
+        koji_session.getUser.return_value = GET_USER_RV
         koji_session.getTag.side_effect = [{}, {'id': 123}]
         get_session.return_value = koji_session
 
@@ -204,6 +221,7 @@ class TestBuild(unittest.TestCase):
     def test_tag_cg_build_no_tag_available(self, get_session):
         """ Test that the CG build is not tagged when no tag available. """
         koji_session = MagicMock()
+        koji_session.getUser.return_value = GET_USER_RV
         koji_session.getTag.side_effect = [{}, {}]
         get_session.return_value = koji_session
 
