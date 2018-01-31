@@ -20,7 +20,6 @@
 #
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
-import unittest
 import koji
 import vcr
 import os
@@ -37,6 +36,7 @@ import module_build_service.scheduler.handlers.repos
 import module_build_service.utils
 from module_build_service.errors import Forbidden
 from module_build_service import db, models, conf, build_logs
+from tests import get_vcr_path
 
 from mock import patch, PropertyMock, Mock
 import kobo
@@ -51,7 +51,6 @@ import module_build_service.scheduler.consumer
 from module_build_service.messaging import MBSModule
 
 base_dir = dirname(dirname(__file__))
-cassette_dir = base_dir + '/vcr-request-data/'
 
 user = ('Homer J. Simpson', set(['packager']))
 
@@ -302,21 +301,19 @@ def cleanup_moksha():
                 'info', 'bzip2', 'grep', 'redhat-rpm-config',
                 'diffutils', 'make', 'patch', 'shadow-utils',
                 'coreutils', 'which', 'rpm-build', 'gzip', 'gcc-c++'])})
-class TestBuild(unittest.TestCase):
-
+class TestBuild:
     # Global variable used for tests if needed
     _global_var = None
 
-    def setUp(self):
+    def setup_method(self, test_method):
         GenericBuilder.register_backend_class(FakeModuleBuilder)
         self.client = app.test_client()
         clean_database()
 
-        filename = cassette_dir + self.id()
-        self.vcr = vcr.use_cassette(filename)
+        self.vcr = vcr.use_cassette(get_vcr_path(__file__, test_method))
         self.vcr.__enter__()
 
-    def tearDown(self):
+    def teardown_method(self, test_method):
         FakeModuleBuilder.reset()
         cleanup_moksha()
         self.vcr.__exit__()
@@ -350,7 +347,7 @@ class TestBuild(unittest.TestCase):
         tag_groups.append(set(['tangerine-1-1']))
 
         def on_tag_artifacts_cb(cls, artifacts, dest_tag=True):
-            self.assertEqual(tag_groups.pop(0), set(artifacts))
+            assert tag_groups.pop(0) == set(artifacts)
 
         FakeModuleBuilder.on_tag_artifacts_cb = on_tag_artifacts_cb
 
@@ -362,7 +359,7 @@ class TestBuild(unittest.TestCase):
         buildroot_groups.append(set(['tangerine-1-1']))
 
         def on_buildroot_add_artifacts_cb(cls, artifacts, install):
-            self.assertEqual(buildroot_groups.pop(0), set(artifacts))
+            assert buildroot_groups.pop(0) == set(artifacts)
 
         FakeModuleBuilder.on_buildroot_add_artifacts_cb = on_buildroot_add_artifacts_cb
 
@@ -373,20 +370,20 @@ class TestBuild(unittest.TestCase):
         # All components should be built and module itself should be in "done"
         # or "ready" state.
         for build in models.ComponentBuild.query.filter_by(module_id=module_build_id).all():
-            self.assertEqual(build.state, koji.BUILD_STATES['COMPLETE'])
-            self.assertTrue(build.module_build.state in [models.BUILD_STATES["done"],
-                                                         models.BUILD_STATES["ready"]])
+            assert build.state == koji.BUILD_STATES['COMPLETE']
+            assert build.module_build.state in [models.BUILD_STATES["done"],
+                                                models.BUILD_STATES["ready"]]
 
         # All components has to be tagged, so tag_groups and buildroot_groups are empty...
-        self.assertEqual(tag_groups, [])
-        self.assertEqual(buildroot_groups, [])
+        assert tag_groups == []
+        assert buildroot_groups == []
         module_build = models.ModuleBuild.query.get(module_build_id)
-        self.assertEqual(module_build.module_builds_trace[0].state, models.BUILD_STATES['init'])
-        self.assertEqual(module_build.module_builds_trace[1].state, models.BUILD_STATES['wait'])
-        self.assertEqual(module_build.module_builds_trace[2].state, models.BUILD_STATES['build'])
-        self.assertEqual(module_build.module_builds_trace[3].state, models.BUILD_STATES['done'])
-        self.assertEqual(module_build.module_builds_trace[4].state, models.BUILD_STATES['ready'])
-        self.assertEqual(len(module_build.module_builds_trace), 5)
+        assert module_build.module_builds_trace[0].state == models.BUILD_STATES['init']
+        assert module_build.module_builds_trace[1].state == models.BUILD_STATES['wait']
+        assert module_build.module_builds_trace[2].state == models.BUILD_STATES['build']
+        assert module_build.module_builds_trace[3].state == models.BUILD_STATES['done']
+        assert module_build.module_builds_trace[4].state == models.BUILD_STATES['ready']
+        assert len(module_build.module_builds_trace) == 5
 
     @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
@@ -411,9 +408,9 @@ class TestBuild(unittest.TestCase):
 
         module_build = models.ModuleBuild.query.filter_by(id=module_build_id).one()
         # Make sure no component builds were registered
-        self.assertEqual(len(module_build.component_builds), 0)
+        assert len(module_build.component_builds) == 0
         # Make sure the build is done
-        self.assertEqual(module_build.state, models.BUILD_STATES['ready'])
+        assert module_build.state == models.BUILD_STATES['ready']
 
     @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
@@ -432,8 +429,8 @@ class TestBuild(unittest.TestCase):
                                   content_type='multipart/form-data',
                                   data={'yaml': (testmodule, yaml)})
             data = json.loads(rv.data)
-            self.assertEqual(data['status'], 403)
-            self.assertEqual(data['message'], 'YAML submission is not enabled')
+            assert data['status'] == 403
+            assert data['message'] == 'YAML submission is not enabled'
 
     @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
@@ -451,7 +448,7 @@ class TestBuild(unittest.TestCase):
                                   content_type='multipart/form-data',
                                   data={'yaml': (testmodule, yaml)})
             data = json.loads(rv.data)
-            self.assertEqual(data['id'], 1)
+            assert data['id'] == 1
 
         msgs = []
         stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
@@ -468,12 +465,12 @@ class TestBuild(unittest.TestCase):
             return json.loads(rv.data)
 
         data = submit(dict(params.items() + {"not_existing_param": "foo"}.items()))
-        self.assertIn("The request contains unspecified parameters:", data["message"])
-        self.assertIn("not_existing_param", data["message"])
-        self.assertEqual(data["status"], 400)
+        assert "The request contains unspecified parameters:" in data["message"]
+        assert "not_existing_param" in data["message"]
+        assert data["status"] == 400
 
         data = submit(dict(params.items() + {"copr_owner": "foo"}.items()))
-        self.assertIn("The request contains parameters specific to Copr builder", data["message"])
+        assert "The request contains parameters specific to Copr builder" in data["message"]
 
     @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
@@ -518,14 +515,14 @@ class TestBuild(unittest.TestCase):
         # module build, all components and even the module itself should be in
         # failed state with state_reason se to cancellation message.
         for build in models.ComponentBuild.query.filter_by(module_id=module_build_id).all():
-            self.assertEqual(build.state, koji.BUILD_STATES['FAILED'])
-            self.assertEqual(build.state_reason, "Canceled by Homer J. Simpson.")
-            self.assertEqual(build.module_build.state, models.BUILD_STATES["failed"])
-            self.assertEqual(build.module_build.state_reason, "Canceled by Homer J. Simpson.")
+            assert build.state == koji.BUILD_STATES['FAILED']
+            assert build.state_reason == "Canceled by Homer J. Simpson."
+            assert build.module_build.state == models.BUILD_STATES["failed"]
+            assert build.module_build.state_reason == "Canceled by Homer J. Simpson."
 
             # Check that cancel_build has been called for this build
             if build.task_id:
-                self.assertTrue(build.task_id in cancelled_tasks)
+                assert build.task_id in cancelled_tasks
 
     @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
@@ -553,9 +550,9 @@ class TestBuild(unittest.TestCase):
         # All components should be built and module itself should be in "done"
         # or "ready" state.
         for build in models.ComponentBuild.query.filter_by(module_id=module_build_id).all():
-            self.assertEqual(build.state, koji.BUILD_STATES['COMPLETE'])
-            self.assertTrue(build.module_build.state in [models.BUILD_STATES["done"],
-                                                         models.BUILD_STATES["ready"]])
+            assert build.state == koji.BUILD_STATES['COMPLETE']
+            assert build.module_build.state in [models.BUILD_STATES["done"],
+                                                models.BUILD_STATES["ready"]]
 
     @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
@@ -596,11 +593,11 @@ class TestBuild(unittest.TestCase):
         # All components should be built and module itself should be in "done"
         # or "ready" state.
         for build in models.ComponentBuild.query.filter_by(module_id=module_build_id).all():
-            self.assertEqual(build.state, koji.BUILD_STATES['COMPLETE'])
+            assert build.state == koji.BUILD_STATES['COMPLETE']
             # When this fails, it can mean that num_concurrent_builds
             # threshold has been met.
-            self.assertTrue(build.module_build.state in [models.BUILD_STATES["done"],
-                                                         models.BUILD_STATES["ready"]])
+            assert build.module_build.state in [models.BUILD_STATES["done"],
+                                                models.BUILD_STATES["ready"]]
 
     @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
@@ -652,7 +649,7 @@ class TestBuild(unittest.TestCase):
         # If we are building single component more often, num_concurrent_builds
         # does not work correctly.
         num_builds = [k for k, g in itertools.groupby(TestBuild._global_var)]
-        self.assertEqual(num_builds.count(1), 2)
+        assert num_builds.count(1) == 2
 
     @timed(60)
     @patch('module_build_service.auth.get_user', return_value=user)
@@ -697,22 +694,22 @@ class TestBuild(unittest.TestCase):
         for c in models.ComponentBuild.query.filter_by(module_id=module_build_id).all():
             # perl-Tangerine is expected to fail as configured in on_build_cb.
             if c.package == "perl-Tangerine":
-                self.assertEqual(c.state, koji.BUILD_STATES['FAILED'])
+                assert c.state == koji.BUILD_STATES['FAILED']
             # tangerine is expected to fail, because it is in batch 3, but
             # we had a failing component in batch 2.
             elif c.package == "tangerine":
-                self.assertEqual(c.state, koji.BUILD_STATES['FAILED'])
-                self.assertEqual(c.state_reason, "Some components failed to build.")
+                assert c.state == koji.BUILD_STATES['FAILED']
+                assert c.state_reason == "Some components failed to build."
             else:
-                self.assertEqual(c.state, koji.BUILD_STATES['COMPLETE'])
+                assert c.state == koji.BUILD_STATES['COMPLETE']
 
             # Whole module should be failed.
-            self.assertEqual(c.module_build.state, models.BUILD_STATES['failed'])
-            self.assertEqual(c.module_build.state_reason, "Some components failed to build.")
+            assert c.module_build.state == models.BUILD_STATES['failed']
+            assert c.module_build.state_reason == "Some components failed to build."
 
             # We should end up with batch 2 and never start batch 3, because
             # there were failed components in batch 2.
-            self.assertEqual(c.module_build.batch, 2)
+            assert c.module_build.batch == 2
 
     @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
@@ -750,17 +747,17 @@ class TestBuild(unittest.TestCase):
         for c in models.ComponentBuild.query.filter_by(module_id=module_build_id).all():
             # perl-Tangerine is expected to fail as configured in on_build_cb.
             if c.package == "module-build-macros":
-                self.assertEqual(c.state, koji.BUILD_STATES['COMPLETE'])
+                assert c.state == koji.BUILD_STATES['COMPLETE']
             else:
-                self.assertEqual(c.state, koji.BUILD_STATES['FAILED'])
+                assert c.state == koji.BUILD_STATES['FAILED']
 
             # Whole module should be failed.
-            self.assertEqual(c.module_build.state, models.BUILD_STATES['failed'])
-            self.assertEqual(c.module_build.state_reason, "Some components failed to build.")
+            assert c.module_build.state == models.BUILD_STATES['failed']
+            assert c.module_build.state_reason == "Some components failed to build."
 
             # We should end up with batch 2 and never start batch 3, because
             # there were failed components in batch 2.
-            self.assertEqual(c.module_build.batch, 2)
+            assert c.module_build.batch == 2
 
     @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
@@ -786,7 +783,7 @@ class TestBuild(unittest.TestCase):
 
         def on_tag_artifacts_cb(cls, artifacts, dest_tag=True):
             if dest_tag is True:
-                self.assertEqual(tag_groups.pop(0), set(artifacts))
+                assert tag_groups.pop(0) == set(artifacts)
         FakeModuleBuilder.on_tag_artifacts_cb = on_tag_artifacts_cb
 
         buildtag_groups = []
@@ -796,7 +793,7 @@ class TestBuild(unittest.TestCase):
              'tangerine-0.22-3.module+0+814cfa39']))
 
         def on_buildroot_add_artifacts_cb(cls, artifacts, install):
-            self.assertEqual(buildtag_groups.pop(0), set(artifacts))
+            assert buildtag_groups.pop(0) == set(artifacts)
         FakeModuleBuilder.on_buildroot_add_artifacts_cb = on_buildroot_add_artifacts_cb
 
         msgs = [MBSModule("local module build", 2, 1)]
@@ -809,12 +806,10 @@ class TestBuild(unittest.TestCase):
         # All components should be built and module itself should be in "done"
         # or "ready" state.
         for build in models.ComponentBuild.query.filter_by(module_id=2).all():
-            self.assertEqual(build.state, koji.BUILD_STATES['COMPLETE'])
-            self.assertTrue(build.module_build.state in [models.BUILD_STATES["done"],
-                                                         models.BUILD_STATES["ready"]])
-
-            self.assertEqual(build.reused_component_id,
-                             reused_component_ids[build.package])
+            assert build.state == koji.BUILD_STATES['COMPLETE']
+            assert build.module_build.state in [models.BUILD_STATES["done"],
+                                                models.BUILD_STATES["ready"]]
+            assert build.reused_component_id == reused_component_ids[build.package]
 
     @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
@@ -828,8 +823,7 @@ class TestBuild(unittest.TestCase):
         test_reuse_component_init_data()
 
         models.ComponentBuild.query.filter_by(package="module-build-macros").delete()
-        self.assertEqual(len(models.ComponentBuild.query.filter_by(
-            package="module-build-macros").all()), 0)
+        assert len(models.ComponentBuild.query.filter_by(package="module-build-macros").all()) == 0
 
         db.session.commit()
 
@@ -846,7 +840,7 @@ class TestBuild(unittest.TestCase):
 
         def on_tag_artifacts_cb(cls, artifacts, dest_tag=True):
             if dest_tag is True:
-                self.assertEqual(tag_groups.pop(0), set(artifacts))
+                assert tag_groups.pop(0) == set(artifacts)
         FakeModuleBuilder.on_tag_artifacts_cb = on_tag_artifacts_cb
 
         buildtag_groups = []
@@ -856,7 +850,7 @@ class TestBuild(unittest.TestCase):
              'tangerine-0.22-3.module+0+814cfa39']))
 
         def on_buildroot_add_artifacts_cb(cls, artifacts, install):
-            self.assertEqual(buildtag_groups.pop(0), set(artifacts))
+            assert buildtag_groups.pop(0) == set(artifacts)
         FakeModuleBuilder.on_buildroot_add_artifacts_cb = on_buildroot_add_artifacts_cb
 
         msgs = [MBSModule("local module build", 2, 1)]
@@ -866,10 +860,10 @@ class TestBuild(unittest.TestCase):
         # All components should be built and module itself should be in "done"
         # or "ready" state.
         for build in models.ComponentBuild.query.filter_by(module_id=2).all():
-            self.assertEqual(build.state, koji.BUILD_STATES['COMPLETE'])
-            self.assertTrue(build.module_build.state in [models.BUILD_STATES["done"],
-                                                         models.BUILD_STATES["ready"]])
-            self.assertNotEqual(build.package, "module-build-macros")
+            assert build.state == koji.BUILD_STATES['COMPLETE']
+            assert build.module_build.state in [models.BUILD_STATES["done"],
+                                                models.BUILD_STATES["ready"]]
+            assert build.package != "module-build-macros"
 
     @timed(60)
     @patch('module_build_service.auth.get_user', return_value=user)
@@ -973,10 +967,10 @@ class TestBuild(unittest.TestCase):
         components = models.ComponentBuild.query.filter_by(
             module_id=module_build_id, batch=2).order_by(models.ComponentBuild.id).all()
         # Make sure the build went from failed to wait
-        self.assertEqual(module_build.state, models.BUILD_STATES['wait'])
-        self.assertEqual(module_build.state_reason, 'Resubmitted by Homer J. Simpson')
+        assert module_build.state == models.BUILD_STATES['wait']
+        assert module_build.state_reason == 'Resubmitted by Homer J. Simpson'
         # Make sure the state was reset on the failed component
-        self.assertIsNone(components[1].state)
+        assert components[1].state is None
         db.session.expire_all()
 
         # Run the backend
@@ -987,9 +981,9 @@ class TestBuild(unittest.TestCase):
         # All components should be built and module itself should be in "done"
         # or "ready" state.
         for build in models.ComponentBuild.query.filter_by(module_id=module_build_id).all():
-            self.assertEqual(build.state, koji.BUILD_STATES['COMPLETE'])
-            self.assertTrue(build.module_build.state in [models.BUILD_STATES['done'],
-                                                         models.BUILD_STATES['ready']])
+            assert build.state == koji.BUILD_STATES['COMPLETE']
+            assert build.module_build.state in [models.BUILD_STATES['done'],
+                                                models.BUILD_STATES['ready']]
 
     @timed(60)
     @patch('module_build_service.auth.get_user', return_value=user)
@@ -1084,11 +1078,11 @@ class TestBuild(unittest.TestCase):
         module_build_id = data['id']
         module_build = models.ModuleBuild.query.filter_by(id=module_build_id).one()
         # Make sure the build went from failed to wait
-        self.assertEqual(module_build.state, models.BUILD_STATES['wait'])
-        self.assertEqual(module_build.state_reason, 'Resubmitted by Homer J. Simpson')
+        assert module_build.state == models.BUILD_STATES['wait']
+        assert module_build.state_reason == 'Resubmitted by Homer J. Simpson'
         # Make sure the state was reset on the failed component
         for c in module_build.component_builds:
-            self.assertIsNone(c.state)
+            assert c.state is None
         db.session.expire_all()
 
         # Run the backend
@@ -1099,9 +1093,9 @@ class TestBuild(unittest.TestCase):
         # All components should be built and module itself should be in "done"
         # or "ready" state.
         for build in models.ComponentBuild.query.filter_by(module_id=module_build_id).all():
-            self.assertEqual(build.state, koji.BUILD_STATES['COMPLETE'])
-            self.assertTrue(build.module_build.state in [models.BUILD_STATES['done'],
-                                                         models.BUILD_STATES['ready']])
+            assert build.state == koji.BUILD_STATES['COMPLETE']
+            assert build.module_build.state in [models.BUILD_STATES['done'],
+                                                models.BUILD_STATES['ready']]
 
     @timed(60)
     @patch('module_build_service.auth.get_user', return_value=user)
@@ -1125,12 +1119,11 @@ class TestBuild(unittest.TestCase):
 
         module_build_id = json.loads(rv.data)['id']
         module_build = models.ModuleBuild.query.filter_by(id=module_build_id).one()
-        self.assertEqual(module_build.state, models.BUILD_STATES['failed'])
-        self.assertEqual(
-            module_build.state_reason, 'Custom component repositories aren\'t allowed.')
-        self.assertEqual(len(module_build.module_builds_trace), 2)
-        self.assertEqual(module_build.module_builds_trace[0].state, models.BUILD_STATES['init'])
-        self.assertEqual(module_build.module_builds_trace[1].state, models.BUILD_STATES['failed'])
+        assert module_build.state == models.BUILD_STATES['failed']
+        assert module_build.state_reason == 'Custom component repositories aren\'t allowed.'
+        assert len(module_build.module_builds_trace) == 2
+        assert module_build.module_builds_trace[0].state == models.BUILD_STATES['init']
+        assert module_build.module_builds_trace[1].state == models.BUILD_STATES['failed']
 
         # Resubmit the failed module
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
@@ -1141,10 +1134,10 @@ class TestBuild(unittest.TestCase):
         components = models.ComponentBuild.query.filter_by(
             module_id=module_build_id, batch=2).order_by(models.ComponentBuild.id).all()
         # Make sure the build went from failed to init
-        self.assertEqual(module_build.state, models.BUILD_STATES['init'])
-        self.assertEqual(module_build.state_reason, 'Resubmitted by Homer J. Simpson')
+        assert module_build.state == models.BUILD_STATES['init']
+        assert module_build.state_reason == 'Resubmitted by Homer J. Simpson'
         # Make sure there are no components
-        self.assertEqual(components, [])
+        assert components == []
         db.session.expire_all()
 
         # Run the backend again
@@ -1153,9 +1146,9 @@ class TestBuild(unittest.TestCase):
         # All components should be built and module itself should be in "done"
         # or "ready" state.
         for build in models.ComponentBuild.query.filter_by(module_id=module_build_id).all():
-            self.assertEqual(build.state, koji.BUILD_STATES['COMPLETE'])
-            self.assertTrue(build.module_build.state in [models.BUILD_STATES['done'],
-                                                         models.BUILD_STATES['ready']])
+            assert build.state == koji.BUILD_STATES['COMPLETE']
+            assert build.module_build.state in [models.BUILD_STATES['done'],
+                                                models.BUILD_STATES['ready']]
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
@@ -1169,7 +1162,7 @@ class TestBuild(unittest.TestCase):
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                 'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}))
-        self.assertEqual(rv.status_code, 201)
+        assert rv.status_code == 201
         # Run the backend
         stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
         module_build_service.scheduler.main([], stop)
@@ -1184,25 +1177,24 @@ class TestBuild(unittest.TestCase):
                         'failed build is allowed.'),
             'status': 409
         }
-        self.assertEqual(data, expected)
+        assert data == expected
 
 
 @patch("module_build_service.config.Config.system",
        new_callable=PropertyMock, return_value="testlocal")
-class TestLocalBuild(unittest.TestCase):
+class TestLocalBuild:
 
-    def setUp(self):
+    def setup_method(self, test_method):
         FakeModuleBuilder.on_build_cb = None
         FakeModuleBuilder.backend = 'testlocal'
         GenericBuilder.register_backend_class(FakeModuleBuilder)
         self.client = app.test_client()
         clean_database()
 
-        filename = cassette_dir + self.id()
-        self.vcr = vcr.use_cassette(filename)
+        self.vcr = vcr.use_cassette(get_vcr_path(__file__, test_method))
         self.vcr.__enter__()
 
-    def tearDown(self):
+    def teardown_method(self, test_method):
         FakeModuleBuilder.reset()
         cleanup_moksha()
         self.vcr.__exit__()
@@ -1254,6 +1246,6 @@ class TestLocalBuild(unittest.TestCase):
             # or "ready" state.
             for build in models.ComponentBuild.query.filter_by(
                     module_id=module_build_id).all():
-                self.assertEqual(build.state, koji.BUILD_STATES['COMPLETE'])
-                self.assertTrue(build.module_build.state in [
-                    models.BUILD_STATES["done"], models.BUILD_STATES["ready"]])
+                assert build.state == koji.BUILD_STATES['COMPLETE']
+                assert build.module_build.state in [models.BUILD_STATES["done"],
+                                                    models.BUILD_STATES["ready"]]

@@ -21,30 +21,26 @@
 # Written by Ralph Bean <rbean@redhat.com>
 
 from os.path import dirname
-import unittest
 import mock
 import vcr
 
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.repos
 import module_build_service.models
-from tests import scheduler_init_data
-from tests import conf, db, app
+from tests import conf, db, app, scheduler_init_data, get_vcr_path
 
 base_dir = dirname(dirname(__file__))
-cassette_dir = base_dir + '/vcr-request-data/'
 
 
-class TestRepoDone(unittest.TestCase):
+class TestRepoDone:
 
-    def setUp(self):
+    def setup_method(self, test_method):
         scheduler_init_data()
 
-        filename = cassette_dir + self.id()
-        self.vcr = vcr.use_cassette(filename)
+        self.vcr = vcr.use_cassette(get_vcr_path(__file__, test_method))
         self.vcr.__enter__()
 
-    def tearDown(self):
+    def teardown_method(self, test_method):
         self.vcr.__exit__()
 
     @mock.patch('module_build_service.models.ModuleBuild.from_repo_done_event')
@@ -124,8 +120,7 @@ class TestRepoDone(unittest.TestCase):
                     '?#da95886c8a443b36a9ce31abda1f9bed22f2f9c2'))
         component_build = module_build_service.models.ComponentBuild.query\
             .filter_by(package='communicator').one()
-        self.assertEquals(component_build.state_reason,
-                          'Failed to submit artifact communicator to Koji')
+        assert component_build.state_reason == 'Failed to submit artifact communicator to Koji'
 
     @mock.patch('module_build_service.scheduler.handlers.repos.log.info')
     def test_erroneous_regen_repo_received(self, mock_log_info):
@@ -146,7 +141,7 @@ class TestRepoDone(unittest.TestCase):
             'Ignoring repo regen, because not all components are tagged.')
         module_build = module_build_service.models.ModuleBuild.query.get(1)
         # Make sure the module build didn't transition since all the components weren't tagged
-        self.assertEqual(module_build.state, module_build_service.models.BUILD_STATES['build'])
+        assert module_build.state == module_build_service.models.BUILD_STATES['build']
 
     @mock.patch('module_build_service.builder.KojiModuleBuilder.'
                 'KojiModuleBuilder.list_tasks_for_components',
@@ -177,5 +172,4 @@ class TestRepoDone(unittest.TestCase):
             module_build = module_build_service.models.ModuleBuild.query\
                 .filter_by(name='starcommand').one()
 
-            self.assertEquals(module_build.state,
-                              module_build_service.models.BUILD_STATES["failed"])
+            assert module_build.state == module_build_service.models.BUILD_STATES["failed"]

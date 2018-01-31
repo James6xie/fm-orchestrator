@@ -22,9 +22,9 @@
 
 
 import os
+from os import path
 import shutil
 import tempfile
-import unittest
 
 from module_build_service import log, models
 from module_build_service.logger import ModuleBuildLogs
@@ -32,16 +32,20 @@ from module_build_service.scheduler.consumer import MBSConsumer
 from tests import init_data
 
 
-class TestLogger(unittest.TestCase):
+class TestLogger:
 
-    def setUp(self):
+    def setup_method(self, test_method):
         init_data()
-        self.base = tempfile.mkdtemp(prefix='mbs-', suffix='-%s' % self.id())
+        test_id = '.'.join([
+            path.splitext(path.basename(__file__))[0],
+            test_method.im_class.__name__,
+            test_method.im_func.__name__])
+        self.base = tempfile.mkdtemp(prefix='mbs-', suffix='-%s' % test_id)
         self.name_format = "build-{id}.log"
         print("Storing build logs in %r" % self.base)
         self.build_log = ModuleBuildLogs(self.base, self.name_format)
 
-    def tearDown(self):
+    def teardown_method(self, test_method):
         MBSConsumer.current_module_build_id = None
         shutil.rmtree(self.base)
 
@@ -55,7 +59,7 @@ class TestLogger(unittest.TestCase):
         # ensure we are not using some garbage from previous failed test.
         self.build_log.start(build)
         path = self.build_log.path(build)
-        self.assertEqual(path[len(self.base):], "/build-1.log")
+        assert path[len(self.base):] == "/build-1.log"
         if os.path.exists(path):
             os.unlink(path)
 
@@ -66,7 +70,7 @@ class TestLogger(unittest.TestCase):
         log.warn("ignore this test msg")
         log.error("ignore this test msg")
         self.build_log.stop(build)
-        self.assertTrue(not os.path.exists(path))
+        assert not os.path.exists(path)
 
         # Try logging with current_module_build_id set to 1 and then to 2.
         # Only messages with current_module_build_id set to 1 should appear in
@@ -85,12 +89,12 @@ class TestLogger(unittest.TestCase):
         log.error("ignore this test msg2")
 
         self.build_log.stop(build)
-        self.assertTrue(os.path.exists(path))
+        assert os.path.exists(path)
         with open(path, "r") as f:
             data = f.read()
             # Note that DEBUG is not present unless configured server-wide.
             for level in ["INFO", "WARNING", "ERROR"]:
-                self.assertTrue(data.find("%s - ignore this test msg1" % level) != -1)
+                assert data.find("%s - ignore this test msg1" % level) != -1
 
         # Try to log more messages when build_log for module 1 is stopped.
         # New messages should not appear in a log.
@@ -102,15 +106,15 @@ class TestLogger(unittest.TestCase):
         self.build_log.stop(build)
         with open(path, "r") as f:
             data = f.read()
-            self.assertTrue(data.find("ignore this test msg3") == -1)
+            assert data.find("ignore this test msg3") == -1
 
     def test_module_build_logs_name_format(self):
         build = models.ModuleBuild.query.filter_by(id=1).one()
 
         log1 = ModuleBuildLogs("/some/path", "build-{id}.log")
-        self.assertEquals(log1.name(build), "build-1.log")
-        self.assertEquals(log1.path(build), "/some/path/build-1.log")
+        assert log1.name(build) == "build-1.log"
+        assert log1.path(build) == "/some/path/build-1.log"
 
         log2 = ModuleBuildLogs("/some/path", "build-{name}-{stream}-{version}.log")
-        self.assertEquals(log2.name(build), "build-nginx-1-2.log")
-        self.assertEquals(log2.path(build), "/some/path/build-nginx-1-2.log")
+        assert log2.name(build) == "build-nginx-1-2.log"
+        assert log2.path(build) == "/some/path/build-nginx-1-2.log"

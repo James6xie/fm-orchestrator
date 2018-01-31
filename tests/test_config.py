@@ -20,18 +20,17 @@
 #
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
-import unittest
 import os.path
 
 from module_build_service import conf
 
 
-class TestConfig(unittest.TestCase):
+class TestConfig:
     def test_path_expanduser(self):
         test_dir = "~/modulebuild/builds"
         conf.mock_resultsdir = test_dir
-        self.assertEqual(conf.mock_resultsdir, os.path.expanduser(test_dir))
+        assert conf.mock_resultsdir == os.path.expanduser(test_dir)
 
         test_dir = "~/modulebuild/builds"
         conf.cache_dir = test_dir
-        self.assertEqual(conf.cache_dir, os.path.expanduser(test_dir))
+        assert conf.cache_dir == os.path.expanduser(test_dir)

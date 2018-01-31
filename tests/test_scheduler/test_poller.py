@@ -18,7 +18,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import unittest
 from os import path
 from mock import patch
 from module_build_service import models, conf
@@ -39,12 +38,12 @@ CASSETTES_DIR = path.join(
 @patch("module_build_service.scheduler.consumer.get_global_consumer")
 @patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
 @patch("module_build_service.builder.GenericBuilder.create_from_module")
-class TestPoller(unittest.TestCase):
+class TestPoller:
 
-    def setUp(self):
+    def setup_method(self, test_method):
         test_reuse_component_init_data()
 
-    def tearDown(self):
+    def teardown_method(self, test_method):
         init_data()
 
     @patch('module_build_service.utils.start_build_component')
@@ -82,8 +81,8 @@ class TestPoller(unittest.TestCase):
         # Components should be in BUILDING state now.
         components = module_build.current_batch()
         for component in components:
-            self.assertEqual(component.state, koji.BUILD_STATES["BUILDING"])
-        self.assertEqual(len(start_build_component.mock_calls), 2)
+            assert component.state == koji.BUILD_STATES["BUILDING"]
+        assert len(start_build_component.mock_calls) == 2
 
     def test_trigger_new_repo_when_failed(self, create_builder,
                                           koji_get_session, global_consumer,
@@ -154,8 +153,8 @@ class TestPoller(unittest.TestCase):
         module_build = models.ModuleBuild.query.filter_by(id=2).one()
         db.session.refresh(module_build)
 
-        self.assertTrue(not koji_session.newRepo.called)
-        self.assertEqual(module_build.new_repo_task_id, 0)
+        assert not koji_session.newRepo.called
+        assert module_build.new_repo_task_id == 0
 
     def test_process_paused_module_builds_waiting_for_repo(
             self, create_builder, koji_get_session, global_consumer, dbg):
@@ -192,7 +191,7 @@ class TestPoller(unittest.TestCase):
         # Components should not be in building state
         components = module_build.current_batch()
         for component in components:
-            self.assertEqual(component.state, None)
+            assert component.state is None
 
     def test_delete_old_koji_targets(
             self, create_builder, koji_get_session, global_consumer, dbg):
@@ -237,7 +236,7 @@ class TestPoller(unittest.TestCase):
 
             # deleteBuildTarget should not be called, because time_completed is
             # set to "now".
-            self.assertTrue(not koji_session.deleteBuildTarget.called)
+            assert not koji_session.deleteBuildTarget.called
 
             # Try removing non-modular target - should not happen
             db.session.refresh(module_build)
@@ -245,7 +244,7 @@ class TestPoller(unittest.TestCase):
             module_build.time_completed = datetime.utcnow() - timedelta(hours=25)
             db.session.commit()
             poller.delete_old_koji_targets(conf, db.session)
-            self.assertTrue(not koji_session.deleteBuildTarget.called)
+            assert not koji_session.deleteBuildTarget.called
 
             # Refresh our module_build object and set time_completed 25 hours ago
             db.session.refresh(module_build)
@@ -279,15 +278,15 @@ class TestPoller(unittest.TestCase):
         db.session.refresh(module_build)
 
         # Ensure the queue is empty before we start.
-        self.assertEquals(consumer.incoming.qsize(), 0)
+        assert consumer.incoming.qsize() == 0
 
         # Poll :)
         poller.process_waiting_module_builds(db.session)
 
-        self.assertEquals(consumer.incoming.qsize(), 1)
+        assert consumer.incoming.qsize() == 1
         module_build = models.ModuleBuild.query.filter_by(id=2).one()
         # ensure the time_modified was changed.
-        self.assertGreater(module_build.time_modified, original)
+        assert module_build.time_modified > original
 
     def test_process_waiting_module_build_not_old_enough(self, create_builder, koji_get_session,
                                                          global_consumer, dbg):
@@ -310,13 +309,13 @@ class TestPoller(unittest.TestCase):
         db.session.refresh(module_build)
 
         # Ensure the queue is empty before we start.
-        self.assertEquals(consumer.incoming.qsize(), 0)
+        assert consumer.incoming.qsize() == 0
 
         # Poll :)
         poller.process_waiting_module_builds(db.session)
 
         # Ensure we did *not* process the 9 minute-old build.
-        self.assertEquals(consumer.incoming.qsize(), 0)
+        assert consumer.incoming.qsize() == 0
 
     def test_process_waiting_module_build_none_found(self, create_builder, koji_get_session,
                                                      global_consumer, dbg):
@@ -330,13 +329,13 @@ class TestPoller(unittest.TestCase):
         poller = MBSProducer(hub)
 
         # Ensure the queue is empty before we start.
-        self.assertEquals(consumer.incoming.qsize(), 0)
+        assert consumer.incoming.qsize() == 0
 
         # Poll :)
         poller.process_waiting_module_builds(db.session)
 
         # Ensure we did *not* process any of the non-waiting builds.
-        self.assertEquals(consumer.incoming.qsize(), 0)
+        assert consumer.incoming.qsize() == 0
 
     def test_cleanup_stale_failed_builds(self, create_builder, koji_get_session,
                                          global_consumer, dbg):
@@ -369,20 +368,20 @@ class TestPoller(unittest.TestCase):
         poller = MBSProducer(hub)
 
         # Ensure the queue is empty before we start
-        self.assertEquals(consumer.incoming.qsize(), 0)
+        assert consumer.incoming.qsize() == 0
         poller.cleanup_stale_failed_builds(conf, db.session)
         db.session.refresh(module_build_two)
         # Make sure module_build_one was transitioned to garbage
-        self.assertEqual(module_build_one.state, models.BUILD_STATES['garbage'])
+        assert module_build_one.state == models.BUILD_STATES['garbage']
         state_reason = ('The module was garbage collected since it has failed over {0} day(s) ago'
                         .format(conf.cleanup_failed_builds_time))
-        self.assertEqual(module_build_one.state_reason, state_reason)
+        assert module_build_one.state_reason == state_reason
         # Make sure all the components are marked as untagged in the database
         for component in module_build_one.component_builds:
-            self.assertFalse(component.tagged)
-            self.assertFalse(component.tagged_in_final)
+            assert not component.tagged
+            assert not component.tagged_in_final
         # Make sure module_build_two stayed the same
-        self.assertEqual(module_build_two.state, models.BUILD_STATES['failed'])
+        assert module_build_two.state == models.BUILD_STATES['failed']
         # Make sure the builds were untagged
         builder.untag_artifacts.assert_called_once_with([
             'perl-Tangerine-0.23-1.module+0+814cfa39',
@@ -419,15 +418,15 @@ class TestPoller(unittest.TestCase):
         poller = MBSProducer(hub)
 
         # Ensure the queue is empty before we start
-        self.assertEquals(consumer.incoming.qsize(), 0)
+        assert consumer.incoming.qsize() == 0
         poller.cleanup_stale_failed_builds(conf, db.session)
         db.session.refresh(module_build_two)
         # Make sure module_build_two was transitioned to garbage
-        self.assertEqual(module_build_two.state, models.BUILD_STATES['garbage'])
+        assert module_build_two.state == models.BUILD_STATES['garbage']
         state_reason = ('The module was garbage collected since it has failed over {0} day(s) ago'
                         .format(conf.cleanup_failed_builds_time))
-        self.assertEqual(module_build_two.state_reason, state_reason)
+        assert module_build_two.state_reason == state_reason
         # Make sure module_build_one stayed the same
-        self.assertEqual(module_build_one.state, models.BUILD_STATES['failed'])
+        assert module_build_one.state == models.BUILD_STATES['failed']
         # Make sure that the builder was never instantiated
         create_builder.assert_not_called()

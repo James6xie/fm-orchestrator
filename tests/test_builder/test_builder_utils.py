@@ -20,7 +20,6 @@
 #
 # Written by Matt Prahl <mprahl@redhat.com>
 
-import unittest
 import tempfile
 import shutil
 
@@ -30,7 +29,7 @@ from module_build_service.builder import utils
 from tests import conf
 
 
-class TestBuilderUtils(unittest.TestCase):
+class TestBuilderUtils:
 
     @patch('requests.get')
     @patch('koji.ClientSession')
@@ -137,5 +136,5 @@ class TestBuilderUtils(unittest.TestCase):
             call(url_three, stream=True, timeout=60)
         ]
         for expected_call in expected_calls:
-            self.assertIn(expected_call, mock_get.call_args_list)
-        self.assertEqual(len(mock_get.call_args_list), len(expected_calls))
+            assert expected_call in mock_get.call_args_list
+        assert len(mock_get.call_args_list) == len(expected_calls)

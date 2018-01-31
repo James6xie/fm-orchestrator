@@ -20,24 +20,21 @@
 #
 
 import os
-import unittest
 
 from mock import patch, PropertyMock
 import vcr
 
-from tests import conf, clean_database
+from tests import conf, clean_database, get_vcr_path
 from tests.test_views.test_views import FakeSCM
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.modules
 from module_build_service import build_logs
 from module_build_service.models import make_session, ModuleBuild, ComponentBuild
 
-CASSETTE_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'vcr-request-data/')
 
+class TestModuleInit:
 
-class TestModuleInit(unittest.TestCase):
-
-    def setUp(self):
+    def setup_method(self, test_method):
         self.fn = module_build_service.scheduler.handlers.modules.init
         self.staged_data_dir = os.path.join(
             os.path.dirname(__file__), '../', 'staged_data')
@@ -51,11 +48,10 @@ class TestModuleInit(unittest.TestCase):
             ModuleBuild.create(
                 session, conf, 'testmodule', '1', 3, yaml, scmurl, 'mprahl')
 
-        filename = os.path.join(CASSETTE_DIR, self.id())
-        self.vcr = vcr.use_cassette(filename)
+        self.vcr = vcr.use_cassette(get_vcr_path(__file__, test_method))
         self.vcr.__enter__()
 
-    def tearDown(self):
+    def teardown_method(self, test_method):
         self.vcr.__exit__()
         try:
             path = build_logs.path(1)

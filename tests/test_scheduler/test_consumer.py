@@ -18,13 +18,12 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import unittest
 from mock import patch, MagicMock
 from module_build_service.scheduler.consumer import MBSConsumer
 from module_build_service.messaging import KojiTagChange, KojiRepoChange
 
 
-class TestConsumer(unittest.TestCase):
+class TestConsumer:
 
     @patch('module_build_service.messaging.conf.messaging', new='fedmsg')
     def test_get_abstracted_msg_fedmsg(self):
@@ -57,10 +56,10 @@ class TestConsumer(unittest.TestCase):
             }
         }
         msg_obj = consumer.get_abstracted_msg(msg)
-        self.assertIsInstance(msg_obj, KojiTagChange)
-        self.assertEqual(msg_obj.msg_id, msg['msg_id'])
-        self.assertEqual(msg_obj.tag, msg['msg']['tag'])
-        self.assertEqual(msg_obj.artifact, msg['msg']['name'])
+        assert isinstance(msg_obj, KojiTagChange)
+        assert msg_obj.msg_id == msg['msg_id']
+        assert msg_obj.tag == msg['msg']['tag']
+        assert msg_obj.artifact == msg['msg']['name']
 
     @patch('module_build_service.scheduler.consumer.models')
     @patch.object(MBSConsumer, 'process_message')
@@ -94,8 +93,8 @@ class TestConsumer(unittest.TestCase):
             }
         }
         consumer.consume(msg)
-        self.assertEqual(process_message.call_count, 1)
+        assert process_message.call_count == 1
         msg_obj = process_message.call_args[0][1]
-        self.assertIsInstance(msg_obj, KojiRepoChange)
-        self.assertEqual(msg_obj.msg_id, msg['body']['msg_id'])
-        self.assertEqual(msg_obj.repo_tag, msg['body']['msg']['tag'])
+        assert isinstance(msg_obj, KojiRepoChange)
+        assert msg_obj.msg_id == msg['body']['msg_id']
+        assert msg_obj.repo_tag == msg['body']['msg']['tag']

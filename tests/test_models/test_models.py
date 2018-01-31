@@ -21,7 +21,6 @@
 # Written by Ralph Bean <rbean@redhat.com>
 
 import os
-import unittest
 
 import modulemd
 
@@ -30,8 +29,8 @@ from module_build_service import conf
 from module_build_service.models import ComponentBuild, ModuleBuild, make_session
 
 
-class TestModels(unittest.TestCase):
-    def setUp(self):
+class TestModels:
+    def setup_method(self, test_method):
         init_data()
 
     def test_app_sqlalchemy_events(self):
@@ -54,11 +53,11 @@ class TestModels(unittest.TestCase):
 
         with make_session(conf) as session:
             c = session.query(ComponentBuild).filter(ComponentBuild.id == 1).one()
-            self.assertEquals(c.component_builds_trace[0].id, 1)
-            self.assertEquals(c.component_builds_trace[0].component_id, 1)
-            self.assertEquals(c.component_builds_trace[0].state, 1)
-            self.assertEquals(c.component_builds_trace[0].state_reason, None)
-            self.assertEquals(c.component_builds_trace[0].task_id, 999999999)
+            assert c.component_builds_trace[0].id == 1
+            assert c.component_builds_trace[0].component_id == 1
+            assert c.component_builds_trace[0].state == 1
+            assert c.component_builds_trace[0].state_reason is None
+            assert c.component_builds_trace[0].task_id == 999999999
 
     def test_context_functions(self):
         """ Test that the build_context, runtime_context, and context hashes are correctly
@@ -70,6 +69,6 @@ class TestModels(unittest.TestCase):
         mmd.load(yaml_path)
         build.modulemd = mmd.dumps()
         build.build_context, build.runtime_context = ModuleBuild.contexts_from_mmd(build.modulemd)
-        self.assertEqual(build.build_context, 'f6e2aeec7576196241b9afa0b6b22acf2b6873d7')
-        self.assertEqual(build.runtime_context, '1739827b08388842fc90ccc0b6070c59b7d856fc')
-        self.assertEqual(build.context, 'e7a3d35e')
+        assert build.build_context == 'f6e2aeec7576196241b9afa0b6b22acf2b6873d7'
+        assert build.runtime_context == '1739827b08388842fc90ccc0b6070c59b7d856fc'
+        assert build.context == 'e7a3d35e'

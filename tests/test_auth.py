@@ -22,8 +22,7 @@
 # Written by Matt Prahl <mprahl@redhat.com>
 from os import path, environ
 
-from nose.tools import eq_
-import unittest
+import pytest
 import mock
 from mock import patch, PropertyMock, Mock
 import kerberos
@@ -35,7 +34,7 @@ import module_build_service.errors
 import module_build_service.config as mbs_config
 
 
-class TestAuthModule(unittest.TestCase):
+class TestAuthModule:
     def test_get_user_no_token(self):
         base_dir = path.abspath(path.dirname(__file__))
         client_secrets = path.join(base_dir, "client_secrets.json")
@@ -44,11 +43,9 @@ class TestAuthModule(unittest.TestCase):
             request = mock.MagicMock()
             request.cookies.return_value = {}
 
-            with self.assertRaises(module_build_service.errors.Unauthorized) as cm:
+            with pytest.raises(module_build_service.errors.Unauthorized) as cm:
                 module_build_service.auth.get_user(request)
-
-            self.assertEquals(str(cm.exception),
-                              "No 'authorization' header found.")
+                assert str(cm.value) == "No 'authorization' header found."
 
     @patch('module_build_service.auth._get_token_info')
     @patch('module_build_service.auth._get_user_info')
@@ -73,11 +70,9 @@ class TestAuthModule(unittest.TestCase):
             request.headers.__setitem__.side_effect = headers.__setitem__
             request.headers.__contains__.side_effect = headers.__contains__
 
-            with self.assertRaises(module_build_service.errors.Unauthorized) as cm:
+            with pytest.raises(module_build_service.errors.Unauthorized) as cm:
                 module_build_service.auth.get_user(request)
-
-            self.assertEquals(str(cm.exception),
-                              "OIDC token invalid or expired.")
+                assert str(cm.value) == "OIDC token invalid or expired."
 
     @patch('module_build_service.auth._get_token_info')
     @patch('module_build_service.auth._get_user_info')
@@ -103,24 +98,22 @@ class TestAuthModule(unittest.TestCase):
             request.headers.__contains__.side_effect = headers.__contains__
 
             username, groups = module_build_service.auth.get_user(request)
-            eq_(username, name)
-            eq_(groups, set(get_user_info.return_value["groups"]))
+            assert username == name
+            assert groups == set(get_user_info.return_value["groups"])
 
     @patch.object(mbs_config.Config, 'no_auth', new_callable=PropertyMock, return_value=True)
     def test_disable_authentication(self, conf_no_auth):
         request = mock.MagicMock()
         username, groups = module_build_service.auth.get_user(request)
-        eq_(username, "anonymous")
-        eq_(groups, {"packager"})
+        assert username == "anonymous"
+        assert groups == {"packager"}
 
     @patch('module_build_service.auth.client_secrets', None)
     def test_misconfiguring_oidc_client_secrets_should_be_failed(self):
         request = mock.MagicMock()
-        with self.assertRaises(module_build_service.errors.Forbidden) as cm:
+        with pytest.raises(module_build_service.errors.Forbidden) as cm:
             module_build_service.auth.get_user(request)
-
-        self.assertEquals(str(cm.exception),
-                          "OIDC_CLIENT_SECRETS must be set in server config.")
+            assert str(cm.value) == "OIDC_CLIENT_SECRETS must be set in server config."
 
     @patch('module_build_service.auth._get_token_info')
     @patch('module_build_service.auth._get_user_info')
@@ -145,12 +138,10 @@ class TestAuthModule(unittest.TestCase):
             request.headers.__setitem__.side_effect = headers.__setitem__
             request.headers.__contains__.side_effect = headers.__contains__
 
-            with self.assertRaises(module_build_service.errors.Unauthorized) as cm:
+            with pytest.raises(module_build_service.errors.Unauthorized) as cm:
                 module_build_service.auth.get_user(request)
-
-            self.assertEquals(str(cm.exception),
-                              "Required OIDC scope 'mbs-scope' not present: "
-                              "['openid', 'https://id.fedoraproject.org/scope/groups']")
+                assert str(cm.value) == ("Required OIDC scope 'mbs-scope' not present: "
+                                         "['openid', 'https://id.fedoraproject.org/scope/groups']")
 
     @patch('module_build_service.auth._get_token_info')
     @patch('module_build_service.auth._get_user_info')
@@ -174,11 +165,9 @@ class TestAuthModule(unittest.TestCase):
             request.headers.__setitem__.side_effect = headers.__setitem__
             request.headers.__contains__.side_effect = headers.__contains__
 
-            with self.assertRaises(module_build_service.errors.Forbidden) as cm:
+            with pytest.raises(module_build_service.errors.Forbidden) as cm:
                 module_build_service.auth.get_user(request)
-
-            self.assertEquals(str(cm.exception),
-                              "OIDC_REQUIRED_SCOPE must be set in server config.")
+                assert str(cm.value) == "OIDC_REQUIRED_SCOPE must be set in server config."
 
 
 class KerberosMockConfig(object):
@@ -229,7 +218,7 @@ class KerberosMockConfig(object):
         self.kerberos_http_host_p.stop()
 
 
-class TestAuthModuleKerberos(unittest.TestCase):
+class TestAuthModuleKerberos:
     @patch('kerberos.authGSSServerInit', return_value=(kerberos.AUTH_GSS_COMPLETE, object()))
     @patch('kerberos.authGSSServerStep', return_value=kerberos.AUTH_GSS_COMPLETE)
     @patch('kerberos.authGSSServerResponse', return_value='STOKEN')

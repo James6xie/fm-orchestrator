@@ -22,7 +22,6 @@
 
 import os
 
-import unittest
 from mock import patch, PropertyMock
 
 import vcr
@@ -30,25 +29,24 @@ import module_build_service.resolver as mbs_resolver
 import module_build_service.utils
 import module_build_service.models
 from module_build_service import app, db
+from tests import get_vcr_path
 
 import tests
 import modulemd
 
 
 base_dir = os.path.join(os.path.dirname(__file__), "..")
-cassette_dir = base_dir + '/vcr-request-data/'
 
 
-class TestPDCModule(unittest.TestCase):
+class TestPDCModule:
 
-    def setUp(self):
-        filename = cassette_dir + self.id()
-        self.vcr = vcr.use_cassette(filename)
+    def setup_method(self, test_method):
+        self.vcr = vcr.use_cassette(get_vcr_path(__file__, test_method))
         self.vcr.__enter__()
 
         self.resolver = mbs_resolver.GenericResolver.create(tests.conf, backend='pdc')
 
-    def tearDown(self):
+    def teardown_method(self, test_method):
         self.vcr.__exit__()
 
     def test_get_variant_dict_module_dict_active(self):
@@ -67,7 +65,7 @@ class TestPDCModule(unittest.TestCase):
         }
 
         variant_dict = self.resolver._get_variant_dict(dep)
-        self.assertEqual(variant_dict, expected)
+        assert variant_dict == expected
 
     def test_get_module_simple_as_dict(self):
         query = {'name': 'testmodule', 'version': 'master'}
@@ -90,7 +88,7 @@ class TestPDCModule(unittest.TestCase):
         expected = [
             u'module-bootstrap-rawhide',
         ]
-        self.assertEqual(set(result), set(expected))
+        assert set(result) == set(expected)
 
     def test_get_module_build_dependencies_single_level(self):
         """
@@ -107,7 +105,7 @@ class TestPDCModule(unittest.TestCase):
         expected = [
             u'module-base-runtime-master-20170315134803',
         ]
-        self.assertEqual(set(result), set(expected))
+        assert set(result) == set(expected)
 
     @patch("module_build_service.config.Config.system",
            new_callable=PropertyMock, return_value="test")
@@ -138,7 +136,7 @@ class TestPDCModule(unittest.TestCase):
                     local_path,
                     'module-parent-master-20170816080815/results'),
             ]
-            self.assertEqual(set(result), set(expected))
+            assert set(result) == set(expected)
 
     def test_resolve_profiles(self):
         yaml_path = os.path.join(
@@ -158,7 +156,7 @@ class TestPDCModule(unittest.TestCase):
                      'fedora-modular-release', 'fedpkg-minimal', 'gnupg2',
                      'bash'])
         }
-        self.assertEqual(result, expected)
+        assert result == expected
 
     @patch("module_build_service.config.Config.system",
            new_callable=PropertyMock, return_value="test")
@@ -180,4 +178,4 @@ class TestPDCModule(unittest.TestCase):
                 'srpm-buildroot':
                     set(['bar'])
             }
-            self.assertEqual(result, expected)
+            assert result == expected

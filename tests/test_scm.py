@@ -24,7 +24,6 @@ import os
 import shutil
 import tempfile
 
-import unittest
 from mock import patch
 from nose.tools import raises
 
@@ -34,13 +33,13 @@ from module_build_service.errors import ValidationError, UnprocessableEntity
 repo_path = 'file://' + os.path.dirname(__file__) + "/scm_data/testrepo"
 
 
-class TestSCMModule(unittest.TestCase):
+class TestSCMModule:
 
-    def setUp(self):
+    def setup_method(self, test_method):
         self.tempdir = tempfile.mkdtemp()
         self.repodir = self.tempdir + '/testrepo'
 
-    def tearDown(self):
+    def teardown_method(self, test_method):
         if os.path.exists(self.tempdir):
             shutil.rmtree(self.tempdir)
 
@@ -152,4 +151,4 @@ class TestSCMModule(unittest.TestCase):
         mock_run.return_value = (0, output, '')
         scm = module_build_service.scm.SCM(repo_path)
         commit = scm.get_latest(None)
-        self.assertEquals(commit, '58379ef7887cbc91b215bacd32430628c92bc869')
+        assert commit == '58379ef7887cbc91b215bacd32430628c92bc869'

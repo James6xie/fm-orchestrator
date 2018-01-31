@@ -18,9 +18,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 #
-# Written by Matt Prahl <mprahl@redhat.com
+# Written by Matt Prahl <mprahl@redhat.com>
 
-import unittest
 import json
 import vcr
 
@@ -112,31 +111,32 @@ class FakeSCM(object):
         return path.join(self.sourcedir, self.name + ".yaml")
 
 
-class TestViews(unittest.TestCase):
-    maxDiff = None
-
-    def setUp(self):
+class TestViews:
+    def setup_method(self, test_method):
         self.client = app.test_client()
         init_data()
 
-        filename = cassette_dir + self.id()
-        self.vcr = vcr.use_cassette(filename)
+        filename = '.'.join([
+            path.splitext(path.basename(__file__))[0],
+            test_method.im_class.__name__,
+            test_method.im_func.__name__])
+        self.vcr = vcr.use_cassette(path.join(cassette_dir, filename))
         self.vcr.__enter__()
 
-    def tearDown(self):
+    def teardown_method(self, test_method):
         self.vcr.__exit__()
 
     def test_query_build(self):
         rv = self.client.get('/module-build-service/1/module-builds/1')
         data = json.loads(rv.data)
-        self.assertEquals(data['id'], 1)
-        self.assertEquals(data['context'], '00000000')
-        self.assertEquals(data['name'], 'nginx')
-        self.assertEquals(data['owner'], 'Moe Szyslak')
-        self.assertEquals(data['stream'], '1')
-        self.assertEquals(data['state'], 3)
-        self.assertEquals(data['state_reason'], None)
-        self.assertDictEqual(data['tasks'], {
+        assert data['id'] == 1
+        assert data['context'] == '00000000'
+        assert data['name'] == 'nginx'
+        assert data['owner'] == 'Moe Szyslak'
+        assert data['stream'] == '1'
+        assert data['state'] == 3
+        assert data['state_reason'] is None
+        assert data['tasks'] == {
             'rpms': {
                 'module-build-macros': {
                     'task_id': 12312321,
@@ -151,49 +151,48 @@ class TestViews(unittest.TestCase):
                     'nvr': 'nginx-1.10.1-2.module+1+b8661ee4',
                 },
             },
-        })
-        self.assertEquals(data['time_completed'], '2016-09-03T11:25:32Z')
-        self.assertEquals(data['time_modified'], '2016-09-03T11:25:32Z')
-        self.assertEquals(data['time_submitted'], '2016-09-03T11:23:20Z')
-        self.assertEqual(data['rebuild_strategy'], 'changed-and-after')
-        self.assertEquals(data['version'], '2')
+        }
+        assert data['time_completed'] == '2016-09-03T11:25:32Z'
+        assert data['time_modified'] == '2016-09-03T11:25:32Z'
+        assert data['time_submitted'] == '2016-09-03T11:23:20Z'
+        assert data['rebuild_strategy'] == 'changed-and-after'
+        assert data['version'] == '2'
 
     def test_query_build_short(self):
         rv = self.client.get('/module-build-service/1/module-builds/1?short=True')
         data = json.loads(rv.data)
-        self.assertEquals(data['id'], 1)
-        self.assertEquals(data['context'], '00000000')
-        self.assertEquals(data['name'], 'nginx')
-        self.assertEquals(data['state'], 3)
-        self.assertEquals(data['state_name'], 'done')
-        self.assertEquals(data['stream'], '1')
-        self.assertEquals(data['version'], '2')
+        assert data['id'] == 1
+        assert data['context'] == '00000000'
+        assert data['name'] == 'nginx'
+        assert data['state'] == 3
+        assert data['state_name'] == 'done'
+        assert data['stream'] == '1'
+        assert data['version'] == '2'
 
     def test_query_build_with_verbose_mode(self):
         rv = self.client.get('/module-build-service/1/module-builds/1?verbose=true')
         data = json.loads(rv.data)
-        self.assertEquals(data['component_builds'], [1, 2])
-        self.assertEquals(data['context'], '00000000')
+        assert data['component_builds'] == [1, 2]
+        assert data['context'] == '00000000'
         # There is no xmd information on this module, so these values should be null
-        self.assertIsNone(data['build_context'])
-        self.assertIsNone(data['runtime_context'])
-        self.assertEquals(data['id'], 1)
+        assert data['build_context'] is None
+        assert data['runtime_context'] is None
+        assert data['id'] == 1
         with open(path.join(base_dir, "staged_data", "nginx_mmd.yaml")) as mmd:
-            self.assertEquals(data['modulemd'], mmd.read())
-        self.assertEquals(data['name'], 'nginx')
-        self.assertEquals(data['owner'], 'Moe Szyslak')
-        self.assertEquals(data['scmurl'],
-                          ('git://pkgs.domain.local/modules/nginx'
-                           '?#ba95886c7a443b36a9ce31abda1f9bef22f2f8c9'))
-        self.assertEquals(data['state'], 3)
-        self.assertEquals(data['state_name'], 'done')
-        self.assertEquals(data['state_reason'], None)
+            assert data['modulemd'] == mmd.read()
+        assert data['name'] == 'nginx'
+        assert data['owner'] == 'Moe Szyslak'
+        assert data['scmurl'] == ('git://pkgs.domain.local/modules/nginx'
+                                  '?#ba95886c7a443b36a9ce31abda1f9bef22f2f8c9')
+        assert data['state'] == 3
+        assert data['state_name'] == 'done'
+        assert data['state_reason'] is None
         # State trace is empty because we directly created these builds and didn't have them
         # transition, which creates these entries
-        self.assertEquals(data['state_trace'], [])
-        self.assertEquals(data['state_url'], '/module-build-service/1/module-builds/1')
-        self.assertEquals(data['stream'], '1')
-        self.assertDictEqual(data['tasks'], {
+        assert data['state_trace'] == []
+        assert data['state_url'] == '/module-build-service/1/module-builds/1'
+        assert data['stream'] == '1'
+        assert data['tasks'] == {
             'rpms': {
                 'module-build-macros': {
                     'task_id': 12312321,
@@ -208,39 +207,35 @@ class TestViews(unittest.TestCase):
                     'nvr': 'nginx-1.10.1-2.module+1+b8661ee4',
                 },
             },
-        })
-        self.assertEquals(data['time_completed'], u'2016-09-03T11:25:32Z')
-        self.assertEquals(data['time_modified'], u'2016-09-03T11:25:32Z')
-        self.assertEquals(data['time_submitted'], u'2016-09-03T11:23:20Z')
-        self.assertEquals(data['version'], '2')
-        self.assertEqual(data['rebuild_strategy'], 'changed-and-after')
+        }
+        assert data['time_completed'] == u'2016-09-03T11:25:32Z'
+        assert data['time_modified'] == u'2016-09-03T11:25:32Z'
+        assert data['time_submitted'] == u'2016-09-03T11:23:20Z'
+        assert data['version'] == '2'
+        assert data['rebuild_strategy'] == 'changed-and-after'
 
     def test_pagination_metadata(self):
         rv = self.client.get('/module-build-service/1/module-builds/?per_page=8&page=2')
         meta_data = json.loads(rv.data)['meta']
-        self.assertIn(
-            meta_data['prev'].split('?', 1)[1], ['per_page=8&page=1', 'page=1&per_page=8'])
-        self.assertIn(
-            meta_data['next'].split('?', 1)[1], ['per_page=8&page=3', 'page=3&per_page=8'])
-        self.assertIn(
-            meta_data['last'].split('?', 1)[1], ['per_page=8&page=4', 'page=4&per_page=8'])
-        self.assertIn(
-            meta_data['first'].split('?', 1)[1], ['per_page=8&page=1', 'page=1&per_page=8'])
-        self.assertEquals(meta_data['total'], 30)
-        self.assertEquals(meta_data['per_page'], 8)
-        self.assertEquals(meta_data['pages'], 4)
-        self.assertEquals(meta_data['page'], 2)
+        assert meta_data['prev'].split('?', 1)[1] in ['per_page=8&page=1', 'page=1&per_page=8']
+        assert meta_data['next'].split('?', 1)[1] in ['per_page=8&page=3', 'page=3&per_page=8']
+        assert meta_data['last'].split('?', 1)[1] in ['per_page=8&page=4', 'page=4&per_page=8']
+        assert meta_data['first'].split('?', 1)[1] in ['per_page=8&page=1', 'page=1&per_page=8']
+        assert meta_data['total'] == 30
+        assert meta_data['per_page'] == 8
+        assert meta_data['pages'] == 4
+        assert meta_data['page'] == 2
 
     def test_pagination_metadata_with_args(self):
         rv = self.client.get('/module-build-service/1/module-builds/?per_page=8&page=2&order_by=id')
         meta_data = json.loads(rv.data)['meta']
         for link in [meta_data['prev'], meta_data['next'], meta_data['last'], meta_data['first']]:
-            self.assertIn('order_by=id', link)
-            self.assertIn('per_page=8', link)
-        self.assertEquals(meta_data['total'], 30)
-        self.assertEquals(meta_data['per_page'], 8)
-        self.assertEquals(meta_data['pages'], 4)
-        self.assertEquals(meta_data['page'], 2)
+            assert 'order_by=id' in link
+            assert 'per_page=8' in link
+        assert meta_data['total'] == 30
+        assert meta_data['per_page'] == 8
+        assert meta_data['pages'] == 4
+        assert meta_data['page'] == 2
 
     def test_query_builds(self):
         rv = self.client.get('/module-build-service/1/module-builds/?per_page=2')
@@ -315,7 +310,7 @@ class TestViews(unittest.TestCase):
                 'version': '2'
             }
         ]
-        self.assertEquals(items, expected)
+        assert items == expected
 
     def test_query_builds_with_id_error(self):
         rv = self.client.get('/module-build-service/1/module-builds/?id=1')
@@ -327,142 +322,140 @@ class TestViews(unittest.TestCase):
             'message': msg,
             "status": 400
         }
-        self.assertEqual(actual, expected)
+        assert actual == expected
 
     def test_query_component_build(self):
         rv = self.client.get('/module-build-service/1/component-builds/1')
         data = json.loads(rv.data)
-        self.assertEquals(data['id'], 1)
-        self.assertEquals(data['format'], 'rpms')
-        self.assertEquals(data['module_build'], 1)
-        self.assertEquals(data['package'], 'nginx')
-        self.assertEquals(data['state'], 1)
-        self.assertEquals(data['state_name'], 'COMPLETE')
-        self.assertEquals(data['state_reason'], None)
-        self.assertEquals(data['task_id'], 12312345)
+        assert data['id'] == 1
+        assert data['format'] == 'rpms'
+        assert data['module_build'] == 1
+        assert data['package'] == 'nginx'
+        assert data['state'] == 1
+        assert data['state_name'] == 'COMPLETE'
+        assert data['state_reason'] is None
+        assert data['task_id'] == 12312345
 
     def test_query_component_build_short(self):
         rv = self.client.get('/module-build-service/1/component-builds/1?short=True')
         data = json.loads(rv.data)
-        self.assertEquals(data['id'], 1)
-        self.assertEquals(data['format'], 'rpms')
-        self.assertEquals(data['module_build'], 1)
-        self.assertEquals(data['package'], 'nginx')
-        self.assertEquals(data['state'], 1)
-        self.assertEquals(data['state_name'], 'COMPLETE')
-        self.assertEquals(data['state_reason'], None)
-        self.assertEquals(data['task_id'], 12312345)
+        assert data['id'] == 1
+        assert data['format'] == 'rpms'
+        assert data['module_build'] == 1
+        assert data['package'] == 'nginx'
+        assert data['state'] == 1
+        assert data['state_name'] == 'COMPLETE'
+        assert data['state_reason'] is None
+        assert data['task_id'] == 12312345
 
     def test_query_component_build_verbose(self):
         rv = self.client.get('/module-build-service/1/component-builds/3?verbose=true')
         data = json.loads(rv.data)
-        self.assertEquals(data['id'], 3)
-        self.assertEquals(data['format'], 'rpms')
-        self.assertEquals(data['module_build'], 2)
-        self.assertEquals(data['package'], 'postgresql')
-        self.assertEquals(data['state'], 1)
-        self.assertEquals(data['state_name'], 'COMPLETE')
-        self.assertEquals(data['state_reason'], None)
-        self.assertEquals(data['task_id'], 2433433)
-        self.assertEquals(data['state_trace'][0]['reason'], None)
-        self.assertTrue(data['state_trace'][0]['time'] is not None)
-        self.assertEquals(data['state_trace'][0]['state'], 1)
-        self.assertEquals(data['state_trace'][0]['state_name'], 'wait')
-        self.assertEquals(data['state_url'], '/module-build-service/1/component-builds/3')
-
-    component_builds_filters = ['tagged', 'ref', 'format']
+        assert data['id'] == 3
+        assert data['format'] == 'rpms'
+        assert data['module_build'] == 2
+        assert data['package'] == 'postgresql'
+        assert data['state'] == 1
+        assert data['state_name'] == 'COMPLETE'
+        assert data['state_reason'] is None
+        assert data['task_id'] == 2433433
+        assert data['state_trace'][0]['reason'] is None
+        assert data['state_trace'][0]['time'] is not None
+        assert data['state_trace'][0]['state'] == 1
+        assert data['state_trace'][0]['state_name'] == 'wait'
+        assert data['state_url'], '/module-build-service/1/component-builds/3'
 
     def test_query_component_builds_filter_format(self):
         rv = self.client.get('/module-build-service/1/component-builds/'
                              '?format=rpms')
         data = json.loads(rv.data)
-        self.assertEquals(data['meta']['total'], 60)
+        assert data['meta']['total'] == 60
 
     def test_query_component_builds_filter_ref(self):
         rv = self.client.get('/module-build-service/1/component-builds/'
                              '?ref=this-filter-query-should-return-zero-items')
         data = json.loads(rv.data)
-        self.assertEquals(data['meta']['total'], 0)
+        assert data['meta']['total'] == 0
 
     def test_query_component_builds_filter_tagged(self):
         rv = self.client.get('/module-build-service/1/component-builds/?tagged=true')
         data = json.loads(rv.data)
-        self.assertEquals(data['meta']['total'], 40)
+        assert data['meta']['total'] == 40
 
     def test_query_component_builds_filter_nvr(self):
         rv = self.client.get('/module-build-service/1/component-builds/?nvr=nginx-1.10.1-2.'
                              'module%2B1%2Bb8661ee4')
         data = json.loads(rv.data)
-        self.assertEquals(data['meta']['total'], 1)
+        assert data['meta']['total'] == 1
 
     def test_query_component_builds_filter_task_id(self):
         rv = self.client.get('/module-build-service/1/component-builds/?task_id=12312346')
         data = json.loads(rv.data)
-        self.assertEquals(data['meta']['total'], 1)
+        assert data['meta']['total'] == 1
 
     def test_query_builds_filter_name(self):
         rv = self.client.get('/module-build-service/1/module-builds/?name=nginx')
         data = json.loads(rv.data)
-        self.assertEquals(data['meta']['total'], 10)
+        assert data['meta']['total'] == 10
 
     def test_query_builds_filter_koji_tag(self):
         rv = self.client.get('/module-build-service/1/module-builds/?koji_tag=module-nginx-1.2')
         data = json.loads(rv.data)
-        self.assertEquals(data['meta']['total'], 10)
+        assert data['meta']['total'] == 10
 
     def test_query_builds_filter_completed_before(self):
         rv = self.client.get(
             '/module-build-service/1/module-builds/?completed_before=2016-09-03T11:30:00Z')
         data = json.loads(rv.data)
-        self.assertEquals(data['meta']['total'], 2)
+        assert data['meta']['total'] == 2
 
     def test_query_builds_filter_completed_after(self):
         rv = self.client.get(
             '/module-build-service/1/module-builds/?completed_after=2016-09-03T12:25:00Z')
         data = json.loads(rv.data)
-        self.assertEquals(data['meta']['total'], 8)
+        assert data['meta']['total'] == 8
 
     def test_query_builds_filter_submitted_before(self):
         rv = self.client.get(
             '/module-build-service/1/module-builds/?submitted_before=2016-09-03T12:25:00Z')
         data = json.loads(rv.data)
-        self.assertEquals(data['meta']['total'], 7)
+        assert data['meta']['total'] == 7
 
     def test_query_builds_filter_submitted_after(self):
         rv = self.client.get(
             '/module-build-service/1/module-builds/?submitted_after=2016-09-03T12:25:00Z')
         data = json.loads(rv.data)
-        self.assertEquals(data['meta']['total'], 23)
+        assert data['meta']['total'] == 23
 
     def test_query_builds_filter_modified_before(self):
         rv = self.client.get(
             '/module-build-service/1/module-builds/?modified_before=2016-09-03T12:25:00Z')
         data = json.loads(rv.data)
-        self.assertEquals(data['meta']['total'], 6)
+        assert data['meta']['total'] == 6
 
     def test_query_builds_filter_modified_after(self):
         rv = self.client.get(
             '/module-build-service/1/module-builds/?modified_after=2016-09-03T12:25:00Z')
         data = json.loads(rv.data)
-        self.assertEquals(data['meta']['total'], 24)
+        assert data['meta']['total'] == 24
 
     def test_query_builds_filter_owner(self):
         rv = self.client.get(
             '/module-build-service/1/module-builds/?owner=Moe%20Szyslak')
         data = json.loads(rv.data)
-        self.assertEquals(data['meta']['total'], 10)
+        assert data['meta']['total'] == 10
 
     def test_query_builds_filter_state(self):
         rv = self.client.get(
             '/module-build-service/1/module-builds/?state=3')
         data = json.loads(rv.data)
-        self.assertEquals(data['meta']['total'], 20)
+        assert data['meta']['total'] == 20
 
     def test_query_builds_two_filters(self):
         rv = self.client.get('/module-build-service/1/module-builds/?owner=Moe%20Szyslak'
                              '&modified_after=2016-09-03T12:25:00Z')
         data = json.loads(rv.data)
-        self.assertEquals(data['meta']['total'], 4)
+        assert data['meta']['total'] == 4
 
     def test_query_builds_filter_nsv(self):
         rv = self.client.get(
@@ -470,19 +463,19 @@ class TestViews(unittest.TestCase):
         data = json.loads(rv.data)
         # TODO: The nsv should really be unique in the test data
         for item in data['items']:
-            self.assertEqual(item['name'], 'postgressql')
-            self.assertEqual(item['stream'], '1')
-            self.assertEqual(item['version'], '2')
-        self.assertEquals(data['meta']['total'], 10)
+            assert item['name'] == 'postgressql'
+            assert item['stream'] == '1'
+            assert item['version'] == '2'
+        assert data['meta']['total'] == 10
 
     def test_query_builds_filter_invalid_date(self):
         rv = self.client.get(
             '/module-build-service/1/module-builds/?modified_after=2016-09-03T12:25:00-05:00')
         data = json.loads(rv.data)
-        self.assertEquals(data['error'], 'Bad Request')
-        self.assertEquals(data['message'], 'An invalid Zulu ISO 8601 timestamp'
-                          ' was provided for the \"modified_after\" parameter')
-        self.assertEquals(data['status'], 400)
+        assert data['error'] == 'Bad Request'
+        assert data['message'] == ('An invalid Zulu ISO 8601 timestamp was '
+                                   'provided for the \"modified_after\" parameter')
+        assert data['status'] == 400
 
     def test_query_builds_order_by(self):
         build = db.session.query(module_build_service.models.ModuleBuild).filter_by(id=2).one()
@@ -492,8 +485,8 @@ class TestViews(unittest.TestCase):
         rv = self.client.get('/module-build-service/1/module-builds/?'
                              'per_page=10&order_by=name')
         items = json.loads(rv.data)['items']
-        self.assertEqual(items[0]['name'], 'candy')
-        self.assertEqual(items[1]['name'], 'nginx')
+        assert items[0]['name'] == 'candy'
+        assert items[1]['name'] == 'nginx'
 
     def test_query_builds_order_desc_by(self):
         rv = self.client.get('/module-build-service/1/module-builds/?'
@@ -501,7 +494,7 @@ class TestViews(unittest.TestCase):
         items = json.loads(rv.data)['items']
         # Check that the id is items[0]["id"], items[0]["id"] - 1, ...
         for idx, item in enumerate(items):
-            self.assertEquals(item["id"], items[0]["id"] - idx)
+            assert item["id"] == items[0]["id"] - idx
 
     def test_query_builds_order_by_order_desc_by(self):
         """
@@ -513,17 +506,15 @@ class TestViews(unittest.TestCase):
         items = json.loads(rv.data)['items']
         # Check that the id is items[0]["id"], items[0]["id"] - 1, ...
         for idx, item in enumerate(items):
-            self.assertEquals(item["id"], items[0]["id"] - idx)
+            assert item["id"] == items[0]["id"] - idx
 
     def test_query_builds_order_by_wrong_key(self):
         rv = self.client.get('/module-build-service/1/module-builds/?'
                              'per_page=10&order_by=unknown')
         data = json.loads(rv.data)
-        self.assertEquals(data['status'], 400)
-        self.assertEquals(data['error'], 'Bad Request')
-        self.assertEquals(
-            data['message'], 'An invalid order_by or order_desc_by key '
-            'was supplied')
+        assert data['status'] == 400
+        assert data['error'] == 'Bad Request'
+        assert data['message'] == 'An invalid order_by or order_desc_by key was supplied'
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
@@ -537,24 +528,23 @@ class TestViews(unittest.TestCase):
         data = json.loads(rv.data)
 
         assert 'component_builds' in data, data
-        self.assertEquals(data['component_builds'], [])
-        self.assertEquals(data['name'], 'testmodule')
-        self.assertEquals(data['scmurl'],
-                          ('git://pkgs.stg.fedoraproject.org/modules/testmodule'
-                          '.git?#68931c90de214d9d13feefbd35246a81b6cb8d49'))
-        self.assertEquals(data['version'], '1')
-        self.assertTrue(data['time_submitted'] is not None)
-        self.assertTrue(data['time_modified'] is not None)
-        self.assertEquals(data['time_completed'], None)
-        self.assertEquals(data['stream'], 'master')
-        self.assertEquals(data['owner'], 'Homer J. Simpson')
-        self.assertEquals(data['id'], 31)
-        self.assertEquals(data['rebuild_strategy'], 'changed-and-after')
-        self.assertEquals(data['state_name'], 'init')
-        self.assertEquals(data['state_url'], '/module-build-service/1/module-builds/31')
-        self.assertEquals(len(data['state_trace']), 1)
-        self.assertEquals(data['state_trace'][0]['state'], 0)
-        self.assertDictEqual(data['tasks'], {})
+        assert data['component_builds'] == []
+        assert data['name'] == 'testmodule'
+        assert data['scmurl'] == ('git://pkgs.stg.fedoraproject.org/modules/testmodule.git'
+                                  '?#68931c90de214d9d13feefbd35246a81b6cb8d49')
+        assert data['version'] == '1'
+        assert data['time_submitted'] is not None
+        assert data['time_modified'] is not None
+        assert data['time_completed'] is None
+        assert data['stream'] == 'master'
+        assert data['owner'] == 'Homer J. Simpson'
+        assert data['id'] == 31
+        assert data['rebuild_strategy'] == 'changed-and-after'
+        assert data['state_name'] == 'init'
+        assert data['state_url'] == '/module-build-service/1/module-builds/31'
+        assert len(data['state_trace']) == 1
+        assert data['state_trace'][0]['state'] == 0
+        assert data['tasks'] == {}
         mmd = _modulemd.ModuleMetadata()
         mmd.loads(data["modulemd"])
 
@@ -571,7 +561,7 @@ class TestViews(unittest.TestCase):
              'scmurl': ('git://pkgs.stg.fedoraproject.org/modules/testmodule.git?'
                         '#68931c90de214d9d13feefbd35246a81b6cb8d49')}))
         data = json.loads(rv.data)
-        self.assertEquals(data['rebuild_strategy'], 'only-changed')
+        assert data['rebuild_strategy'] == 'only-changed'
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
@@ -589,13 +579,13 @@ class TestViews(unittest.TestCase):
              'scmurl': ('git://pkgs.stg.fedoraproject.org/modules/testmodule.git?'
                         '#68931c90de214d9d13feefbd35246a81b6cb8d49')}))
         data = json.loads(rv.data)
-        self.assertEqual(rv.status_code, 400)
+        assert rv.status_code == 400
         expected_error = {
             'error': 'Bad Request',
             'message': ('The rebuild method of "only-changed" is not allowed. Choose from: all.'),
             'status': 400
         }
-        self.assertEqual(data, expected_error)
+        assert data == expected_error
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
@@ -608,14 +598,14 @@ class TestViews(unittest.TestCase):
              'scmurl': ('git://pkgs.stg.fedoraproject.org/modules/testmodule.git?'
                         '#68931c90de214d9d13feefbd35246a81b6cb8d49')}))
         data = json.loads(rv.data)
-        self.assertEqual(rv.status_code, 400)
+        assert rv.status_code == 400
         expected_error = {
             'error': 'Bad Request',
             'message': ('The request contains the "rebuild_strategy" parameter but overriding '
                         'the default isn\'t allowed'),
             'status': 400
         }
-        self.assertEqual(data, expected_error)
+        assert data == expected_error
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
@@ -628,20 +618,19 @@ class TestViews(unittest.TestCase):
                 'testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49'}))
         data = json.loads(rv.data)
 
-        self.assertEquals(data['component_builds'], [])
-        self.assertEquals(data['name'], 'fakemodule')
-        self.assertEquals(data['scmurl'],
-                          ('git://pkgs.stg.fedoraproject.org/modules/testmodule'
-                          '.git?#68931c90de214d9d13feefbd35246a81b6cb8d49'))
-        self.assertEquals(data['version'], '1')
-        self.assertTrue(data['time_submitted'] is not None)
-        self.assertTrue(data['time_modified'] is not None)
-        self.assertEquals(data['time_completed'], None)
-        self.assertEquals(data['stream'], 'master')
-        self.assertEquals(data['owner'], 'Homer J. Simpson')
-        self.assertEquals(data['id'], 31)
-        self.assertEquals(data['state_name'], 'init')
-        self.assertEquals(data['rebuild_strategy'], 'changed-and-after')
+        assert data['component_builds'] == []
+        assert data['name'] == 'fakemodule'
+        assert data['scmurl'] == ('git://pkgs.stg.fedoraproject.org/modules/testmodule.git'
+                                  '?#68931c90de214d9d13feefbd35246a81b6cb8d49')
+        assert data['version'] == '1'
+        assert data['time_submitted'] is not None
+        assert data['time_modified'] is not None
+        assert data['time_completed'] is None
+        assert data['stream'] == 'master'
+        assert data['owner'] == 'Homer J. Simpson'
+        assert data['id'] == 31
+        assert data['state_name'] == 'init'
+        assert data['rebuild_strategy'] == 'changed-and-after'
 
     def test_submit_build_auth_error(self):
         base_dir = path.abspath(path.dirname(__file__))
@@ -651,22 +640,18 @@ class TestViews(unittest.TestCase):
                 {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                     'testmodule.git?#48931b90de214d9d13feefbd35246a81b6cb8d49'}))
             data = json.loads(rv.data)
-            self.assertEquals(
-                data['message'],
-                "No 'authorization' header found."
-            )
-            self.assertEquals(data['status'], 401)
-            self.assertEquals(data['error'], 'Unauthorized')
+            assert data['message'] == "No 'authorization' header found."
+            assert data['status'] == 401
+            assert data['error'] == 'Unauthorized'
 
     @patch('module_build_service.auth.get_user', return_value=user)
     def test_submit_build_scm_url_error(self, mocked_get_user):
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'branch': 'master', 'scmurl': 'git://badurl.com'}))
         data = json.loads(rv.data)
-        self.assertEquals(data['message'], 'The submitted scmurl '
-                          'git://badurl.com is not allowed')
-        self.assertEquals(data['status'], 403)
-        self.assertEquals(data['error'], 'Forbidden')
+        assert data['message'] == 'The submitted scmurl git://badurl.com is not allowed'
+        assert data['status'] == 403
+        assert data['error'] == 'Forbidden'
 
     @patch('module_build_service.auth.get_user', return_value=user)
     def test_submit_build_scm_url_without_hash(self, mocked_get_user):
@@ -674,11 +659,10 @@ class TestViews(unittest.TestCase):
             {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                 'testmodule.git'}))
         data = json.loads(rv.data)
-        self.assertEquals(data['message'], 'The submitted scmurl '
-                          'git://pkgs.stg.fedoraproject.org/modules/testmodule.git '
-                          'is not valid')
-        self.assertEquals(data['status'], 403)
-        self.assertEquals(data['error'], 'Forbidden')
+        assert data['message'] == ('The submitted scmurl git://pkgs.stg.fedoraproject.org'
+                                   '/modules/testmodule.git is not valid')
+        assert data['status'] == 403
+        assert data['error'] == 'Forbidden'
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
@@ -689,9 +673,9 @@ class TestViews(unittest.TestCase):
             {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                 'testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49'}))
         data = json.loads(rv.data)
-        self.assertTrue(data['message'].startswith('Invalid modulemd:'))
-        self.assertEquals(data['status'], 422)
-        self.assertEquals(data['error'], 'Unprocessable Entity')
+        assert data['message'].startswith('Invalid modulemd:') is True
+        assert data['status'] == 422
+        assert data['error'] == 'Unprocessable Entity'
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
@@ -704,8 +688,8 @@ class TestViews(unittest.TestCase):
                 'testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49'}))
         data = json.loads(rv.data)
 
-        self.assertEquals(data['status'], 403)
-        self.assertEquals(data['error'], 'Forbidden')
+        assert data['status'] == 403
+        assert data['error'] == 'Forbidden'
 
     @patch('module_build_service.auth.get_user', return_value=other_user)
     def test_cancel_build(self, mocked_get_user):
@@ -713,8 +697,8 @@ class TestViews(unittest.TestCase):
                                data=json.dumps({'state': 'failed'}))
         data = json.loads(rv.data)
 
-        self.assertEquals(data['state'], 4)
-        self.assertEquals(data['state_reason'], 'Canceled by some_other_user.')
+        assert data['state'] == 4
+        assert data['state_reason'] == 'Canceled by some_other_user.'
 
     @patch('module_build_service.auth.get_user', return_value=other_user)
     def test_cancel_build_already_failed(self, mocked_get_user):
@@ -726,8 +710,8 @@ class TestViews(unittest.TestCase):
                                data=json.dumps({'state': 'failed'}))
         data = json.loads(rv.data)
 
-        self.assertEquals(data['status'], 403)
-        self.assertEquals(data['error'], 'Forbidden')
+        assert data['status'] == 403
+        assert data['error'] == 'Forbidden'
 
     @patch('module_build_service.auth.get_user', return_value=('sammy', set()))
     def test_cancel_build_unauthorized_no_groups(self, mocked_get_user):
@@ -735,8 +719,8 @@ class TestViews(unittest.TestCase):
                                data=json.dumps({'state': 'failed'}))
         data = json.loads(rv.data)
 
-        self.assertEquals(data['status'], 403)
-        self.assertEquals(data['error'], 'Forbidden')
+        assert data['status'] == 403
+        assert data['error'] == 'Forbidden'
 
     @patch('module_build_service.auth.get_user', return_value=('sammy', set(["packager"])))
     def test_cancel_build_unauthorized_not_owner(self, mocked_get_user):
@@ -744,8 +728,8 @@ class TestViews(unittest.TestCase):
                                data=json.dumps({'state': 'failed'}))
         data = json.loads(rv.data)
 
-        self.assertEquals(data['status'], 403)
-        self.assertEquals(data['error'], 'Forbidden')
+        assert data['status'] == 403
+        assert data['error'] == 'Forbidden'
 
     @patch('module_build_service.auth.get_user',
            return_value=('sammy', set(["packager", "mbs-admin"])))
@@ -756,8 +740,8 @@ class TestViews(unittest.TestCase):
                                    data=json.dumps({'state': 'failed'}))
             data = json.loads(rv.data)
 
-            self.assertEquals(data['state'], 4)
-            self.assertEquals(data['state_reason'], 'Canceled by sammy.')
+            assert data['state'] == 4
+            assert data['state_reason'] == 'Canceled by sammy.'
 
     @patch('module_build_service.auth.get_user',
            return_value=('sammy', set(["packager"])))
@@ -768,8 +752,8 @@ class TestViews(unittest.TestCase):
                                    data=json.dumps({'state': 'failed'}))
             data = json.loads(rv.data)
 
-            self.assertEquals(data['status'], 403)
-            self.assertEquals(data['error'], 'Forbidden')
+            assert data['status'] == 403
+            assert data['error'] == 'Forbidden'
 
     @patch('module_build_service.auth.get_user', return_value=other_user)
     def test_cancel_build_wrong_param(self, mocked_get_user):
@@ -777,10 +761,9 @@ class TestViews(unittest.TestCase):
                                data=json.dumps({'some_param': 'value'}))
         data = json.loads(rv.data)
 
-        self.assertEquals(data['status'], 400)
-        self.assertEquals(data['error'], 'Bad Request')
-        self.assertEquals(
-            data['message'], 'Invalid JSON submitted')
+        assert data['status'] == 400
+        assert data['error'] == 'Bad Request'
+        assert data['message'] == 'Invalid JSON submitted'
 
     @patch('module_build_service.auth.get_user', return_value=other_user)
     def test_cancel_build_wrong_state(self, mocked_get_user):
@@ -788,10 +771,9 @@ class TestViews(unittest.TestCase):
                                data=json.dumps({'state': 'some_state'}))
         data = json.loads(rv.data)
 
-        self.assertEquals(data['status'], 400)
-        self.assertEquals(data['error'], 'Bad Request')
-        self.assertEquals(
-            data['message'], 'The provided state change is not supported')
+        assert data['status'] == 400
+        assert data['error'] == 'Bad Request'
+        assert data['message'] == 'The provided state change is not supported'
 
     @patch('module_build_service.auth.get_user', return_value=user)
     def test_submit_build_unsupported_scm_scheme(self, mocked_get_user):
@@ -800,14 +782,10 @@ class TestViews(unittest.TestCase):
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'branch': 'master', 'scmurl': scmurl}))
         data = json.loads(rv.data)
-        self.assertIn(
-            data['message'], (
-                "The submitted scmurl {} is not allowed".format(scmurl),
-                "The submitted scmurl {} is not valid".format(scmurl),
-            )
-        )
-        self.assertEquals(data['status'], 403)
-        self.assertEquals(data['error'], 'Forbidden')
+        assert data['message'] in ("The submitted scmurl {} is not allowed".format(scmurl),
+                                   "The submitted scmurl {} is not valid".format(scmurl))
+        assert data['status'] == 403
+        assert data['error'] == 'Forbidden'
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
@@ -819,13 +797,11 @@ class TestViews(unittest.TestCase):
             {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                 'testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49'}))
         data = json.loads(rv.data)
-        self.assertEquals(data['status'], 400)
-        self.assertEquals(
-            data['message'],
-            'The version "123456789" is already defined in the modulemd but '
-            'it shouldn\'t be since the version is generated based on the '
-            'commit time')
-        self.assertEquals(data['error'], 'Bad Request')
+        assert data['status'] == 400
+        assert data['message'] == ('The version "123456789" is already defined in the modulemd '
+                                   'but it shouldn\'t be since the version is generated based on '
+                                   'the commit time')
+        assert data['error'] == 'Bad Request'
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
@@ -837,12 +813,10 @@ class TestViews(unittest.TestCase):
             {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                 'testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49'}))
         data = json.loads(rv.data)
-        self.assertEquals(data['status'], 400)
-        self.assertEquals(
-            data['message'],
-            'The stream "wrong_stream" that is stored in the modulemd does not '
-            'match the branch "master"')
-        self.assertEquals(data['error'], 'Bad Request')
+        assert data['status'] == 400
+        assert data['message'] == ('The stream "wrong_stream" that is stored in the modulemd '
+                                   'does not match the branch "master"')
+        assert data['error'] == 'Bad Request'
 
     @patch('module_build_service.auth.get_user', return_value=user)
     def test_submit_build_set_owner(self, mocked_get_user):
@@ -854,8 +828,8 @@ class TestViews(unittest.TestCase):
         }
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(data))
         result = json.loads(rv.data)
-        self.assertEquals(result['status'], 400)
-        self.assertIn("The request contains 'owner' parameter", result['message'])
+        assert result['status'] == 400
+        assert "The request contains 'owner' parameter" in result['message']
 
     @patch('module_build_service.auth.get_user', return_value=anonymous_user)
     @patch('module_build_service.scm.SCM')
@@ -875,7 +849,7 @@ class TestViews(unittest.TestCase):
         result = json.loads(rv.data)
 
         build = ModuleBuild.query.filter(ModuleBuild.id == result['id']).one()
-        self.assertTrue(build.owner == result['owner'] == 'foo')
+        assert (build.owner == result['owner'] == 'foo') is True
 
     @patch('module_build_service.auth.get_user', return_value=anonymous_user)
     @patch('module_build_service.scm.SCM')
@@ -896,15 +870,15 @@ class TestViews(unittest.TestCase):
 
         url = '/module-build-service/1/module-builds/' + str(r1['id'])
         r2 = self.client.patch(url, data=json.dumps({'state': 'failed'}))
-        self.assertEquals(r2.status_code, 403)
+        assert r2.status_code == 403
 
         r3 = self.client.patch(url, data=json.dumps({'state': 'failed', 'owner': 'foo'}))
-        self.assertEquals(r3.status_code, 200)
+        assert r3.status_code == 200
 
         mocked_no_auth.return_value = False
         r3 = self.client.patch(url, data=json.dumps({'state': 'failed', 'owner': 'foo'}))
-        self.assertEquals(r3.status_code, 400)
-        self.assertIn("The request contains 'owner' parameter", json.loads(r3.data)['message'])
+        assert r3.status_code == 400
+        assert "The request contains 'owner' parameter" in json.loads(r3.data)['message']
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
@@ -916,12 +890,10 @@ class TestViews(unittest.TestCase):
             {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                 'testmodule.git?#7035bd33614972ac66559ac1fdd019ff6027ad22'}))
         data = json.loads(rv.data)
-        self.assertIn("The requested commit hash was not found within the repository.",
-                      data['message'])
-        self.assertIn("Perhaps you forgot to push. The original message was: ",
-                      data['message'])
-        self.assertEquals(data['status'], 422)
-        self.assertEquals(data['error'], 'Unprocessable Entity')
+        assert "The requested commit hash was not found within the repository." in data['message']
+        assert "Perhaps you forgot to push. The original message was: " in data['message']
+        assert data['status'] == 422
+        assert data['error'] == 'Unprocessable Entity'
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
@@ -937,26 +909,26 @@ class TestViews(unittest.TestCase):
         allow_custom_scmurls.return_value = False
         res1 = submit('git://some.custom.url.org/modules/testmodule.git?#68931c9')
         data = json.loads(res1.data)
-        self.assertEquals(data['status'], 403)
-        self.assertTrue(data['message'].startswith('The submitted scmurl'))
-        self.assertTrue(data['message'].endswith('is not allowed'))
+        assert data['status'] == 403
+        assert data['message'].startswith('The submitted scmurl') is True
+        assert data['message'].endswith('is not allowed') is True
 
         allow_custom_scmurls.return_value = True
         res2 = submit('git://some.custom.url.org/modules/testmodule.git?#68931c9')
-        self.assertEquals(res2.status_code, 201)
+        assert res2.status_code == 201
 
     def test_about(self):
         with patch.object(mbs_config.Config, 'auth_method', new_callable=PropertyMock) as auth:
             auth.return_value = 'kerberos'
             rv = self.client.get('/module-build-service/1/about/')
         data = json.loads(rv.data)
-        self.assertEqual(rv.status_code, 200)
-        self.assertEquals(data, {'auth_method': 'kerberos', 'version': version})
+        assert rv.status_code == 200
+        assert data == {'auth_method': 'kerberos', 'version': version}
 
     def test_rebuild_strategy_api(self):
         rv = self.client.get('/module-build-service/1/rebuild-strategies/')
         data = json.loads(rv.data)
-        self.assertEqual(rv.status_code, 200)
+        assert rv.status_code == 200
         expected = {
             'items': [
                 {
@@ -980,14 +952,14 @@ class TestViews(unittest.TestCase):
                 }
             ]
         }
-        self.assertEquals(data, expected)
+        assert data == expected
 
     def test_rebuild_strategy_api_only_changed_default(self):
         with patch.object(mbs_config.Config, 'rebuild_strategy', new_callable=PropertyMock) as r_s:
             r_s.return_value = 'only-changed'
             rv = self.client.get('/module-build-service/1/rebuild-strategies/')
         data = json.loads(rv.data)
-        self.assertEqual(rv.status_code, 200)
+        assert rv.status_code == 200
         expected = {
             'items': [
                 {
@@ -1011,7 +983,7 @@ class TestViews(unittest.TestCase):
                 }
             ]
         }
-        self.assertEquals(data, expected)
+        assert data == expected
 
     def test_rebuild_strategy_api_override_allowed(self):
         with patch.object(mbs_config.Config, 'rebuild_strategy_allow_override',
@@ -1019,7 +991,7 @@ class TestViews(unittest.TestCase):
             rsao.return_value = True
             rv = self.client.get('/module-build-service/1/rebuild-strategies/')
         data = json.loads(rv.data)
-        self.assertEqual(rv.status_code, 200)
+        assert rv.status_code == 200
         expected = {
             'items': [
                 {
@@ -1043,8 +1015,8 @@ class TestViews(unittest.TestCase):
                 }
             ]
         }
-        self.assertEquals(data, expected)
+        assert data == expected
 
     def test_cors_header_decorator(self):
         rv = self.client.get('/module-build-service/1/module-builds/')
-        self.assertEquals(rv.headers['Access-Control-Allow-Origin'], '*')
+        assert rv.headers['Access-Control-Allow-Origin'] == '*'

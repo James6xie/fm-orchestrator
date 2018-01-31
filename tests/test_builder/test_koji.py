@@ -20,7 +20,6 @@
 #
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
-import unittest
 import mock
 import koji
 import xmlrpclib
@@ -30,6 +29,7 @@ import module_build_service.scheduler.handlers.repos
 import module_build_service.models
 import module_build_service.builder
 
+import pytest
 from mock import patch, MagicMock
 
 from tests import conf, init_data
@@ -52,9 +52,9 @@ class FakeKojiModuleBuilder(KojiModuleBuilder):
         return koji_session
 
 
-class TestKojiBuilder(unittest.TestCase):
+class TestKojiBuilder:
 
-    def setUp(self):
+    def setup_method(self, test_method):
         init_data()
         self.config = mock.Mock()
         self.config.koji_profile = conf.koji_profile
@@ -69,8 +69,8 @@ class TestKojiBuilder(unittest.TestCase):
             "koji", self.config,
             "module-base-runtime-0.25-9",
             "x86_64")
-        self.assertEquals(repo, "https://kojipkgs.stg.fedoraproject.org/repos"
-                          "/module-base-runtime-0.25-9/latest/x86_64")
+        assert repo == ("https://kojipkgs.stg.fedoraproject.org/repos"
+                        "/module-base-runtime-0.25-9/latest/x86_64")
 
     def test_recover_orphaned_artifact_when_tagged(self):
         """ Test recover_orphaned_artifact when the artifact is found and tagged in both tags
@@ -95,25 +95,25 @@ class TestKojiBuilder(unittest.TestCase):
         component_build.nvr = None
 
         actual = builder.recover_orphaned_artifact(component_build)
-        self.assertEqual(len(actual), 3)
-        self.assertEquals(type(actual[0]), module_build_service.messaging.KojiBuildChange)
-        self.assertEquals(actual[0].build_id, 91)
-        self.assertEquals(actual[0].task_id, 12345)
-        self.assertEquals(actual[0].build_new_state, koji.BUILD_STATES['COMPLETE'])
-        self.assertEquals(actual[0].build_name, 'rubygem-rails')
-        self.assertEquals(actual[0].build_version, '1.0')
-        self.assertEquals(actual[0].build_release, '1.module+e0095747')
-        self.assertEquals(actual[0].module_build_id, 30)
-        self.assertEquals(type(actual[1]), module_build_service.messaging.KojiTagChange)
-        self.assertEquals(actual[1].tag, 'module-foo-build')
-        self.assertEquals(actual[1].artifact, 'rubygem-rails')
-        self.assertEquals(type(actual[2]), module_build_service.messaging.KojiTagChange)
-        self.assertEquals(actual[2].tag, 'module-foo')
-        self.assertEquals(actual[2].artifact, 'rubygem-rails')
-        self.assertEqual(component_build.state, koji.BUILD_STATES['COMPLETE'])
-        self.assertEqual(component_build.task_id, 12345)
-        self.assertEqual(component_build.state_reason, 'Found existing build')
-        self.assertEquals(builder.koji_session.tagBuild.call_count, 0)
+        assert len(actual) == 3
+        assert type(actual[0]) == module_build_service.messaging.KojiBuildChange
+        assert actual[0].build_id == 91
+        assert actual[0].task_id == 12345
+        assert actual[0].build_new_state == koji.BUILD_STATES['COMPLETE']
+        assert actual[0].build_name == 'rubygem-rails'
+        assert actual[0].build_version == '1.0'
+        assert actual[0].build_release == '1.module+e0095747'
+        assert actual[0].module_build_id == 30
+        assert type(actual[1]) == module_build_service.messaging.KojiTagChange
+        assert actual[1].tag == 'module-foo-build'
+        assert actual[1].artifact == 'rubygem-rails'
+        assert type(actual[2]) == module_build_service.messaging.KojiTagChange
+        assert actual[2].tag == 'module-foo'
+        assert actual[2].artifact == 'rubygem-rails'
+        assert component_build.state == koji.BUILD_STATES['COMPLETE']
+        assert component_build.task_id == 12345
+        assert component_build.state_reason == 'Found existing build'
+        assert builder.koji_session.tagBuild.call_count == 0
 
     def test_recover_orphaned_artifact_when_untagged(self):
         """ Tests recover_orphaned_artifact when the build is found but untagged
@@ -149,19 +149,18 @@ class TestKojiBuilder(unittest.TestCase):
         component_build.state = None
 
         actual = builder.recover_orphaned_artifact(component_build)
-        self.assertEqual(len(actual), 1)
-        self.assertEquals(type(actual[0]), module_build_service.messaging.KojiBuildChange)
-        self.assertEquals(actual[0].build_id, 91)
-        self.assertEquals(actual[0].task_id, 12345)
-        self.assertEquals(actual[0].build_new_state, koji.BUILD_STATES['COMPLETE'])
-        self.assertEquals(actual[0].build_name, 'rubygem-rails')
-        self.assertEquals(actual[0].build_version, '1.0')
-        self.assertEquals(
-            actual[0].build_release, '1.{0}'.format(dist_tag))
-        self.assertEquals(actual[0].module_build_id, 30)
-        self.assertEqual(component_build.state, koji.BUILD_STATES['COMPLETE'])
-        self.assertEqual(component_build.task_id, 12345)
-        self.assertEqual(component_build.state_reason, 'Found existing build')
+        assert len(actual) == 1
+        assert type(actual[0]) == module_build_service.messaging.KojiBuildChange
+        assert actual[0].build_id == 91
+        assert actual[0].task_id == 12345
+        assert actual[0].build_new_state == koji.BUILD_STATES['COMPLETE']
+        assert actual[0].build_name == 'rubygem-rails'
+        assert actual[0].build_version == '1.0'
+        assert actual[0].build_release == '1.{0}'.format(dist_tag)
+        assert actual[0].module_build_id == 30
+        assert component_build.state == koji.BUILD_STATES['COMPLETE']
+        assert component_build.task_id == 12345
+        assert component_build.state_reason == 'Found existing build'
         builder.koji_session.tagBuild.assert_called_once_with(2, 'foo-1.0-1.{0}'.format(dist_tag))
 
     def test_recover_orphaned_artifact_when_nothing_exists(self):
@@ -191,9 +190,9 @@ class TestKojiBuilder(unittest.TestCase):
         component_build.state = None
 
         actual = builder.recover_orphaned_artifact(component_build)
-        self.assertEqual(actual, [])
+        assert actual == []
         # Make sure nothing erroneous gets tag
-        self.assertEquals(builder.koji_session.tagBuild.call_count, 0)
+        assert builder.koji_session.tagBuild.call_count == 0
 
     @patch('koji.util')
     def test_buildroot_ready(self, mocked_kojiutil):
@@ -208,9 +207,9 @@ class TestKojiBuilder(unittest.TestCase):
                                          components=[])
         fake_kmb.module_target = {'build_tag': 'module-fake_tag'}
 
-        with self.assertRaises(IOError):
+        with pytest.raises(IOError):
             fake_kmb.buildroot_ready()
-        self.assertEquals(mocked_kojiutil.checkForBuilds.call_count, 3)
+        assert mocked_kojiutil.checkForBuilds.call_count == 3
 
     def test_tagging_already_tagged_artifacts(self):
         """
@@ -261,9 +260,9 @@ class TestKojiBuilder(unittest.TestCase):
             components=[])
 
         builder.untag_artifacts(['foo', 'bar'])
-        self.assertEqual(mock_session.untagBuild.call_count, 3)
+        assert mock_session.untagBuild.call_count == 3
         expected_calls = [mock.call(1, 'foo'), mock.call(2, 'foo'), mock.call(1, 'bar')]
-        self.assertEqual(mock_session.untagBuild.mock_calls, expected_calls)
+        assert mock_session.untagBuild.mock_calls == expected_calls
 
     @patch('module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session')
     def test_get_build_weights(self, get_session):
@@ -281,10 +280,10 @@ class TestKojiBuilder(unittest.TestCase):
         get_session.return_value = session
 
         weights = KojiModuleBuilder.get_build_weights(["httpd", "apr"])
-        self.assertEqual(weights, {"httpd": 2, "apr": 2})
+        assert weights == {"httpd": 2, "apr": 2}
 
         expected_calls = [mock.call(456), mock.call(789)]
-        self.assertEqual(session.getTaskDescendents.mock_calls, expected_calls)
+        assert session.getTaskDescendents.mock_calls == expected_calls
 
     @patch('module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session')
     def test_get_build_weights_no_task_id(self, get_session):
@@ -301,10 +300,10 @@ class TestKojiBuilder(unittest.TestCase):
         get_session.return_value = session
 
         weights = KojiModuleBuilder.get_build_weights(["httpd", "apr"])
-        self.assertEqual(weights, {"httpd": 2, "apr": 1.5})
+        assert weights == {"httpd": 2, "apr": 1.5}
 
         expected_calls = [mock.call(456)]
-        self.assertEqual(session.getTaskDescendents.mock_calls, expected_calls)
+        assert session.getTaskDescendents.mock_calls == expected_calls
 
     @patch('module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session')
     def test_get_build_weights_no_build(self, get_session):
@@ -321,10 +320,10 @@ class TestKojiBuilder(unittest.TestCase):
         get_session.return_value = session
 
         weights = KojiModuleBuilder.get_build_weights(["httpd", "apr"])
-        self.assertEqual(weights, {"httpd": 2, "apr": 1.5})
+        assert weights == {"httpd": 2, "apr": 1.5}
 
         expected_calls = [mock.call(456)]
-        self.assertEqual(session.getTaskDescendents.mock_calls, expected_calls)
+        assert session.getTaskDescendents.mock_calls == expected_calls
 
     @patch('module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session')
     def test_get_build_weights_listBuilds_failed(self, get_session):
@@ -334,13 +333,13 @@ class TestKojiBuilder(unittest.TestCase):
         get_session.return_value = session
 
         weights = KojiModuleBuilder.get_build_weights(["httpd", "apr"])
-        self.assertEqual(weights, {"httpd": 1.5, "apr": 1.5})
+        assert weights == {"httpd": 1.5, "apr": 1.5}
 
         expected_calls = [mock.call(packageID=1, userID=123, state=1,
                                     queryOpts={'limit': 1, 'order': '-build_id'}),
                           mock.call(packageID=2, userID=123, state=1,
                                     queryOpts={'limit': 1, 'order': '-build_id'})]
-        self.assertEqual(session.listBuilds.mock_calls, expected_calls)
+        assert session.listBuilds.mock_calls == expected_calls
 
     @patch('module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session')
     def test_get_build_weights_getPackageID_failed(self, get_session):
@@ -350,12 +349,12 @@ class TestKojiBuilder(unittest.TestCase):
         get_session.return_value = session
 
         weights = KojiModuleBuilder.get_build_weights(["httpd", "apr"])
-        self.assertEqual(weights, {"httpd": 1.5, "apr": 1.5})
+        assert weights == {"httpd": 1.5, "apr": 1.5}
 
         expected_calls = [mock.call("httpd"), mock.call("apr")]
-        self.assertEqual(session.getPackageID.mock_calls, expected_calls)
+        assert session.getPackageID.mock_calls == expected_calls
 
     @patch('module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session')
     def test_get_build_weights_getLoggedInUser_failed(self, get_session):
         weights = KojiModuleBuilder.get_build_weights(["httpd", "apr"])
-        self.assertEqual(weights, {"httpd": 1.5, "apr": 1.5})
+        assert weights == {"httpd": 1.5, "apr": 1.5}

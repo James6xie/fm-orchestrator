@@ -50,8 +50,25 @@ def patch_config():
 patch_config()
 
 
+def get_vcr_path(file_path, test_method):
+    cassette_dir = os.path.join(base_dir, 'vcr-request-data')
+    # In pytest style unit tests, we don't have access to self.id so this code replicates that
+    # value
+    filename_prefix = [os.path.abspath(os.path.dirname(file_path))]
+    while True:
+        if os.path.basename(filename_prefix[0]) == 'tests':
+            break
+        filename_prefix.insert(0, os.path.abspath(os.path.join(filename_prefix[0], os.pardir)))
+    filename_prefix = [os.path.basename(dir_path) for dir_path in filename_prefix]
+    filename = '.'.join(filename_prefix + [
+        os.path.splitext(os.path.basename(file_path))[0],
+        test_method.im_class.__name__,
+        test_method.im_func.__name__])
+    return os.path.join(cassette_dir, filename)
+
+
 def uncompress_vcrpy_cassette():
-    cassette_dir = base_dir + '/vcr-request-data/'
+    cassette_dir = os.path.join(base_dir, 'vcr-request-data')
     if not os.path.exists(cassette_dir):
         archive = cassette_dir.rstrip('/') + ".tar.gz"
         with tarfile.open(archive, mode='r:gz') as t:

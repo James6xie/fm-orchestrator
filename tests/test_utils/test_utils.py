@@ -18,7 +18,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import unittest
 import tempfile
 from os import path, mkdir
 from shutil import copyfile, rmtree
@@ -36,6 +35,7 @@ from tests import (test_reuse_component_init_data, init_data, db,
                    clean_database)
 import mock
 import koji
+import pytest
 import module_build_service.scheduler.handlers.components
 from module_build_service.builder.base import GenericBuilder
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
@@ -79,10 +79,9 @@ class FakeSCM(object):
         return path.join(self.sourcedir, self.name + ".yaml")
 
 
-class TestUtils(unittest.TestCase):
-    maxDiff = None
+class TestUtils:
 
-    def setUp(self):
+    def setup_method(self, test_method):
         self.filtered_rpms = [
             u'sqlite-tcl-0:3.17.0-2.module_5ccf9229',
             u'sqlite-analyzer-0:3.17.0-2.module_5ccf9229',
@@ -229,7 +228,7 @@ class TestUtils(unittest.TestCase):
             u'iproute-tc-0:4.11.0-1.module_d6de39f1'
         ]
 
-    def tearDown(self):
+    def teardown_method(self, test_method):
         init_data()
 
     @vcr.use_cassette(
@@ -260,9 +259,9 @@ class TestUtils(unittest.TestCase):
 
         # Make sure that original refs are not changed.
         mmd_pkg_refs = [pkg.ref for pkg in mmd.components.rpms.values()]
-        self.assertEqual(set(mmd_pkg_refs), set(original_refs))
+        assert set(mmd_pkg_refs) == set(original_refs)
 
-        self.assertEqual(mmd.buildrequires, {'base-runtime': 'master'})
+        assert mmd.buildrequires == {'base-runtime': 'master'}
         xmd = {
             'mbs': {
                 'commit': '620ec77321b2ea7b0d67d82992dda3e1d67055b4',
@@ -286,7 +285,7 @@ class TestUtils(unittest.TestCase):
             }
         }
 
-        self.assertEqual(mmd.xmd, xmd)
+        assert mmd.xmd == xmd
 
     @vcr.use_cassette(
         path.join(CASSETTES_DIR, 'tests.test_utils.TestUtils.test_format_mmd'))
@@ -329,14 +328,14 @@ class TestUtils(unittest.TestCase):
                 'scmurl': None,
             }
         }
-        self.assertEqual(mmd.xmd, xmd)
+        assert mmd.xmd == xmd
 
     def test_get_reusable_component_same(self):
         test_reuse_component_init_data()
         new_module = models.ModuleBuild.query.filter_by(id=2).one()
         rv = module_build_service.utils.get_reusable_component(
             db.session, new_module, 'tangerine')
-        self.assertEqual(rv.package, 'tangerine')
+        assert rv.package == 'tangerine'
 
     def test_get_reusable_component_different_perl_tangerine(self):
         test_reuse_component_init_data()
@@ -355,18 +354,18 @@ class TestUtils(unittest.TestCase):
         # none)
         plc_rv = module_build_service.utils.get_reusable_component(
             db.session, second_module_build, 'perl-List-Compare')
-        self.assertEqual(plc_rv.package, 'perl-List-Compare')
+        assert plc_rv.package == 'perl-List-Compare'
 
         # perl-Tangerine has a different commit hash
         pt_rv = module_build_service.utils.get_reusable_component(
             db.session, second_module_build, 'perl-Tangerine')
-        self.assertEqual(pt_rv, None)
+        assert pt_rv is None
 
         # tangerine is the same but its in a build order that is after the
         # different perl-Tangerine, so it can't be reused
         tangerine_rv = module_build_service.utils.get_reusable_component(
             db.session, second_module_build, 'tangerine')
-        self.assertEqual(tangerine_rv, None)
+        assert tangerine_rv is None
 
     def test_get_reusable_component_different_rpm_macros(self):
         test_reuse_component_init_data()
@@ -378,12 +377,12 @@ class TestUtils(unittest.TestCase):
 
         plc_rv = module_build_service.utils.get_reusable_component(
             db.session, second_module_build, 'perl-List-Compare')
-        self.assertEqual(plc_rv, None)
+        assert plc_rv is None
 
         # perl-Tangerine has a different commit hash
         pt_rv = module_build_service.utils.get_reusable_component(
             db.session, second_module_build, 'perl-Tangerine')
-        self.assertEqual(pt_rv, None)
+        assert pt_rv is None
 
     def test_get_reusable_component_different_buildrequires_hash(self):
         test_reuse_component_init_data()
@@ -397,18 +396,18 @@ class TestUtils(unittest.TestCase):
 
         plc_rv = module_build_service.utils.get_reusable_component(
             db.session, second_module_build, 'perl-List-Compare')
-        self.assertEqual(plc_rv, None)
+        assert plc_rv is None
 
         # perl-Tangerine has a different commit hash
         pt_rv = module_build_service.utils.get_reusable_component(
             db.session, second_module_build, 'perl-Tangerine')
-        self.assertEqual(pt_rv, None)
+        assert pt_rv is None
 
         # tangerine is the same but its in a build order that is after the
         # different perl-Tangerine, so it can't be reused
         tangerine_rv = module_build_service.utils.get_reusable_component(
             db.session, second_module_build, 'tangerine')
-        self.assertEqual(tangerine_rv, None)
+        assert tangerine_rv is None
 
     def test_get_reusable_component_different_buildrequires(self):
         test_reuse_component_init_data()
@@ -428,18 +427,18 @@ class TestUtils(unittest.TestCase):
 
         plc_rv = module_build_service.utils.get_reusable_component(
             db.session, second_module_build, 'perl-List-Compare')
-        self.assertEqual(plc_rv, None)
+        assert plc_rv is None
 
         # perl-Tangerine has a different commit hash
         pt_rv = module_build_service.utils.get_reusable_component(
             db.session, second_module_build, 'perl-Tangerine')
-        self.assertEqual(pt_rv, None)
+        assert pt_rv is None
 
         # tangerine is the same but its in a build order that is after the
         # different perl-Tangerine, so it can't be reused
         tangerine_rv = module_build_service.utils.get_reusable_component(
             db.session, second_module_build, 'tangerine')
-        self.assertEqual(tangerine_rv, None)
+        assert tangerine_rv is None
 
     def test_get_reusable_component_shared_userspace_ordering(self):
         """
@@ -452,7 +451,7 @@ class TestUtils(unittest.TestCase):
         new_module = models.ModuleBuild.query.filter_by(id=2).one()
         rv = module_build_service.utils.get_reusable_component(
             db.session, new_module, 'llvm')
-        self.assertEqual(rv.package, 'llvm')
+        assert rv.package == 'llvm'
 
     def test_validate_koji_tag_wrong_tag_arg_during_programming(self):
         """ Test that we fail on a wrong param name (non-existing one) due to
@@ -462,7 +461,7 @@ class TestUtils(unittest.TestCase):
         def validate_koji_tag_programming_error(good_tag_arg, other_arg):
             pass
 
-        with self.assertRaises(ProgrammingError):
+        with pytest.raises(ProgrammingError):
             validate_koji_tag_programming_error('dummy', 'other_val')
 
     def test_validate_koji_tag_bad_tag_value(self):
@@ -472,7 +471,7 @@ class TestUtils(unittest.TestCase):
         def validate_koji_tag_bad_tag_value(tag_arg):
             pass
 
-        with self.assertRaises(ValidationError):
+        with pytest.raises(ValidationError):
             validate_koji_tag_bad_tag_value('forbiddentagprefix-foo')
 
     def test_validate_koji_tag_bad_tag_value_in_list(self):
@@ -482,7 +481,7 @@ class TestUtils(unittest.TestCase):
         def validate_koji_tag_bad_tag_value_in_list(tag_arg):
             pass
 
-        with self.assertRaises(ValidationError):
+        with pytest.raises(ValidationError):
             validate_koji_tag_bad_tag_value_in_list([
                 'module-foo', 'forbiddentagprefix-bar'])
 
@@ -493,8 +492,7 @@ class TestUtils(unittest.TestCase):
         def validate_koji_tag_good_tag_value(tag_arg):
             return True
 
-        self.assertEquals(
-            validate_koji_tag_good_tag_value('module-foo'), True)
+        assert validate_koji_tag_good_tag_value('module-foo') is True
 
     def test_validate_koji_tag_good_tag_values_in_list(self):
         """ Test that we pass on a list of good tag values. """
@@ -503,9 +501,7 @@ class TestUtils(unittest.TestCase):
         def validate_koji_tag_good_tag_values_in_list(tag_arg):
             return True
 
-        self.assertEquals(
-            validate_koji_tag_good_tag_values_in_list(['module-foo',
-                                                       'module-bar']), True)
+        assert validate_koji_tag_good_tag_values_in_list(['module-foo', 'module-bar']) is True
 
     def test_validate_koji_tag_good_tag_value_in_dict(self):
         """ Test that we pass on a dict arg with default key
@@ -515,8 +511,7 @@ class TestUtils(unittest.TestCase):
         def validate_koji_tag_good_tag_value_in_dict(tag_arg):
             return True
 
-        self.assertEquals(
-            validate_koji_tag_good_tag_value_in_dict({'name': 'module-foo'}), True)
+        assert validate_koji_tag_good_tag_value_in_dict({'name': 'module-foo'}) is True
 
     def test_validate_koji_tag_good_tag_value_in_dict_nondefault_key(self):
         """ Test that we pass on a dict arg with non-default key
@@ -527,9 +522,8 @@ class TestUtils(unittest.TestCase):
         def validate_koji_tag_good_tag_value_in_dict_nondefault_key(tag_arg):
             return True
 
-        self.assertEquals(
-            validate_koji_tag_good_tag_value_in_dict_nondefault_key(
-                {'nondefault': 'module-foo'}), True)
+        assert validate_koji_tag_good_tag_value_in_dict_nondefault_key(
+            {'nondefault': 'module-foo'}) is True
 
     def test_validate_koji_tag_double_trouble_good(self):
         """ Test that we pass on a list of tags that are good. """
@@ -541,7 +535,7 @@ class TestUtils(unittest.TestCase):
             return expected
 
         actual = validate_koji_tag_double_trouble('module-1', 'module-2')
-        self.assertEquals(actual, expected)
+        assert actual == expected
 
     def test_validate_koji_tag_double_trouble_bad(self):
         """ Test that we fail on a list of tags that are bad. """
@@ -550,7 +544,7 @@ class TestUtils(unittest.TestCase):
         def validate_koji_tag_double_trouble(tag_arg1, tag_arg2):
             pass
 
-        with self.assertRaises(ValidationError):
+        with pytest.raises(ValidationError):
             validate_koji_tag_double_trouble('module-1', 'BADNEWS-2')
 
     def test_validate_koji_tag_is_None(self):
@@ -560,10 +554,9 @@ class TestUtils(unittest.TestCase):
         def validate_koji_tag_is_None(tag_arg):
             pass
 
-        with self.assertRaises(ValidationError) as cm:
+        with pytest.raises(ValidationError) as cm:
             validate_koji_tag_is_None(None)
-
-        self.assertTrue(str(cm.exception).endswith(' No value provided.'))
+            assert str(cm.value).endswith(' No value provided.') is True
 
     @vcr.use_cassette(
         path.join(CASSETTES_DIR, 'tests.test_utils.TestUtils.test_format_mmd'))
@@ -611,13 +604,13 @@ class TestUtils(unittest.TestCase):
                 "Tom Brady", 'git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#8fea453',
                 'master')
 
-            self.assertEqual(module_build.state, models.BUILD_STATES['wait'])
-            self.assertEqual(module_build.batch, 0)
-            self.assertEqual(module_build.state_reason, "Resubmitted by Tom Brady")
-            self.assertEqual(complete_component.state, koji.BUILD_STATES['COMPLETE'])
+            assert module_build.state == models.BUILD_STATES['wait']
+            assert module_build.batch == 0
+            assert module_build.state_reason == "Resubmitted by Tom Brady"
+            assert complete_component.state == koji.BUILD_STATES['COMPLETE']
             # The failed/cancelled components are now stateless
-            self.assertIsNone(failed_component.state)
-            self.assertIsNone(canceled_component.state)
+            assert failed_component.state is None
+            assert canceled_component.state is None
 
     @vcr.use_cassette(
         path.join(CASSETTES_DIR, ('tests.test_utils.TestUtils.'
@@ -651,12 +644,10 @@ class TestUtils(unittest.TestCase):
             error_msg = (
                 'The included module "testmodule-variant" in "testmodule" have '
                 'the following conflicting components: perl-List-Compare')
-            try:
+            with pytest.raises(UnprocessableEntity) as e:
                 module_build_service.utils.record_component_builds(
                     testmodule_variant_mmd, module_build, main_mmd=mmd)
-                assert False, 'A UnprocessableEntity was expected but was not raised'
-            except UnprocessableEntity as e:
-                self.assertEqual(e.message, error_msg)
+                assert str(e.value) == error_msg
 
     @patch("module_build_service.utils.submit_module_build")
     def test_submit_module_build_from_yaml_with_skiptests(self, mock_submit):
@@ -725,10 +716,10 @@ class TestUtils(unittest.TestCase):
             module_build_service.utils.record_component_builds(
                 mmd, module_build)
 
-            self.assertEqual(module_build.state, models.BUILD_STATES['init'])
+            assert module_build.state == models.BUILD_STATES['init']
             db.session.refresh(module_build)
             for c in module_build.component_builds:
-                self.assertEqual(c.weight, 1.5)
+                assert c.weight == 1.5
 
 
 class DummyModuleBuilder(GenericBuilder):
@@ -798,13 +789,13 @@ class DummyModuleBuilder(GenericBuilder):
 
 @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
        return_value={'build': [], 'srpm-build': []})
-class TestBatches(unittest.TestCase):
+class TestBatches:
 
-    def setUp(self):
+    def setup_method(self, test_method):
         test_reuse_component_init_data()
         GenericBuilder.register_backend_class(DummyModuleBuilder)
 
-    def tearDown(self):
+    def teardown_method(self, test_method):
         init_data()
         DummyModuleBuilder.TAGGED_COMPONENTS = []
         GenericBuilder.register_backend_class(KojiModuleBuilder)
@@ -827,7 +818,7 @@ class TestBatches(unittest.TestCase):
             conf, module_build, db.session, builder)
 
         # Batch number should increase.
-        self.assertEqual(module_build.batch, 2)
+        assert module_build.batch == 2
 
         # KojiBuildChange messages in further_work should have build_new_state
         # set to COMPLETE, but the current component build state should be set
@@ -835,9 +826,9 @@ class TestBatches(unittest.TestCase):
         # properly.
         for msg in further_work:
             if type(msg) == module_build_service.messaging.KojiBuildChange:
-                self.assertEqual(msg.build_new_state, koji.BUILD_STATES['COMPLETE'])
+                assert msg.build_new_state == koji.BUILD_STATES['COMPLETE']
                 component_build = models.ComponentBuild.from_component_event(db.session, msg)
-                self.assertEqual(component_build.state, koji.BUILD_STATES['BUILDING'])
+                assert component_build.state == koji.BUILD_STATES['BUILDING']
 
         # When we handle these KojiBuildChange messages, MBS should tag all
         # the components just once.
@@ -848,10 +839,10 @@ class TestBatches(unittest.TestCase):
 
         # Since we have reused all the components in the batch, there should
         # be fake KojiRepoChange message.
-        self.assertEqual(type(further_work[-1]), module_build_service.messaging.KojiRepoChange)
+        assert type(further_work[-1]) == module_build_service.messaging.KojiRepoChange
 
         # Check that packages have been tagged just once.
-        self.assertEqual(len(DummyModuleBuilder.TAGGED_COMPONENTS), 2)
+        assert len(DummyModuleBuilder.TAGGED_COMPONENTS) == 2
 
     @patch('module_build_service.utils.start_build_component')
     def test_start_next_batch_build_reuse_some(self, mock_sbc, default_buildroot_groups):
@@ -876,22 +867,22 @@ class TestBatches(unittest.TestCase):
             conf, module_build, db.session, builder)
 
         # Batch number should increase.
-        self.assertEqual(module_build.batch, 2)
+        assert module_build.batch == 2
 
         # Make sure we only have one message returned for the one reused component
-        self.assertEqual(len(further_work), 1)
+        assert len(further_work) == 1
         # The KojiBuildChange message in further_work should have build_new_state
         # set to COMPLETE, but the current component build state in the DB should be set
         # to BUILDING, so KojiBuildChange message handler handles the change
         # properly.
-        self.assertEqual(further_work[0].build_new_state, koji.BUILD_STATES['COMPLETE'])
+        assert further_work[0].build_new_state == koji.BUILD_STATES['COMPLETE']
         component_build = models.ComponentBuild.from_component_event(db.session, further_work[0])
-        self.assertEqual(component_build.state, koji.BUILD_STATES['BUILDING'])
-        self.assertEqual(component_build.package, 'perl-Tangerine')
-        self.assertIsNotNone(component_build.reused_component_id)
+        assert component_build.state == koji.BUILD_STATES['BUILDING']
+        assert component_build.package == 'perl-Tangerine'
+        assert component_build.reused_component_id is not None
         # Make sure perl-List-Compare is set to the build state as well but not reused
-        self.assertEqual(plc_component.state, koji.BUILD_STATES['BUILDING'])
-        self.assertIsNone(plc_component.reused_component_id)
+        assert plc_component.state == koji.BUILD_STATES['BUILDING']
+        assert plc_component.reused_component_id is None
         mock_sbc.assert_called_once()
 
     @patch('module_build_service.utils.start_build_component')
@@ -913,11 +904,11 @@ class TestBatches(unittest.TestCase):
             conf, module_build, db.session, builder)
 
         # Batch number should increase.
-        self.assertEqual(module_build.batch, 2)
+        assert module_build.batch == 2
         # No component reuse messages should be returned
-        self.assertEqual(len(further_work), 0)
+        assert len(further_work) == 0
         # Make sure that both components in the batch were submitted
-        self.assertEqual(len(mock_sbc.mock_calls), 2)
+        assert len(mock_sbc.mock_calls) == 2
 
     @patch('module_build_service.utils.start_build_component')
     @patch('module_build_service.config.Config.rebuild_strategy',
@@ -944,22 +935,22 @@ class TestBatches(unittest.TestCase):
             conf, module_build, db.session, builder)
 
         # Batch number should increase
-        self.assertEqual(module_build.batch, 2)
+        assert module_build.batch == 2
 
         # Make sure we only have one message returned for the one reused component
-        self.assertEqual(len(further_work), 1)
+        assert len(further_work) == 1
         # The KojiBuildChange message in further_work should have build_new_state
         # set to COMPLETE, but the current component build state in the DB should be set
         # to BUILDING, so KojiBuildChange message handler handles the change
         # properly.
-        self.assertEqual(further_work[0].build_new_state, koji.BUILD_STATES['COMPLETE'])
+        assert further_work[0].build_new_state == koji.BUILD_STATES['COMPLETE']
         component_build = models.ComponentBuild.from_component_event(db.session, further_work[0])
-        self.assertEqual(component_build.state, koji.BUILD_STATES['BUILDING'])
-        self.assertEqual(component_build.package, 'perl-Tangerine')
-        self.assertIsNotNone(component_build.reused_component_id)
+        assert component_build.state == koji.BUILD_STATES['BUILDING']
+        assert component_build.package == 'perl-Tangerine'
+        assert component_build.reused_component_id is not None
         # Make sure perl-List-Compare is set to the build state as well but not reused
-        self.assertEqual(plc_component.state, koji.BUILD_STATES['BUILDING'])
-        self.assertIsNone(plc_component.reused_component_id)
+        assert plc_component.state == koji.BUILD_STATES['BUILDING']
+        assert plc_component.reused_component_id is None
         mock_sbc.assert_called_once()
         mock_sbc.reset_mock()
 
@@ -973,14 +964,14 @@ class TestBatches(unittest.TestCase):
         further_work = module_build_service.utils.start_next_batch_build(
             conf, module_build, db.session, builder)
         # Batch number should increase
-        self.assertEqual(module_build.batch, 3)
+        assert module_build.batch == 3
         # Verify that tangerine was reused even though perl-Tangerine was rebuilt in the previous
         # batch
-        self.assertEqual(further_work[0].build_new_state, koji.BUILD_STATES['COMPLETE'])
+        assert further_work[0].build_new_state == koji.BUILD_STATES['COMPLETE']
         component_build = models.ComponentBuild.from_component_event(db.session, further_work[0])
-        self.assertEqual(component_build.state, koji.BUILD_STATES['BUILDING'])
-        self.assertEqual(component_build.package, 'tangerine')
-        self.assertIsNotNone(component_build.reused_component_id)
+        assert component_build.state == koji.BUILD_STATES['BUILDING']
+        assert component_build.package == 'tangerine'
+        assert component_build.reused_component_id is not None
         mock_sbc.assert_not_called()
 
     @patch('module_build_service.utils.start_build_component')
@@ -1008,18 +999,18 @@ class TestBatches(unittest.TestCase):
             conf, module_build, db.session, builder)
 
         # Batch number should increase.
-        self.assertEqual(module_build.batch, 2)
+        assert module_build.batch == 2
 
         # Make sure we don't have any messages returned since no components should be reused
-        self.assertEqual(len(further_work), 0)
+        assert len(further_work) == 0
         # Make sure both components are set to the build state but not reused
-        self.assertEqual(pt_component.state, koji.BUILD_STATES['BUILDING'])
-        self.assertIsNone(pt_component.reused_component_id)
-        self.assertEqual(plc_component.state, koji.BUILD_STATES['BUILDING'])
-        self.assertIsNone(plc_component.reused_component_id)
+        assert pt_component.state == koji.BUILD_STATES['BUILDING']
+        assert pt_component.reused_component_id is None
+        assert plc_component.state == koji.BUILD_STATES['BUILDING']
+        assert plc_component.reused_component_id is None
         # Test the order of the scheduling
         expected_calls = [mock.call(builder, plc_component), mock.call(builder, pt_component)]
-        self.assertEqual(mock_sbc.mock_calls, expected_calls)
+        assert mock_sbc.mock_calls == expected_calls
 
     @patch('module_build_service.utils.start_build_component')
     def test_start_next_batch_continue(self, mock_sbc, default_buildroot_groups):
@@ -1041,11 +1032,11 @@ class TestBatches(unittest.TestCase):
             conf, module_build, db.session, builder)
 
         # Batch number should not increase.
-        self.assertEqual(module_build.batch, 2)
+        assert module_build.batch == 2
         # Make sure start build was called for the second component which wasn't reused
         mock_sbc.assert_called_once()
         # No further work should be returned
-        self.assertEqual(len(further_work), 0)
+        assert len(further_work) == 0
 
     def test_start_next_batch_build_repo_building(self, default_buildroot_groups):
         """
@@ -1059,7 +1050,7 @@ class TestBatches(unittest.TestCase):
         builder.buildroot_ready.return_value = False
 
         # Batch number should not increase.
-        self.assertEqual(module_build.batch, 1)
+        assert module_build.batch == 1
 
 
 @patch("module_build_service.config.Config.mock_resultsdir",
@@ -1068,12 +1059,12 @@ class TestBatches(unittest.TestCase):
            BASE_DIR, '..', 'staged_data', "local_builds"))
 @patch("module_build_service.config.Config.system",
        new_callable=mock.PropertyMock, return_value="mock")
-class TestLocalBuilds(unittest.TestCase):
+class TestLocalBuilds:
 
-    def setUp(self):
+    def setup_method(self):
         init_data()
 
-    def tearDown(self):
+    def teardown_method(self):
         init_data()
 
     def test_load_local_builds_name(self, conf_system, conf_resultsdir):
@@ -1081,9 +1072,9 @@ class TestLocalBuilds(unittest.TestCase):
             module_build_service.utils.load_local_builds("testmodule")
             local_modules = models.ModuleBuild.local_modules(db.session)
 
-            self.assertEqual(len(local_modules), 1)
-            self.assertTrue(local_modules[0].koji_tag.endswith(
-                "/module-testmodule-master-20170816080816/results"))
+            assert len(local_modules) == 1
+            assert local_modules[0].koji_tag.endswith(
+                "/module-testmodule-master-20170816080816/results")
 
     def test_load_local_builds_name_stream(
             self, conf_system, conf_resultsdir):
@@ -1091,14 +1082,14 @@ class TestLocalBuilds(unittest.TestCase):
             module_build_service.utils.load_local_builds("testmodule:master")
             local_modules = models.ModuleBuild.local_modules(db.session)
 
-            self.assertEqual(len(local_modules), 1)
-            self.assertTrue(local_modules[0].koji_tag.endswith(
-                "/module-testmodule-master-20170816080816/results"))
+            assert len(local_modules) == 1
+            assert local_modules[0].koji_tag.endswith(
+                "/module-testmodule-master-20170816080816/results")
 
     def test_load_local_builds_name_stream_non_existing(
             self, conf_system, conf_resultsdir):
         with app.app_context():
-            with self.assertRaises(RuntimeError):
+            with pytest.raises(RuntimeError):
                 module_build_service.utils.load_local_builds("testmodule:x")
                 models.ModuleBuild.local_modules(db.session)
 
@@ -1108,14 +1099,14 @@ class TestLocalBuilds(unittest.TestCase):
             module_build_service.utils.load_local_builds("testmodule:master:20170816080815")
             local_modules = models.ModuleBuild.local_modules(db.session)
 
-            self.assertEqual(len(local_modules), 1)
-            self.assertTrue(local_modules[0].koji_tag.endswith(
-                "/module-testmodule-master-20170816080815/results"))
+            assert len(local_modules) == 1
+            assert local_modules[0].koji_tag.endswith(
+                "/module-testmodule-master-20170816080815/results")
 
     def test_load_local_builds_name_stream_version_non_existing(
             self, conf_system, conf_resultsdir):
         with app.app_context():
-            with self.assertRaises(RuntimeError):
+            with pytest.raises(RuntimeError):
                 module_build_service.utils.load_local_builds("testmodule:master:123")
                 models.ModuleBuild.local_modules(db.session)
 
@@ -1125,9 +1116,9 @@ class TestLocalBuilds(unittest.TestCase):
             module_build_service.utils.load_local_builds("base-runtime")
             local_modules = models.ModuleBuild.local_modules(db.session)
 
-            self.assertEqual(len(local_modules), 1)
-            self.assertTrue(local_modules[0].koji_tag.endswith(
-                "/module-base-runtime-master-20170816080815/results"))
+            assert len(local_modules) == 1
+            assert local_modules[0].koji_tag.endswith(
+                "/module-base-runtime-master-20170816080815/results")
 
     def test_load_local_builds_base_runtime_master(
             self, conf_system, conf_resultsdir):
@@ -1135,6 +1126,6 @@ class TestLocalBuilds(unittest.TestCase):
             module_build_service.utils.load_local_builds("base-runtime:master")
             local_modules = models.ModuleBuild.local_modules(db.session)
 
-            self.assertEqual(len(local_modules), 1)
-            self.assertTrue(local_modules[0].koji_tag.endswith(
-                "/module-base-runtime-master-20170816080815/results"))
+            assert len(local_modules) == 1
+            assert local_modules[0].koji_tag.endswith(
+                "/module-base-runtime-master-20170816080815/results")

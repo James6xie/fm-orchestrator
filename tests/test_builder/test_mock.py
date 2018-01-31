@@ -1,5 +1,4 @@
 import os
-import unittest
 import mock
 import koji
 import tempfile
@@ -10,17 +9,16 @@ import kobo.rpmlib
 from module_build_service import conf
 from module_build_service.models import ModuleBuild, ComponentBuild, make_session
 from module_build_service.builder.MockModuleBuilder import MockModuleBuilder
-from tests import db, init_data
+from tests import init_data, clean_database
 
 
-class TestMockModuleBuilder(unittest.TestCase):
+class TestMockModuleBuilder:
 
-    def setUp(self):
-        db.drop_all()
-        db.create_all()
+    def setup_method(self, test_method):
+        clean_database()
         self.resultdir = tempfile.mkdtemp()
 
-    def tearDown(self):
+    def teardown_method(self, test_method):
         init_data()
         shutil.rmtree(self.resultdir)
 

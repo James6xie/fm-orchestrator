@@ -20,7 +20,6 @@
 #
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
-import unittest
 import mock
 
 from mock import patch
@@ -34,13 +33,10 @@ from tests import conf, db
 import koji
 
 
-class TestTagTagged(unittest.TestCase):
+class TestTagTagged:
 
-    def setUp(self):
+    def setup_method(self, test_method):
         test_reuse_component_init_data()
-
-    def tearDown(self):
-        pass
 
     @mock.patch('module_build_service.models.ModuleBuild.from_tag_change_event')
     def test_no_matching_module(self, from_tag_change_event):
@@ -109,7 +105,7 @@ class TestTagTagged(unittest.TestCase):
 
         # newRepo should not be called, because there are still components
         # to tag.
-        self.assertTrue(not koji_session.newRepo.called)
+        assert not koji_session.newRepo.called
 
         # Tag the second component to the buildroot.
         msg = module_build_service.messaging.KojiTagChange(
@@ -119,7 +115,7 @@ class TestTagTagged(unittest.TestCase):
 
         # newRepo should not be called, because the component has not been
         # tagged to final tag so far.
-        self.assertTrue(not koji_session.newRepo.called)
+        assert not koji_session.newRepo.called
 
         # Tag the first component to the final tag.
         msg = module_build_service.messaging.KojiTagChange(
@@ -136,7 +132,7 @@ class TestTagTagged(unittest.TestCase):
 
         # newRepo task_id should be stored in database, so we can check its
         # status later in poller.
-        self.assertEqual(module_build.new_repo_task_id, 123456)
+        assert module_build.new_repo_task_id == 123456
 
     @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
            return_value={'build': [], 'srpm-build': []})
@@ -178,7 +174,7 @@ class TestTagTagged(unittest.TestCase):
 
         # newRepo should not be called, because perl-List-Compare has not been
         # built yet.
-        self.assertTrue(not koji_session.newRepo.called)
+        assert not koji_session.newRepo.called
 
     @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
            return_value={'build': [], 'srpm-build': []})
@@ -239,7 +235,7 @@ class TestTagTagged(unittest.TestCase):
 
         # newRepo task_id should be stored in database, so we can check its
         # status later in poller.
-        self.assertEqual(module_build.new_repo_task_id, 123456)
+        assert module_build.new_repo_task_id == 123456
 
     @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
            return_value={'build': [], 'srpm-build': []})
@@ -287,7 +283,7 @@ class TestTagTagged(unittest.TestCase):
 
         # newRepo should not be called, because there are still components
         # to tag.
-        self.assertTrue(not koji_session.newRepo.called)
+        assert not koji_session.newRepo.called
 
         # Tag the second component to the buildroot.
         msg = module_build_service.messaging.KojiTagChange(
@@ -302,7 +298,7 @@ class TestTagTagged(unittest.TestCase):
 
         # newRepo should not be called, because there are still components
         # to tag.
-        self.assertTrue(not koji_session.newRepo.called)
+        assert not koji_session.newRepo.called
 
         # Tag the component from first batch to final tag.
         msg = module_build_service.messaging.KojiTagChange(
@@ -324,7 +320,7 @@ class TestTagTagged(unittest.TestCase):
 
         # newRepo task_id should be stored in database, so we can check its
         # status later in poller.
-        self.assertEqual(module_build.new_repo_task_id, 123456)
+        assert module_build.new_repo_task_id == 123456
 
     @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
            return_value={'build': [], 'srpm-build': []})
@@ -373,7 +369,7 @@ class TestTagTagged(unittest.TestCase):
             'id', 'module-testmodule-build', "perl-Tangerine")
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
-        self.assertTrue(not koji_session.newRepo.called)
+        assert not koji_session.newRepo.called
         # Tag the perl-List-Compare component to the buildroot.
         msg = module_build_service.messaging.KojiTagChange(
             'id', 'module-testmodule-build', "perl-List-Compare")
@@ -395,4 +391,4 @@ class TestTagTagged(unittest.TestCase):
 
         # newRepo task_id should be stored in database, so we can check its
         # status later in poller.
-        self.assertEqual(module_build.new_repo_task_id, 123456)
+        assert module_build.new_repo_task_id == 123456

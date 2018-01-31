@@ -20,7 +20,6 @@
 #
 # Written by Ralph Bean <rbean@redhat.com>
 
-import unittest
 import mock
 from mock import patch
 import module_build_service.messaging
@@ -29,26 +28,23 @@ import modulemd as _modulemd
 import os
 import vcr
 import koji
-from tests import conf, db, app, scheduler_init_data
+from tests import conf, db, app, scheduler_init_data, get_vcr_path
 from module_build_service import build_logs
 from module_build_service.models import ComponentBuild, ModuleBuild
 
 base_dir = os.path.dirname(os.path.dirname(__file__))
-cassette_dir = base_dir + '/vcr-request-data/'
 
 
-class TestModuleWait(unittest.TestCase):
-
-    def setUp(self):
+class TestModuleWait:
+    def setup_method(self, test_method):
         self.config = conf
         self.session = mock.Mock()
         self.fn = module_build_service.scheduler.handlers.modules.wait
 
-        filename = cassette_dir + self.id()
-        self.vcr = vcr.use_cassette(filename)
+        self.vcr = vcr.use_cassette(get_vcr_path(__file__, test_method))
         self.vcr.__enter__()
 
-    def tearDown(self):
+    def teardown_method(self, test_method):
         self.vcr.__exit__()
         try:
             path = build_logs.path(1)
@@ -131,7 +127,7 @@ class TestModuleWait(unittest.TestCase):
             # once in database.
             builds_count = db.session.query(ComponentBuild).filter_by(
                 package="module-build-macros", module_id=1).count()
-            self.assertEqual(builds_count, 1)
+            assert builds_count == 1
 
     @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
            return_value={'build': [], 'srpm-build': []})
@@ -167,7 +163,7 @@ class TestModuleWait(unittest.TestCase):
                                                            module_build_state='some state')
             module_build_service.scheduler.handlers.modules.wait(
                 config=conf, session=db.session, msg=msg)
-            self.assertTrue(koji_session.newRepo.called)
+            assert koji_session.newRepo.called
 
     @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
            return_value={'build': [], 'srpm-build': []})
@@ -210,7 +206,7 @@ class TestModuleWait(unittest.TestCase):
             module_build_service.scheduler.handlers.modules.wait(
                 config=conf, session=db.session, msg=msg)
             module_build = ModuleBuild.query.filter_by(id=1).one()
-            self.assertEqual(module_build.cg_build_koji_tag, "modular-updates-candidate")
+            assert module_build.cg_build_koji_tag == "modular-updates-candidate"
 
     @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
            return_value={'build': [], 'srpm-build': []})
@@ -255,5 +251,4 @@ class TestModuleWait(unittest.TestCase):
             module_build_service.scheduler.handlers.modules.wait(
                 config=conf, session=db.session, msg=msg)
             module_build = ModuleBuild.query.filter_by(id=1).one()
-            self.assertEqual(module_build.cg_build_koji_tag,
-                             "f27-modular-updates-candidate")
+            assert module_build.cg_build_koji_tag == "f27-modular-updates-candidate"

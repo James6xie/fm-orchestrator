@@ -21,13 +21,12 @@
 # Written by Jakub Kadlcik <jkadlcik@redhat.com>
 
 
-import unittest
 from module_build_service import messaging
 from module_build_service.messaging import KojiRepoChange # noqa
 from mock import patch, PropertyMock
 
 
-class TestFedmsgMessaging(unittest.TestCase):
+class TestFedmsgMessaging:
 
     def test_buildsys_state_change(self):
         # https://fedora-fedmsg.readthedocs.io/en/latest/topics.html#id134
@@ -51,8 +50,8 @@ class TestFedmsgMessaging(unittest.TestCase):
 
         msg = messaging.FedmsgMessageParser().parse(buildsys_state_change_msg)
 
-        self.assertEqual(msg.build_id, 614503)
-        self.assertEqual(msg.build_new_state, 1)
+        assert msg.build_id == 614503
+        assert msg.build_new_state == 1
 
     @patch("module_build_service.config.Config.system",
            new_callable=PropertyMock, return_value="copr")
@@ -80,17 +79,16 @@ class TestFedmsgMessaging(unittest.TestCase):
         }
 
         msg = messaging.FedmsgMessageParser().parse(copr_build_end_msg)
-        self.assertIsInstance(msg, messaging.KojiBuildChange)
-        self.assertEqual(msg.msg_id, '2013-b05a323d-37ee-4396-9635-7b5dfaf5441b')
-        self.assertEqual(msg.build_id, 100)
-        self.assertEqual(msg.task_id, 100)
-        self.assertEqual(msg.build_new_state, 1)
-        self.assertEqual(msg.build_name, 'mutt-kz')
-        self.assertEqual(msg.build_version, '1.5.23.1')
-        self.assertEqual(msg.build_release, '1.20150203.git.c8504a8a.fc21')
-        self.assertEqual(msg.state_reason,
-                         ('build end: user:fatka copr:mutt-kz build:100 ip:172.16.3.3  '
-                          'pid:12010 status:1'))
+        assert isinstance(msg, messaging.KojiBuildChange)
+        assert msg.msg_id == '2013-b05a323d-37ee-4396-9635-7b5dfaf5441b'
+        assert msg.build_id == 100
+        assert msg.task_id == 100
+        assert msg.build_new_state == 1
+        assert msg.build_name == 'mutt-kz'
+        assert msg.build_version == '1.5.23.1'
+        assert msg.build_release == '1.20150203.git.c8504a8a.fc21'
+        assert msg.state_reason == ('build end: user:fatka copr:mutt-kz build:100 ip:172.16.3.3  '
+                                    'pid:12010 status:1')
 
     def test_buildsys_tag(self):
         # https://fedora-fedmsg.readthedocs.io/en/latest/topics.html#id134
@@ -113,8 +111,8 @@ class TestFedmsgMessaging(unittest.TestCase):
 
         msg = messaging.FedmsgMessageParser().parse(buildsys_tag_msg)
 
-        self.assertEqual(msg.tag, "module-debugging-tools-master-20170405115403-build")
-        self.assertEqual(msg.artifact, "module-build-macros")
+        assert msg.tag == "module-debugging-tools-master-20170405115403-build"
+        assert msg.artifact == "module-build-macros"
 
     def test_buildsys_repo_done(self):
         # https://fedora-fedmsg.readthedocs.io/en/latest/topics.html#id134
@@ -132,4 +130,4 @@ class TestFedmsgMessaging(unittest.TestCase):
 
         msg = messaging.FedmsgMessageParser().parse(buildsys_tag_msg)
 
-        self.assertEqual(msg.repo_tag, "module-f0f7e44f3c6cccab-build")
+        assert msg.repo_tag == "module-f0f7e44f3c6cccab-build"

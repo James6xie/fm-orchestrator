@@ -22,8 +22,8 @@
 
 
 import os
-import unittest
 import mock
+import pytest
 import module_build_service.models
 import module_build_service.builder
 from munch import Munch
@@ -33,10 +33,11 @@ from copr import CoprClient
 from copr.exceptions import CoprRequestException
 
 
-@unittest.skip("We need not yet released version of python-copr. Let's skip this for some time")
-class TestCoprBuilder(unittest.TestCase):
+@pytest.mark.skip(
+    reason="We need not yet released version of python-copr. Let's skip this for some time")
+class TestCoprBuilder:
 
-    def setUp(self):
+    def setup_method(self, test_method):
         self.config = mock.Mock()
         self.config.copr_config = None
 
@@ -53,16 +54,15 @@ class TestCoprBuilder(unittest.TestCase):
 
         repo = module_build_service.builder.GenericBuilder.tag_to_repo(
             "copr", self.config, "foo-module-name-0.25-9", None)
-        self.assertEquals(repo,
-                          "http://copr-be-instance/results/@copr/foo-module-name-0.25-9/modules")
+        assert repo == "http://copr-be-instance/results/@copr/foo-module-name-0.25-9/modules"
 
     @mock.patch("copr.CoprClient.get_module_repo")
     def test_non_existing_tag_to_repo(self, get_module_repo):
         # Let's pretend that CoprClient.get_module_repo couldn't find the project on Copr instance
         get_module_repo.return_value = ResponseMock({"output": "notok", "error": "some error"})
-        self.assertRaises(ValueError,
-                          lambda: module_build_service.builder.GenericBuilder.tag_to_repo(
-                              "copr", self.config, None, None))
+        with pytest.raises(ValueError):
+            lambda: module_build_service.builder.GenericBuilder.tag_to_repo(
+                "copr", self.config, None, None)
 
 
 class ResponseMock(object):
@@ -97,9 +97,9 @@ class FakeCoprAPI(object):
 COPR_MODULE_BUILDER = "module_build_service.builder.CoprModuleBuilder.CoprModuleBuilder"
 
 
-class TestCoprModuleBuilder(unittest.TestCase):
+class TestCoprModuleBuilder:
 
-    def setUp(self):
+    def setup_method(self, test_method):
         init_data()
         self.config = mock.Mock()
         self.config.koji_profile = conf.koji_profile
@@ -132,8 +132,8 @@ class TestCoprModuleBuilder(unittest.TestCase):
         args, kwargs = make_module.call_args
         make_module.assert_called_with(username="myself", projectname="someproject",
                                        modulemd=mock.ANY, create=False, build=True)
-        self.assertIsInstance(kwargs["modulemd"], str)
-        self.assertTrue(os.path.isabs(kwargs["modulemd"]))
+        assert isinstance(kwargs["modulemd"], str)
+        assert os.path.isabs(kwargs["modulemd"]) is True
 
     ###############################################################################################
     #                                                                                             #
@@ -142,7 +142,7 @@ class TestCoprModuleBuilder(unittest.TestCase):
     #                                                                                             #
     ###############################################################################################
 
-    @unittest.skip("Tests fail since PR 765")
+    @pytest.mark.skip("Tests fail since PR 765")
     @mock.patch(COPR_MODULE_BUILDER + "._update_chroot")
     @mock.patch(COPR_MODULE_BUILDER + "._get_copr_safe")
     @mock.patch(COPR_MODULE_BUILDER + "._create_module_safe")
@@ -151,10 +151,10 @@ class TestCoprModuleBuilder(unittest.TestCase):
         groups = {"build": {"pkgname1", "pkgname2", "pkgname3"}}
         builder.buildroot_connect(groups)
         args, kwargs = update_chroot.call_args
-        self.assertEquals(set(kwargs["packages"]), {"pkgname1", "pkgname2", "pkgname3"})
-        self.assertEqual(builder._CoprModuleBuilder__prep, True)
+        assert set(kwargs["packages"]) == {"pkgname1", "pkgname2", "pkgname3"}
+        assert builder._CoprModuleBuilder__prep is True
 
-    @unittest.skip("Tests fail since PR 765")
+    @pytest.mark.skip("Tests fail since PR 765")
     @mock.patch(COPR_MODULE_BUILDER + "._get_copr")
     @mock.patch(COPR_MODULE_BUILDER + "._create_copr")
     @mock.patch(COPR_MODULE_BUILDER + "._create_chroot_safe")
@@ -174,14 +174,14 @@ class TestCoprModuleBuilder(unittest.TestCase):
         builder._get_copr_safe()
         get_copr.assert_called_with(ownername=self.module.owner, projectname="module-nginx-1.2")
         create_copr.assert_called_with(ownername=self.module.owner, projectname="module-nginx-1.2")
-        self.assertEqual(get_copr.call_count, 2)
+        assert get_copr.call_count == 2
 
     @mock.patch("copr.client.CoprClient._fetch", return_value=FakeCoprAPI.get_project_details())
     def test_get_copr(self, get_project_details):
         builder = self.create_builder()
         copr = builder._get_copr("myself", "someproject")
-        self.assertEqual(copr.username, "myself")
-        self.assertEqual(copr.projectname, "someproject")
+        assert copr.username == "myself"
+        assert copr.projectname == "someproject"
 
     @mock.patch("copr.client.CoprClient.create_project")
     def test_create_copr(self, create_project):
@@ -196,12 +196,12 @@ class TestCoprModuleBuilder(unittest.TestCase):
         make_module.assert_called_with(username=self.module.owner, projectname="module-nginx-1.2",
                                        modulemd=mock.ANY, create=True, build=False)
         args, kwargs = make_module.call_args
-        self.assertIsInstance(kwargs["modulemd"], str)
-        self.assertTrue(os.path.isabs(kwargs["modulemd"]))
+        assert isinstance(kwargs["modulemd"], str)
+        assert os.path.isabs(kwargs["modulemd"]) is True
 
     def test_buildroot_ready(self):
         builder = self.create_builder()
-        self.assertTrue(builder.buildroot_ready(artifacts=["a1", "a2", "a3"]))
+        assert builder.buildroot_ready(artifacts=["a1", "a2", "a3"]) is True
 
     ##############################################################################################
     #                                                                                            #
@@ -221,37 +221,37 @@ class TestCoprModuleBuilder(unittest.TestCase):
         edit_chroot.assert_called_with("someproject", "custom-1-x86_64", ownername="myself",
                                        repos=mock.ANY, packages=mock.ANY)
         args, kwargs = edit_chroot.call_args
-        self.assertEqual(set(kwargs["packages"].split()), {"pkg1", "pkg2", "pkg3", "pkg4", "pkg5"})
-        self.assertEqual(set(kwargs["repos"].split()), {"http://repo1.ex/", "http://repo2.ex/"})
+        assert set(kwargs["packages"].split()) == {"pkg1", "pkg2", "pkg3", "pkg4", "pkg5"}
+        assert set(kwargs["repos"].split()) == {"http://repo1.ex/", "http://repo2.ex/"}
 
         # Update buildroot repos
         builder._update_chroot(repos=["http://repo3.ex/"])
         edit_chroot.assert_called_with("someproject", "custom-1-x86_64", ownername="myself",
                                        repos=mock.ANY, packages=mock.ANY)
         args, kwargs = edit_chroot.call_args
-        self.assertEqual(set(kwargs["packages"].split()), {"pkg1", "pkg2", "pkg3"})
-        self.assertEqual(set(kwargs["repos"].split()), {"http://repo1.ex/", "http://repo2.ex/",
-                                                        "http://repo3.ex/"})
+        assert set(kwargs["packages"].split()) == {"pkg1", "pkg2", "pkg3"}
+        assert set(kwargs["repos"].split()) == {"http://repo1.ex/", "http://repo2.ex/",
+                                                "http://repo3.ex/"}
 
         # Update multiple buildroot options at the same time
         builder._update_chroot(packages=["pkg4", "pkg5"], repos=["http://repo3.ex/"])
         edit_chroot.assert_called_with("someproject", "custom-1-x86_64", ownername="myself",
                                        repos=mock.ANY, packages=mock.ANY)
         args, kwargs = edit_chroot.call_args
-        self.assertEqual(set(kwargs["packages"].split()), {"pkg1", "pkg2", "pkg3", "pkg4", "pkg5"})
-        self.assertEqual(set(kwargs["repos"].split()), {"http://repo1.ex/", "http://repo2.ex/",
-                                                        "http://repo3.ex/"})
+        assert set(kwargs["packages"].split()) == {"pkg1", "pkg2", "pkg3", "pkg4", "pkg5"}
+        assert set(kwargs["repos"].split()) == {"http://repo1.ex/", "http://repo2.ex/",
+                                                "http://repo3.ex/"}
 
     def test_buildroot_add_artifacts(self):
         pass
 
-    @unittest.skip("Tests fail since PR 765")
+    @pytest.mark.skip("Tests fail since PR 765")
     @mock.patch(COPR_MODULE_BUILDER + "._update_chroot")
     def test_buildroot_add_repos(self, update_chroot):
         builder = self.create_builder()
         builder.buildroot_add_repos(["foo", "bar", "baz"])
         args, kwargs = update_chroot.call_args
-        self.assertEquals(set(kwargs["repos"]), {
+        assert set(kwargs["repos"]) == {
             conf.koji_repository_url + "/foo/latest/x86_64",
             conf.koji_repository_url + "/bar/latest/x86_64",
             conf.koji_repository_url + "/baz/latest/x86_64",
@@ -259,7 +259,7 @@ class TestCoprModuleBuilder(unittest.TestCase):
             # We always add this repo as a workaround, see the code for details
             ("https://kojipkgs.fedoraproject.org/compose"
              "/latest-Fedora-Modular-26/compose/Server/x86_64/os/"),
-        })
+        }
 
     ##############################################################################################
     #                                                                                            #

@@ -20,13 +20,11 @@
 #
 # Written by Stanislav Ochotnicky <sochotnicky@redhat.com>
 
-import unittest
 import json
 import vcr
 
 import os
 from os import path
-from os.path import dirname
 
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.repos # noqa
@@ -34,7 +32,7 @@ from module_build_service import models, conf, build_logs
 
 from mock import patch, Mock, MagicMock, call
 
-from tests import init_data
+from tests import init_data, get_vcr_path
 
 from module_build_service.builder.KojiContentGenerator import KojiContentGenerator
 
@@ -45,33 +43,27 @@ GET_USER_RV = {
     "status": 0,
     "usertype": 0
 }
-base_dir = dirname(dirname(__file__))
-cassette_dir = base_dir + '/vcr-request-data/'
 
 
-class TestBuild(unittest.TestCase):
+class TestBuild:
 
-    # Global variable used for tests if needed
-    _global_var = None
-
-    def setUp(self):
+    def setup_method(self, test_method):
         init_data()
         module = models.ModuleBuild.query.filter_by(id=1).one()
         module.cg_build_koji_tag = "f27-module-candidate"
         self.cg = KojiContentGenerator(module, conf)
 
-        filename = cassette_dir + self.id()
-        self.vcr = vcr.use_cassette(filename)
+        self.vcr = vcr.use_cassette(get_vcr_path(__file__, test_method))
         self.vcr.__enter__()
 
         # Ensure that there is no build log from other tests
         try:
-            path = build_logs.path(self.cg.module)
-            os.remove(path)
+            file_path = build_logs.path(self.cg.module)
+            os.remove(file_path)
         except OSError:
             pass
 
-    def tearDown(self):
+    def teardown_method(self, test_method):
         # Necessary to restart the twisted reactor for the next test.
         import sys
         del sys.modules['twisted.internet.reactor']
@@ -80,8 +72,8 @@ class TestBuild(unittest.TestCase):
         import moksha.hub.reactor # noqa
         self.vcr.__exit__()
         try:
-            path = build_logs.path(self.cg.module)
-            os.remove(path)
+            file_path = build_logs.path(self.cg.module)
+            os.remove(file_path)
         except OSError:
             pass
 
@@ -98,7 +90,6 @@ class TestBuild(unittest.TestCase):
         koji_session.getUser.return_value = GET_USER_RV
         get_session.return_value = koji_session
         distro.return_value = ("Fedora", "25", "Twenty Five")
-        self.maxDiff = None
         machine.return_value = "i686"
         pkg_res.return_value = Mock()
         pkg_res.return_value.version = "current-tested-version"
@@ -128,7 +119,7 @@ class TestBuild(unittest.TestCase):
         file_dir = self.cg._prepare_file_directory()
         ret = self.cg._get_content_generator_metadata(file_dir)
         rpms_in_tag.assert_called_once()
-        self.assertEqual(expected_output, ret)
+        assert expected_output == ret
 
     @patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
     @patch("subprocess.Popen")
@@ -168,13 +159,13 @@ class TestBuild(unittest.TestCase):
         file_dir = self.cg._prepare_file_directory()
         ret = self.cg._get_content_generator_metadata(file_dir)
         rpms_in_tag.assert_called_once()
-        self.assertEqual(expected_output, ret)
+        assert expected_output == ret
 
     def test_prepare_file_directory(self):
         """ Test preparation of directory with output files """
         dir_path = self.cg._prepare_file_directory()
         with open(path.join(dir_path, "modulemd.txt")) as mmd:
-            self.assertEqual(len(mmd.read()), 1134)
+            assert len(mmd.read()) == 1134
 
     @patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
     def test_tag_cg_build(self, get_session):
@@ -199,9 +190,9 @@ class TestBuild(unittest.TestCase):
 
         self.cg._tag_cg_build()
 
-        self.assertEqual(koji_session.getTag.mock_calls,
-                         [call(self.cg.module.cg_build_koji_tag),
-                          call(conf.koji_cg_default_build_tag)])
+        assert koji_session.getTag.mock_calls == [
+            call(self.cg.module.cg_build_koji_tag),
+            call(conf.koji_cg_default_build_tag)]
         koji_session.tagBuild.assert_called_once_with(123, "nginx-1-2.00000000")
 
     @patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
