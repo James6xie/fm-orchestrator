@@ -39,6 +39,7 @@ from module_build_service import db, models, conf, build_logs
 from tests import get_vcr_path
 
 from mock import patch, PropertyMock, Mock
+from werkzeug.datastructures import FileStorage
 import kobo
 
 from tests import app, test_reuse_component_init_data, clean_database
@@ -437,16 +438,15 @@ class TestBuild:
     @patch('module_build_service.scm.SCM')
     def test_submit_build_from_yaml_allowed(self, mocked_scm, mocked_get_user, conf_system, dbg):
         FakeSCM(mocked_scm, "testmodule", "testmodule.yaml")
-
         testmodule = os.path.join(base_dir, 'staged_data', 'testmodule.yaml')
-        with open(testmodule) as f:
-            yaml = f.read()
 
         with patch.object(module_build_service.config.Config, 'yaml_submit_allowed',
                           new_callable=PropertyMock, return_value=True):
-            rv = self.client.post('/module-build-service/1/module-builds/',
-                                  content_type='multipart/form-data',
-                                  data={'yaml': (testmodule, yaml)})
+            with open(testmodule, 'rb') as f:
+                yaml_file = FileStorage(f)
+                rv = self.client.post('/module-build-service/1/module-builds/',
+                                      content_type='multipart/form-data',
+                                      data={'yaml': yaml_file})
             data = json.loads(rv.data)
             assert data['id'] == 1
 
