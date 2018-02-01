@@ -943,14 +943,13 @@ def submit_module_build_from_yaml(username, handle, stream=None, skiptests=False
     # and also we can take numeric representation of current datetime
     # as opposed to datetime of the last commit
     dt = datetime.utcfromtimestamp(int(time.time()))
-    def_name = str(handle.filename.split(".")[0])
+    def_name = str(os.path.splitext(os.path.basename(handle.filename))[0])
     def_version = int(dt.strftime("%Y%m%d%H%M%S"))
     mmd.name = mmd.name or def_name
     mmd.stream = stream or mmd.stream or "master"
     mmd.version = mmd.version or def_version
     if skiptests:
         mmd.buildopts.rpms.macros += "\n\n%__spec_check_pre exit 0\n"
-
     return submit_module_build(username, None, mmd, None, optional_params)
 
 
