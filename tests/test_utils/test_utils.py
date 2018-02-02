@@ -559,60 +559,6 @@ class TestUtils:
             assert str(cm.value).endswith(' No value provided.') is True
 
     @vcr.use_cassette(
-        path.join(CASSETTES_DIR, 'tests.test_utils.TestUtils.test_format_mmd'))
-    @patch('module_build_service.scm.SCM')
-    def test_resubmit(self, mocked_scm):
-        """
-        Tests that the module resubmit reintializes the module state and
-        component states properly.
-        """
-        FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
-                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
-        with app.app_context():
-            test_reuse_component_init_data()
-            # Mark the module build as failed, so we can resubmit it.
-            module_build = models.ModuleBuild.query.filter_by(id=2).one()
-            module_build.batch = 2
-            module_build.state = models.BUILD_STATES['failed']
-            module_build.state_reason = "Cancelled"
-            module_build.version = 1
-            now = datetime.utcnow()
-            mbt_one = models.ModuleBuildTrace(
-                state_time=now, state=models.BUILD_STATES['init'])
-            mbt_two = models.ModuleBuildTrace(
-                state_time=now, state=models.BUILD_STATES['wait'])
-            mbt_three = models.ModuleBuildTrace(
-                state_time=now, state=models.BUILD_STATES['build'])
-            mbt_four = models.ModuleBuildTrace(
-                state_time=now, state=models.BUILD_STATES['failed'])
-            module_build.module_builds_trace.append(mbt_one)
-            module_build.module_builds_trace.append(mbt_two)
-            module_build.module_builds_trace.append(mbt_three)
-            module_build.module_builds_trace.append(mbt_four)
-
-            # Mark the components as COMPLETE/FAILED/CANCELED
-            components = module_build.component_builds
-            complete_component = components[0]
-            complete_component.state = koji.BUILD_STATES['COMPLETE']
-            failed_component = components[1]
-            failed_component.state = koji.BUILD_STATES['FAILED']
-            canceled_component = components[2]
-            canceled_component.state = koji.BUILD_STATES['CANCELED']
-            db.session.commit()
-
-            module_build_service.utils.submit_module_build_from_scm(
-                "Tom Brady", 'git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#8fea453',
-                'master')
-
-            assert module_build.state == models.BUILD_STATES['wait']
-            assert module_build.batch == 0
-            assert module_build.state_reason == "Resubmitted by Tom Brady"
-            assert complete_component.state == koji.BUILD_STATES['COMPLETE']
-            # The failed/cancelled components are now stateless
-            assert failed_component.state is None
-            assert canceled_component.state is None
-
-    @vcr.use_cassette(
         path.join(CASSETTES_DIR, ('tests.test_utils.TestUtils.'
                                   'test_record_component_builds_duplicate_components')))
     @patch('module_build_service.scm.SCM')
