@@ -24,8 +24,8 @@ import os
 import shutil
 import tempfile
 
+import pytest
 from mock import patch
-from nose.tools import raises
 
 import module_build_service.scm
 from module_build_service.errors import ValidationError, UnprocessableEntity
@@ -85,11 +85,9 @@ class TestSCMModule:
         scm.checkout(self.tempdir)
         scm.verify()
 
-    @raises(UnprocessableEntity)
     def test_verify_unknown_branch(self):
-        scm = module_build_service.scm.SCM(repo_path, "unknown")
-        scm.checkout(self.tempdir)
-        scm.verify()
+        with pytest.raises(UnprocessableEntity):
+            module_build_service.scm.SCM(repo_path, "unknown")
 
     def test_verify_commit_in_branch(self):
         target = '7035bd33614972ac66559ac1fdd019ff6027ad21'
@@ -97,31 +95,30 @@ class TestSCMModule:
         scm.checkout(self.tempdir)
         scm.verify()
 
-    @raises(ValidationError)
     def test_verify_commit_not_in_branch(self):
         target = '7035bd33614972ac66559ac1fdd019ff6027ad21'
         scm = module_build_service.scm.SCM(repo_path + "?#" + target, "master")
         scm.checkout(self.tempdir)
-        scm.verify()
+        with pytest.raises(ValidationError):
+            scm.verify()
 
-    @raises(UnprocessableEntity)
     def test_verify_unknown_hash(self):
         target = '7035bd33614972ac66559ac1fdd019ff6027ad22'
         scm = module_build_service.scm.SCM(repo_path + "?#" + target, "master")
-        scm.checkout(self.tempdir)
-        scm.verify()
+        with pytest.raises(UnprocessableEntity):
+            scm.checkout(self.tempdir)
 
-    @raises(UnprocessableEntity)
     def test_get_module_yaml(self):
         scm = module_build_service.scm.SCM(repo_path)
         scm.checkout(self.tempdir)
         scm.verify()
-        scm.get_module_yaml()
+        with pytest.raises(UnprocessableEntity):
+            scm.get_module_yaml()
 
-    @raises(UnprocessableEntity)
     def test_get_latest_incorrect_component_branch(self):
         scm = module_build_service.scm.SCM(repo_path)
-        scm.get_latest('foobar')
+        with pytest.raises(UnprocessableEntity):
+            scm.get_latest('foobar')
 
     def test_get_latest_component_branch(self):
         ref = "5481faa232d66589e660cc301179867fb00842c9"
@@ -136,10 +133,10 @@ class TestSCMModule:
         commit = scm.get_latest(ref)
         assert commit == ref
 
-    @raises(UnprocessableEntity)
     def test_get_latest_incorrect_component_ref(self):
         scm = module_build_service.scm.SCM(repo_path)
-        scm.get_latest('15481faa232d66589e660cc301179867fb00842c9')
+        with pytest.raises(UnprocessableEntity):
+            scm.get_latest('15481faa232d66589e660cc301179867fb00842c9')
 
     @patch.object(module_build_service.scm.SCM, '_run')
     def test_get_latest_ignore_origin(self, mock_run):
