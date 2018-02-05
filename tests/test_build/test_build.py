@@ -29,8 +29,6 @@ from shutil import copyfile
 from datetime import datetime, timedelta
 from random import randint
 
-from nose.tools import timed
-
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.repos
 import module_build_service.utils
@@ -324,7 +322,6 @@ class TestBuild:
             except Exception:
                 pass
 
-    @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     def test_submit_build(self, mocked_scm, mocked_get_user, conf_system, dbg):
@@ -386,7 +383,6 @@ class TestBuild:
         assert module_build.module_builds_trace[4].state == models.BUILD_STATES['ready']
         assert len(module_build.module_builds_trace) == 5
 
-    @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     def test_submit_build_no_components(self, mocked_scm, mocked_get_user, conf_system, dbg):
@@ -413,7 +409,6 @@ class TestBuild:
         # Make sure the build is done
         assert module_build.state == models.BUILD_STATES['ready']
 
-    @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     def test_submit_build_from_yaml_not_allowed(
@@ -433,7 +428,6 @@ class TestBuild:
             assert data['status'] == 403
             assert data['message'] == 'YAML submission is not enabled'
 
-    @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     def test_submit_build_from_yaml_allowed(self, mocked_scm, mocked_get_user, conf_system, dbg):
@@ -454,7 +448,6 @@ class TestBuild:
         stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
         module_build_service.scheduler.main(msgs, stop)
 
-    @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
     def test_submit_build_with_optional_params(self, mocked_get_user, conf_system, dbg):
         params = {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
@@ -472,7 +465,6 @@ class TestBuild:
         data = submit(dict(params.items() + {"copr_owner": "foo"}.items()))
         assert "The request contains parameters specific to Copr builder" in data["message"]
 
-    @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     def test_submit_build_cancel(self, mocked_scm, mocked_get_user, conf_system, dbg):
@@ -524,7 +516,6 @@ class TestBuild:
             if build.task_id:
                 assert build.task_id in cancelled_tasks
 
-    @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     def test_submit_build_instant_complete(self, mocked_scm, mocked_get_user, conf_system, dbg):
@@ -554,7 +545,6 @@ class TestBuild:
             assert build.module_build.state in [models.BUILD_STATES["done"],
                                                 models.BUILD_STATES["ready"]]
 
-    @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     @patch("module_build_service.config.Config.num_concurrent_builds",
@@ -599,7 +589,6 @@ class TestBuild:
             assert build.module_build.state in [models.BUILD_STATES["done"],
                                                 models.BUILD_STATES["ready"]]
 
-    @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     @patch("module_build_service.config.Config.num_concurrent_builds",
@@ -651,7 +640,6 @@ class TestBuild:
         num_builds = [k for k, g in itertools.groupby(TestBuild._global_var)]
         assert num_builds.count(1) == 2
 
-    @timed(60)
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     @patch("module_build_service.config.Config.num_concurrent_builds",
@@ -711,7 +699,6 @@ class TestBuild:
             # there were failed components in batch 2.
             assert c.module_build.batch == 2
 
-    @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     @patch("module_build_service.config.Config.num_concurrent_builds",
@@ -759,7 +746,6 @@ class TestBuild:
             # there were failed components in batch 2.
             assert c.module_build.batch == 2
 
-    @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     def test_submit_build_reuse_all(self, mocked_scm, mocked_get_user,
@@ -811,7 +797,6 @@ class TestBuild:
                                                 models.BUILD_STATES["ready"]]
             assert build.reused_component_id == reused_component_ids[build.package]
 
-    @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     def test_submit_build_reuse_all_without_build_macros(self, mocked_scm, mocked_get_user,
@@ -865,7 +850,6 @@ class TestBuild:
                                                 models.BUILD_STATES["ready"]]
             assert build.package != "module-build-macros"
 
-    @timed(60)
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     def test_submit_build_resume(self, mocked_scm, mocked_get_user, conf_system, dbg):
@@ -985,7 +969,6 @@ class TestBuild:
             assert build.module_build.state in [models.BUILD_STATES['done'],
                                                 models.BUILD_STATES['ready']]
 
-    @timed(60)
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     def test_submit_build_resume_recover_orphaned_macros(
@@ -1097,7 +1080,6 @@ class TestBuild:
             assert build.module_build.state in [models.BUILD_STATES['done'],
                                                 models.BUILD_STATES['ready']]
 
-    @timed(60)
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     def test_submit_build_resume_failed_init(self, mocked_scm, mocked_get_user, conf_system, dbg):
@@ -1204,7 +1186,6 @@ class TestLocalBuild:
             except Exception:
                 pass
 
-    @timed(30)
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     @patch("module_build_service.config.Config.mock_resultsdir",
