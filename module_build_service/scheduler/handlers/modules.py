@@ -213,8 +213,7 @@ def wait(config, session, msg):
         on failure.
         """
         cg_build_koji_tag = conf.koji_cg_default_build_tag
-
-        if conf.system != "koji":
+        if conf.system not in ['koji', 'test']:
             # In case of non-koji backend, we want to get the dependencies
             # of the local module build based on ModuleMetadata, because the
             # local build is not stored in PDC and therefore we cannot query

@@ -1,0 +1,21 @@
+data:
+  description: Fedora 28 traditional base
+  name: platform
+  profiles:
+    buildroot:
+      rpms: [bash, bzip2, coreutils, cpio, diffutils, fedora-release, findutils, gawk,
+        gcc, gcc-c++, grep, gzip, info, make, patch, redhat-rpm-config, rpm-build,
+        sed, shadow-utils, tar, unzip, util-linux, which, xz]
+    srpm-buildroot:
+      rpms: [bash, fedora-release, fedpkg-minimal, gnupg2, redhat-rpm-config, rpm-build,
+        shadow-utils]
+  stream: f28
+  summary: Fedora 28 traditional base
+  version: 3
+  xmd:
+    mbs:
+      buildrequires: {}
+      commit: virtual
+      requires: {}
+document: modulemd
+version: 1

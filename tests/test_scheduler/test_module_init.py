@@ -22,9 +22,8 @@
 import os
 
 from mock import patch, PropertyMock
-import vcr
 
-from tests import conf, clean_database, get_vcr_path
+from tests import conf, clean_database
 from tests.test_views.test_views import FakeSCM
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.modules
@@ -42,17 +41,13 @@ class TestModuleInit:
             self.staged_data_dir, 'testmodule.yaml')
         with open(testmodule_yml_path, 'r') as f:
             yaml = f.read()
-        scmurl = ('git://pkgs.domain.local/modules/testmodule?#da95886')
+        scmurl = 'git://pkgs.domain.local/modules/testmodule?#620ec77'
         clean_database()
         with make_session(conf) as session:
             ModuleBuild.create(
                 session, conf, 'testmodule', '1', 3, yaml, scmurl, 'mprahl')
 
-        self.vcr = vcr.use_cassette(get_vcr_path(__file__, test_method))
-        self.vcr.__enter__()
-
     def teardown_method(self, test_method):
-        self.vcr.__exit__()
         try:
             path = build_logs.path(1)
             os.remove(path)
@@ -60,7 +55,7 @@ class TestModuleInit:
             pass
 
     @patch('module_build_service.scm.SCM')
-    def test_init_basic(self, mocked_scm):
+    def test_init_basic(self, mocked_scm, pdc):
         FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
         msg = module_build_service.messaging.MBSModule(
@@ -74,7 +69,7 @@ class TestModuleInit:
         assert type(build.mmd().xmd['mbs']) is dict
 
     @patch('module_build_service.scm.SCM')
-    def test_init_scm_not_available(self, mocked_scm):
+    def test_init_scm_not_available(self, mocked_scm, pdc):
         def mocked_scm_get_latest():
             raise RuntimeError("Failed in mocked_scm_get_latest")
 
@@ -93,13 +88,13 @@ class TestModuleInit:
     @patch("module_build_service.config.Config.modules_allow_repository",
            new_callable=PropertyMock, return_value=True)
     @patch('module_build_service.scm.SCM')
-    def test_init_includedmodule(self, mocked_scm, mocked_mod_allow_repo):
+    def test_init_includedmodule(self, mocked_scm, mocked_mod_allow_repo, pdc):
         FakeSCM(mocked_scm, "includedmodules", ['testmodule.yaml'])
         includedmodules_yml_path = os.path.join(
             self.staged_data_dir, 'includedmodules.yaml')
         with open(includedmodules_yml_path, 'r') as f:
             yaml = f.read()
-        scmurl = ('git://pkgs.domain.local/modules/includedmodule?#da95886')
+        scmurl = 'git://pkgs.domain.local/modules/includedmodule?#da95886'
         with make_session(conf) as session:
             ModuleBuild.create(
                 session, conf, 'includemodule', '1', 3, yaml, scmurl, 'mprahl')
@@ -112,24 +107,24 @@ class TestModuleInit:
         batches = {}
         for comp_build in ComponentBuild.query.filter_by(module_id=2).all():
             batches[comp_build.package] = comp_build.batch
-        assert batches['ed'] == 2
         assert batches['perl-List-Compare'] == 2
         assert batches['perl-Tangerine'] == 2
+        assert batches['foo'] == 2
         assert batches['tangerine'] == 3
         assert batches['file'] == 4
         # Test that the RPMs are properly merged in xmd
         xmd_rpms = {
-            'ed': {'ref': '40bd001563'},
-            'perl-List-Compare': {'ref': '2ee8474e44'},
-            'tangerine': {'ref': 'd29d5c24b8'},
+            'perl-List-Compare': {'ref': '4f26aeafdb'},
+            'perl-Tangerine': {'ref': '4f26aeafdb'},
+            'tangerine': {'ref': '4f26aeafdb'},
+            'foo': {'ref': '93dea37599'},
             'file': {'ref': 'a2740663f8'},
-            'perl-Tangerine': {'ref': '27785f9f05'}
         }
         assert build.mmd().xmd['mbs']['rpms'] == xmd_rpms
 
     @patch('module_build_service.models.ModuleBuild.from_module_event')
     @patch('module_build_service.scm.SCM')
-    def test_init_when_get_latest_raises(self, mocked_scm, mocked_from_module_event):
+    def test_init_when_get_latest_raises(self, mocked_scm, mocked_from_module_event, pdc):
         FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
                 '7035bd33614972ac66559ac1fdd019ff6027ad22',
                 get_latest_raise=True)

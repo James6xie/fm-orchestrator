@@ -21,16 +21,16 @@
 # Written by Matt Prahl <mprahl@redhat.com
 
 import os
-import tarfile
 from datetime import datetime, timedelta
 from mock import patch
 
 import modulemd
+import koji
 import module_build_service
 from module_build_service import db
 from module_build_service.utils import get_rpm_release
 from module_build_service.config import init_config
-from module_build_service.models import ModuleBuild, ComponentBuild, make_session
+from module_build_service.models import ModuleBuild, ComponentBuild, make_session, BUILD_STATES
 
 
 base_dir = os.path.dirname(__file__)
@@ -48,34 +48,6 @@ def patch_config():
 
 
 patch_config()
-
-
-def get_vcr_path(file_path, test_method):
-    cassette_dir = os.path.join(base_dir, 'vcr-request-data')
-    # In pytest style unit tests, we don't have access to self.id so this code replicates that
-    # value
-    filename_prefix = [os.path.abspath(os.path.dirname(file_path))]
-    while True:
-        if os.path.basename(filename_prefix[0]) == 'tests':
-            break
-        filename_prefix.insert(0, os.path.abspath(os.path.join(filename_prefix[0], os.pardir)))
-    filename_prefix = [os.path.basename(dir_path) for dir_path in filename_prefix]
-    filename = '.'.join(filename_prefix + [
-        os.path.splitext(os.path.basename(file_path))[0],
-        test_method.im_class.__name__,
-        test_method.im_func.__name__])
-    return os.path.join(cassette_dir, filename)
-
-
-def uncompress_vcrpy_cassette():
-    cassette_dir = os.path.join(base_dir, 'vcr-request-data')
-    if not os.path.exists(cassette_dir):
-        archive = cassette_dir.rstrip('/') + ".tar.gz"
-        with tarfile.open(archive, mode='r:gz') as t:
-            t.extractall(base_dir)
-
-
-uncompress_vcrpy_cassette()
 
 
 def clean_database():
@@ -96,7 +68,7 @@ def _populate_data(session):
         build_one.name = 'nginx'
         build_one.stream = '1'
         build_one.version = 2
-        build_one.state = 3
+        build_one.state = BUILD_STATES['done']
         with open(os.path.join(base_dir, "staged_data", "nginx_mmd.yaml")) as mmd:
             build_one.modulemd = mmd.read()
         build_one.koji_tag = 'module-nginx-1.2'
@@ -123,7 +95,7 @@ def _populate_data(session):
              '#ga95886c8a443b36a9ce31abda1f9bed22f2f8c3')
         component_one_build_one.format = 'rpms'
         component_one_build_one.task_id = 12312345 + index
-        component_one_build_one.state = 1
+        component_one_build_one.state = koji.BUILD_STATES['COMPLETE']
         component_one_build_one.nvr = 'nginx-1.10.1-2.{0}'.format(build_one_component_release)
         component_one_build_one.batch = 1
         component_one_build_one.module_id = 1 + index * 3
@@ -137,7 +109,7 @@ def _populate_data(session):
              'module-build-macros-0.1-1.module_nginx_1_2.src.rpm')
         component_two_build_one.format = 'rpms'
         component_two_build_one.task_id = 12312321 + index
-        component_two_build_one.state = 1
+        component_two_build_one.state = koji.BUILD_STATES['COMPLETE']
         component_two_build_one.nvr = \
             'module-build-macros-01-1.{0}'.format(build_one_component_release)
         component_two_build_one.batch = 2
@@ -149,7 +121,7 @@ def _populate_data(session):
         build_two.name = 'postgressql'
         build_two.stream = '1'
         build_two.version = 2
-        build_two.state = 3
+        build_two.state = BUILD_STATES['done']
         build_two.modulemd = ''  # Skipping since no tests rely on it
         build_two.koji_tag = 'module-postgressql-1.2'
         build_two.scmurl = ('git://pkgs.domain.local/modules/postgressql?'
@@ -174,7 +146,7 @@ def _populate_data(session):
              '#dc95586c4a443b26a9ce38abda1f9bed22f2f8c3')
         component_one_build_two.format = 'rpms'
         component_one_build_two.task_id = 2433433 + index
-        component_one_build_two.state = 1
+        component_one_build_two.state = koji.BUILD_STATES['COMPLETE']
         component_one_build_two.nvr = 'postgresql-9.5.3-4.{0}'.format(build_two_component_release)
         component_one_build_two.batch = 2
         component_one_build_two.module_id = 2 + index * 3
@@ -188,7 +160,7 @@ def _populate_data(session):
              'module-build-macros-0.1-1.module_postgresql_1_2.src.rpm')
         component_two_build_two.format = 'rpms'
         component_two_build_two.task_id = 47383993 + index
-        component_two_build_two.state = 1
+        component_two_build_two.state = koji.BUILD_STATES['COMPLETE']
         component_two_build_two.nvr = \
             'module-build-macros-01-1.{0}'.format(build_two_component_release)
         component_two_build_two.batch = 1
@@ -200,7 +172,7 @@ def _populate_data(session):
         build_three.name = 'testmodule'
         build_three.stream = '4.3.43'
         build_three.version = 6
-        build_three.state = 1
+        build_three.state = BUILD_STATES['wait']
         build_three.modulemd = ''  # Skipping because no tests rely on it
         build_three.koji_tag = None
         build_three.scmurl = ('git://pkgs.domain.local/modules/testmodule?'
@@ -224,7 +196,7 @@ def _populate_data(session):
              '#dd55886c4a443b26a9ce38abda1f9bed22f2f8c3')
         component_one_build_three.format = 'rpms'
         component_one_build_three.task_id = 2433433 + index
-        component_one_build_three.state = 3
+        component_one_build_three.state = koji.BUILD_STATES['FAILED']
         component_one_build_three.nvr = \
             'postgresql-9.5.3-4.{0}'.format(build_three_component_release)
         component_one_build_three.batch = 2
@@ -237,7 +209,7 @@ def _populate_data(session):
              'module-build-macros-0.1-1.module_testmodule_1_2.src.rpm')
         component_two_build_three.format = 'rpms'
         component_two_build_three.task_id = 47383993 + index
-        component_two_build_three.state = 1
+        component_two_build_three.state = koji.BUILD_STATES['COMPLETE']
         component_two_build_three.nvr = \
             'module-build-macros-01-1.{0}'.format(build_three_component_release)
         component_two_build_three.batch = 1
@@ -254,96 +226,37 @@ def _populate_data(session):
         session.commit()
 
 
-def scheduler_init_data(communicator_state=None):
-    clean_database()
-
-    current_dir = os.path.dirname(__file__)
-    star_command_yml_path = os.path.join(
-        current_dir, 'staged_data', 'formatted_starcommand.yaml')
-    with open(star_command_yml_path, 'r') as f:
-        yaml = f.read()
-
-    build_one = module_build_service.models.ModuleBuild()
-    build_one.name = 'starcommand'
-    build_one.stream = '1'
-    build_one.version = 3
-    build_one.state = 2
-    build_one.modulemd = yaml
-    build_one.koji_tag = 'module-starcommand-1.3'
-    build_one.scmurl = ('git://pkgs.domain.local/modules/star-command?'
-                        '#da95886b7a443b36a9ce31abda1f9bef22f2f8c6')
-    build_one.batch = 2
-    # https://www.youtube.com/watch?v=iOKymYVSaJE
-    build_one.owner = 'Buzz Lightyear'
-    build_one.time_submitted = datetime(2016, 12, 9, 11, 23, 20)
-    build_one.time_modified = datetime(2016, 12, 9, 11, 25, 32)
-    build_one.rebuild_strategy = 'changed-and-after'
-    build_one_component_release = get_rpm_release(build_one)
-
-    component_one_build_one = module_build_service.models.ComponentBuild()
-    component_one_build_one.package = 'communicator'
-    component_one_build_one.scmurl = \
-        ('git://pkgs.domain.local/rpms/communicator?'
-         '#da95886c8a443b36a9ce31abda1f9bed22f2f9c2')
-    component_one_build_one.format = 'rpms'
-    component_one_build_one.task_id = 12312345
-    component_one_build_one.state = communicator_state
-    if component_one_build_one.state == 1:
-        component_one_build_one.tagged = True
-        component_one_build_one.tagged_in_final = True
-    component_one_build_one.nvr = 'communicator-1.10.1-2.{0}'.format(build_one_component_release)
-    component_one_build_one.batch = 2
-    component_one_build_one.module_id = 1
-
-    component_two_build_one = module_build_service.models.ComponentBuild()
-    component_two_build_one.package = 'module-build-macros'
-    component_two_build_one.scmurl = \
-        ('/tmp/module_build_service-build-macrosWZUPeK/SRPMS/'
-         'module-build-macros-0.1-1.module_starcommand_1_3.src.rpm')
-    component_two_build_one.format = 'rpms'
-    component_two_build_one.task_id = 12312321
-    component_two_build_one.state = 1
-    if component_two_build_one.state == 1:
-        component_two_build_one.tagged = True
-        component_two_build_one.tagged_in_final = True
-    component_two_build_one.nvr = \
-        'module-build-macros-01-1.{0}'.format(build_one_component_release)
-    component_two_build_one.batch = 2
-    component_two_build_one.module_id = 1
-
-    with make_session(conf) as session:
-        session.add(build_one)
-        session.add(component_one_build_one)
-        session.add(component_two_build_one)
-        session.commit()
-
-
-def test_reuse_component_init_data():
+def scheduler_init_data(tangerine_state=None):
+    """ Creates a testmodule in the building state with all the components in the same batch
+    """
     clean_database()
 
     current_dir = os.path.dirname(__file__)
     formatted_testmodule_yml_path = os.path.join(
         current_dir, 'staged_data', 'formatted_testmodule.yaml')
-    with open(formatted_testmodule_yml_path, 'r') as f:
-        yaml = f.read()
+    mmd = modulemd.ModuleMetadata()
+    mmd.load(formatted_testmodule_yml_path)
+    mmd.components.rpms['tangerine'].buildorder = 0
 
     build_one = module_build_service.models.ModuleBuild()
     build_one.name = 'testmodule'
     build_one.stream = 'master'
     build_one.version = 20170109091357
-    build_one.state = 5
+    build_one.state = BUILD_STATES['build']
     build_one.build_context = 'ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0'
     build_one.runtime_context = 'ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0'
-    build_one.modulemd = yaml
-    build_one.koji_tag = 'module-testmodule-master-20170109091357'
-    build_one.scmurl = ('git://pkgs.stg.fedoraproject.org/modules/testmodule.'
-                        'git?#7fea453')
-    build_one.batch = 3
-    build_one.owner = 'Tom Brady'
+    build_one.koji_tag = 'module-95b214a704c984be'
+    build_one.scmurl = 'git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#ff1ea79'
+    if tangerine_state:
+        build_one.batch = 3
+    else:
+        build_one.batch = 2
+    # https://www.youtube.com/watch?v=iOKymYVSaJE
+    build_one.owner = 'Buzz Lightyear'
     build_one.time_submitted = datetime(2017, 2, 15, 16, 8, 18)
     build_one.time_modified = datetime(2017, 2, 15, 16, 19, 35)
-    build_one.time_completed = datetime(2017, 2, 15, 16, 19, 35)
     build_one.rebuild_strategy = 'changed-and-after'
+    build_one.modulemd = mmd.dumps()
     build_one_component_release = get_rpm_release(build_one)
 
     component_one_build_one = module_build_service.models.ComponentBuild()
@@ -353,7 +266,7 @@ def test_reuse_component_init_data():
          '?#4ceea43add2366d8b8c5a622a2fb563b625b9abf')
     component_one_build_one.format = 'rpms'
     component_one_build_one.task_id = 90276227
-    component_one_build_one.state = 1
+    component_one_build_one.state = koji.BUILD_STATES['COMPLETE']
     component_one_build_one.nvr = \
         'perl-Tangerine-0.23-1.{0}'.format(build_one_component_release)
     component_one_build_one.batch = 2
@@ -369,7 +282,7 @@ def test_reuse_component_init_data():
          '?#76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb')
     component_two_build_one.format = 'rpms'
     component_two_build_one.task_id = 90276228
-    component_two_build_one.state = 1
+    component_two_build_one.state = koji.BUILD_STATES['COMPLETE']
     component_two_build_one.nvr = \
         'perl-List-Compare-0.53-5.{0}'.format(build_one_component_release)
     component_two_build_one.batch = 2
@@ -384,15 +297,17 @@ def test_reuse_component_init_data():
         ('git://pkgs.fedoraproject.org/rpms/tangerine'
          '?#fbed359411a1baa08d4a88e0d12d426fbf8f602c')
     component_three_build_one.format = 'rpms'
-    component_three_build_one.task_id = 90276315
-    component_three_build_one.state = 1
-    component_three_build_one.nvr = \
-        'tangerine-0.22-3.{0}'.format(build_one_component_release)
     component_three_build_one.batch = 3
     component_three_build_one.module_id = 1
     component_three_build_one.ref = 'fbed359411a1baa08d4a88e0d12d426fbf8f602c'
-    component_three_build_one.tagged = True
-    component_three_build_one.tagged_in_final = True
+    component_three_build_one.state = tangerine_state
+    if tangerine_state:
+        component_three_build_one.task_id = 90276315
+        component_three_build_one.nvr = \
+            'tangerine-0.22-3.{0}'.format(build_one_component_release)
+    if tangerine_state == koji.BUILD_STATES['COMPLETE']:
+        component_three_build_one.tagged = True
+        component_three_build_one.tagged_in_final = True
 
     component_four_build_one = module_build_service.models.ComponentBuild()
     component_four_build_one.package = 'module-build-macros'
@@ -401,7 +316,7 @@ def test_reuse_component_init_data():
          'macros-0.1-1.module_testmodule_master_20170109091357.src.rpm')
     component_four_build_one.format = 'rpms'
     component_four_build_one.task_id = 90276181
-    component_four_build_one.state = 1
+    component_four_build_one.state = koji.BUILD_STATES['COMPLETE']
     component_four_build_one.nvr = \
         'module-build-macros-0.1-1.{0}'.format(build_one_component_release)
     component_four_build_one.batch = 1
@@ -409,26 +324,124 @@ def test_reuse_component_init_data():
     component_four_build_one.tagged = True
     component_four_build_one.build_time_only = True
 
+    with make_session(conf) as session:
+        session.add(build_one)
+        session.add(component_one_build_one)
+        session.add(component_two_build_one)
+        session.add(component_three_build_one)
+        session.add(component_four_build_one)
+        session.commit()
+
+
+def test_reuse_component_init_data():
+    clean_database()
+
+    current_dir = os.path.dirname(__file__)
+    formatted_testmodule_yml_path = os.path.join(
+        current_dir, 'staged_data', 'formatted_testmodule.yaml')
     mmd = modulemd.ModuleMetadata()
-    mmd.loads(yaml)
-    mmd.xmd['mbs']['commit'] = '55f4a0a2e6cc255c88712a905157ab39315b8fd8'
+    mmd.load(formatted_testmodule_yml_path)
+
+    build_one = module_build_service.models.ModuleBuild()
+    build_one.name = 'testmodule'
+    build_one.stream = 'master'
+    build_one.version = 20170109091357
+    build_one.state = BUILD_STATES['ready']
+    build_one.build_context = 'ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0'
+    build_one.runtime_context = 'ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0'
+    build_one.koji_tag = 'module-de3adf79caf3e1b8'
+    build_one.scmurl = 'git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#ff1ea79'
+    build_one.batch = 3
+    build_one.owner = 'Tom Brady'
+    build_one.time_submitted = datetime(2017, 2, 15, 16, 8, 18)
+    build_one.time_modified = datetime(2017, 2, 15, 16, 19, 35)
+    build_one.time_completed = datetime(2017, 2, 15, 16, 19, 35)
+    build_one.rebuild_strategy = 'changed-and-after'
+    build_one_component_release = get_rpm_release(build_one)
+    mmd.version = build_one.version
+    mmd.xmd['mbs']['scmurl'] = build_one.scmurl
+    mmd.xmd['mbs']['commit'] = 'ff1ea79fc952143efeed1851aa0aa006559239ba'
+    build_one.modulemd = mmd.dumps()
+
+    component_one_build_one = module_build_service.models.ComponentBuild()
+    component_one_build_one.package = 'perl-Tangerine'
+    component_one_build_one.scmurl = \
+        ('git://pkgs.fedoraproject.org/rpms/perl-Tangerine'
+         '?#4ceea43add2366d8b8c5a622a2fb563b625b9abf')
+    component_one_build_one.format = 'rpms'
+    component_one_build_one.task_id = 90276227
+    component_one_build_one.state = koji.BUILD_STATES['COMPLETE']
+    component_one_build_one.nvr = \
+        'perl-Tangerine-0.23-1.{0}'.format(build_one_component_release)
+    component_one_build_one.batch = 2
+    component_one_build_one.module_id = 1
+    component_one_build_one.ref = '4ceea43add2366d8b8c5a622a2fb563b625b9abf'
+    component_one_build_one.tagged = True
+    component_one_build_one.tagged_in_final = True
+    component_two_build_one = module_build_service.models.ComponentBuild()
+    component_two_build_one.package = 'perl-List-Compare'
+    component_two_build_one.scmurl = \
+        ('git://pkgs.fedoraproject.org/rpms/perl-List-Compare'
+         '?#76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb')
+    component_two_build_one.format = 'rpms'
+    component_two_build_one.task_id = 90276228
+    component_two_build_one.state = koji.BUILD_STATES['COMPLETE']
+    component_two_build_one.nvr = \
+        'perl-List-Compare-0.53-5.{0}'.format(build_one_component_release)
+    component_two_build_one.batch = 2
+    component_two_build_one.module_id = 1
+    component_two_build_one.ref = '76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb'
+    component_two_build_one.tagged = True
+    component_two_build_one.tagged_in_final = True
+    component_three_build_one = module_build_service.models.ComponentBuild()
+    component_three_build_one.package = 'tangerine'
+    component_three_build_one.scmurl = \
+        ('git://pkgs.fedoraproject.org/rpms/tangerine'
+         '?#fbed359411a1baa08d4a88e0d12d426fbf8f602c')
+    component_three_build_one.format = 'rpms'
+    component_three_build_one.task_id = 90276315
+    component_three_build_one.state = koji.BUILD_STATES['COMPLETE']
+    component_three_build_one.nvr = \
+        'tangerine-0.22-3.{0}'.format(build_one_component_release)
+    component_three_build_one.batch = 3
+    component_three_build_one.module_id = 1
+    component_three_build_one.ref = 'fbed359411a1baa08d4a88e0d12d426fbf8f602c'
+    component_three_build_one.tagged = True
+    component_three_build_one.tagged_in_final = True
+    component_four_build_one = module_build_service.models.ComponentBuild()
+    component_four_build_one.package = 'module-build-macros'
+    component_four_build_one.scmurl = \
+        ('/tmp/module_build_service-build-macrosqr4AWH/SRPMS/module-build-'
+         'macros-0.1-1.module_testmodule_master_20170109091357.src.rpm')
+    component_four_build_one.format = 'rpms'
+    component_four_build_one.task_id = 90276181
+    component_four_build_one.state = koji.BUILD_STATES['COMPLETE']
+    component_four_build_one.nvr = \
+        'module-build-macros-0.1-1.{0}'.format(build_one_component_release)
+    component_four_build_one.batch = 1
+    component_four_build_one.module_id = 1
+    component_four_build_one.tagged = True
+    component_four_build_one.build_time_only = True
+
     build_two = module_build_service.models.ModuleBuild()
     build_two.name = 'testmodule'
     build_two.stream = 'master'
     build_two.version = 20170219191323
-    build_two.state = 2
+    build_two.state = BUILD_STATES['build']
     build_two.build_context = 'ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0'
     build_two.runtime_context = 'ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0'
-    build_two.modulemd = mmd.dumps()
-    build_two.koji_tag = 'module-testmodule'
-    build_two.scmurl = ('git://pkgs.stg.fedoraproject.org/modules/testmodule.'
-                        'git?#55f4a0a')
+    build_two.koji_tag = 'module-fe3adf73caf3e1b7'
+    build_two.scmurl = 'git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#55f4a0a'
     build_two.batch = 1
     build_two.owner = 'Tom Brady'
     build_two.time_submitted = datetime(2017, 2, 19, 16, 8, 18)
     build_two.time_modified = datetime(2017, 2, 19, 16, 8, 18)
     build_two.rebuild_strategy = 'changed-and-after'
     build_two_component_release = get_rpm_release(build_two)
+    mmd.version = build_one.version
+    mmd.xmd['mbs']['scmurl'] = build_one.scmurl
+    mmd.xmd['mbs']['commit'] = '55f4a0a2e6cc255c88712a905157ab39315b8fd8'
+    build_two.modulemd = mmd.dumps()
 
     component_one_build_two = module_build_service.models.ComponentBuild()
     component_one_build_two.package = 'perl-Tangerine'
@@ -439,7 +452,6 @@ def test_reuse_component_init_data():
     component_one_build_two.batch = 2
     component_one_build_two.module_id = 2
     component_one_build_two.ref = '4ceea43add2366d8b8c5a622a2fb563b625b9abf'
-
     component_two_build_two = module_build_service.models.ComponentBuild()
     component_two_build_two.package = 'perl-List-Compare'
     component_two_build_two.scmurl = \
@@ -449,7 +461,6 @@ def test_reuse_component_init_data():
     component_two_build_two.batch = 2
     component_two_build_two.module_id = 2
     component_two_build_two.ref = '76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb'
-
     component_three_build_two = module_build_service.models.ComponentBuild()
     component_three_build_two.package = 'tangerine'
     component_three_build_two.scmurl = \
@@ -459,7 +470,6 @@ def test_reuse_component_init_data():
     component_three_build_two.batch = 3
     component_three_build_two.module_id = 2
     component_three_build_two.ref = 'fbed359411a1baa08d4a88e0d12d426fbf8f602c'
-
     component_four_build_two = module_build_service.models.ComponentBuild()
     component_four_build_two.package = 'module-build-macros'
     component_four_build_two.scmurl = \
@@ -467,7 +477,7 @@ def test_reuse_component_init_data():
          'macros-0.1-1.module_testmodule_master_20170219191323.src.rpm')
     component_four_build_two.format = 'rpms'
     component_four_build_two.task_id = 90276186
-    component_four_build_two.state = 1
+    component_four_build_two.state = koji.BUILD_STATES['COMPLETE']
     component_four_build_two.nvr = \
         'module-build-macros-0.1-1.{0}'.format(build_two_component_release)
     component_four_build_two.batch = 1
@@ -510,7 +520,7 @@ def test_reuse_shared_userspace_init_data():
         build_one.version = mmd.version
         build_one.build_context = 'e046b867a400a06a3571f3c71142d497895fefbe'
         build_one.runtime_context = '50dd3eb5dde600d072e45d4120e1548ce66bc94a'
-        build_one.state = 5
+        build_one.state = BUILD_STATES['ready']
         build_one.modulemd = yaml
         build_one.koji_tag = 'module-testmodule-master-20170109091357'
         build_one.scmurl = ('git://pkgs.stg.fedoraproject.org/modules/testmodule.'
@@ -562,7 +572,7 @@ def test_reuse_shared_userspace_init_data():
         build_one.version = mmd.version
         build_one.build_context = 'e046b867a400a06a3571f3c71142d497895fefbe'
         build_one.runtime_context = '50dd3eb5dde600d072e45d4120e1548ce66bc94a'
-        build_one.state = 3
+        build_one.state = BUILD_STATES['done']
         build_one.modulemd = yaml
         build_one.koji_tag = 'module-testmodule-master-20170109091357'
         build_one.scmurl = ('git://pkgs.stg.fedoraproject.org/modules/testmodule.'

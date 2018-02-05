@@ -21,12 +21,12 @@ data:
     components:
         rpms:
             file:
-                rationale: It's here to test the whole thing!
+                rationale: file
                 ref: 70fa7516b83768595a4f3280ae890a7ac957e0c7
                 buildorder: 10
-            ed:
-                rationale: ed
-                ref: 123
+            foo:
+                rationale: foo
+                ref: 80fa7516b83768595b4f3280ae890a7ac957e0c8
         modules:
             fakemodule:
                 rationale: foobar

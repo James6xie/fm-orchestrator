@@ -18,7 +18,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from os import path
 from mock import patch
 from module_build_service import models, conf
 from tests import test_reuse_component_init_data, init_data, db
@@ -27,10 +26,6 @@ import koji
 from module_build_service.scheduler.producer import MBSProducer
 import six.moves.queue as queue
 from datetime import datetime, timedelta
-
-BASE_DIR = path.abspath(path.dirname(__file__))
-CASSETTES_DIR = path.join(
-    path.abspath(path.dirname(__file__)), '..', 'vcr-request-data')
 
 
 @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
@@ -115,7 +110,7 @@ class TestPoller:
         poller = MBSProducer(hub)
         poller.poll()
 
-        koji_session.newRepo.assert_called_once_with("module-testmodule-build")
+        koji_session.newRepo.assert_called_once_with("module-fe3adf73caf3e1b7-build")
 
     def test_trigger_new_repo_when_succeded(self, create_builder,
                                             koji_get_session, global_consumer,

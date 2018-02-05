@@ -21,7 +21,6 @@
 # Written by Stanislav Ochotnicky <sochotnicky@redhat.com>
 
 import json
-import vcr
 
 import os
 from os import path
@@ -32,7 +31,7 @@ from module_build_service import models, conf, build_logs
 
 from mock import patch, Mock, MagicMock, call
 
-from tests import init_data, get_vcr_path
+from tests import init_data
 
 from module_build_service.builder.KojiContentGenerator import KojiContentGenerator
 
@@ -53,9 +52,6 @@ class TestBuild:
         module.cg_build_koji_tag = "f27-module-candidate"
         self.cg = KojiContentGenerator(module, conf)
 
-        self.vcr = vcr.use_cassette(get_vcr_path(__file__, test_method))
-        self.vcr.__enter__()
-
         # Ensure that there is no build log from other tests
         try:
             file_path = build_logs.path(self.cg.module)
@@ -70,7 +66,6 @@ class TestBuild:
         del sys.modules['moksha.hub.reactor']
         del sys.modules['moksha.hub']
         import moksha.hub.reactor # noqa
-        self.vcr.__exit__()
         try:
             file_path = build_logs.path(self.cg.module)
             os.remove(file_path)

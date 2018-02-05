@@ -8,5 +8,4 @@ recursive-include docs *.txt *.rst *.md
 recursive-include module_build_service *
 recursive-include fedmsg.d *
 recursive-include tests *.yaml *.json
-recursive-include tests/vcr-request-data *
 recursive-include tests/scm_data *

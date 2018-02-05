@@ -1,0 +1,60 @@
+document: modulemd
+version: 1
+data:
+  name: testmodule-more-components
+  stream: master
+  version: 20180205135154
+  context: c2c572ec
+  summary: A test module in all its beautiful beauty
+  description: This module demonstrates how to write simple modulemd files And can
+    be used for testing the build and release pipeline.
+  license:
+    module:
+    - MIT
+  dependencies:
+    buildrequires:
+      platform: f28
+    requires:
+      platform: f28
+  references:
+    community: https://docs.pagure.org/modularity/
+    documentation: https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules
+  xmd:
+    mbs:
+      buildrequires:
+        platform:
+          filtered_rpms: []
+          ref: virtual
+          stream: f28
+          version: '3'
+      commit: 620ec77321b2ea7b0d67d82992dda3e1d67055b4
+      requires:
+        platform:
+          filtered_rpms: []
+          ref: virtual
+          stream: f28
+          version: '3'
+      rpms:
+        ed:
+          ref: 51f529a5cde2b843ed9c7870689d707eaab3a9d1
+        mksh:
+          ref: c7df9926cbe7bd8ffbd0ed35108814d7e037d1e3
+        ed2:
+          ref: 61f529a5cde2b843ed9c7870689d707eaab3a9d1
+        mksh2:
+          ref: d7df9926cbe7bd8ffbd0ed35108814d7e037d1e3
+      scmurl: https://src.fedoraproject.org/modules/testmodule.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4
+  components:
+    rpms:
+      perl-List-Compare:
+          rationale: A dependency of tangerine.
+          ref: f25
+      perl-Tangerine:
+          rationale: Provides API for this module and is a dependency of tangerine.
+          ref: f25
+      perl-List-Compare1:
+          rationale: A dependency of tangerine.
+          ref: f25
+      perl-Tangerine1:
+          rationale: Provides API for this module and is a dependency of tangerine.
+          ref: f25

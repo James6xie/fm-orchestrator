@@ -22,7 +22,6 @@ import tempfile
 from os import path, mkdir
 from shutil import copyfile, rmtree
 from datetime import datetime
-import vcr
 import modulemd
 from werkzeug.datastructures import FileStorage
 from mock import patch
@@ -42,8 +41,6 @@ from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
 from tests import app
 
 BASE_DIR = path.abspath(path.dirname(__file__))
-CASSETTES_DIR = path.join(
-    path.abspath(path.dirname(__file__)), '..', 'vcr-request-data')
 
 
 class FakeSCM(object):
@@ -82,290 +79,117 @@ class FakeSCM(object):
 class TestUtils:
 
     def setup_method(self, test_method):
-        self.filtered_rpms = [
-            u'sqlite-tcl-0:3.17.0-2.module_5ccf9229',
-            u'sqlite-analyzer-0:3.17.0-2.module_5ccf9229',
-            u'emacs-gettext-0:0.19.8.1-8.module_5ccf9229',
-            u'msghack-0:0.19.8.1-8.module_5ccf9229',
-            u'modeline2fb-0:2.1-40.module_5ccf9229',
-            u'audit-libs-python-0:2.7.3-1.module_5ccf9229',
-            u'audit-libs-python3-0:2.7.3-1.module_5ccf9229',
-            u'audispd-plugins-zos-0:2.7.3-1.module_5ccf9229',
-            u'audit-0:2.7.3-1.module_5ccf9229',
-            u'audispd-plugins-0:2.7.3-1.module_5ccf9229',
-            u'librepo-devel-0:1.7.20-3.module_5ccf9229',
-            u'python2-librepo-0:1.7.20-3.module_5ccf9229',
-            u'libcap-ng-python-0:0.7.8-3.module_5ccf9229',
-            u'iptables-compat-0:1.6.1-2.module_5ccf9229',
-            u'gobject-introspection-devel-0:1.52.0-1.module_5ccf9229',
-            u'ntsysv-0:1.9-1.module_5ccf9229',
-            u'pyparsing-0:2.1.10-3.module_5ccf9229',
-            u'python2-pyparsing-0:2.1.10-3.module_5ccf9229',
-            u'python2-appdirs-0:1.4.0-10.module_5ccf9229',
-            u'krb5-server-ldap-0:1.15-9.module_5ccf9229',
-            u'krb5-server-0:1.15-9.module_5ccf9229',
-            u'python-libxml2-0:2.9.4-2.module_5ccf9229',
-            u'libsemanage-python-0:2.6-2.module_5ccf9229',
-            u'python2-setuptools-0:34.3.0-1.module_5ccf9229',
-            u'libpeas-loader-python-0:1.20.0-5.module_5ccf9229',
-            u'libpeas-devel-0:1.20.0-5.module_5ccf9229',
-            u'libpeas-loader-python3-0:1.20.0-5.module_5ccf9229',
-            u'libpeas-gtk-0:1.20.0-5.module_5ccf9229',
-            u'python2-six-0:1.10.0-8.module_5ccf9229',
-            u'libtool-0:2.4.6-17.module_5ccf9229',
-            u'libverto-tevent-0:0.2.6-7.module_5ccf9229',
-            u'libverto-libevent-devel-0:0.2.6-7.module_5ccf9229',
-            u'libverto-tevent-devel-0:0.2.6-7.module_5ccf9229',
-            u'libverto-libevent-0:0.2.6-7.module_5ccf9229',
-            u'emacs-nox-1:25.2-0.1.rc2.module_5ccf9229',
-            u'emacs-common-1:25.2-0.1.rc2.module_5ccf9229',
-            u'emacs-1:25.2-0.1.rc2.module_5ccf9229',
-            u'emacs-terminal-1:25.2-0.1.rc2.module_5ccf9229',
-            u'python2-rpm-0:4.13.0.1-3.module_5ccf9229',
-            u'rpm-cron-0:4.13.0.1-3.module_5ccf9229',
-            u'cryptsetup-python-0:1.7.3-3.module_5ccf9229',
-            u'kernel-rpm-macros-0:63-1.module_5ccf9229',
-            u'cracklib-python-0:2.9.6-5.module_5ccf9229',
-            u'gnupg2-smime-0:2.1.18-2.module_5ccf9229',
-            u'qt5-rpm-macros-0:5.8.0-2.module_5ccf9229',
-            u'qt5-devel-0:5.8.0-2.module_5ccf9229',
-            u'qt5-0:5.8.0-2.module_5ccf9229',
-            u'texinfo-0:6.3-2.module_5ccf9229',
-            u'texinfo-tex-0:6.3-2.module_5ccf9229',
-            u'python-magic-0:5.30-5.module_5ccf9229',
-            u'lvm2-dbusd-0:2.02.168-4.module_5ccf9229',
-            u'cmirror-standalone-0:2.02.168-4.module_5ccf9229',
-            u'lvm2-python-libs-0:2.02.168-4.module_5ccf9229',
-            u'lvm2-cluster-0:2.02.168-4.module_5ccf9229',
-            u'cmirror-0:2.02.168-4.module_5ccf9229',
-            u'lvm2-cluster-standalone-0:2.02.168-4.module_5ccf9229',
-            u'lvm2-lockd-0:2.02.168-4.module_5ccf9229',
-            u'libselinux-ruby-0:2.6-2.module_5ccf9229',
-            u'libselinux-python-0:2.6-2.module_5ccf9229',
-            u'hfsutils-x11-0:3.2.6-31.module_5ccf9229',
-            u'glib2-fam-0:2.52.0-1.module_5ccf9229',
-            u'glib2-static-0:2.52.0-1.module_5ccf9229',
-            u'glib2-devel-0:2.52.0-1.module_5ccf9229',
-            u'syslinux-perl-0:6.04-0.2.module_5ccf9229',
-            u'perl-solv-0:0.6.26-1.module_5ccf9229',
-            u'python2-solv-0:0.6.26-1.module_5ccf9229',
-            u'cyrus-sasl-sql-0:2.1.26-30.module_5ccf9229',
-            u'openssl-perl-1:1.1.0e-1.module_5ccf9229',
-            u'libidn-java-0:1.33-2.module_5ccf9229',
-            u'libidn-javadoc-0:1.33-2.module_5ccf9229',
-            u'libbabeltrace-devel-0:1.5.2-2.module_5ccf9229',
-            u'grub2-starfield-theme-1:2.02-0.38.module_5ccf9229',
-            u'util-linux-user-0:2.29.1-2.module_5ccf9229',
-            u'freetype-demos-0:2.7.1-2.module_5ccf9229',
-            u'python2-packaging-0:16.8-4.module_5ccf9229',
-            u'python-pwquality-0:1.3.0-8.module_5ccf9229',
-            u'python2-pip-0:9.0.1-7.module_5ccf9229',
-            u'gnutls-devel-0:3.5.10-1.module_5ccf9229',
-            u'gnutls-guile-0:3.5.10-1.module_5ccf9229',
-            u'gnutls-utils-0:3.5.10-1.module_5ccf9229',
-            u'gnutls-dane-0:3.5.10-1.module_5ccf9229',
-            u'python3-tkinter-0:3.6.0-21.module_5ccf9229',
-            u'python3-tools-0:3.6.0-21.module_5ccf9229',
-            u'python3-debug-0:3.6.0-21.module_5ccf9229',
-            u'python3-test-0:3.6.0-21.module_5ccf9229',
-            u'libssh2-devel-0:1.8.0-2.module_5ccf9229',
-            u'python2-gpg-0:1.9.0-1.module_5ccf9229',
-            u'qgpgme-devel-0:1.9.0-1.module_5ccf9229',
-            u'qgpgme-0:1.9.0-1.module_5ccf9229',
-            u'dbus-x11-1:1.11.10-2.module_5ccf9229',
-            u'libcroco-devel-0:0.6.11-3.module_5ccf9229',
-            u'kernel-devel-0:4.11.0-0.rc7.git0.1.module_5ccf9229',
-            u'python-perf-0:4.11.0-0.rc7.git0.1.module_5ccf9229',
-            u'perf-0:4.11.0-0.rc7.git0.1.module_5ccf9229',
-            u'kernel-tools-libs-devel-0:4.11.0-0.rc7.git0.1.module_5ccf9229',
-            u'kernel-lpae-devel-0:4.11.0-0.rc7.git0.1.module_5ccf9229',
-            u'kernel-tools-0:4.11.0-0.rc7.git0.1.module_5ccf9229',
-            u'kernel-PAEdebug-devel-0:4.11.0-0.rc7.git0.1.module_5ccf9229',
-            u'kernel-PAE-devel-0:4.11.0-0.rc7.git0.1.module_5ccf9229',
-            u'kernel-debug-devel-0:4.11.0-0.rc7.git0.1.module_5ccf9229',
-            u'openldap-servers-0:2.4.44-8.module_5ccf9229',
-            u'systemd-journal-remote-0:233-3.module_5ccf9229',
-            u'glibc-utils-0:2.25-4.module_5ccf9229',
-            u'glibc-benchtests-0:2.25-4.module_5ccf9229',
-            u'libdnf-devel-0:0.8.2-1.module_987f08f4',
-            u'python2-hawkey-0:0.8.2-1.module_987f08f4',
-            u'sssd-nfs-idmap-0:1.15.2-4.module_47fecbcd',
-            u'python3-libipa_hbac-0:1.15.2-4.module_47fecbcd',
-            u'sssd-ipa-0:1.15.2-4.module_47fecbcd',
-            u'libsss_simpleifp-devel-0:1.15.2-4.module_47fecbcd',
-            u'python2-libipa_hbac-0:1.15.2-4.module_47fecbcd',
-            u'sssd-libwbclient-0:1.15.2-4.module_47fecbcd',
-            u'python3-sss-murmur-0:1.15.2-4.module_47fecbcd',
-            u'libsss_nss_idmap-devel-0:1.15.2-4.module_47fecbcd',
-            u'python2-sss-0:1.15.2-4.module_47fecbcd',
-            u'libsss_simpleifp-0:1.15.2-4.module_47fecbcd',
-            u'sssd-ldap-0:1.15.2-4.module_47fecbcd',
-            u'python3-sss-0:1.15.2-4.module_47fecbcd',
-            u'sssd-common-0:1.15.2-4.module_47fecbcd',
-            u'sssd-krb5-0:1.15.2-4.module_47fecbcd',
-            u'sssd-libwbclient-devel-0:1.15.2-4.module_47fecbcd',
-            u'libipa_hbac-0:1.15.2-4.module_47fecbcd',
-            u'sssd-winbind-idmap-0:1.15.2-4.module_47fecbcd',
-            u'python2-sss-murmur-0:1.15.2-4.module_47fecbcd',
-            u'sssd-tools-0:1.15.2-4.module_47fecbcd',
-            u'sssd-dbus-0:1.15.2-4.module_47fecbcd',
-            u'sssd-ad-0:1.15.2-4.module_47fecbcd',
-            u'sssd-krb5-common-0:1.15.2-4.module_47fecbcd',
-            u'libsss_autofs-0:1.15.2-4.module_47fecbcd',
-            u'python2-libsss_nss_idmap-0:1.15.2-4.module_47fecbcd',
-            u'libsss_idmap-devel-0:1.15.2-4.module_47fecbcd',
-            u'sssd-common-pac-0:1.15.2-4.module_47fecbcd',
-            u'sssd-0:1.15.2-4.module_47fecbcd',
-            u'sssd-proxy-0:1.15.2-4.module_47fecbcd',
-            u'libsss_sudo-0:1.15.2-4.module_47fecbcd',
-            u'libipa_hbac-devel-0:1.15.2-4.module_47fecbcd',
-            u'python3-sssdconfig-0:1.15.2-4.module_47fecbcd',
-            u'python2-sssdconfig-0:1.15.2-4.module_47fecbcd',
-            u'dracut-live-0:044-182.module_bd7491c8',
-            u'dracut-fips-aesni-0:044-182.module_bd7491c8',
-            u'dracut-network-0:044-182.module_bd7491c8',
-            u'dracut-fips-0:044-182.module_bd7491c8',
-            u'iproute-tc-0:4.11.0-1.module_d6de39f1'
-        ]
+        init_data()
 
     def teardown_method(self, test_method):
         init_data()
 
-    @vcr.use_cassette(
-        path.join(CASSETTES_DIR, 'tests.test_utils.TestUtils.test_format_mmd'))
+    @pytest.mark.parametrize('scmurl', [
+        ('git://pkgs.stg.fedoraproject.org/modules/testmodule.git'
+         '?#620ec77321b2ea7b0d67d82992dda3e1d67055b4'),
+        None
+    ])
     @patch('module_build_service.scm.SCM')
-    def test_format_mmd(self, mocked_scm):
+    def test_format_mmd(self, mocked_scm, scmurl, pdc):
         mocked_scm.return_value.commit = \
             '620ec77321b2ea7b0d67d82992dda3e1d67055b4'
         # For all the RPMs in testmodule, get_latest is called
+        mocked_scm.return_value.get_latest.side_effect = [
+            '4ceea43add2366d8b8c5a622a2fb563b625b9abf',
+            'fbed359411a1baa08d4a88e0d12d426fbf8f602c']
         hashes_returned = {
-            'f24': '4ceea43add2366d8b8c5a622a2fb563b625b9abf',
-            'f23': 'fbed359411a1baa08d4a88e0d12d426fbf8f602c',
-            'f25': '76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb'}
-        original_refs = ["f23", "f24", "f25"]
+            'master': 'fbed359411a1baa08d4a88e0d12d426fbf8f602c',
+            'f28': '4ceea43add2366d8b8c5a622a2fb563b625b9abf',
+            'f27': '5deef23acd2367d8b8d5a621a2fc568b695bc3bd'}
 
         def mocked_get_latest(ref="master"):
             return hashes_returned[ref]
 
         mocked_scm.return_value.get_latest = mocked_get_latest
         mmd = modulemd.ModuleMetadata()
-        with open(path.join(BASE_DIR, '..', 'staged_data', 'testmodule.yaml')) \
-                as mmd_file:
-            mmd.loads(mmd_file)
-        scmurl = \
-            ('git://pkgs.stg.fedoraproject.org/modules/testmodule.git'
-             '?#620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+        mmd.load(path.join(BASE_DIR, '..', 'staged_data', 'testmodule.yaml'))
+        # Modify the component branches so we can identify them later on
+        mmd.components.rpms['perl-Tangerine'].ref = 'f28'
+        mmd.components.rpms['tangerine'].ref = 'f27'
         module_build_service.utils.format_mmd(mmd, scmurl)
 
         # Make sure that original refs are not changed.
         mmd_pkg_refs = [pkg.ref for pkg in mmd.components.rpms.values()]
-        assert set(mmd_pkg_refs) == set(original_refs)
+        assert set(mmd_pkg_refs) == set(hashes_returned.keys())
 
-        assert mmd.buildrequires == {'base-runtime': 'master'}
-        xmd = {
-            'mbs': {
-                'commit': '620ec77321b2ea7b0d67d82992dda3e1d67055b4',
-                'buildrequires': {
-                    'base-runtime': {
-                        'ref': '147dca4ca65aa9a1ac51f71b7e687f9178ffa5df',
-                        'stream': 'master',
-                        'version': '20170616125652',
-                        'filtered_rpms': self.filtered_rpms}},
-                'requires': {
-                    'base-runtime': {
-                        'version': '20170616125652',
-                        'ref': '147dca4ca65aa9a1ac51f71b7e687f9178ffa5df',
-                        'stream': 'master',
-                        'filtered_rpms': self.filtered_rpms}},
-                'rpms': {'perl-List-Compare': {'ref': '76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb'},
-                         'perl-Tangerine': {'ref': '4ceea43add2366d8b8c5a622a2fb563b625b9abf'},
-                         'tangerine': {'ref': 'fbed359411a1baa08d4a88e0d12d426fbf8f602c'}},
-                'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/testmodule'
-                          '.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4',
-            }
-        }
-
-        assert mmd.xmd == xmd
-
-    @vcr.use_cassette(
-        path.join(CASSETTES_DIR, 'tests.test_utils.TestUtils.test_format_mmd'))
-    @patch('module_build_service.scm.SCM')
-    def test_format_mmd_empty_scmurl(self, mocked_scm):
-        # For all the RPMs in testmodule, get_latest is called
-        hashes_returned = {
-            'f24': '4ceea43add2366d8b8c5a622a2fb563b625b9abf',
-            'f23': 'fbed359411a1baa08d4a88e0d12d426fbf8f602c',
-            'f25': '76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb'}
-
-        def mocked_get_latest(branch="master"):
-            return hashes_returned[branch]
-        mocked_scm.return_value.get_latest = mocked_get_latest
-
-        mmd = modulemd.ModuleMetadata()
-        with open(path.join(BASE_DIR, '..', 'staged_data', 'testmodule.yaml')) \
-                as mmd_file:
-            mmd.loads(mmd_file)
-
-        module_build_service.utils.format_mmd(mmd, scmurl=None)
+        assert mmd.buildrequires == {'platform': 'f28'}
         xmd = {
             'mbs': {
                 'commit': None,
                 'buildrequires': {
-                    'base-runtime': {
-                        'ref': '147dca4ca65aa9a1ac51f71b7e687f9178ffa5df',
-                        'stream': 'master',
-                        'version': '20170616125652',
-                        'filtered_rpms': self.filtered_rpms}},
+                    'platform': {
+                        'ref': 'virtual',
+                        'stream': 'f28',
+                        'version': '3',
+                        'filtered_rpms': []}},
                 'requires': {
-                    'base-runtime': {
-                        'version': '20170616125652',
-                        'ref': '147dca4ca65aa9a1ac51f71b7e687f9178ffa5df',
-                        'stream': 'master',
-                        'filtered_rpms': self.filtered_rpms}},
-                'rpms': {'perl-List-Compare': {'ref': '76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb'},
-                         'perl-Tangerine': {'ref': '4ceea43add2366d8b8c5a622a2fb563b625b9abf'},
-                         'tangerine': {'ref': 'fbed359411a1baa08d4a88e0d12d426fbf8f602c'}},
-                'scmurl': None,
+                    'platform': {
+                        'version': '3',
+                        'ref': 'virtual',
+                        'stream': 'f28',
+                        'filtered_rpms': []}},
+                'rpms': {
+                    'perl-List-Compare': {'ref': 'fbed359411a1baa08d4a88e0d12d426fbf8f602c'},
+                    'perl-Tangerine': {'ref': '4ceea43add2366d8b8c5a622a2fb563b625b9abf'},
+                    'tangerine': {'ref': '5deef23acd2367d8b8d5a621a2fc568b695bc3bd'}},
+                'scmurl': None
             }
         }
+        if scmurl:
+            xmd['mbs']['commit'] = '620ec77321b2ea7b0d67d82992dda3e1d67055b4'
+            xmd['mbs']['scmurl'] = scmurl
+
         assert mmd.xmd == xmd
 
-    def test_get_reusable_component_same(self):
-        test_reuse_component_init_data()
-        new_module = models.ModuleBuild.query.filter_by(id=2).one()
-        rv = module_build_service.utils.get_reusable_component(
-            db.session, new_module, 'tangerine')
-        assert rv.package == 'tangerine'
-
-    def test_get_reusable_component_different_perl_tangerine(self):
+    @pytest.mark.parametrize('changed_component', [
+        'perl-List-Compare', 'perl-Tangerine', 'tangerine', None
+    ])
+    def test_get_reusable_component_different_component(self, changed_component):
         test_reuse_component_init_data()
         second_module_build = models.ModuleBuild.query.filter_by(id=2).one()
-        mmd = second_module_build.mmd()
-        mmd.components.rpms['perl-Tangerine'].ref = \
-            '00ea1da4192a2030f9ae023de3b3143ed647bbab'
-        second_module_build.modulemd = mmd.dumps()
-        second_module_perl_tangerine = models.ComponentBuild.query.filter_by(
-            package='perl-Tangerine', module_id=2).one()
-        second_module_perl_tangerine.ref = \
-            '00ea1da4192a2030f9ae023de3b3143ed647bbab'
-        db.session.commit()
-        # Shares the same build order as the changed perl-Tangerine, but none
-        # of the build orders before it are different (in this case there are
-        # none)
+        if changed_component:
+            mmd = second_module_build.mmd()
+            mmd.components.rpms[changed_component].ref = '00ea1da4192a2030f9ae023de3b3143ed647bbab'
+            second_module_build.modulemd = mmd.dumps()
+            second_module_changed_component = models.ComponentBuild.query.filter_by(
+                package=changed_component, module_id=2).one()
+            second_module_changed_component.ref = '00ea1da4192a2030f9ae023de3b3143ed647bbab'
+            db.session.add(second_module_changed_component)
+            db.session.commit()
+
         plc_rv = module_build_service.utils.get_reusable_component(
             db.session, second_module_build, 'perl-List-Compare')
-        assert plc_rv.package == 'perl-List-Compare'
-
-        # perl-Tangerine has a different commit hash
         pt_rv = module_build_service.utils.get_reusable_component(
             db.session, second_module_build, 'perl-Tangerine')
-        assert pt_rv is None
-
-        # tangerine is the same but its in a build order that is after the
-        # different perl-Tangerine, so it can't be reused
         tangerine_rv = module_build_service.utils.get_reusable_component(
             db.session, second_module_build, 'tangerine')
-        assert tangerine_rv is None
+
+        if changed_component == 'perl-List-Compare':
+            # perl-Tangerine can be reused even though a component in its batch has changed
+            assert plc_rv is None
+            assert pt_rv.package == 'perl-Tangerine'
+            assert tangerine_rv is None
+        elif changed_component == 'perl-Tangerine':
+            # perl-List-Compare can be reused even though a component in its batch has changed
+            assert plc_rv.package == 'perl-List-Compare'
+            assert pt_rv is None
+            assert tangerine_rv is None
+        elif changed_component == 'tangerine':
+            # perl-List-Compare and perl-Tangerine can be reused since they are in an earlier
+            # buildorder than tangerine
+            assert plc_rv.package == 'perl-List-Compare'
+            assert pt_rv.package == 'perl-Tangerine'
+            assert tangerine_rv is None
+        elif changed_component is None:
+            # Nothing has changed so everthing can be used
+            assert plc_rv.package == 'perl-List-Compare'
+            assert pt_rv.package == 'perl-Tangerine'
+            assert tangerine_rv.package == 'tangerine'
 
     def test_get_reusable_component_different_rpm_macros(self):
         test_reuse_component_init_data()
@@ -379,7 +203,6 @@ class TestUtils:
             db.session, second_module_build, 'perl-List-Compare')
         assert plc_rv is None
 
-        # perl-Tangerine has a different commit hash
         pt_rv = module_build_service.utils.get_reusable_component(
             db.session, second_module_build, 'perl-Tangerine')
         assert pt_rv is None
@@ -388,7 +211,7 @@ class TestUtils:
         test_reuse_component_init_data()
         second_module_build = models.ModuleBuild.query.filter_by(id=2).one()
         mmd = second_module_build.mmd()
-        mmd.xmd['mbs']['buildrequires']['base-runtime']['ref'] = \
+        mmd.xmd['mbs']['buildrequires']['platform']['ref'] = \
             'da39a3ee5e6b4b0d3255bfef95601890afd80709'
         second_module_build.modulemd = mmd.dumps()
         second_module_build.build_context = '37c6c57bedf4305ef41249c1794760b5cb8fad17'
@@ -398,13 +221,10 @@ class TestUtils:
             db.session, second_module_build, 'perl-List-Compare')
         assert plc_rv is None
 
-        # perl-Tangerine has a different commit hash
         pt_rv = module_build_service.utils.get_reusable_component(
             db.session, second_module_build, 'perl-Tangerine')
         assert pt_rv is None
 
-        # tangerine is the same but its in a build order that is after the
-        # different perl-Tangerine, so it can't be reused
         tangerine_rv = module_build_service.utils.get_reusable_component(
             db.session, second_module_build, 'tangerine')
         assert tangerine_rv is None
@@ -429,13 +249,10 @@ class TestUtils:
             db.session, second_module_build, 'perl-List-Compare')
         assert plc_rv is None
 
-        # perl-Tangerine has a different commit hash
         pt_rv = module_build_service.utils.get_reusable_component(
             db.session, second_module_build, 'perl-Tangerine')
         assert pt_rv is None
 
-        # tangerine is the same but its in a build order that is after the
-        # different perl-Tangerine, so it can't be reused
         tangerine_rv = module_build_service.utils.get_reusable_component(
             db.session, second_module_build, 'tangerine')
         assert tangerine_rv is None
@@ -558,42 +375,49 @@ class TestUtils:
             validate_koji_tag_is_None(None)
             assert str(cm.value).endswith(' No value provided.') is True
 
-    @vcr.use_cassette(
-        path.join(CASSETTES_DIR, ('tests.test_utils.TestUtils.'
-                                  'test_record_component_builds_duplicate_components')))
     @patch('module_build_service.scm.SCM')
-    def test_record_component_builds_duplicate_components(self, mocked_scm):
+    def test_record_component_builds_duplicate_components(self, mocked_scm, pdc_module_inactive):
         with app.app_context():
-            test_reuse_component_init_data()
+            clean_database()
             mocked_scm.return_value.commit = \
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4'
-            # For all the RPMs in testmodule, get_latest is called
-            hashes_returned = {
-                'f25': '4ceea43add2366d8b8c5a622a2fb563b625b9abf',
-                'f24': 'fbed359411a1baa08d4a88e0d12d426fbf8f602c'}
+            mocked_scm.return_value.get_latest.side_effect = [
+                '4ceea43add2366d8b8c5a622a2fb563b625b9abf',
+                'fbed359411a1baa08d4a88e0d12d426fbf8f602c']
 
-            def mocked_get_latest(ref="master"):
-                return hashes_returned[ref]
-
-            mocked_scm.return_value.get_latest = mocked_get_latest
-
-            testmodule_variant_mmd_path = path.join(
-                BASE_DIR, '..', 'staged_data', 'testmodule-variant.yaml')
-            testmodule_variant_mmd = modulemd.ModuleMetadata()
-            with open(testmodule_variant_mmd_path) as mmd_file:
-                testmodule_variant_mmd.loads(mmd_file)
-
-            module_build = \
-                db.session.query(models.ModuleBuild).filter_by(id=1).one()
-            mmd = module_build.mmd()
+            testmodule_mmd_path = path.join(BASE_DIR, '..', 'staged_data', 'testmodule.yaml')
+            mmd = modulemd.ModuleMetadata()
+            mmd.load(testmodule_mmd_path)
+            mmd.name = 'testmodule-variant'
+            module_build = module_build_service.models.ModuleBuild()
+            module_build.name = 'testmodule-variant'
+            module_build.stream = 'master'
+            module_build.version = 20170109091357
+            module_build.state = models.BUILD_STATES['init']
+            module_build.scmurl = 'git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#ff1ea79'
+            module_build.batch = 1
+            module_build.owner = 'Tom Brady'
+            module_build.time_submitted = datetime(2017, 2, 15, 16, 8, 18)
+            module_build.time_modified = datetime(2017, 2, 15, 16, 19, 35)
+            module_build.rebuild_strategy = 'changed-and-after'
+            module_build.modulemd = mmd.dumps()
+            db.session.add(module_build)
+            db.session.commit()
+            # Rename the the modulemd to include
+            mmd.name = 'testmodule'
+            # Remove perl-Tangerine and tangerine from the modulemd to include so only one
+            # component conflicts
+            mmd.components.rpms.pop('perl-Tangerine')
+            mmd.components.rpms.pop('tangerine')
 
             error_msg = (
-                'The included module "testmodule-variant" in "testmodule" have '
+                'The included module "testmodule" in "testmodule-variant" have '
                 'the following conflicting components: perl-List-Compare')
             with pytest.raises(UnprocessableEntity) as e:
                 module_build_service.utils.record_component_builds(
-                    testmodule_variant_mmd, module_build, main_mmd=mmd)
-                assert str(e.value) == error_msg
+                    mmd, module_build, main_mmd=module_build.mmd())
+
+            assert str(e.value) == error_msg
 
     @patch("module_build_service.utils.submit_module_build")
     def test_submit_module_build_from_yaml_with_skiptests(self, mock_submit):
@@ -630,37 +454,38 @@ class TestUtils:
             assert username_arg == username
         rmtree(module_dir)
 
-    @vcr.use_cassette(
-        path.join(CASSETTES_DIR, ('tests.test_utils.TestUtils.'
-                                  'test_record_component_builds_set_weight')))
     @patch('module_build_service.scm.SCM')
-    def test_record_component_builds_set_weight(self, mocked_scm):
+    def test_record_component_builds_set_weight(self, mocked_scm, pdc_module_inactive):
         with app.app_context():
             clean_database()
             mocked_scm.return_value.commit = \
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4'
-            # For all the RPMs in testmodule, get_latest is called
-            hashes_returned = {
-                'f25': '4ceea43add2366d8b8c5a622a2fb563b625b9abf',
-                'f24': 'fbed359411a1baa08d4a88e0d12d426fbf8f602c'}
+            mocked_scm.return_value.get_latest.side_effect = [
+                '4ceea43add2366d8b8c5a622a2fb563b625b9abf',
+                'fbed359411a1baa08d4a88e0d12d426fbf8f602c',
+                'dbed259411a1baa08d4a88e0d12d426fbf8f6037']
 
-            def mocked_get_latest(branch="master"):
-                return hashes_returned[branch]
+            testmodule_mmd_path = path.join(
+                BASE_DIR, '..', 'staged_data', 'testmodule.yaml')
+            mmd = modulemd.ModuleMetadata()
+            mmd.load(testmodule_mmd_path)
+            module_build = module_build_service.models.ModuleBuild()
+            module_build.name = 'testmodule'
+            module_build.stream = 'master'
+            module_build.version = 20170109091357
+            module_build.state = models.BUILD_STATES['init']
+            module_build.scmurl = \
+                'git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#ff1ea79'
+            module_build.batch = 1
+            module_build.owner = 'Tom Brady'
+            module_build.time_submitted = datetime(2017, 2, 15, 16, 8, 18)
+            module_build.time_modified = datetime(2017, 2, 15, 16, 19, 35)
+            module_build.rebuild_strategy = 'changed-and-after'
+            module_build.modulemd = mmd.dumps()
+            db.session.add(module_build)
+            db.session.commit()
 
-            mocked_scm.return_value.get_latest = mocked_get_latest
-
-            testmodule_variant_mmd_path = path.join(
-                BASE_DIR, '..', 'staged_data', 'testmodule-variant.yaml')
-            testmodule_variant_mmd = modulemd.ModuleMetadata()
-            with open(testmodule_variant_mmd_path) as mmd_file:
-                testmodule_variant_mmd.loads(mmd_file)
-
-            mmd = testmodule_variant_mmd
-            module_build = models.ModuleBuild.create(
-                db.session, conf, "test", "stream", "1", mmd.dumps(), "scmurl", "owner")
-
-            module_build_service.utils.record_component_builds(
-                mmd, module_build)
+            module_build_service.utils.record_component_builds(mmd, module_build)
 
             assert module_build.state == models.BUILD_STATES['init']
             db.session.refresh(module_build)
@@ -954,6 +779,7 @@ class TestBatches:
         assert pt_component.reused_component_id is None
         assert plc_component.state == koji.BUILD_STATES['BUILDING']
         assert plc_component.reused_component_id is None
+
         # Test the order of the scheduling
         expected_calls = [mock.call(builder, plc_component), mock.call(builder, pt_component)]
         assert mock_sbc.mock_calls == expected_calls
@@ -1056,22 +882,22 @@ class TestLocalBuilds:
                 module_build_service.utils.load_local_builds("testmodule:master:123")
                 models.ModuleBuild.local_modules(db.session)
 
-    def test_load_local_builds_base_runtime(
+    def test_load_local_builds_platform(
             self, conf_system, conf_resultsdir):
         with app.app_context():
-            module_build_service.utils.load_local_builds("base-runtime")
+            module_build_service.utils.load_local_builds("platform")
             local_modules = models.ModuleBuild.local_modules(db.session)
 
             assert len(local_modules) == 1
             assert local_modules[0].koji_tag.endswith(
-                "/module-base-runtime-master-20170816080815/results")
+                "/module-platform-f28-3/results")
 
-    def test_load_local_builds_base_runtime_master(
+    def test_load_local_builds_platform_f28(
             self, conf_system, conf_resultsdir):
         with app.app_context():
-            module_build_service.utils.load_local_builds("base-runtime:master")
+            module_build_service.utils.load_local_builds("platform:f28")
             local_modules = models.ModuleBuild.local_modules(db.session)
 
             assert len(local_modules) == 1
             assert local_modules[0].koji_tag.endswith(
-                "/module-base-runtime-master-20170816080815/results")
+                "/module-platform-f28-3/results")

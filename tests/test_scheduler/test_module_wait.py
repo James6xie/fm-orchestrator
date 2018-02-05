@@ -26,9 +26,8 @@ import module_build_service.messaging
 import module_build_service.scheduler.handlers.modules
 import modulemd as _modulemd
 import os
-import vcr
 import koji
-from tests import conf, db, app, scheduler_init_data, get_vcr_path
+from tests import conf, db, app, scheduler_init_data
 from module_build_service import build_logs
 from module_build_service.models import ComponentBuild, ModuleBuild
 
@@ -41,11 +40,7 @@ class TestModuleWait:
         self.session = mock.Mock()
         self.fn = module_build_service.scheduler.handlers.modules.wait
 
-        self.vcr = vcr.use_cassette(get_vcr_path(__file__, test_method))
-        self.vcr.__enter__()
-
     def teardown_method(self, test_method):
-        self.vcr.__exit__()
         try:
             path = build_logs.path(1)
             os.remove(path)

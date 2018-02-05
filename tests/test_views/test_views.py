@@ -21,7 +21,6 @@
 # Written by Matt Prahl <mprahl@redhat.com>
 
 import json
-import vcr
 
 import modulemd as _modulemd
 import module_build_service.scm
@@ -44,7 +43,6 @@ user = ('Homer J. Simpson', set(['packager']))
 other_user = ('some_other_user', set(['packager']))
 anonymous_user = ('anonymous', set(['packager']))
 base_dir = dirname(dirname(__file__))
-cassette_dir = base_dir + '/vcr-request-data/'
 
 
 class FakeSCM(object):
@@ -115,16 +113,6 @@ class TestViews:
     def setup_method(self, test_method):
         self.client = app.test_client()
         init_data()
-
-        filename = '.'.join([
-            path.splitext(path.basename(__file__))[0],
-            test_method.im_class.__name__,
-            test_method.im_func.__name__])
-        self.vcr = vcr.use_cassette(path.join(cassette_dir, filename))
-        self.vcr.__enter__()
-
-    def teardown_method(self, test_method):
-        self.vcr.__exit__()
 
     def test_query_build(self):
         rv = self.client.get('/module-build-service/1/module-builds/1')
@@ -518,7 +506,7 @@ class TestViews:
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build(self, mocked_scm, mocked_get_user):
+    def test_submit_build(self, mocked_scm, mocked_get_user, pdc):
         FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
@@ -835,7 +823,7 @@ class TestViews:
     @patch('module_build_service.scm.SCM')
     @patch("module_build_service.config.Config.no_auth", new_callable=PropertyMock,
            return_value=True)
-    def test_submit_build_no_auth_set_owner(self, mocked_conf, mocked_scm, mocked_get_user):
+    def test_submit_build_no_auth_set_owner(self, mocked_conf, mocked_scm, mocked_get_user, pdc):
         FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
@@ -854,7 +842,7 @@ class TestViews:
     @patch('module_build_service.auth.get_user', return_value=anonymous_user)
     @patch('module_build_service.scm.SCM')
     @patch("module_build_service.config.Config.no_auth", new_callable=PropertyMock)
-    def test_patch_set_different_owner(self, mocked_no_auth, mocked_scm, mocked_get_user):
+    def test_patch_set_different_owner(self, mocked_no_auth, mocked_scm, mocked_get_user, pdc):
         FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
@@ -898,7 +886,7 @@ class TestViews:
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     @patch("module_build_service.config.Config.allow_custom_scmurls", new_callable=PropertyMock)
-    def test_submit_custom_scmurl(self, allow_custom_scmurls, mocked_scm, mocked_get_user):
+    def test_submit_custom_scmurl(self, allow_custom_scmurls, mocked_scm, mocked_get_user, pdc):
         FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 

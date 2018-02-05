@@ -1,5 +1,5 @@
 # This module is left empty because python3 is contained in the
-# Platform module of Fedora 27 Modular Server edition.
+# Platform module.
 
 # Other modules can depend on this empty one so that, when the
 # implementation of python3 is moved out of the Platform module,
@@ -25,9 +25,9 @@ data:
             - MIT
     dependencies:
         buildrequires:
-            bootstrap: master
+            platform: f28
         requires:
-            platform: master
+            platform: f28
     references:
         community: https://www.python.org/
         documentation: https://docs.python.org/3/

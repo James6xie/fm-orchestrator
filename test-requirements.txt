@@ -3,6 +3,5 @@
 copr
 mock
 pytest
-vcrpy
 flake8
 tox

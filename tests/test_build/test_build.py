@@ -21,7 +21,6 @@
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
 import koji
-import vcr
 import os
 from os import path, mkdir
 from os.path import dirname
@@ -34,7 +33,6 @@ import module_build_service.scheduler.handlers.repos
 import module_build_service.utils
 from module_build_service.errors import Forbidden
 from module_build_service import db, models, conf, build_logs
-from tests import get_vcr_path
 
 from mock import patch, PropertyMock, Mock
 from werkzeug.datastructures import FileStorage
@@ -55,10 +53,11 @@ user = ('Homer J. Simpson', set(['packager']))
 
 
 class FakeSCM(object):
-    def __init__(self, mocked_scm, name, mmd_filename, commit=None):
+    def __init__(self, mocked_scm, name, mmd_filename, commit=None, version=20180205135154):
         self.mocked_scm = mocked_scm
         self.name = name
         self.commit = commit
+        self.version = version
         self.mmd_filename = mmd_filename
         self.sourcedir = None
 
@@ -67,6 +66,7 @@ class FakeSCM(object):
         self.mocked_scm.return_value.branch = 'master'
         self.mocked_scm.return_value.get_latest = self.get_latest
         self.mocked_scm.return_value.commit = self.commit
+        self.mocked_scm.return_value.version = self.version
         self.mocked_scm.return_value.repository_root = "git://pkgs.stg.fedoraproject.org/modules/"
         self.mocked_scm.return_value.sourcedir = self.sourcedir
         self.mocked_scm.return_value.get_module_yaml = self.get_module_yaml
@@ -305,13 +305,9 @@ class TestBuild:
         self.client = app.test_client()
         clean_database()
 
-        self.vcr = vcr.use_cassette(get_vcr_path(__file__, test_method))
-        self.vcr.__enter__()
-
     def teardown_method(self, test_method):
         FakeModuleBuilder.reset()
         cleanup_moksha()
-        self.vcr.__exit__()
         for i in range(20):
             try:
                 os.remove(build_logs.path(i))
@@ -320,7 +316,8 @@ class TestBuild:
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build(self, mocked_scm, mocked_get_user, conf_system, dbg):
+    def test_submit_build(self, mocked_scm, mocked_get_user, conf_system, dbg,
+                          pdc_module_inactive):
         """
         Tests the build of testmodule.yaml using FakeModuleBuilder which
         succeeds everytime.
@@ -330,7 +327,7 @@ class TestBuild:
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
-                'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}))
+                'testmodule.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4'}))
 
         data = json.loads(rv.data)
         module_build_id = data['id']
@@ -381,19 +378,47 @@ class TestBuild:
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build_no_components(self, mocked_scm, mocked_get_user, conf_system, dbg):
+    def test_submit_build_no_components(self, mocked_scm, mocked_get_user, conf_system, dbg, pdc):
         """
         Tests the build of a module with no components
         """
         FakeSCM(mocked_scm, 'python3', 'python3-no-components.yaml',
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+        python3_yaml_path = os.path.join(
+            base_dir, 'staged_data', 'formatted_python3-no-components.yaml')
+        with open(python3_yaml_path) as f:
+            python3_yaml = f.read()
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
-                'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}))
+                'testmodule.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4'}))
 
         data = json.loads(rv.data)
         module_build_id = data['id']
+        pdc.endpoints['unreleasedvariants']['GET'].append({
+            'variant_id': 'python3',
+            'variant_uid': 'python3:master:20180205135154',
+            'variant_name': 'python3',
+            'variant_type': 'module',
+            'variant_version': 'master',
+            'variant_release': '20180205135154',
+            'koji_tag': 'module-95b214a704c984be',
+            'modulemd': python3_yaml,
+            'runtime_deps': [
+                {
+                    'dependency': 'platform',
+                    'stream': 'f28'
+                }
+            ],
+            'build_deps': [
+                {
+                    'dependency': 'platform',
+                    'stream': 'f28'
+                }
+            ],
+            'rpms': [],
+            'active': False,
+        })
 
         msgs = []
         stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
@@ -426,8 +451,10 @@ class TestBuild:
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build_from_yaml_allowed(self, mocked_scm, mocked_get_user, conf_system, dbg):
-        FakeSCM(mocked_scm, "testmodule", "testmodule.yaml")
+    def test_submit_build_from_yaml_allowed(self, mocked_scm, mocked_get_user, conf_system, dbg,
+                                            pdc_module_inactive):
+        FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
         testmodule = os.path.join(base_dir, 'staged_data', 'testmodule.yaml')
 
         with patch.object(module_build_service.config.Config, 'yaml_submit_allowed',
@@ -440,14 +467,23 @@ class TestBuild:
             data = json.loads(rv.data)
             assert data['id'] == 1
 
+        # Since the module's version is derived a submission for direct yaml submissions, we must
+        # alter PDC with the correct version that MBS generated
+        version = models.ModuleBuild.query.first().version
+        pdc_module_inactive.endpoints['unreleasedvariants']['GET'][1]['variant_release'] = version
+        uid = pdc_module_inactive.endpoints['unreleasedvariants']['GET'][1]['variant_uid']
+        new_uid = ':'.join([uid.rsplit(':', 1)[0], version])
+        pdc_module_inactive.endpoints['unreleasedvariants']['GET'][1]['variant_uid'] = new_uid
+
         msgs = []
         stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
         module_build_service.scheduler.main(msgs, stop)
+        assert models.ModuleBuild.query.first().state == models.BUILD_STATES['ready']
 
     @patch('module_build_service.auth.get_user', return_value=user)
     def test_submit_build_with_optional_params(self, mocked_get_user, conf_system, dbg):
         params = {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
-                            'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}
+                            'testmodule.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4'}
 
         def submit(data):
             rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(data))
@@ -463,7 +499,8 @@ class TestBuild:
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build_cancel(self, mocked_scm, mocked_get_user, conf_system, dbg):
+    def test_submit_build_cancel(self, mocked_scm, mocked_get_user, conf_system, dbg,
+                                 pdc_module_inactive):
         """
         Submit all builds for a module and cancel the module build later.
         """
@@ -472,7 +509,7 @@ class TestBuild:
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
-                'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}))
+                'testmodule.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4'}))
 
         data = json.loads(rv.data)
         module_build_id = data['id']
@@ -514,7 +551,8 @@ class TestBuild:
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build_instant_complete(self, mocked_scm, mocked_get_user, conf_system, dbg):
+    def test_submit_build_instant_complete(self, mocked_scm, mocked_get_user, conf_system, dbg,
+                                           pdc_module_inactive):
         """
         Tests the build of testmodule.yaml using FakeModuleBuilder which
         succeeds everytime.
@@ -524,7 +562,7 @@ class TestBuild:
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
-                'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}))
+                'testmodule.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4'}))
 
         data = json.loads(rv.data)
         module_build_id = data['id']
@@ -547,7 +585,7 @@ class TestBuild:
            new_callable=PropertyMock, return_value=1)
     def test_submit_build_concurrent_threshold(self, conf_num_concurrent_builds,
                                                mocked_scm, mocked_get_user,
-                                               conf_system, dbg):
+                                               conf_system, dbg, pdc_module_inactive):
         """
         Tests the build of testmodule.yaml using FakeModuleBuilder with
         num_concurrent_builds set to 1.
@@ -557,7 +595,7 @@ class TestBuild:
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
-                'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}))
+                'testmodule.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4'}))
 
         data = json.loads(rv.data)
         module_build_id = data['id']
@@ -591,7 +629,7 @@ class TestBuild:
            new_callable=PropertyMock, return_value=2)
     def test_try_to_reach_concurrent_threshold(self, conf_num_concurrent_builds,
                                                mocked_scm, mocked_get_user,
-                                               conf_system, dbg):
+                                               conf_system, dbg, pdc_module_inactive):
         """
         Tests that we try to submit new component build right after
         the previous one finished without waiting for all
@@ -599,10 +637,21 @@ class TestBuild:
         """
         FakeSCM(mocked_scm, 'testmodule-more-components', 'testmodule-more-components.yaml',
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+        # Modify the modulemd in PDC
+        current_dir = os.path.dirname(__file__)
+        formatted_yml_path = os.path.join(
+            current_dir, '..', 'staged_data', 'formatted_testmodule-more-components.yaml')
+        with open(formatted_yml_path) as f:
+            yaml = f.read()
+        pdc_module_inactive.endpoints['unreleasedvariants']['GET'][-1].update({
+            'variant_id': 'testmodule-more-components',
+            'variant_name': 'testmodule-more-components',
+            'modulemd': yaml
+        })
 
         self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
-                'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}))
+                'testmodule.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4'}))
 
         # Holds the number of concurrent component builds during
         # the module build.
@@ -641,7 +690,7 @@ class TestBuild:
     @patch("module_build_service.config.Config.num_concurrent_builds",
            new_callable=PropertyMock, return_value=1)
     def test_build_in_batch_fails(self, conf_num_concurrent_builds, mocked_scm,
-                                  mocked_get_user, conf_system, dbg):
+                                  mocked_get_user, conf_system, dbg, pdc_module_inactive):
         """
         Tests that if the build in batch fails, other components in a batch
         are still build, but next batch is not started.
@@ -651,7 +700,7 @@ class TestBuild:
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
-                'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}))
+                'testmodule.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4'}))
 
         data = json.loads(rv.data)
         module_build_id = data['id']
@@ -700,7 +749,7 @@ class TestBuild:
     @patch("module_build_service.config.Config.num_concurrent_builds",
            new_callable=PropertyMock, return_value=1)
     def test_all_builds_in_batch_fail(self, conf_num_concurrent_builds, mocked_scm,
-                                      mocked_get_user, conf_system, dbg):
+                                      mocked_get_user, conf_system, dbg, pdc_module_inactive):
         """
         Tests that if the build in batch fails, other components in a batch
         are still build, but next batch is not started.
@@ -710,7 +759,7 @@ class TestBuild:
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
-                'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}))
+                'testmodule.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4'}))
 
         data = json.loads(rv.data)
         module_build_id = data['id']
@@ -744,8 +793,8 @@ class TestBuild:
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build_reuse_all(self, mocked_scm, mocked_get_user,
-                                    conf_system, dbg):
+    def test_submit_build_reuse_all(self, mocked_scm, mocked_get_user, conf_system, dbg,
+                                    pdc_module_reuse):
         """
         Tests that we do not try building module-build-macros when reusing all
         components in a module build.
@@ -796,7 +845,7 @@ class TestBuild:
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     def test_submit_build_reuse_all_without_build_macros(self, mocked_scm, mocked_get_user,
-                                                         conf_system, dbg):
+                                                         conf_system, dbg, pdc_module_reuse):
         """
         Tests that we can reuse components even when the reused module does
         not have module-build-macros component.
@@ -848,7 +897,8 @@ class TestBuild:
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build_resume(self, mocked_scm, mocked_get_user, conf_system, dbg):
+    def test_submit_build_resume(self, mocked_scm, mocked_get_user, conf_system, dbg,
+                                 pdc_module_inactive):
         """
         Tests that resuming the build works even when previous batches
         are already built.
@@ -859,7 +909,7 @@ class TestBuild:
         build_one = models.ModuleBuild()
         build_one.name = 'testmodule'
         build_one.stream = 'master'
-        build_one.version = 1
+        build_one.version = 20180205135154
         build_one.build_context = 'ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0'
         build_one.runtime_context = 'ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0'
         build_one.state = models.BUILD_STATES['failed']
@@ -868,7 +918,7 @@ class TestBuild:
             current_dir, '..', 'staged_data', 'formatted_testmodule.yaml')
         with open(formatted_testmodule_yml_path, 'r') as f:
             build_one.modulemd = f.read()
-        build_one.koji_tag = 'module-testmodule-master-1'
+        build_one.koji_tag = 'module-95b214a704c984be'
         build_one.scmurl = 'git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#7fea453'
         build_one.batch = 2
         build_one.owner = 'Homer J. Simpson'
@@ -891,19 +941,20 @@ class TestBuild:
         component_one = models.ComponentBuild()
         component_one.package = 'perl-Tangerine'
         component_one.format = 'rpms'
-        component_one.scmurl = 'git://pkgs.stg.fedoraproject.org/rpms/perl-Tangerine.git?#f24'
+        component_one.scmurl = 'git://pkgs.stg.fedoraproject.org/rpms/perl-Tangerine.git?#master'
         component_one.state = koji.BUILD_STATES['COMPLETE']
-        component_one.nvr = 'perl-Tangerine-0.23-1.module_testmodule_master_1'
+        component_one.nvr = 'perl-Tangerine-0:0.22-2.module+0+814cfa39'
         component_one.batch = 2
         component_one.module_id = 1
-        component_one.ref = '4ceea43add2366d8b8c5a622a2fb563b625b9abf'
+        component_one.ref = '7e96446223f1ad84a26c7cf23d6591cd9f6326c6'
         component_one.tagged = True
         component_one.tagged_in_final = True
         # Failed component
         component_two = models.ComponentBuild()
         component_two.package = 'perl-List-Compare'
         component_two.format = 'rpms'
-        component_two.scmurl = 'git://pkgs.stg.fedoraproject.org/rpms/perl-List-Compare.git?#f24'
+        component_two.scmurl = \
+            'git://pkgs.stg.fedoraproject.org/rpms/perl-List-Compare.git?#master'
         component_two.state = koji.BUILD_STATES['FAILED']
         component_two.batch = 2
         component_two.module_id = 1
@@ -911,7 +962,7 @@ class TestBuild:
         component_three = models.ComponentBuild()
         component_three.package = 'tangerine'
         component_three.format = 'rpms'
-        component_three.scmurl = 'git://pkgs.stg.fedoraproject.org/rpms/tangerine.git?#f24'
+        component_three.scmurl = 'git://pkgs.stg.fedoraproject.org/rpms/tangerine.git?#master'
         component_three.batch = 3
         component_three.module_id = 1
         # module-build-macros
@@ -935,11 +986,12 @@ class TestBuild:
         db.session.commit()
         db.session.expire_all()
 
-        FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml', '7fea453')
+        FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
         # Resubmit the failed module
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
-                'testmodule.git?#7fea453'}))
+                'testmodule.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4'}))
 
         data = json.loads(rv.data)
         module_build_id = data['id']
@@ -980,7 +1032,7 @@ class TestBuild:
         build_one = models.ModuleBuild()
         build_one.name = 'testmodule'
         build_one.stream = 'master'
-        build_one.version = 1
+        build_one.version = 20180205135154
         build_one.build_context = 'ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0'
         build_one.runtime_context = 'ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0'
         build_one.state = models.BUILD_STATES['failed']
@@ -989,7 +1041,7 @@ class TestBuild:
             current_dir, '..', 'staged_data', 'formatted_testmodule.yaml')
         with open(formatted_testmodule_yml_path, 'r') as f:
             build_one.modulemd = f.read()
-        build_one.koji_tag = 'module-testmodule-master-1'
+        build_one.koji_tag = 'module-95b214a704c984be'
         build_one.scmurl = 'git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#7fea453'
         build_one.batch = 2
         build_one.owner = 'Homer J. Simpson'
@@ -1012,19 +1064,20 @@ class TestBuild:
         component_one = models.ComponentBuild()
         component_one.package = 'perl-Tangerine'
         component_one.format = 'rpms'
-        component_one.scmurl = 'git://pkgs.stg.fedoraproject.org/rpms/perl-Tangerine.git?#f24'
+        component_one.scmurl = 'git://pkgs.stg.fedoraproject.org/rpms/perl-Tangerine.git?#master'
         component_one.batch = 2
         component_one.module_id = 1
         component_two = models.ComponentBuild()
         component_two.package = 'perl-List-Compare'
         component_two.format = 'rpms'
-        component_two.scmurl = 'git://pkgs.stg.fedoraproject.org/rpms/perl-List-Compare.git?#f24'
+        component_two.scmurl = \
+            'git://pkgs.stg.fedoraproject.org/rpms/perl-List-Compare.git?#master'
         component_two.batch = 2
         component_two.module_id = 1
         component_three = models.ComponentBuild()
         component_three.package = 'tangerine'
         component_three.format = 'rpms'
-        component_three.scmurl = 'git://pkgs.stg.fedoraproject.org/rpms/tangerine.git?#f24'
+        component_three.scmurl = 'git://pkgs.stg.fedoraproject.org/rpms/tangerine.git?#master'
         component_three.batch = 3
         component_three.module_id = 1
         # Failed module-build-macros
@@ -1034,7 +1087,7 @@ class TestBuild:
         component_four.state = koji.BUILD_STATES['FAILED']
         component_four.scmurl = (
             '/tmp/module_build_service-build-macrosqr4AWH/SRPMS/module-build-macros-0.1-1.'
-            'module_testmodule_master_20170109091357.src.rpm')
+            'module_testmodule_master_20180205135154.src.rpm')
         component_four.batch = 1
         component_four.module_id = 1
         component_four.build_time_only = True
@@ -1078,11 +1131,13 @@ class TestBuild:
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build_resume_failed_init(self, mocked_scm, mocked_get_user, conf_system, dbg):
+    def test_submit_build_resume_failed_init(self, mocked_scm, mocked_get_user, conf_system, dbg,
+                                             pdc_module_inactive):
         """
         Tests that resuming the build works when the build failed during the init step
         """
-        FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml', '7fea453')
+        FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
         stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
 
         with patch('module_build_service.utils.format_mmd') as mock_format_mmd:
@@ -1090,7 +1145,7 @@ class TestBuild:
                 'Custom component repositories aren\'t allowed.')
             rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
                 {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
-                    'testmodule.git?#7fea453'}))
+                    'testmodule.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4'}))
             # Run the backend so that it fails in the "init" handler
             module_build_service.scheduler.main([], stop)
             cleanup_moksha()
@@ -1105,8 +1160,9 @@ class TestBuild:
 
         # Resubmit the failed module
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
-            {'branch': 'master', 'scmurl': ('git://pkgs.stg.fedoraproject.org/modules/'
-                                            'testmodule.git?#7fea453')}))
+            {'branch': 'master',
+             'scmurl': ('git://pkgs.stg.fedoraproject.org/modules/testmodule.git?'
+                        '#620ec77321b2ea7b0d67d82992dda3e1d67055b4')}))
 
         module_build = models.ModuleBuild.query.filter_by(id=module_build_id).one()
         components = models.ComponentBuild.query.filter_by(
@@ -1130,7 +1186,8 @@ class TestBuild:
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build_resume_init_fail(self, mocked_scm, mocked_get_user, conf_system, dbg):
+    def test_submit_build_resume_init_fail(self, mocked_scm, mocked_get_user, conf_system, dbg,
+                                           pdc_module_inactive):
         """
         Tests that resuming the build fails when the build is in init state
         """
@@ -1139,7 +1196,7 @@ class TestBuild:
         # Post so a module is in the init phase
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
-                'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}))
+                'testmodule.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4'}))
         assert rv.status_code == 201
         # Run the backend
         stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
@@ -1147,7 +1204,7 @@ class TestBuild:
         # Post again and make sure it fails
         rv2 = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
-                'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}))
+                'testmodule.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4'}))
         data = json.loads(rv2.data)
         expected = {
             'error': 'Conflict',
@@ -1169,13 +1226,9 @@ class TestLocalBuild:
         self.client = app.test_client()
         clean_database()
 
-        self.vcr = vcr.use_cassette(get_vcr_path(__file__, test_method))
-        self.vcr.__enter__()
-
     def teardown_method(self, test_method):
         FakeModuleBuilder.reset()
         cleanup_moksha()
-        self.vcr.__exit__()
         for i in range(20):
             try:
                 os.remove(build_logs.path(i))
@@ -1193,7 +1246,7 @@ class TestLocalBuild:
         Tests local module build dependency.
         """
         with app.app_context():
-            module_build_service.utils.load_local_builds(["base-runtime"])
+            module_build_service.utils.load_local_builds(["platform"])
             FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
                     '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
@@ -1201,7 +1254,7 @@ class TestLocalBuild:
                 '/module-build-service/1/module-builds/', data=json.dumps(
                     {'branch': 'master',
                      'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
-                     'testmodule.git?#68932c90de214d9d13feefbd35246a81b6cb8d49'}))
+                     'testmodule.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4'}))
 
             data = json.loads(rv.data)
             module_build_id = data['id']
