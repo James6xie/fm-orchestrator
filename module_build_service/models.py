@@ -269,7 +269,7 @@ class ModuleBuild(MBSBase):
             if property_name not in mbs_xmd:
                 raise ValueError('The module\'s modulemd hasn\'t been formatted by MBS')
             mmd_property = getattr(mmd, property_name)
-            if mbs_xmd[property_name].keys() != mmd_property.keys():
+            if set(mbs_xmd[property_name].keys()) != set(mmd_property.keys()):
                 raise ValueError('The dependencies.{0} section of the modulemd doesn\'t match '
                                  'what is in xmd'.format(property_name))
             mmd_formatted_property = {
