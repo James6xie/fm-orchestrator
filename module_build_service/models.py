@@ -31,7 +31,7 @@ import json
 from collections import OrderedDict
 from datetime import datetime
 import hashlib
-from sqlalchemy import engine_from_config, event
+import sqlalchemy
 from sqlalchemy.orm import validates, scoped_session, sessionmaker
 from flask import has_app_context
 import modulemd as _modulemd
@@ -122,11 +122,11 @@ def make_session(conf):
     with app.app_context() if not has_app_context() else _dummy_context_mgr():
         # TODO - we could use ZopeTransactionExtension() here some day for
         # improved safety on the backend.
-        engine = engine_from_config({
+        engine = sqlalchemy.engine_from_config({
             'sqlalchemy.url': conf.sqlalchemy_database_uri,
         })
         session = scoped_session(sessionmaker(bind=engine))()
-        event.listen(session, "before_commit", session_before_commit_handlers)
+        sqlalchemy.event.listen(session, "before_commit", session_before_commit_handlers)
         try:
             yield session
             session.commit()
@@ -678,4 +678,13 @@ def session_before_commit_handlers(session):
                 state=item.state,
                 state_reason=item.state_reason,
                 task_id=item.task_id)
+            # To fully support append, the hook must be tied to the session
             item.component_builds_trace.append(cbt)
+
+
+@sqlalchemy.event.listens_for(ModuleBuild, 'before_insert')
+@sqlalchemy.event.listens_for(ModuleBuild, 'before_update')
+def new_and_update_module_handler(mapper, session, target):
+    # Only modify time_modified if it wasn't explicitly set
+    if not db.inspect(target).get_history('time_modified', True).has_changes():
+        target.time_modified = datetime.utcnow()
