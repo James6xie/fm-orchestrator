@@ -19,3 +19,4 @@ test_module_build_service.db
 .ropeproject
 tests/test_module_build_service.db-journal
 *.swp
+.pytest_cache/
