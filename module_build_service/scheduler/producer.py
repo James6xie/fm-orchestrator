@@ -232,6 +232,7 @@ class MBSProducer(PollingProducer):
                       'the concurrent build threshold being met')
             return
 
+        ten_minutes = timedelta(minutes=10)
         # Check for module builds that are in the build state but don't have any active component
         # builds. Exclude module builds in batch 0. This is likely a build of a module without
         # components.
@@ -239,6 +240,10 @@ class MBSProducer(PollingProducer):
             models.ModuleBuild.state == models.BUILD_STATES['build'],
             models.ModuleBuild.batch > 0).all()
         for module_build in module_builds:
+            now = datetime.utcnow()
+            # Only give builds a nudge if stuck for more than ten minutes
+            if (now - module_build.time_modified) < ten_minutes:
+                continue
             # If there are no components in the build state on the module build,
             # then no possible event will start off new component builds.
             # But do not try to start new builds when we are waiting for the

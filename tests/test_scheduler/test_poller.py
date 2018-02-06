@@ -18,6 +18,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import pytest
 from mock import patch
 from module_build_service import models, conf
 from tests import test_reuse_component_init_data, init_data, db
@@ -41,10 +42,11 @@ class TestPoller:
     def teardown_method(self, test_method):
         init_data()
 
+    @pytest.mark.parametrize('fresh', [True, False])
     @patch('module_build_service.utils.start_build_component')
     def test_process_paused_module_builds(self, start_build_component, create_builder,
                                           koji_get_session, global_consumer,
-                                          dbg):
+                                          dbg, fresh):
         """
         Tests general use-case of process_paused_module_builds.
         """
@@ -62,6 +64,11 @@ class TestPoller:
         # it is not building anything, but the state is "build".
         module_build = models.ModuleBuild.query.filter_by(id=2).one()
         module_build.batch = 2
+        # If fresh is set, then we simulate that activity just occurred 2 minutes ago on the build
+        if fresh:
+            module_build.time_modified = datetime.utcnow() - timedelta(minutes=2)
+        else:
+            module_build.time_modified = datetime.utcnow() - timedelta(days=5)
         db.session.commit()
 
         # Poll :)
@@ -73,11 +80,20 @@ class TestPoller:
         module_build = models.ModuleBuild.query.filter_by(id=2).one()
         db.session.refresh(module_build)
 
-        # Components should be in BUILDING state now.
+        # If fresh is set, we expect the poller to not touch the module build since it's been less
+        # than 10 minutes of inactivity
+        if fresh:
+            expected_state = None
+            expected_build_calls = 0
+        else:
+            expected_state = koji.BUILD_STATES["BUILDING"]
+            expected_build_calls = 2
+
         components = module_build.current_batch()
         for component in components:
-            assert component.state == koji.BUILD_STATES["BUILDING"]
-        assert len(start_build_component.mock_calls) == 2
+            assert component.state == expected_state
+
+        assert len(start_build_component.mock_calls) == expected_build_calls
 
     def test_trigger_new_repo_when_failed(self, create_builder,
                                           koji_get_session, global_consumer,
