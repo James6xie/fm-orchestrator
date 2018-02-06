@@ -93,9 +93,6 @@ class FakeModuleBuilder(GenericBuilder):
     """
 
     backend = "test"
-    # Global build_id/task_id we increment when new build is executed.
-    _build_id = 0
-
     BUILD_STATE = "COMPLETE"
     # Simulates a situation when a component is already built in Koji
     INSTANT_COMPLETE = False
@@ -229,18 +226,17 @@ class FakeModuleBuilder(GenericBuilder):
 
     def build(self, artifact_name, source):
         print("Starting building artifact %s: %s" % (artifact_name, source))
-        FakeModuleBuilder._build_id += 1
+        build_id = randint(1000, 9999999)
 
         if FakeModuleBuilder.on_build_cb:
             FakeModuleBuilder.on_build_cb(self, artifact_name, source)
 
         if FakeModuleBuilder.BUILD_STATE != "BUILDING":
             self._send_build_change(
-                koji.BUILD_STATES[FakeModuleBuilder.BUILD_STATE], artifact_name,
-                FakeModuleBuilder._build_id)
+                koji.BUILD_STATES[FakeModuleBuilder.BUILD_STATE], artifact_name, build_id)
 
         reason = "Submitted %s to Koji" % (artifact_name)
-        return FakeModuleBuilder._build_id, koji.BUILD_STATES['BUILDING'], reason, None
+        return build_id, koji.BUILD_STATES['BUILDING'], reason, None
 
     @staticmethod
     def get_disttag_srpm(disttag, module_build):
