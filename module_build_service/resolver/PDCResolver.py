@@ -405,8 +405,8 @@ class PDCResolver(GenericResolver):
         else:
             queried_mmd = module_info
 
-        if (not queried_mmd or not queried_mmd.xmd.get('mbs') or
-                not queried_mmd.xmd['mbs'].get('buildrequires')):
+        if (not queried_mmd or 'mbs' not in queried_mmd.xmd or
+                'buildrequires' not in queried_mmd.xmd['mbs']):
             raise RuntimeError(
                 'The module "{0!r}" did not contain its modulemd or did not have '
                 'its xmd attribute filled out in PDC'.format(module_info))

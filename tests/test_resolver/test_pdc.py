@@ -24,6 +24,7 @@ import os
 import copy
 
 from mock import patch, PropertyMock
+import pytest
 
 import module_build_service.resolver as mbs_resolver
 import module_build_service.utils
@@ -66,10 +67,23 @@ class TestPDCModule:
         assert result['variant_version'] == 'master'
         assert 'build_deps' in result
 
-    def test_get_module_build_dependencies(self, pdc_module_active):
+    @pytest.mark.parametrize('empty_buildrequires', [False, True])
+    def test_get_module_build_dependencies(self, pdc_module_active, empty_buildrequires):
         """
         Tests that we return just direct build-time dependencies of testmodule.
         """
+        expected = set(['module-f28-build'])
+        if empty_buildrequires:
+            expected = set()
+            pdc_item = pdc_module_active.endpoints['unreleasedvariants']['GET'][-1]
+            mmd = modulemd.ModuleMetadata()
+            mmd.loads(pdc_item['modulemd'])
+            mmd.buildrequires = {}
+            mmd.xmd['mbs']['buildrequires'] = {}
+            pdc_item.update({
+                'modulemd': mmd.dumps(),
+                'build_deps': []
+            })
         query = {
             'name': 'testmodule',
             'version': 'master',
@@ -77,7 +91,7 @@ class TestPDCModule:
         }
         resolver = mbs_resolver.GenericResolver.create(tests.conf, backend='pdc')
         result = resolver.get_module_build_dependencies(query).keys()
-        assert set(result) == set(['module-f28-build'])
+        assert set(result) == expected
 
     def test_get_module_build_dependencies_recursive(self, pdc_module_active):
         """
