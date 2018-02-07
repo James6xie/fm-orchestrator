@@ -336,13 +336,13 @@ def start_next_batch_build(config, module, session, builder, components=None):
         # previous batch was 1 because that always has the module-build-macros component built
         should_try_reuse = all_reused_in_prev_batch or prev_batch == 1
     if should_try_reuse:
-        for c in unbuilt_components:
-            previous_component_build = get_reusable_component(
-                session, module, c.package)
-
-            if previous_component_build:
+        component_names = [c.package for c in unbuilt_components]
+        reusable_components = get_reusable_components(
+            session, module, component_names)
+        for c, reusable_c in zip(unbuilt_components, reusable_components):
+            if reusable_c:
                 components_reused = True
-                further_work += reuse_component(c, previous_component_build)
+                further_work += reuse_component(c, reusable_c)
             else:
                 unbuilt_components_after_reuse.append(c)
         # Commit the changes done by reuse_component
@@ -1122,6 +1122,43 @@ def reuse_component(component, previous_component_build,
     ]
 
 
+def _get_reusable_module(session, module):
+    """
+    Returns previous module build of the module `module` in case it can be
+    used as a source module to get the components to reuse from.
+
+    In case there is no such module, returns None.
+
+    :param session: SQLAlchemy database session
+    :param module: the ModuleBuild object of module being built.
+    :return: ModuleBuild object which can be used for component reuse.
+    """
+    mmd = module.mmd()
+
+    # Find the latest module that is in the done or ready state
+    previous_module_build = session.query(models.ModuleBuild)\
+        .filter_by(name=mmd.name)\
+        .filter_by(stream=mmd.stream)\
+        .filter(models.ModuleBuild.state.in_([3, 5]))\
+        .filter(models.ModuleBuild.scmurl.isnot(None))\
+        .order_by(models.ModuleBuild.time_completed.desc())
+    # If we are rebuilding with the "changed-and-after" option, then we can't reuse
+    # components from modules that were built more liberally
+    if module.rebuild_strategy == 'changed-and-after':
+        previous_module_build = previous_module_build.filter(
+            models.ModuleBuild.rebuild_strategy.in_(['all', 'changed-and-after']))
+        previous_module_build = previous_module_build.filter_by(
+            build_context=module.build_context)
+    previous_module_build = previous_module_build.first()
+    # The component can't be reused if there isn't a previous build in the done
+    # or ready state
+    if not previous_module_build:
+        log.info("Cannot re-use.  %r is the first module build." % module)
+        return None
+
+    return previous_module_build
+
+
 def attempt_to_reuse_all_components(builder, session, module):
     """
     Tries to reuse all the components in a build. The components are also
@@ -1130,6 +1167,13 @@ def attempt_to_reuse_all_components(builder, session, module):
     Returns True if all components could be reused, otherwise False. When
     False is returned, no component has been reused.
     """
+
+    previous_module_build = _get_reusable_module(session, module)
+    if not previous_module_build:
+        return False
+
+    mmd = module.mmd()
+    old_mmd = previous_module_build.mmd()
 
     # [(component, component_to_reuse), ...]
     component_pairs = []
@@ -1140,7 +1184,9 @@ def attempt_to_reuse_all_components(builder, session, module):
         if c.package == "module-build-macros":
             continue
         component_to_reuse = get_reusable_component(
-            session, module, c.package)
+            session, module, c.package,
+            previous_module_build=previous_module_build, mmd=mmd,
+            old_mmd=old_mmd)
         if not component_to_reuse:
             return False
 
@@ -1165,21 +1211,69 @@ def attempt_to_reuse_all_components(builder, session, module):
 
     return True
 
+def get_reusable_components(session, module, component_names):
+    """
+    Returns the list of ComponentBuild instances belonging to previous module
+    build which can be reused in the build of module `module`.
 
-def get_reusable_component(session, module, component_name):
+    The ComponentBuild instances in returned list are in the same order as
+    their names in the component_names input list.
+
+    In case some component cannot be reused, None is used instead of a
+    ComponentBuild instance in the returned list.
+
+    :param session: SQLAlchemy database session
+    :param module: the ModuleBuild object of module being built.
+    :param component_names: List of component names to be reused.
+    :return: List of ComponentBuild instances to reuse in the same
+             order as `component_names`
+    """
+    # We support components reusing only for koji and test backend.
+    if conf.system not in ['koji', 'test']:
+        return [None] * len(component_names)
+
+    previous_module_build = _get_reusable_module(session, module)
+    if not previous_module_build:
+        return [None] * len(component_names)
+
+    mmd = module.mmd()
+    old_mmd = previous_module_build.mmd()
+
+    ret = []
+    for component_name in component_names:
+        ret.append(get_reusable_component(
+            session, module, component_name, previous_module_build, mmd,
+            old_mmd))
+
+    return ret
+
+def get_reusable_component(session, module, component_name,
+                           previous_module_build=None, mmd=None, old_mmd=None):
     """
     Returns the component (RPM) build of a module that can be reused
     instead of needing to rebuild it
     :param session: SQLAlchemy database session
     :param module: the ModuleBuild object of module being built with a formatted
-    mmd
+        mmd
     :param component_name: the name of the component (RPM) that you'd like to
-    reuse a previous build of
+        reuse a previous build of
+    :param previous_module_build: the ModuleBuild instances of a module build
+        which contains the components to reuse. If not passed, _get_reusable_module
+        is called to get the ModuleBuild instance. Consider passing the ModuleBuild
+        instance in case you plan to call get_reusable_component repeatedly for the
+        same module to make this method faster.
+    :param mmd: ModuleMetadata of `module`. If not passed, it is taken from
+        module.mmd(). Consider passing this arg in case you plan to call
+        get_reusable_component repeatedly for the same module to make this method faster.
+    :param old_mmd: ModuleMetadata of `previous_module_build`. If not passed,
+        it is taken from previous_module_build.mmd(). Consider passing this arg in
+        case you plan to call get_reusable_component repeatedly for the same
+        module to make this method faster.
     :return: the component (RPM) build SQLAlchemy object, if one is not found,
-    None is returned
+        None is returned
     """
 
-    # We support components reusing only for koji and test backend.
+    # We support component reusing only for koji and test backend.
     if conf.system not in ['koji', 'test']:
         return None
 
@@ -1188,25 +1282,15 @@ def get_reusable_component(session, module, component_name):
         log.info('Cannot re-use the component because the rebuild strategy is "all".')
         return None
 
-    mmd = module.mmd()
-    # Find the latest module that is in the done or ready state
-    previous_module_build = session.query(models.ModuleBuild)\
-        .filter_by(name=mmd.name)\
-        .filter_by(stream=mmd.stream)\
-        .filter(models.ModuleBuild.state.in_([3, 5]))\
-        .filter(models.ModuleBuild.scmurl.isnot(None))\
-        .order_by(models.ModuleBuild.time_completed.desc())
-    # If we are rebuilding with the "changed-and-after" option, then we can't reuse
-    # components from modules that were built more liberally
-    if module.rebuild_strategy == 'changed-and-after':
-        previous_module_build = previous_module_build.filter(
-            models.ModuleBuild.rebuild_strategy.in_(['all', 'changed-and-after']))
-    previous_module_build = previous_module_build.first()
-    # The component can't be reused if there isn't a previous build in the done
-    # or ready state
     if not previous_module_build:
-        log.info("Cannot re-use.  %r is the first module build." % module)
-        return None
+        previous_module_build = _get_reusable_module(session, module)
+        if not previous_module_build:
+            return None
+
+    if not mmd:
+        mmd = module.mmd()
+    if not old_mmd:
+        old_mmd = previous_module_build.mmd()
 
     # If the chosen component for some reason was not found in the database,
     # or the ref is missing, something has gone wrong and the component cannot
@@ -1237,13 +1321,6 @@ def get_reusable_component(session, module, component_name):
     # At this point we've determined that both module builds contain the component
     # and the components share the same commit hash
     if module.rebuild_strategy == 'changed-and-after':
-        # Check to see that the previous module build has a context. It will be a non-default
-        # value only when its build_context and runtime_context properties are set.
-        if previous_module_build.context == '00000000':
-            log.error('Cannot re-use.  The submitted module "{0!r}" doesn\'t have a context.'
-                      .format(module))
-            return None
-
         # Make sure the batch number for the component that is trying to be reused
         # hasn't changed since the last build
         if prev_module_build_component.batch != new_module_build_component.batch:
@@ -1251,7 +1328,6 @@ def get_reusable_component(session, module, component_name):
             return None
 
         # If the mmd.buildopts.macros.rpms changed, we cannot reuse
-        old_mmd = previous_module_build.mmd()
         modulemd_macros = ""
         old_modulemd_macros = ""
         if mmd.buildopts and mmd.buildopts.rpms:
@@ -1260,12 +1336,6 @@ def get_reusable_component(session, module, component_name):
             modulemd_macros = old_mmd.buildopts.rpms.macros
         if modulemd_macros != old_modulemd_macros:
             log.info('Cannot re-use.  Old modulemd macros do not match the new.')
-            return None
-
-        # If the module buildrequires are different, then we can't reuse the
-        # component
-        if module.build_context != previous_module_build.build_context:
-            log.info('Cannot re-use.  The set of module buildrequires changed')
             return None
 
         # At this point we've determined that both module builds contain the component
