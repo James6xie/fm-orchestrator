@@ -1211,6 +1211,7 @@ def attempt_to_reuse_all_components(builder, session, module):
 
     return True
 
+
 def get_reusable_components(session, module, component_names):
     """
     Returns the list of ComponentBuild instances belonging to previous module
@@ -1246,6 +1247,7 @@ def get_reusable_components(session, module, component_names):
             old_mmd))
 
     return ret
+
 
 def get_reusable_component(session, module, component_name,
                            previous_module_build=None, mmd=None, old_mmd=None):
