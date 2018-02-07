@@ -51,7 +51,7 @@ patch_config()
 
 
 def clean_database():
-    db.session.remove()
+    db.session.commit()
     db.drop_all()
     db.create_all()
 

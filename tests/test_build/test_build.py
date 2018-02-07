@@ -174,7 +174,7 @@ class FakeModuleBuilder(GenericBuilder):
             for nvr in artifacts:
                 # tag_artifacts received a list of NVRs, but the tag message expects the
                 # component name
-                artifact = models.ComponentBuild.query.filter_by(nvr=nvr).one().package
+                artifact = models.ComponentBuild.query.filter_by(nvr=nvr).first().package
                 self._send_tag(artifact, dest_tag=dest_tag)
 
     @property

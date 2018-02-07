@@ -106,11 +106,31 @@ def _dummy_context_mgr():
     yield None
 
 
+def _setup_event_listeners(session):
+    """
+    Starts listening for events related to database session.
+    """
+    if not sqlalchemy.event.contains(
+            session, 'before_commit', session_before_commit_handlers):
+        sqlalchemy.event.listen(session, 'before_commit',
+                                session_before_commit_handlers)
+
+
 @contextlib.contextmanager
 def make_session(conf):
     """
     Yields new SQLAlchemy database sesssion.
     """
+
+    # Do not use scoped_session in case we are using in-memory database,
+    # because we want to use the same session across all threads to be able
+    # to use the same in-memory database in tests.
+    if conf.sqlalchemy_database_uri == 'sqlite://':
+        _setup_event_listeners(db.session)
+        yield db.session
+        db.session.commit()
+        return
+
     # Needs to be set to create app_context.
     if 'SERVER_NAME' not in app.config or not app.config['SERVER_NAME']:
         app.config['SERVER_NAME'] = 'localhost'
@@ -126,7 +146,7 @@ def make_session(conf):
             'sqlalchemy.url': conf.sqlalchemy_database_uri,
         })
         session = scoped_session(sessionmaker(bind=engine))()
-        sqlalchemy.event.listen(session, "before_commit", session_before_commit_handlers)
+        _setup_event_listeners(session)
         try:
             yield session
             session.commit()

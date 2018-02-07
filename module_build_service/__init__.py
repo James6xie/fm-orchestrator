@@ -43,6 +43,7 @@ for a number of tasks:
 import pkg_resources
 from flask import Flask, has_app_context, url_for
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.pool import StaticPool
 from logging import getLogger
 
 from module_build_service.logger import (
@@ -63,7 +64,28 @@ app = Flask(__name__)
 app.wsgi_app = ReverseProxy(app.wsgi_app)
 
 conf = init_config(app)
-db = SQLAlchemy(app)
+
+
+class MBSSQLAlchemy(SQLAlchemy):
+    """
+    Inherits from SQLAlchemy and if SQLite in-memory database is used,
+    sets the driver options so multiple threads can share the same database.
+
+    This is used *only* during tests to make them faster.
+    """
+    def apply_driver_hacks(self, app, info, options):
+        if info.drivername == 'sqlite' and info.database in (None, '', ':memory:'):
+            options['poolclass'] = StaticPool
+            options['connect_args'] = {'check_same_thread': False}
+            try:
+                del options['pool_size']
+            except KeyError:
+                pass
+
+        super(MBSSQLAlchemy, self).apply_driver_hacks(app, info, options)
+
+
+db = MBSSQLAlchemy(app)
 
 
 def create_app(debug=False, verbose=False, quiet=False):
