@@ -1,6 +1,20 @@
 Change Log
 ==========
 
+v1.7.0
+------
+
+* Use external repos tied to the Koji tags on local builds
+* Make the MBS resolver interchangeable
+* Make component reuse faster
+* Fix a bug that caused module builds with no buildrequires to fail
+* Make the poller not resume paused module builds if there was recent activity on the build
+* A module's "time_modified" attribute is now updated more often to reflect changes in the build
+* Fix getting the module name when a YAML file is submitted directly instead of using SCM
+* Remove the Koji proxyuser functionality
+* Set the owner on the overall module build in Koji
+* Fix a bug that could cause a module build to fail with multiple buildrequires
+
 v1.6.3
 ------
 
