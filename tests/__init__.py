@@ -23,6 +23,8 @@
 import os
 from datetime import datetime, timedelta
 from mock import patch
+import time
+from traceback import extract_stack
 
 import modulemd
 import koji
@@ -48,6 +50,37 @@ def patch_config():
 
 
 patch_config()
+
+
+def patch_zeromq_time_sleep():
+    """
+    We use moksha.hub in some tests. We used dummy zerombq backend which
+    connects to /dev/null, but zeromq.py contains time.sleep(1) to ensure
+    that sockets are listening properly. This is not needed for our dummy
+    use-case and it slows down tests.
+
+    This method patches time.sleep called from "zeromq.py" file to be noop,
+    but calls the real time.sleep otherwise.
+    """
+    global _orig_time_sleep
+    _orig_time_sleep = time.sleep
+
+    def mocked_time_sleep(n):
+        global _orig_time_sleep
+        if n == 1:
+            tb = extract_stack()
+            try:
+                if tb[-4][0].endswith("zeromq.py"):
+                    return
+            except IndexError:
+                pass
+        _orig_time_sleep(n)
+
+    ts = patch("time.sleep").start()
+    ts.side_effect = mocked_time_sleep
+
+
+patch_zeromq_time_sleep()
 
 
 def clean_database():
