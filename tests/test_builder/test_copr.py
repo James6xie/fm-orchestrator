@@ -100,7 +100,7 @@ COPR_MODULE_BUILDER = "module_build_service.builder.CoprModuleBuilder.CoprModule
 class TestCoprModuleBuilder:
 
     def setup_method(self, test_method):
-        init_data()
+        init_data(1)
         self.config = mock.Mock()
         self.config.koji_profile = conf.koji_profile
         self.config.koji_repository_url = conf.koji_repository_url

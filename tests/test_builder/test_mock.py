@@ -19,7 +19,7 @@ class TestMockModuleBuilder:
         self.resultdir = tempfile.mkdtemp()
 
     def teardown_method(self, test_method):
-        init_data()
+        clean_database()
         shutil.rmtree(self.resultdir)
 
     def _create_module_with_filters(self, session, batch, state):

@@ -30,14 +30,12 @@ from tests import conf, db, app, scheduler_init_data
 
 class TestRepoDone:
 
-    def setup_method(self, test_method):
-        scheduler_init_data()
-
     @mock.patch('module_build_service.models.ModuleBuild.from_repo_done_event')
     def test_no_match(self, from_repo_done_event):
         """ Test that when a repo msg hits us and we have no match,
         that we do nothing gracefully.
         """
+        scheduler_init_data()
         from_repo_done_event.return_value = None
         msg = module_build_service.messaging.KojiRepoChange(
             'no matches for this...', '2016-some-nonexistent-build')
@@ -64,6 +62,7 @@ class TestRepoDone:
                             mock_uea, pdc):
         """ Test that when a repo msg hits us and we have a single match.
         """
+        scheduler_init_data()
         get_session.return_value = mock.Mock(), 'development'
         build_fn.return_value = 1234, 1, '', None
 
@@ -97,6 +96,7 @@ class TestRepoDone:
         """ Test that when a KojiModuleBuilder.build fails, the build is
         marked as failed with proper state_reason.
         """
+        scheduler_init_data()
         config.return_value = mock.Mock(), 'development'
         build_fn.return_value = None, 4, 'Failed to submit artifact tangerine to Koji', None
 

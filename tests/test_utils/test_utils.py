@@ -29,8 +29,8 @@ import module_build_service.utils
 import module_build_service.scm
 from module_build_service import models, conf
 from module_build_service.errors import ProgrammingError, ValidationError, UnprocessableEntity
-from tests import (test_reuse_component_init_data, init_data, db,
-                   test_reuse_shared_userspace_init_data,
+from tests import (reuse_component_init_data, init_data, db,
+                   reuse_shared_userspace_init_data,
                    clean_database)
 import mock
 import koji
@@ -75,14 +75,162 @@ class FakeSCM(object):
     def get_module_yaml(self):
         return path.join(self.sourcedir, self.name + ".yaml")
 
+class TestUtilsComponentReuse:
+
+    def setup_method(self, test_method):
+        reuse_component_init_data()
+
+    def teardown_method(self, test_method):
+        clean_database()
+
+    @pytest.mark.parametrize('changed_component', [
+        'perl-List-Compare', 'perl-Tangerine', 'tangerine', None
+    ])
+    def test_get_reusable_component_different_component(self, changed_component):
+        second_module_build = models.ModuleBuild.query.filter_by(id=2).one()
+        if changed_component:
+            mmd = second_module_build.mmd()
+            mmd.components.rpms[changed_component].ref = '00ea1da4192a2030f9ae023de3b3143ed647bbab'
+            second_module_build.modulemd = mmd.dumps()
+            second_module_changed_component = models.ComponentBuild.query.filter_by(
+                package=changed_component, module_id=2).one()
+            second_module_changed_component.ref = '00ea1da4192a2030f9ae023de3b3143ed647bbab'
+            db.session.add(second_module_changed_component)
+            db.session.commit()
+
+        plc_rv = module_build_service.utils.get_reusable_component(
+            db.session, second_module_build, 'perl-List-Compare')
+        pt_rv = module_build_service.utils.get_reusable_component(
+            db.session, second_module_build, 'perl-Tangerine')
+        tangerine_rv = module_build_service.utils.get_reusable_component(
+            db.session, second_module_build, 'tangerine')
+
+        if changed_component == 'perl-List-Compare':
+            # perl-Tangerine can be reused even though a component in its batch has changed
+            assert plc_rv is None
+            assert pt_rv.package == 'perl-Tangerine'
+            assert tangerine_rv is None
+        elif changed_component == 'perl-Tangerine':
+            # perl-List-Compare can be reused even though a component in its batch has changed
+            assert plc_rv.package == 'perl-List-Compare'
+            assert pt_rv is None
+            assert tangerine_rv is None
+        elif changed_component == 'tangerine':
+            # perl-List-Compare and perl-Tangerine can be reused since they are in an earlier
+            # buildorder than tangerine
+            assert plc_rv.package == 'perl-List-Compare'
+            assert pt_rv.package == 'perl-Tangerine'
+            assert tangerine_rv is None
+        elif changed_component is None:
+            # Nothing has changed so everthing can be used
+            assert plc_rv.package == 'perl-List-Compare'
+            assert pt_rv.package == 'perl-Tangerine'
+            assert tangerine_rv.package == 'tangerine'
+
+    def test_get_reusable_component_different_rpm_macros(self):
+        second_module_build = models.ModuleBuild.query.filter_by(id=2).one()
+        mmd = second_module_build.mmd()
+        mmd.buildopts.rpms.macros = "%my_macro 1"
+        second_module_build.modulemd = mmd.dumps()
+        db.session.commit()
+
+        plc_rv = module_build_service.utils.get_reusable_component(
+            db.session, second_module_build, 'perl-List-Compare')
+        assert plc_rv is None
+
+        pt_rv = module_build_service.utils.get_reusable_component(
+            db.session, second_module_build, 'perl-Tangerine')
+        assert pt_rv is None
+
+    def test_get_reusable_component_different_buildrequires_hash(self):
+        second_module_build = models.ModuleBuild.query.filter_by(id=2).one()
+        mmd = second_module_build.mmd()
+        mmd.xmd['mbs']['buildrequires']['platform']['ref'] = \
+            'da39a3ee5e6b4b0d3255bfef95601890afd80709'
+        second_module_build.modulemd = mmd.dumps()
+        second_module_build.build_context = '37c6c57bedf4305ef41249c1794760b5cb8fad17'
+        db.session.commit()
+
+        plc_rv = module_build_service.utils.get_reusable_component(
+            db.session, second_module_build, 'perl-List-Compare')
+        assert plc_rv is None
+
+        pt_rv = module_build_service.utils.get_reusable_component(
+            db.session, second_module_build, 'perl-Tangerine')
+        assert pt_rv is None
+
+        tangerine_rv = module_build_service.utils.get_reusable_component(
+            db.session, second_module_build, 'tangerine')
+        assert tangerine_rv is None
+
+    def test_get_reusable_component_different_buildrequires(self):
+        second_module_build = models.ModuleBuild.query.filter_by(id=2).one()
+        mmd = second_module_build.mmd()
+        mmd.buildrequires = {'some_module': 'master'}
+        mmd.xmd['mbs']['buildrequires'] = {
+            'some_module': {
+                'ref': 'da39a3ee5e6b4b0d3255bfef95601890afd80709',
+                'stream': 'master',
+                'version': '20170123140147'
+            }
+        }
+        second_module_build.modulemd = mmd.dumps()
+        second_module_build.build_context = '37c6c57bedf4305ef41249c1794760b5cb8fad17'
+        db.session.commit()
+
+        plc_rv = module_build_service.utils.get_reusable_component(
+            db.session, second_module_build, 'perl-List-Compare')
+        assert plc_rv is None
+
+        pt_rv = module_build_service.utils.get_reusable_component(
+            db.session, second_module_build, 'perl-Tangerine')
+        assert pt_rv is None
+
+        tangerine_rv = module_build_service.utils.get_reusable_component(
+            db.session, second_module_build, 'tangerine')
+        assert tangerine_rv is None
+
+    @patch("module_build_service.utils.submit_module_build")
+    def test_submit_module_build_from_yaml_with_skiptests(self, mock_submit):
+        """
+        Tests local module build from a yaml file with the skiptests option
+
+        Args:
+            mock_submit (MagickMock): mocked function submit_module_build, which we then
+                inspect if it was called with correct arguments
+        """
+        module_dir = tempfile.mkdtemp()
+        module = models.ModuleBuild.query.filter_by(id=2).one()
+        mmd = module.mmd()
+        modulemd_yaml = mmd.dumps()
+        modulemd_file_path = path.join(module_dir, "testmodule.yaml")
+
+        username = "test"
+        stream = "dev"
+
+        with open(modulemd_file_path, "w") as fd:
+            fd.write(modulemd_yaml)
+
+        with open(modulemd_file_path, "r") as fd:
+            handle = FileStorage(fd)
+            module_build_service.utils.submit_module_build_from_yaml(username, handle,
+                                                                     stream=stream, skiptests=True)
+            mock_submit_args = mock_submit.call_args[0]
+            username_arg = mock_submit_args[0]
+            mmd_arg = mock_submit_args[2]
+            assert mmd_arg.stream == stream
+            assert "\n\n%__spec_check_pre exit 0\n" in mmd_arg.buildopts.rpms.macros
+            assert username_arg == username
+        rmtree(module_dir)
+
 
 class TestUtils:
 
     def setup_method(self, test_method):
-        init_data()
+        clean_database()
 
     def teardown_method(self, test_method):
-        init_data()
+        clean_database()
 
     @pytest.mark.parametrize('scmurl', [
         ('git://pkgs.stg.fedoraproject.org/modules/testmodule.git'
@@ -146,117 +294,6 @@ class TestUtils:
 
         assert mmd.xmd == xmd
 
-    @pytest.mark.parametrize('changed_component', [
-        'perl-List-Compare', 'perl-Tangerine', 'tangerine', None
-    ])
-    def test_get_reusable_component_different_component(self, changed_component):
-        test_reuse_component_init_data()
-        second_module_build = models.ModuleBuild.query.filter_by(id=2).one()
-        if changed_component:
-            mmd = second_module_build.mmd()
-            mmd.components.rpms[changed_component].ref = '00ea1da4192a2030f9ae023de3b3143ed647bbab'
-            second_module_build.modulemd = mmd.dumps()
-            second_module_changed_component = models.ComponentBuild.query.filter_by(
-                package=changed_component, module_id=2).one()
-            second_module_changed_component.ref = '00ea1da4192a2030f9ae023de3b3143ed647bbab'
-            db.session.add(second_module_changed_component)
-            db.session.commit()
-
-        plc_rv = module_build_service.utils.get_reusable_component(
-            db.session, second_module_build, 'perl-List-Compare')
-        pt_rv = module_build_service.utils.get_reusable_component(
-            db.session, second_module_build, 'perl-Tangerine')
-        tangerine_rv = module_build_service.utils.get_reusable_component(
-            db.session, second_module_build, 'tangerine')
-
-        if changed_component == 'perl-List-Compare':
-            # perl-Tangerine can be reused even though a component in its batch has changed
-            assert plc_rv is None
-            assert pt_rv.package == 'perl-Tangerine'
-            assert tangerine_rv is None
-        elif changed_component == 'perl-Tangerine':
-            # perl-List-Compare can be reused even though a component in its batch has changed
-            assert plc_rv.package == 'perl-List-Compare'
-            assert pt_rv is None
-            assert tangerine_rv is None
-        elif changed_component == 'tangerine':
-            # perl-List-Compare and perl-Tangerine can be reused since they are in an earlier
-            # buildorder than tangerine
-            assert plc_rv.package == 'perl-List-Compare'
-            assert pt_rv.package == 'perl-Tangerine'
-            assert tangerine_rv is None
-        elif changed_component is None:
-            # Nothing has changed so everthing can be used
-            assert plc_rv.package == 'perl-List-Compare'
-            assert pt_rv.package == 'perl-Tangerine'
-            assert tangerine_rv.package == 'tangerine'
-
-    def test_get_reusable_component_different_rpm_macros(self):
-        test_reuse_component_init_data()
-        second_module_build = models.ModuleBuild.query.filter_by(id=2).one()
-        mmd = second_module_build.mmd()
-        mmd.buildopts.rpms.macros = "%my_macro 1"
-        second_module_build.modulemd = mmd.dumps()
-        db.session.commit()
-
-        plc_rv = module_build_service.utils.get_reusable_component(
-            db.session, second_module_build, 'perl-List-Compare')
-        assert plc_rv is None
-
-        pt_rv = module_build_service.utils.get_reusable_component(
-            db.session, second_module_build, 'perl-Tangerine')
-        assert pt_rv is None
-
-    def test_get_reusable_component_different_buildrequires_hash(self):
-        test_reuse_component_init_data()
-        second_module_build = models.ModuleBuild.query.filter_by(id=2).one()
-        mmd = second_module_build.mmd()
-        mmd.xmd['mbs']['buildrequires']['platform']['ref'] = \
-            'da39a3ee5e6b4b0d3255bfef95601890afd80709'
-        second_module_build.modulemd = mmd.dumps()
-        second_module_build.build_context = '37c6c57bedf4305ef41249c1794760b5cb8fad17'
-        db.session.commit()
-
-        plc_rv = module_build_service.utils.get_reusable_component(
-            db.session, second_module_build, 'perl-List-Compare')
-        assert plc_rv is None
-
-        pt_rv = module_build_service.utils.get_reusable_component(
-            db.session, second_module_build, 'perl-Tangerine')
-        assert pt_rv is None
-
-        tangerine_rv = module_build_service.utils.get_reusable_component(
-            db.session, second_module_build, 'tangerine')
-        assert tangerine_rv is None
-
-    def test_get_reusable_component_different_buildrequires(self):
-        test_reuse_component_init_data()
-        second_module_build = models.ModuleBuild.query.filter_by(id=2).one()
-        mmd = second_module_build.mmd()
-        mmd.buildrequires = {'some_module': 'master'}
-        mmd.xmd['mbs']['buildrequires'] = {
-            'some_module': {
-                'ref': 'da39a3ee5e6b4b0d3255bfef95601890afd80709',
-                'stream': 'master',
-                'version': '20170123140147'
-            }
-        }
-        second_module_build.modulemd = mmd.dumps()
-        second_module_build.build_context = '37c6c57bedf4305ef41249c1794760b5cb8fad17'
-        db.session.commit()
-
-        plc_rv = module_build_service.utils.get_reusable_component(
-            db.session, second_module_build, 'perl-List-Compare')
-        assert plc_rv is None
-
-        pt_rv = module_build_service.utils.get_reusable_component(
-            db.session, second_module_build, 'perl-Tangerine')
-        assert pt_rv is None
-
-        tangerine_rv = module_build_service.utils.get_reusable_component(
-            db.session, second_module_build, 'tangerine')
-        assert tangerine_rv is None
-
     def test_get_reusable_component_shared_userspace_ordering(self):
         """
         For modules with lot of components per batch, there is big chance that
@@ -264,7 +301,7 @@ class TestUtils:
         current `new_module`. In this case, reuse code should still be able to
         reuse the components.
         """
-        test_reuse_shared_userspace_init_data()
+        reuse_shared_userspace_init_data()
         new_module = models.ModuleBuild.query.filter_by(id=2).one()
         rv = module_build_service.utils.get_reusable_component(
             db.session, new_module, 'llvm')
@@ -419,41 +456,6 @@ class TestUtils:
 
             assert str(e.value) == error_msg
 
-    @patch("module_build_service.utils.submit_module_build")
-    def test_submit_module_build_from_yaml_with_skiptests(self, mock_submit):
-        """
-        Tests local module build from a yaml file with the skiptests option
-
-        Args:
-            mock_submit (MagickMock): mocked function submit_module_build, which we then
-                inspect if it was called with correct arguments
-        """
-        test_reuse_component_init_data()
-
-        module_dir = tempfile.mkdtemp()
-        module = models.ModuleBuild.query.filter_by(id=2).one()
-        mmd = module.mmd()
-        modulemd_yaml = mmd.dumps()
-        modulemd_file_path = path.join(module_dir, "testmodule.yaml")
-
-        username = "test"
-        stream = "dev"
-
-        with open(modulemd_file_path, "w") as fd:
-            fd.write(modulemd_yaml)
-
-        with open(modulemd_file_path, "r") as fd:
-            handle = FileStorage(fd)
-            module_build_service.utils.submit_module_build_from_yaml(username, handle,
-                                                                     stream=stream, skiptests=True)
-            mock_submit_args = mock_submit.call_args[0]
-            username_arg = mock_submit_args[0]
-            mmd_arg = mock_submit_args[2]
-            assert mmd_arg.stream == stream
-            assert "\n\n%__spec_check_pre exit 0\n" in mmd_arg.buildopts.rpms.macros
-            assert username_arg == username
-        rmtree(module_dir)
-
     @patch('module_build_service.scm.SCM')
     def test_record_component_builds_set_weight(self, mocked_scm, pdc_module_inactive):
         with app.app_context():
@@ -563,11 +565,11 @@ class DummyModuleBuilder(GenericBuilder):
 class TestBatches:
 
     def setup_method(self, test_method):
-        test_reuse_component_init_data()
+        reuse_component_init_data()
         GenericBuilder.register_backend_class(DummyModuleBuilder)
 
     def teardown_method(self, test_method):
-        init_data()
+        clean_database()
         DummyModuleBuilder.TAGGED_COMPONENTS = []
         GenericBuilder.register_backend_class(KojiModuleBuilder)
 
@@ -834,10 +836,10 @@ class TestBatches:
 class TestLocalBuilds:
 
     def setup_method(self):
-        init_data()
+        clean_database()
 
     def teardown_method(self):
-        init_data()
+        clean_database()
 
     def test_load_local_builds_name(self, conf_system, conf_resultsdir):
         with app.app_context():

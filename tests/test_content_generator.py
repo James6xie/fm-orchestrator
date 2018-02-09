@@ -47,7 +47,7 @@ GET_USER_RV = {
 class TestBuild:
 
     def setup_method(self, test_method):
-        init_data()
+        init_data(1)
         module = models.ModuleBuild.query.filter_by(id=1).one()
         module.cg_build_koji_tag = "f27-module-candidate"
         self.cg = KojiContentGenerator(module, conf)

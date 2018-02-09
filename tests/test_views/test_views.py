@@ -112,7 +112,7 @@ class FakeSCM(object):
 class TestViews:
     def setup_method(self, test_method):
         self.client = app.test_client()
-        init_data()
+        init_data(2)
 
     def test_query_build(self):
         rv = self.client.get('/module-build-service/1/module-builds/1')
@@ -162,7 +162,7 @@ class TestViews:
         data = json.loads(rv.data)
         assert data['component_builds'] == [1, 2]
         assert data['context'] == '00000000'
-        # There is no xmd information on this module, so these values should be null
+        # There is no xmd information on this module, so these values should be None
         assert data['build_context'] is None
         assert data['runtime_context'] is None
         assert data['id'] == 1
@@ -203,26 +203,26 @@ class TestViews:
         assert data['rebuild_strategy'] == 'changed-and-after'
 
     def test_pagination_metadata(self):
-        rv = self.client.get('/module-build-service/1/module-builds/?per_page=8&page=2')
+        rv = self.client.get('/module-build-service/1/module-builds/?per_page=2&page=2')
         meta_data = json.loads(rv.data)['meta']
-        assert meta_data['prev'].split('?', 1)[1] in ['per_page=8&page=1', 'page=1&per_page=8']
-        assert meta_data['next'].split('?', 1)[1] in ['per_page=8&page=3', 'page=3&per_page=8']
-        assert meta_data['last'].split('?', 1)[1] in ['per_page=8&page=4', 'page=4&per_page=8']
-        assert meta_data['first'].split('?', 1)[1] in ['per_page=8&page=1', 'page=1&per_page=8']
-        assert meta_data['total'] == 30
-        assert meta_data['per_page'] == 8
-        assert meta_data['pages'] == 4
+        assert meta_data['prev'].split('?', 1)[1] in ['per_page=2&page=1', 'page=1&per_page=2']
+        assert meta_data['next'].split('?', 1)[1] in ['per_page=2&page=3', 'page=3&per_page=2']
+        assert meta_data['last'].split('?', 1)[1] in ['per_page=2&page=3', 'page=3&per_page=2']
+        assert meta_data['first'].split('?', 1)[1] in ['per_page=2&page=1', 'page=1&per_page=2']
+        assert meta_data['total'] == 6
+        assert meta_data['per_page'] == 2
+        assert meta_data['pages'] == 3
         assert meta_data['page'] == 2
 
     def test_pagination_metadata_with_args(self):
-        rv = self.client.get('/module-build-service/1/module-builds/?per_page=8&page=2&order_by=id')
+        rv = self.client.get('/module-build-service/1/module-builds/?per_page=2&page=2&order_by=id')
         meta_data = json.loads(rv.data)['meta']
         for link in [meta_data['prev'], meta_data['next'], meta_data['last'], meta_data['first']]:
             assert 'order_by=id' in link
-            assert 'per_page=8' in link
-        assert meta_data['total'] == 30
-        assert meta_data['per_page'] == 8
-        assert meta_data['pages'] == 4
+            assert 'per_page=2' in link
+        assert meta_data['total'] == 6
+        assert meta_data['per_page'] == 2
+        assert meta_data['pages'] == 3
         assert meta_data['page'] == 2
 
     def test_query_builds(self):
@@ -230,72 +230,70 @@ class TestViews:
         items = json.loads(rv.data)['items']
         expected = [
             {
-                'id': 30,
-                'context': '00000000',
-                'koji_tag': None,
-                'name': 'testmodule',
-                'rebuild_strategy': 'changed-and-after',
-                'owner': 'some_other_user',
-                'scmurl': ('git://pkgs.domain.local/modules/testmodule?'
-                           '#ca95886c7a443b36a9ce31abda1f9bef22f2f8c9'),
-                'state': 1,
-                'state_name': 'wait',
-                'state_reason': None,
-                'stream': '4.3.43',
-                'tasks': {
-                    'rpms': {
-                        'module-build-macros': {
-                            'nvr': 'module-build-macros-01-1.module+30+8d3cee59',
-                            'state': 1,
-                            'state_reason': None,
-                            'task_id': 47384002
+                "state_name": "wait",
+                "name": "testmodule",
+                "tasks": {
+                    "rpms": {
+                        "module-build-macros": {
+                            "state": 1,
+                            "state_reason": None,
+                            "task_id": 47383994,
+                            "nvr": "module-build-macros-01-1.module+6+8d3cee59"
                         },
-                        'rubygem-rails': {
-                            'nvr': 'postgresql-9.5.3-4.module+30+8d3cee59',
-                            'state': 3,
-                            'state_reason': None,
-                            'task_id': 2433442
+                        "rubygem-rails": {
+                            "state": 3,
+                            "state_reason": None,
+                            "task_id": 2433434,
+                            "nvr": "postgresql-9.5.3-4.module+6+8d3cee59"
                         }
                     }
                 },
-                'time_completed': None,
-                'time_modified': '2016-09-03T13:58:40Z',
-                'time_submitted': '2016-09-03T13:58:33Z',
-                'version': '6'
+                "owner": "some_other_user",
+                "version": "6",
+                "state_reason": None,
+                "state": 1,
+                "stream": "4.3.43",
+                "time_submitted": "2016-09-03T12:38:33Z",
+                "scmurl": "git://pkgs.domain.local/modules/testmodule?#ca95886c7a443b36a9ce31abda1f9bef22f2f8c9",
+                "id": 6,
+                "context": "00000000",
+                "time_completed": None,
+                "time_modified": "2016-09-03T12:38:40Z",
+                "rebuild_strategy": "changed-and-after",
+                "koji_tag": None
             },
             {
-                'id': 29,
-                'context': '00000000',
-                'koji_tag': 'module-postgressql-1.2',
-                'name': 'postgressql',
-                'owner': 'some_user',
-                'rebuild_strategy': 'changed-and-after',
-                'scmurl': ('git://pkgs.domain.local/modules/postgressql?'
-                           '#aa95886c7a443b36a9ce31abda1f9bef22f2f8c9'),
-                'state': 3,
-                'state_name': 'done',
-                'state_reason': None,
-                'stream': '1',
-                'tasks': {
-                    'rpms': {
-                        'module-build-macros': {
-                            'nvr': 'module-build-macros-01-1.module+29+0557c87d',
-                            'state': 1,
-                            'state_reason': None,
-                            'task_id': 47384002
+                "state_name": "done",
+                "name": "postgressql",
+                "tasks": {
+                    "rpms": {
+                        "module-build-macros": {
+                            "state": 1,
+                            "state_reason": None,
+                            "task_id": 47383994,
+                            "nvr": "module-build-macros-01-1.module+5+0557c87d"
                         },
-                        'postgresql': {
-                            'nvr': 'postgresql-9.5.3-4.module+29+0557c87d',
-                            'state': 1,
-                            'state_reason': None,
-                            'task_id': 2433442
+                        "postgresql": {
+                            "state": 1,
+                            "state_reason": None,
+                            "task_id": 2433434,
+                            "nvr": "postgresql-9.5.3-4.module+5+0557c87d"
                         }
                     }
                 },
-                'time_completed': '2016-09-03T12:57:19Z',
-                'time_modified': '2016-09-03T13:57:19Z',
-                'time_submitted': '2016-09-03T13:55:33Z',
-                'version': '2'
+                "owner": "some_user",
+                "version": "2",
+                "state_reason": None,
+                "state": 3,
+                "stream": "1",
+                "time_submitted": "2016-09-03T12:35:33Z",
+                "scmurl": "git://pkgs.domain.local/modules/postgressql?#aa95886c7a443b36a9ce31abda1f9bef22f2f8c9",
+                "id": 5,
+                "context": "00000000",
+                "time_completed": "2016-09-03T11:37:19Z",
+                "time_modified": "2016-09-03T12:37:19Z",
+                "rebuild_strategy": "changed-and-after",
+                "koji_tag": "module-postgressql-1.2"
             }
         ]
         assert items == expected
@@ -357,7 +355,7 @@ class TestViews:
         rv = self.client.get('/module-build-service/1/component-builds/'
                              '?format=rpms')
         data = json.loads(rv.data)
-        assert data['meta']['total'] == 60
+        assert data['meta']['total'] == 12
 
     def test_query_component_builds_filter_ref(self):
         rv = self.client.get('/module-build-service/1/component-builds/'
@@ -368,7 +366,7 @@ class TestViews:
     def test_query_component_builds_filter_tagged(self):
         rv = self.client.get('/module-build-service/1/component-builds/?tagged=true')
         data = json.loads(rv.data)
-        assert data['meta']['total'] == 40
+        assert data['meta']['total'] == 8
 
     def test_query_component_builds_filter_nvr(self):
         rv = self.client.get('/module-build-service/1/component-builds/?nvr=nginx-1.10.1-2.'
@@ -384,12 +382,12 @@ class TestViews:
     def test_query_builds_filter_name(self):
         rv = self.client.get('/module-build-service/1/module-builds/?name=nginx')
         data = json.loads(rv.data)
-        assert data['meta']['total'] == 10
+        assert data['meta']['total'] == 2
 
     def test_query_builds_filter_koji_tag(self):
         rv = self.client.get('/module-build-service/1/module-builds/?koji_tag=module-nginx-1.2')
         data = json.loads(rv.data)
-        assert data['meta']['total'] == 10
+        assert data['meta']['total'] == 2
 
     def test_query_builds_filter_completed_before(self):
         rv = self.client.get(
@@ -399,51 +397,51 @@ class TestViews:
 
     def test_query_builds_filter_completed_after(self):
         rv = self.client.get(
-            '/module-build-service/1/module-builds/?completed_after=2016-09-03T12:25:00Z')
+            '/module-build-service/1/module-builds/?completed_after=2016-09-03T11:35:00Z')
         data = json.loads(rv.data)
-        assert data['meta']['total'] == 8
+        assert data['meta']['total'] == 2
 
     def test_query_builds_filter_submitted_before(self):
         rv = self.client.get(
-            '/module-build-service/1/module-builds/?submitted_before=2016-09-03T12:25:00Z')
+            '/module-build-service/1/module-builds/?submitted_before=2016-09-03T11:35:00Z')
         data = json.loads(rv.data)
-        assert data['meta']['total'] == 7
+        assert data['meta']['total'] == 2
 
     def test_query_builds_filter_submitted_after(self):
         rv = self.client.get(
-            '/module-build-service/1/module-builds/?submitted_after=2016-09-03T12:25:00Z')
+            '/module-build-service/1/module-builds/?submitted_after=2016-09-03T11:35:00Z')
         data = json.loads(rv.data)
-        assert data['meta']['total'] == 23
+        assert data['meta']['total'] == 4
 
     def test_query_builds_filter_modified_before(self):
         rv = self.client.get(
-            '/module-build-service/1/module-builds/?modified_before=2016-09-03T12:25:00Z')
+            '/module-build-service/1/module-builds/?modified_before=2016-09-03T11:35:00Z')
         data = json.loads(rv.data)
-        assert data['meta']['total'] == 6
+        assert data['meta']['total'] == 1
 
     def test_query_builds_filter_modified_after(self):
         rv = self.client.get(
-            '/module-build-service/1/module-builds/?modified_after=2016-09-03T12:25:00Z')
+            '/module-build-service/1/module-builds/?modified_after=2016-09-03T11:35:00Z')
         data = json.loads(rv.data)
-        assert data['meta']['total'] == 24
+        assert data['meta']['total'] == 5
 
     def test_query_builds_filter_owner(self):
         rv = self.client.get(
             '/module-build-service/1/module-builds/?owner=Moe%20Szyslak')
         data = json.loads(rv.data)
-        assert data['meta']['total'] == 10
+        assert data['meta']['total'] == 2
 
     def test_query_builds_filter_state(self):
         rv = self.client.get(
             '/module-build-service/1/module-builds/?state=3')
         data = json.loads(rv.data)
-        assert data['meta']['total'] == 20
+        assert data['meta']['total'] == 4
 
     def test_query_builds_two_filters(self):
         rv = self.client.get('/module-build-service/1/module-builds/?owner=Moe%20Szyslak'
-                             '&modified_after=2016-09-03T12:25:00Z')
+                             '&modified_after=2016-09-03T11:35:00Z')
         data = json.loads(rv.data)
-        assert data['meta']['total'] == 4
+        assert data['meta']['total'] == 1
 
     def test_query_builds_filter_nsv(self):
         rv = self.client.get(
@@ -454,7 +452,7 @@ class TestViews:
             assert item['name'] == 'postgressql'
             assert item['stream'] == '1'
             assert item['version'] == '2'
-        assert data['meta']['total'] == 10
+        assert data['meta']['total'] == 2
 
     def test_query_builds_filter_invalid_date(self):
         rv = self.client.get(
@@ -526,10 +524,10 @@ class TestViews:
         assert data['time_completed'] is None
         assert data['stream'] == 'master'
         assert data['owner'] == 'Homer J. Simpson'
-        assert data['id'] == 31
+        assert data['id'] == 7
         assert data['rebuild_strategy'] == 'changed-and-after'
         assert data['state_name'] == 'init'
-        assert data['state_url'] == '/module-build-service/1/module-builds/31'
+        assert data['state_url'] == '/module-build-service/1/module-builds/7'
         assert len(data['state_trace']) == 1
         assert data['state_trace'][0]['state'] == 0
         assert data['tasks'] == {}
@@ -616,7 +614,7 @@ class TestViews:
         assert data['time_completed'] is None
         assert data['stream'] == 'master'
         assert data['owner'] == 'Homer J. Simpson'
-        assert data['id'] == 31
+        assert data['id'] == 7
         assert data['state_name'] == 'init'
         assert data['rebuild_strategy'] == 'changed-and-after'
 
@@ -681,7 +679,7 @@ class TestViews:
 
     @patch('module_build_service.auth.get_user', return_value=other_user)
     def test_cancel_build(self, mocked_get_user):
-        rv = self.client.patch('/module-build-service/1/module-builds/30',
+        rv = self.client.patch('/module-build-service/1/module-builds/6',
                                data=json.dumps({'state': 'failed'}))
         data = json.loads(rv.data)
 
@@ -690,11 +688,11 @@ class TestViews:
 
     @patch('module_build_service.auth.get_user', return_value=other_user)
     def test_cancel_build_already_failed(self, mocked_get_user):
-        module = ModuleBuild.query.filter_by(id=30).one()
+        module = ModuleBuild.query.filter_by(id=6).one()
         module.state = 4
         db.session.add(module)
         db.session.commit()
-        rv = self.client.patch('/module-build-service/1/module-builds/30',
+        rv = self.client.patch('/module-build-service/1/module-builds/6',
                                data=json.dumps({'state': 'failed'}))
         data = json.loads(rv.data)
 
@@ -703,7 +701,7 @@ class TestViews:
 
     @patch('module_build_service.auth.get_user', return_value=('sammy', set()))
     def test_cancel_build_unauthorized_no_groups(self, mocked_get_user):
-        rv = self.client.patch('/module-build-service/1/module-builds/30',
+        rv = self.client.patch('/module-build-service/1/module-builds/6',
                                data=json.dumps({'state': 'failed'}))
         data = json.loads(rv.data)
 
@@ -712,7 +710,7 @@ class TestViews:
 
     @patch('module_build_service.auth.get_user', return_value=('sammy', set(["packager"])))
     def test_cancel_build_unauthorized_not_owner(self, mocked_get_user):
-        rv = self.client.patch('/module-build-service/1/module-builds/30',
+        rv = self.client.patch('/module-build-service/1/module-builds/6',
                                data=json.dumps({'state': 'failed'}))
         data = json.loads(rv.data)
 
@@ -724,7 +722,7 @@ class TestViews:
     def test_cancel_build_admin(self, mocked_get_user):
         with patch("module_build_service.config.Config.admin_groups",
                    new_callable=PropertyMock, return_value=set(["mbs-admin"])):
-            rv = self.client.patch('/module-build-service/1/module-builds/30',
+            rv = self.client.patch('/module-build-service/1/module-builds/6',
                                    data=json.dumps({'state': 'failed'}))
             data = json.loads(rv.data)
 
@@ -736,7 +734,7 @@ class TestViews:
     def test_cancel_build_no_admin(self, mocked_get_user):
         with patch("module_build_service.config.Config.admin_groups",
                    new_callable=PropertyMock, return_value=set(["mbs-admin"])):
-            rv = self.client.patch('/module-build-service/1/module-builds/30',
+            rv = self.client.patch('/module-build-service/1/module-builds/6',
                                    data=json.dumps({'state': 'failed'}))
             data = json.loads(rv.data)
 
@@ -745,7 +743,7 @@ class TestViews:
 
     @patch('module_build_service.auth.get_user', return_value=other_user)
     def test_cancel_build_wrong_param(self, mocked_get_user):
-        rv = self.client.patch('/module-build-service/1/module-builds/30',
+        rv = self.client.patch('/module-build-service/1/module-builds/6',
                                data=json.dumps({'some_param': 'value'}))
         data = json.loads(rv.data)
 
@@ -755,7 +753,7 @@ class TestViews:
 
     @patch('module_build_service.auth.get_user', return_value=other_user)
     def test_cancel_build_wrong_state(self, mocked_get_user):
-        rv = self.client.patch('/module-build-service/1/module-builds/30',
+        rv = self.client.patch('/module-build-service/1/module-builds/6',
                                data=json.dumps({'state': 'some_state'}))
         data = json.loads(rv.data)
 

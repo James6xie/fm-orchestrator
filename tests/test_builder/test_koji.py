@@ -55,7 +55,7 @@ class FakeKojiModuleBuilder(KojiModuleBuilder):
 class TestKojiBuilder:
 
     def setup_method(self, test_method):
-        init_data()
+        init_data(1)
         self.config = mock.Mock()
         self.config.koji_profile = conf.koji_profile
         self.config.koji_repository_url = conf.koji_repository_url
@@ -88,7 +88,7 @@ class TestKojiBuilder:
         build_tagged = [{"nvr": "foo-1.0-1.module+e0095747", "task_id": 12345, 'build_id': 91}]
         dest_tagged = [{"nvr": "foo-1.0-1.module+e0095747", "task_id": 12345, 'build_id': 91}]
         builder.koji_session.listTagged.side_effect = [build_tagged, dest_tagged]
-        module_build = module_build_service.models.ModuleBuild.query.get(30)
+        module_build = module_build_service.models.ModuleBuild.query.get(3)
         component_build = module_build.component_builds[0]
         component_build.task_id = None
         component_build.state = None
@@ -103,7 +103,7 @@ class TestKojiBuilder:
         assert actual[0].build_name == 'rubygem-rails'
         assert actual[0].build_version == '1.0'
         assert actual[0].build_release == '1.module+e0095747'
-        assert actual[0].module_build_id == 30
+        assert actual[0].module_build_id == 3
         assert type(actual[1]) == module_build_service.messaging.KojiTagChange
         assert actual[1].tag == 'module-foo-build'
         assert actual[1].artifact == 'rubygem-rails'
@@ -142,7 +142,7 @@ class TestKojiBuilder:
             'build_id': 91
         }
         builder.koji_session.getBuild.return_value = build_info
-        module_build = module_build_service.models.ModuleBuild.query.get(30)
+        module_build = module_build_service.models.ModuleBuild.query.get(3)
         component_build = module_build.component_builds[0]
         component_build.task_id = None
         component_build.nvr = None
@@ -157,7 +157,7 @@ class TestKojiBuilder:
         assert actual[0].build_name == 'rubygem-rails'
         assert actual[0].build_version == '1.0'
         assert actual[0].build_release == '1.{0}'.format(dist_tag)
-        assert actual[0].module_build_id == 30
+        assert actual[0].module_build_id == 3
         assert component_build.state == koji.BUILD_STATES['COMPLETE']
         assert component_build.task_id == 12345
         assert component_build.state_reason == 'Found existing build'
@@ -183,7 +183,7 @@ class TestKojiBuilder:
             "release": "nope",
         }]
         builder.koji_session.untaggedBuilds.return_value = untagged
-        module_build = module_build_service.models.ModuleBuild.query.get(30)
+        module_build = module_build_service.models.ModuleBuild.query.get(3)
         component_build = module_build.component_builds[0]
         component_build.task_id = None
         component_build.nvr = None

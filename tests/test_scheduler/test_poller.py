@@ -21,7 +21,7 @@
 import pytest
 from mock import patch
 from module_build_service import models, conf
-from tests import test_reuse_component_init_data, init_data, db
+from tests import reuse_component_init_data, init_data, db, clean_database
 import mock
 import koji
 from module_build_service.scheduler.producer import MBSProducer
@@ -37,10 +37,10 @@ from datetime import datetime, timedelta
 class TestPoller:
 
     def setup_method(self, test_method):
-        test_reuse_component_init_data()
+        reuse_component_init_data()
 
     def teardown_method(self, test_method):
-        init_data()
+        clean_database()
 
     @pytest.mark.parametrize('fresh', [True, False])
     @patch('module_build_service.utils.start_build_component')

@@ -38,7 +38,7 @@ from mock import patch, PropertyMock, Mock
 from werkzeug.datastructures import FileStorage
 import kobo
 
-from tests import app, test_reuse_component_init_data, clean_database
+from tests import app, reuse_component_init_data, clean_database
 import json
 import itertools
 
@@ -799,7 +799,7 @@ class TestBuild:
         Tests that we do not try building module-build-macros when reusing all
         components in a module build.
         """
-        test_reuse_component_init_data()
+        reuse_component_init_data()
 
         def on_build_cb(cls, artifact_name, source):
             raise ValueError("All components should be reused, not build.")
@@ -850,7 +850,7 @@ class TestBuild:
         Tests that we can reuse components even when the reused module does
         not have module-build-macros component.
         """
-        test_reuse_component_init_data()
+        reuse_component_init_data()
 
         models.ComponentBuild.query.filter_by(package="module-build-macros").delete()
         assert len(models.ComponentBuild.query.filter_by(package="module-build-macros").all()) == 0
@@ -1020,7 +1020,8 @@ class TestBuild:
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     def test_submit_build_resume_recover_orphaned_macros(
-            self, mocked_scm, mocked_get_user, conf_system, dbg):
+            self, mocked_scm, mocked_get_user, conf_system, dbg,
+            pdc_module_inactive):
         """
         Tests that resuming the build works when module-build-macros is orphaned but marked as
         failed in the database

@@ -89,14 +89,18 @@ def clean_database():
     db.create_all()
 
 
-def init_data():
+def init_data(data_size=10):
+    """
+    Creates data_size * 3 modules in database in different states and
+    with different component builds. See _populate_data for more info.
+    """
     clean_database()
     with make_session(conf) as session:
-        _populate_data(session)
+        _populate_data(session, data_size)
 
 
-def _populate_data(session):
-    for index in range(10):
+def _populate_data(session, data_size=10):
+    for index in range(data_size):
         build_one = ModuleBuild()
         build_one.name = 'nginx'
         build_one.stream = '1'
@@ -366,7 +370,7 @@ def scheduler_init_data(tangerine_state=None):
         session.commit()
 
 
-def test_reuse_component_init_data():
+def reuse_component_init_data():
     clean_database()
 
     current_dir = os.path.dirname(__file__)
@@ -532,7 +536,7 @@ def test_reuse_component_init_data():
         session.commit()
 
 
-def test_reuse_shared_userspace_init_data():
+def reuse_shared_userspace_init_data():
     clean_database()
 
     with make_session(conf) as session:

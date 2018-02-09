@@ -27,7 +27,7 @@ from mock import patch
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.repos
 import module_build_service.models
-from tests import test_reuse_component_init_data
+from tests import reuse_component_init_data
 from tests import conf, db
 
 import koji
@@ -36,7 +36,7 @@ import koji
 class TestTagTagged:
 
     def setup_method(self, test_method):
-        test_reuse_component_init_data()
+        reuse_component_init_data()
 
     @mock.patch('module_build_service.models.ModuleBuild.from_tag_change_event')
     def test_no_matching_module(self, from_tag_change_event):

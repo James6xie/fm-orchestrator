@@ -35,7 +35,7 @@ from tests import init_data
 class TestLogger:
 
     def setup_method(self, test_method):
-        init_data()
+        init_data(1)
         test_id = '.'.join([
             path.splitext(path.basename(__file__))[0],
             test_method.im_class.__name__,

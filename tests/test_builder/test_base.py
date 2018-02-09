@@ -34,7 +34,7 @@ from mock import patch
 class TestGenericBuilder:
 
     def setup_method(self, test_method):
-        init_data()
+        init_data(1)
         self.module = module_build_service.models.ModuleBuild.query.filter_by(id=1).one()
 
     @patch('module_build_service.resolver.PDCResolver')
