@@ -254,7 +254,8 @@ class TestViews:
                 "state": 1,
                 "stream": "4.3.43",
                 "time_submitted": "2016-09-03T12:38:33Z",
-                "scmurl": "git://pkgs.domain.local/modules/testmodule?#ca95886c7a443b36a9ce31abda1f9bef22f2f8c9",
+                "scmurl": ("git://pkgs.domain.local/modules/testmodule"
+                           "?#ca95886c7a443b36a9ce31abda1f9bef22f2f8c9"),
                 "id": 6,
                 "context": "00000000",
                 "time_completed": None,
@@ -287,7 +288,8 @@ class TestViews:
                 "state": 3,
                 "stream": "1",
                 "time_submitted": "2016-09-03T12:35:33Z",
-                "scmurl": "git://pkgs.domain.local/modules/postgressql?#aa95886c7a443b36a9ce31abda1f9bef22f2f8c9",
+                "scmurl": ("git://pkgs.domain.local/modules/postgressql"
+                           "?#aa95886c7a443b36a9ce31abda1f9bef22f2f8c9"),
                 "id": 5,
                 "context": "00000000",
                 "time_completed": "2016-09-03T11:37:19Z",

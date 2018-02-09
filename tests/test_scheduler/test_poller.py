@@ -21,7 +21,7 @@
 import pytest
 from mock import patch
 from module_build_service import models, conf
-from tests import reuse_component_init_data, init_data, db, clean_database
+from tests import reuse_component_init_data, db, clean_database
 import mock
 import koji
 from module_build_service.scheduler.producer import MBSProducer

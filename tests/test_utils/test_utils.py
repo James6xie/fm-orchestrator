@@ -29,9 +29,8 @@ import module_build_service.utils
 import module_build_service.scm
 from module_build_service import models, conf
 from module_build_service.errors import ProgrammingError, ValidationError, UnprocessableEntity
-from tests import (reuse_component_init_data, init_data, db,
-                   reuse_shared_userspace_init_data,
-                   clean_database)
+from tests import (
+    reuse_component_init_data, db, reuse_shared_userspace_init_data, clean_database)
 import mock
 import koji
 import pytest
@@ -74,6 +73,7 @@ class FakeSCM(object):
 
     def get_module_yaml(self):
         return path.join(self.sourcedir, self.name + ".yaml")
+
 
 class TestUtilsComponentReuse:
 
