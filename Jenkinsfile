@@ -38,7 +38,7 @@ node('factory2'){
         stage('Run Test Suite') {
             timeout(20) {
                 // Run tox in the SCL environment
-                onmyduffynode 'cd fm-orchestrator && scl enable python27 \'tox -r -e flake8\' && scl enable python27 \'tox -r -e py27\''
+                onmyduffynode 'cd fm-orchestrator && scl enable python27 \'tox -r\''
             }
         }
 
