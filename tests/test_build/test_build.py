@@ -1215,6 +1215,60 @@ class TestBuild:
         }
         assert data == expected
 
+    @patch('module_build_service.auth.get_user', return_value=user)
+    @patch('module_build_service.scm.SCM')
+    def test_submit_build_repo_regen_not_started_batch(self, mocked_scm, mocked_get_user,
+                                                       conf_system, dbg, pdc_module_inactive):
+        """
+        Tests that if MBS starts a new batch, the concurrent component threshold is met before a
+        build can start, and an unexpected repo regen occurs, the build will not fail.
+
+        See: https://pagure.io/fm-orchestrator/issue/864
+        """
+        FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+
+        rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
+            {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+                'testmodule.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4'}))
+
+        data = json.loads(rv.data)
+        module_build_id = data['id']
+
+        def _stop_condition(message):
+            # Stop the backend if the module batch is 2 (where we simulate the concurrent threshold
+            # being met). For safety, also stop the backend if the module erroneously completes.
+            module = db.session.query(models.ModuleBuild).get(module_build_id)
+            return module.batch == 2 or module.state >= models.BUILD_STATES['done']
+
+        with patch('module_build_service.utils.at_concurrent_component_threshold') as mock_acct:
+            # Once we get to batch 2, then simulate the concurrent threshold being met
+            def _at_concurrent_component_threshold(config, session):
+                return db.session.query(models.ModuleBuild).get(module_build_id).batch == 2
+            mock_acct.side_effect = _at_concurrent_component_threshold
+            module_build_service.scheduler.main([], _stop_condition)
+
+        # Only module-build-macros should be built
+        for build in db.session.query(models.ComponentBuild).filter_by(
+                module_id=module_build_id).all():
+            if build.package == 'module-build-macros':
+                assert build.state == koji.BUILD_STATES['COMPLETE']
+            else:
+                assert build.state is None
+            assert build.module_build.state == models.BUILD_STATES['build']
+
+        # Simulate a random repo regen message that MBS didn't expect
+        cleanup_moksha()
+        module = db.session.query(models.ModuleBuild).first()
+        msgs = [module_build_service.messaging.KojiRepoChange(
+            msg_id='a faked internal message', repo_tag=module.koji_tag + '-build')]
+        db.session.expire_all()
+        # Stop after processing the seeded message
+        module_build_service.scheduler.main(msgs, lambda message: True)
+        # Make sure the module build didn't fail so that the poller can resume it later
+        module = db.session.query(models.ModuleBuild).get(module_build_id)
+        assert module.state == models.BUILD_STATES['build']
+
 
 @patch("module_build_service.config.Config.system",
        new_callable=PropertyMock, return_value="testlocal")

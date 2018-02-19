@@ -37,7 +37,7 @@ def done(config, session, msg):
 
     # First, find our ModuleBuild associated with this repo, if any.
     tag = msg.repo_tag
-    if config.system == "koji" and not tag.endswith('-build'):
+    if config.system in ('koji', 'test') and not tag.endswith('-build'):
         log.debug("Tag %r does not end with '-build' suffix, ignoring" % tag)
         return
     tag = tag[:-6] if tag.endswith('-build') else tag
@@ -63,6 +63,9 @@ def done(config, session, msg):
         ]
         if untagged_components:
             log.info("Ignoring repo regen, because not all components are tagged.")
+            return
+        if all([c.state is None for c in module_build.current_batch()]):
+            log.info("Ignoring repo regen because no components have started in the batch.")
             return
 
     # If there are no components in this module build, then current_batch will be empty
