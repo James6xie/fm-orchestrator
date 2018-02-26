@@ -21,6 +21,7 @@
 #
 # Written by Matt Prahl <mprahl@redhat.com> except for the test functions
 
+from __future__ import print_function
 from flask_script import Manager
 from functools import wraps
 import flask_migrate

@@ -26,6 +26,9 @@ $script = <<SCRIPT
         python-qpid \
         python-virtualenv \
         python-futures \
+        python3 \
+        python3-devel \
+        python3-docutils \
         redhat-rpm-config \
         redhat-rpm-config \
         rpm-build \
