@@ -476,7 +476,6 @@ class PDCResolver(GenericResolver):
                 'name': module_name,
                 'version': module_stream,
                 'active': True}
-            module = self._get_module(module_info)
 
             commit_hash = None
             version = None
