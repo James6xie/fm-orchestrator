@@ -21,6 +21,7 @@ $script = <<SCRIPT
         python-devel \
         python-docutils \
         python-flask \
+        python-gobject-base \
         python-m2ext \
         python-mock \
         python-qpid \
@@ -33,7 +34,8 @@ $script = <<SCRIPT
         redhat-rpm-config \
         rpm-build \
         swig \
-        systemd-devel
+        systemd-devel \
+        https://kojipkgs.fedoraproject.org//packages/libmodulemd/1.0.4/1.fc26/x86_64/libmodulemd-1.0.4-1.fc26.x86_64.rpm
     cd /opt/module_build_service
     python setup.py develop
     python setup.py egg_info

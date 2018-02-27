@@ -238,7 +238,7 @@ class KojiModuleBuilder(GenericBuilder):
         # module-build-macros to conflict with these filtered RPMs to ensure
         # they won't be installed to buildroot.
         filter_conflicts = ""
-        for req_name, req_data in mmd.xmd["mbs"]["buildrequires"].items():
+        for req_name, req_data in mmd.get_xmd()["mbs"]["buildrequires"].items():
             if req_data["filtered_rpms"]:
                 filter_conflicts += "# Filtered rpms from %s module:\n" % (
                     req_name)
@@ -300,8 +300,9 @@ chmod 644 %buildroot/%_sysconfdir/rpm/macros.zz-modules
            filter_conflicts=filter_conflicts)
 
         modulemd_macros = ""
-        if mmd.buildopts and mmd.buildopts.rpms:
-            modulemd_macros = mmd.buildopts.rpms.macros
+        rpm_buildopts = mmd.get_rpm_buildopts()
+        if rpm_buildopts:
+            modulemd_macros = rpm_buildopts.get('macros')
 
         macros_content = """
 

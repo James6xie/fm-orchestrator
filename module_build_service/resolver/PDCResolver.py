@@ -26,7 +26,9 @@
 
 """PDC handler functions."""
 
-import modulemd
+import gi
+gi.require_version('Modulemd', '1.0')  # noqa
+from gi.repository import Modulemd
 import pdc_client
 from module_build_service import db
 from module_build_service import models
@@ -99,7 +101,7 @@ class PDCResolver(GenericResolver):
             return True
 
         def is_modulemd(data):
-            return isinstance(data, modulemd.ModuleMetadata)
+            return isinstance(data, Modulemd.Module)
 
         def is_module_str(data):
             return isinstance(data, six.string_types)
@@ -110,14 +112,11 @@ class PDCResolver(GenericResolver):
             result = self._variant_dict_from_str(data)
 
         elif is_modulemd(data):
-            result = {'variant_id': data.name}
-            # Check if this is an old modulemd that doesn't use the new nomenclature
-            if hasattr(data, 'release'):
-                result['variant_release'] = data.release
-                result['variant_version'] = data.version
-            else:
-                result['variant_release'] = data.version
-                result['variant_version'] = data.stream
+            result = {
+                'variant_id': data.get_name(),
+                'variant_release': data.get_version(),
+                'variant_version': data.get_stream()
+            }
 
         elif is_variant_dict(data):
             result = data.copy()
@@ -308,11 +307,17 @@ class PDCResolver(GenericResolver):
         # module was built. But we still should fallback to plain mmd.requires
         # in case this module depends on some older module for which we did
         # not populate mmd.xmd['mbs']['requires'].
-        if mmd.xmd.get('mbs') and mmd.xmd['mbs'].get('requires'):
-            requires = mmd.xmd['mbs']['requires']
-            requires = {name: data['stream'] for name, data in requires.items()}
+        mbs_xmd = mmd.get_xmd().get('mbs')
+        if 'requires' in mbs_xmd.keys():
+            requires = {name: data['stream'] for name, data in mbs_xmd['requires'].items()}
         else:
-            requires = mmd.requires
+            # Since MBS doesn't support v2 modulemds submitted by a user, we will
+            # always only have one stream per require. That way it's safe to just take the first
+            # element of the list.
+            # TODO: Change this once module stream expansion is implemented
+            requires = {
+                name: deps.get()[0]
+                for name, deps in mmd.get_dependencies()[0].get_requires().items()}
 
         for name, stream in requires.items():
             modified_dep = {
@@ -344,7 +349,7 @@ class PDCResolver(GenericResolver):
         results = {}
         for key in keys:
             results[key] = set()
-        for module_name, module_info in mmd.xmd['mbs']['buildrequires'].items():
+        for module_name, module_info in mmd.get_xmd()['mbs']['buildrequires'].items():
             local_modules = models.ModuleBuild.local_modules(
                 db.session, module_name, module_info['stream'])
             if local_modules:
@@ -353,8 +358,8 @@ class PDCResolver(GenericResolver):
                          local_module)
                 dep_mmd = local_module.mmd()
                 for key in keys:
-                    if key in dep_mmd.profiles:
-                        results[key] |= dep_mmd.profiles[key].rpms
+                    if key in dep_mmd.get_profiles().keys():
+                        results[key] |= set(dep_mmd.get_profiles()[key].get_rpms().get())
                 continue
 
             # Find the dep in the built modules in PDC
@@ -368,11 +373,10 @@ class PDCResolver(GenericResolver):
             for module in modules:
                 yaml = module['modulemd']
                 dep_mmd = self.extract_modulemd(yaml)
-
                 # Take note of what rpms are in this dep's profile.
                 for key in keys:
-                    if key in dep_mmd.profiles:
-                        results[key] |= dep_mmd.profiles[key].rpms
+                    if key in dep_mmd.get_profiles().keys():
+                        results[key] |= set(dep_mmd.get_profiles()[key].get_rpms().get())
 
         # Return the union of all rpms in all profiles of the given keys.
         return results
@@ -398,20 +402,20 @@ class PDCResolver(GenericResolver):
         # This is the set we're going to build up and return.
         module_tags = {}
 
-        if not isinstance(module_info, modulemd.ModuleMetadata):
+        if not isinstance(module_info, Modulemd.Module):
             queried_module = self._get_module(module_info, strict=strict)
             yaml = queried_module['modulemd']
             queried_mmd = self.extract_modulemd(yaml, strict=strict)
         else:
             queried_mmd = module_info
 
-        if (not queried_mmd or 'mbs' not in queried_mmd.xmd or
-                'buildrequires' not in queried_mmd.xmd['mbs']):
+        if (not queried_mmd or not queried_mmd.get_xmd().get('mbs') or
+                'buildrequires' not in queried_mmd.get_xmd()['mbs'].keys()):
             raise RuntimeError(
                 'The module "{0!r}" did not contain its modulemd or did not have '
                 'its xmd attribute filled out in PDC'.format(module_info))
 
-        buildrequires = queried_mmd.xmd['mbs']['buildrequires']
+        buildrequires = queried_mmd.get_xmd()['mbs']['buildrequires']
         # Queue up the next tier of deps that we should look at..
         for name, details in buildrequires.items():
             modified_dep = {
@@ -482,17 +486,16 @@ class PDCResolver(GenericResolver):
             filtered_rpms = []
             module = self._get_module(module_info, strict=True)
             if module.get('modulemd'):
-                mmd = modulemd.ModuleMetadata()
-                mmd.loads(module['modulemd'])
-                if mmd.xmd.get('mbs') and mmd.xmd['mbs'].get('commit'):
-                    commit_hash = mmd.xmd['mbs']['commit']
+                mmd = self.extract_modulemd(module['modulemd'])
+                if mmd.get_xmd().get('mbs') and 'commit' in mmd.get_xmd()['mbs'].keys():
+                    commit_hash = mmd.get_xmd()['mbs']['commit']
 
                 # Find out the particular NVR of filtered packages
-                if "rpms" in module and mmd.filter and mmd.filter.rpms:
+                if "rpms" in module and mmd.get_rpm_filter().get():
                     for rpm in module["rpms"]:
                         nvr = kobo.rpmlib.parse_nvra(rpm)
                         # If the package is not filtered, continue
-                        if not nvr["name"] in mmd.filter.rpms:
+                        if not nvr["name"] in mmd.get_rpm_filter().get():
                             continue
 
                         # If the nvr is already in filtered_rpms, continue

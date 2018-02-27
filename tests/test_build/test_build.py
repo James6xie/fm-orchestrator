@@ -37,6 +37,7 @@ from module_build_service import db, models, conf, build_logs
 from mock import patch, PropertyMock, Mock
 from werkzeug.datastructures import FileStorage
 import kobo
+import pytest
 
 from tests import app, reuse_component_init_data, clean_database
 import json
@@ -317,15 +318,20 @@ class TestBuild:
             except Exception:
                 pass
 
+    @pytest.mark.parametrize('mmd_version', [1, 2])
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     def test_submit_build(self, mocked_scm, mocked_get_user, conf_system, dbg,
-                          pdc_module_inactive):
+                          pdc_module_inactive, mmd_version):
         """
         Tests the build of testmodule.yaml using FakeModuleBuilder which
         succeeds everytime.
         """
-        FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
+        if mmd_version == 1:
+            yaml_file = 'testmodule.yaml'
+        else:
+            yaml_file = 'testmodule_v2.yaml'
+        FakeSCM(mocked_scm, 'testmodule', yaml_file,
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(

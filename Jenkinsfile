@@ -26,7 +26,9 @@ node('factory2'){
         stage('Pre Setup Node'){
             // Install EPEL and the SCLs repo
             onmyduffynode 'yum -y install epel-release yum-config-manager centos-release-scl && yum-config-manager --enable rhel-server-rhscl-7-rpms'
-            onmyduffynode 'yum -y install python27 python-devel rh-python36 @development krb5-devel openssl-devel libffi-devel swig createrepo_c'
+            onmyduffynode 'yum -y install python27 python-devel rh-python36 @development krb5-devel openssl-devel libffi-devel swig createrepo_c cairo-gobject-devel gobject-introspection-devel'
+            // Remove this once it's available in the official repos
+            onmyduffynode 'yum -y install https://kojipkgs.fedoraproject.org//packages/libmodulemd/1.0.4/1.fc26/x86_64/libmodulemd-1.0.4-1.fc26.x86_64.rpm'
             // Update pip and setuptools and install tox in the SCL environment
             onmyduffynode 'scl enable python27 \'pip install --upgrade pip setuptools tox\''
             onmyduffynode 'scl enable rh-python36 \'pip install --upgrade pip setuptools tox\''

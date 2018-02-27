@@ -25,14 +25,16 @@ import copy
 
 from mock import patch, PropertyMock
 import pytest
+import gi
+gi.require_version('Modulemd', '1.0')  # noqa
+from gi.repository import Modulemd
 
 import module_build_service.resolver as mbs_resolver
 import module_build_service.utils
 import module_build_service.models
 from module_build_service import app, db
-
+from module_build_service import glib
 import tests
-import modulemd
 
 
 base_dir = os.path.join(os.path.dirname(__file__), "..")
@@ -76,10 +78,12 @@ class TestPDCModule:
         if empty_buildrequires:
             expected = set()
             pdc_item = pdc_module_active.endpoints['unreleasedvariants']['GET'][-1]
-            mmd = modulemd.ModuleMetadata()
-            mmd.loads(pdc_item['modulemd'])
-            mmd.buildrequires = {}
-            mmd.xmd['mbs']['buildrequires'] = {}
+            mmd = Modulemd.Module().new_from_string(pdc_item['modulemd'])
+            # Wipe out the dependencies
+            mmd.set_dependencies()
+            xmd = glib.from_variant_dict(mmd.get_xmd())
+            xmd['mbs']['buildrequires'] = {}
+            mmd.set_xmd(glib.dict_values(xmd))
             pdc_item.update({
                 'modulemd': mmd.dumps(),
                 'build_deps': []
@@ -101,21 +105,25 @@ class TestPDCModule:
         pdc_module_active.endpoints['unreleasedvariants']['GET'].append(
             copy.deepcopy(pdc_module_active.endpoints['unreleasedvariants']['GET'][-1]))
         pdc_item = pdc_module_active.endpoints['unreleasedvariants']['GET'][-1]
-        mmd = modulemd.ModuleMetadata()
-        mmd.loads(pdc_item['modulemd'])
-        mmd.name = 'testmodule2'
-        mmd.version = 20180123171545
-        mmd.requires['testmodule'] = 'master'
-        mmd.xmd['mbs']['requires']['testmodule'] = {
+        mmd = Modulemd.Module().new_from_string(pdc_item['modulemd'])
+        mmd.set_name('testmodule2')
+        mmd.set_version(20180123171545)
+        requires = mmd.get_dependencies()[0].get_requires()
+        requires['testmodule'] = Modulemd.SimpleSet()
+        requires['testmodule'].add('master')
+        mmd.get_dependencies()[0].set_requires(requires)
+        xmd = glib.from_variant_dict(mmd.get_xmd())
+        xmd['mbs']['requires']['testmodule'] = {
             'filtered_rpms': [],
             'ref': '620ec77321b2ea7b0d67d82992dda3e1d67055b4',
             'stream': 'master',
             'version': '20180205135154'
         }
+        mmd.set_xmd(glib.dict_values(xmd))
         pdc_item.update({
             'variant_id': 'testmodule2',
             'variant_name': 'testmodule2',
-            'variant_release': str(mmd.version),
+            'variant_release': str(mmd.get_version()),
             'koji_tag': 'module-ae2adf69caf0e1b6',
             'modulemd': mmd.dumps()
         })
@@ -164,8 +172,8 @@ class TestPDCModule:
     def test_resolve_profiles(self, pdc_module_active):
         yaml_path = os.path.join(
             base_dir, 'staged_data', 'formatted_testmodule.yaml')
-        mmd = modulemd.ModuleMetadata()
-        mmd.load(yaml_path)
+        mmd = Modulemd.Module().new_from_file(yaml_path)
+        mmd.upgrade()
         resolver = mbs_resolver.GenericResolver.create(tests.conf, backend='pdc')
         result = resolver.resolve_profiles(mmd, ('buildroot', 'srpm-buildroot'))
         expected = {
@@ -193,8 +201,8 @@ class TestPDCModule:
 
             yaml_path = os.path.join(
                 base_dir, 'staged_data', 'formatted_testmodule.yaml')
-            mmd = modulemd.ModuleMetadata()
-            mmd.load(yaml_path)
+            mmd = Modulemd.Module().new_from_file(yaml_path)
+            mmd.upgrade()
             resolver = mbs_resolver.GenericResolver.create(tests.conf, backend='pdc')
             result = resolver.resolve_profiles(mmd, ('buildroot', 'srpm-buildroot'))
             expected = {

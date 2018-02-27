@@ -26,13 +26,16 @@ from mock import patch
 import time
 from traceback import extract_stack
 
-import modulemd
+import gi
+gi.require_version('Modulemd', '1.0')  # noqa
+from gi.repository import Modulemd
 import koji
 import module_build_service
 from module_build_service import db
 from module_build_service.utils import get_rpm_release
 from module_build_service.config import init_config
 from module_build_service.models import ModuleBuild, ComponentBuild, make_session, BUILD_STATES
+from module_build_service import glib
 
 
 base_dir = os.path.dirname(__file__)
@@ -271,9 +274,9 @@ def scheduler_init_data(tangerine_state=None):
     current_dir = os.path.dirname(__file__)
     formatted_testmodule_yml_path = os.path.join(
         current_dir, 'staged_data', 'formatted_testmodule.yaml')
-    mmd = modulemd.ModuleMetadata()
-    mmd.load(formatted_testmodule_yml_path)
-    mmd.components.rpms['tangerine'].buildorder = 0
+    mmd = Modulemd.Module().new_from_file(formatted_testmodule_yml_path)
+    mmd.upgrade()
+    mmd.get_rpm_components()['tangerine'].set_buildorder(0)
 
     build_one = module_build_service.models.ModuleBuild()
     build_one.name = 'testmodule'
@@ -376,8 +379,8 @@ def reuse_component_init_data():
     current_dir = os.path.dirname(__file__)
     formatted_testmodule_yml_path = os.path.join(
         current_dir, 'staged_data', 'formatted_testmodule.yaml')
-    mmd = modulemd.ModuleMetadata()
-    mmd.load(formatted_testmodule_yml_path)
+    mmd = Modulemd.Module().new_from_file(formatted_testmodule_yml_path)
+    mmd.upgrade()
 
     build_one = module_build_service.models.ModuleBuild()
     build_one.name = 'testmodule'
@@ -395,9 +398,11 @@ def reuse_component_init_data():
     build_one.time_completed = datetime(2017, 2, 15, 16, 19, 35)
     build_one.rebuild_strategy = 'changed-and-after'
     build_one_component_release = get_rpm_release(build_one)
-    mmd.version = build_one.version
-    mmd.xmd['mbs']['scmurl'] = build_one.scmurl
-    mmd.xmd['mbs']['commit'] = 'ff1ea79fc952143efeed1851aa0aa006559239ba'
+    mmd.set_version(build_one.version)
+    xmd = glib.from_variant_dict(mmd.get_xmd())
+    xmd['mbs']['scmurl'] = build_one.scmurl
+    xmd['mbs']['commit'] = 'ff1ea79fc952143efeed1851aa0aa006559239ba'
+    mmd.set_xmd(glib.dict_values(xmd))
     build_one.modulemd = mmd.dumps()
 
     component_one_build_one = module_build_service.models.ComponentBuild()
@@ -475,9 +480,11 @@ def reuse_component_init_data():
     build_two.time_modified = datetime(2017, 2, 19, 16, 8, 18)
     build_two.rebuild_strategy = 'changed-and-after'
     build_two_component_release = get_rpm_release(build_two)
-    mmd.version = build_one.version
-    mmd.xmd['mbs']['scmurl'] = build_one.scmurl
-    mmd.xmd['mbs']['commit'] = '55f4a0a2e6cc255c88712a905157ab39315b8fd8'
+    mmd.set_version(build_one.version)
+    xmd = glib.from_variant_dict(mmd.get_xmd())
+    xmd['mbs']['scmurl'] = build_one.scmurl
+    xmd['mbs']['commit'] = '55f4a0a2e6cc255c88712a905157ab39315b8fd8'
+    mmd.set_xmd(glib.dict_values(xmd))
     build_two.modulemd = mmd.dumps()
 
     component_one_build_two = module_build_service.models.ComponentBuild()
@@ -540,25 +547,22 @@ def reuse_shared_userspace_init_data():
     clean_database()
 
     with make_session(conf) as session:
-        mmd = modulemd.ModuleMetadata()
-
         # Create shared-userspace-570, state is COMPLETE, all components
         # are properly built.
         current_dir = os.path.dirname(__file__)
         formatted_testmodule_yml_path = os.path.join(
             current_dir, 'staged_data', 'shared-userspace-570.yaml')
-        with open(formatted_testmodule_yml_path, 'r') as f:
-            yaml = f.read()
-            mmd.loads(yaml)
+        mmd = Modulemd.Module().new_from_file(formatted_testmodule_yml_path)
+        mmd.upgrade()
 
         build_one = module_build_service.models.ModuleBuild()
-        build_one.name = mmd.name
-        build_one.stream = mmd.stream
-        build_one.version = mmd.version
+        build_one.name = mmd.get_name()
+        build_one.stream = mmd.get_stream()
+        build_one.version = mmd.get_version()
         build_one.build_context = 'e046b867a400a06a3571f3c71142d497895fefbe'
         build_one.runtime_context = '50dd3eb5dde600d072e45d4120e1548ce66bc94a'
         build_one.state = BUILD_STATES['ready']
-        build_one.modulemd = yaml
+        build_one.modulemd = mmd.dumps()
         build_one.koji_tag = 'module-testmodule-master-20170109091357'
         build_one.scmurl = ('git://pkgs.stg.fedoraproject.org/modules/testmodule.'
                             'git?#7fea453')
@@ -571,21 +575,21 @@ def reuse_shared_userspace_init_data():
 
         session.add(build_one)
 
-        components = mmd.components.all
-        components.sort(key=lambda x: x.buildorder)
+        components = mmd.get_rpm_components().values()
+        components.sort(key=lambda x: x.get_buildorder())
         previous_buildorder = None
         batch = 1
         for pkg in components:
             # Increment the batch number when buildorder increases.
-            if previous_buildorder != pkg.buildorder:
-                previous_buildorder = pkg.buildorder
+            if previous_buildorder != pkg.get_buildorder():
+                previous_buildorder = pkg.get_buildorder()
                 batch += 1
 
-            pkgref = mmd.xmd['mbs']['rpms'][pkg.name]['ref']
-            full_url = pkg.repository + "?#" + pkgref
+            pkgref = mmd.get_xmd()['mbs']['rpms'][pkg.get_name()]['ref']
+            full_url = pkg.get_repository() + "?#" + pkgref
             build = module_build_service.models.ComponentBuild(
                 module_id=1,
-                package=pkg.name,
+                package=pkg.get_name(),
                 format="rpms",
                 scmurl=full_url,
                 batch=batch,
@@ -599,18 +603,17 @@ def reuse_shared_userspace_init_data():
         # Create shared-userspace-577, state is WAIT, no component built
         formatted_testmodule_yml_path = os.path.join(
             current_dir, 'staged_data', 'shared-userspace-577.yaml')
-        with open(formatted_testmodule_yml_path, 'r') as f:
-            yaml = f.read()
-            mmd.loads(yaml)
+        mmd2 = Modulemd.Module().new_from_file(formatted_testmodule_yml_path)
+        mmd2.upgrade()
 
         build_one = module_build_service.models.ModuleBuild()
-        build_one.name = mmd.name
-        build_one.stream = mmd.stream
-        build_one.version = mmd.version
+        build_one.name = mmd2.get_name()
+        build_one.stream = mmd2.get_stream()
+        build_one.version = mmd2.get_version()
         build_one.build_context = 'e046b867a400a06a3571f3c71142d497895fefbe'
         build_one.runtime_context = '50dd3eb5dde600d072e45d4120e1548ce66bc94a'
         build_one.state = BUILD_STATES['done']
-        build_one.modulemd = yaml
+        build_one.modulemd = mmd2.dumps()
         build_one.koji_tag = 'module-testmodule-master-20170109091357'
         build_one.scmurl = ('git://pkgs.stg.fedoraproject.org/modules/testmodule.'
                             'git?#7fea453')
@@ -623,24 +626,24 @@ def reuse_shared_userspace_init_data():
 
         session.add(build_one)
 
-        components = mmd.components.all
+        components2 = mmd2.get_rpm_components().values()
         # Store components to database in different order than for 570 to
         # reproduce the reusing issue.
-        components.sort(key=lambda x: len(x.name))
-        components.sort(key=lambda x: x.buildorder)
+        components2.sort(key=lambda x: len(x.get_name()))
+        components2.sort(key=lambda x: x.get_buildorder())
         previous_buildorder = None
         batch = 1
-        for pkg in components:
+        for pkg in components2:
             # Increment the batch number when buildorder increases.
-            if previous_buildorder != pkg.buildorder:
-                previous_buildorder = pkg.buildorder
+            if previous_buildorder != pkg.get_buildorder():
+                previous_buildorder = pkg.get_buildorder()
                 batch += 1
 
-            pkgref = mmd.xmd['mbs']['rpms'][pkg.name]['ref']
-            full_url = pkg.repository + "?#" + pkgref
+            pkgref = mmd2.get_xmd()['mbs']['rpms'][pkg.get_name()]['ref']
+            full_url = pkg.get_repository() + "?#" + pkgref
             build = module_build_service.models.ComponentBuild(
                 module_id=2,
-                package=pkg.name,
+                package=pkg.get_name(),
                 format="rpms",
                 scmurl=full_url,
                 batch=batch,

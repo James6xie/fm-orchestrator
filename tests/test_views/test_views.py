@@ -22,7 +22,9 @@
 
 import json
 
-import modulemd as _modulemd
+import gi
+gi.require_version('Modulemd', '1.0')  # noqa
+from gi.repository import Modulemd
 import module_build_service.scm
 
 from mock import patch, PropertyMock
@@ -533,8 +535,8 @@ class TestViews:
         assert len(data['state_trace']) == 1
         assert data['state_trace'][0]['state'] == 0
         assert data['tasks'] == {}
-        mmd = _modulemd.ModuleMetadata()
-        mmd.loads(data["modulemd"])
+        mmd = Modulemd.Module().new_from_string(data['modulemd'])
+        mmd.upgrade()
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
@@ -661,7 +663,7 @@ class TestViews:
             {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                 'testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49'}))
         data = json.loads(rv.data)
-        assert data['message'].startswith('Invalid modulemd:') is True
+        assert data['message'].startswith('The following invalid modulemd was encountered') is True
         assert data['status'] == 422
         assert data['error'] == 'Unprocessable Entity'
 
@@ -805,6 +807,20 @@ class TestViews:
         assert data['message'] == ('The stream "wrong_stream" that is stored in the modulemd '
                                    'does not match the branch "master"')
         assert data['error'] == 'Bad Request'
+
+    @patch('module_build_service.auth.get_user', return_value=user)
+    @patch('module_build_service.scm.SCM')
+    def test_submit_build_mse_unsupported(self, mocked_scm, mocked_get_user):
+        FakeSCM(mocked_scm, 'testmodule', 'testmodule_mse.yaml',
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+
+        rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
+            {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+                'testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49'}))
+        data = json.loads(rv.data)
+        assert data['status'] == 422
+        assert data['message'] == 'Module stream expansion is not yet supported in MBS'
+        assert data['error'] == 'Unprocessable Entity'
 
     @patch('module_build_service.auth.get_user', return_value=user)
     def test_submit_build_set_owner(self, mocked_get_user):

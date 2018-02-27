@@ -22,6 +22,7 @@
 import os
 
 from mock import patch, PropertyMock
+from gi.repository import GLib
 
 from tests import conf, clean_database
 from tests.test_views.test_views import FakeSCM
@@ -66,7 +67,7 @@ class TestModuleInit:
         # Make sure the module entered the wait state
         assert build.state == 1, build.state
         # Make sure format_mmd was run properly
-        assert type(build.mmd().xmd['mbs']) is dict
+        assert type(build.mmd().get_xmd()['mbs']) is GLib.Variant
 
     @patch('module_build_service.scm.SCM')
     def test_init_scm_not_available(self, mocked_scm, pdc):
@@ -120,7 +121,7 @@ class TestModuleInit:
             'foo': {'ref': '93dea37599'},
             'file': {'ref': 'a2740663f8'},
         }
-        assert build.mmd().xmd['mbs']['rpms'] == xmd_rpms
+        assert build.mmd().get_xmd()['mbs']['rpms'] == xmd_rpms
 
     @patch('module_build_service.models.ModuleBuild.from_module_event')
     @patch('module_build_service.scm.SCM')

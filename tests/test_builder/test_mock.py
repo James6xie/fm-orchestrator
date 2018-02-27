@@ -5,10 +5,14 @@ import tempfile
 import shutil
 
 import kobo.rpmlib
+import gi
+gi.require_version('Modulemd', '1.0')  # noqa
+from gi.repository import Modulemd
 
 from module_build_service import conf
 from module_build_service.models import ModuleBuild, ComponentBuild, make_session
 from module_build_service.builder.MockModuleBuilder import MockModuleBuilder
+from module_build_service import glib
 from tests import clean_database
 
 
@@ -45,56 +49,55 @@ class TestMockModuleBuilder:
         ]
 
         base_dir = os.path.abspath(os.path.dirname(__file__))
-        modulemd_path = os.path.join(
-            base_dir, '..', 'staged_data', 'testmodule-with-filters.yaml')
+        mmd = Modulemd.Module().new_from_file(os.path.join(
+            base_dir, '..', 'staged_data', 'testmodule-with-filters.yaml'))
+        mmd.upgrade()
 
-        with open(modulemd_path, "r") as fd:
-            module = ModuleBuild.create(
-                session,
-                conf,
-                name="mbs-testmodule",
-                stream="test",
-                version="20171027111452",
-                modulemd=fd.read(),
-                scmurl="file:///testdir",
-                username="test",
-            )
-            module.koji_tag = "module-mbs-testmodule-test-20171027111452"
-            md = module.mmd()
-            md.xmd = {
-                'mbs': {
-                    'rpms': {
-                        'ed': {'ref': '01bf8330812fea798671925cc537f2f29b0bd216'},
-                        'mksh': {'ref': 'f70fd11ddf96bce0e2c64309706c29156b39141d'}
+        module = ModuleBuild.create(
+            session,
+            conf,
+            name="mbs-testmodule",
+            stream="test",
+            version="20171027111452",
+            modulemd=mmd.dumps(),
+            scmurl="file:///testdir",
+            username="test",
+        )
+        module.koji_tag = "module-mbs-testmodule-test-20171027111452"
+        mmd.set_xmd(glib.dict_values({
+            'mbs': {
+                'rpms': {
+                    'ed': {'ref': '01bf8330812fea798671925cc537f2f29b0bd216'},
+                    'mksh': {'ref': 'f70fd11ddf96bce0e2c64309706c29156b39141d'}
+                },
+                'buildrequires':
+                {
+                    'host': {
+                        'version': '20171024133034',
+                        'filtered_rpms': [],
+                        'stream': 'master',
+                        'ref': '6df253bb3c53e84706c01b8ab2d5cac24f0b6d45'
                     },
-                    'buildrequires':
-                    {
-                        'host': {
-                            'version': '20171024133034',
-                            'filtered_rpms': [],
-                            'stream': 'master',
-                            'ref': '6df253bb3c53e84706c01b8ab2d5cac24f0b6d45'
-                        },
-                        'platform': {
-                            'version': '20171028112959',
-                            'filtered_rpms': [],
-                            'stream': 'master',
-                            'ref': '4f7787370a931d57421f9f9555fc41c3e31ff1fa'}
-                    },
-                    'scmurl': 'file:///testdir',
-                    'commit': '5566bc792ec7a03bb0e28edd1b104a96ba342bd8',
-                    'requires': {
-                        'platform': {
-                            'version': '20171028112959',
-                            'filtered_rpms': [],
-                            'stream': 'master',
-                            'ref': '4f7787370a931d57421f9f9555fc41c3e31ff1fa'}
-                    }
+                    'platform': {
+                        'version': '20171028112959',
+                        'filtered_rpms': [],
+                        'stream': 'master',
+                        'ref': '4f7787370a931d57421f9f9555fc41c3e31ff1fa'}
+                },
+                'scmurl': 'file:///testdir',
+                'commit': '5566bc792ec7a03bb0e28edd1b104a96ba342bd8',
+                'requires': {
+                    'platform': {
+                        'version': '20171028112959',
+                        'filtered_rpms': [],
+                        'stream': 'master',
+                        'ref': '4f7787370a931d57421f9f9555fc41c3e31ff1fa'}
                 }
             }
-            module.modulemd = md.dumps()
-            module.batch = batch
-            session.add(module)
+        }))
+        module.modulemd = mmd.dumps()
+        module.batch = batch
+        session.add(module)
 
         for build in comp_builds:
             cb = ComponentBuild(**dict(build, format="rpms", state=state))

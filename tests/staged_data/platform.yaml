@@ -1,6 +1,10 @@
+document: modulemd
+version: 1
 data:
   description: Fedora 28 traditional base
   name: platform
+  license:
+    module: [MIT]
   profiles:
     buildroot:
       rpms: [bash, bzip2, coreutils, cpio, diffutils, fedora-release, findutils, gawk,
@@ -17,5 +21,3 @@ data:
       buildrequires: {}
       commit: virtual
       requires: {}
-document: modulemd
-version: 1

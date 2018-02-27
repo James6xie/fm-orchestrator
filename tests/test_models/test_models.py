@@ -22,7 +22,9 @@
 
 import os
 
-import modulemd
+import gi
+gi.require_version('Modulemd', '1.0')  # noqa
+from gi.repository import Modulemd
 
 from tests.test_models import init_data
 from module_build_service import conf
@@ -63,10 +65,10 @@ class TestModels:
         """ Test that the build_context, runtime_context, and context hashes are correctly
         determined"""
         build = ModuleBuild.query.filter_by(id=1).one()
-        mmd = modulemd.ModuleMetadata()
         yaml_path = os.path.join(
             os.path.dirname(__file__), '..', 'staged_data', 'testmodule_dependencies.yaml')
-        mmd.load(yaml_path)
+        mmd = Modulemd.Module().new_from_file(yaml_path)
+        mmd.upgrade()
         build.modulemd = mmd.dumps()
         build.build_context, build.runtime_context = ModuleBuild.contexts_from_mmd(build.modulemd)
         assert build.build_context == 'f6e2aeec7576196241b9afa0b6b22acf2b6873d7'

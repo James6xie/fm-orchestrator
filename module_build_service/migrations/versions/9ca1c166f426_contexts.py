@@ -14,7 +14,9 @@ from alembic import op
 import sqlalchemy as sa
 
 # Data migration imports
-import modulemd
+import gi
+gi.require_version('Modulemd', '1.0')
+from gi.repository import Modulemd
 import hashlib
 import json
 from collections import OrderedDict
@@ -40,22 +42,23 @@ def upgrade():
     for build in connection.execute(modulebuild.select()):
         if not build.modulemd:
             continue
-        mmd = modulemd.ModuleMetadata()
         try:
-            mmd.loads(build.modulemd)
+            mmd = Modulemd.Module().new_from_string(build.modulemd)
+            mmd.upgrade()
         except Exception:
             # If the modulemd isn't parseable then skip this build
             continue
 
-        mbs_xmd = mmd.xmd.get('mbs', {})
+        mbs_xmd = mmd.get_xmd().get('mbs', {})
         contexts = {}
         for property_name in ['buildrequires', 'requires']:
             # It's possible this module build was built before MBS filled out xmd or before MBS
-            # filled out the requires in xmd
-            if property_name not in mbs_xmd:
+            # filled out the requires in xmd. We also have to use keys because GLib.Variant
+            # doesn't support `in` directly.
+            if property_name not in mbs_xmd.keys():
                 break
-            mmd_property = getattr(mmd, property_name)
-            if mbs_xmd[property_name].keys() != mmd_property.keys():
+            mmd_property = getattr(mmd.get_dependencies()[0], 'get_{0}'.format(property_name))()
+            if set(mbs_xmd[property_name].keys()) != set(mmd_property.keys()):
                 break
             mmd_formatted_property = {
                 dep: info['ref'] for dep, info in mbs_xmd[property_name].items()}

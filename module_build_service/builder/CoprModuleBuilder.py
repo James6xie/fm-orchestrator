@@ -84,12 +84,16 @@ class CoprModuleBuilder(GenericBuilder):
         self._create_module_safe()
         mmd = self.module.mmd()
 
+        # Even though get_buildrequires returns a dictionary with the values as lists, there will
+        # always be a single item in the list after MBS processes it
+        buildrequires_d = {name: dep.get()[0]
+                           for name, dep in mmd.get_dependencies()[0].get_buildrequires().items()}
         buildrequires = ["@{}:{}/{}".format(n, s, "buildroot")
-                         for n, s in mmd.buildrequires.items()]
+                         for n, s in buildrequires_d.items()]
 
-        buildroot_profile = mmd.profiles.get("buildroot")
+        buildroot_profile = mmd.get_profiles().get("buildroot")
         if buildroot_profile:
-            buildrequires.extend(buildroot_profile.rpms)
+            buildrequires.extend(buildroot_profile.get_rpms())
 
         self._update_chroot(packages=buildrequires)
 
@@ -150,9 +154,9 @@ class CoprModuleBuilder(GenericBuilder):
         # Write module's name, stream and version into the modulemd file
         # so Copr can parse it from there
         mmd = self.module.mmd()
-        mmd.name = str(self.module.name)
-        mmd.stream = str(self.module.stream)
-        mmd.version = int(self.module.version)
+        mmd.set_name(str(self.module.name))
+        mmd.set_stream(str(self.module.stream))
+        mmd.set_version(int(self.module.version))
 
         modulemd = tempfile.mktemp()
         mmd.dump(modulemd)

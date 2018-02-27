@@ -26,8 +26,10 @@
 
 import six
 from abc import ABCMeta, abstractmethod
+import gi
+gi.require_version('Modulemd', '1.0')  # noqa
+from gi.repository import Modulemd
 
-import modulemd
 import module_build_service.config as cfg
 from module_build_service import conf
 
@@ -88,8 +90,11 @@ class GenericResolver(six.with_metaclass(ABCMeta)):
 
     @staticmethod
     def extract_modulemd(yaml, strict=False):
-        mmd = modulemd.ModuleMetadata()
-        mmd.loads(yaml)
+        try:
+            mmd = Modulemd.Module().new_from_string(yaml)
+            mmd.upgrade()
+        except Exception:
+            raise ValueError('Invalid modulemd')
         return mmd
 
     @abstractmethod

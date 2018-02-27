@@ -22,7 +22,9 @@ import tempfile
 from os import path, mkdir
 from shutil import copyfile, rmtree
 from datetime import datetime
-import modulemd
+import gi
+gi.require_version('Modulemd', '1.0')  # noqa
+from gi.repository import Modulemd
 from werkzeug.datastructures import FileStorage
 from mock import patch
 import module_build_service.utils
@@ -37,6 +39,7 @@ import pytest
 import module_build_service.scheduler.handlers.components
 from module_build_service.builder.base import GenericBuilder
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
+from module_build_service import glib
 from tests import app
 
 BASE_DIR = path.abspath(path.dirname(__file__))
@@ -90,7 +93,8 @@ class TestUtilsComponentReuse:
         second_module_build = models.ModuleBuild.query.filter_by(id=2).one()
         if changed_component:
             mmd = second_module_build.mmd()
-            mmd.components.rpms[changed_component].ref = '00ea1da4192a2030f9ae023de3b3143ed647bbab'
+            mmd.get_rpm_components()['tangerine'].set_ref(
+                '00ea1da4192a2030f9ae023de3b3143ed647bbab')
             second_module_build.modulemd = mmd.dumps()
             second_module_changed_component = models.ComponentBuild.query.filter_by(
                 package=changed_component, module_id=2).one()
@@ -130,7 +134,7 @@ class TestUtilsComponentReuse:
     def test_get_reusable_component_different_rpm_macros(self):
         second_module_build = models.ModuleBuild.query.filter_by(id=2).one()
         mmd = second_module_build.mmd()
-        mmd.buildopts.rpms.macros = "%my_macro 1"
+        mmd.set_rpm_buildopts({'macros': '%my_macro 1'})
         second_module_build.modulemd = mmd.dumps()
         db.session.commit()
 
@@ -145,8 +149,10 @@ class TestUtilsComponentReuse:
     def test_get_reusable_component_different_buildrequires_hash(self):
         second_module_build = models.ModuleBuild.query.filter_by(id=2).one()
         mmd = second_module_build.mmd()
-        mmd.xmd['mbs']['buildrequires']['platform']['ref'] = \
+        xmd = glib.from_variant_dict(mmd.get_xmd())
+        xmd['mbs']['buildrequires']['platform']['ref'] = \
             'da39a3ee5e6b4b0d3255bfef95601890afd80709'
+        mmd.set_xmd(glib.dict_values(xmd))
         second_module_build.modulemd = mmd.dumps()
         second_module_build.build_context = '37c6c57bedf4305ef41249c1794760b5cb8fad17'
         db.session.commit()
@@ -166,14 +172,18 @@ class TestUtilsComponentReuse:
     def test_get_reusable_component_different_buildrequires(self):
         second_module_build = models.ModuleBuild.query.filter_by(id=2).one()
         mmd = second_module_build.mmd()
-        mmd.buildrequires = {'some_module': 'master'}
-        mmd.xmd['mbs']['buildrequires'] = {
+        br_list = Modulemd.SimpleSet()
+        br_list.add('master')
+        mmd.get_dependencies()[0].set_buildrequires({'some_module': br_list})
+        xmd = glib.from_variant_dict(mmd.get_xmd())
+        xmd['mbs']['buildrequires'] = {
             'some_module': {
                 'ref': 'da39a3ee5e6b4b0d3255bfef95601890afd80709',
                 'stream': 'master',
                 'version': '20170123140147'
             }
         }
+        mmd.set_xmd(glib.dict_values(xmd))
         second_module_build.modulemd = mmd.dumps()
         second_module_build.build_context = '37c6c57bedf4305ef41249c1794760b5cb8fad17'
         db.session.commit()
@@ -218,8 +228,8 @@ class TestUtilsComponentReuse:
             mock_submit_args = mock_submit.call_args[0]
             username_arg = mock_submit_args[0]
             mmd_arg = mock_submit_args[2]
-            assert mmd_arg.stream == stream
-            assert "\n\n%__spec_check_pre exit 0\n" in mmd_arg.buildopts.rpms.macros
+            assert mmd_arg.get_stream() == stream
+            assert "\n\n%__spec_check_pre exit 0\n" in mmd_arg.get_rpm_buildopts()['macros']
             assert username_arg == username
         rmtree(module_dir)
 
@@ -254,21 +264,23 @@ class TestUtils:
             return hashes_returned[ref]
 
         mocked_scm.return_value.get_latest = mocked_get_latest
-        mmd = modulemd.ModuleMetadata()
-        mmd.load(path.join(BASE_DIR, '..', 'staged_data', 'testmodule.yaml'))
+        mmd = Modulemd.Module().new_from_file(
+            path.join(BASE_DIR, '..', 'staged_data', 'testmodule.yaml'))
+        mmd.upgrade()
         # Modify the component branches so we can identify them later on
-        mmd.components.rpms['perl-Tangerine'].ref = 'f28'
-        mmd.components.rpms['tangerine'].ref = 'f27'
+        mmd.get_rpm_components()['perl-Tangerine'].set_ref('f28')
+        mmd.get_rpm_components()['tangerine'].set_ref('f27')
         module_build_service.utils.format_mmd(mmd, scmurl)
 
         # Make sure that original refs are not changed.
-        mmd_pkg_refs = [pkg.ref for pkg in mmd.components.rpms.values()]
+        mmd_pkg_refs = [pkg.get_ref() for pkg in mmd.get_rpm_components().values()]
         assert set(mmd_pkg_refs) == set(hashes_returned.keys())
-
-        assert mmd.buildrequires == {'platform': 'f28'}
+        br = mmd.get_dependencies()[0].get_buildrequires()
+        assert br.keys() == ['platform']
+        assert br.values()[0].get() == ['f28']
         xmd = {
             'mbs': {
-                'commit': None,
+                'commit': '',
                 'buildrequires': {
                     'platform': {
                         'ref': 'virtual',
@@ -285,14 +297,14 @@ class TestUtils:
                     'perl-List-Compare': {'ref': 'fbed359411a1baa08d4a88e0d12d426fbf8f602c'},
                     'perl-Tangerine': {'ref': '4ceea43add2366d8b8c5a622a2fb563b625b9abf'},
                     'tangerine': {'ref': '5deef23acd2367d8b8d5a621a2fc568b695bc3bd'}},
-                'scmurl': None
+                'scmurl': ''
             }
         }
         if scmurl:
             xmd['mbs']['commit'] = '620ec77321b2ea7b0d67d82992dda3e1d67055b4'
             xmd['mbs']['scmurl'] = scmurl
-
-        assert mmd.xmd == xmd
+        mmd_xmd = glib.from_variant_dict(mmd.get_xmd())
+        assert mmd_xmd == xmd
 
     def test_get_reusable_component_shared_userspace_ordering(self):
         """
@@ -423,9 +435,9 @@ class TestUtils:
                 'fbed359411a1baa08d4a88e0d12d426fbf8f602c']
 
             testmodule_mmd_path = path.join(BASE_DIR, '..', 'staged_data', 'testmodule.yaml')
-            mmd = modulemd.ModuleMetadata()
-            mmd.load(testmodule_mmd_path)
-            mmd.name = 'testmodule-variant'
+            mmd = Modulemd.Module().new_from_file(testmodule_mmd_path)
+            mmd.upgrade()
+            mmd.set_name('testmodule-variant')
             module_build = module_build_service.models.ModuleBuild()
             module_build.name = 'testmodule-variant'
             module_build.stream = 'master'
@@ -441,11 +453,13 @@ class TestUtils:
             db.session.add(module_build)
             db.session.commit()
             # Rename the the modulemd to include
-            mmd.name = 'testmodule'
+            mmd.set_name('testmodule')
             # Remove perl-Tangerine and tangerine from the modulemd to include so only one
             # component conflicts
-            mmd.components.rpms.pop('perl-Tangerine')
-            mmd.components.rpms.pop('tangerine')
+            comps = mmd.get_rpm_components()
+            del comps['perl-Tangerine']
+            del comps['tangerine']
+            mmd.set_rpm_components(comps)
 
             error_msg = (
                 'The included module "testmodule" in "testmodule-variant" have '
@@ -469,8 +483,8 @@ class TestUtils:
 
             testmodule_mmd_path = path.join(
                 BASE_DIR, '..', 'staged_data', 'testmodule.yaml')
-            mmd = modulemd.ModuleMetadata()
-            mmd.load(testmodule_mmd_path)
+            mmd = Modulemd.Module().new_from_file(testmodule_mmd_path)
+            mmd.upgrade()
             module_build = module_build_service.models.ModuleBuild()
             module_build.name = 'testmodule'
             module_build.stream = 'master'

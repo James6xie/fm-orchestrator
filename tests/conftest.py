@@ -27,15 +27,25 @@ import six
 import pytest
 import mock
 import pdc_client.test_helpers
-import modulemd
+import gi
+gi.require_version('Modulemd', '1.0')  # noqa
+from gi.repository import Modulemd
+
+from module_build_service import glib
 
 
 BASE_DIR = os.path.dirname(__file__)
 STAGED_DATA_DIR = os.path.join(BASE_DIR, 'staged_data')
-with open(os.path.join(STAGED_DATA_DIR, 'platform.yaml')) as f:
-    PLATFORM_MODULEMD = f.read()
-with open(os.path.join(STAGED_DATA_DIR, 'formatted_testmodule.yaml')) as f:
-    TESTMODULE_MODULEMD = f.read()
+
+_mmd = Modulemd.Module().new_from_file(
+    os.path.join(STAGED_DATA_DIR, 'platform.yaml'))
+_mmd.upgrade()
+PLATFORM_MODULEMD = _mmd.dumps()
+
+_mmd2 = Modulemd.Module().new_from_file(
+    os.path.join(STAGED_DATA_DIR, 'formatted_testmodule.yaml'))
+_mmd2.upgrade()
+TESTMODULE_MODULEMD = _mmd2.dumps()
 
 
 class MockPDCFilterAPI(pdc_client.test_helpers.MockAPI):
@@ -172,27 +182,32 @@ def pdc_module_active(pdc_module_inactive):
 def pdc_module_reuse(pdc_module_active):
     # Rename it for clarity
     pdc_module_reuse = pdc_module_active
-    mmd = modulemd.ModuleMetadata()
-    mmd.loads(TESTMODULE_MODULEMD)
-    mmd.version = 20170219191323
-    mmd.xmd['mbs']['scmurl'] = 'git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#ff1ea79'
-    mmd.xmd['mbs']['commit'] = 'ff1ea79fc952143efeed1851aa0aa006559239ba'
+    mmd = Modulemd.Module().new_from_string(TESTMODULE_MODULEMD)
+    mmd.upgrade()
+    mmd.set_version(20170219191323)
+    xmd = glib.from_variant_dict(mmd.get_xmd())
+    xmd['mbs']['scmurl'] = 'git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#ff1ea79'
+    xmd['mbs']['commit'] = 'ff1ea79fc952143efeed1851aa0aa006559239ba'
+    mmd.set_xmd(glib.dict_values(xmd))
     pdc_module_reuse.endpoints['unreleasedvariants']['GET'].append(
         copy.deepcopy(pdc_module_reuse.endpoints['unreleasedvariants']['GET'][-1]))
     pdc_module_reuse.endpoints['unreleasedvariants']['GET'][-1].update({
-        'variant_uid': 'testmodule:master:{0}'.format(mmd.version),
-        'variant_release': str(mmd.version),
+        'variant_uid': 'testmodule:master:{0}'.format(mmd.get_version()),
+        'variant_release': str(mmd.get_version()),
         'modulemd': mmd.dumps(),
         'koji_tag': 'module-de3adf79caf3e1b8'
     })
-    mmd.version = 20180205135154
-    mmd.xmd['mbs']['scmurl'] = 'git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#55f4a0a'
-    mmd.xmd['mbs']['commit'] = '55f4a0a2e6cc255c88712a905157ab39315b8fd8'
+
+    mmd.set_version(20180205135154)
+    xmd = glib.from_variant_dict(mmd.get_xmd())
+    xmd['mbs']['scmurl'] = 'git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#55f4a0a'
+    xmd['mbs']['commit'] = '55f4a0a2e6cc255c88712a905157ab39315b8fd8'
+    mmd.set_xmd(glib.dict_values(xmd))
     pdc_module_reuse.endpoints['unreleasedvariants']['GET'].append(
         copy.deepcopy(pdc_module_reuse.endpoints['unreleasedvariants']['GET'][-1]))
     pdc_module_reuse.endpoints['unreleasedvariants']['GET'][-1].update({
-        'variant_uid': 'testmodule:master:{0}'.format(mmd.version),
-        'variant_release': str(mmd.version),
+        'variant_uid': 'testmodule:master:{0}'.format(mmd.get_version()),
+        'variant_release': str(mmd.get_version()),
         'modulemd': mmd.dumps(),
         'koji_tag': 'module-fe3adf73caf3e1b7',
         'rpms': [],

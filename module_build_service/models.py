@@ -34,12 +34,13 @@ import hashlib
 import sqlalchemy
 from sqlalchemy.orm import validates, scoped_session, sessionmaker
 from flask import has_app_context
-import modulemd as _modulemd
-
 from module_build_service import db, log, get_url_for, app, conf
 import module_build_service.messaging
 
 from sqlalchemy.orm import lazyload
+import gi
+gi.require_version('Modulemd', '1.0')  # noqa
+from gi.repository import Modulemd
 
 # Just like koji.BUILD_STATES, except our own codes for modules.
 BUILD_STATES = {
@@ -241,9 +242,9 @@ class ModuleBuild(MBSBase):
             ]
 
     def mmd(self):
-        mmd = _modulemd.ModuleMetadata()
         try:
-            mmd.loads(self.modulemd)
+            mmd = Modulemd.Module().new_from_string(self.modulemd)
+            mmd.upgrade()
         except Exception:
             raise ValueError("Invalid modulemd")
         return mmd
@@ -281,14 +282,18 @@ class ModuleBuild(MBSBase):
 
     @staticmethod
     def contexts_from_mmd(mmd_str):
-        mmd = _modulemd.ModuleMetadata()
-        mmd.loads(mmd_str)
-        mbs_xmd = mmd.xmd.get('mbs', {})
+        try:
+            mmd = Modulemd.Module().new_from_string(mmd_str)
+            mmd.upgrade()
+        except Exception:
+            raise ValueError("Invalid modulemd")
+        mbs_xmd = mmd.get_xmd().get('mbs', {})
         rv = []
         for property_name in ['buildrequires', 'requires']:
-            if property_name not in mbs_xmd:
+            # We have to use keys because GLib.Variant doesn't support `in` directly.
+            if property_name not in mbs_xmd.keys():
                 raise ValueError('The module\'s modulemd hasn\'t been formatted by MBS')
-            mmd_property = getattr(mmd, property_name)
+            mmd_property = getattr(mmd.get_dependencies()[0], 'get_{0}'.format(property_name))()
             if set(mbs_xmd[property_name].keys()) != set(mmd_property.keys()):
                 raise ValueError('The dependencies.{0} section of the modulemd doesn\'t match '
                                  'what is in xmd'.format(property_name))

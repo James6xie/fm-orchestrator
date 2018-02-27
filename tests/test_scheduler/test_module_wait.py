@@ -24,7 +24,9 @@ import mock
 from mock import patch
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.modules
-import modulemd as _modulemd
+import gi
+gi.require_version('Modulemd', '1.0')  # noqa
+from gi.repository import Modulemd
 import os
 import koji
 from tests import conf, db, app, scheduler_init_data
@@ -66,12 +68,10 @@ class TestModuleWait:
         }
         mocked_module_build.extended_json = mocked_module_build.json
 
-        mmd = _modulemd.ModuleMetadata()
         formatted_testmodule_yml_path = os.path.join(
             base_dir, 'staged_data', 'formatted_testmodule.yaml')
-        with open(formatted_testmodule_yml_path, 'r') as f:
-            mmd.loads(f)
-
+        mmd = Modulemd.Module().new_from_file(formatted_testmodule_yml_path)
+        mmd.upgrade()
         mocked_module_build.id = 1
         mocked_module_build.mmd.return_value = mmd
         mocked_module_build.component_builds = []
@@ -172,9 +172,9 @@ class TestModuleWait:
         Test that build.cg_build_koji_tag fallbacks to default tag.
         """
         with app.app_context():
-            base_mmd = _modulemd.ModuleMetadata()
-            base_mmd.name = "base-runtime"
-            base_mmd.stream = "f27"
+            base_mmd = Modulemd.Module()
+            base_mmd.set_name("base-runtime")
+            base_mmd.set_stream("f27")
 
             scheduler_init_data()
             koji_session = mock.MagicMock()
@@ -217,9 +217,9 @@ class TestModuleWait:
         Test that build.cg_build_koji_tag is set.
         """
         with app.app_context():
-            base_mmd = _modulemd.ModuleMetadata()
-            base_mmd.name = "base-runtime"
-            base_mmd.stream = "f27"
+            base_mmd = Modulemd.Module()
+            base_mmd.set_name("base-runtime")
+            base_mmd.set_stream("f27")
 
             scheduler_init_data()
             koji_session = mock.MagicMock()

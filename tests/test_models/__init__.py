@@ -21,11 +21,13 @@
 # Written by Ralph Bean <rbean@redhat.com>
 
 import os
+from datetime import datetime
 
 import module_build_service
-import modulemd
+import gi
+gi.require_version('Modulemd', '1.0')  # noqa
+from gi.repository import Modulemd
 
-from datetime import datetime
 from tests import db, clean_database
 from module_build_service.config import init_config
 from module_build_service.models import ModuleBuild, BUILD_STATES
@@ -38,13 +40,12 @@ datadir = os.path.dirname(__file__) + '/data/'
 
 
 def module_build_from_modulemd(yaml):
-    mmd = modulemd.ModuleMetadata()
-    mmd.loads(yaml)
-
+    mmd = Modulemd.Module().new_from_string(yaml)
+    mmd.upgrade()
     build = ModuleBuild()
-    build.name = mmd.name
-    build.stream = mmd.stream
-    build.version = mmd.version
+    build.name = mmd.get_name()
+    build.stream = mmd.get_stream()
+    build.version = mmd.get_version()
     build.state = BUILD_STATES['ready']
     build.modulemd = yaml
     build.koji_tag = None

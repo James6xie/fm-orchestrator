@@ -26,12 +26,14 @@ import logging
 import os
 import koji
 import kobo.rpmlib
-import modulemd
 import pipes
 import platform
 import re
 import threading
 
+import gi
+gi.require_version('Modulemd', '1.0')  # noqa
+from gi.repository import Modulemd
 from module_build_service import conf, log
 import module_build_service.scm
 import module_build_service.utils
@@ -182,17 +184,20 @@ class MockModuleBuilder(GenericBuilder):
             if m1.last_batch_id() == m1.batch:
                 # If RPM is filtered-out, do not add it to artifacts list.
                 nvr = kobo.rpmlib.parse_nvr(rpm)
-                if nvr["name"] in m1_mmd.filter.rpms:
+                if nvr["name"] in m1_mmd.get_rpm_filter().get():
                     continue
 
             pkglist_f.write(rpm + '\n')
             rpm = rpm[:-len(".rpm")]
-            m1_mmd.artifacts.add_rpm(str(rpm))
+            component = Modulemd.ComponentRpm()
+            component.set_name(str(rpm))
+            component.set_rationale('none')
+            m1_mmd.add_rpm_component(component)
 
         pkglist_f.close()
 
         mmd_path = os.path.join(path, "modules.yaml")
-        modulemd.dump_all(mmd_path, [m1_mmd])
+        m1_mmd.dump(mmd_path)
 
         # Generate repo and inject modules.yaml there.
         execute_cmd(['/usr/bin/createrepo_c', '--pkglist', pkglist, path])

@@ -146,7 +146,7 @@ def init(config, session, msg):
         mmd = build.mmd()
         record_component_builds(mmd, build, session=session)
         build.build_context, build.runtime_context = build.contexts_from_mmd(mmd.dumps())
-        mmd.context = build.context
+        mmd.set_context(build.context)
         build.modulemd = mmd.dumps()
         build.transition(conf, models.BUILD_STATES["wait"])
     # Catch custom exceptions that we can expose to the user
@@ -181,7 +181,7 @@ def wait(config, session, msg):
     @module_build_service.utils.retry(interval=10, timeout=120, wait_on=RuntimeError)
     def _get_build_containing_xmd_for_mbs():
         build = models.ModuleBuild.from_module_event(session, msg)
-        if 'mbs' in build.mmd().xmd:
+        if 'mbs' in build.mmd().get_xmd():
             return build
         session.expire(build)
         raise RuntimeError("{!r} doesn't contain xmd information for MBS."
@@ -244,7 +244,7 @@ def wait(config, session, msg):
 
             # Find out the name of Koji tag to which the module's Content
             # Generator build should be tagged once the build finishes.
-            module_names_streams = {mmd.name: mmd.stream
+            module_names_streams = {mmd.get_name(): mmd.get_stream()
                                     for mmd in deps_dict.values()}
             for base_module_name in conf.base_module_names:
                 if base_module_name in module_names_streams:
