@@ -137,9 +137,6 @@ class MMDResolver(object):
         solvable.add_provides(
             self.pool.Dep("module(%s)" % mmd.get_name()).Rel(
                 solv.REL_EQ, self.pool.Dep(solvable.evr)))
-        solvable.add_provides(
-            self.pool.Dep("module(%s)" % solvable.name).Rel(
-                solv.REL_EQ, self.pool.Dep(solvable.evr)))
 
         # Requires
         for deps in mmd.get_dependencies():
