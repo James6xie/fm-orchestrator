@@ -80,6 +80,7 @@ class MMDResolver(object):
 
         # Build-requires in case we are in build_repo.
         if repo == self.build_repo:
+            solvable.arch = "src"
             for deps in mmd.get_dependencies():
                 for name, streams in deps.get_buildrequires().items():
                     requires = None
