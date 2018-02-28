@@ -115,7 +115,6 @@ class MMDResolver(object):
         self.build_repo = self.pool.add_repo("build")
         self.available_repo = self.pool.add_repo("available")
 
-        self.solvables_per_name = {}
         self.alternatives_whitelist = set()
 
     def _create_solvable(self, repo, mmd):
@@ -172,16 +171,7 @@ class MMDResolver(object):
                     self.alternatives_whitelist.add(name)
 
         # Conflicts
-        if mmd.get_name() not in self.solvables_per_name:
-            self.solvables_per_name[mmd.get_name()] = []
-        for other_solvable in self.solvables_per_name[mmd.get_name()]:
-            other_solvable.add_conflicts(
-                self.pool.Dep("module(%s)" % solvable.name).Rel(
-                    solv.REL_EQ, self.pool.Dep(solvable.evr)))
-            solvable.add_conflicts(
-                self.pool.Dep("module(%s)" % other_solvable.name).Rel(
-                    solv.REL_EQ, self.pool.Dep(other_solvable.evr)))
-        self.solvables_per_name[mmd.get_name()].append(solvable)
+        solvable.add_conflicts(self.pool.Dep("module(%s)" % mmd.get_name()))
 
         return solvable
 
