@@ -115,68 +115,75 @@ class MMDResolver(object):
         self.build_repo = self.pool.add_repo("build")
         self.available_repo = self.pool.add_repo("available")
 
-        self.alternatives_whitelist = set()
+    def add_modules(self, mmd):
+        n, s, v, c = mmd.get_name(), mmd.get_stream(), mmd.get_version(), mmd.get_context()
 
-    def _create_solvable(self, repo, mmd):
-        """
-        Creates libsolv Solvable object in repo `repo` based on the Modulemd
-        metadata `mmd`.
+        pool = self.pool
 
-        This fills in all the provides/requires/conflicts of Solvable.
+        solvables = []
+        if c is not None:
+            # Built module
+            deps = mmd.get_dependencies()
+            if len(deps) > 1:
+                assert False, "Multiple dependencies for runtime"
 
-        :rtype: solv.Solvable
-        :return: Solvable object.
-        """
-        solvable = repo.add_solvable()
-        solvable.name = "%s:%s:%d:%s" % (mmd.get_name(), mmd.get_stream(),
-                                         mmd.get_version(), mmd.get_context())
-        solvable.evr = "%s-%d" % (mmd.get_stream(), mmd.get_version())
-        solvable.arch = "x86_64"
+            # $n:$s:$c-$v.$a
+            solvable = self.available_repo.add_solvable()
+            solvable.name = "%s:%s:%d:%s" % (n, s, v, c)
+            solvable.evr = str(v)
+            # TODO: replace with real arch
+            solvable.arch = "x86_64"
 
-        # Provides
-        solvable.add_provides(
-            self.pool.Dep("module(%s)" % mmd.get_name()).Rel(
-                solv.REL_EQ, self.pool.Dep(solvable.evr)))
+            # Prv: module($n)
+            solvable.add_deparray(solv.SOLVABLE_PROVIDES,
+                                  pool.Dep("module(%s)" % n))
+            # Prv: module($n:$s) = $v
+            solvable.add_deparray(solv.SOLVABLE_PROVIDES,
+                                  pool.Dep("module(%s:%s)" % (n, s)).Rel(
+                                      solv.REL_EQ, pool.Dep(str(v))))
 
-        # Requires
-        for deps in mmd.get_dependencies():
-            for name, streams in deps.get_requires().items():
-                requires = None
-                for stream in streams.get():
-                    require = self.pool.Dep("module(%s)" % name)
-                    require = require.Rel(solv.REL_EQ, self.pool.Dep(stream))
-                    if requires:
-                        requires = requires.Rel(solv.REL_OR, require)
-                    else:
-                        requires = require
-                solvable.add_requires(requires)
+            if deps:
+                # Req: (module($on1:$os1) OR module($on2:$os2) OR …)
+                for name, streams in deps[0].get_requires().items():
+                    requires = None
+                    for stream in streams.get():
+                        require = pool.Dep("module(%s:%s)" % (name, stream))
+                        if requires is not None:
+                            requires = requires.Rel(solv.REL_OR, require)
+                        else:
+                            requires = require
+                    solvable.add_deparray(solv.SOLVABLE_REQUIRES, requires)
 
-        # Build-requires in case we are in build_repo.
-        if repo == self.build_repo:
-            solvable.arch = "src"
-            for deps in mmd.get_dependencies():
+            # Con: module($n)
+            solvable.add_deparray(solv.SOLVABLE_CONFLICTS, pool.Dep("module(%s)" % n))
+
+            solvables.append(solvable)
+        else:
+            # Input module
+            # Context means two things:
+            # * Unique identifier
+            # * Offset for the dependency which was used
+            for c, deps in enumerate(mmd.get_dependencies()):
+                # $n:$s:$c-$v.src
+                solvable = self.build_repo.add_solvable()
+                solvable.name = "%s:%s:%s:%d" % (n, s, v, c)
+                solvable.evr = str(v)
+                solvable.arch = "src"
+
+                # Req: (module($on1:$os1) OR module($on2:$os2) OR …)
                 for name, streams in deps.get_buildrequires().items():
                     requires = None
                     for stream in streams.get():
-                        require = self.pool.Dep("module(%s)" % name)
-                        require = require.Rel(solv.REL_EQ, self.pool.Dep(stream))
+                        require = pool.Dep("module(%s:%s)" % (name, stream))
                         if requires:
                             requires = requires.Rel(solv.REL_OR, require)
                         else:
                             requires = require
-                    solvable.add_requires(requires)
-                    self.alternatives_whitelist.add(name)
+                    solvable.add_deparray(solv.SOLVABLE_REQUIRES, requires)
 
-        # Conflicts
-        solvable.add_conflicts(self.pool.Dep("module(%s)" % mmd.get_name()))
+                solvables.append(solvable)
 
-        return solvable
-
-    def add_available_module(self, mmd):
-        """
-        Adds module available for dependency solving.
-        """
-        self._create_solvable(self.available_repo, mmd)
+        return solvables
 
     def solve(self, mmd):
         """
@@ -187,13 +194,22 @@ class MMDResolver(object):
         :return: set of frozensets of n:s:v:c of modules which satisfied the
             dependency solving.
         """
-        solvable = self._create_solvable(self.build_repo, mmd)
+        solvables = self.add_modules(mmd)
+        if not solvables:
+            raise ValueError("No module(s) found for resolving")
         self.pool.createwhatprovides()
 
-        new_job = self.pool.Job(solv.Job.SOLVER_INSTALL | solv.Job.SOLVER_SOLVABLE, solvable.id)
+        # XXX: Using SOLVABLE_ONE_OF should be faster & more convenient.
+        # There must be a bug in _gather_alternatives(), possibly when processing l1 alternatives.
+        # Use pool.towhatprovides() to combine solvables.
+
+        alternatives = []
         jobs = self.pool.getpooljobs()
-        self.pool.setpooljobs(jobs + [new_job])
-        alternatives = _gather_alternatives(self.pool)
+        for s in solvables:
+            new_job = self.pool.Job(solv.Job.SOLVER_INSTALL | solv.Job.SOLVER_SOLVABLE, s.id)
+            self.pool.setpooljobs(jobs + [new_job])
+            alternatives.extend(_gather_alternatives(self.pool))
         self.pool.setpooljobs(jobs)
 
-        return set(frozenset(s.name for s in trans if s != solvable) for trans in alternatives)
+        return set(frozenset("%s:%s" % (s.name, s.arch) for s in trans)
+                   for trans in alternatives)
