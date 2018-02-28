@@ -6,6 +6,7 @@ dogpile.cache
 fedmsg
 funcsigs # Python2 only
 futures # Python 2 only
+future
 httplib2
 kerberos
 kobo>=0.5.0
@@ -20,7 +21,6 @@ pdc-client
 psutil
 pyOpenSSL
 python-fedora
-qpid-python
 requests
 requests_kerberos # Client only
 six

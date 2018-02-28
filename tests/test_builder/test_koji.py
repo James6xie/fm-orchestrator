@@ -22,7 +22,10 @@
 
 import mock
 import koji
-import xmlrpclib
+try:
+    import xmlrpclib
+except ImportError:
+    import xmlrpc.client as xmlrpclib
 
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.repos

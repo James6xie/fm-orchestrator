@@ -34,8 +34,11 @@ import dogpile.cache
 import random
 import string
 import kobo.rpmlib
-import xmlrpclib
 import threading
+try:
+    import xmlrpclib
+except ImportError:
+    import xmlrpc.client as xmlrpclib
 
 import munch
 from OpenSSL.SSL import SysCallError
@@ -46,7 +49,7 @@ import module_build_service.utils
 from module_build_service.builder.utils import execute_cmd
 from module_build_service.errors import ProgrammingError
 
-from base import GenericBuilder
+from module_build_service.builder.base import GenericBuilder
 
 logging.basicConfig(level=logging.DEBUG)
 

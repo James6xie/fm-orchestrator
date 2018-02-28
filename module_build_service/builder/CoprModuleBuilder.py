@@ -37,9 +37,9 @@ from module_build_service import log
 import module_build_service.scm
 import module_build_service.utils
 
-from base import GenericBuilder
-from utils import execute_cmd
-from KojiModuleBuilder import KojiModuleBuilder
+from module_build_service.builder.base import GenericBuilder
+from module_build_service.builder.utils import execute_cmd
+from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
 
 logging.basicConfig(level=logging.DEBUG)
 

@@ -1,7 +1,7 @@
 import pkg_resources
 
 from module_build_service import conf
-from base import GenericBuilder
+from module_build_service.builder.base import GenericBuilder
 
 __all__ = [
     GenericBuilder
