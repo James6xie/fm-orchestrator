@@ -27,9 +27,6 @@ import gi
 gi.require_version('Modulemd', '1.0') # noqa
 from gi.repository import Modulemd
 
-import pytest
-from mock import patch
-
 from module_build_service.mmd_resolver import MMDResolver
 
 
@@ -82,10 +79,14 @@ class TestMMDResolver:
         expanded = self.mmd_resolver.solve(mmds[0])
 
         expected = set([
-            frozenset(["gtk:1:0:c2", "platform:f28:0:c10", "font:b:0:c8"]),
-            frozenset(["gtk:1:0:c3", "platform:f29:0:c11", "font:b:0:c9"]),
-            frozenset(["gtk:2:0:c4", "platform:f28:0:c10", "font:b:0:c8"]),
-            frozenset(["gtk:2:0:c5", "platform:f29:0:c11", "font:b:0:c9"]),
+            frozenset(["gtk:1:0:c2", "font:a:0:c6", "platform:f28:0:c10"]),
+            frozenset(["gtk:1:0:c2", "font:b:0:c8", "platform:f28:0:c10"]),
+            frozenset(["gtk:1:0:c3", "font:a:0:c7", "platform:f29:0:c11"]),
+            frozenset(["gtk:1:0:c3", "font:b:0:c9", "platform:f29:0:c11"]),
+            frozenset(["gtk:2:0:c4", "font:a:0:c6", "platform:f28:0:c10"]),
+            frozenset(["gtk:2:0:c4", "font:b:0:c8", "platform:f28:0:c10"]),
+            frozenset(["gtk:2:0:c5", "font:a:0:c7", "platform:f29:0:c11"]),
+            frozenset(["gtk:2:0:c5", "font:b:0:c9", "platform:f29:0:c11"]),
         ])
 
         assert expanded == expected
@@ -109,7 +110,9 @@ class TestMMDResolver:
         expanded = self.mmd_resolver.solve(mmds[0])
 
         expected = set([
+            frozenset(["gtk:1:0:c2", "platform:f28:0:c10", "font:a:0:c6"]),
             frozenset(["gtk:1:0:c2", "platform:f28:0:c10", "font:b:0:c8"]),
+            frozenset(["gtk:2:0:c4", "platform:f28:0:c10", "font:a:0:c6"]),
             frozenset(["gtk:2:0:c4", "platform:f28:0:c10", "font:b:0:c8"]),
         ])
 

@@ -24,8 +24,85 @@
 #            Igor Gnatenko <ignatenko@redhat.com>
 
 import solv
-from module_build_service import log, conf
-import itertools
+from module_build_service import log
+
+
+def _gather_alternatives(pool, favor=None, tested=None, level=1, transactions=None):
+    if tested is None:
+        tested = set()
+    if transactions is None:
+        transactions = []
+    solver = pool.Solver()
+
+    jobs = []
+    jobs.extend(pool.Job(solv.Job.SOLVER_FAVOR | solv.Job.SOLVER_SOLVABLE, s.id)
+                for s in favor or [])
+    jobs.extend(pool.Job(solv.Job.SOLVER_DISFAVOR | solv.Job.SOLVER_SOLVABLE, s.id)
+                for s in tested)
+    assert not solver.solve(jobs)
+    newsolvables = solver.transaction().newsolvables()
+    transactions.append(newsolvables)
+    alternatives = solver.all_alternatives()
+    if not alternatives:
+        return transactions
+
+    if [alt for alt in alternatives if alt.type != solv.Alternative.SOLVER_ALTERNATIVE_TYPE_RULE]:
+        assert False, "Recommends alternative rule"
+
+    log.debug("Jobs:")
+    for job in pool.getpooljobs():
+        log.debug("  * %s [pool]", job)
+    for job in jobs:
+        log.debug("  * %s", job)
+    log.debug("Transaction:")
+    for s in newsolvables:
+        log.debug("  * %s", s)
+    log.debug("Alternatives:")
+    auto_minimized = False
+    for alt in alternatives:
+        raw_choices = alt.choices_raw()
+        log.debug("  %d: %s", alt.level, alt)
+        for choice in alt.choices():
+            if choice == alt.chosen:
+                sign = "+"
+            elif -choice.id in raw_choices:
+                sign = "-"
+                auto_minimized = True
+            else:
+                sign = " "
+            log.debug("  * %s%s", sign, choice)
+    if auto_minimized:
+        raise NotImplementedError
+
+    current_alternatives = [alt for alt in alternatives if alt.level == level]
+    if len(current_alternatives) > 1:
+        raise NotImplementedError
+
+    alternative = current_alternatives[0]
+    raw_choices = alternative.choices_raw()
+    tested.add(alternative.chosen)
+
+    for choice in (choice for choice in alternative.choices() if choice not in tested):
+        _gather_alternatives(pool,
+                             favor=favor,
+                             tested=tested,
+                             level=level,
+                             transactions=transactions)
+
+    max_level = max(alt.level for alt in alternatives)
+    if level == max_level:
+        return transactions
+
+    next_favor = [alt.chosen for alt in alternatives if alt.level <= level]
+    next_tested = set(alt.chosen for alt in alternatives if alt.level == level + 1)
+    _gather_alternatives(pool,
+                         favor=next_favor,
+                         tested=next_tested,
+                         level=level + 1,
+                         transactions=transactions)
+
+    return transactions
+
 
 class MMDResolver(object):
     """
@@ -53,7 +130,7 @@ class MMDResolver(object):
         """
         solvable = repo.add_solvable()
         solvable.name = "%s:%s:%d:%s" % (mmd.get_name(), mmd.get_stream(),
-                                        mmd.get_version(), mmd.get_context())
+                                         mmd.get_version(), mmd.get_context())
         solvable.evr = "%s-%d" % (mmd.get_stream(), mmd.get_version())
         solvable.arch = "x86_64"
 
@@ -114,83 +191,6 @@ class MMDResolver(object):
         """
         self._create_solvable(self.available_repo, mmd)
 
-    def _solve(self, module_name, alternative_with=None):
-        """
-        Solves the dependencies of module `module_name`. If there is an
-        alternative solution to dependency solving, it will prefer the one
-        which brings in the package in `alternative_with` list (if set).
-
-        :rtype: solv.Solver
-        :return: Solver object with dependencies resolved.
-        """
-        solver = self.pool.Solver()
-        # Try to select the module we are interested in.
-        flags = solv.Selection.SELECTION_PROVIDES
-        sel = self.pool.select("module(%s)" % module_name, flags)
-        if sel.isempty():
-            raise ValueError(
-                "Cannot find module %s while resolving "
-                "dependencies" % module_name)
-        # Prepare the job including the solution for problems from previous calls.
-        jobs = sel.jobs(solv.Job.SOLVER_INSTALL)
-
-        if alternative_with:
-            for name in alternative_with:
-                sel = self.pool.select("module(%s)" % name, flags)
-                if sel.isempty():
-                    raise ValueError(
-                        "Cannot find module %s while resolving "
-                        "dependencies" % name)
-                jobs += sel.jobs(solv.Job.SOLVER_FAVOR)
-        # Try to solve the dependencies.
-        problems = solver.solve(jobs)
-        # In case we have some problems, return early here with the problems.
-        if len(problems) != 0:
-            # TODO: Add more info.
-            raise ValueError(
-                "Dependencies between modules are not satisfied")
-        return solver
-
-    def _solve_recurse(self, solvable, alternatives=None, alternatives_tried=None):
-        """
-        Solves dependencies of module defined by `solvable` object and all its
-        alternatives recursively.
-
-        :return: set of frozensets of n:s:v:c of modules which satisfied the
-            dependency solving.
-        """
-        if not alternatives:
-            alternatives = set()
-        if not alternatives_tried:
-            alternatives_tried = set()
-
-        solver = self._solve(solvable.name, alternatives)
-        if not solver:
-            return set([])
-
-        ret = set([])
-        ret.add(
-            frozenset([s.name for s in solver.transaction().newsolvables()
-                    if s.name != solvable.name]))
-
-        choices = []
-        for alt in solver.all_alternatives():
-            l = []
-            for alt_choice in alt.choices():
-                if alt_choice.name.split(":")[0] in self.alternatives_whitelist:
-                    l.append(alt_choice.name)
-            if l:
-                choices.append(l)
-
-        choices_combinations = list(itertools.product(*choices))
-        for choices_combination in choices_combinations:
-            if choices_combination not in alternatives_tried:
-                alternatives_tried.add(choices_combination)
-                ret = ret.union(self._solve_recurse(
-                    solvable, choices_combination, alternatives_tried))
-
-        return ret
-
     def solve(self, mmd):
         """
         Solves dependencies of module defined by `mmd` object. Returns set
@@ -203,5 +203,10 @@ class MMDResolver(object):
         solvable = self._create_solvable(self.build_repo, mmd)
         self.pool.createwhatprovides()
 
-        alternatives = self._solve_recurse(solvable)
-        return alternatives
+        new_job = self.pool.Job(solv.Job.SOLVER_INSTALL | solv.Job.SOLVER_SOLVABLE, solvable.id)
+        jobs = self.pool.getpooljobs()
+        self.pool.setpooljobs(jobs + [new_job])
+        alternatives = _gather_alternatives(self.pool)
+        self.pool.setpooljobs(jobs)
+
+        return set(frozenset(s.name for s in trans if s != solvable) for trans in alternatives)
