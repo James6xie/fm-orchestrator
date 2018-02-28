@@ -124,7 +124,7 @@ class TestViews:
         assert data['name'] == 'nginx'
         assert data['owner'] == 'Moe Szyslak'
         assert data['stream'] == '1'
-        assert data['state'] == 3
+        assert data['state'] == 5
         assert data['state_reason'] is None
         assert data['tasks'] == {
             'rpms': {
@@ -154,8 +154,8 @@ class TestViews:
         assert data['id'] == 1
         assert data['context'] == '00000000'
         assert data['name'] == 'nginx'
-        assert data['state'] == 3
-        assert data['state_name'] == 'done'
+        assert data['state'] == 5
+        assert data['state_name'] == 'ready'
         assert data['stream'] == '1'
         assert data['version'] == '2'
 
@@ -174,8 +174,8 @@ class TestViews:
         assert data['owner'] == 'Moe Szyslak'
         assert data['scmurl'] == ('git://pkgs.domain.local/modules/nginx'
                                   '?#ba95886c7a443b36a9ce31abda1f9bef22f2f8c9')
-        assert data['state'] == 3
-        assert data['state_name'] == 'done'
+        assert data['state'] == 5
+        assert data['state_name'] == 'ready'
         assert data['state_reason'] is None
         # State trace is empty because we directly created these builds and didn't have them
         # transition, which creates these entries
@@ -240,18 +240,18 @@ class TestViews:
                             "state": 1,
                             "state_reason": None,
                             "task_id": 47383994,
-                            "nvr": "module-build-macros-01-1.module+6+8d3cee59"
+                            "nvr": "module-build-macros-01-1.module+6+f95651e2"
                         },
                         "rubygem-rails": {
                             "state": 3,
                             "state_reason": None,
                             "task_id": 2433434,
-                            "nvr": "postgresql-9.5.3-4.module+6+8d3cee59"
+                            "nvr": "postgresql-9.5.3-4.module+6+f95651e2"
                         }
                     }
                 },
                 "owner": "some_other_user",
-                "version": "6",
+                "version": "7",
                 "state_reason": None,
                 "state": 1,
                 "stream": "4.3.43",
@@ -274,18 +274,18 @@ class TestViews:
                             "state": 1,
                             "state_reason": None,
                             "task_id": 47383994,
-                            "nvr": "module-build-macros-01-1.module+5+0557c87d"
+                            "nvr": "module-build-macros-01-1.module+5+fa947d31"
                         },
                         "postgresql": {
                             "state": 1,
                             "state_reason": None,
                             "task_id": 2433434,
-                            "nvr": "postgresql-9.5.3-4.module+5+0557c87d"
+                            "nvr": "postgresql-9.5.3-4.module+5+fa947d31"
                         }
                     }
                 },
                 "owner": "some_user",
-                "version": "2",
+                "version": "3",
                 "state_reason": None,
                 "state": 3,
                 "stream": "1",
@@ -300,6 +300,7 @@ class TestViews:
                 "koji_tag": "module-postgressql-1.2"
             }
         ]
+
         assert items == expected
 
     def test_query_builds_with_id_error(self):
@@ -439,7 +440,7 @@ class TestViews:
         rv = self.client.get(
             '/module-build-service/1/module-builds/?state=3')
         data = json.loads(rv.data)
-        assert data['meta']['total'] == 4
+        assert data['meta']['total'] == 2
 
     def test_query_builds_two_filters(self):
         rv = self.client.get('/module-build-service/1/module-builds/?owner=Moe%20Szyslak'
@@ -451,12 +452,11 @@ class TestViews:
         rv = self.client.get(
             '/module-build-service/1/module-builds/?name=postgressql&stream=1&version=2')
         data = json.loads(rv.data)
-        # TODO: The nsv should really be unique in the test data
         for item in data['items']:
             assert item['name'] == 'postgressql'
             assert item['stream'] == '1'
             assert item['version'] == '2'
-        assert data['meta']['total'] == 2
+        assert data['meta']['total'] == 1
 
     def test_query_builds_filter_invalid_date(self):
         rv = self.client.get(

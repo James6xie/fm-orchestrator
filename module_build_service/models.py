@@ -38,9 +38,11 @@ from module_build_service import db, log, get_url_for, app, conf
 import module_build_service.messaging
 
 from sqlalchemy.orm import lazyload
+from sqlalchemy import func, and_
 import gi
 gi.require_version('Modulemd', '1.0')  # noqa
 from gi.repository import Modulemd
+
 
 # Just like koji.BUILD_STATES, except our own codes for modules.
 BUILD_STATES = {
@@ -240,6 +242,42 @@ class ModuleBuild(MBSBase):
                 component for component in self.component_builds
                 if component.batch <= self.batch
             ]
+
+    @staticmethod
+    def get_last_build_in_all_streams(session, name):
+        """
+        Returns list of all last ModuleBuilds in "ready" state for all
+        streams for given module `name`.
+        """
+        subq = session.query(
+            func.max(ModuleBuild.id).label('id')
+        ).group_by(ModuleBuild.name, ModuleBuild.stream).filter_by(
+            name=name, state=BUILD_STATES["ready"]).subquery('t2')
+        query = session.query(ModuleBuild).join(
+            subq, and_(ModuleBuild.id == subq.c.id))
+        return query.all()
+
+    @staticmethod
+    def get_last_build_in_stream(session, name, stream):
+        """
+        Returns the last build in "ready" state for given name:stream.
+        """
+        query = session.query(ModuleBuild)
+        query = query.filter_by(name=name, stream=stream,
+                                state=BUILD_STATES["ready"])
+        query = query.order_by(ModuleBuild.id.desc())
+        return query.first()
+
+    @staticmethod
+    def get_builds_in_version(session, name, stream, version):
+        """
+        Returns list of all module builds in "ready" state for given
+        name:stream:version - it means all the contexts of this module.
+        """
+        query = session.query(ModuleBuild)
+        query = query.filter_by(name=name, stream=stream, version=version,
+                                state=BUILD_STATES["ready"])
+        return query.all()
 
     def mmd(self):
         try:

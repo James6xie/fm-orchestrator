@@ -27,6 +27,7 @@ gi.require_version('Modulemd', '1.0')  # noqa
 from gi.repository import Modulemd
 
 from tests.test_models import init_data
+from tests import init_data as init_data_contexts
 from module_build_service import conf
 from module_build_service.models import ComponentBuild, ModuleBuild, make_session
 
@@ -74,3 +75,30 @@ class TestModels:
         assert build.build_context == 'f6e2aeec7576196241b9afa0b6b22acf2b6873d7'
         assert build.runtime_context == '1739827b08388842fc90ccc0b6070c59b7d856fc'
         assert build.context == 'e7a3d35e'
+
+class TestModelsGetStreamsContexts:
+    def setup_method(self, test_method):
+        init_data_contexts(contexts=True)
+
+    def test_get_last_build_in_all_streams(self):
+        with make_session(conf) as session:
+            builds = ModuleBuild.get_last_build_in_all_streams(
+                session, "nginx")
+            builds = ["%s:%s:%s" % (build.name, build.stream, str(build.version))
+                      for build in builds]
+            assert builds == ["nginx:%d:%d" % (i, i + 2) for i in range(10)]
+
+    def test_get_last_build_in_stream(self):
+        with make_session(conf) as session:
+            build = ModuleBuild.get_last_build_in_stream(
+                session, "nginx", "1")
+            build = "%s:%s:%s" % (build.name, build.stream, str(build.version))
+            assert build == 'nginx:1:3'
+
+    def test_get_builds_in_version(self):
+        with make_session(conf) as session:
+            builds = ModuleBuild.get_builds_in_version(
+                session, "nginx", "1", "3")
+            builds = ["%s:%s:%s:%s" % (build.name, build.stream, str(build.version),
+                                       build.context) for build in builds]
+            assert builds == ['nginx:1:3:d5a6c0fa', 'nginx:1:3:795e97c1']

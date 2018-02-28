@@ -24,6 +24,7 @@ import os
 from datetime import datetime, timedelta
 from mock import patch
 import time
+import hashlib
 from traceback import extract_stack
 
 import gi
@@ -92,75 +93,86 @@ def clean_database():
     db.create_all()
 
 
-def init_data(data_size=10):
+def init_data(data_size=10, contexts=False):
     """
     Creates data_size * 3 modules in database in different states and
     with different component builds. See _populate_data for more info.
+
+    :param bool contexts: If True, multiple streams and contexts in each stream
+        are generated for 'nginx' module.
     """
     clean_database()
     with make_session(conf) as session:
-        _populate_data(session, data_size)
+        _populate_data(session, data_size, contexts=contexts)
 
 
-def _populate_data(session, data_size=10):
+def _populate_data(session, data_size=10, contexts=False):
+    num_contexts = 2 if contexts else 1
     for index in range(data_size):
-        build_one = ModuleBuild()
-        build_one.name = 'nginx'
-        build_one.stream = '1'
-        build_one.version = 2
-        build_one.state = BUILD_STATES['done']
-        with open(os.path.join(base_dir, "staged_data", "nginx_mmd.yaml")) as mmd:
-            build_one.modulemd = mmd.read()
-        build_one.koji_tag = 'module-nginx-1.2'
-        build_one.scmurl = ('git://pkgs.domain.local/modules/nginx?'
-                            '#ba95886c7a443b36a9ce31abda1f9bef22f2f8c9')
-        build_one.batch = 2
-        # https://www.youtube.com/watch?v=iQGwrK_yDEg
-        build_one.owner = 'Moe Szyslak'
-        build_one.time_submitted = \
-            datetime(2016, 9, 3, 11, 23, 20) + timedelta(minutes=(index * 10))
-        build_one.time_modified = \
-            datetime(2016, 9, 3, 11, 25, 32) + timedelta(minutes=(index * 10))
-        build_one.time_completed = \
-            datetime(2016, 9, 3, 11, 25, 32) + timedelta(minutes=(index * 10))
-        build_one.rebuild_strategy = 'changed-and-after'
-        session.add(build_one)
-        session.commit()
-        build_one_component_release = get_rpm_release(build_one)
+        for context in range(num_contexts):
+            build_one = ModuleBuild()
+            build_one.name = 'nginx'
+            build_one.stream = '1'
+            build_one.version = 2 + index
+            build_one.state = BUILD_STATES['ready']
+            if contexts:
+                build_one.stream = str(index)
+                unique_hash = hashlib.sha1("%s:%s:%d:%d" % (
+                    build_one.name, build_one.stream, build_one.version, context)).hexdigest()
+                build_one.build_context = unique_hash
+                build_one.runtime_context = unique_hash
+            with open(os.path.join(base_dir, "staged_data", "nginx_mmd.yaml")) as mmd:
+                build_one.modulemd = mmd.read()
+            build_one.koji_tag = 'module-nginx-1.2'
+            build_one.scmurl = ('git://pkgs.domain.local/modules/nginx?'
+                                '#ba95886c7a443b36a9ce31abda1f9bef22f2f8c9')
+            build_one.batch = 2
+            # https://www.youtube.com/watch?v=iQGwrK_yDEg
+            build_one.owner = 'Moe Szyslak'
+            build_one.time_submitted = \
+                datetime(2016, 9, 3, 11, 23, 20) + timedelta(minutes=(index * 10))
+            build_one.time_modified = \
+                datetime(2016, 9, 3, 11, 25, 32) + timedelta(minutes=(index * 10))
+            build_one.time_completed = \
+                datetime(2016, 9, 3, 11, 25, 32) + timedelta(minutes=(index * 10))
+            build_one.rebuild_strategy = 'changed-and-after'
+            session.add(build_one)
+            session.commit()
+            build_one_component_release = get_rpm_release(build_one)
 
-        component_one_build_one = ComponentBuild()
-        component_one_build_one.package = 'nginx'
-        component_one_build_one.scmurl = \
-            ('git://pkgs.domain.local/rpms/nginx?'
-             '#ga95886c8a443b36a9ce31abda1f9bed22f2f8c3')
-        component_one_build_one.format = 'rpms'
-        component_one_build_one.task_id = 12312345 + index
-        component_one_build_one.state = koji.BUILD_STATES['COMPLETE']
-        component_one_build_one.nvr = 'nginx-1.10.1-2.{0}'.format(build_one_component_release)
-        component_one_build_one.batch = 1
-        component_one_build_one.module_id = 1 + index * 3
-        component_one_build_one.tagged = True
-        component_one_build_one.tagged_in_final = True
+            component_one_build_one = ComponentBuild()
+            component_one_build_one.package = 'nginx'
+            component_one_build_one.scmurl = \
+                ('git://pkgs.domain.local/rpms/nginx?'
+                '#ga95886c8a443b36a9ce31abda1f9bed22f2f8c3')
+            component_one_build_one.format = 'rpms'
+            component_one_build_one.task_id = 12312345 + index
+            component_one_build_one.state = koji.BUILD_STATES['COMPLETE']
+            component_one_build_one.nvr = 'nginx-1.10.1-2.{0}'.format(build_one_component_release)
+            component_one_build_one.batch = 1
+            component_one_build_one.module_id = 1 + index * 3
+            component_one_build_one.tagged = True
+            component_one_build_one.tagged_in_final = True
 
-        component_two_build_one = ComponentBuild()
-        component_two_build_one.package = 'module-build-macros'
-        component_two_build_one.scmurl = \
-            ('/tmp/module_build_service-build-macrosWZUPeK/SRPMS/'
-             'module-build-macros-0.1-1.module_nginx_1_2.src.rpm')
-        component_two_build_one.format = 'rpms'
-        component_two_build_one.task_id = 12312321 + index
-        component_two_build_one.state = koji.BUILD_STATES['COMPLETE']
-        component_two_build_one.nvr = \
-            'module-build-macros-01-1.{0}'.format(build_one_component_release)
-        component_two_build_one.batch = 2
-        component_two_build_one.module_id = 1 + index * 3
-        component_two_build_one.tagged = True
-        component_two_build_one.tagged_in_final = True
+            component_two_build_one = ComponentBuild()
+            component_two_build_one.package = 'module-build-macros'
+            component_two_build_one.scmurl = \
+                ('/tmp/module_build_service-build-macrosWZUPeK/SRPMS/'
+                'module-build-macros-0.1-1.module_nginx_1_2.src.rpm')
+            component_two_build_one.format = 'rpms'
+            component_two_build_one.task_id = 12312321 + index
+            component_two_build_one.state = koji.BUILD_STATES['COMPLETE']
+            component_two_build_one.nvr = \
+                'module-build-macros-01-1.{0}'.format(build_one_component_release)
+            component_two_build_one.batch = 2
+            component_two_build_one.module_id = 1 + index * 3
+            component_two_build_one.tagged = True
+            component_two_build_one.tagged_in_final = True
 
         build_two = ModuleBuild()
         build_two.name = 'postgressql'
         build_two.stream = '1'
-        build_two.version = 2
+        build_two.version = 2 + index
         build_two.state = BUILD_STATES['done']
         build_two.modulemd = ''  # Skipping since no tests rely on it
         build_two.koji_tag = 'module-postgressql-1.2'
@@ -211,7 +223,7 @@ def _populate_data(session, data_size=10):
         build_three = ModuleBuild()
         build_three.name = 'testmodule'
         build_three.stream = '4.3.43'
-        build_three.version = 6
+        build_three.version = 6 + index
         build_three.state = BUILD_STATES['wait']
         build_three.modulemd = ''  # Skipping because no tests rely on it
         build_three.koji_tag = None
