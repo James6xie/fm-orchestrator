@@ -50,18 +50,26 @@ class TestMMDResolver:
         licenses.add("GPL")
         mmd.set_module_licenses(licenses)
 
-        deps = Modulemd.Dependencies()
         if ":" in version:
             version, context = version.split(":")
             mmd.set_context(context)
-            add_requires = deps.add_requires
+            add_requires = Modulemd.Dependencies.add_requires
+            requires_list = [requires]
         else:
-            add_requires = deps.add_buildrequires
+            add_requires = Modulemd.Dependencies.add_buildrequires
+            if not isinstance(requires, list):
+                requires_list = [requires]
+            else:
+                requires_list = requires
         mmd.set_version(int(version))
 
-        for req_name, req_streams in requires.items():
-            add_requires(req_name, req_streams)
-        mmd.set_dependencies((deps, ))
+        deps_list = []
+        for reqs in requires_list:
+            deps = Modulemd.Dependencies()
+            for req_name, req_streams in reqs.items():
+                add_requires(deps, req_name, req_streams)
+            deps_list.append(deps)
+        mmd.set_dependencies(deps_list)
 
         return mmd
 
