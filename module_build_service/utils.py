@@ -1404,6 +1404,109 @@ def get_reusable_component(session, module, component_name,
     return reusable_component
 
 
+def _get_mmds_from_requires(session, requires, mmds, recursive=False):
+    """
+    Helper method for get_modules_build_required_by_module_recursively returning
+    the list of module metadata objects defined by `requires` dict.
+
+    :param session: SQLAlchemy DB session.
+    :param requires: Modulemetadata requires or buildrequires.
+    :param mmds: Dictionary with already handled name:streams as a keys and lists
+        of resulting mmds as values.
+    :param recursive: If True, the requires are checked recursively.
+    :return: Dict with name:stream as a key and list with mmds as value.
+    """
+    # To be able to call itself recursively, we need to store list of mmds
+    # we have added to global mmds list in this particular call.
+    added_mmds = {}
+    for name, streams in requires:
+        # Stream can be prefixed with '-' sign to define that this stream should
+        # not appear in a resulting list of streams. There can be two situations:
+        # a) all streams have '-' prefix. In this case, we treat list of streams
+        #    as blacklist and we find all the valid streams and just remove those with
+        #    '-' prefix.
+        # b) there is at least one stream without '-' prefix. In this case, we can
+        #    ignore all the streams with '-' prefix and just add those without
+        #    '-' prefix to the list of valid streams.
+        streams_is_blacklist = all([stream[0] == "-" for stream in streams.get()])
+        if streams_is_blacklist or len(streams.get()) == 0:
+            builds = models.ModuleBuild.get_last_build_in_all_streams(
+                session, name)
+            valid_streams = [build.stream for build in builds]
+        else:
+            valid_streams = []
+        for stream in streams.get():
+            if stream.startswith("-"):
+                if streams_is_blacklist and stream[1:] in valid_streams:
+                    valid_streams.remove(stream[1:])
+            else:
+                valid_streams.append(stream)
+
+        # For each valid stream, find the last build in a stream and also all
+        # its contexts and add mmds of these builds to `mmds` and `added_mmds`.
+        # Of course only do that if we have not done that already in some
+        # previous call of this method.
+        for stream in valid_streams:
+            ns = "%s:%s" % (name, stream)
+            if ns in mmds:
+                continue
+
+            last_build_in_stream = models.ModuleBuild.get_last_build_in_stream(
+                session, name, stream)
+            builds = models.ModuleBuild.get_builds_in_version(
+                session, name, stream, last_build_in_stream.version)
+            mmds[ns] = [build.mmd() for build in builds]
+            added_mmds[ns] = mmds[ns]
+
+    # Get the requires recursively.
+    if recursive:
+        for mmd_list in added_mmds.values():
+            for mmd in mmd_list:
+                for deps in mmd.get_dependencies():
+                    mmds = _get_mmds_from_requires(session, deps.get_requires().items(), mmds, True)
+
+    return mmds
+
+
+def get_modules_build_required_by_module_recursively(session, mmd):
+    """
+    Returns the list of Module metadata objects of all modules required while
+    building the module defined by `mmd` module metadata.
+
+    This method finds out latest versions of all the build-requires of
+    the `mmd` module and then also all contexts of these latest versions.
+
+    For each build-required name:stream:version:context module, it checks
+    recursively all the "requires" and finds the latest version of each
+    required module and also all contexts of these latest versions.
+
+    :rtype: list of Modulemd metadata
+    :return: List of all modulemd metadata of all modules required to build
+        the module `mmd`.
+    """
+    # We use dict with name:stream as a key and list with mmds as value.
+    # That way, we can ensure we won't have any duplicate mmds in a resulting
+    # list and we also don't waste resources on getting the modules we already
+    # handled from DB.
+    mmds = {}
+
+    # At first get all the buildrequires of the module of interest.
+    for deps in mmd.get_dependencies():
+        mmds = _get_mmds_from_requires(session, deps.get_buildrequires().items(), mmds)
+
+    # Now get the requires of buildrequires recursively.
+    for mmd_key in list(mmds.keys()):
+        for mmd in mmds[mmd_key]:
+            for deps in mmd.get_dependencies():
+                mmds = _get_mmds_from_requires(session, deps.get_requires().items(), mmds, True)
+
+    # Make single list from dict of lists.
+    res = []
+    for mmds_list in mmds.values():
+        res += mmds_list
+    return res
+
+
 def validate_koji_tag(tag_arg_names, pre='', post='-', dict_key='name'):
     """
     Used as a decorator validates koji tag arg(s)' value(s)
