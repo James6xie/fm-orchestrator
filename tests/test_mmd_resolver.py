@@ -38,7 +38,8 @@ class TestMMDResolver:
     def teardown_method(self, test_method):
         pass
 
-    def _make_mmd(self, nsvc, requires):
+    @staticmethod
+    def _make_mmd(nsvc, requires):
         name, stream, version = nsvc.split(":", 2)
         mmd = Modulemd.Module()
         mmd.set_mdversion(2)
@@ -73,24 +74,42 @@ class TestMMDResolver:
 
         return mmd
 
-    def test_solve_tree(self):
-        mmds = [
-            self._make_mmd("app:1:0", {"gtk": ["1", "2"]}),
-            self._make_mmd("gtk:1:0:c2", {"font": ["a", "b"], "platform": ["f28"]}),
-            self._make_mmd("gtk:1:0:c3", {"font": ["a", "b"], "platform": ["f29"]}),
-            self._make_mmd("gtk:2:0:c4", {"font": ["a", "b"], "platform": ["f28"]}),
-            self._make_mmd("gtk:2:0:c5", {"font": ["a", "b"], "platform": ["f29"]}),
-            self._make_mmd("font:a:0:c6", {"platform": ["f28"]}),
-            self._make_mmd("font:a:0:c7", {"platform": ["f29"]}),
-            self._make_mmd("font:b:0:c8", {"platform": ["f28"]}),
-            self._make_mmd("font:b:0:c9", {"platform": ["f29"]}),
-            self._make_mmd("platform:f28:0:c10", {}),
-            self._make_mmd("platform:f29:0:c11", {}),
+    @classmethod
+    def _default_mmds(cls):
+        return [
+            cls._make_mmd("gtk:1:0:c2", {"platform": ["f28"]}),
+            cls._make_mmd("gtk:1:0:c3", {"platform": ["f29"]}),
+            cls._make_mmd("gtk:2:0:c4", {"platform": ["f28"]}),
+            cls._make_mmd("gtk:2:0:c5", {"platform": ["f29"]}),
+            cls._make_mmd("foo:1:0:c2", {"platform": ["f28"]}),
+            cls._make_mmd("foo:1:0:c3", {"platform": ["f29"]}),
+            cls._make_mmd("foo:2:0:c4", {"platform": ["f28"]}),
+            cls._make_mmd("foo:2:0:c5", {"platform": ["f29"]}),
+            cls._make_mmd("platform:f28:0:c10", {}),
+            cls._make_mmd("platform:f29:0:c11", {}),
         ]
 
-        for mmd in mmds[1:]:
+    @classmethod
+    def _default_mmds_with_multiple_requires(cls):
+        return [
+            cls._make_mmd("gtk:1:0:c2", {"font": ["a", "b"], "platform": ["f28"]}),
+            cls._make_mmd("gtk:1:0:c3", {"font": ["a", "b"], "platform": ["f29"]}),
+            cls._make_mmd("gtk:2:0:c4", {"font": ["a", "b"], "platform": ["f28"]}),
+            cls._make_mmd("gtk:2:0:c5", {"font": ["a", "b"], "platform": ["f29"]}),
+            cls._make_mmd("font:a:0:c6", {"platform": ["f28"]}),
+            cls._make_mmd("font:a:0:c7", {"platform": ["f29"]}),
+            cls._make_mmd("font:b:0:c8", {"platform": ["f28"]}),
+            cls._make_mmd("font:b:0:c9", {"platform": ["f29"]}),
+            cls._make_mmd("platform:f28:0:c10", {}),
+            cls._make_mmd("platform:f29:0:c11", {}),
+        ]
+
+    def test_solve_tree(self):
+        for mmd in self._default_mmds_with_multiple_requires():
             self.mmd_resolver.add_modules(mmd)
-        expanded = self.mmd_resolver.solve(mmds[0])
+
+        app = self._make_mmd("app:1:0", {"gtk": ["1", "2"]})
+        expanded = self.mmd_resolver.solve(app)
 
         expected = set([
             frozenset(["app:1:0:0:src",
@@ -130,23 +149,11 @@ class TestMMDResolver:
         assert expanded == expected
 
     def test_solve_tree_buildrequire_platform(self):
-        mmds = [
-            self._make_mmd("app:1:0", {"gtk": ["1", "2"], "platform": ["f28"]}),
-            self._make_mmd("gtk:1:0:c2", {"font": ["a", "b"], "platform": ["f28"]}),
-            self._make_mmd("gtk:1:0:c3", {"font": ["a", "b"], "platform": ["f29"]}),
-            self._make_mmd("gtk:2:0:c4", {"font": ["a", "b"], "platform": ["f28"]}),
-            self._make_mmd("gtk:2:0:c5", {"font": ["a", "b"], "platform": ["f29"]}),
-            self._make_mmd("font:a:0:c6", {"platform": ["f28"]}),
-            self._make_mmd("font:a:0:c7", {"platform": ["f29"]}),
-            self._make_mmd("font:b:0:c8", {"platform": ["f28"]}),
-            self._make_mmd("font:b:0:c9", {"platform": ["f29"]}),
-            self._make_mmd("platform:f28:0:c10", {}),
-            self._make_mmd("platform:f29:0:c11", {}),
-        ]
-
-        for mmd in mmds[1:]:
+        for mmd in self._default_mmds_with_multiple_requires():
             self.mmd_resolver.add_modules(mmd)
-        expanded = self.mmd_resolver.solve(mmds[0])
+
+        app = self._make_mmd("app:1:0", {"gtk": ["1", "2"], "platform": ["f28"]})
+        expanded = self.mmd_resolver.solve(app)
 
         expected = set([
             frozenset(["app:1:0:0:src",
@@ -170,23 +177,11 @@ class TestMMDResolver:
         assert expanded == expected
 
     def test_solve_tree_multiple_build_requires(self):
-        mmds = [
-            self._make_mmd("app:1:0", {"gtk": ["1", "2"], "foo": ["1", "2"]}),
-            self._make_mmd("gtk:1:0:c2", {"platform": ["f28"]}),
-            self._make_mmd("gtk:1:0:c3", {"platform": ["f29"]}),
-            self._make_mmd("gtk:2:0:c4", {"platform": ["f28"]}),
-            self._make_mmd("gtk:2:0:c5", {"platform": ["f29"]}),
-            self._make_mmd("foo:1:0:c2", {"platform": ["f28"]}),
-            self._make_mmd("foo:1:0:c3", {"platform": ["f29"]}),
-            self._make_mmd("foo:2:0:c4", {"platform": ["f28"]}),
-            self._make_mmd("foo:2:0:c5", {"platform": ["f29"]}),
-            self._make_mmd("platform:f28:0:c10", {}),
-            self._make_mmd("platform:f29:0:c11", {}),
-        ]
-
-        for mmd in mmds[1:]:
+        for mmd in self._default_mmds():
             self.mmd_resolver.add_modules(mmd)
-        expanded = self.mmd_resolver.solve(mmds[0])
+
+        app = self._make_mmd("app:1:0", {"gtk": ["1", "2"], "foo": ["1", "2"]})
+        expanded = self.mmd_resolver.solve(app)
 
         expected = set([
             frozenset(["app:1:0:0:src",
