@@ -30,6 +30,7 @@ import json
 import module_build_service.auth
 from flask import request, jsonify, url_for
 from flask.views import MethodView
+from builtins import str
 
 from module_build_service import app, conf, log, models, db, version
 from module_build_service.utils import (
@@ -329,7 +330,7 @@ class SCMHandler(BaseHandler):
         branch = self.data["branch"]
 
         # python-modulemd expects this to be bytes, not unicode.
-        if isinstance(branch, unicode):
+        if isinstance(branch, str):
             branch = branch.encode('utf-8')
 
         return submit_module_build_from_scm(self.username, url, branch,

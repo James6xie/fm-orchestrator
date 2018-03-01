@@ -295,13 +295,14 @@ class ModuleBuild(MBSBase):
             mmd_formatted_property = {
                 dep: info['ref'] for dep, info in mbs_xmd[property_name].items()}
             property_json = json.dumps(OrderedDict(sorted(mmd_formatted_property.items())))
-            rv.append(hashlib.sha1(property_json).hexdigest())
+            rv.append(hashlib.sha1(property_json.encode('utf-8')).hexdigest())
         return tuple(rv)
 
     @property
     def context(self):
         if self.build_context and self.runtime_context:
-            combined_hashes = '{0}:{1}'.format(self.build_context, self.runtime_context)
+            combined_hashes = '{0}:{1}'.format(
+                self.build_context, self.runtime_context).encode('utf-8')
             return hashlib.sha1(combined_hashes).hexdigest()[:8]
         else:
             # We can't compute the context because the necessary data isn't there, so return a

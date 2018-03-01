@@ -140,7 +140,7 @@ class TestSCMModule:
 
     @patch.object(module_build_service.scm.SCM, '_run')
     def test_get_latest_ignore_origin(self, mock_run):
-        output = """\
+        output = b"""\
 58379ef7887cbc91b215bacd32430628c92bc869\tHEAD
 58379ef7887cbc91b215bacd32430628c92bc869\trefs/heads/master
 10a651f39911a07d85fe87fcfe91999545e44ae0\trefs/remotes/origin/master

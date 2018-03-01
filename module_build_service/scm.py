@@ -110,7 +110,7 @@ class SCM(object):
         found = False
         branches = SCM._run(["git", "branch", "-r", "--contains", self.commit],
                             chdir=self.sourcedir)[1]
-        for branch in branches.split("\n"):
+        for branch in branches.decode('utf-8').split("\n"):
             branch = branch.strip()
             if branch[len("origin/"):] == self.branch:
                 found = True
@@ -203,7 +203,7 @@ class SCM(object):
             # So the dictionary ends up in the format of
             # {"master": "bf028e573e7c18533d89c7873a411de92d4d913e"...}.
             branches = {}
-            for branch_and_ref in output.strip().split("\n"):
+            for branch_and_ref in output.decode('utf-8').strip().split("\n"):
                 # Only look at refs/heads/* and not refs/remotes/origin/*
                 if "refs/heads/" not in branch_and_ref:
                     continue
@@ -253,7 +253,7 @@ class SCM(object):
                     shutil.rmtree(td)
 
             if output:
-                return str(output.strip('\n'))
+                return str(output.decode('utf-8').strip('\n'))
 
             raise UnprocessableEntity(
                 'The full commit hash of "{0}" for "{1}" could not be found'

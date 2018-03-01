@@ -559,6 +559,9 @@ class DummyModuleBuilder(GenericBuilder):
     def list_tasks_for_components(self, component_builds=None, state='active'):
         pass
 
+    def repo_from_tag(self, config, tag_name, arch):
+        pass
+
 
 @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
        return_value={'build': [], 'srpm-build': []})

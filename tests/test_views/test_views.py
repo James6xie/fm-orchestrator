@@ -103,7 +103,7 @@ class FakeSCM(object):
         return self.sourcedir
 
     def get_latest(self, ref='master'):
-        return hashlib.sha1(ref).hexdigest()[:10]
+        return hashlib.sha1(ref.encode('utf-8')).hexdigest()[:10]
 
     def get_module_yaml(self):
         return path.join(self.sourcedir, self.name + ".yaml")

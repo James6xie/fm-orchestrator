@@ -33,7 +33,6 @@ import kobo.rpmlib
 import inspect
 import hashlib
 from functools import wraps
-
 import modulemd
 import yaml
 
@@ -68,8 +67,8 @@ def retry(timeout=conf.net_timeout, interval=conf.net_retry_interval, wait_on=Ex
                     log.warn("Exception %r raised from %r.  Retry in %rs" % (
                         e, function, interval))
                     time.sleep(interval)
-                if (time.time() - start) >= timeout:
-                    raise  # This re-raises the last exception.
+                    if (time.time() - start) >= timeout:
+                        raise  # This re-raises the last exception.
         return inner
     return wrapper
 
@@ -675,7 +674,12 @@ def load_local_builds(local_build_nsvs, session=None):
         pass
 
     # Sort with the biggest version first
-    builds.sort(lambda a, b: -cmp(a[2], b[2]))
+    try:
+        # py27
+        builds.sort(lambda a, b: -cmp(a[2], b[2]))
+    except TypeError:
+        # py3
+        builds.sort(key=lambda a: a[2], reverse=True)
 
     for build_id in local_build_nsvs:
         parts = build_id.split(':')
@@ -1470,7 +1474,7 @@ def get_rpm_release(module_build):
     :return: a string of the module's dist tag
     """
     dist_str = '.'.join([module_build.name, module_build.stream, str(module_build.version),
-                         str(module_build.context)])
+                         str(module_build.context)]).encode('utf-8')
     dist_hash = hashlib.sha1(dist_str).hexdigest()[:8]
     return "{prefix}{index}+{dist_hash}".format(
         prefix=conf.default_dist_tag_prefix,

@@ -300,6 +300,7 @@ class TestKojiBuilder:
             # getTaskDescendents response
             [[{'1': [], '2': [], '3': [{'weight': 1.0}, {'weight': 1.0}]}]]
         ]
+        session.getAverageBuildDuration.return_value = None
         get_session.return_value = session
 
         weights = KojiModuleBuilder.get_build_weights(["httpd", "apr"])
@@ -320,6 +321,7 @@ class TestKojiBuilder:
             # getTaskDescendents response
             [[{'1': [], '2': [], '3': [{'weight': 1.0}, {'weight': 1.0}]}]]
         ]
+        session.getAverageBuildDuration.return_value = None
         get_session.return_value = session
 
         weights = KojiModuleBuilder.get_build_weights(["httpd", "apr"])
@@ -333,6 +335,7 @@ class TestKojiBuilder:
         session = MagicMock()
         session.getLoggedInUser.return_value = {"id": 123}
         session.multiCall.side_effect = [[[1], [2]], []]
+        session.getAverageBuildDuration.return_value = None
         get_session.return_value = session
 
         weights = KojiModuleBuilder.get_build_weights(["httpd", "apr"])
@@ -349,6 +352,7 @@ class TestKojiBuilder:
         session = MagicMock()
         session.getLoggedInUser.return_value = {"id": 123}
         session.multiCall.side_effect = [[], []]
+        session.getAverageBuildDuration.return_value = None
         get_session.return_value = session
 
         weights = KojiModuleBuilder.get_build_weights(["httpd", "apr"])
@@ -359,5 +363,8 @@ class TestKojiBuilder:
 
     @patch('module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session')
     def test_get_build_weights_getLoggedInUser_failed(self, get_session):
+        session = MagicMock()
+        session.getAverageBuildDuration.return_value = None
+        get_session.return_value = session
         weights = KojiModuleBuilder.get_build_weights(["httpd", "apr"])
         assert weights == {"httpd": 1.5, "apr": 1.5}

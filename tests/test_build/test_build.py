@@ -146,6 +146,9 @@ class FakeModuleBuilder(GenericBuilder):
     def buildroot_add_dependency(self, dependencies):
         pass
 
+    def repo_from_tag(self, config, tag_name, arch):
+        pass
+
     def buildroot_add_artifacts(self, artifacts, install=False):
         if FakeModuleBuilder.on_buildroot_add_artifacts_cb:
             FakeModuleBuilder.on_buildroot_add_artifacts_cb(self, artifacts, install)
@@ -484,17 +487,19 @@ class TestBuild:
     def test_submit_build_with_optional_params(self, mocked_get_user, conf_system, dbg):
         params = {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                             'testmodule.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4'}
+        not_existing_param = {"not_existing_param": "foo"}
+        copr_owner_param = {"copr_owner": "foo"}
 
         def submit(data):
             rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(data))
             return json.loads(rv.data)
 
-        data = submit(dict(params.items() + {"not_existing_param": "foo"}.items()))
+        data = submit(dict(params, **not_existing_param))
         assert "The request contains unspecified parameters:" in data["message"]
         assert "not_existing_param" in data["message"]
         assert data["status"] == 400
 
-        data = submit(dict(params.items() + {"copr_owner": "foo"}.items()))
+        data = submit(dict(params, **copr_owner_param))
         assert "The request contains parameters specific to Copr builder" in data["message"]
 
     @patch('module_build_service.auth.get_user', return_value=user)

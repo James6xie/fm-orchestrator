@@ -33,6 +33,8 @@ import shutil
 import subprocess
 import tempfile
 import time
+from builtins import str
+from io import open
 
 import koji
 
@@ -145,21 +147,16 @@ class KojiContentGenerator(object):
         sep = ';'
         fmt = sep.join(["%%{%s}" % tag for tag in tags])
         cmd = "/bin/rpm -qa --qf '{0}\n'".format(fmt)
-        try:
-            # py3
-            (status, output) = subprocess.getstatusoutput(cmd)
-        except AttributeError:
-            # py2
-            with open('/dev/null', 'r+') as devnull:
-                p = subprocess.Popen(cmd,
-                                     shell=True,
-                                     stdin=devnull,
-                                     stdout=subprocess.PIPE,
-                                     stderr=devnull)
+        with open('/dev/null', 'r+') as devnull:
+            p = subprocess.Popen(cmd,
+                                 shell=True,
+                                 stdin=devnull,
+                                 stdout=subprocess.PIPE,
+                                 stderr=devnull)
 
-                (stdout, stderr) = p.communicate()
-                status = p.wait()
-                output = stdout.decode()
+            (stdout, stderr) = p.communicate()
+            status = p.wait()
+            output = stdout
 
         if status != 0:
             log.debug("%s: stderr output: %s", cmd, stderr)
@@ -173,7 +170,7 @@ class KojiContentGenerator(object):
         tools = [u"modulemd"]
         ret = []
         for tool in tools:
-            version = unicode(pkg_resources.get_distribution(tool).version)
+            version = str(pkg_resources.get_distribution(tool).version)
             ret.append({u"name": tool,
                         u"version": version})
         return ret
@@ -236,15 +233,15 @@ class KojiContentGenerator(object):
         ret = {
             u"id": 1,
             u"host": {
-                u"arch": unicode(platform.machine()),
+                u"arch": str(platform.machine()),
                 u'os': u"%s %s" % (distro[0], distro[1])
             },
             u"content_generator": {
                 u"name": u"module-build-service",
-                u"version": unicode(version)
+                u"version": str(version)
             },
             u"container": {
-                u"arch": unicode(platform.machine()),
+                u"arch": str(platform.machine()),
                 u"type": u"none"
             },
             u"components": self.__get_rpms(),
@@ -281,7 +278,7 @@ class KojiContentGenerator(object):
                 },
                 u'filesize': len(self.mmd),
                 u'checksum_type': u'md5',
-                u'checksum': unicode(hashlib.md5(self.mmd).hexdigest()),
+                u'checksum': str(hashlib.md5(self.mmd.encode('utf-8')).hexdigest()),
                 u'filename': u'modulemd.txt',
                 u'components': components
             }
@@ -290,7 +287,7 @@ class KojiContentGenerator(object):
         try:
             log_path = os.path.join(output_path, "build.log")
             with open(log_path) as build_log:
-                checksum = hashlib.md5(build_log.read()).hexdigest()
+                checksum = hashlib.md5(build_log.read().encode('utf-8')).hexdigest()
             stat = os.stat(log_path)
             ret.append(
                 {

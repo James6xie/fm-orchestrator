@@ -495,6 +495,9 @@ class MockModuleBuilder(GenericBuilder):
     def list_tasks_for_components(self, component_builds=None, state='active'):
         pass
 
+    def repo_from_tag(cls, config, tag_name, arch):
+        pass
+
 
 class BaseBuilder(object):
     def __init__(self, config, resultsdir):
