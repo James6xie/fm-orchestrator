@@ -1428,7 +1428,7 @@ def _get_mmds_from_requires(session, requires, mmds, recursive=False):
         # b) there is at least one stream without '-' prefix. In this case, we can
         #    ignore all the streams with '-' prefix and just add those without
         #    '-' prefix to the list of valid streams.
-        streams_is_blacklist = all([stream[0] == "-" for stream in streams.get()])
+        streams_is_blacklist = all(stream.startswith("-") for stream in streams.get())
         if streams_is_blacklist or len(streams.get()) == 0:
             builds = models.ModuleBuild.get_last_build_in_all_streams(
                 session, name)
@@ -1451,10 +1451,8 @@ def _get_mmds_from_requires(session, requires, mmds, recursive=False):
             if ns in mmds:
                 continue
 
-            last_build_in_stream = models.ModuleBuild.get_last_build_in_stream(
+            builds = models.ModuleBuild.get_last_builds_in_stream(
                 session, name, stream)
-            builds = models.ModuleBuild.get_builds_in_version(
-                session, name, stream, last_build_in_stream.version)
             mmds[ns] = [build.mmd() for build in builds]
             added_mmds[ns] = mmds[ns]
 

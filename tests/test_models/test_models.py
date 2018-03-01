@@ -77,10 +77,9 @@ class TestModels:
         assert build.context == 'e7a3d35e'
 
 class TestModelsGetStreamsContexts:
-    def setup_method(self, test_method):
-        init_data_contexts(contexts=True)
 
     def test_get_last_build_in_all_streams(self):
+        init_data_contexts(contexts=True)
         with make_session(conf) as session:
             builds = ModuleBuild.get_last_build_in_all_streams(
                 session, "nginx")
@@ -88,17 +87,20 @@ class TestModelsGetStreamsContexts:
                       for build in builds]
             assert builds == ["nginx:%d:%d" % (i, i + 2) for i in range(10)]
 
-    def test_get_last_build_in_stream(self):
+    def test_get_last_build_in_all_stream_last_version(self):
+        init_data_contexts(contexts=False)
         with make_session(conf) as session:
-            build = ModuleBuild.get_last_build_in_stream(
-                session, "nginx", "1")
-            build = "%s:%s:%s" % (build.name, build.stream, str(build.version))
-            assert build == 'nginx:1:3'
+            builds = ModuleBuild.get_last_build_in_all_streams(
+                session, "nginx")
+            builds = ["%s:%s:%s" % (build.name, build.stream, str(build.version))
+                      for build in builds]
+            assert builds == ["nginx:1:11"]
 
-    def test_get_builds_in_version(self):
+    def test_get_last_builds_in_stream(self):
+        init_data_contexts(contexts=True)
         with make_session(conf) as session:
-            builds = ModuleBuild.get_builds_in_version(
-                session, "nginx", "1", "3")
+            builds = ModuleBuild.get_last_builds_in_stream(
+                session, "nginx", "1")
             builds = ["%s:%s:%s:%s" % (build.name, build.stream, str(build.version),
                                        build.context) for build in builds]
             assert builds == ['nginx:1:3:d5a6c0fa', 'nginx:1:3:795e97c1']

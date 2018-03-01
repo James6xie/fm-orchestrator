@@ -246,11 +246,12 @@ class ModuleBuild(MBSBase):
     @staticmethod
     def get_last_build_in_all_streams(session, name):
         """
-        Returns list of all last ModuleBuilds in "ready" state for all
+        Returns list of all latest ModuleBuilds in "ready" state for all
         streams for given module `name`.
         """
         subq = session.query(
-            func.max(ModuleBuild.id).label('id')
+            ModuleBuild.id,
+            func.max(ModuleBuild.version.cast(db.Integer))
         ).group_by(ModuleBuild.name, ModuleBuild.stream).filter_by(
             name=name, state=BUILD_STATES["ready"]).subquery('t2')
         query = session.query(ModuleBuild).join(
@@ -258,25 +259,20 @@ class ModuleBuild(MBSBase):
         return query.all()
 
     @staticmethod
-    def get_last_build_in_stream(session, name, stream):
+    def get_last_builds_in_stream(session, name, stream):
         """
-        Returns the last build in "ready" state for given name:stream.
+        Returns the latest builds in "ready" state for given name:stream.
         """
-        query = session.query(ModuleBuild)
-        query = query.filter_by(name=name, stream=stream,
-                                state=BUILD_STATES["ready"])
-        query = query.order_by(ModuleBuild.id.desc())
-        return query.first()
-
-    @staticmethod
-    def get_builds_in_version(session, name, stream, version):
-        """
-        Returns list of all module builds in "ready" state for given
-        name:stream:version - it means all the contexts of this module.
-        """
-        query = session.query(ModuleBuild)
-        query = query.filter_by(name=name, stream=stream, version=version,
-                                state=BUILD_STATES["ready"])
+        subq = session.query(
+            ModuleBuild.version,
+            func.max(ModuleBuild.version.cast(db.Integer))
+        ).group_by(ModuleBuild.name, ModuleBuild.stream).filter_by(
+            name=name, state=BUILD_STATES["ready"], stream=stream).subquery('t2')
+        query = session.query(ModuleBuild).join(
+            subq, and_(
+                ModuleBuild.name == name,
+                ModuleBuild.stream == stream,
+                ModuleBuild.version == subq.c.version))
         return query.all()
 
     def mmd(self):
