@@ -39,7 +39,10 @@ def _gather_alternatives(pool, favor=None, tested=None, level=1, transactions=No
                 for s in favor or [])
     jobs.extend(pool.Job(solv.Job.SOLVER_DISFAVOR | solv.Job.SOLVER_SOLVABLE, s.id)
                 for s in tested)
-    assert not solver.solve(jobs)
+    problems = solver.solve(jobs)
+    if problems:
+        raise RuntimeError("Problems were found during solve(): %s" % ", ".join(
+            str(p) for p in problems))
     newsolvables = solver.transaction().newsolvables()
     transactions.append(newsolvables)
     alternatives = solver.all_alternatives()
@@ -47,7 +50,7 @@ def _gather_alternatives(pool, favor=None, tested=None, level=1, transactions=No
         return transactions
 
     if [alt for alt in alternatives if alt.type != solv.Alternative.SOLVER_ALTERNATIVE_TYPE_RULE]:
-        assert False, "Recommends alternative rule"
+        raise SystemError("Encountered alternative with type != rule")
 
     log.debug("Jobs:")
     for job in pool.getpooljobs():
@@ -72,11 +75,11 @@ def _gather_alternatives(pool, favor=None, tested=None, level=1, transactions=No
                 sign = " "
             log.debug("  * %s%s", sign, choice)
     if auto_minimized:
-        raise NotImplementedError
+        raise NotImplementedError("Transaction was auto-minimized")
 
     current_alternatives = [alt for alt in alternatives if alt.level == level]
     if len(current_alternatives) > 1:
-        raise NotImplementedError
+        raise SystemError("Encountered multiple alternatives on the same level")
 
     alternative = current_alternatives[0]
     raw_choices = alternative.choices_raw()
@@ -125,7 +128,8 @@ class MMDResolver(object):
             # Built module
             deps = mmd.get_dependencies()
             if len(deps) > 1:
-                assert False, "Multiple dependencies for runtime"
+                raise ValueError(
+                    "The built module contains different runtime dependencies: %s" % mmd.dumps())
 
             # $n:$s:$c-$v.$a
             solvable = self.available_repo.add_solvable()
