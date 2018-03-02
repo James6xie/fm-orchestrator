@@ -76,6 +76,7 @@ class TestModels:
         assert build.runtime_context == '1739827b08388842fc90ccc0b6070c59b7d856fc'
         assert build.context == 'e7a3d35e'
 
+
 class TestModelsGetStreamsContexts:
 
     def test_get_last_build_in_all_streams(self):

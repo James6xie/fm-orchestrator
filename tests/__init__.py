@@ -159,7 +159,7 @@ def _populate_data(session, data_size=10, contexts=False):
             component_one_build_one.package = 'nginx'
             component_one_build_one.scmurl = \
                 ('git://pkgs.domain.local/rpms/nginx?'
-                '#ga95886c8a443b36a9ce31abda1f9bed22f2f8c3')
+                 '#ga95886c8a443b36a9ce31abda1f9bed22f2f8c3')
             component_one_build_one.format = 'rpms'
             component_one_build_one.task_id = 12312345 + index
             component_one_build_one.state = koji.BUILD_STATES['COMPLETE']
@@ -173,7 +173,7 @@ def _populate_data(session, data_size=10, contexts=False):
             component_two_build_one.package = 'module-build-macros'
             component_two_build_one.scmurl = \
                 ('/tmp/module_build_service-build-macrosWZUPeK/SRPMS/'
-                'module-build-macros-0.1-1.module_nginx_1_2.src.rpm')
+                 'module-build-macros-0.1-1.module_nginx_1_2.src.rpm')
             component_two_build_one.format = 'rpms'
             component_two_build_one.task_id = 12312321 + index
             component_two_build_one.state = koji.BUILD_STATES['COMPLETE']
