@@ -61,7 +61,7 @@ class TestModuleWait:
         mocked_module_build = mock.Mock()
         mocked_module_build.json.return_value = {
             'name': 'foo',
-            'stream': 1,
+            'stream': '1',
             'version': 1,
             'state': 'some state',
             'id': 1

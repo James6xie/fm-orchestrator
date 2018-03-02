@@ -220,13 +220,20 @@ class PDCResolver(GenericResolver):
         assert len(results) <= 1, pprint.pformat(retval)
         return results[0]
 
-    def get_module_tag(self, module_info, strict=False):
+    def get_module_tag(self, name, stream, version, strict=False):
         """
-        :param module_info: list of module_info dicts
+        :param name: a module's name
+        :param stream: a module's stream
+        :param version: a module's version
         :param strict: Normally this function returns None if no module can be
                found.  If strict=True, then an UnprocessableEntity is raised.
         :return: koji tag string
         """
+        module_info = {
+            'name': name,
+            'version': stream,
+            'release': str(version)
+        }
         return self._get_module(module_info, strict=strict)['koji_tag']
 
     def _get_module_modulemd(self, module_info, strict=False):
@@ -381,33 +388,40 @@ class PDCResolver(GenericResolver):
         # Return the union of all rpms in all profiles of the given keys.
         return results
 
-    def get_module_build_dependencies(self, module_info, strict=False):
+    def get_module_build_dependencies(self, name=None, stream=None, version=None, mmd=None,
+                                      strict=False):
         """
-        :param module_info : a dict containing filters for pdc or ModuleMetadata
-        instance.
+        :param name: a module's name (required if mmd is not set)
+        :param stream: a module's stream (required if mmd is not set)
+        :param version: a module's version (required if mmd is not set)
+        :param mmd: uses the mmd instead of the name, stream, version to query PDC
         :param strict: Normally this function returns None if no module can be
-               found.  If strict=True, then an UnprocessableEntity is raised.
+            found.  If strict=True, then an UnprocessableEntity is raised.
         :return dict with koji_tag as a key and ModuleMetadata object as value.
-
-        Example minimal module_info:
-            {
-                'variant_id': module_name,
-                'variant_version': module_version,
-                'variant_type': 'module'
-            }
         """
-        log.debug("get_module_build_dependencies(%r, strict=%r)" % (module_info, strict))
-        # XXX get definitive list of modules
+        if mmd:
+            log.debug("get_module_build_dependencies(mmd=%r strict=%r)" % (mmd, strict))
+        elif any(x is None for x in [name, stream, version]):
+            raise RuntimeError('The name, stream, and version weren\'t specified')
+        else:
+            version = str(version)
+            log.debug("get_module_build_dependencies(%s, strict=%r)"
+                      % (', '.join([name, stream, str(version)]), strict))
 
         # This is the set we're going to build up and return.
         module_tags = {}
 
-        if not isinstance(module_info, Modulemd.Module):
+        if mmd:
+            queried_mmd = mmd
+        else:
+            module_info = {
+                'name': name,
+                'version': stream,
+                'release': str(version)
+            }
             queried_module = self._get_module(module_info, strict=strict)
             yaml = queried_module['modulemd']
             queried_mmd = self.extract_modulemd(yaml, strict=strict)
-        else:
-            queried_mmd = module_info
 
         if (not queried_mmd or not queried_mmd.get_xmd().get('mbs') or
                 'buildrequires' not in queried_mmd.get_xmd()['mbs'].keys()):

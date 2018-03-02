@@ -88,13 +88,9 @@ class TestPDCModule:
                 'modulemd': mmd.dumps(),
                 'build_deps': []
             })
-        query = {
-            'name': 'testmodule',
-            'version': 'master',
-            'release': '20180205135154',
-        }
         resolver = mbs_resolver.GenericResolver.create(tests.conf, backend='pdc')
-        result = resolver.get_module_build_dependencies(query).keys()
+        result = resolver.get_module_build_dependencies(
+            'testmodule', 'master', '20180205135154').keys()
         assert set(result) == expected
 
     def test_get_module_build_dependencies_recursive(self, pdc_module_active):
@@ -134,7 +130,8 @@ class TestPDCModule:
             'release': '20180123171545',
         }
         resolver = mbs_resolver.GenericResolver.create(tests.conf, backend='pdc')
-        result = resolver.get_module_build_dependencies(query).keys()
+        result = resolver.get_module_build_dependencies(
+            'testmodule2', 'master', '20180123171545').keys()
         assert set(result) == set(['module-f28-build'])
 
     @patch("module_build_service.config.Config.system",
@@ -155,7 +152,7 @@ class TestPDCModule:
             build = module_build_service.models.ModuleBuild.local_modules(
                 db.session, "child", "master")
             resolver = mbs_resolver.GenericResolver.create(tests.conf, backend='pdc')
-            result = resolver.get_module_build_dependencies(build[0].mmd()).keys()
+            result = resolver.get_module_build_dependencies(mmd=build[0].mmd()).keys()
 
             local_path = os.path.join(base_dir, 'staged_data', "local_builds")
 

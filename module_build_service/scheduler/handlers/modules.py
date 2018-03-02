@@ -222,7 +222,7 @@ def wait(config, session, msg):
             # local build is not stored in PDC and therefore we cannot query
             # it using the `query` as for Koji below.
             dependencies = resolver.get_module_build_dependencies(
-                build.mmd(), strict=True).keys()
+                mmd=build.mmd(), strict=True).keys()
 
             # We also don't want to get the tag name from the PDC, but just
             # generate it locally instead.
@@ -232,14 +232,11 @@ def wait(config, session, msg):
         else:
             # For Koji backend, query for the module we are going to
             # build to get the koji_tag and deps from it.
-            query = {
-                'name': module_info['name'],
-                'version': module_info['stream'],
-                'release': module_info['version'],
-            }
-            log.info("Getting %s deps (query %r)" % (module_info['name'], query))
-            deps_dict = resolver.get_module_build_dependencies(
-                query, strict=True)
+            name = module_info['name']
+            stream = module_info['stream']
+            version = str(module_info['version'])
+            log.info("Getting deps for %s" % (':'.join([name, stream, version])))
+            deps_dict = resolver.get_module_build_dependencies(name, stream, version, strict=True)
             dependencies = set(deps_dict.keys())
 
             # Find out the name of Koji tag to which the module's Content
@@ -252,9 +249,8 @@ def wait(config, session, msg):
                         module_names_streams[base_module_name])
                     break
 
-            log.info("Getting %s tag (query %r)" % (module_info['name'], query))
-            tag = resolver.get_module_tag(
-                query, strict=True)
+            log.info('Getting tag for {0}'.format(':'.join([name, stream, version])))
+            tag = resolver.get_module_tag(name, stream, version, strict=True)
 
         return dependencies, tag, cg_build_koji_tag
 
