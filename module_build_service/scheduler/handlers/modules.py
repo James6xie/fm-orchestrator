@@ -193,11 +193,10 @@ def wait(config, session, msg):
     log.info("Found build=%r from message" % build)
     log.info("%r", build.modulemd)
 
-    module_info = build.extended_json()
-    if module_info['state'] != msg.module_build_state:
+    if build.state != msg.module_build_state:
         log.warn("Note that retrieved module state %r "
                  "doesn't match message module state %r" % (
-                     module_info['state'], msg.module_build_state))
+                     build.state, msg.module_build_state))
         # This is ok.. it's a race condition we can ignore.
         pass
 
@@ -226,17 +225,13 @@ def wait(config, session, msg):
 
             # We also don't want to get the tag name from the PDC, but just
             # generate it locally instead.
-            tag = '-'.join(['module',
-                            module_info['name'],
-                            str(module_info['stream']), str(module_info['version'])])
+            tag = '-'.join(['module', build.name, build.stream, build.version])
         else:
             # For Koji backend, query for the module we are going to
             # build to get the koji_tag and deps from it.
-            name = module_info['name']
-            stream = module_info['stream']
-            version = str(module_info['version'])
-            log.info("Getting deps for %s" % (':'.join([name, stream, version])))
-            deps_dict = resolver.get_module_build_dependencies(name, stream, version, strict=True)
+            log.info("Getting deps for %s" % (':'.join([build.name, build.stream, build.version])))
+            deps_dict = resolver.get_module_build_dependencies(
+                build.name, build.stream, build.version, strict=True)
             dependencies = set(deps_dict.keys())
 
             # Find out the name of Koji tag to which the module's Content
@@ -249,8 +244,9 @@ def wait(config, session, msg):
                         module_names_streams[base_module_name])
                     break
 
-            log.info('Getting tag for {0}'.format(':'.join([name, stream, version])))
-            tag = resolver.get_module_tag(name, stream, version, strict=True)
+            log.info('Getting tag for {0}'.format(':'.join([
+                build.name, build.stream, build.version])))
+            tag = resolver.get_module_tag(build.name, build.stream, build.version, strict=True)
 
         return dependencies, tag, cg_build_koji_tag
 
@@ -278,7 +274,8 @@ def wait(config, session, msg):
     builder = module_build_service.builder.GenericBuilder.create_from_module(
         session, build, config)
 
-    log.debug("Adding dependencies %s into buildroot for module %s" % (dependencies, module_info))
+    log.debug("Adding dependencies %s into buildroot for module %s" % (dependencies, ':'.join(
+        [build.name, build.stream, build.version])))
     builder.buildroot_add_repos(dependencies)
 
     if not build.component_builds:

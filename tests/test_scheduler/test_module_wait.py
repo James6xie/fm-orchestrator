@@ -59,6 +59,11 @@ class TestModuleWait:
         builder.module_build_tag = {'name': 'some-tag-build'}
         create_builder.return_value = builder
         mocked_module_build = mock.Mock()
+        mocked_module_build.name = 'foo'
+        mocked_module_build.stream = 'stream'
+        mocked_module_build.version = '1'
+        mocked_module_build.state = 1
+        mocked_module_build.id = 1
         mocked_module_build.json.return_value = {
             'name': 'foo',
             'stream': '1',
@@ -66,7 +71,6 @@ class TestModuleWait:
             'state': 'some state',
             'id': 1
         }
-        mocked_module_build.extended_json = mocked_module_build.json
 
         formatted_testmodule_yml_path = os.path.join(
             base_dir, 'staged_data', 'formatted_testmodule.yaml')

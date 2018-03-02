@@ -124,11 +124,6 @@ class TestPDCModule:
             'modulemd': mmd.dumps()
         })
 
-        query = {
-            'name': 'testmodule2',
-            'version': 'master',
-            'release': '20180123171545',
-        }
         resolver = mbs_resolver.GenericResolver.create(tests.conf, backend='pdc')
         result = resolver.get_module_build_dependencies(
             'testmodule2', 'master', '20180123171545').keys()
