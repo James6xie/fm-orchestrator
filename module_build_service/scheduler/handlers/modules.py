@@ -229,9 +229,10 @@ def wait(config, session, msg):
         else:
             # For Koji backend, query for the module we are going to
             # build to get the koji_tag and deps from it.
-            log.info("Getting deps for %s" % (':'.join([build.name, build.stream, build.version])))
+            nsvc = ':'.join([build.name, build.stream, build.version])
+            log.info("Getting deps for %s" % (nsvc))
             deps_dict = resolver.get_module_build_dependencies(
-                build.name, build.stream, build.version, strict=True)
+                build.name, build.stream, build.version, build.context, strict=True)
             dependencies = set(deps_dict.keys())
 
             # Find out the name of Koji tag to which the module's Content
@@ -244,9 +245,9 @@ def wait(config, session, msg):
                         module_names_streams[base_module_name])
                     break
 
-            log.info('Getting tag for {0}'.format(':'.join([
-                build.name, build.stream, build.version])))
-            tag = resolver.get_module_tag(build.name, build.stream, build.version, strict=True)
+            log.info('Getting tag for {0}'.format(nsvc))
+            tag = resolver.get_module_tag(
+                build.name, build.stream, build.version, build.context, strict=True)
 
         return dependencies, tag, cg_build_koji_tag
 

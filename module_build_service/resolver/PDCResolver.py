@@ -132,6 +132,8 @@ class PDCResolver(GenericResolver):
 
         elif is_module_dict(data):
             result = {'variant_id': data['name'], 'variant_version': data['version']}
+            if data.get('context'):
+                result['variant_context'] = data['context']
 
             if 'release' in data:
                 result['variant_release'] = data['release']
@@ -190,6 +192,8 @@ class PDCResolver(GenericResolver):
             query['variant_release'] = variant_dict['variant_release']
         if module_info.get('active'):
             query['active'] = module_info['active']
+        if module_info.get('context'):
+            query['variant_context'] = module_info['context']
 
         # TODO: So far sorting on Fedora prod PDC instance is broken and it sorts
         # only by variant_uid by default. Once the sorting is fixed, we can start
@@ -220,11 +224,12 @@ class PDCResolver(GenericResolver):
         assert len(results) <= 1, pprint.pformat(retval)
         return results[0]
 
-    def get_module_tag(self, name, stream, version, strict=False):
+    def get_module_tag(self, name, stream, version, context, strict=False):
         """
         :param name: a module's name
         :param stream: a module's stream
         :param version: a module's version
+        :param context: a module's context
         :param strict: Normally this function returns None if no module can be
                found.  If strict=True, then an UnprocessableEntity is raised.
         :return: koji tag string
@@ -232,7 +237,8 @@ class PDCResolver(GenericResolver):
         module_info = {
             'name': name,
             'version': stream,
-            'release': str(version)
+            'release': str(version),
+            'context': context
         }
         return self._get_module(module_info, strict=strict)['koji_tag']
 
@@ -388,12 +394,13 @@ class PDCResolver(GenericResolver):
         # Return the union of all rpms in all profiles of the given keys.
         return results
 
-    def get_module_build_dependencies(self, name=None, stream=None, version=None, mmd=None,
-                                      strict=False):
+    def get_module_build_dependencies(self, name=None, stream=None, version=None, context=None,
+                                      mmd=None, strict=False):
         """
         :param name: a module's name (required if mmd is not set)
         :param stream: a module's stream (required if mmd is not set)
         :param version: a module's version (required if mmd is not set)
+        :param context: a module's context (required if mmd is not set)
         :param mmd: uses the mmd instead of the name, stream, version to query PDC
         :param strict: Normally this function returns None if no module can be
             found.  If strict=True, then an UnprocessableEntity is raised.
@@ -401,12 +408,12 @@ class PDCResolver(GenericResolver):
         """
         if mmd:
             log.debug("get_module_build_dependencies(mmd=%r strict=%r)" % (mmd, strict))
-        elif any(x is None for x in [name, stream, version]):
-            raise RuntimeError('The name, stream, and version weren\'t specified')
+        elif any(x is None for x in [name, stream, version, context]):
+            raise RuntimeError('The name, stream, version, and/or context weren\'t specified')
         else:
             version = str(version)
             log.debug("get_module_build_dependencies(%s, strict=%r)"
-                      % (', '.join([name, stream, str(version)]), strict))
+                      % (', '.join([name, stream, str(version), context]), strict))
 
         # This is the set we're going to build up and return.
         module_tags = {}
@@ -417,7 +424,8 @@ class PDCResolver(GenericResolver):
             module_info = {
                 'name': name,
                 'version': stream,
-                'release': str(version)
+                'release': str(version),
+                'context': context
             }
             queried_module = self._get_module(module_info, strict=strict)
             yaml = queried_module['modulemd']

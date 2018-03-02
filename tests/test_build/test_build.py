@@ -411,6 +411,7 @@ class TestBuild:
             'variant_type': 'module',
             'variant_version': 'master',
             'variant_release': '20180205135154',
+            'variant_context': 'c2c572ec',
             'koji_tag': 'module-95b214a704c984be',
             'modulemd': python3_yaml,
             'runtime_deps': [
@@ -916,6 +917,8 @@ class TestBuild:
         """
         now = datetime.utcnow()
         submitted_time = now - timedelta(minutes=3)
+        pdc_module_inactive.endpoints['unreleasedvariants']['GET'][-1]['variant_context'] = \
+            '7c29193d'
         # Create a module in the failed state
         build_one = models.ModuleBuild()
         build_one.name = 'testmodule'
@@ -1040,6 +1043,8 @@ class TestBuild:
         FakeModuleBuilder.INSTANT_COMPLETE = True
         now = datetime.utcnow()
         submitted_time = now - timedelta(minutes=3)
+        pdc_module_inactive.endpoints['unreleasedvariants']['GET'][-1]['variant_context'] = \
+            '7c29193d'
         # Create a module in the failed state
         build_one = models.ModuleBuild()
         build_one.name = 'testmodule'

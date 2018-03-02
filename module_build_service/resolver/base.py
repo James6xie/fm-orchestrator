@@ -98,7 +98,7 @@ class GenericResolver(six.with_metaclass(ABCMeta)):
         return mmd
 
     @abstractmethod
-    def get_module_tag(self, name, stream, version, strict=False):
+    def get_module_tag(self, name, stream, version, context, strict=False):
         raise NotImplementedError()
 
     @abstractmethod
@@ -107,7 +107,7 @@ class GenericResolver(six.with_metaclass(ABCMeta)):
 
     @abstractmethod
     def get_module_build_dependencies(self, name=None, stream=None, version=None, mmd=None,
-                                      strict=False):
+                                      context=None, strict=False):
         raise NotImplementedError()
 
     @abstractmethod

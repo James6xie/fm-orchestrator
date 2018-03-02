@@ -90,7 +90,7 @@ class TestPDCModule:
             })
         resolver = mbs_resolver.GenericResolver.create(tests.conf, backend='pdc')
         result = resolver.get_module_build_dependencies(
-            'testmodule', 'master', '20180205135154').keys()
+            'testmodule', 'master', '20180205135154', 'c2c572ec').keys()
         assert set(result) == expected
 
     def test_get_module_build_dependencies_recursive(self, pdc_module_active):
@@ -126,7 +126,7 @@ class TestPDCModule:
 
         resolver = mbs_resolver.GenericResolver.create(tests.conf, backend='pdc')
         result = resolver.get_module_build_dependencies(
-            'testmodule2', 'master', '20180123171545').keys()
+            'testmodule2', 'master', '20180123171545', 'c2c572ec').keys()
         assert set(result) == set(['module-f28-build'])
 
     @patch("module_build_service.config.Config.system",

@@ -140,6 +140,7 @@ def pdc_module_inactive(pdc):
         'variant_type': 'module',
         'variant_version': 'master',
         'variant_release': '20180205135154',
+        'variant_context': 'c2c572ec',
         'koji_tag': 'module-95b214a704c984be',
         'modulemd': TESTMODULE_MODULEMD,
         'runtime_deps': [
@@ -194,6 +195,7 @@ def pdc_module_reuse(pdc_module_active):
     pdc_module_reuse.endpoints['unreleasedvariants']['GET'][-1].update({
         'variant_uid': 'testmodule:master:{0}'.format(mmd.get_version()),
         'variant_release': str(mmd.get_version()),
+        'variant_context': '7c29193d',
         'modulemd': mmd.dumps(),
         'koji_tag': 'module-de3adf79caf3e1b8'
     })
