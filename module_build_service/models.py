@@ -249,13 +249,16 @@ class ModuleBuild(MBSBase):
         Returns list of all latest ModuleBuilds in "ready" state for all
         streams for given module `name`.
         """
+        # Prepare the subquery to find out all unique name:stream records.
         subq = session.query(
-            ModuleBuild.id,
-            func.max(ModuleBuild.version.cast(db.Integer))
-        ).group_by(ModuleBuild.name, ModuleBuild.stream).filter_by(
+            func.max(ModuleBuild.id).label("maxid"),
+            func.max(sqlalchemy.cast(ModuleBuild.version, db.BigInteger))
+        ).group_by(ModuleBuild.stream).filter_by(
             name=name, state=BUILD_STATES["ready"]).subquery('t2')
+
+        # Use the subquery to actually return all the columns for its results.
         query = session.query(ModuleBuild).join(
-            subq, and_(ModuleBuild.id == subq.c.id))
+            subq, and_(ModuleBuild.id == subq.c.maxid))
         return query.all()
 
     @staticmethod
@@ -263,17 +266,29 @@ class ModuleBuild(MBSBase):
         """
         Returns the latest builds in "ready" state for given name:stream.
         """
+        # Prepare the subquery to find out all unique name:stream records.
         subq = session.query(
-            ModuleBuild.version,
-            func.max(ModuleBuild.version.cast(db.Integer))
-        ).group_by(ModuleBuild.name, ModuleBuild.stream).filter_by(
-            name=name, state=BUILD_STATES["ready"], stream=stream).subquery('t2')
+            func.max(sqlalchemy.cast(ModuleBuild.version, db.BigInteger)).label("maxversion")
+        ).filter_by(name=name, state=BUILD_STATES["ready"], stream=stream).subquery('t2')
+
+        # Use the subquery to actually return all the columns for its results.
         query = session.query(ModuleBuild).join(
             subq, and_(
                 ModuleBuild.name == name,
                 ModuleBuild.stream == stream,
-                ModuleBuild.version == subq.c.version))
+                sqlalchemy.cast(ModuleBuild.version, db.BigInteger) == subq.c.maxversion))
         return query.all()
+
+    @staticmethod
+    def get_build_from_nsvc(session, name, stream, version, context):
+        #TODO: Rewrite this to use self.context when we add it.
+        builds = session.query(ModuleBuild).filter_by(
+            name=name, stream=stream, version=version).all()
+        for build in builds:
+            print build.name, build.stream, build.version, build.context
+            if build.context == context:
+                return build
+        return None
 
     def mmd(self):
         try:
@@ -327,26 +342,25 @@ class ModuleBuild(MBSBase):
             # We have to use keys because GLib.Variant doesn't support `in` directly.
             if property_name not in mbs_xmd.keys():
                 raise ValueError('The module\'s modulemd hasn\'t been formatted by MBS')
-            mmd_property = getattr(mmd.get_dependencies()[0], 'get_{0}'.format(property_name))()
-            if set(mbs_xmd[property_name].keys()) != set(mmd_property.keys()):
-                raise ValueError('The dependencies.{0} section of the modulemd doesn\'t match '
-                                 'what is in xmd'.format(property_name))
             mmd_formatted_property = {
                 dep: info['ref'] for dep, info in mbs_xmd[property_name].items()}
             property_json = json.dumps(OrderedDict(sorted(mmd_formatted_property.items())))
             rv.append(hashlib.sha1(property_json.encode('utf-8')).hexdigest())
         return tuple(rv)
 
-    @property
-    def context(self):
-        if self.build_context and self.runtime_context:
-            combined_hashes = '{0}:{1}'.format(
-                self.build_context, self.runtime_context).encode('utf-8')
+    @staticmethod
+    def context_from_contexts(build_context, runtime_context):
+        if build_context and runtime_context:
+            combined_hashes = '{0}:{1}'.format(build_context, runtime_context).encode('utf-8')
             return hashlib.sha1(combined_hashes).hexdigest()[:8]
         else:
             # We can't compute the context because the necessary data isn't there, so return a
             # default value
             return '00000000'
+
+    @property
+    def context(self):
+        return ModuleBuild.context_from_contexts(self.build_context, self.runtime_context)
 
     @classmethod
     def create(cls, session, conf, name, stream, version, modulemd, scmurl, username,

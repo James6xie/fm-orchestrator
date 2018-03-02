@@ -87,25 +87,26 @@ def patch_zeromq_time_sleep():
 patch_zeromq_time_sleep()
 
 
-def clean_database():
+def clean_database(add_platform_module=True):
     db.session.commit()
     db.drop_all()
     db.create_all()
-    platform = ModuleBuild()
-    platform.name = 'platform'
-    platform.stream = 'f28'
-    platform.version = '3'
-    platform.koji_tag = 'module-f28-build'
-    platform.state = BUILD_STATES['ready']
-    with open(os.path.join(base_dir, 'staged_data', 'platform.yaml')) as f:
-        platform.modulemd = f.read()
-    platform.rebuild_strategy = 'all'
-    platform.owner = 'releng'
-    platform.time_submitted = datetime.utcnow()
-    platform.time_modified = datetime.utcnow()
-    platform.time_completed = datetime.utcnow()
-    db.session.add(platform)
-    db.session.commit()
+    if add_platform_module:
+        platform = ModuleBuild()
+        platform.name = 'platform'
+        platform.stream = 'f28'
+        platform.version = '3'
+        platform.koji_tag = 'module-f28-build'
+        platform.state = BUILD_STATES['ready']
+        with open(os.path.join(base_dir, 'staged_data', 'platform.yaml')) as f:
+            platform.modulemd = f.read()
+        platform.rebuild_strategy = 'all'
+        platform.owner = 'releng'
+        platform.time_submitted = datetime.utcnow()
+        platform.time_modified = datetime.utcnow()
+        platform.time_completed = datetime.utcnow()
+        db.session.add(platform)
+        db.session.commit()
 
 
 def init_data(data_size=10, contexts=False):

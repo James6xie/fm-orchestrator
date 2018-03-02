@@ -29,27 +29,27 @@ from mock import patch
 import pytest
 
 import module_build_service.utils
-from module_build_service import models, conf
+from module_build_service import models, conf, glib
 from tests import (db, clean_database)
 
 
 class TestUtilsModuleStreamExpansion:
 
     def setup_method(self, test_method):
-        clean_database()
+        clean_database(False)
 
-        def mocked_context(modulebuild_instance):
+        def mocked_context(build_context, runtime_context):
             """
             Changes the ModuleBuild.context behaviour to return
             ModuleBuild.build_context instead of computing new context hash.
             """
-            return modulebuild_instance.build_context
+            return build_context[:8]
 
         # For these tests, we need the ModuleBuild.context to return the well-known
         # context as we define it in test data. Therefore patch the ModuleBuild.context
         # to return ModuleBuild.build_context, which we can control.
         self.modulebuild_context_patcher = patch(
-            "module_build_service.models.ModuleBuild.context", autospec=True)
+            "module_build_service.models.ModuleBuild.context_from_contexts")
         modulebuild_context = self.modulebuild_context_patcher.start()
         modulebuild_context.side_effect = mocked_context
 
@@ -88,6 +88,13 @@ class TestUtilsModuleStreamExpansion:
         if not isinstance(build_requires_list, list):
             build_requires_list = [build_requires_list]
 
+        xmd = {
+            "mbs": {
+                "buildrequires": [],
+                "requires": [],
+                "commit": "ref_%s" % context,
+            }
+        }
         deps_list = []
         for requires, build_requires in zip(requires_list, build_requires_list):
             deps = Modulemd.Dependencies()
@@ -97,6 +104,7 @@ class TestUtilsModuleStreamExpansion:
                 deps.add_buildrequires(req_name, req_streams)
             deps_list.append(deps)
         mmd.set_dependencies(deps_list)
+        mmd.set_xmd(glib.dict_values(xmd))
 
         module_build = module_build_service.models.ModuleBuild()
         module_build.name = name
@@ -117,14 +125,16 @@ class TestUtilsModuleStreamExpansion:
 
         return module_build
 
-    def _get_modules_build_required_by_module_recursively(self, module_build):
+    def _get_mmds_required_by_module_recursively(self, module_build):
         """
-        Convenience wrapper around get_modules_build_required_by_module_recursively
+        Convenience wrapper around get_mmds_required_by_module_recursively
         returning the list with nsvc strings of modules returned by this the wrapped
         method.
         """
-        modules = module_build_service.utils.get_modules_build_required_by_module_recursively(
-            db.session, module_build.mmd())
+        mmd = module_build.mmd()
+        module_build_service.utils.expand_mse_streams(db.session, mmd)
+        modules = module_build_service.utils.get_mmds_required_by_module_recursively(
+            db.session, mmd)
         nsvcs = [":".join([m.get_name(), m.get_stream(), str(m.get_version()), m.get_context()])
                  for m in modules]
         return nsvcs
@@ -144,6 +154,133 @@ class TestUtilsModuleStreamExpansion:
         self._make_module("foo:2:0:c5", {"platform": ["f29"]}, {})
         self._make_module("platform:f28:0:c10", {}, {})
         self._make_module("platform:f29:0:c11", {}, {})
+
+    def test_generate_expanded_mmds_context(self):
+        self._generate_default_modules()
+        module_build = self._make_module(
+            "app:1:0:c1", {"gtk": ["1", "2"]}, {"gtk": ["1", "2"]})
+        mmds = module_build_service.utils.generate_expanded_mmds(
+            db.session, module_build.mmd())
+        contexts = set([mmd.get_context() for mmd in mmds])
+        assert set(['3031e5a5', '6d10e00e']) == contexts
+
+    @pytest.mark.parametrize('requires,build_requires,expected_xmd,expected_buildrequires', [
+        ({"gtk": ["1", "2"]}, {"gtk": ["1", "2"]},
+         set([
+             frozenset(['platform:f28:0:c10', 'gtk:2:0:c4']),
+             frozenset(['platform:f28:0:c10', 'gtk:1:0:c2'])
+         ]),
+         set([
+             frozenset(['gtk:1']),
+             frozenset(['gtk:2']),
+         ])),
+
+        ({"gtk": ["1"], "foo": ["1"]}, {"gtk": ["1"], "foo": ["1"]},
+         set([
+             frozenset(['foo:1:0:c2', 'gtk:1:0:c2', 'platform:f28:0:c10'])
+         ]),
+         set([
+             frozenset(['foo:1', 'gtk:1'])
+         ])),
+
+        ({"gtk": ["1"], "foo": ["1"]}, {"gtk": ["1"], "foo": ["1"], "platform": ["f28"]},
+         set([
+             frozenset(['foo:1:0:c2', 'gtk:1:0:c2', 'platform:f28:0:c10'])
+         ]),
+         set([
+             frozenset(['foo:1', 'gtk:1'])
+         ])),
+
+        ({"gtk": ["-2"], "foo": ["-2"]}, {"gtk": ["-2"], "foo": ["-2"]},
+         set([
+             frozenset(['foo:1:0:c2', 'gtk:1:0:c2', 'platform:f28:0:c10'])
+         ]),
+         set([
+             frozenset(['foo:1', 'gtk:1'])
+         ])),
+
+        ({"gtk": ["1"], "foo": ["1"]}, {"gtk": ["-1", "1"], "foo": ["-2", "1"]},
+         set([
+             frozenset(['foo:1:0:c2', 'gtk:1:0:c2', 'platform:f28:0:c10'])
+         ]),
+         set([
+             frozenset(['foo:1', 'gtk:1'])
+         ])),
+    ])
+    def test_generate_expanded_mmds_buildrequires(self, requires, build_requires,
+                                                  expected_xmd, expected_buildrequires):
+        self._generate_default_modules()
+        module_build = self._make_module("app:1:0:c1", requires, build_requires)
+        mmds = module_build_service.utils.generate_expanded_mmds(
+            db.session, module_build.mmd())
+
+        buildrequires_per_mmd_xmd = set()
+        buildrequires_per_mmd_buildrequires = set()
+        for mmd in mmds:
+            xmd = glib.from_variant_dict(mmd.get_xmd())
+            br_nsvcs = []
+            for name, detail in xmd['mbs']['buildrequires'].items():
+                br_nsvcs.append(":".join([
+                    name, detail["stream"], detail["version"], detail["context"]]))
+            buildrequires_per_mmd_xmd.add(frozenset(br_nsvcs))
+
+            assert len(mmd.get_dependencies()) == 1
+
+            buildrequires = set()
+            dep = mmd.get_dependencies()[0]
+            for req_name, req_streams in dep.get_buildrequires().items():
+                for req_stream in req_streams.get():
+                    buildrequires.add(":".join([req_name, req_stream]))
+            buildrequires_per_mmd_buildrequires.add(frozenset(buildrequires))
+
+        assert buildrequires_per_mmd_xmd == expected_xmd
+        assert buildrequires_per_mmd_buildrequires == expected_buildrequires
+
+    @pytest.mark.parametrize('requires,build_requires,expected', [
+        ({"gtk": ["1", "2"]}, {"gtk": ["1", "2"]},
+         set([
+             frozenset(['gtk:1']),
+             frozenset(['gtk:2']),
+         ])),
+
+        ({"gtk": ["1", "2"]}, {"gtk": ["1"]},
+         set([
+             frozenset(['gtk:1', 'gtk:2']),
+         ])),
+
+        ({"gtk": ["1"], "foo": ["1"]}, {"gtk": ["1"], "foo": ["1"]},
+         set([
+             frozenset(['foo:1', 'gtk:1']),
+         ])),
+
+        ({"gtk": ["-2"], "foo": ["-2"]}, {"gtk": ["-2"], "foo": ["-2"]},
+         set([
+             frozenset(['foo:1', 'gtk:1']),
+         ])),
+
+        ({"gtk": ["-1", "1"], "foo": ["-2", "1"]}, {"gtk": ["-1", "1"], "foo": ["-2", "1"]},
+         set([
+             frozenset(['foo:1', 'gtk:1']),
+         ])),
+
+    ])
+    def test_generate_expanded_mmds_requires(self, requires, build_requires, expected):
+        self._generate_default_modules()
+        module_build = self._make_module("app:1:0:c1", requires, build_requires)
+        mmds = module_build_service.utils.generate_expanded_mmds(
+            db.session, module_build.mmd())
+
+        requires_per_mmd = set()
+        for mmd in mmds:
+            assert len(mmd.get_dependencies()) == 1
+            requires = set()
+            dep = mmd.get_dependencies()[0]
+            for req_name, req_streams in dep.get_requires().items():
+                for req_stream in req_streams.get():
+                    requires.add(":".join([req_name, req_stream]))
+            requires_per_mmd.add(frozenset(requires))
+
+        assert requires_per_mmd == expected
 
     @pytest.mark.parametrize('requires,build_requires,expected', [
         ({}, {"gtk": ["1", "2"]},
@@ -174,8 +311,7 @@ class TestUtilsModuleStreamExpansion:
     def test_get_required_modules_simple(self, requires, build_requires, expected):
         module_build = self._make_module("app:1:0:c1", requires, build_requires)
         self._generate_default_modules()
-        nsvcs = self._get_modules_build_required_by_module_recursively(module_build)
-        print nsvcs
+        nsvcs = self._get_mmds_required_by_module_recursively(module_build)
         assert set(nsvcs) == set(expected)
 
     def _generate_default_modules_recursion(self):
@@ -207,6 +343,5 @@ class TestUtilsModuleStreamExpansion:
     def test_get_required_modules_recursion(self, requires, build_requires, expected):
         module_build = self._make_module("app:1:0:c1", requires, build_requires)
         self._generate_default_modules_recursion()
-        nsvcs = self._get_modules_build_required_by_module_recursively(module_build)
-        print nsvcs
+        nsvcs = self._get_mmds_required_by_module_recursively(module_build)
         assert set(nsvcs) == set(expected)

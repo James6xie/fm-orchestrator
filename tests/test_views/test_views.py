@@ -809,20 +809,6 @@ class TestViews:
         assert data['error'] == 'Bad Request'
 
     @patch('module_build_service.auth.get_user', return_value=user)
-    @patch('module_build_service.scm.SCM')
-    def test_submit_build_mse_unsupported(self, mocked_scm, mocked_get_user):
-        FakeSCM(mocked_scm, 'testmodule', 'testmodule_mse.yaml',
-                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
-
-        rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
-            {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
-                'testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49'}))
-        data = json.loads(rv.data)
-        assert data['status'] == 422
-        assert data['message'] == 'Module stream expansion is not yet supported in MBS'
-        assert data['error'] == 'Unprocessable Entity'
-
-    @patch('module_build_service.auth.get_user', return_value=user)
     def test_submit_build_set_owner(self, mocked_get_user):
         data = {
             'branch': 'master',

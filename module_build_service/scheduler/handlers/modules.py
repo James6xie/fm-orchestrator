@@ -145,8 +145,6 @@ def init(config, session, msg):
     try:
         mmd = build.mmd()
         record_component_builds(mmd, build, session=session)
-        build.build_context, build.runtime_context = build.contexts_from_mmd(mmd.dumps())
-        mmd.set_context(build.context)
         build.modulemd = mmd.dumps()
         build.transition(conf, models.BUILD_STATES["wait"])
     # Catch custom exceptions that we can expose to the user

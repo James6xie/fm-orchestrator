@@ -98,7 +98,9 @@ class DBResolver(GenericResolver):
             if local_modules:
                 dep = local_modules[0]
             else:
-                dep = models.ModuleBuild.get_last_build_in_stream(session, name, stream)
+                dep = models.ModuleBuild.get_last_builds_in_stream(session, name, stream)
+                if dep:
+                    dep = dep[0]
             if dep:
                 modules = self._get_recursively_required_modules(dep, session, modules, strict)
             elif strict:
@@ -227,6 +229,12 @@ class DBResolver(GenericResolver):
         new_requires = {}
         with models.make_session(self.config) as session:
             for module_name, module_stream in requires.items():
+                if ":" in module_stream:
+                    module_stream, module_version, module_context = module_stream.split(":")
+                else:
+                    module_version = None
+                    module_context = None
+
                 local_modules = models.ModuleBuild.local_modules(
                     session, module_name, module_stream)
                 if local_modules:
@@ -235,6 +243,7 @@ class DBResolver(GenericResolver):
                         'ref': None,
                         'stream': local_build.stream,
                         'version': local_build.version,
+                        'context': local_build.context,
                         # No need to set filtered_rpms for local builds, because MBS
                         # filters the RPMs automatically when the module build is
                         # done.
@@ -242,11 +251,21 @@ class DBResolver(GenericResolver):
                     }
                     continue
 
-                build = models.ModuleBuild.get_last_build_in_stream(
-                    session, module_name, module_stream)
-                if not build:
-                    raise UnprocessableEntity('The module {}:{} was not found'.format(
-                        module_name, module_stream))
+                if module_version is None or module_context is None:
+                    build = models.ModuleBuild.get_last_builds_in_stream(
+                        session, module_name, module_stream)
+                    if build:
+                        build = build[0]
+                    if not build:
+                        raise UnprocessableEntity('The module {}:{} was not found'.format(
+                            module_name, module_stream))
+                else:
+                    build = models.ModuleBuild.get_build_from_nsvc(
+                        session, module_name, module_stream, module_version, module_context)
+                    if not build:
+                        raise UnprocessableEntity('The module {}:{}:{}:{} was not found'.format(
+                            module_name, module_stream, module_version, module_context))
+
                 commit_hash = None
                 filtered_rpms = []
                 mmd = build.mmd()
@@ -260,15 +279,16 @@ class DBResolver(GenericResolver):
 
                 # Find out the particular NVR of filtered packages
                 rpm_filter = mmd.get_rpm_filter()
-                if rpm_filter:
+                if rpm_filter and rpm_filter.get():
                     for rpm in build.component_builds:
-                        if rpm.package in rpm_filter:
+                        if rpm.package in rpm_filter.get():
                             filtered_rpms.append(rpm.nvr)
 
                 new_requires[module_name] = {
                     'ref': commit_hash,
                     'stream': module_stream,
                     'version': build.version,
+                    'context': build.context,
                     'filtered_rpms': filtered_rpms,
                 }
 

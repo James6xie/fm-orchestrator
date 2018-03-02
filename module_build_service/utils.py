@@ -50,6 +50,7 @@ import module_build_service.messaging
 from multiprocessing.dummy import Pool as ThreadPool
 import module_build_service.resolver
 from module_build_service import glib
+from module_build_service.mmd_resolver import MMDResolver
 
 import concurrent.futures
 
@@ -625,22 +626,6 @@ def load_mmd(yaml, is_file=False):
         log.error(error)
         raise UnprocessableEntity(error)
 
-    # MBS doesn't support module stream expansion yet but supports the v2 modulemd format,
-    # so if module stream expansion syntax is used, fail the submission
-    # TODO: Once module stream expansion is supported, the get_dependencies() function should
-    # be squashed to a single list on resulting modulemds
-    error_msg = 'Module stream expansion is not yet supported in MBS'
-    deps_list = mmd.get_dependencies()
-    if len(deps_list) > 1:
-        raise UnprocessableEntity(error_msg)
-    elif len(deps_list) == 1:
-        for dep_type in ['requires', 'buildrequires']:
-            deps = getattr(deps_list[0], 'get_{0}'.format(dep_type))()
-            for streams in deps.values():
-                if len(streams.get()) != 1:
-                    raise UnprocessableEntity(error_msg)
-                elif streams.get()[0].startswith('-'):
-                    raise UnprocessableEntity(error)
     return mmd
 
 
@@ -770,7 +755,12 @@ def format_mmd(mmd, scmurl, session=None):
         session = db.session
 
     xmd = glib.from_variant_dict(mmd.get_xmd())
-    xmd['mbs'] = {'scmurl': scmurl or '', 'commit': ''}
+    if 'mbs' not in xmd:
+        xmd['mbs'] = {}
+    if 'scmurl' not in xmd['mbs']:
+        xmd['mbs']['scmurl'] = scmurl or ''
+    if 'commit' not in xmd['mbs']:
+        xmd['mbs']['commit'] = ''
 
     local_modules = models.ModuleBuild.local_modules(session)
     local_modules = {m.name + "-" + m.stream: m for m in local_modules}
@@ -796,10 +786,12 @@ def format_mmd(mmd, scmurl, session=None):
     # Resolve buildrequires and requires
     # Reformat the input for resolve_requires to match the old modulemd format
     dep_obj = mmd.get_dependencies()[0]
-    br_dict = {br: br_list.get()[0] for br, br_list in dep_obj.get_buildrequires().items()}
-    req_dict = {req: req_list.get()[0] for req, req_list in dep_obj.get_requires().items()}
-    xmd['mbs']['buildrequires'] = resolver.resolve_requires(br_dict)
-    xmd['mbs']['requires'] = resolver.resolve_requires(req_dict)
+    if 'buildrequires' not in xmd['mbs']:
+        br_dict = {br: br_list.get()[0] for br, br_list in dep_obj.get_buildrequires().items()}
+        xmd['mbs']['buildrequires'] = resolver.resolve_requires(br_dict)
+    if 'requires' not in xmd['mbs']:
+        req_dict = {req: req_list.get()[0] for req, req_list in dep_obj.get_requires().items()}
+        xmd['mbs']['requires'] = resolver.resolve_requires(req_dict)
 
     if mmd.get_rpm_components() or mmd.get_module_components():
         if 'rpms' not in xmd['mbs']:
@@ -992,61 +984,197 @@ def submit_module_build_from_scm(username, url, branch, allow_local_url=False,
     return submit_module_build(username, url, mmd, scm, optional_params)
 
 
+def generate_expanded_mmds(session, mmd):
+    """
+    Returns list with MMDs with buildrequires and requires set according
+    to module stream expansion rules. These module metadata can be directly
+    built using MBS.
+    """
+    if not session:
+        session = db.session
+
+    # Create local copy of mmd, because we will have expand its dependencies,
+    # which would change the module.
+    # TODO: Use copy method once its in released libmodulemd:
+    # https://github.com/fedora-modularity/libmodulemd/pull/20
+    current_mmd = Modulemd.Module.new_from_string(mmd.dumps())
+
+    # MMDResolver expects the input MMD to have no context.
+    current_mmd.set_context(None)
+
+    # Expands the MSE streams. This mainly handles '-' prefix in MSE streams.
+    expand_mse_streams(session, current_mmd)
+
+    # Get the list of all MMDs which this module can be possibly built against
+    # and add them to MMDResolver.
+    mmd_resolver = MMDResolver()
+    mmds_for_resolving = get_mmds_required_by_module_recursively(
+        session, current_mmd)
+    for m in mmds_for_resolving:
+        mmd_resolver.add_modules(m)
+
+    # Show log.info message with the NSVCs we have added to mmd_resolver.
+    nsvcs_to_solve = [
+        ":".join([m.get_name(), m.get_stream(), str(m.get_version()), str(m.get_context())])
+        for m in mmds_for_resolving]
+    log.info("Starting resolving with following input modules: %r", nsvcs_to_solve)
+
+    # Resolve the dependencies between modules and get the list of all valid
+    # combinations in which we can build this module.
+    requires_combinations = mmd_resolver.solve(current_mmd)
+    log.info("Resolving done, possible requires: %r", requires_combinations)
+
+    # This is where we are going to store the generated MMDs.
+    mmds = []
+    for requires in requires_combinations:
+        # Each generated MMD must be new Module object...
+        # TODO: Use copy method once its in released libmodulemd:
+        # https://github.com/fedora-modularity/libmodulemd/pull/20
+        mmd_copy = Modulemd.Module.new_from_string(mmd.dumps())
+        xmd = glib.from_variant_dict(mmd_copy.get_xmd())
+
+        # Requires contain the NSVC representing the input mmd.
+        # The 'context' of this NSVC defines the id of buildrequires/requires
+        # pair in the mmd.get_dependencies().
+        dependencies_id = None
+
+        # We don't want to depend on ourselves, so store the NSVC of the current_mmd
+        # to be able to ignore it later.
+        self_nsvc = None
+
+        # Dict to store name:stream pairs from nsvc, so we are able to access it
+        # easily later.
+        req_name_stream = {}
+
+        # Get the values for dependencies_id, self_nsvc and req_name_stream variables.
+        for nsvc in requires:
+            req_name, req_stream, _ = nsvc.split(":", 2)
+            if req_name == current_mmd.get_name() and req_stream == current_mmd.get_stream():
+                dependencies_id = int(nsvc.split(":")[3])
+                self_nsvc = nsvc
+                continue
+            req_name_stream[req_name] = req_stream
+        if dependencies_id is None or self_nsvc is None:
+            raise RuntimeError(
+                "%s:%s not found in requires %r" % (current_mmd.get_name(), current_mmd.get_stream(), requires))
+
+        # The name:[streams, ...] pairs do not have to be the same in both
+        # buildrequires/requires. In case they are the same, we replace the streams
+        # in requires section with a single stream against which we will build this MMD.
+        # In case they are not the same, we have to keep the streams as they in requires
+        # section.  We always replace stream(s) for build-requirement with the one we
+        # will build this MMD against.
+        new_dep = Modulemd.Dependencies()
+        dep = mmd_copy.get_dependencies()[dependencies_id]
+        dep_requires = dep.get_requires()
+        dep_buildrequires = dep.get_buildrequires()
+        for req_name, req_streams in dep_requires.items():
+            if (req_name not in dep_buildrequires or
+                    set(req_streams.get()) != set(dep_buildrequires[req_name].get())):
+                # Streams in runtime section are not the same as in buildtime section,
+                # so just copy this runtime requirement to new_dep.
+                new_dep.add_requires(req_name, req_streams.get())
+            else:
+                # This runtime requirement has the same streams in both runtime/buildtime
+                # requires sections, so replace streams in both sections by the one we
+                # really used in this resolved variant.
+                new_dep.add_requires(req_name, [req_name_stream[req_name]])
+            new_dep.add_buildrequires(req_name, [req_name_stream[req_name]])
+        mmd_copy.set_dependencies((new_dep, ))
+        
+        # The Modulemd.Dependencies() stores only streams, but to really build this
+        # module, we need NSVC of buildrequires. We will get it using the
+        # module_build_service.resolver.GenericResolver.resolve_requires, so prepare
+        # dict in {N: SVC, ...} format as an input for this method.
+        br_dict = {}
+        for nsvc in requires:
+            if nsvc == self_nsvc:
+                continue
+            req_name, req_stream, req_version, req_context, req_arch = nsvc.split(":")
+            br_dict[req_name] = ":".join([req_stream, req_version, req_context])
+
+        # The same for runtime requires, which we need to compute runtime context.
+        r_dict = {req: req_list.get()[0] for req, req_list in new_dep.get_requires().items()}
+
+        # Resolve the requires/buildrequires and store the result in XMD.
+        if 'mbs' not in xmd:
+            xmd['mbs'] = {}
+        resolver = module_build_service.resolver.GenericResolver.create(conf)
+        xmd['mbs']['buildrequires'] = resolver.resolve_requires(br_dict)
+        xmd['mbs']['requires'] = resolver.resolve_requires(r_dict)
+        
+        mmd_copy.set_xmd(glib.dict_values(xmd))
+
+        # Now we have all the info to actually compute context of this module.
+        build_context, runtime_context = models.ModuleBuild.contexts_from_mmd(mmd_copy.dumps())
+        context = models.ModuleBuild.context_from_contexts(build_context, runtime_context)
+        mmd_copy.set_context(context)
+
+        mmds.append(mmd_copy)
+
+    return mmds
+
+
 def submit_module_build(username, url, mmd, scm, optional_params=None):
     import koji  # Placed here to avoid py2/py3 conflicts...
 
-    # Import it here, because SCM uses utils methods
-    # and fails to import them because of dep-chain.
     validate_mmd(mmd)
-    module = models.ModuleBuild.query.filter_by(
-        name=mmd.get_name(), stream=mmd.get_stream(), version=str(mmd.get_version())).first()
-    if module:
-        log.debug('Checking whether module build already exist.')
-        if module.state != models.BUILD_STATES['failed']:
-            err_msg = ('Module (state=%s) already exists. Only a new build or resubmission of '
-                       'a failed build is allowed.' % module.state)
-            log.error(err_msg)
-            raise Conflict(err_msg)
-        if optional_params:
-            rebuild_strategy = optional_params.get('rebuild_strategy')
-            if rebuild_strategy and module.rebuild_strategy != rebuild_strategy:
-                raise ValidationError('You cannot change the module\'s "rebuild_strategy" when '
-                                      'resuming a module build')
-        log.debug('Resuming existing module build %r' % module)
-        # Reset all component builds that didn't complete
-        for component in module.component_builds:
-            if component.state and component.state != koji.BUILD_STATES['COMPLETE']:
-                component.state = None
-                component.state_reason = None
-                db.session.add(component)
-        module.username = username
-        prev_state = module.previous_non_failed_state
-        if prev_state == models.BUILD_STATES['init']:
-            transition_to = models.BUILD_STATES['init']
-        else:
-            transition_to = models.BUILD_STATES['wait']
-            module.batch = 0
-        module.transition(conf, transition_to, "Resubmitted by %s" % username)
-        log.info("Resumed existing module build in previous state %s"
-                 % module.state)
-    else:
-        log.debug('Creating new module build')
-        module = models.ModuleBuild.create(
-            db.session,
-            conf,
-            name=mmd.get_name(),
-            stream=mmd.get_stream(),
-            version=str(mmd.get_version()),
-            modulemd=mmd.dumps(),
-            scmurl=url,
-            username=username,
-            **(optional_params or {})
-        )
+    mmds = generate_expanded_mmds(db.session, mmd)
 
-    db.session.add(module)
-    db.session.commit()
-    log.info("%s submitted build of %s, stream=%s, version=%s", username,
-             mmd.get_name(), mmd.get_stream(), mmd.get_version())
+    for mmd in mmds:
+        module = models.ModuleBuild.get_build_from_nsvc(
+            db.session, mmd.get_name(), mmd.get_stream(), str(mmd.get_version()),
+            mmd.get_context())
+        if module:
+            log.debug('Checking whether module build already exist.')
+            if module.state != models.BUILD_STATES['failed']:
+                err_msg = ('Module (state=%s) already exists. Only a new build or resubmission of '
+                        'a failed build is allowed.' % module.state)
+                log.error(err_msg)
+                raise Conflict(err_msg)
+            if optional_params:
+                rebuild_strategy = optional_params.get('rebuild_strategy')
+                if rebuild_strategy and module.rebuild_strategy != rebuild_strategy:
+                    raise ValidationError('You cannot change the module\'s "rebuild_strategy" when '
+                                        'resuming a module build')
+            log.debug('Resuming existing module build %r' % module)
+            # Reset all component builds that didn't complete
+            for component in module.component_builds:
+                if component.state and component.state != koji.BUILD_STATES['COMPLETE']:
+                    component.state = None
+                    component.state_reason = None
+                    db.session.add(component)
+            module.username = username
+            prev_state = module.previous_non_failed_state
+            if prev_state == models.BUILD_STATES['init']:
+                transition_to = models.BUILD_STATES['init']
+            else:
+                transition_to = models.BUILD_STATES['wait']
+                module.batch = 0
+            module.transition(conf, transition_to, "Resubmitted by %s" % username)
+            log.info("Resumed existing module build in previous state %s"
+                    % module.state)
+        else:
+            log.debug('Creating new module build')
+            module = models.ModuleBuild.create(
+                db.session,
+                conf,
+                name=mmd.get_name(),
+                stream=mmd.get_stream(),
+                version=str(mmd.get_version()),
+                modulemd=mmd.dumps(),
+                scmurl=url,
+                username=username,
+                **(optional_params or {})
+            )
+            module.build_context, module.runtime_context = \
+                module.contexts_from_mmd(module.modulemd)
+
+
+        db.session.add(module)
+        db.session.commit()
+        log.info("%s submitted build of %s, stream=%s, version=%s, context=%s", username,
+                mmd.get_name(), mmd.get_stream(), mmd.get_version(), mmd.get_context())
     return module
 
 
@@ -1404,9 +1532,58 @@ def get_reusable_component(session, module, component_name,
     return reusable_component
 
 
+def _expand_mse_streams(session, name, streams):
+    """
+    Helper method for `expand_mse_stream()` expanding single name:[streams].
+    Returns list of expanded streams.
+    """
+    # Stream can be prefixed with '-' sign to define that this stream should
+    # not appear in a resulting list of streams. There can be two situations:
+    # a) all streams have '-' prefix. In this case, we treat list of streams
+    #    as blacklist and we find all the valid streams and just remove those with
+    #    '-' prefix.
+    # b) there is at least one stream without '-' prefix. In this case, we can
+    #    ignore all the streams with '-' prefix and just add those without
+    #    '-' prefix to the list of valid streams.
+    streams_is_blacklist = all(stream.startswith("-") for stream in streams.get())
+    if streams_is_blacklist or len(streams.get()) == 0:
+        builds = models.ModuleBuild.get_last_build_in_all_streams(
+            session, name)
+        expanded_streams = [build.stream for build in builds]
+    else:
+        expanded_streams = []
+    for stream in streams.get():
+        if stream.startswith("-"):
+            if streams_is_blacklist and stream[1:] in expanded_streams:
+                expanded_streams.remove(stream[1:])
+        else:
+            expanded_streams.append(stream)
+    return expanded_streams
+
+
+def expand_mse_streams(session, mmd):
+    """
+    Expands streams in both buildrequires/requires sections of MMD.
+    """
+    for deps in mmd.get_dependencies():
+        expanded = {}
+        for name, streams in deps.get_requires().items():
+            streams_set = Modulemd.SimpleSet()
+            streams_set.set(_expand_mse_streams(session, name, streams))
+            expanded[name] = streams_set
+        deps.set_requires(expanded)
+
+        expanded = {}
+        for name, streams in deps.get_buildrequires().items():
+            streams_set = Modulemd.SimpleSet()
+            streams_set.set(_expand_mse_streams(session, name, streams))
+            expanded[name] = streams_set
+        deps.set_buildrequires(expanded)
+
+
 def _get_mmds_from_requires(session, requires, mmds, recursive=False):
     """
-    Helper method for get_modules_build_required_by_module_recursively returning
+    Helper method for get_mmds_required_by_module_recursively returning
     the list of module metadata objects defined by `requires` dict.
 
     :param session: SQLAlchemy DB session.
@@ -1419,57 +1596,41 @@ def _get_mmds_from_requires(session, requires, mmds, recursive=False):
     # To be able to call itself recursively, we need to store list of mmds
     # we have added to global mmds list in this particular call.
     added_mmds = {}
-    for name, streams in requires:
-        # Stream can be prefixed with '-' sign to define that this stream should
-        # not appear in a resulting list of streams. There can be two situations:
-        # a) all streams have '-' prefix. In this case, we treat list of streams
-        #    as blacklist and we find all the valid streams and just remove those with
-        #    '-' prefix.
-        # b) there is at least one stream without '-' prefix. In this case, we can
-        #    ignore all the streams with '-' prefix and just add those without
-        #    '-' prefix to the list of valid streams.
-        streams_is_blacklist = all(stream.startswith("-") for stream in streams.get())
-        if streams_is_blacklist or len(streams.get()) == 0:
-            builds = models.ModuleBuild.get_last_build_in_all_streams(
-                session, name)
-            valid_streams = [build.stream for build in builds]
-        else:
-            valid_streams = []
-        for stream in streams.get():
-            if stream.startswith("-"):
-                if streams_is_blacklist and stream[1:] in valid_streams:
-                    valid_streams.remove(stream[1:])
-            else:
-                valid_streams.append(stream)
-
+    for name, streams in requires.items():
         # For each valid stream, find the last build in a stream and also all
         # its contexts and add mmds of these builds to `mmds` and `added_mmds`.
         # Of course only do that if we have not done that already in some
         # previous call of this method.
-        for stream in valid_streams:
+        for stream in streams.get():
             ns = "%s:%s" % (name, stream)
             if ns in mmds:
                 continue
 
             builds = models.ModuleBuild.get_last_builds_in_stream(
                 session, name, stream)
-            mmds[ns] = [build.mmd() for build in builds]
-            added_mmds[ns] = mmds[ns]
+            if not builds:
+                raise ValueError("Cannot find any module build for %s:%s "
+                                 "in MBS database" % (name, stream))
+            else:
+                mmds[ns] = [build.mmd() for build in builds]
+                added_mmds[ns] = mmds[ns]
 
     # Get the requires recursively.
     if recursive:
         for mmd_list in added_mmds.values():
             for mmd in mmd_list:
                 for deps in mmd.get_dependencies():
-                    mmds = _get_mmds_from_requires(session, deps.get_requires().items(), mmds, True)
+                    mmds = _get_mmds_from_requires(session, deps.get_requires(), mmds, True)
 
     return mmds
 
 
-def get_modules_build_required_by_module_recursively(session, mmd):
+def get_mmds_required_by_module_recursively(session, mmd):
     """
     Returns the list of Module metadata objects of all modules required while
-    building the module defined by `mmd` module metadata.
+    building the module defined by `mmd` module metadata. This presumes the
+    module metadata streams are expanded using `expand_mse_streams(...)`
+    method.
 
     This method finds out latest versions of all the build-requires of
     the `mmd` module and then also all contexts of these latest versions.
@@ -1490,13 +1651,13 @@ def get_modules_build_required_by_module_recursively(session, mmd):
 
     # At first get all the buildrequires of the module of interest.
     for deps in mmd.get_dependencies():
-        mmds = _get_mmds_from_requires(session, deps.get_buildrequires().items(), mmds)
+        mmds = _get_mmds_from_requires(session, deps.get_buildrequires(), mmds)
 
     # Now get the requires of buildrequires recursively.
     for mmd_key in list(mmds.keys()):
         for mmd in mmds[mmd_key]:
             for deps in mmd.get_dependencies():
-                mmds = _get_mmds_from_requires(session, deps.get_requires().items(), mmds, True)
+                mmds = _get_mmds_from_requires(session, deps.get_requires(), mmds, True)
 
     # Make single list from dict of lists.
     res = []

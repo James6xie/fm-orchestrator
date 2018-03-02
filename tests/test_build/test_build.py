@@ -27,6 +27,7 @@ from os.path import dirname
 from shutil import copyfile
 from datetime import datetime, timedelta
 from random import randint
+import hashlib
 
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.repos
@@ -276,6 +277,13 @@ class FakeModuleBuilder(GenericBuilder):
                 'recover_orphaned_artifact: fake message',
                 component_build.module_build.koji_tag + '-build', component_build.package))
         return msgs
+
+
+original_context_from_contexts = models.ModuleBuild.context_from_contexts
+def mocked_context_from_contexts(build_context, runtime_context):
+    if build_context == "return_runtime_context":
+        return runtime_context
+    return original_context_from_contexts(build_context, runtime_context)
 
 
 def cleanup_moksha():
@@ -853,11 +861,15 @@ class TestBuild:
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build_resume(self, mocked_scm, mocked_get_user, conf_system, dbg):
+    @patch("module_build_service.models.ModuleBuild.context_from_contexts")
+    def test_submit_build_resume(self, context_from_contexts, mocked_scm, mocked_get_user,
+                                 conf_system, dbg):
         """
         Tests that resuming the build works even when previous batches
         are already built.
         """
+        context_from_contexts.side_effect = mocked_context_from_contexts
+
         now = datetime.utcnow()
         submitted_time = now - timedelta(minutes=3)
         # Create a module in the failed state
@@ -865,8 +877,8 @@ class TestBuild:
         build_one.name = 'testmodule'
         build_one.stream = 'master'
         build_one.version = 20180205135154
-        build_one.build_context = 'ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0'
-        build_one.runtime_context = 'ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0'
+        build_one.build_context = 'return_runtime_context'
+        build_one.runtime_context = 'c2c572ec'
         build_one.state = models.BUILD_STATES['failed']
         current_dir = os.path.dirname(__file__)
         formatted_testmodule_yml_path = os.path.join(
@@ -974,12 +986,16 @@ class TestBuild:
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
+    @patch("module_build_service.models.ModuleBuild.context_from_contexts")
     def test_submit_build_resume_recover_orphaned_macros(
-            self, mocked_scm, mocked_get_user, conf_system, dbg):
+            self, context_from_contexts, mocked_scm, mocked_get_user,
+            conf_system, dbg):
         """
         Tests that resuming the build works when module-build-macros is orphaned but marked as
         failed in the database
         """
+        context_from_contexts.side_effect = mocked_context_from_contexts
+
         FakeModuleBuilder.INSTANT_COMPLETE = True
         now = datetime.utcnow()
         submitted_time = now - timedelta(minutes=3)
@@ -988,8 +1004,8 @@ class TestBuild:
         build_one.name = 'testmodule'
         build_one.stream = 'master'
         build_one.version = 20180205135154
-        build_one.build_context = 'ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0'
-        build_one.runtime_context = 'ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0'
+        build_one.build_context = 'return_runtime_context'
+        build_one.runtime_context = 'c2c572ec'
         build_one.state = models.BUILD_STATES['failed']
         current_dir = os.path.dirname(__file__)
         formatted_testmodule_yml_path = os.path.join(
