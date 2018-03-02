@@ -90,14 +90,14 @@ class TestUtilsComponentReuse:
         'perl-List-Compare', 'perl-Tangerine', 'tangerine', None
     ])
     def test_get_reusable_component_different_component(self, changed_component):
-        second_module_build = models.ModuleBuild.query.filter_by(id=2).one()
+        second_module_build = models.ModuleBuild.query.filter_by(id=3).one()
         if changed_component:
             mmd = second_module_build.mmd()
             mmd.get_rpm_components()['tangerine'].set_ref(
                 '00ea1da4192a2030f9ae023de3b3143ed647bbab')
             second_module_build.modulemd = mmd.dumps()
             second_module_changed_component = models.ComponentBuild.query.filter_by(
-                package=changed_component, module_id=2).one()
+                package=changed_component, module_id=3).one()
             second_module_changed_component.ref = '00ea1da4192a2030f9ae023de3b3143ed647bbab'
             db.session.add(second_module_changed_component)
             db.session.commit()
@@ -132,7 +132,7 @@ class TestUtilsComponentReuse:
             assert tangerine_rv.package == 'tangerine'
 
     def test_get_reusable_component_different_rpm_macros(self):
-        second_module_build = models.ModuleBuild.query.filter_by(id=2).one()
+        second_module_build = models.ModuleBuild.query.filter_by(id=3).one()
         mmd = second_module_build.mmd()
         mmd.set_rpm_buildopts({'macros': '%my_macro 1'})
         second_module_build.modulemd = mmd.dumps()
@@ -147,7 +147,7 @@ class TestUtilsComponentReuse:
         assert pt_rv is None
 
     def test_get_reusable_component_different_buildrequires_hash(self):
-        second_module_build = models.ModuleBuild.query.filter_by(id=2).one()
+        second_module_build = models.ModuleBuild.query.filter_by(id=3).one()
         mmd = second_module_build.mmd()
         xmd = glib.from_variant_dict(mmd.get_xmd())
         xmd['mbs']['buildrequires']['platform']['ref'] = \
@@ -170,7 +170,7 @@ class TestUtilsComponentReuse:
         assert tangerine_rv is None
 
     def test_get_reusable_component_different_buildrequires(self):
-        second_module_build = models.ModuleBuild.query.filter_by(id=2).one()
+        second_module_build = models.ModuleBuild.query.filter_by(id=3).one()
         mmd = second_module_build.mmd()
         br_list = Modulemd.SimpleSet()
         br_list.add('master')
@@ -210,7 +210,7 @@ class TestUtilsComponentReuse:
                 inspect if it was called with correct arguments
         """
         module_dir = tempfile.mkdtemp()
-        module = models.ModuleBuild.query.filter_by(id=2).one()
+        module = models.ModuleBuild.query.filter_by(id=3).one()
         mmd = module.mmd()
         modulemd_yaml = mmd.dumps()
         modulemd_file_path = path.join(module_dir, "testmodule.yaml")
@@ -248,7 +248,7 @@ class TestUtils:
         None
     ])
     @patch('module_build_service.scm.SCM')
-    def test_format_mmd(self, mocked_scm, scmurl, pdc):
+    def test_format_mmd(self, mocked_scm, scmurl):
         mocked_scm.return_value.commit = \
             '620ec77321b2ea7b0d67d82992dda3e1d67055b4'
         # For all the RPMs in testmodule, get_latest is called
@@ -314,7 +314,7 @@ class TestUtils:
         reuse the components.
         """
         reuse_shared_userspace_init_data()
-        new_module = models.ModuleBuild.query.filter_by(id=2).one()
+        new_module = models.ModuleBuild.query.get(3)
         rv = module_build_service.utils.get_reusable_component(
             db.session, new_module, 'llvm')
         assert rv.package == 'llvm'
@@ -425,7 +425,7 @@ class TestUtils:
             assert str(cm.value).endswith(' No value provided.') is True
 
     @patch('module_build_service.scm.SCM')
-    def test_record_component_builds_duplicate_components(self, mocked_scm, pdc_module_inactive):
+    def test_record_component_builds_duplicate_components(self, mocked_scm):
         with app.app_context():
             clean_database()
             mocked_scm.return_value.commit = \
@@ -471,7 +471,7 @@ class TestUtils:
             assert str(e.value) == error_msg
 
     @patch('module_build_service.scm.SCM')
-    def test_record_component_builds_set_weight(self, mocked_scm, pdc_module_inactive):
+    def test_record_component_builds_set_weight(self, mocked_scm):
         with app.app_context():
             clean_database()
             mocked_scm.return_value.commit = \
@@ -600,7 +600,7 @@ class TestBatches:
            5) Handling the further_work messages lead to proper tagging of
               reused components.
         """
-        module_build = models.ModuleBuild.query.filter_by(id=2).one()
+        module_build = models.ModuleBuild.query.filter_by(id=3).one()
         module_build.batch = 1
 
         builder = mock.MagicMock()
@@ -645,10 +645,10 @@ class TestBatches:
            5) Handling the further_work messages lead to proper tagging of
               reused components.
         """
-        module_build = models.ModuleBuild.query.filter_by(id=2).one()
+        module_build = models.ModuleBuild.query.filter_by(id=3).one()
         module_build.batch = 1
         plc_component = models.ComponentBuild.query.filter_by(
-            module_id=2, package='perl-List-Compare').one()
+            module_id=3, package='perl-List-Compare').one()
         plc_component.ref = '5ceea46add2366d8b8c5a623a2fb563b625b9abd'
 
         builder = mock.MagicMock()
@@ -684,7 +684,7 @@ class TestBatches:
         Tests that start_next_batch_build can't reuse any components in the batch because the
         rebuild method is set to "all".
         """
-        module_build = models.ModuleBuild.query.filter_by(id=2).one()
+        module_build = models.ModuleBuild.query.filter_by(id=3).one()
         module_build.rebuild_strategy = 'all'
         module_build.batch = 1
 
@@ -711,12 +711,12 @@ class TestBatches:
         2, and even though the other component in batch 2 changed and was rebuilt, the component
         in batch 3 can be reused.
         """
-        module_build = models.ModuleBuild.query.filter_by(id=2).one()
+        module_build = models.ModuleBuild.query.filter_by(id=3).one()
         module_build.rebuild_strategy = 'only-changed'
         module_build.batch = 1
         # perl-List-Compare changed
         plc_component = models.ComponentBuild.query.filter_by(
-            module_id=2, package='perl-List-Compare').one()
+            module_id=3, package='perl-List-Compare').one()
         plc_component.ref = '5ceea46add2366d8b8c5a623a2fb563b625b9abd'
 
         builder = mock.MagicMock()
@@ -747,7 +747,7 @@ class TestBatches:
         # Complete the build
         plc_component.state = koji.BUILD_STATES['COMPLETE']
         pt_component = models.ComponentBuild.query.filter_by(
-            module_id=2, package='perl-Tangerine').one()
+            module_id=3, package='perl-Tangerine').one()
         pt_component.state = koji.BUILD_STATES['COMPLETE']
 
         # Start the next build batch
@@ -769,13 +769,13 @@ class TestBatches:
         """
         Tests that components with the longest build time will be scheduled first
         """
-        module_build = models.ModuleBuild.query.filter_by(id=2).one()
+        module_build = models.ModuleBuild.query.filter_by(id=3).one()
         module_build.batch = 1
         pt_component = models.ComponentBuild.query.filter_by(
-            module_id=2, package='perl-Tangerine').one()
+            module_id=3, package='perl-Tangerine').one()
         pt_component.ref = '6ceea46add2366d8b8c5a623b2fb563b625bfabe'
         plc_component = models.ComponentBuild.query.filter_by(
-            module_id=2, package='perl-List-Compare').one()
+            module_id=3, package='perl-List-Compare').one()
         plc_component.ref = '5ceea46add2366d8b8c5a623a2fb563b625b9abd'
 
         # Components are by default built by component id. To find out that weight is respected,
@@ -809,7 +809,7 @@ class TestBatches:
         Tests that start_next_batch_build does not start new batch when
         there are unbuilt components in the current one.
         """
-        module_build = models.ModuleBuild.query.filter_by(id=2).one()
+        module_build = models.ModuleBuild.query.filter_by(id=3).one()
         module_build.batch = 2
 
         # The component was reused when the batch first started
@@ -834,7 +834,7 @@ class TestBatches:
         Test that start_next_batch_build does not start new batch when
         builder.buildroot_ready() returns False.
         """
-        module_build = models.ModuleBuild.query.filter_by(id=2).one()
+        module_build = models.ModuleBuild.query.filter_by(id=3).one()
         module_build.batch = 1
 
         builder = mock.MagicMock()

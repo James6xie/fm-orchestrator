@@ -91,6 +91,21 @@ def clean_database():
     db.session.commit()
     db.drop_all()
     db.create_all()
+    platform = ModuleBuild()
+    platform.name = 'platform'
+    platform.stream = 'f28'
+    platform.version = '3'
+    platform.koji_tag = 'module-f28-build'
+    platform.state = BUILD_STATES['ready']
+    with open(os.path.join(base_dir, 'staged_data', 'platform.yaml')) as f:
+        platform.modulemd = f.read()
+    platform.rebuild_strategy = 'all'
+    platform.owner = 'releng'
+    platform.time_submitted = datetime.utcnow()
+    platform.time_modified = datetime.utcnow()
+    platform.time_completed = datetime.utcnow()
+    db.session.add(platform)
+    db.session.commit()
 
 
 def init_data(data_size=10, contexts=False):
@@ -150,7 +165,7 @@ def _populate_data(session, data_size=10, contexts=False):
             component_one_build_one.state = koji.BUILD_STATES['COMPLETE']
             component_one_build_one.nvr = 'nginx-1.10.1-2.{0}'.format(build_one_component_release)
             component_one_build_one.batch = 1
-            component_one_build_one.module_id = 1 + index * 3
+            component_one_build_one.module_id = 2 + index * 3
             component_one_build_one.tagged = True
             component_one_build_one.tagged_in_final = True
 
@@ -165,7 +180,7 @@ def _populate_data(session, data_size=10, contexts=False):
             component_two_build_one.nvr = \
                 'module-build-macros-01-1.{0}'.format(build_one_component_release)
             component_two_build_one.batch = 2
-            component_two_build_one.module_id = 1 + index * 3
+            component_two_build_one.module_id = 2 + index * 3
             component_two_build_one.tagged = True
             component_two_build_one.tagged_in_final = True
 
@@ -201,7 +216,7 @@ def _populate_data(session, data_size=10, contexts=False):
         component_one_build_two.state = koji.BUILD_STATES['COMPLETE']
         component_one_build_two.nvr = 'postgresql-9.5.3-4.{0}'.format(build_two_component_release)
         component_one_build_two.batch = 2
-        component_one_build_two.module_id = 2 + index * 3
+        component_one_build_two.module_id = 3 + index * 3
         component_one_build_two.tagged = True
         component_one_build_two.tagged_in_final = True
 
@@ -216,7 +231,7 @@ def _populate_data(session, data_size=10, contexts=False):
         component_two_build_two.nvr = \
             'module-build-macros-01-1.{0}'.format(build_two_component_release)
         component_two_build_two.batch = 1
-        component_two_build_two.module_id = 2 + index * 3
+        component_two_build_two.module_id = 3 + index * 3
         component_one_build_two.tagged = True
         component_one_build_two.build_time_only = True
 
@@ -252,7 +267,7 @@ def _populate_data(session, data_size=10, contexts=False):
         component_one_build_three.nvr = \
             'postgresql-9.5.3-4.{0}'.format(build_three_component_release)
         component_one_build_three.batch = 2
-        component_one_build_three.module_id = 3 + index * 3
+        component_one_build_three.module_id = 4 + index * 3
 
         component_two_build_three = ComponentBuild()
         component_two_build_three.package = 'module-build-macros'
@@ -265,7 +280,7 @@ def _populate_data(session, data_size=10, contexts=False):
         component_two_build_three.nvr = \
             'module-build-macros-01-1.{0}'.format(build_three_component_release)
         component_two_build_three.batch = 1
-        component_two_build_three.module_id = 3 + index * 3
+        component_two_build_three.module_id = 4 + index * 3
         component_two_build_three.tagged = True
         component_two_build_three.build_time_only = True
 
@@ -322,7 +337,7 @@ def scheduler_init_data(tangerine_state=None):
     component_one_build_one.nvr = \
         'perl-Tangerine-0.23-1.{0}'.format(build_one_component_release)
     component_one_build_one.batch = 2
-    component_one_build_one.module_id = 1
+    component_one_build_one.module_id = 2
     component_one_build_one.ref = '4ceea43add2366d8b8c5a622a2fb563b625b9abf'
     component_one_build_one.tagged = True
     component_one_build_one.tagged_in_final = True
@@ -338,7 +353,7 @@ def scheduler_init_data(tangerine_state=None):
     component_two_build_one.nvr = \
         'perl-List-Compare-0.53-5.{0}'.format(build_one_component_release)
     component_two_build_one.batch = 2
-    component_two_build_one.module_id = 1
+    component_two_build_one.module_id = 2
     component_two_build_one.ref = '76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb'
     component_two_build_one.tagged = True
     component_two_build_one.tagged_in_final = True
@@ -350,7 +365,7 @@ def scheduler_init_data(tangerine_state=None):
          '?#fbed359411a1baa08d4a88e0d12d426fbf8f602c')
     component_three_build_one.format = 'rpms'
     component_three_build_one.batch = 3
-    component_three_build_one.module_id = 1
+    component_three_build_one.module_id = 2
     component_three_build_one.ref = 'fbed359411a1baa08d4a88e0d12d426fbf8f602c'
     component_three_build_one.state = tangerine_state
     if tangerine_state:
@@ -372,7 +387,7 @@ def scheduler_init_data(tangerine_state=None):
     component_four_build_one.nvr = \
         'module-build-macros-0.1-1.{0}'.format(build_one_component_release)
     component_four_build_one.batch = 1
-    component_four_build_one.module_id = 1
+    component_four_build_one.module_id = 2
     component_four_build_one.tagged = True
     component_four_build_one.build_time_only = True
 
@@ -428,7 +443,7 @@ def reuse_component_init_data():
     component_one_build_one.nvr = \
         'perl-Tangerine-0.23-1.{0}'.format(build_one_component_release)
     component_one_build_one.batch = 2
-    component_one_build_one.module_id = 1
+    component_one_build_one.module_id = 2
     component_one_build_one.ref = '4ceea43add2366d8b8c5a622a2fb563b625b9abf'
     component_one_build_one.tagged = True
     component_one_build_one.tagged_in_final = True
@@ -443,7 +458,7 @@ def reuse_component_init_data():
     component_two_build_one.nvr = \
         'perl-List-Compare-0.53-5.{0}'.format(build_one_component_release)
     component_two_build_one.batch = 2
-    component_two_build_one.module_id = 1
+    component_two_build_one.module_id = 2
     component_two_build_one.ref = '76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb'
     component_two_build_one.tagged = True
     component_two_build_one.tagged_in_final = True
@@ -458,7 +473,7 @@ def reuse_component_init_data():
     component_three_build_one.nvr = \
         'tangerine-0.22-3.{0}'.format(build_one_component_release)
     component_three_build_one.batch = 3
-    component_three_build_one.module_id = 1
+    component_three_build_one.module_id = 2
     component_three_build_one.ref = 'fbed359411a1baa08d4a88e0d12d426fbf8f602c'
     component_three_build_one.tagged = True
     component_three_build_one.tagged_in_final = True
@@ -473,7 +488,7 @@ def reuse_component_init_data():
     component_four_build_one.nvr = \
         'module-build-macros-0.1-1.{0}'.format(build_one_component_release)
     component_four_build_one.batch = 1
-    component_four_build_one.module_id = 1
+    component_four_build_one.module_id = 2
     component_four_build_one.tagged = True
     component_four_build_one.build_time_only = True
 
@@ -506,7 +521,7 @@ def reuse_component_init_data():
          '?#4ceea43add2366d8b8c5a622a2fb563b625b9abf')
     component_one_build_two.format = 'rpms'
     component_one_build_two.batch = 2
-    component_one_build_two.module_id = 2
+    component_one_build_two.module_id = 3
     component_one_build_two.ref = '4ceea43add2366d8b8c5a622a2fb563b625b9abf'
     component_two_build_two = module_build_service.models.ComponentBuild()
     component_two_build_two.package = 'perl-List-Compare'
@@ -515,7 +530,7 @@ def reuse_component_init_data():
          '?#76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb')
     component_two_build_two.format = 'rpms'
     component_two_build_two.batch = 2
-    component_two_build_two.module_id = 2
+    component_two_build_two.module_id = 3
     component_two_build_two.ref = '76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb'
     component_three_build_two = module_build_service.models.ComponentBuild()
     component_three_build_two.package = 'tangerine'
@@ -524,7 +539,7 @@ def reuse_component_init_data():
          '?#fbed359411a1baa08d4a88e0d12d426fbf8f602c')
     component_three_build_two.format = 'rpms'
     component_three_build_two.batch = 3
-    component_three_build_two.module_id = 2
+    component_three_build_two.module_id = 3
     component_three_build_two.ref = 'fbed359411a1baa08d4a88e0d12d426fbf8f602c'
     component_four_build_two = module_build_service.models.ComponentBuild()
     component_four_build_two.package = 'module-build-macros'
@@ -537,7 +552,7 @@ def reuse_component_init_data():
     component_four_build_two.nvr = \
         'module-build-macros-0.1-1.{0}'.format(build_two_component_release)
     component_four_build_two.batch = 1
-    component_four_build_two.module_id = 2
+    component_four_build_two.module_id = 3
     component_four_build_two.tagged = True
     component_four_build_two.build_time_only = True
 
@@ -600,7 +615,7 @@ def reuse_shared_userspace_init_data():
             pkgref = mmd.get_xmd()['mbs']['rpms'][pkg.get_name()]['ref']
             full_url = pkg.get_repository() + "?#" + pkgref
             build = module_build_service.models.ComponentBuild(
-                module_id=1,
+                module_id=2,
                 package=pkg.get_name(),
                 format="rpms",
                 scmurl=full_url,
@@ -654,7 +669,7 @@ def reuse_shared_userspace_init_data():
             pkgref = mmd2.get_xmd()['mbs']['rpms'][pkg.get_name()]['ref']
             full_url = pkg.get_repository() + "?#" + pkgref
             build = module_build_service.models.ComponentBuild(
-                module_id=2,
+                module_id=3,
                 package=pkg.get_name(),
                 format="rpms",
                 scmurl=full_url,

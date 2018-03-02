@@ -117,9 +117,9 @@ class TestViews:
         init_data(2)
 
     def test_query_build(self):
-        rv = self.client.get('/module-build-service/1/module-builds/1')
+        rv = self.client.get('/module-build-service/1/module-builds/2')
         data = json.loads(rv.data)
-        assert data['id'] == 1
+        assert data['id'] == 2
         assert data['context'] == '00000000'
         assert data['name'] == 'nginx'
         assert data['owner'] == 'Moe Szyslak'
@@ -132,13 +132,13 @@ class TestViews:
                     'task_id': 12312321,
                     'state': 1,
                     'state_reason': None,
-                    'nvr': 'module-build-macros-01-1.module+1+b8661ee4',
+                    'nvr': 'module-build-macros-01-1.module+2+b8661ee4',
                 },
                 'nginx': {
                     'task_id': 12312345,
                     'state': 1,
                     'state_reason': None,
-                    'nvr': 'nginx-1.10.1-2.module+1+b8661ee4',
+                    'nvr': 'nginx-1.10.1-2.module+2+b8661ee4',
                 },
             },
         }
@@ -149,9 +149,9 @@ class TestViews:
         assert data['version'] == '2'
 
     def test_query_build_short(self):
-        rv = self.client.get('/module-build-service/1/module-builds/1?short=True')
+        rv = self.client.get('/module-build-service/1/module-builds/2?short=True')
         data = json.loads(rv.data)
-        assert data['id'] == 1
+        assert data['id'] == 2
         assert data['context'] == '00000000'
         assert data['name'] == 'nginx'
         assert data['state'] == 5
@@ -160,14 +160,14 @@ class TestViews:
         assert data['version'] == '2'
 
     def test_query_build_with_verbose_mode(self):
-        rv = self.client.get('/module-build-service/1/module-builds/1?verbose=true')
+        rv = self.client.get('/module-build-service/1/module-builds/2?verbose=true')
         data = json.loads(rv.data)
         assert data['component_builds'] == [1, 2]
         assert data['context'] == '00000000'
         # There is no xmd information on this module, so these values should be None
         assert data['build_context'] is None
         assert data['runtime_context'] is None
-        assert data['id'] == 1
+        assert data['id'] == 2
         with open(path.join(base_dir, "staged_data", "nginx_mmd.yaml")) as mmd:
             assert data['modulemd'] == mmd.read()
         assert data['name'] == 'nginx'
@@ -180,7 +180,7 @@ class TestViews:
         # State trace is empty because we directly created these builds and didn't have them
         # transition, which creates these entries
         assert data['state_trace'] == []
-        assert data['state_url'] == '/module-build-service/1/module-builds/1'
+        assert data['state_url'] == '/module-build-service/1/module-builds/2'
         assert data['stream'] == '1'
         assert data['tasks'] == {
             'rpms': {
@@ -188,13 +188,13 @@ class TestViews:
                     'task_id': 12312321,
                     'state': 1,
                     'state_reason': None,
-                    'nvr': 'module-build-macros-01-1.module+1+b8661ee4',
+                    'nvr': 'module-build-macros-01-1.module+2+b8661ee4',
                 },
                 'nginx': {
                     'task_id': 12312345,
                     'state': 1,
                     'state_reason': None,
-                    'nvr': 'nginx-1.10.1-2.module+1+b8661ee4',
+                    'nvr': 'nginx-1.10.1-2.module+2+b8661ee4',
                 },
             },
         }
@@ -209,11 +209,11 @@ class TestViews:
         meta_data = json.loads(rv.data)['meta']
         assert meta_data['prev'].split('?', 1)[1] in ['per_page=2&page=1', 'page=1&per_page=2']
         assert meta_data['next'].split('?', 1)[1] in ['per_page=2&page=3', 'page=3&per_page=2']
-        assert meta_data['last'].split('?', 1)[1] in ['per_page=2&page=3', 'page=3&per_page=2']
+        assert meta_data['last'].split('?', 1)[1] in ['per_page=2&page=4', 'page=4&per_page=2']
         assert meta_data['first'].split('?', 1)[1] in ['per_page=2&page=1', 'page=1&per_page=2']
-        assert meta_data['total'] == 6
+        assert meta_data['total'] == 7
         assert meta_data['per_page'] == 2
-        assert meta_data['pages'] == 3
+        assert meta_data['pages'] == 4
         assert meta_data['page'] == 2
 
     def test_pagination_metadata_with_args(self):
@@ -222,9 +222,9 @@ class TestViews:
         for link in [meta_data['prev'], meta_data['next'], meta_data['last'], meta_data['first']]:
             assert 'order_by=id' in link
             assert 'per_page=2' in link
-        assert meta_data['total'] == 6
+        assert meta_data['total'] == 7
         assert meta_data['per_page'] == 2
-        assert meta_data['pages'] == 3
+        assert meta_data['pages'] == 4
         assert meta_data['page'] == 2
 
     def test_query_builds(self):
@@ -240,13 +240,13 @@ class TestViews:
                             "state": 1,
                             "state_reason": None,
                             "task_id": 47383994,
-                            "nvr": "module-build-macros-01-1.module+6+f95651e2"
+                            "nvr": "module-build-macros-01-1.module+7+f95651e2"
                         },
                         "rubygem-rails": {
                             "state": 3,
                             "state_reason": None,
                             "task_id": 2433434,
-                            "nvr": "postgresql-9.5.3-4.module+6+f95651e2"
+                            "nvr": "postgresql-9.5.3-4.module+7+f95651e2"
                         }
                     }
                 },
@@ -258,7 +258,7 @@ class TestViews:
                 "time_submitted": "2016-09-03T12:38:33Z",
                 "scmurl": ("git://pkgs.domain.local/modules/testmodule"
                            "?#ca95886c7a443b36a9ce31abda1f9bef22f2f8c9"),
-                "id": 6,
+                "id": 7,
                 "context": "00000000",
                 "time_completed": None,
                 "time_modified": "2016-09-03T12:38:40Z",
@@ -274,13 +274,13 @@ class TestViews:
                             "state": 1,
                             "state_reason": None,
                             "task_id": 47383994,
-                            "nvr": "module-build-macros-01-1.module+5+fa947d31"
+                            "nvr": "module-build-macros-01-1.module+6+fa947d31"
                         },
                         "postgresql": {
                             "state": 1,
                             "state_reason": None,
                             "task_id": 2433434,
-                            "nvr": "postgresql-9.5.3-4.module+5+fa947d31"
+                            "nvr": "postgresql-9.5.3-4.module+6+fa947d31"
                         }
                     }
                 },
@@ -292,7 +292,7 @@ class TestViews:
                 "time_submitted": "2016-09-03T12:35:33Z",
                 "scmurl": ("git://pkgs.domain.local/modules/postgressql"
                            "?#aa95886c7a443b36a9ce31abda1f9bef22f2f8c9"),
-                "id": 5,
+                "id": 6,
                 "context": "00000000",
                 "time_completed": "2016-09-03T11:37:19Z",
                 "time_modified": "2016-09-03T12:37:19Z",
@@ -320,7 +320,7 @@ class TestViews:
         data = json.loads(rv.data)
         assert data['id'] == 1
         assert data['format'] == 'rpms'
-        assert data['module_build'] == 1
+        assert data['module_build'] == 2
         assert data['package'] == 'nginx'
         assert data['state'] == 1
         assert data['state_name'] == 'COMPLETE'
@@ -332,7 +332,7 @@ class TestViews:
         data = json.loads(rv.data)
         assert data['id'] == 1
         assert data['format'] == 'rpms'
-        assert data['module_build'] == 1
+        assert data['module_build'] == 2
         assert data['package'] == 'nginx'
         assert data['state'] == 1
         assert data['state_name'] == 'COMPLETE'
@@ -344,7 +344,7 @@ class TestViews:
         data = json.loads(rv.data)
         assert data['id'] == 3
         assert data['format'] == 'rpms'
-        assert data['module_build'] == 2
+        assert data['module_build'] == 3
         assert data['package'] == 'postgresql'
         assert data['state'] == 1
         assert data['state_name'] == 'COMPLETE'
@@ -375,7 +375,7 @@ class TestViews:
 
     def test_query_component_builds_filter_nvr(self):
         rv = self.client.get('/module-build-service/1/component-builds/?nvr=nginx-1.10.1-2.'
-                             'module%2B1%2Bb8661ee4')
+                             'module%2B2%2Bb8661ee4')
         data = json.loads(rv.data)
         assert data['meta']['total'] == 1
 
@@ -404,7 +404,7 @@ class TestViews:
         rv = self.client.get(
             '/module-build-service/1/module-builds/?completed_after=2016-09-03T11:35:00Z')
         data = json.loads(rv.data)
-        assert data['meta']['total'] == 2
+        assert data['meta']['total'] == 3
 
     def test_query_builds_filter_submitted_before(self):
         rv = self.client.get(
@@ -416,7 +416,7 @@ class TestViews:
         rv = self.client.get(
             '/module-build-service/1/module-builds/?submitted_after=2016-09-03T11:35:00Z')
         data = json.loads(rv.data)
-        assert data['meta']['total'] == 4
+        assert data['meta']['total'] == 5
 
     def test_query_builds_filter_modified_before(self):
         rv = self.client.get(
@@ -428,7 +428,7 @@ class TestViews:
         rv = self.client.get(
             '/module-build-service/1/module-builds/?modified_after=2016-09-03T11:35:00Z')
         data = json.loads(rv.data)
-        assert data['meta']['total'] == 5
+        assert data['meta']['total'] == 6
 
     def test_query_builds_filter_owner(self):
         rv = self.client.get(
@@ -508,7 +508,7 @@ class TestViews:
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build(self, mocked_scm, mocked_get_user, pdc):
+    def test_submit_build(self, mocked_scm, mocked_get_user):
         FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
@@ -528,10 +528,10 @@ class TestViews:
         assert data['time_completed'] is None
         assert data['stream'] == 'master'
         assert data['owner'] == 'Homer J. Simpson'
-        assert data['id'] == 7
+        assert data['id'] == 8
         assert data['rebuild_strategy'] == 'changed-and-after'
         assert data['state_name'] == 'init'
-        assert data['state_url'] == '/module-build-service/1/module-builds/7'
+        assert data['state_url'] == '/module-build-service/1/module-builds/8'
         assert len(data['state_trace']) == 1
         assert data['state_trace'][0]['state'] == 0
         assert data['tasks'] == {}
@@ -618,7 +618,7 @@ class TestViews:
         assert data['time_completed'] is None
         assert data['stream'] == 'master'
         assert data['owner'] == 'Homer J. Simpson'
-        assert data['id'] == 7
+        assert data['id'] == 8
         assert data['state_name'] == 'init'
         assert data['rebuild_strategy'] == 'changed-and-after'
 
@@ -683,7 +683,7 @@ class TestViews:
 
     @patch('module_build_service.auth.get_user', return_value=other_user)
     def test_cancel_build(self, mocked_get_user):
-        rv = self.client.patch('/module-build-service/1/module-builds/6',
+        rv = self.client.patch('/module-build-service/1/module-builds/7',
                                data=json.dumps({'state': 'failed'}))
         data = json.loads(rv.data)
 
@@ -692,11 +692,11 @@ class TestViews:
 
     @patch('module_build_service.auth.get_user', return_value=other_user)
     def test_cancel_build_already_failed(self, mocked_get_user):
-        module = ModuleBuild.query.filter_by(id=6).one()
+        module = ModuleBuild.query.filter_by(id=7).one()
         module.state = 4
         db.session.add(module)
         db.session.commit()
-        rv = self.client.patch('/module-build-service/1/module-builds/6',
+        rv = self.client.patch('/module-build-service/1/module-builds/7',
                                data=json.dumps({'state': 'failed'}))
         data = json.loads(rv.data)
 
@@ -705,7 +705,7 @@ class TestViews:
 
     @patch('module_build_service.auth.get_user', return_value=('sammy', set()))
     def test_cancel_build_unauthorized_no_groups(self, mocked_get_user):
-        rv = self.client.patch('/module-build-service/1/module-builds/6',
+        rv = self.client.patch('/module-build-service/1/module-builds/7',
                                data=json.dumps({'state': 'failed'}))
         data = json.loads(rv.data)
 
@@ -714,7 +714,7 @@ class TestViews:
 
     @patch('module_build_service.auth.get_user', return_value=('sammy', set(["packager"])))
     def test_cancel_build_unauthorized_not_owner(self, mocked_get_user):
-        rv = self.client.patch('/module-build-service/1/module-builds/6',
+        rv = self.client.patch('/module-build-service/1/module-builds/7',
                                data=json.dumps({'state': 'failed'}))
         data = json.loads(rv.data)
 
@@ -726,7 +726,7 @@ class TestViews:
     def test_cancel_build_admin(self, mocked_get_user):
         with patch("module_build_service.config.Config.admin_groups",
                    new_callable=PropertyMock, return_value=set(["mbs-admin"])):
-            rv = self.client.patch('/module-build-service/1/module-builds/6',
+            rv = self.client.patch('/module-build-service/1/module-builds/7',
                                    data=json.dumps({'state': 'failed'}))
             data = json.loads(rv.data)
 
@@ -738,7 +738,7 @@ class TestViews:
     def test_cancel_build_no_admin(self, mocked_get_user):
         with patch("module_build_service.config.Config.admin_groups",
                    new_callable=PropertyMock, return_value=set(["mbs-admin"])):
-            rv = self.client.patch('/module-build-service/1/module-builds/6',
+            rv = self.client.patch('/module-build-service/1/module-builds/7',
                                    data=json.dumps({'state': 'failed'}))
             data = json.loads(rv.data)
 
@@ -747,7 +747,7 @@ class TestViews:
 
     @patch('module_build_service.auth.get_user', return_value=other_user)
     def test_cancel_build_wrong_param(self, mocked_get_user):
-        rv = self.client.patch('/module-build-service/1/module-builds/6',
+        rv = self.client.patch('/module-build-service/1/module-builds/7',
                                data=json.dumps({'some_param': 'value'}))
         data = json.loads(rv.data)
 
@@ -757,7 +757,7 @@ class TestViews:
 
     @patch('module_build_service.auth.get_user', return_value=other_user)
     def test_cancel_build_wrong_state(self, mocked_get_user):
-        rv = self.client.patch('/module-build-service/1/module-builds/6',
+        rv = self.client.patch('/module-build-service/1/module-builds/7',
                                data=json.dumps({'state': 'some_state'}))
         data = json.loads(rv.data)
 
@@ -839,7 +839,7 @@ class TestViews:
     @patch('module_build_service.scm.SCM')
     @patch("module_build_service.config.Config.no_auth", new_callable=PropertyMock,
            return_value=True)
-    def test_submit_build_no_auth_set_owner(self, mocked_conf, mocked_scm, mocked_get_user, pdc):
+    def test_submit_build_no_auth_set_owner(self, mocked_conf, mocked_scm, mocked_get_user):
         FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
@@ -858,7 +858,7 @@ class TestViews:
     @patch('module_build_service.auth.get_user', return_value=anonymous_user)
     @patch('module_build_service.scm.SCM')
     @patch("module_build_service.config.Config.no_auth", new_callable=PropertyMock)
-    def test_patch_set_different_owner(self, mocked_no_auth, mocked_scm, mocked_get_user, pdc):
+    def test_patch_set_different_owner(self, mocked_no_auth, mocked_scm, mocked_get_user):
         FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
@@ -902,7 +902,7 @@ class TestViews:
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     @patch("module_build_service.config.Config.allow_custom_scmurls", new_callable=PropertyMock)
-    def test_submit_custom_scmurl(self, allow_custom_scmurls, mocked_scm, mocked_get_user, pdc):
+    def test_submit_custom_scmurl(self, allow_custom_scmurls, mocked_scm, mocked_get_user):
         FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 

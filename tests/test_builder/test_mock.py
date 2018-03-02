@@ -29,7 +29,7 @@ class TestMockModuleBuilder:
     def _create_module_with_filters(self, session, batch, state):
         comp_builds = [
             {
-                "module_id": 1,
+                "module_id": 2,
                 "package": "ed",
                 "format": "rpms",
                 "scmurl": ("git://pkgs.fedoraproject.org/rpms/ed"
@@ -38,7 +38,7 @@ class TestMockModuleBuilder:
                 "ref": "01bf8330812fea798671925cc537f2f29b0bd216"
             },
             {
-                "module_id": 1,
+                "module_id": 2,
                 "package": "mksh",
                 "format": "rpms",
                 "scmurl": ("git://pkgs.fedoraproject.org/rpms/mksh"

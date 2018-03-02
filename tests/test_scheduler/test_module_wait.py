@@ -116,7 +116,7 @@ class TestModuleWait:
             resolver.get_module_tag.return_value = "module-testmodule-master-20170109091357"
             generic_resolver.create.return_value = resolver
 
-            msg = module_build_service.messaging.MBSModule(msg_id=None, module_build_id=1,
+            msg = module_build_service.messaging.MBSModule(msg_id=None, module_build_id=2,
                                                            module_build_state='some state')
             module_build_service.scheduler.handlers.modules.wait(
                 config=conf, session=db.session, msg=msg)
@@ -125,7 +125,7 @@ class TestModuleWait:
             # When module-build-macros is reused, it still has to appear only
             # once in database.
             builds_count = db.session.query(ComponentBuild).filter_by(
-                package="module-build-macros", module_id=1).count()
+                package="module-build-macros", module_id=2).count()
             assert builds_count == 1
 
     @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
@@ -158,7 +158,7 @@ class TestModuleWait:
             resolver.get_module_tag.return_value = "module-testmodule-master-20170109091357"
             generic_resolver.create.return_value = resolver
 
-            msg = module_build_service.messaging.MBSModule(msg_id=None, module_build_id=1,
+            msg = module_build_service.messaging.MBSModule(msg_id=None, module_build_id=2,
                                                            module_build_state='some state')
             module_build_service.scheduler.handlers.modules.wait(
                 config=conf, session=db.session, msg=msg)
@@ -200,11 +200,11 @@ class TestModuleWait:
                 "module-bootstrap-tag": base_mmd}
             generic_resolver.create.return_value = resolver
 
-            msg = module_build_service.messaging.MBSModule(msg_id=None, module_build_id=1,
+            msg = module_build_service.messaging.MBSModule(msg_id=None, module_build_id=2,
                                                            module_build_state='some state')
             module_build_service.scheduler.handlers.modules.wait(
                 config=conf, session=db.session, msg=msg)
-            module_build = ModuleBuild.query.filter_by(id=1).one()
+            module_build = ModuleBuild.query.filter_by(id=2).one()
             assert module_build.cg_build_koji_tag == "modular-updates-candidate"
 
     @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
@@ -245,9 +245,9 @@ class TestModuleWait:
                 "module-bootstrap-tag": base_mmd}
             generic_resolver.create.return_value = resolver
 
-            msg = module_build_service.messaging.MBSModule(msg_id=None, module_build_id=1,
+            msg = module_build_service.messaging.MBSModule(msg_id=None, module_build_id=2,
                                                            module_build_state='some state')
             module_build_service.scheduler.handlers.modules.wait(
                 config=conf, session=db.session, msg=msg)
-            module_build = ModuleBuild.query.filter_by(id=1).one()
+            module_build = ModuleBuild.query.filter_by(id=2).one()
             assert module_build.cg_build_koji_tag == "f27-modular-updates-candidate"

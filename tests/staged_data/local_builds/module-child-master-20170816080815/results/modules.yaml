@@ -29,7 +29,7 @@ data:
     mbs:
       buildrequires:
         parent: {ref: 147dca4ca65aa9a1ac51f71b7e687f9178ffa5df, stream: master,
-          version: '20170616125652'}
+          version: '20170816080815'}
       commit: 722fd739fd6cf66faf29f6fb95dd64f60ba3e39a
       rpms:
         ed: {ref: 01bf8330812fea798671925cc537f2f29b0bd216}

@@ -48,7 +48,7 @@ class TestBuild:
 
     def setup_method(self, test_method):
         init_data(1)
-        module = models.ModuleBuild.query.filter_by(id=1).one()
+        module = models.ModuleBuild.query.filter_by(id=2).one()
         module.cg_build_koji_tag = "f27-module-candidate"
         self.cg = KojiContentGenerator(module, conf)
 

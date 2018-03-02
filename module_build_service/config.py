@@ -39,7 +39,8 @@ SUPPORTED_STRATEGIES = ['changed-and-after', 'only-changed', 'all']
 
 SUPPORTED_RESOLVERS = {
     'pdc': {'builders': ['koji', 'mock', 'copr']},
-    'copr': {'builders': ['copr', 'mock']}
+    'copr': {'builders': ['copr', 'mock']},
+    'db': {'builders': ['koji', 'mock', 'copr']}
 }
 
 

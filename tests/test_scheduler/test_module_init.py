@@ -56,21 +56,21 @@ class TestModuleInit:
             pass
 
     @patch('module_build_service.scm.SCM')
-    def test_init_basic(self, mocked_scm, pdc):
+    def test_init_basic(self, mocked_scm):
         FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
         msg = module_build_service.messaging.MBSModule(
-            msg_id=None, module_build_id=1, module_build_state='init')
+            msg_id=None, module_build_id=2, module_build_state='init')
         with make_session(conf) as session:
             self.fn(config=conf, session=session, msg=msg)
-        build = ModuleBuild.query.filter_by(id=1).one()
+        build = ModuleBuild.query.filter_by(id=2).one()
         # Make sure the module entered the wait state
         assert build.state == 1, build.state
         # Make sure format_mmd was run properly
         assert type(build.mmd().get_xmd()['mbs']) is GLib.Variant
 
     @patch('module_build_service.scm.SCM')
-    def test_init_scm_not_available(self, mocked_scm, pdc):
+    def test_init_scm_not_available(self, mocked_scm):
         def mocked_scm_get_latest():
             raise RuntimeError("Failed in mocked_scm_get_latest")
 
@@ -78,10 +78,10 @@ class TestModuleInit:
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
         mocked_scm.return_value.get_latest = mocked_scm_get_latest
         msg = module_build_service.messaging.MBSModule(
-            msg_id=None, module_build_id=1, module_build_state='init')
+            msg_id=None, module_build_id=2, module_build_state='init')
         with make_session(conf) as session:
             self.fn(config=conf, session=session, msg=msg)
-        build = ModuleBuild.query.filter_by(id=1).one()
+        build = ModuleBuild.query.filter_by(id=2).one()
         # Make sure the module entered the failed state
         # since the git server is not available
         assert build.state == 4, build.state
@@ -89,7 +89,7 @@ class TestModuleInit:
     @patch("module_build_service.config.Config.modules_allow_repository",
            new_callable=PropertyMock, return_value=True)
     @patch('module_build_service.scm.SCM')
-    def test_init_includedmodule(self, mocked_scm, mocked_mod_allow_repo, pdc):
+    def test_init_includedmodule(self, mocked_scm, mocked_mod_allow_repo):
         FakeSCM(mocked_scm, "includedmodules", ['testmodule.yaml'])
         includedmodules_yml_path = os.path.join(
             self.staged_data_dir, 'includedmodules.yaml')
@@ -100,13 +100,13 @@ class TestModuleInit:
             ModuleBuild.create(
                 session, conf, 'includemodule', '1', 3, yaml, scmurl, 'mprahl')
             msg = module_build_service.messaging.MBSModule(
-                msg_id=None, module_build_id=2, module_build_state='init')
+                msg_id=None, module_build_id=3, module_build_state='init')
             self.fn(config=conf, session=session, msg=msg)
-        build = ModuleBuild.query.filter_by(id=2).one()
+        build = ModuleBuild.query.filter_by(id=3).one()
         assert build.state == 1
         assert build.name == 'includemodule'
         batches = {}
-        for comp_build in ComponentBuild.query.filter_by(module_id=2).all():
+        for comp_build in ComponentBuild.query.filter_by(module_id=3).all():
             batches[comp_build.package] = comp_build.batch
         assert batches['perl-List-Compare'] == 2
         assert batches['perl-Tangerine'] == 2
@@ -125,14 +125,14 @@ class TestModuleInit:
 
     @patch('module_build_service.models.ModuleBuild.from_module_event')
     @patch('module_build_service.scm.SCM')
-    def test_init_when_get_latest_raises(self, mocked_scm, mocked_from_module_event, pdc):
+    def test_init_when_get_latest_raises(self, mocked_scm, mocked_from_module_event):
         FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
                 '7035bd33614972ac66559ac1fdd019ff6027ad22',
                 get_latest_raise=True)
         msg = module_build_service.messaging.MBSModule(
-            msg_id=None, module_build_id=1, module_build_state='init')
+            msg_id=None, module_build_id=2, module_build_state='init')
         with make_session(conf) as session:
-            build = session.query(ModuleBuild).filter_by(id=1).one()
+            build = session.query(ModuleBuild).filter_by(id=2).one()
             mocked_from_module_event.return_value = build
             self.fn(config=conf, session=session, msg=msg)
             # Query the database again to make sure the build object is updated

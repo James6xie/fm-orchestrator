@@ -78,7 +78,7 @@ class TestTagTagged:
         builder.module_build_tag = {"name": "module-fe3adf73caf3e1b7-build"}
         create_builder.return_value = builder
 
-        module_build = module_build_service.models.ModuleBuild.query.filter_by(id=2).one()
+        module_build = module_build_service.models.ModuleBuild.query.filter_by(id=3).one()
 
         # Set previous components as COMPLETE and tagged.
         module_build.batch = 1
@@ -128,7 +128,7 @@ class TestTagTagged:
 
         # Refresh our module_build object.
         db.session.expunge(module_build)
-        module_build = module_build_service.models.ModuleBuild.query.filter_by(id=2).one()
+        module_build = module_build_service.models.ModuleBuild.query.filter_by(id=3).one()
 
         # newRepo task_id should be stored in database, so we can check its
         # status later in poller.
@@ -154,7 +154,7 @@ class TestTagTagged:
         builder.module_build_tag = {"name": "module-fe3adf73caf3e1b7-build"}
         create_builder.return_value = builder
 
-        module_build = module_build_service.models.ModuleBuild.query.filter_by(id=2).one()
+        module_build = module_build_service.models.ModuleBuild.query.filter_by(id=3).one()
         module_build.batch = 2
         component = module_build_service.models.ComponentBuild.query\
             .filter_by(package='perl-Tangerine', module_id=module_build.id).one()
@@ -196,7 +196,7 @@ class TestTagTagged:
         builder.module_build_tag = {"name": "module-fe3adf73caf3e1b7-build"}
         create_builder.return_value = builder
 
-        module_build = module_build_service.models.ModuleBuild.query.filter_by(id=2).one()
+        module_build = module_build_service.models.ModuleBuild.query.filter_by(id=3).one()
 
         # Set previous components as COMPLETE and tagged.
         module_build.batch = 1
@@ -231,7 +231,7 @@ class TestTagTagged:
 
         # Refresh our module_build object.
         db.session.expunge(module_build)
-        module_build = module_build_service.models.ModuleBuild.query.filter_by(id=2).one()
+        module_build = module_build_service.models.ModuleBuild.query.filter_by(id=3).one()
 
         # newRepo task_id should be stored in database, so we can check its
         # status later in poller.
@@ -260,10 +260,10 @@ class TestTagTagged:
         builder.module_build_tag = {"name": "module-fe3adf73caf3e1b7-build"}
         create_builder.return_value = builder
 
-        module_build = module_build_service.models.ModuleBuild.query.filter_by(id=2).one()
+        module_build = module_build_service.models.ModuleBuild.query.filter_by(id=3).one()
         module_build.batch = 2
         mbm = module_build_service.models.ComponentBuild.query.filter_by(
-            module_id=2, package='module-build-macros').one()
+            module_id=3, package='module-build-macros').one()
         mbm.tagged = False
         db.session.add(mbm)
         for c in module_build.current_batch():
@@ -316,7 +316,7 @@ class TestTagTagged:
 
         # Refresh our module_build object.
         db.session.expunge(module_build)
-        module_build = module_build_service.models.ModuleBuild.query.filter_by(id=2).one()
+        module_build = module_build_service.models.ModuleBuild.query.filter_by(id=3).one()
 
         # newRepo task_id should be stored in database, so we can check its
         # status later in poller.
@@ -343,7 +343,7 @@ class TestTagTagged:
         builder.module_build_tag = {"name": "module-fe3adf73caf3e1b7-build"}
         create_builder.return_value = builder
 
-        module_build = module_build_service.models.ModuleBuild.query.filter_by(id=2).one()
+        module_build = module_build_service.models.ModuleBuild.query.filter_by(id=3).one()
 
         # Set previous components as COMPLETE and tagged.
         module_build.batch = 1
@@ -387,7 +387,7 @@ class TestTagTagged:
 
         # Refresh our module_build object.
         db.session.expunge(module_build)
-        module_build = module_build_service.models.ModuleBuild.query.filter_by(id=2).one()
+        module_build = module_build_service.models.ModuleBuild.query.filter_by(id=3).one()
 
         # newRepo task_id should be stored in database, so we can check its
         # status later in poller.

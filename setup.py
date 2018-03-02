@@ -59,6 +59,7 @@ setup(name='module-build-service',
           ],
           'mbs.resolver_backends': [
               'pdc = module_build_service.resolver.PDCResolver:PDCResolver',
+              'db = module_build_service.resolver.DBResolver:DBResolver',
           ],
       },
       scripts=["contrib/mbs-build"],

@@ -63,13 +63,13 @@ class TestLogger:
         """
         Tests that ModuleBuildLogs is logging properly to build log file.
         """
-        build = models.ModuleBuild.query.filter_by(id=1).one()
+        build = models.ModuleBuild.query.filter_by(id=2).one()
 
         # Initialize logging, get the build log path and remove it to
         # ensure we are not using some garbage from previous failed test.
         self.build_log.start(build)
         path = self.build_log.path(build)
-        assert path[len(self.base):] == "/build-1.log"
+        assert path[len(self.base):] == "/build-2.log"
         if os.path.exists(path):
             os.unlink(path)
 
@@ -82,8 +82,8 @@ class TestLogger:
         self.build_log.stop(build)
         assert not os.path.exists(path)
 
-        # Try logging with current_module_build_id set to 1 and then to 2.
-        # Only messages with current_module_build_id set to 1 should appear in
+        # Try logging with current_module_build_id set to 2 and then to 2.
+        # Only messages with current_module_build_id set to 2 should appear in
         # the log.
         self.build_log.start(build)
         MBSConsumer.current_module_build_id = 1
@@ -104,11 +104,11 @@ class TestLogger:
             data = f.read()
             # Note that DEBUG is not present unless configured server-wide.
             for level in ["INFO", "WARNING", "ERROR"]:
-                assert data.find("%s - ignore this test msg1" % level) != -1
+                assert data.find("%s - ignore this test msg2" % level) != -1
 
         # Try to log more messages when build_log for module 1 is stopped.
         # New messages should not appear in a log.
-        MBSConsumer.current_module_build_id = 1
+        MBSConsumer.current_module_build_id = 2
         log.debug("ignore this test msg3")
         log.info("ignore this test msg3")
         log.warn("ignore this test msg3")
@@ -119,11 +119,11 @@ class TestLogger:
             assert data.find("ignore this test msg3") == -1
 
     def test_module_build_logs_name_format(self):
-        build = models.ModuleBuild.query.filter_by(id=1).one()
+        build = models.ModuleBuild.query.filter_by(id=2).one()
 
         log1 = ModuleBuildLogs("/some/path", "build-{id}.log")
-        assert log1.name(build) == "build-1.log"
-        assert log1.path(build) == "/some/path/build-1.log"
+        assert log1.name(build) == "build-2.log"
+        assert log1.path(build) == "/some/path/build-2.log"
 
         log2 = ModuleBuildLogs("/some/path", "build-{name}-{stream}-{version}.log")
         assert log2.name(build) == "build-nginx-1-2.log"

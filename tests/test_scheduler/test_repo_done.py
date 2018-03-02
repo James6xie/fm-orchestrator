@@ -59,7 +59,7 @@ class TestRepoDone:
     @mock.patch('module_build_service.builder.KojiModuleBuilder.'
                 'KojiModuleBuilder.buildroot_connect')
     def test_a_single_match(self, connect, build_fn, get_session, ready, list_tasks_fn, mock_gabt,
-                            mock_uea, pdc):
+                            mock_uea):
         """ Test that when a repo msg hits us and we have a single match.
         """
         scheduler_init_data()
@@ -92,7 +92,7 @@ class TestRepoDone:
     @mock.patch('module_build_service.builder.KojiModuleBuilder.'
                 'KojiModuleBuilder.buildroot_connect')
     def test_a_single_match_build_fail(self, connect, build_fn, config, ready, list_tasks_fn,
-                                       mock_gabt, mock_uea, pdc):
+                                       mock_gabt, mock_uea):
         """ Test that when a KojiModuleBuilder.build fails, the build is
         marked as failed with proper state_reason.
         """
@@ -129,7 +129,7 @@ class TestRepoDone:
             config=conf, session=db.session, msg=msg)
         mock_log_info.assert_called_once_with(
             'Ignoring repo regen, because not all components are tagged.')
-        module_build = module_build_service.models.ModuleBuild.query.get(1)
+        module_build = module_build_service.models.ModuleBuild.query.get(2)
         # Make sure the module build didn't transition since all the components weren't tagged
         assert module_build.state == module_build_service.models.BUILD_STATES['build']
 
@@ -153,12 +153,12 @@ class TestRepoDone:
         with app.app_context():
             scheduler_init_data(3)
             config.return_value = mock.Mock(), 'development'
-            build_fn.return_value = None, 4, 'Failed to submit artifact communicator to Koji', None
+            build_fn.return_value = None, 4, 'Failed to submit artifact x to Koji', None
 
             msg = module_build_service.messaging.KojiRepoChange(
                 'some_msg_id', 'module-95b214a704c984be-build')
             module_build_service.scheduler.handlers.repos.done(
                 config=conf, session=db.session, msg=msg)
-            module_build = module_build_service.models.ModuleBuild.query.first()
+            module_build = module_build_service.models.ModuleBuild.query.get(2)
 
             assert module_build.state == module_build_service.models.BUILD_STATES["failed"]

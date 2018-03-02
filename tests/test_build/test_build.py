@@ -322,7 +322,7 @@ class TestBuild:
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     def test_submit_build(self, mocked_scm, mocked_get_user, conf_system, dbg,
-                          pdc_module_inactive, mmd_version):
+                          mmd_version):
         """
         Tests the build of testmodule.yaml using FakeModuleBuilder which
         succeeds everytime.
@@ -387,49 +387,18 @@ class TestBuild:
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build_no_components(self, mocked_scm, mocked_get_user, conf_system, dbg, pdc):
+    def test_submit_build_no_components(self, mocked_scm, mocked_get_user, conf_system, dbg):
         """
         Tests the build of a module with no components
         """
         FakeSCM(mocked_scm, 'python3', 'python3-no-components.yaml',
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
-        python3_yaml_path = os.path.join(
-            base_dir, 'staged_data', 'formatted_python3-no-components.yaml')
-        with open(python3_yaml_path) as f:
-            python3_yaml = f.read()
-
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                 'testmodule.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4'}))
 
         data = json.loads(rv.data)
         module_build_id = data['id']
-        pdc.endpoints['unreleasedvariants']['GET'].append({
-            'variant_id': 'python3',
-            'variant_uid': 'python3:master:20180205135154',
-            'variant_name': 'python3',
-            'variant_type': 'module',
-            'variant_version': 'master',
-            'variant_release': '20180205135154',
-            'variant_context': 'c2c572ec',
-            'koji_tag': 'module-95b214a704c984be',
-            'modulemd': python3_yaml,
-            'runtime_deps': [
-                {
-                    'dependency': 'platform',
-                    'stream': 'f28'
-                }
-            ],
-            'build_deps': [
-                {
-                    'dependency': 'platform',
-                    'stream': 'f28'
-                }
-            ],
-            'rpms': [],
-            'active': False,
-        })
-
         msgs = []
         stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
         module_build_service.scheduler.main(msgs, stop)
@@ -461,8 +430,7 @@ class TestBuild:
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build_from_yaml_allowed(self, mocked_scm, mocked_get_user, conf_system, dbg,
-                                            pdc_module_inactive):
+    def test_submit_build_from_yaml_allowed(self, mocked_scm, mocked_get_user, conf_system, dbg):
         FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
         testmodule = os.path.join(base_dir, 'staged_data', 'testmodule.yaml')
@@ -475,16 +443,7 @@ class TestBuild:
                                       content_type='multipart/form-data',
                                       data={'yaml': yaml_file})
             data = json.loads(rv.data)
-            assert data['id'] == 1
-
-        # Since the module's version is derived a submission for direct yaml submissions, we must
-        # alter PDC with the correct version that MBS generated
-        version = models.ModuleBuild.query.first().version
-        pdc_module_inactive.endpoints['unreleasedvariants']['GET'][1]['variant_release'] = version
-        uid = pdc_module_inactive.endpoints['unreleasedvariants']['GET'][1]['variant_uid']
-        new_uid = ':'.join([uid.rsplit(':', 1)[0], version])
-        pdc_module_inactive.endpoints['unreleasedvariants']['GET'][1]['variant_uid'] = new_uid
-
+            assert data['id'] == 2
         msgs = []
         stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
         module_build_service.scheduler.main(msgs, stop)
@@ -511,8 +470,7 @@ class TestBuild:
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build_cancel(self, mocked_scm, mocked_get_user, conf_system, dbg,
-                                 pdc_module_inactive):
+    def test_submit_build_cancel(self, mocked_scm, mocked_get_user, conf_system, dbg):
         """
         Submit all builds for a module and cancel the module build later.
         """
@@ -563,8 +521,7 @@ class TestBuild:
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build_instant_complete(self, mocked_scm, mocked_get_user, conf_system, dbg,
-                                           pdc_module_inactive):
+    def test_submit_build_instant_complete(self, mocked_scm, mocked_get_user, conf_system, dbg):
         """
         Tests the build of testmodule.yaml using FakeModuleBuilder which
         succeeds everytime.
@@ -597,7 +554,7 @@ class TestBuild:
            new_callable=PropertyMock, return_value=1)
     def test_submit_build_concurrent_threshold(self, conf_num_concurrent_builds,
                                                mocked_scm, mocked_get_user,
-                                               conf_system, dbg, pdc_module_inactive):
+                                               conf_system, dbg):
         """
         Tests the build of testmodule.yaml using FakeModuleBuilder with
         num_concurrent_builds set to 1.
@@ -641,7 +598,7 @@ class TestBuild:
            new_callable=PropertyMock, return_value=2)
     def test_try_to_reach_concurrent_threshold(self, conf_num_concurrent_builds,
                                                mocked_scm, mocked_get_user,
-                                               conf_system, dbg, pdc_module_inactive):
+                                               conf_system, dbg):
         """
         Tests that we try to submit new component build right after
         the previous one finished without waiting for all
@@ -649,18 +606,6 @@ class TestBuild:
         """
         FakeSCM(mocked_scm, 'testmodule-more-components', 'testmodule-more-components.yaml',
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
-        # Modify the modulemd in PDC
-        current_dir = os.path.dirname(__file__)
-        formatted_yml_path = os.path.join(
-            current_dir, '..', 'staged_data', 'formatted_testmodule-more-components.yaml')
-        with open(formatted_yml_path) as f:
-            yaml = f.read()
-        pdc_module_inactive.endpoints['unreleasedvariants']['GET'][-1].update({
-            'variant_id': 'testmodule-more-components',
-            'variant_name': 'testmodule-more-components',
-            'modulemd': yaml
-        })
-
         self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                 'testmodule.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4'}))
@@ -702,7 +647,7 @@ class TestBuild:
     @patch("module_build_service.config.Config.num_concurrent_builds",
            new_callable=PropertyMock, return_value=1)
     def test_build_in_batch_fails(self, conf_num_concurrent_builds, mocked_scm,
-                                  mocked_get_user, conf_system, dbg, pdc_module_inactive):
+                                  mocked_get_user, conf_system, dbg):
         """
         Tests that if the build in batch fails, other components in a batch
         are still build, but next batch is not started.
@@ -761,7 +706,7 @@ class TestBuild:
     @patch("module_build_service.config.Config.num_concurrent_builds",
            new_callable=PropertyMock, return_value=1)
     def test_all_builds_in_batch_fail(self, conf_num_concurrent_builds, mocked_scm,
-                                      mocked_get_user, conf_system, dbg, pdc_module_inactive):
+                                      mocked_get_user, conf_system, dbg):
         """
         Tests that if the build in batch fails, other components in a batch
         are still build, but next batch is not started.
@@ -805,8 +750,7 @@ class TestBuild:
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build_reuse_all(self, mocked_scm, mocked_get_user, conf_system, dbg,
-                                    pdc_module_reuse):
+    def test_submit_build_reuse_all(self, mocked_scm, mocked_get_user, conf_system, dbg):
         """
         Tests that we do not try building module-build-macros when reusing all
         components in a module build.
@@ -839,7 +783,7 @@ class TestBuild:
             assert buildtag_groups.pop(0) == set(artifacts)
         FakeModuleBuilder.on_buildroot_add_artifacts_cb = on_buildroot_add_artifacts_cb
 
-        msgs = [MBSModule("local module build", 2, 1)]
+        msgs = [MBSModule("local module build", 3, 1)]
         stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
         module_build_service.scheduler.main(msgs, stop)
 
@@ -848,7 +792,7 @@ class TestBuild:
 
         # All components should be built and module itself should be in "done"
         # or "ready" state.
-        for build in models.ComponentBuild.query.filter_by(module_id=2).all():
+        for build in models.ComponentBuild.query.filter_by(module_id=3).all():
             assert build.state == koji.BUILD_STATES['COMPLETE']
             assert build.module_build.state in [models.BUILD_STATES["done"],
                                                 models.BUILD_STATES["ready"]]
@@ -857,7 +801,7 @@ class TestBuild:
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     def test_submit_build_reuse_all_without_build_macros(self, mocked_scm, mocked_get_user,
-                                                         conf_system, dbg, pdc_module_reuse):
+                                                         conf_system, dbg):
         """
         Tests that we can reuse components even when the reused module does
         not have module-build-macros component.
@@ -895,13 +839,13 @@ class TestBuild:
             assert buildtag_groups.pop(0) == set(artifacts)
         FakeModuleBuilder.on_buildroot_add_artifacts_cb = on_buildroot_add_artifacts_cb
 
-        msgs = [MBSModule("local module build", 2, 1)]
+        msgs = [MBSModule("local module build", 3, 1)]
         stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
         module_build_service.scheduler.main(msgs, stop)
 
         # All components should be built and module itself should be in "done"
         # or "ready" state.
-        for build in models.ComponentBuild.query.filter_by(module_id=2).all():
+        for build in models.ComponentBuild.query.filter_by(module_id=3).all():
             assert build.state == koji.BUILD_STATES['COMPLETE']
             assert build.module_build.state in [models.BUILD_STATES["done"],
                                                 models.BUILD_STATES["ready"]]
@@ -909,16 +853,13 @@ class TestBuild:
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build_resume(self, mocked_scm, mocked_get_user, conf_system, dbg,
-                                 pdc_module_inactive):
+    def test_submit_build_resume(self, mocked_scm, mocked_get_user, conf_system, dbg):
         """
         Tests that resuming the build works even when previous batches
         are already built.
         """
         now = datetime.utcnow()
         submitted_time = now - timedelta(minutes=3)
-        pdc_module_inactive.endpoints['unreleasedvariants']['GET'][-1]['variant_context'] = \
-            '7c29193d'
         # Create a module in the failed state
         build_one = models.ModuleBuild()
         build_one.name = 'testmodule'
@@ -959,7 +900,7 @@ class TestBuild:
         component_one.state = koji.BUILD_STATES['COMPLETE']
         component_one.nvr = 'perl-Tangerine-0:0.22-2.module+0+814cfa39'
         component_one.batch = 2
-        component_one.module_id = 1
+        component_one.module_id = 2
         component_one.ref = '7e96446223f1ad84a26c7cf23d6591cd9f6326c6'
         component_one.tagged = True
         component_one.tagged_in_final = True
@@ -971,14 +912,14 @@ class TestBuild:
             'git://pkgs.stg.fedoraproject.org/rpms/perl-List-Compare.git?#master'
         component_two.state = koji.BUILD_STATES['FAILED']
         component_two.batch = 2
-        component_two.module_id = 1
+        component_two.module_id = 2
         # Component that isn't started yet
         component_three = models.ComponentBuild()
         component_three.package = 'tangerine'
         component_three.format = 'rpms'
         component_three.scmurl = 'git://pkgs.stg.fedoraproject.org/rpms/tangerine.git?#master'
         component_three.batch = 3
-        component_three.module_id = 1
+        component_three.module_id = 2
         # module-build-macros
         component_four = models.ComponentBuild()
         component_four.package = 'module-build-macros'
@@ -988,7 +929,7 @@ class TestBuild:
             '/tmp/module_build_service-build-macrosqr4AWH/SRPMS/module-build-macros-0.1-1.'
             'module_testmodule_master_20170109091357.src.rpm')
         component_four.batch = 1
-        component_four.module_id = 1
+        component_four.module_id = 2
         component_four.tagged = True
         component_four.build_time_only = True
 
@@ -1034,8 +975,7 @@ class TestBuild:
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     def test_submit_build_resume_recover_orphaned_macros(
-            self, mocked_scm, mocked_get_user, conf_system, dbg,
-            pdc_module_inactive):
+            self, mocked_scm, mocked_get_user, conf_system, dbg):
         """
         Tests that resuming the build works when module-build-macros is orphaned but marked as
         failed in the database
@@ -1043,8 +983,6 @@ class TestBuild:
         FakeModuleBuilder.INSTANT_COMPLETE = True
         now = datetime.utcnow()
         submitted_time = now - timedelta(minutes=3)
-        pdc_module_inactive.endpoints['unreleasedvariants']['GET'][-1]['variant_context'] = \
-            '7c29193d'
         # Create a module in the failed state
         build_one = models.ModuleBuild()
         build_one.name = 'testmodule'
@@ -1083,20 +1021,20 @@ class TestBuild:
         component_one.format = 'rpms'
         component_one.scmurl = 'git://pkgs.stg.fedoraproject.org/rpms/perl-Tangerine.git?#master'
         component_one.batch = 2
-        component_one.module_id = 1
+        component_one.module_id = 2
         component_two = models.ComponentBuild()
         component_two.package = 'perl-List-Compare'
         component_two.format = 'rpms'
         component_two.scmurl = \
             'git://pkgs.stg.fedoraproject.org/rpms/perl-List-Compare.git?#master'
         component_two.batch = 2
-        component_two.module_id = 1
+        component_two.module_id = 2
         component_three = models.ComponentBuild()
         component_three.package = 'tangerine'
         component_three.format = 'rpms'
         component_three.scmurl = 'git://pkgs.stg.fedoraproject.org/rpms/tangerine.git?#master'
         component_three.batch = 3
-        component_three.module_id = 1
+        component_three.module_id = 2
         # Failed module-build-macros
         component_four = models.ComponentBuild()
         component_four.package = 'module-build-macros'
@@ -1106,7 +1044,7 @@ class TestBuild:
             '/tmp/module_build_service-build-macrosqr4AWH/SRPMS/module-build-macros-0.1-1.'
             'module_testmodule_master_20180205135154.src.rpm')
         component_four.batch = 1
-        component_four.module_id = 1
+        component_four.module_id = 2
         component_four.build_time_only = True
 
         db.session.add(build_one)
@@ -1148,8 +1086,7 @@ class TestBuild:
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build_resume_failed_init(self, mocked_scm, mocked_get_user, conf_system, dbg,
-                                             pdc_module_inactive):
+    def test_submit_build_resume_failed_init(self, mocked_scm, mocked_get_user, conf_system, dbg):
         """
         Tests that resuming the build works when the build failed during the init step
         """
@@ -1203,8 +1140,7 @@ class TestBuild:
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build_resume_init_fail(self, mocked_scm, mocked_get_user, conf_system, dbg,
-                                           pdc_module_inactive):
+    def test_submit_build_resume_init_fail(self, mocked_scm, mocked_get_user, conf_system, dbg):
         """
         Tests that resuming the build fails when the build is in init state
         """
@@ -1234,7 +1170,7 @@ class TestBuild:
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     def test_submit_build_repo_regen_not_started_batch(self, mocked_scm, mocked_get_user,
-                                                       conf_system, dbg, pdc_module_inactive):
+                                                       conf_system, dbg):
         """
         Tests that if MBS starts a new batch, the concurrent component threshold is met before a
         build can start, and an unexpected repo regen occurs, the build will not fail.
@@ -1275,7 +1211,7 @@ class TestBuild:
 
         # Simulate a random repo regen message that MBS didn't expect
         cleanup_moksha()
-        module = db.session.query(models.ModuleBuild).first()
+        module = db.session.query(models.ModuleBuild).get(module_build_id)
         msgs = [module_build_service.messaging.KojiRepoChange(
             msg_id='a faked internal message', repo_tag=module.koji_tag + '-build')]
         db.session.expire_all()
