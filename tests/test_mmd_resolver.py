@@ -117,33 +117,9 @@ class TestMMDResolver:
                        "gtk:1:0:c2:x86_64",
                        "platform:f28:0:c10:x86_64"]),
             frozenset(["app:1:0:0:src",
-                       "font:a:0:c7:x86_64",
-                       "gtk:1:0:c3:x86_64",
-                       "platform:f29:0:c11:x86_64"]),
-            frozenset(["app:1:0:0:src",
-                       "font:b:0:c8:x86_64",
-                       "gtk:1:0:c2:x86_64",
-                       "platform:f28:0:c10:x86_64"]),
-            frozenset(["app:1:0:0:src",
-                       "font:b:0:c9:x86_64",
-                       "gtk:1:0:c3:x86_64",
-                       "platform:f29:0:c11:x86_64"]),
-            frozenset(["app:1:0:0:src",
                        "font:a:0:c6:x86_64",
                        "gtk:2:0:c4:x86_64",
                        "platform:f28:0:c10:x86_64"]),
-            frozenset(["app:1:0:0:src",
-                       "font:b:0:c9:x86_64",
-                       "gtk:2:0:c5:x86_64",
-                       "platform:f29:0:c11:x86_64"]),
-            frozenset(["app:1:0:0:src",
-                       "font:b:0:c8:x86_64",
-                       "gtk:2:0:c4:x86_64",
-                       "platform:f28:0:c10:x86_64"]),
-            frozenset(["app:1:0:0:src",
-                       "font:a:0:c7:x86_64",
-                       "gtk:2:0:c5:x86_64",
-                       "platform:f29:0:c11:x86_64"]),
         ])
 
         assert expanded == expected
@@ -161,16 +137,8 @@ class TestMMDResolver:
                        "gtk:2:0:c4:x86_64",
                        "platform:f28:0:c10:x86_64"]),
             frozenset(["app:1:0:0:src",
-                       "font:b:0:c8:x86_64",
-                       "gtk:1:0:c2:x86_64",
-                       "platform:f28:0:c10:x86_64"]),
-            frozenset(["app:1:0:0:src",
                        "font:a:0:c6:x86_64",
                        "gtk:1:0:c2:x86_64",
-                       "platform:f28:0:c10:x86_64"]),
-            frozenset(["app:1:0:0:src",
-                       "font:b:0:c8:x86_64",
-                       "gtk:2:0:c4:x86_64",
                        "platform:f28:0:c10:x86_64"]),
         ])
 
@@ -185,25 +153,9 @@ class TestMMDResolver:
 
         expected = set([
             frozenset(["app:1:0:0:src",
-                       "foo:1:0:c3:x86_64",
-                       "gtk:1:0:c3:x86_64",
-                       "platform:f29:0:c11:x86_64"]),
-            frozenset(["app:1:0:0:src",
-                       "foo:2:0:c5:x86_64",
-                       "gtk:1:0:c3:x86_64",
-                       "platform:f29:0:c11:x86_64"]),
-            frozenset(["app:1:0:0:src",
                        "foo:1:0:c2:x86_64",
                        "gtk:2:0:c4:x86_64",
                        "platform:f28:0:c10:x86_64"]),
-            frozenset(["app:1:0:0:src",
-                       "foo:1:0:c3:x86_64",
-                       "gtk:2:0:c5:x86_64",
-                       "platform:f29:0:c11:x86_64"]),
-            frozenset(["app:1:0:0:src",
-                       "foo:2:0:c5:x86_64",
-                       "gtk:2:0:c5:x86_64",
-                       "platform:f29:0:c11:x86_64"]),
             frozenset(["app:1:0:0:src",
                        "foo:2:0:c4:x86_64",
                        "gtk:2:0:c4:x86_64",
@@ -232,18 +184,6 @@ class TestMMDResolver:
 
         expected = set([
             frozenset(["app:1:0:1:src",
-                       "foo:1:0:c3:x86_64",
-                       "gtk:2:0:c5:x86_64",
-                       "platform:f29:0:c11:x86_64"]),
-            frozenset(["app:1:0:1:src",
-                       "foo:2:0:c5:x86_64",
-                       "gtk:2:0:c5:x86_64",
-                       "platform:f29:0:c11:x86_64"]),
-            frozenset(["app:1:0:0:src",
-                       "foo:1:0:c3:x86_64",
-                       "gtk:1:0:c3:x86_64",
-                       "platform:f29:0:c11:x86_64"]),
-            frozenset(["app:1:0:1:src",
                        "foo:1:0:c2:x86_64",
                        "gtk:2:0:c4:x86_64",
                        "platform:f28:0:c10:x86_64"]),
@@ -270,10 +210,6 @@ class TestMMDResolver:
         expanded = self.mmd_resolver.solve(app)
 
         expected = set([
-            frozenset(["app:1:0:0:src",
-                       "foo:1:0:c3:x86_64",
-                       "gtk:1:0:c3:x86_64",
-                       "platform:f29:0:c11:x86_64"]),
             frozenset(["app:1:0:1:src",
                        "foo:1:0:c2:x86_64",
                        "gtk:2:0:c4:x86_64",
@@ -301,10 +237,6 @@ class TestMMDResolver:
         expanded = self.mmd_resolver.solve(app)
 
         expected = set([
-            frozenset(["app:1:0:0:src",
-                       "font:a:0:c7:x86_64",
-                       "gtk:1:0:c3:x86_64",
-                       "platform:f29:0:c11:x86_64"]),
             frozenset(["app:1:0:1:src",
                        "font:b:0:c8:x86_64",
                        "gtk:2:0:c4:x86_64",
@@ -313,10 +245,6 @@ class TestMMDResolver:
                        "font:a:0:c6:x86_64",
                        "gtk:1:0:c2:x86_64",
                        "platform:f28:0:c10:x86_64"]),
-            frozenset(["app:1:0:1:src",
-                       "font:b:0:c9:x86_64",
-                       "gtk:2:0:c5:x86_64",
-                       "platform:f29:0:c11:x86_64"]),
         ])
 
         assert expanded == expected
