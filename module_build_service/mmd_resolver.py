@@ -23,9 +23,16 @@
 # Written by Jan Kaluža <jkaluza@redhat.com>
 #            Igor Gnatenko <ignatenko@redhat.com>
 
+import enum
+import collections
 import itertools
 import solv
 from module_build_service import log
+
+
+class MMDResolverPolicy(enum.Enum):
+    All = "all"      # All possible top-level combinations
+    First = "first"  # All possible top-level combinations (filtered by N:S, first picked)
 
 
 class MMDResolver(object):
@@ -110,7 +117,7 @@ class MMDResolver(object):
 
         return solvables
 
-    def solve(self, mmd):
+    def solve(self, mmd, policy=MMDResolverPolicy.First):
         """
         Solves dependencies of module defined by `mmd` object. Returns set
         containing frozensets with all the possible combinations which
@@ -124,20 +131,23 @@ class MMDResolver(object):
             raise ValueError("No module(s) found for resolving")
         self.pool.createwhatprovides()
 
+        s2nsvc = lambda s: "%s:%s" % (s.name, s.arch)
+        s2ns = lambda s: ":".join(s.name.split(":", 2)[:2])
+
         solver = self.pool.Solver()
-        alternatives = {}
+        alternatives = collections.OrderedDict()
         for src in solvables:
             job = self.pool.Job(solv.Job.SOLVER_INSTALL | solv.Job.SOLVER_SOLVABLE, src.id)
             requires = src.lookup_deparray(solv.SOLVABLE_REQUIRES)
-            alts = alternatives[src] = {}
-            # XXX: can be optimized by favoring just by name, but requires additional handling
-            #      of context due to name which would contain just N:S.
+            src_alternatives = alternatives[src] = collections.OrderedDict()
             for opt in itertools.product(*[self.pool.whatprovides(dep) for dep in requires]):
                 log.debug("Testing %s with combination: %s", src, opt)
-                key = tuple(":".join(s.name.split(":", 2)[:2]) for s in opt)
-                if key in alts:
-                    log.debug("%s was already resolved, skipping", key)
-                    continue
+                if policy == MMDResolverPolicy.All:
+                    kfunc = s2nsvc
+                elif policy == MMDResolverPolicy.First:
+                    kfunc = s2ns
+                key = tuple(kfunc(s) for s in opt)
+                alternative = src_alternatives.setdefault(key, [])
                 jobs = [self.pool.Job(solv.Job.SOLVER_FAVOR | solv.Job.SOLVER_SOLVABLE, s.id)
                         for s in opt] + [job]
                 log.debug("Jobs:")
@@ -151,7 +161,20 @@ class MMDResolver(object):
                 log.debug("Transaction:")
                 for s in newsolvables:
                     log.debug("  - %s", s)
-                alts[key] = newsolvables
+                alternative.append(newsolvables)
 
-        return set(frozenset("%s:%s" % (s.name, s.arch) for s in t)
-                   for trans in alternatives.values() for t in trans.values())
+        if policy == MMDResolverPolicy.First:
+            # Prune
+            for transactions in alternatives.values():
+                for ns, trans in transactions.items():
+                    try:
+                        transactions[ns] = [next(t for t in trans
+                                                 if set(ns) <= set(s2ns(s) for s in t))]
+                    except StopIteration:
+                        # No transactions found for requested N:S
+                        del transactions[ns]
+                        continue
+
+        return set(frozenset(s2nsvc(s) for s in transactions[0])
+                   for src_alternatives in alternatives.values()
+                   for transactions in src_alternatives.values())
