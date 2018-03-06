@@ -129,12 +129,13 @@ class MMDResolver(object):
         for src in solvables:
             job = self.pool.Job(solv.Job.SOLVER_INSTALL | solv.Job.SOLVER_SOLVABLE, src.id)
             requires = src.lookup_deparray(solv.SOLVABLE_REQUIRES)
+            alts = alternatives[src] = {}
             # XXX: can be optimized by favoring just by name, but requires additional handling
             #      of context due to name which would contain just N:S.
             for opt in itertools.product(*[self.pool.whatprovides(dep) for dep in requires]):
-                log.debug("Testing combination: %s", opt)
+                log.debug("Testing %s with combination: %s", src, opt)
                 key = tuple(":".join(s.name.split(":", 2)[:2]) for s in opt)
-                if key in alternatives:
+                if key in alts:
                     log.debug("%s was already resolved, skipping", key)
                     continue
                 jobs = [self.pool.Job(solv.Job.SOLVER_FAVOR | solv.Job.SOLVER_SOLVABLE, s.id)
@@ -150,7 +151,7 @@ class MMDResolver(object):
                 log.debug("Transaction:")
                 for s in newsolvables:
                     log.debug("  - %s", s)
-                alternatives[key] = newsolvables
+                alts[key] = newsolvables
 
-        return set(frozenset("%s:%s" % (s.name, s.arch) for s in trans)
-                   for trans in alternatives.values())
+        return set(frozenset("%s:%s" % (s.name, s.arch) for s in t)
+                   for trans in alternatives.values() for t in trans.values())
