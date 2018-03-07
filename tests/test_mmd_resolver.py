@@ -23,9 +23,11 @@
 # Written by Jan Kaluža <jkaluza@redhat.com>
 #            Igor Gnatenko <ignatenko@redhat.com>
 
+import collections
 import gi
 gi.require_version("Modulemd", "1.0") # noqa
 from gi.repository import Modulemd
+import pytest
 
 from module_build_service.mmd_resolver import MMDResolver
 
@@ -55,17 +57,17 @@ class TestMMDResolver:
             version, context = version.split(":")
             mmd.set_context(context)
             add_requires = Modulemd.Dependencies.add_requires
-            requires_list = [requires]
         else:
             add_requires = Modulemd.Dependencies.add_buildrequires
-            if not isinstance(requires, list):
-                requires_list = [requires]
-            else:
-                requires_list = requires
         mmd.set_version(int(version))
 
+        if not isinstance(requires, list):
+            requires = [requires]
+        else:
+            requires = requires
+
         deps_list = []
-        for reqs in requires_list:
+        for reqs in requires:
             deps = Modulemd.Dependencies()
             for req_name, req_streams in reqs.items():
                 add_requires(deps, req_name, req_streams)
@@ -73,6 +75,24 @@ class TestMMDResolver:
         mmd.set_dependencies(deps_list)
 
         return mmd
+
+    @pytest.mark.parametrize(
+        "deps, expected", (
+            ([], "None"),
+            ([{"x": []}], "module(x)"),
+            ([{"x": ["1"]}], "(module(x) with module(x:1))"),
+            ([{"x": ["-1"]}], "(module(x) without module(x:1))"),
+            ([{"x": ["1", "2"]}], "(module(x) with (module(x:1) or module(x:2)))"),
+            ([{"x": ["-1", "2"]}], "(module(x) with module(x:2))"),
+            ([{"x": [], "y": []}], "(module(x) and module(y))"),
+            ([{"x": []}, {"y": []}], "(module(x) or module(y))"),
+        )
+    )
+    def test_deps2reqs(self, deps, expected):
+        # Sort by keys here to avoid unordered dicts
+        deps = [collections.OrderedDict(sorted(dep.items())) for dep in deps]
+        reqs = self.mmd_resolver._deps2reqs(deps)
+        assert str(reqs) == expected
 
     @classmethod
     def _default_mmds(cls):

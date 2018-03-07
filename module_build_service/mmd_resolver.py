@@ -46,18 +46,47 @@ class MMDResolver(object):
         self.build_repo = self.pool.add_repo("build")
         self.available_repo = self.pool.add_repo("available")
 
+    def _deps2reqs(self, deps):
+        pool = self.pool
+
+        rel_or_dep = lambda dep, op, rel: dep.Rel(op, rel) if dep is not None else rel
+        stream_dep = lambda n, s: pool.Dep("module(%s:%s)" % (n, s))
+
+        reqs = None
+        for deps in deps:
+            require = None
+            for name, streams in deps.items():
+                req_pos = req_neg = None
+                for stream in streams:
+                    if stream.startswith("-"):
+                        req_neg = rel_or_dep(req_neg, solv.REL_OR, stream_dep(name, stream[1:]))
+                    else:
+                        req_pos = rel_or_dep(req_pos, solv.REL_OR, stream_dep(name, stream))
+
+                req = pool.Dep("module(%s)" % name)
+                if req_pos is not None:
+                    req = req.Rel(solv.REL_WITH, req_pos)
+                elif req_neg is not None:
+                    req = req.Rel(solv.REL_WITHOUT, req_neg)
+
+                require = rel_or_dep(require, solv.REL_AND, req)
+
+            reqs = rel_or_dep(reqs, solv.REL_OR, require)
+
+        return reqs
+
     def add_modules(self, mmd):
         n, s, v, c = mmd.get_name(), mmd.get_stream(), mmd.get_version(), mmd.get_context()
 
         pool = self.pool
 
+        normdeps = lambda mmd, fn: [{name: streams.get()
+                                     for name, streams in getattr(dep, fn)().items()}
+                                    for dep in mmd.get_dependencies()]
+
         solvables = []
         if c is not None:
             # Built module
-            deps = mmd.get_dependencies()
-            if len(deps) > 1:
-                raise ValueError(
-                    "The built module contains different runtime dependencies: %s" % mmd.dumps())
 
             # $n:$s:$v:$c-$v.$a
             solvable = self.available_repo.add_solvable()
@@ -74,17 +103,8 @@ class MMDResolver(object):
                                   pool.Dep("module(%s:%s)" % (n, s)).Rel(
                                       solv.REL_EQ, pool.Dep(str(v))))
 
-            if deps:
-                # Req: (module($on1:$os1) OR module($on2:$os2) OR …)
-                for name, streams in deps[0].get_requires().items():
-                    requires = None
-                    for stream in streams.get():
-                        require = pool.Dep("module(%s:%s)" % (name, stream))
-                        if requires is not None:
-                            requires = requires.Rel(solv.REL_OR, require)
-                        else:
-                            requires = require
-                    solvable.add_deparray(solv.SOLVABLE_REQUIRES, requires)
+            requires = self._deps2reqs(normdeps(mmd, "get_requires"))
+            solvable.add_deparray(solv.SOLVABLE_REQUIRES, requires)
 
             # Con: module($n)
             solvable.add_deparray(solv.SOLVABLE_CONFLICTS, pool.Dep("module(%s)" % n))
@@ -95,6 +115,7 @@ class MMDResolver(object):
             # Context means two things:
             # * Unique identifier
             # * Offset for the dependency which was used
+            normalized_deps = normdeps(mmd, "get_buildrequires")
             for c, deps in enumerate(mmd.get_dependencies()):
                 # $n:$s:$c-$v.src
                 solvable = self.build_repo.add_solvable()
@@ -102,16 +123,8 @@ class MMDResolver(object):
                 solvable.evr = str(v)
                 solvable.arch = "src"
 
-                # Req: (module($on1:$os1) OR module($on2:$os2) OR …)
-                for name, streams in deps.get_buildrequires().items():
-                    requires = None
-                    for stream in streams.get():
-                        require = pool.Dep("module(%s:%s)" % (name, stream))
-                        if requires:
-                            requires = requires.Rel(solv.REL_OR, require)
-                        else:
-                            requires = require
-                    solvable.add_deparray(solv.SOLVABLE_REQUIRES, requires)
+                requires = self._deps2reqs([normalized_deps[c]])
+                solvable.add_deparray(solv.SOLVABLE_REQUIRES, requires)
 
                 solvables.append(solvable)
 
@@ -139,8 +152,27 @@ class MMDResolver(object):
         for src in solvables:
             job = self.pool.Job(solv.Job.SOLVER_INSTALL | solv.Job.SOLVER_SOLVABLE, src.id)
             requires = src.lookup_deparray(solv.SOLVABLE_REQUIRES)
+            if len(requires) != 1:
+                raise SystemError("Exactly one element should be in Requires: %s" % requires)
+            requires = requires[0]
             src_alternatives = alternatives[src] = collections.OrderedDict()
-            for opt in itertools.product(*[self.pool.whatprovides(dep) for dep in requires]):
+
+            # TODO: replace this ugliest workaround ever with sane code of parsing rich deps.
+            # We need to split them because whatprovides() treats "and" same way as "or" which is
+            # not enough to generate combinations.
+            # Source solvables have Req: (X and Y and Z)
+            # Binary solvables have Req: ((X and Y) or (X and Z))
+            # They do use "or" within "and", so simple string split won't work for binary packages.
+            if src.arch != "src":
+                raise NotImplementedError
+            deps = str(requires).split(" and ")
+            if len(deps) > 1:
+                deps[0] = deps[0][1:]
+                deps[-1] = deps[-1][:-1]
+            deps = [self.pool.parserpmrichdep(dep) if dep.startswith("(") else self.pool.Dep(dep)
+                    for dep in deps]
+
+            for opt in itertools.product(*[self.pool.whatprovides(dep) for dep in deps]):
                 log.debug("Testing %s with combination: %s", src, opt)
                 if policy == MMDResolverPolicy.All:
                     kfunc = s2nsvc
