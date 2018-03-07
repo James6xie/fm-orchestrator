@@ -94,193 +94,64 @@ class TestMMDResolver:
         reqs = self.mmd_resolver._deps2reqs(deps)
         assert str(reqs) == expected
 
-    @classmethod
-    def _default_mmds(cls):
-        return [
-            cls._make_mmd("gtk:1:0:c2", {"platform": ["f28"]}),
-            cls._make_mmd("gtk:1:0:c3", {"platform": ["f29"]}),
-            cls._make_mmd("gtk:2:0:c4", {"platform": ["f28"]}),
-            cls._make_mmd("gtk:2:0:c5", {"platform": ["f29"]}),
-            cls._make_mmd("foo:1:0:c2", {"platform": ["f28"]}),
-            cls._make_mmd("foo:1:0:c3", {"platform": ["f29"]}),
-            cls._make_mmd("foo:2:0:c4", {"platform": ["f28"]}),
-            cls._make_mmd("foo:2:0:c5", {"platform": ["f29"]}),
-            cls._make_mmd("platform:f28:0:c10", {}),
-            cls._make_mmd("platform:f29:0:c11", {}),
-        ]
+    @pytest.mark.parametrize(
+        "buildrequires, expected", (
+            ({"platform": []}, [
+                [["platform:f28:0:c0:x86_64"],
+                 ["platform:f29:0:c0:x86_64"]],
+            ]),
+            ({"platform": ["f28"]}, [
+                [["platform:f28:0:c0:x86_64"]],
+            ]),
+            ({"platform": ["-f28"]}, [
+                [["platform:f29:0:c0:x86_64"]],
+            ]),
+            ({"gtk": [], "qt": []}, [
+                [["gtk:3:0:c8:x86_64", "qt:4:0:c8:x86_64", "platform:f28:0:c0:x86_64"],
+                 ["gtk:4:0:c8:x86_64", "qt:4:0:c8:x86_64", "platform:f28:0:c0:x86_64"],
+                 ["gtk:3:0:c8:x86_64", "qt:5:0:c8:x86_64", "platform:f28:0:c0:x86_64"],
+                 ["gtk:4:0:c8:x86_64", "qt:5:0:c8:x86_64", "platform:f28:0:c0:x86_64"]],
+            ]),
+            ({"gtk": [], "qt": [], "platform": []}, [
+                [["gtk:3:0:c8:x86_64", "qt:4:0:c8:x86_64", "platform:f28:0:c0:x86_64"],
+                 ["gtk:4:0:c8:x86_64", "qt:4:0:c8:x86_64", "platform:f28:0:c0:x86_64"],
+                 ["gtk:3:0:c8:x86_64", "qt:5:0:c8:x86_64", "platform:f28:0:c0:x86_64"],
+                 ["gtk:4:0:c8:x86_64", "qt:5:0:c8:x86_64", "platform:f28:0:c0:x86_64"],
+                 ["gtk:3:0:c9:x86_64", "qt:4:0:c9:x86_64", "platform:f29:0:c0:x86_64"],
+                 ["gtk:4:0:c9:x86_64", "qt:4:0:c9:x86_64", "platform:f29:0:c0:x86_64"],
+                 ["gtk:3:0:c9:x86_64", "qt:5:0:c9:x86_64", "platform:f29:0:c0:x86_64"],
+                 ["gtk:4:0:c9:x86_64", "qt:5:0:c9:x86_64", "platform:f29:0:c0:x86_64"]],
+            ]),
+            ([{"qt": [], "platform": ["f28"]},
+              {"gtk": [], "platform": ["-f28"]}], [
+                  [["qt:4:0:c8:x86_64", "platform:f28:0:c0:x86_64"],
+                   ["qt:5:0:c8:x86_64", "platform:f28:0:c0:x86_64"]],
+                  [["gtk:3:0:c9:x86_64", "platform:f29:0:c0:x86_64"],
+                   ["gtk:4:0:c9:x86_64", "platform:f29:0:c0:x86_64"]],
+            ]),
+        )
+    )
+    def test_solve(self, buildrequires, expected):
+        modules = (
+            ("platform:f28:0:c0", {}),
+            ("platform:f29:0:c0", {}),
+            ("gtk:3:0:c8", {"platform": ["f28"]}),
+            ("gtk:3:0:c9", {"platform": ["f29"]}),
+            ("gtk:4:0:c8", {"platform": ["f28"]}),
+            ("gtk:4:0:c9", {"platform": ["f29"]}),
+            ("qt:4:0:c8", {"platform": ["f28"]}),
+            ("qt:4:0:c9", {"platform": ["f29"]}),
+            ("qt:5:0:c8", {"platform": ["f28"]}),
+            ("qt:5:0:c9", {"platform": ["f29"]}),
+        )
+        for n, req in modules:
+            self.mmd_resolver.add_modules(self._make_mmd(n, req))
 
-    @classmethod
-    def _default_mmds_with_multiple_requires(cls):
-        return [
-            cls._make_mmd("gtk:1:0:c2", {"font": ["a", "b"], "platform": ["f28"]}),
-            cls._make_mmd("gtk:1:0:c3", {"font": ["a", "b"], "platform": ["f29"]}),
-            cls._make_mmd("gtk:2:0:c4", {"font": ["a", "b"], "platform": ["f28"]}),
-            cls._make_mmd("gtk:2:0:c5", {"font": ["a", "b"], "platform": ["f29"]}),
-            cls._make_mmd("font:a:0:c6", {"platform": ["f28"]}),
-            cls._make_mmd("font:a:0:c7", {"platform": ["f29"]}),
-            cls._make_mmd("font:b:0:c8", {"platform": ["f28"]}),
-            cls._make_mmd("font:b:0:c9", {"platform": ["f29"]}),
-            cls._make_mmd("platform:f28:0:c10", {}),
-            cls._make_mmd("platform:f29:0:c11", {}),
-        ]
-
-    def test_solve(self):
-        for mmd in self._default_mmds():
-            self.mmd_resolver.add_modules(mmd)
-
-        app = self._make_mmd("app:1:0", {"platform": []})
+        app = self._make_mmd("app:1:0", buildrequires)
         expanded = self.mmd_resolver.solve(app)
 
-        expected = set([
-            frozenset(["app:1:0:0:src",
-                       "platform:f28:0:c10:x86_64"]),
-            frozenset(["app:1:0:0:src",
-                       "platform:f29:0:c11:x86_64"]),
-        ])
-
-        assert expanded == expected
-
-    def test_solve_tree(self):
-        for mmd in self._default_mmds_with_multiple_requires():
-            self.mmd_resolver.add_modules(mmd)
-
-        app = self._make_mmd("app:1:0", {"gtk": ["1", "2"]})
-        expanded = self.mmd_resolver.solve(app)
-
-        expected = set([
-            frozenset(["app:1:0:0:src",
-                       "font:a:0:c6:x86_64",
-                       "gtk:1:0:c2:x86_64",
-                       "platform:f28:0:c10:x86_64"]),
-            frozenset(["app:1:0:0:src",
-                       "font:a:0:c6:x86_64",
-                       "gtk:2:0:c4:x86_64",
-                       "platform:f28:0:c10:x86_64"]),
-        ])
-
-        assert expanded == expected
-
-    def test_solve_tree_buildrequire_platform(self):
-        for mmd in self._default_mmds_with_multiple_requires():
-            self.mmd_resolver.add_modules(mmd)
-
-        app = self._make_mmd("app:1:0", {"gtk": ["1", "2"], "platform": ["f28"]})
-        expanded = self.mmd_resolver.solve(app)
-
-        expected = set([
-            frozenset(["app:1:0:0:src",
-                       "font:a:0:c6:x86_64",
-                       "gtk:2:0:c4:x86_64",
-                       "platform:f28:0:c10:x86_64"]),
-            frozenset(["app:1:0:0:src",
-                       "font:a:0:c6:x86_64",
-                       "gtk:1:0:c2:x86_64",
-                       "platform:f28:0:c10:x86_64"]),
-        ])
-
-        assert expanded == expected
-
-    def test_solve_tree_multiple_build_requires(self):
-        for mmd in self._default_mmds():
-            self.mmd_resolver.add_modules(mmd)
-
-        app = self._make_mmd("app:1:0", {"gtk": ["1", "2"], "foo": ["1", "2"]})
-        expanded = self.mmd_resolver.solve(app)
-
-        expected = set([
-            frozenset(["app:1:0:0:src",
-                       "foo:1:0:c2:x86_64",
-                       "gtk:2:0:c4:x86_64",
-                       "platform:f28:0:c10:x86_64"]),
-            frozenset(["app:1:0:0:src",
-                       "foo:2:0:c4:x86_64",
-                       "gtk:2:0:c4:x86_64",
-                       "platform:f28:0:c10:x86_64"]),
-            frozenset(["app:1:0:0:src",
-                       "foo:1:0:c2:x86_64",
-                       "gtk:1:0:c2:x86_64",
-                       "platform:f28:0:c10:x86_64"]),
-            frozenset(["app:1:0:0:src",
-                       "foo:2:0:c4:x86_64",
-                       "gtk:1:0:c2:x86_64",
-                       "platform:f28:0:c10:x86_64"]),
-        ])
-
-        assert expanded == expected
-
-    def test_solve_multiple_requires_pairs(self):
-        for mmd in self._default_mmds():
-            self.mmd_resolver.add_modules(mmd)
-
-        app = self._make_mmd(
-            "app:1:0",
-            [{"gtk": ["1"], "foo": ["1"]},
-             {"gtk": ["2"], "foo": ["1", "2"]}])
-        expanded = self.mmd_resolver.solve(app)
-
-        expected = set([
-            frozenset(["app:1:0:1:src",
-                       "foo:1:0:c2:x86_64",
-                       "gtk:2:0:c4:x86_64",
-                       "platform:f28:0:c10:x86_64"]),
-            frozenset(["app:1:0:1:src",
-                       "foo:2:0:c4:x86_64",
-                       "gtk:2:0:c4:x86_64",
-                       "platform:f28:0:c10:x86_64"]),
-            frozenset(["app:1:0:0:src",
-                       "foo:1:0:c2:x86_64",
-                       "gtk:1:0:c2:x86_64",
-                       "platform:f28:0:c10:x86_64"]),
-        ])
-
-        assert expanded == expected
-
-    def test_solve_multiple_requires_pairs_buildrequire_platform(self):
-        for mmd in self._default_mmds():
-            self.mmd_resolver.add_modules(mmd)
-
-        app = self._make_mmd(
-            "app:1:0",
-            [{"gtk": ["1"], "foo": ["1"]},
-             {"gtk": ["2"], "foo": ["1", "2"], "platform": ["f28"]}])
-        expanded = self.mmd_resolver.solve(app)
-
-        expected = set([
-            frozenset(["app:1:0:1:src",
-                       "foo:1:0:c2:x86_64",
-                       "gtk:2:0:c4:x86_64",
-                       "platform:f28:0:c10:x86_64"]),
-            frozenset(["app:1:0:0:src",
-                       "foo:1:0:c2:x86_64",
-                       "gtk:1:0:c2:x86_64",
-                       "platform:f28:0:c10:x86_64"]),
-            frozenset(["app:1:0:1:src",
-                       "foo:2:0:c4:x86_64",
-                       "gtk:2:0:c4:x86_64",
-                       "platform:f28:0:c10:x86_64"]),
-        ])
-
-        assert expanded == expected
-
-    def test_solve_multiple_requires_pairs_multiple_requires(self):
-        for mmd in self._default_mmds_with_multiple_requires():
-            self.mmd_resolver.add_modules(mmd)
-
-        app = self._make_mmd(
-            "app:1:0",
-            [{"gtk": ["1"], "font": ["a"]},
-             {"gtk": ["2"], "font": ["b"]}])
-        expanded = self.mmd_resolver.solve(app)
-
-        expected = set([
-            frozenset(["app:1:0:1:src",
-                       "font:b:0:c8:x86_64",
-                       "gtk:2:0:c4:x86_64",
-                       "platform:f28:0:c10:x86_64"]),
-            frozenset(["app:1:0:0:src",
-                       "font:a:0:c6:x86_64",
-                       "gtk:1:0:c2:x86_64",
-                       "platform:f28:0:c10:x86_64"]),
-        ])
+        expected = set(frozenset(["app:1:0:%d:src" % c] + e)
+                       for c, exp in enumerate(expected)
+                       for e in exp)
 
         assert expanded == expected
