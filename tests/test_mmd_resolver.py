@@ -124,6 +124,22 @@ class TestMMDResolver:
             cls._make_mmd("platform:f29:0:c11", {}),
         ]
 
+    def test_solve(self):
+        for mmd in self._default_mmds():
+            self.mmd_resolver.add_modules(mmd)
+
+        app = self._make_mmd("app:1:0", {"platform": []})
+        expanded = self.mmd_resolver.solve(app)
+
+        expected = set([
+            frozenset(["app:1:0:0:src",
+                       "platform:f28:0:c10:x86_64"]),
+            frozenset(["app:1:0:0:src",
+                       "platform:f29:0:c11:x86_64"]),
+        ])
+
+        assert expanded == expected
+
     def test_solve_tree(self):
         for mmd in self._default_mmds_with_multiple_requires():
             self.mmd_resolver.add_modules(mmd)
