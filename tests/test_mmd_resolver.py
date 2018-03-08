@@ -124,10 +124,17 @@ class TestMMDResolver:
             ]),
             ([{"qt": [], "platform": ["f28"]},
               {"gtk": [], "platform": ["-f28"]}], [
-                  [["qt:4:0:c8:x86_64", "platform:f28:0:c0:x86_64"],
-                   ["qt:5:0:c8:x86_64", "platform:f28:0:c0:x86_64"]],
-                  [["gtk:3:0:c9:x86_64", "platform:f29:0:c0:x86_64"],
-                   ["gtk:4:0:c9:x86_64", "platform:f29:0:c0:x86_64"]],
+                [["qt:4:0:c8:x86_64", "platform:f28:0:c0:x86_64"],
+                 ["qt:5:0:c8:x86_64", "platform:f28:0:c0:x86_64"]],
+                [["gtk:3:0:c9:x86_64", "platform:f29:0:c0:x86_64"],
+                 ["gtk:4:0:c9:x86_64", "platform:f29:0:c0:x86_64"]],
+            ]),
+            ({"mess": []}, [
+                [["mess:1:0:c0:x86_64", "gtk:3:0:c8:x86_64", "platform:f28:0:c0:x86_64"]],
+            ]),
+            ({"mess": [], "platform": []}, [
+                [["mess:1:0:c0:x86_64", "gtk:3:0:c8:x86_64", "platform:f28:0:c0:x86_64"],
+                 ["mess:1:0:c0:x86_64", "gtk:4:0:c9:x86_64", "platform:f29:0:c0:x86_64"]],
             ]),
         )
     )
@@ -143,6 +150,8 @@ class TestMMDResolver:
             ("qt:4:0:c9", {"platform": ["f29"]}),
             ("qt:5:0:c8", {"platform": ["f28"]}),
             ("qt:5:0:c9", {"platform": ["f29"]}),
+            ("mess:1:0:c0", [{"gtk": ["3"], "platform": ["f28"]},
+                             {"gtk": ["4"], "platform": ["-f28"]}]),
         )
         for n, req in modules:
             self.mmd_resolver.add_modules(self._make_mmd(n, req))
