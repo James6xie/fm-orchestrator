@@ -30,7 +30,7 @@ from traceback import extract_stack
 import koji
 import module_build_service
 from module_build_service import db
-from module_build_service.utils import get_rpm_release
+from module_build_service.utils import get_rpm_release, import_mmd, load_mmd
 from module_build_service.config import init_config
 from module_build_service.models import ModuleBuild, ComponentBuild, make_session, BUILD_STATES
 from module_build_service import glib, Modulemd
@@ -89,21 +89,8 @@ def clean_database(add_platform_module=True):
     db.drop_all()
     db.create_all()
     if add_platform_module:
-        platform = ModuleBuild()
-        platform.name = 'platform'
-        platform.stream = 'f28'
-        platform.version = '3'
-        platform.koji_tag = 'module-f28-build'
-        platform.state = BUILD_STATES['ready']
-        with open(os.path.join(base_dir, 'staged_data', 'platform.yaml')) as f:
-            platform.modulemd = f.read()
-        platform.rebuild_strategy = 'all'
-        platform.owner = 'releng'
-        platform.time_submitted = datetime.utcnow()
-        platform.time_modified = datetime.utcnow()
-        platform.time_completed = datetime.utcnow()
-        db.session.add(platform)
-        db.session.commit()
+        mmd = load_mmd(os.path.join(base_dir, 'staged_data', 'platform.yaml'), True)
+        import_mmd(db.session, mmd)
 
 
 def init_data(data_size=10, contexts=False):

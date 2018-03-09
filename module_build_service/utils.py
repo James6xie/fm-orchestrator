@@ -1796,3 +1796,60 @@ def cors_header(allow='*'):
             return rv
         return wrapper
     return decorator
+
+
+def import_mmd(session, mmd):
+    """
+    Imports new module build defined by `mmd` to MBS database using `session`.
+    If it already exists, it is updated.
+
+    The ModuleBuild.koji_tag is set according to xmd['mbs]['koji_tag'].
+    The ModuleBuild.state is set to "ready".
+    The ModuleBuild.rebuild_strategy is set to "all".
+    The ModuleBuild.owner is set to "mbs_import".
+
+    TODO: The "context" is not stored directly in database. We only store
+    build_context and runtime_context and compute context, but when importing
+    the module, we have no idea what build_context or runtime_context is - we only
+    know the resulting "context", but there is no way to store it into do DB.
+    By now, we just ignore mmd.get_context() and use default 00000000 context instead.
+    """
+    mmd.set_context("00000000")
+    name = mmd.get_name()
+    stream = mmd.get_stream()
+    version = str(mmd.get_version())
+    context = mmd.get_context()
+
+    # NSVC is used for logging purpose later.
+    nsvc = ":".join([name, stream, version, context])
+
+    # Get the koji_tag.
+    xmd = mmd.get_xmd()
+    if "mbs" in xmd.keys() and "koji_tag" in xmd["mbs"].keys():
+        koji_tag = xmd["mbs"]["koji_tag"]
+    else:
+        log.warn("'koji_tag' is not set in xmd['mbs'] for module %s", nsvc)
+        koji_tag = ""
+
+    # Get the ModuleBuild from DB.
+    build = models.ModuleBuild.get_build_from_nsvc(
+        session, name, stream, version, context)
+    if build:
+        log.info("Updating existing module build %s.", nsvc)
+    else:
+        build = models.ModuleBuild()
+
+    build.name = name
+    build.stream = stream
+    build.version = version
+    build.koji_tag = koji_tag
+    build.state = models.BUILD_STATES['ready']
+    build.modulemd = mmd.dumps()
+    build.owner = "mbs_import"
+    build.rebuild_strategy = 'all'
+    build.time_submitted = datetime.utcnow()
+    build.time_modified = datetime.utcnow()
+    build.time_completed = datetime.utcnow()
+    session.add(build)
+    session.commit()
+    log.info("Module %s imported", nsvc)

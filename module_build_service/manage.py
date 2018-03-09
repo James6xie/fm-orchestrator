@@ -34,7 +34,7 @@ from module_build_service import app, conf, db, create_app
 from module_build_service import models
 from module_build_service.utils import (
     submit_module_build_from_yaml,
-    load_local_builds,
+    load_local_builds, load_mmd, import_mmd
 )
 import module_build_service.messaging
 import module_build_service.scheduler.consumer
@@ -88,6 +88,15 @@ def cleardb():
     """
     models.ModuleBuild.query.delete()
     models.ComponentBuild.query.delete()
+
+
+@console_script_help
+@manager.command
+def import_module(mmd_file):
+    """ Imports the module from mmd_file
+    """
+    mmd = load_mmd(mmd_file, is_file=True)
+    import_mmd(db.session, mmd)
 
 
 @manager.option('--stream', action='store', dest="stream")

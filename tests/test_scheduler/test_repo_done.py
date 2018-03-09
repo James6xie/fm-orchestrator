@@ -127,7 +127,7 @@ class TestRepoDone:
         db.session.commit()
         module_build_service.scheduler.handlers.repos.done(
             config=conf, session=db.session, msg=msg)
-        mock_log_info.assert_called_once_with(
+        mock_log_info.assert_called_with(
             'Ignoring repo regen, because not all components are tagged.')
         module_build = module_build_service.models.ModuleBuild.query.get(2)
         # Make sure the module build didn't transition since all the components weren't tagged
