@@ -53,62 +53,6 @@ class DBResolver(GenericResolver):
         tag_str = '.'.join([name, stream, str(version), context])
         return 'module-{0}'.format(hashlib.sha1(tag_str).hexdigest()[:16])
 
-    def _get_recursively_required_modules(self, build, session, modules=None, strict=False):
-        """
-        Returns a dictionary of modulemds by recursively querying the DB based on the
-        depdendencies of the input module. The returned dictionary is a key of koji_tag
-        and value of Modulemd object. Note that if there are some modules loaded by
-        utils.load_local_builds(...), these local modules will be used instead of generically
-        querying the DB.
-        :param build: models.ModuleBuild object of the module to resolve
-        :param modules: dictionary of koji_tag:modulemd found by previous iteration
-            of this method. Used by recursion only.
-        :param session: SQLAlchemy database sesion to query from
-        :param strict: Normally this function returns an empty dictionary if no module can
-            be found. If strict=True, then an UnprocessableEntity is raised instead.
-        :return: a dictionary
-        """
-        modules = modules or {}
-        koji_tag = build.koji_tag
-        mmd = build.mmd()
-
-        # Check if it's already been examined
-        if koji_tag in modules:
-            return modules
-
-        modules.update({build.koji_tag: mmd})
-        # We want to use the same stream as the one used in the time this
-        # module was built. But we still should fallback to plain mmd.requires
-        # in case this module depends on some older module for which we did
-        # not populate mmd.xmd['mbs']['requires'].
-        mbs_xmd = mmd.get_xmd().get('mbs')
-        if 'requires' in mbs_xmd.keys():
-            requires = {name: data['stream'] for name, data in mbs_xmd['requires'].items()}
-        else:
-            # Since MBS doesn't support v2 modulemds submitted by a user, we will
-            # always only have one stream per require. That way it's safe to just take the first
-            # element of the list.
-            # TODO: Change this once module stream expansion is implemented
-            requires = {
-                name: deps.get()[0]
-                for name, deps in mmd.get_dependencies()[0].get_requires().items()}
-
-        for name, stream in requires.items():
-            local_modules = models.ModuleBuild.local_modules(session, name, stream)
-            if local_modules:
-                dep = local_modules[0]
-            else:
-                dep = models.ModuleBuild.get_last_builds_in_stream(session, name, stream)
-                if dep:
-                    dep = dep[0]
-            if dep:
-                modules = self._get_recursively_required_modules(dep, session, modules, strict)
-            elif strict:
-                raise UnprocessableEntity(
-                    'The module {0}:{1} was not found'.format(name, stream))
-
-        return modules
-
     def resolve_profiles(self, mmd, keys):
         """
         Returns a dictionary with keys set according the `keys` parameters and values
@@ -136,19 +80,19 @@ class DBResolver(GenericResolver):
                             results[key] |= set(dep_mmd.get_profiles()[key].get_rpms().get())
                     continue
 
-                build = session.query(models.ModuleBuild).filter_by(
-                    name=module_name, stream=module_info['stream'],
-                    version=module_info['version'], state=models.BUILD_STATES['ready']).first()
+                build = models.ModuleBuild.get_build_from_nsvc(
+                    session, module_name, module_info['stream'], module_info['version'],
+                    module_info['context'], state=models.BUILD_STATES['ready'])
                 if not build:
-                    raise UnprocessableEntity('The module {}:{}:{} was not found'.format(
-                        module_name, module_info['stream'], module_info['version']))
+                    raise UnprocessableEntity('The module {}:{}:{}:{} was not found'.format(
+                        module_name, module_info['stream'], module_info['version'],
+                        module_info['context']))
+                dep_mmd = build.mmd()
 
-                modules = self._get_recursively_required_modules(build, session, strict=True)
-                for name, dep_mmd in modules.items():
-                    # Take note of what rpms are in this dep's profile
-                    for key in keys:
-                        if key in dep_mmd.get_profiles().keys():
-                            results[key] |= set(dep_mmd.get_profiles()[key].get_rpms().get())
+                # Take note of what rpms are in this dep's profile
+                for key in keys:
+                    if key in dep_mmd.get_profiles().keys():
+                        results[key] |= set(dep_mmd.get_profiles()[key].get_rpms().get())
 
         # Return the union of all rpms in all profiles of the given keys
         return results
@@ -184,13 +128,8 @@ class DBResolver(GenericResolver):
                     mmd.get_name(), mmd.get_stream(), str(mmd.get_version()),
                     mmd.get_context() or '00000000'])
             else:
-                build = None
-                for _build in session.query(models.ModuleBuild).filter_by(
-                        name=name, stream=stream, version=version).all():
-                    # Figure out how to query by context directly
-                    if _build.context == context:
-                        build = _build
-                        break
+                build = models.ModuleBuild.get_build_from_nsvc(
+                    session, name, stream, version, context)
                 if not build:
                     raise UnprocessableEntity('The module {} was not found'.format(
                         ':'.join([name, stream, version, context])))
@@ -208,18 +147,15 @@ class DBResolver(GenericResolver):
                 build = session.query(models.ModuleBuild).filter_by(
                     name=br_name, stream=details['stream'], version=details['version'],
                     state=models.BUILD_STATES['ready']).first()
-                if not build:
-                    raise UnprocessableEntity('The module {} was not found'.format(
-                        ':'.join([br_name, details['stream'], details['version']])))
-                module_tags.update(
-                    self._get_recursively_required_modules(build, session, strict=strict))
+                module_tags[build.koji_tag] = build.mmd()
 
         return module_tags
 
     def resolve_requires(self, requires):
         """
-        Resolves the requires dictionary to a dictionary with keys as the module name and the
-        values as a dictionary with keys of ref, stream, version, filtered_rpms.
+        Resolves the requires list of N:S or N:S:V:C to a dictionary with keys as
+        the module name and the values as a dictionary with keys of ref,
+        stream, version, filtered_rpms.
         If there are some modules loaded by utils.load_local_builds(...), these
         local modules will be considered when resolving the requires. A RuntimeError
         is raised on DB lookup errors.
@@ -228,12 +164,17 @@ class DBResolver(GenericResolver):
         """
         new_requires = {}
         with models.make_session(self.config) as session:
-            for module_name, module_stream in requires.items():
-                if ":" in module_stream:
-                    module_stream, module_version, module_context = module_stream.split(":")
-                else:
+            for nsvc in requires:
+                nsvc_splitted = nsvc.split(":")
+                if len(nsvc_splitted) == 2:
+                    module_name, module_stream = nsvc_splitted
                     module_version = None
                     module_context = None
+                elif len(nsvc_splitted) == 4:
+                    module_name, module_stream, module_version, module_context = nsvc_splitted
+                else:
+                    raise ValueError(
+                        "Only N:S or N:S:V:C is accepted by resolve_requires, got %s" % nsvc)
 
                 local_modules = models.ModuleBuild.local_modules(
                     session, module_name, module_stream)
@@ -252,19 +193,14 @@ class DBResolver(GenericResolver):
                     continue
 
                 if module_version is None or module_context is None:
-                    build = models.ModuleBuild.get_last_builds_in_stream(
+                    build = models.ModuleBuild.get_last_build_in_stream(
                         session, module_name, module_stream)
-                    if build:
-                        build = build[0]
-                    if not build:
-                        raise UnprocessableEntity('The module {}:{} was not found'.format(
-                            module_name, module_stream))
                 else:
                     build = models.ModuleBuild.get_build_from_nsvc(
                         session, module_name, module_stream, module_version, module_context)
-                    if not build:
-                        raise UnprocessableEntity('The module {}:{}:{}:{} was not found'.format(
-                            module_name, module_stream, module_version, module_context))
+
+                if not build:
+                    raise UnprocessableEntity('The module {} was not found'.format(nsvc))
 
                 commit_hash = None
                 filtered_rpms = []
@@ -276,6 +212,11 @@ class DBResolver(GenericResolver):
                     raise RuntimeError(
                         'The module "{0}" didn\'t contain a commit hash in its xmd'
                         .format(module_name))
+
+                if "mse" not in mbs_xmd.keys():
+                    raise RuntimeError(
+                        'The module "{}" is not built using Module Stream Expansion. '
+                        'Please rebuild this module first'.format(nsvc))
 
                 # Find out the particular NVR of filtered packages
                 rpm_filter = mmd.get_rpm_filter()

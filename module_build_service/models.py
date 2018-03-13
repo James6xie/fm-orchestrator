@@ -262,10 +262,7 @@ class ModuleBuild(MBSBase):
         return query.all()
 
     @staticmethod
-    def get_last_builds_in_stream(session, name, stream):
-        """
-        Returns the latest builds in "ready" state for given name:stream.
-        """
+    def _get_last_builds_in_stream_query(session, name, stream):
         # Prepare the subquery to find out all unique name:stream records.
         subq = session.query(
             func.max(sqlalchemy.cast(ModuleBuild.version, db.BigInteger)).label("maxversion")
@@ -277,15 +274,30 @@ class ModuleBuild(MBSBase):
                 ModuleBuild.name == name,
                 ModuleBuild.stream == stream,
                 sqlalchemy.cast(ModuleBuild.version, db.BigInteger) == subq.c.maxversion))
-        return query.all()
+        return query
 
     @staticmethod
-    def get_build_from_nsvc(session, name, stream, version, context):
+    def get_last_builds_in_stream(session, name, stream):
+        """
+        Returns the latest builds in "ready" state for given name:stream.
+        """
+        # Prepare the subquery to find out all unique name:stream records.
+
+        return ModuleBuild._get_last_builds_in_stream_query(session, name, stream).all()
+
+    @staticmethod
+    def get_last_build_in_stream(session, name, stream):
+        """
+        Returns the latest build in "ready" state for given name:stream.
+        """
+        return ModuleBuild._get_last_builds_in_stream_query(session, name, stream).first()
+
+    @staticmethod
+    def get_build_from_nsvc(session, name, stream, version, context, **kwargs):
         #TODO: Rewrite this to use self.context when we add it.
         builds = session.query(ModuleBuild).filter_by(
-            name=name, stream=stream, version=version).all()
+            name=name, stream=stream, version=version, **kwargs).all()
         for build in builds:
-            print build.name, build.stream, build.version, build.context
             if build.context == context:
                 return build
         return None
@@ -338,14 +350,31 @@ class ModuleBuild(MBSBase):
             raise ValueError("Invalid modulemd")
         mbs_xmd = mmd.get_xmd().get('mbs', {})
         rv = []
-        for property_name in ['buildrequires', 'requires']:
-            # We have to use keys because GLib.Variant doesn't support `in` directly.
-            if property_name not in mbs_xmd.keys():
-                raise ValueError('The module\'s modulemd hasn\'t been formatted by MBS')
-            mmd_formatted_property = {
-                dep: info['ref'] for dep, info in mbs_xmd[property_name].items()}
-            property_json = json.dumps(OrderedDict(sorted(mmd_formatted_property.items())))
-            rv.append(hashlib.sha1(property_json.encode('utf-8')).hexdigest())
+
+        # Get the buildrequires from the XMD section, because it contains
+        # all the buildrequires as we resolved them using dependency resolver.
+        # We have to use keys because GLib.Variant doesn't support `in` directly.
+        if "buildrequires" not in mbs_xmd.keys():
+            raise ValueError('The module\'s modulemd hasn\'t been formatted by MBS')
+        mmd_formatted_buildrequires = {
+            dep: info['ref'] for dep, info in mbs_xmd["buildrequires"].items()}
+        property_json = json.dumps(OrderedDict(sorted(mmd_formatted_buildrequires.items())))
+        rv.append(hashlib.sha1(property_json).hexdigest())
+
+        # Get the requires from the real "dependencies" section in MMD.
+        mmd_requires = {}
+        for deps in mmd.get_dependencies():
+            for name, streams in deps.get_requires().items():
+                if name not in mmd_requires:
+                    mmd_requires[name] = set()
+                mmd_requires[name] = mmd_requires[name].union(streams.get())
+
+        # Sort the streams for each module name and also sort the module names.
+        mmd_requires = {
+            dep: sorted(list(streams)) for dep, streams in mmd_requires.items()}
+        property_json = json.dumps(OrderedDict(sorted(mmd_requires.items())))
+        rv.append(hashlib.sha1(property_json.encode('utf-8')).hexdigest())
+
         return tuple(rv)
 
     @staticmethod

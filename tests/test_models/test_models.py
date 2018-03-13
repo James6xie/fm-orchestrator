@@ -73,8 +73,8 @@ class TestModels:
         build.modulemd = mmd.dumps()
         build.build_context, build.runtime_context = ModuleBuild.contexts_from_mmd(build.modulemd)
         assert build.build_context == 'f6e2aeec7576196241b9afa0b6b22acf2b6873d7'
-        assert build.runtime_context == '1739827b08388842fc90ccc0b6070c59b7d856fc'
-        assert build.context == 'e7a3d35e'
+        assert build.runtime_context == 'bbc84c7b817ab3dd54916c0bcd6c6bdf512f7f9c'
+        assert build.context == 'f1a17afd'
 
 
 class TestModelsGetStreamsContexts:

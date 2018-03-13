@@ -878,7 +878,7 @@ class TestBuild:
         build_one.stream = 'master'
         build_one.version = 20180205135154
         build_one.build_context = 'return_runtime_context'
-        build_one.runtime_context = 'c2c572ec'
+        build_one.runtime_context = 'c7b355af'
         build_one.state = models.BUILD_STATES['failed']
         current_dir = os.path.dirname(__file__)
         formatted_testmodule_yml_path = os.path.join(
@@ -1005,7 +1005,7 @@ class TestBuild:
         build_one.stream = 'master'
         build_one.version = 20180205135154
         build_one.build_context = 'return_runtime_context'
-        build_one.runtime_context = 'c2c572ec'
+        build_one.runtime_context = 'c7b355af'
         build_one.state = models.BUILD_STATES['failed']
         current_dir = os.path.dirname(__file__)
         formatted_testmodule_yml_path = os.path.join(

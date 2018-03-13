@@ -93,6 +93,7 @@ class TestUtilsModuleStreamExpansion:
                 "buildrequires": [],
                 "requires": [],
                 "commit": "ref_%s" % context,
+                "mse": "true",
             }
         }
         deps_list = []
@@ -273,12 +274,12 @@ class TestUtilsModuleStreamExpansion:
         requires_per_mmd = set()
         for mmd in mmds:
             assert len(mmd.get_dependencies()) == 1
-            requires = set()
+            mmd_requires = set()
             dep = mmd.get_dependencies()[0]
             for req_name, req_streams in dep.get_requires().items():
                 for req_stream in req_streams.get():
-                    requires.add(":".join([req_name, req_stream]))
-            requires_per_mmd.add(frozenset(requires))
+                    mmd_requires.add(":".join([req_name, req_stream]))
+            requires_per_mmd.add(frozenset(mmd_requires))
 
         assert requires_per_mmd == expected
 

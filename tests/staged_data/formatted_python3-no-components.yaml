@@ -40,6 +40,7 @@ data:
                     ref: virtual
                     stream: f28
                     version: '3'
+                    context: '00000000'
             commit: 620ec77321b2ea7b0d67d82992dda3e1d67055b4
             requires:
                 platform:
@@ -50,4 +51,5 @@ data:
             rpms:
                 ed:
                 ref: 51f529a5cde2b843ed9c7870689d707eaab3a9d1
+            mse: true
             scmurl: https://src.fedoraproject.org/modules/testmodule.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4

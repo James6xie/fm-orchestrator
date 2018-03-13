@@ -118,9 +118,6 @@ class TestDBModule:
             expected = [
                 os.path.join(
                     local_path,
-                    'module-platform-f28-3/results'),
-                os.path.join(
-                    local_path,
                     'module-parent-master-20170816080815/results'),
             ]
             assert set(result) == set(expected)

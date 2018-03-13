@@ -281,20 +281,6 @@ class TestUtils:
         xmd = {
             'mbs': {
                 'commit': '',
-                'buildrequires': {
-                    'platform': {
-                        'ref': 'virtual',
-                        'stream': 'f28',
-                        'version': '3',
-                        'context': '00000000',
-                        'filtered_rpms': []}},
-                'requires': {
-                    'platform': {
-                        'version': '3',
-                        'ref': 'virtual',
-                        'stream': 'f28',
-                        'context': '00000000',
-                        'filtered_rpms': []}},
                 'rpms': {
                     'perl-List-Compare': {'ref': 'fbed359411a1baa08d4a88e0d12d426fbf8f602c'},
                     'perl-Tangerine': {'ref': '4ceea43add2366d8b8c5a622a2fb563b625b9abf'},

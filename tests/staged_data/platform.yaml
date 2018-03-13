@@ -22,3 +22,4 @@ data:
       buildrequires: {}
       commit: virtual
       requires: {}
+      mse: true

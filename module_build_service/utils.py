@@ -781,18 +781,6 @@ def format_mmd(mmd, scmurl, session=None):
         else:
             xmd['mbs']['commit'] = scm.get_latest()
 
-    resolver = module_build_service.resolver.GenericResolver.create(conf)
-
-    # Resolve buildrequires and requires
-    # Reformat the input for resolve_requires to match the old modulemd format
-    dep_obj = mmd.get_dependencies()[0]
-    if 'buildrequires' not in xmd['mbs']:
-        br_dict = {br: br_list.get()[0] for br, br_list in dep_obj.get_buildrequires().items()}
-        xmd['mbs']['buildrequires'] = resolver.resolve_requires(br_dict)
-    if 'requires' not in xmd['mbs']:
-        req_dict = {req: req_list.get()[0] for req, req_list in dep_obj.get_requires().items()}
-        xmd['mbs']['requires'] = resolver.resolve_requires(req_dict)
-
     if mmd.get_rpm_components() or mmd.get_module_components():
         if 'rpms' not in xmd['mbs']:
             xmd['mbs']['rpms'] = {}
@@ -993,7 +981,7 @@ def generate_expanded_mmds(session, mmd):
     if not session:
         session = db.session
 
-    # Create local copy of mmd, because we will have expand its dependencies,
+    # Create local copy of mmd, because we will expand its dependencies,
     # which would change the module.
     # TODO: Use copy method once its in released libmodulemd:
     # https://github.com/fedora-modularity/libmodulemd/pull/20
@@ -1040,28 +1028,28 @@ def generate_expanded_mmds(session, mmd):
 
         # We don't want to depend on ourselves, so store the NSVC of the current_mmd
         # to be able to ignore it later.
-        self_nsvc = None
+        self_nsvca = None
 
-        # Dict to store name:stream pairs from nsvc, so we are able to access it
+        # Dict to store name:stream pairs from nsvca, so we are able to access it
         # easily later.
         req_name_stream = {}
 
-        # Get the values for dependencies_id, self_nsvc and req_name_stream variables.
-        for nsvc in requires:
-            req_name, req_stream, _ = nsvc.split(":", 2)
+        # Get the values for dependencies_id, self_nsvca and req_name_stream variables.
+        for nsvca in requires:
+            req_name, req_stream, _ = nsvca.split(":", 2)
             if req_name == current_mmd.get_name() and req_stream == current_mmd.get_stream():
-                dependencies_id = int(nsvc.split(":")[3])
-                self_nsvc = nsvc
+                dependencies_id = int(nsvca.split(":")[3])
+                self_nsvca = nsvca
                 continue
             req_name_stream[req_name] = req_stream
-        if dependencies_id is None or self_nsvc is None:
+        if dependencies_id is None or self_nsvca is None:
             raise RuntimeError(
                 "%s:%s not found in requires %r" % (current_mmd.get_name(), current_mmd.get_stream(), requires))
 
         # The name:[streams, ...] pairs do not have to be the same in both
         # buildrequires/requires. In case they are the same, we replace the streams
         # in requires section with a single stream against which we will build this MMD.
-        # In case they are not the same, we have to keep the streams as they in requires
+        # In case they are not the same, we have to keep the streams as they are in requires
         # section.  We always replace stream(s) for build-requirement with the one we
         # will build this MMD against.
         new_dep = Modulemd.Dependencies()
@@ -1083,26 +1071,25 @@ def generate_expanded_mmds(session, mmd):
         mmd_copy.set_dependencies((new_dep, ))
         
         # The Modulemd.Dependencies() stores only streams, but to really build this
-        # module, we need NSVC of buildrequires. We will get it using the
-        # module_build_service.resolver.GenericResolver.resolve_requires, so prepare
-        # dict in {N: SVC, ...} format as an input for this method.
-        br_dict = {}
-        for nsvc in requires:
-            if nsvc == self_nsvc:
+        # module, we need NSVC of buildrequires, so we have to store this data in XMD.
+        # We also need additional data like for example list of filtered_rpms. We will
+        # get them using module_build_service.resolver.GenericResolver.resolve_requires,
+        # so prepare list witht NSVCs of buildrequires as an input for this method.
+        br_list = []
+        for nsvca in requires:
+            if nsvca == self_nsvca:
                 continue
-            req_name, req_stream, req_version, req_context, req_arch = nsvc.split(":")
-            br_dict[req_name] = ":".join([req_stream, req_version, req_context])
+            # Remove the arch from nsvca
+            nsvc = ":".join(nsvca.split(":")[:-1])
+            br_list.append(nsvc)
 
-        # The same for runtime requires, which we need to compute runtime context.
-        r_dict = {req: req_list.get()[0] for req, req_list in new_dep.get_requires().items()}
-
-        # Resolve the requires/buildrequires and store the result in XMD.
+        # Resolve the buildrequires and store the result in XMD.
         if 'mbs' not in xmd:
             xmd['mbs'] = {}
         resolver = module_build_service.resolver.GenericResolver.create(conf)
-        xmd['mbs']['buildrequires'] = resolver.resolve_requires(br_dict)
-        xmd['mbs']['requires'] = resolver.resolve_requires(r_dict)
-        
+        xmd['mbs']['buildrequires'] = resolver.resolve_requires(br_list)
+        xmd['mbs']['mse'] = "true"
+
         mmd_copy.set_xmd(glib.dict_values(xmd))
 
         # Now we have all the info to actually compute context of this module.
@@ -1122,11 +1109,13 @@ def submit_module_build(username, url, mmd, scm, optional_params=None):
     mmds = generate_expanded_mmds(db.session, mmd)
 
     for mmd in mmds:
+        log.debug('Checking whether module build already exists: %s.',
+                  ":".join([mmd.get_name(), mmd.get_stream(),
+                           str(mmd.get_version()), mmd.get_context()]))
         module = models.ModuleBuild.get_build_from_nsvc(
             db.session, mmd.get_name(), mmd.get_stream(), str(mmd.get_version()),
             mmd.get_context())
         if module:
-            log.debug('Checking whether module build already exist.')
             if module.state != models.BUILD_STATES['failed']:
                 err_msg = ('Module (state=%s) already exists. Only a new build or resubmission of '
                         'a failed build is allowed.' % module.state)
