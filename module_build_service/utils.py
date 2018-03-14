@@ -37,11 +37,8 @@ from functools import wraps
 from flask import request, url_for, Response
 from datetime import datetime
 from sqlalchemy.sql.sqltypes import Boolean as sqlalchemy_boolean
-import gi
-gi.require_version('Modulemd', '1.0')  # noqa
-from gi.repository import Modulemd
 
-from module_build_service import log, models
+from module_build_service import log, models, Modulemd
 from module_build_service.errors import (ValidationError, UnprocessableEntity,
                                          ProgrammingError)
 from module_build_service import conf, db
@@ -1044,7 +1041,8 @@ def generate_expanded_mmds(session, mmd):
             req_name_stream[req_name] = req_stream
         if dependencies_id is None or self_nsvca is None:
             raise RuntimeError(
-                "%s:%s not found in requires %r" % (current_mmd.get_name(), current_mmd.get_stream(), requires))
+                "%s:%s not found in requires %r" % (
+                    current_mmd.get_name(), current_mmd.get_stream(), requires))
 
         # The name:[streams, ...] pairs do not have to be the same in both
         # buildrequires/requires. In case they are the same, we replace the streams
@@ -1069,12 +1067,12 @@ def generate_expanded_mmds(session, mmd):
                 new_dep.add_requires(req_name, [req_name_stream[req_name]])
             new_dep.add_buildrequires(req_name, [req_name_stream[req_name]])
         mmd_copy.set_dependencies((new_dep, ))
-        
+
         # The Modulemd.Dependencies() stores only streams, but to really build this
         # module, we need NSVC of buildrequires, so we have to store this data in XMD.
         # We also need additional data like for example list of filtered_rpms. We will
         # get them using module_build_service.resolver.GenericResolver.resolve_requires,
-        # so prepare list witht NSVCs of buildrequires as an input for this method.
+        # so prepare list with NSVCs of buildrequires as an input for this method.
         br_list = []
         for nsvca in requires:
             if nsvca == self_nsvca:
@@ -1088,7 +1086,7 @@ def generate_expanded_mmds(session, mmd):
             xmd['mbs'] = {}
         resolver = module_build_service.resolver.GenericResolver.create(conf)
         xmd['mbs']['buildrequires'] = resolver.resolve_requires(br_list)
-        xmd['mbs']['mse'] = "true"
+        xmd['mbs']['mse'] = True
 
         mmd_copy.set_xmd(glib.dict_values(xmd))
 
@@ -1118,14 +1116,15 @@ def submit_module_build(username, url, mmd, scm, optional_params=None):
         if module:
             if module.state != models.BUILD_STATES['failed']:
                 err_msg = ('Module (state=%s) already exists. Only a new build or resubmission of '
-                        'a failed build is allowed.' % module.state)
+                           'a failed build is allowed.' % module.state)
                 log.error(err_msg)
                 raise Conflict(err_msg)
             if optional_params:
                 rebuild_strategy = optional_params.get('rebuild_strategy')
                 if rebuild_strategy and module.rebuild_strategy != rebuild_strategy:
-                    raise ValidationError('You cannot change the module\'s "rebuild_strategy" when '
-                                        'resuming a module build')
+                    raise ValidationError(
+                        'You cannot change the module\'s "rebuild_strategy" when '
+                        'resuming a module build')
             log.debug('Resuming existing module build %r' % module)
             # Reset all component builds that didn't complete
             for component in module.component_builds:
@@ -1141,8 +1140,7 @@ def submit_module_build(username, url, mmd, scm, optional_params=None):
                 transition_to = models.BUILD_STATES['wait']
                 module.batch = 0
             module.transition(conf, transition_to, "Resubmitted by %s" % username)
-            log.info("Resumed existing module build in previous state %s"
-                    % module.state)
+            log.info("Resumed existing module build in previous state %s" % module.state)
         else:
             log.debug('Creating new module build')
             module = models.ModuleBuild.create(
@@ -1159,11 +1157,10 @@ def submit_module_build(username, url, mmd, scm, optional_params=None):
             module.build_context, module.runtime_context = \
                 module.contexts_from_mmd(module.modulemd)
 
-
         db.session.add(module)
         db.session.commit()
         log.info("%s submitted build of %s, stream=%s, version=%s, context=%s", username,
-                mmd.get_name(), mmd.get_stream(), mmd.get_version(), mmd.get_context())
+                 mmd.get_name(), mmd.get_stream(), mmd.get_version(), mmd.get_context())
     return module
 
 

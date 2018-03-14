@@ -27,16 +27,13 @@ import time
 import hashlib
 from traceback import extract_stack
 
-import gi
-gi.require_version('Modulemd', '1.0')  # noqa
-from gi.repository import Modulemd
 import koji
 import module_build_service
 from module_build_service import db
 from module_build_service.utils import get_rpm_release
 from module_build_service.config import init_config
 from module_build_service.models import ModuleBuild, ComponentBuild, make_session, BUILD_STATES
-from module_build_service import glib
+from module_build_service import glib, Modulemd
 
 
 base_dir = os.path.dirname(__file__)

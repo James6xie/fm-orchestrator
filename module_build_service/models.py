@@ -34,14 +34,11 @@ import hashlib
 import sqlalchemy
 from sqlalchemy.orm import validates, scoped_session, sessionmaker
 from flask import has_app_context
-from module_build_service import db, log, get_url_for, app, conf
+from module_build_service import db, log, get_url_for, app, conf, Modulemd
 import module_build_service.messaging
 
 from sqlalchemy.orm import lazyload
 from sqlalchemy import func, and_
-import gi
-gi.require_version('Modulemd', '1.0')  # noqa
-from gi.repository import Modulemd
 
 
 # Just like koji.BUILD_STATES, except our own codes for modules.
@@ -294,7 +291,11 @@ class ModuleBuild(MBSBase):
 
     @staticmethod
     def get_build_from_nsvc(session, name, stream, version, context, **kwargs):
-        #TODO: Rewrite this to use self.context when we add it.
+        """
+        Returns build defined by NSVC. Optional kwargs are passed to SQLAlchemy
+        filter_by method.
+        """
+        # TODO: Rewrite this to use self.context when we add it.
         builds = session.query(ModuleBuild).filter_by(
             name=name, stream=stream, version=version, **kwargs).all()
         for build in builds:

@@ -14,9 +14,7 @@ from alembic import op
 import sqlalchemy as sa
 
 # Data migration imports
-import gi
-gi.require_version('Modulemd', '1.0')
-from gi.repository import Modulemd
+from module_build_service import Modulemd
 import hashlib
 import json
 from collections import OrderedDict

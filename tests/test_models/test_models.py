@@ -22,13 +22,9 @@
 
 import os
 
-import gi
-gi.require_version('Modulemd', '1.0')  # noqa
-from gi.repository import Modulemd
-
 from tests.test_models import init_data
 from tests import init_data as init_data_contexts
-from module_build_service import conf
+from module_build_service import conf, Modulemd
 from module_build_service.models import ComponentBuild, ModuleBuild, make_session
 
 
@@ -68,7 +64,7 @@ class TestModels:
         build = ModuleBuild.query.filter_by(id=1).one()
         yaml_path = os.path.join(
             os.path.dirname(__file__), '..', 'staged_data', 'testmodule_dependencies.yaml')
-        mmd = Modulemd.Module().new_from_file(yaml_path)
+        mmd = Modulemd.Module.new_from_file(yaml_path)
         mmd.upgrade()
         build.modulemd = mmd.dumps()
         build.build_context, build.runtime_context = ModuleBuild.contexts_from_mmd(build.modulemd)

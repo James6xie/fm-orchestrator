@@ -24,12 +24,10 @@
 #            Igor Gnatenko <ignatenko@redhat.com>
 
 import collections
-import gi
-gi.require_version("Modulemd", "1.0") # noqa
-from gi.repository import Modulemd
 import pytest
 
 from module_build_service.mmd_resolver import MMDResolver
+from module_build_service import Modulemd
 
 
 class TestMMDResolver:

@@ -58,9 +58,20 @@ def variant_list(l):
             l_variant.append(variant_list(item))
         elif type(item) == dict:
             l_variant.append(variant_dict(item))
+        elif type(item) == bool:
+            l_variant.append(variant_bool(item))
         else:
             raise TypeError('Cannot convert unknown type')
     return GLib.Variant('av', l_variant)
+
+
+def variant_bool(b):
+    """ Converts a boolean to a GLib.Varant
+    """
+    if not isinstance(b, bool):
+        raise TypeError('Only booleans are supported')
+
+    return GLib.Variant('b', b)
 
 
 def dict_values(d):
@@ -81,6 +92,8 @@ def dict_values(d):
             d_variant[k] = variant_list(v)
         elif type(v) == dict:
             d_variant[k] = variant_dict(v)
+        elif type(v) == bool:
+            d_variant[k] = variant_bool(v)
         else:
             raise TypeError('Cannot convert unknown type')
     return d_variant

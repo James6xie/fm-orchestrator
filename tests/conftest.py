@@ -27,11 +27,8 @@ import six
 import pytest
 import mock
 import pdc_client.test_helpers
-import gi
-gi.require_version('Modulemd', '1.0')  # noqa
-from gi.repository import Modulemd
 
-from module_build_service import glib
+from module_build_service import glib, Modulemd
 
 
 BASE_DIR = os.path.dirname(__file__)

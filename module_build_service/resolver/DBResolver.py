@@ -213,7 +213,7 @@ class DBResolver(GenericResolver):
                         'The module "{0}" didn\'t contain a commit hash in its xmd'
                         .format(module_name))
 
-                if "mse" not in mbs_xmd.keys():
+                if "mse" not in mbs_xmd.keys() or not mbs_xmd["mse"]:
                     raise RuntimeError(
                         'The module "{}" is not built using Module Stream Expansion. '
                         'Please rebuild this module first'.format(nsvc))

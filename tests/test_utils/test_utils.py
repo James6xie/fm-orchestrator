@@ -22,9 +22,6 @@ import tempfile
 from os import path, mkdir
 from shutil import copyfile, rmtree
 from datetime import datetime
-import gi
-gi.require_version('Modulemd', '1.0')  # noqa
-from gi.repository import Modulemd
 from werkzeug.datastructures import FileStorage
 from mock import patch
 import module_build_service.utils
@@ -39,7 +36,7 @@ import pytest
 import module_build_service.scheduler.handlers.components
 from module_build_service.builder.base import GenericBuilder
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
-from module_build_service import glib
+from module_build_service import glib, Modulemd
 from tests import app
 
 BASE_DIR = path.abspath(path.dirname(__file__))

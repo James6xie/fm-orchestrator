@@ -5,14 +5,11 @@ import tempfile
 import shutil
 
 import kobo.rpmlib
-import gi
-gi.require_version('Modulemd', '1.0')  # noqa
-from gi.repository import Modulemd
 
 from module_build_service import conf
 from module_build_service.models import ModuleBuild, ComponentBuild, make_session
 from module_build_service.builder.MockModuleBuilder import MockModuleBuilder
-from module_build_service import glib
+from module_build_service import glib, Modulemd
 from tests import clean_database
 
 

@@ -27,7 +27,6 @@ from os.path import dirname
 from shutil import copyfile
 from datetime import datetime, timedelta
 from random import randint
-import hashlib
 
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.repos
@@ -280,6 +279,8 @@ class FakeModuleBuilder(GenericBuilder):
 
 
 original_context_from_contexts = models.ModuleBuild.context_from_contexts
+
+
 def mocked_context_from_contexts(build_context, runtime_context):
     if build_context == "return_runtime_context":
         return runtime_context

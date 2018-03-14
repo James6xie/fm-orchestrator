@@ -25,15 +25,12 @@ import copy
 
 from mock import patch, PropertyMock
 import pytest
-import gi
-gi.require_version('Modulemd', '1.0')  # noqa
-from gi.repository import Modulemd
 
 import module_build_service.resolver as mbs_resolver
 import module_build_service.utils
 import module_build_service.models
 from module_build_service import app, db
-from module_build_service import glib
+from module_build_service import glib, Modulemd
 import tests
 
 

@@ -24,13 +24,11 @@ import os
 from datetime import datetime
 
 import module_build_service
-import gi
-gi.require_version('Modulemd', '1.0')  # noqa
-from gi.repository import Modulemd
 
 from tests import db, clean_database
 from module_build_service.config import init_config
 from module_build_service.models import ModuleBuild, BUILD_STATES
+from module_build_service import Modulemd
 
 app = module_build_service.app
 

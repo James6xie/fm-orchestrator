@@ -20,16 +20,12 @@
 
 
 from datetime import datetime
-import hashlib
 
-import gi
-gi.require_version('Modulemd', '1.0')  # noqa
-from gi.repository import Modulemd
 from mock import patch
 import pytest
 
 import module_build_service.utils
-from module_build_service import models, conf, glib
+from module_build_service import models, glib, Modulemd
 from tests import (db, clean_database)
 
 

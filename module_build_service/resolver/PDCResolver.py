@@ -26,12 +26,9 @@
 
 """PDC handler functions."""
 
-import gi
-gi.require_version('Modulemd', '1.0')  # noqa
-from gi.repository import Modulemd
 import pdc_client
 from module_build_service import db
-from module_build_service import models
+from module_build_service import models, Modulemd
 from module_build_service.errors import UnprocessableEntity
 from module_build_service.resolver.base import GenericResolver
 

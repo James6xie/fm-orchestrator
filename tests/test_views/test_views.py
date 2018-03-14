@@ -22,9 +22,6 @@
 
 import json
 
-import gi
-gi.require_version('Modulemd', '1.0')  # noqa
-from gi.repository import Modulemd
 import module_build_service.scm
 
 from mock import patch, PropertyMock
@@ -36,7 +33,7 @@ import hashlib
 from tests import app, init_data
 from module_build_service.errors import UnprocessableEntity
 from module_build_service.models import ModuleBuild
-from module_build_service import db, version
+from module_build_service import db, version, Modulemd
 import module_build_service.config as mbs_config
 import module_build_service.scheduler.handlers.modules
 

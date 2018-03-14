@@ -24,13 +24,10 @@ import mock
 from mock import patch
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.modules
-import gi
-gi.require_version('Modulemd', '1.0')  # noqa
-from gi.repository import Modulemd
 import os
 import koji
 from tests import conf, db, app, scheduler_init_data
-from module_build_service import build_logs
+from module_build_service import build_logs, Modulemd
 from module_build_service.models import ComponentBuild, ModuleBuild
 
 base_dir = os.path.dirname(os.path.dirname(__file__))

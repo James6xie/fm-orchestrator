@@ -31,10 +31,7 @@ import platform
 import re
 import threading
 
-import gi
-gi.require_version('Modulemd', '1.0')  # noqa
-from gi.repository import Modulemd
-from module_build_service import conf, log
+from module_build_service import conf, log, Modulemd
 import module_build_service.scm
 import module_build_service.utils
 import module_build_service.scheduler

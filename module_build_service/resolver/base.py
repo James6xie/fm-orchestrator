@@ -26,12 +26,9 @@
 
 import six
 from abc import ABCMeta, abstractmethod
-import gi
-gi.require_version('Modulemd', '1.0')  # noqa
-from gi.repository import Modulemd
 
 import module_build_service.config as cfg
-from module_build_service import conf
+from module_build_service import conf, Modulemd
 
 
 class GenericResolver(six.with_metaclass(ABCMeta)):
