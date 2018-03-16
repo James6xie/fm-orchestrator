@@ -45,10 +45,9 @@ from flask import Flask, has_app_context, url_for
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.pool import StaticPool
 from logging import getLogger
-from gi import Repository
-r = Repository.get_default() # noqa
-r.require('Modulemd') # noqa
-from gi.repository import Modulemd
+import gi # noqa
+gi.require_version('Modulemd', '1.0') # noqa
+from gi.repository import Modulemd # noqa
 
 from module_build_service.logger import (
     init_logging, ModuleBuildLogs, level_flags)
