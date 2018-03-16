@@ -152,8 +152,11 @@ class MMDResolver(object):
         for src in solvables:
             job = self.pool.Job(solv.Job.SOLVER_INSTALL | solv.Job.SOLVER_SOLVABLE, src.id)
             requires = src.lookup_deparray(solv.SOLVABLE_REQUIRES)
-            if len(requires) != 1:
-                raise SystemError("Exactly one element should be in Requires: %s" % requires)
+            if len(requires) > 1:
+                raise SystemError("At max one element should be in Requires: %s" % requires)
+            elif len(requires) == 0:
+                return set([frozenset([s2nsvc(src)])])
+
             requires = requires[0]
             src_alternatives = alternatives[src] = collections.OrderedDict()
 
