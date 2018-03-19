@@ -25,6 +25,7 @@ $script = <<SCRIPT
         python-m2ext \
         python-mock \
         python-qpid \
+        python-solv \
         python-virtualenv \
         python-futures \
         python3 \
