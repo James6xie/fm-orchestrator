@@ -52,7 +52,7 @@ $script_services = <<SCRIPT_SERVICES
 SCRIPT_SERVICES
 
 Vagrant.configure("2") do |config|
-  config.vm.box = "fedora/26-cloud-base"
+  config.vm.box = "fedora/27-cloud-base"
   config.vm.synced_folder "./", "/opt/module_build_service"
   # Disable the default share
   config.vm.synced_folder ".", "/vagrant", disabled: true
