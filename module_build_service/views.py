@@ -32,55 +32,55 @@ from flask import request, jsonify, url_for
 from flask.views import MethodView
 from builtins import str
 
-from module_build_service import app, conf, log, models, db, version
+from module_build_service import app, conf, log, models, db, version, api_version as max_api_version
 from module_build_service.utils import (
     pagination_metadata, filter_module_builds, filter_component_builds,
     submit_module_build_from_scm, submit_module_build_from_yaml,
-    get_scm_url_re, cors_header)
+    get_scm_url_re, cors_header, validate_api_version)
 from module_build_service.errors import (
     ValidationError, Forbidden, NotFound, ProgrammingError)
 
-api_v1 = {
+api_routes = {
     'module_builds': {
-        'url': '/module-build-service/1/module-builds/',
+        'url': '/module-build-service/<int:api_version>/module-builds/',
         'options': {
             'methods': ['POST'],
         }
     },
     'module_builds_list': {
-        'url': '/module-build-service/1/module-builds/',
+        'url': '/module-build-service/<int:api_version>/module-builds/',
         'options': {
             'defaults': {'id': None},
             'methods': ['GET'],
         }
     },
     'module_build': {
-        'url': '/module-build-service/1/module-builds/<int:id>',
+        'url': '/module-build-service/<int:api_version>/module-builds/<int:id>',
         'options': {
             'methods': ['GET', 'PATCH'],
         }
     },
     'component_builds_list': {
-        'url': '/module-build-service/1/component-builds/',
+        'url': '/module-build-service/<int:api_version>/component-builds/',
         'options': {
             'defaults': {'id': None},
             'methods': ['GET'],
         }
     },
     'component_build': {
-        'url': '/module-build-service/1/component-builds/<int:id>',
+        'url': '/module-build-service/<int:api_version>/component-builds/<int:id>',
         'options': {
             'methods': ['GET'],
         }
     },
     'about': {
-        'url': '/module-build-service/1/about/',
+        'url': '/module-build-service/<int:api_version>/about/',
         'options': {
             'methods': ['GET']
         }
     },
     'rebuild_strategies_list': {
-        'url': '/module-build-service/1/rebuild-strategies/',
+        'url': '/module-build-service/<int:api_version>/rebuild-strategies/',
         'options': {
             'methods': ['GET']
         }
@@ -92,13 +92,14 @@ class AbstractQueryableBuildAPI(MethodView):
     """ An abstract class, housing some common functionality. """
 
     @cors_header()
-    def get(self, id):
+    @validate_api_version()
+    def get(self, api_version, id):
         id_flag = request.args.get('id')
         if id_flag:
             endpoint = request.endpoint.split('s_list')[0]
             raise ValidationError(
                 'The "id" query option is invalid. Did you mean to go to "{0}"?'.format(
-                    url_for(endpoint, id=id_flag)))
+                    url_for(endpoint, api_version=api_version, id=id_flag)))
         verbose_flag = request.args.get('verbose', 'false').lower()
         short_flag = request.args.get('short', 'false').lower()
         json_func_kwargs = {}
@@ -107,14 +108,14 @@ class AbstractQueryableBuildAPI(MethodView):
         if id is None:
             # Lists all tracked builds
             p_query = self.query_filter(request)
-
             json_data = {
-                'meta': pagination_metadata(p_query, request.args)
+                'meta': pagination_metadata(p_query, api_version, request.args)
             }
 
             if verbose_flag == 'true' or verbose_flag == '1':
                 json_func_name = 'extended_json'
                 json_func_kwargs['show_state_url'] = True
+                json_func_kwargs['api_version'] = api_version
             elif short_flag == 'true' or short_flag == '1':
                 if hasattr(p_query.items[0], 'short_json'):
                     json_func_name = 'short_json'
@@ -129,6 +130,7 @@ class AbstractQueryableBuildAPI(MethodView):
                 if verbose_flag == 'true' or verbose_flag == '1':
                     json_func_name = 'extended_json'
                     json_func_kwargs['show_state_url'] = True
+                    json_func_kwargs['api_version'] = api_version
                 elif short_flag == 'true' or short_flag == '1':
                     if getattr(instance, 'short_json', None):
                         json_func_name = 'short_json'
@@ -149,8 +151,8 @@ class ModuleBuildAPI(AbstractQueryableBuildAPI):
     model = models.ModuleBuild
 
     # Additional POST and DELETE handlers for modules follow.
-
-    def post(self):
+    @validate_api_version()
+    def post(self, api_version):
         if "multipart/form-data" in request.headers.get("Content-Type", ""):
             handler = YAMLFileHandler(request)
         else:
@@ -164,10 +166,16 @@ class ModuleBuildAPI(AbstractQueryableBuildAPI):
                 handler.username, conf.allowed_groups, handler.groups))
 
         handler.validate()
-        module = handler.post()
-        return jsonify(module.extended_json(True)), 201
+        modules = handler.post()
+        if api_version == 1:
+            # Only show the first module build for backwards-compatibility
+            rv = modules[0].extended_json(True, api_version)
+        else:
+            rv = [module.extended_json(True, api_version) for module in modules]
+        return jsonify(rv), 201
 
-    def patch(self, id):
+    @validate_api_version()
+    def patch(self, api_version, id):
         username, groups = module_build_service.auth.get_user(request)
 
         try:
@@ -213,13 +221,14 @@ class ModuleBuildAPI(AbstractQueryableBuildAPI):
         db.session.add(module)
         db.session.commit()
 
-        return jsonify(module.extended_json(True)), 200
+        return jsonify(module.extended_json(True, api_version)), 200
 
 
 class AboutAPI(MethodView):
     @cors_header()
-    def get(self):
-        json = {'version': version}
+    @validate_api_version()
+    def get(self, api_version):
+        json = {'version': version, 'api_version': max_api_version}
         config_items = ['auth_method']
         for item in config_items:
             config_item = getattr(conf, item)
@@ -233,7 +242,8 @@ class AboutAPI(MethodView):
 
 class RebuildStrategies(MethodView):
     @cors_header()
-    def get(self):
+    @validate_api_version()
+    def get(self, api_version):
         items = []
         # Sort the items list by name
         for strategy in sorted(models.ModuleBuild.rebuild_strategies.keys()):
@@ -357,13 +367,13 @@ class YAMLFileHandler(BaseHandler):
                                              optional_params=self.optional_params)
 
 
-def register_api_v1():
-    """ Registers version 1 of MBS API. """
+def register_api():
+    """ Registers the MBS API. """
     module_view = ModuleBuildAPI.as_view('module_builds')
     component_view = ComponentBuildAPI.as_view('component_builds')
     about_view = AboutAPI.as_view('about')
     rebuild_strategies_view = RebuildStrategies.as_view('rebuild_strategies')
-    for key, val in api_v1.items():
+    for key, val in api_routes.items():
         if key.startswith('component_build'):
             app.add_url_rule(val['url'],
                              endpoint=key,
@@ -388,4 +398,4 @@ def register_api_v1():
             raise NotImplementedError("Unhandled api key.")
 
 
-register_api_v1()
+register_api()

@@ -62,6 +62,7 @@ try:
     version = pkg_resources.get_distribution('module-build-service').version
 except pkg_resources.DistributionNotFound:
     version = 'unknown'
+api_version = 2
 
 app = Flask(__name__)
 app.wsgi_app = ReverseProxy(app.wsgi_app)

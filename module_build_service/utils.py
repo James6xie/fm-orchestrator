@@ -38,9 +38,9 @@ from flask import request, url_for, Response
 from datetime import datetime
 from sqlalchemy.sql.sqltypes import Boolean as sqlalchemy_boolean
 
-from module_build_service import log, models, Modulemd
+from module_build_service import log, models, Modulemd, api_version
 from module_build_service.errors import (ValidationError, UnprocessableEntity,
-                                         ProgrammingError)
+                                         ProgrammingError, NotFound)
 from module_build_service import conf, db
 from module_build_service.errors import (Forbidden, Conflict)
 import module_build_service.messaging
@@ -359,11 +359,12 @@ def start_next_batch_build(config, module, session, builder, components=None):
         config, module, session, builder, unbuilt_components_after_reuse)
 
 
-def pagination_metadata(p_query, request_args):
+def pagination_metadata(p_query, api_version, request_args):
     """
     Returns a dictionary containing metadata about the paginated query.
     This must be run as part of a Flask request.
     :param p_query: flask_sqlalchemy.Pagination object
+    :param api_version: an int of the API version
     :param request_args: a dictionary of the arguments that were part of the
     Flask request
     :return: a dictionary containing metadata about the paginated query
@@ -386,21 +387,21 @@ def pagination_metadata(p_query, request_args):
         'prev': None,
         'next': None,
         'total': p_query.total,
-        'first': url_for(request.endpoint, page=1, per_page=p_query.per_page,
-                         _external=True, **request_args_wo_page),
-        'last': url_for(request.endpoint, page=p_query.pages,
+        'first': url_for(request.endpoint, api_version=api_version, page=1,
+                         per_page=p_query.per_page, _external=True, **request_args_wo_page),
+        'last': url_for(request.endpoint, api_version=api_version, page=p_query.pages,
                         per_page=p_query.per_page, _external=True,
                         **request_args_wo_page)
     }
 
     if p_query.has_prev:
-        pagination_data['prev'] = url_for(request.endpoint, page=p_query.prev_num,
-                                          per_page=p_query.per_page, _external=True,
-                                          **request_args_wo_page)
+        pagination_data['prev'] = url_for(request.endpoint, api_version=api_version,
+                                          page=p_query.prev_num, per_page=p_query.per_page,
+                                          _external=True, **request_args_wo_page)
     if p_query.has_next:
-        pagination_data['next'] = url_for(request.endpoint, page=p_query.next_num,
-                                          per_page=p_query.per_page, _external=True,
-                                          **request_args_wo_page)
+        pagination_data['next'] = url_for(request.endpoint, api_version=api_version,
+                                          page=p_query.next_num, per_page=p_query.per_page,
+                                          _external=True, **request_args_wo_page)
 
     return pagination_data
 
@@ -1105,6 +1106,7 @@ def submit_module_build(username, url, mmd, scm, optional_params=None):
 
     validate_mmd(mmd)
     mmds = generate_expanded_mmds(db.session, mmd)
+    modules = []
 
     for mmd in mmds:
         log.debug('Checking whether module build already exists: %s.',
@@ -1159,9 +1161,10 @@ def submit_module_build(username, url, mmd, scm, optional_params=None):
 
         db.session.add(module)
         db.session.commit()
+        modules.append(module)
         log.info("%s submitted build of %s, stream=%s, version=%s, context=%s", username,
                  mmd.get_name(), mmd.get_stream(), mmd.get_version(), mmd.get_context())
-    return module
+    return modules
 
 
 def scm_url_schemes(terse=False):
@@ -1794,6 +1797,21 @@ def cors_header(allow='*'):
                 if isinstance(response, Response):
                     response.headers.add('Access-Control-Allow-Origin', allow)
             return rv
+        return wrapper
+    return decorator
+
+
+def validate_api_version():
+    """
+    A decorator that validates the requested API version on a route
+    """
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            req_api_version = kwargs.get('api_version', 1)
+            if req_api_version > api_version or req_api_version < 1:
+                raise NotFound('The requested API version is not available')
+            return func(*args, **kwargs)
         return wrapper
     return decorator
 

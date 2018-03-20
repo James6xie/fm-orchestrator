@@ -29,6 +29,7 @@ from shutil import copyfile
 from os import path, mkdir
 from os.path import dirname
 import hashlib
+import pytest
 
 from tests import app, init_data
 from module_build_service.errors import UnprocessableEntity
@@ -144,6 +145,14 @@ class TestViews:
         assert data['time_submitted'] == '2016-09-03T11:23:20Z'
         assert data['rebuild_strategy'] == 'changed-and-after'
         assert data['version'] == '2'
+
+    @pytest.mark.parametrize('api_version', [0, 99])
+    def test_query_builds_invalid_api_version(self, api_version):
+        rv = self.client.get('/module-build-service/{0}/module-builds/'.format(api_version))
+        data = json.loads(rv.data)
+        assert data['error'] == 'Not Found'
+        assert data['message'] == 'The requested API version is not available'
+        assert data['status'] == 404
 
     def test_query_build_short(self):
         rv = self.client.get('/module-build-service/1/module-builds/2?short=True')
@@ -504,16 +513,23 @@ class TestViews:
         assert data['error'] == 'Bad Request'
         assert data['message'] == 'An invalid order_by or order_desc_by key was supplied'
 
+    @pytest.mark.parametrize('api_version', [1, 2])
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build(self, mocked_scm, mocked_get_user):
+    def test_submit_build(self, mocked_scm, mocked_get_user, api_version):
         FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
-        rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
+        post_url = '/module-build-service/{0}/module-builds/'.format(api_version)
+        rv = self.client.post(post_url, data=json.dumps(
             {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
                 'testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49'}))
         data = json.loads(rv.data)
+
+        if api_version >= 2:
+            assert isinstance(data, list)
+            assert len(data) == 1
+            data = data[0]
 
         assert 'component_builds' in data, data
         assert data['component_builds'] == []
@@ -529,7 +545,7 @@ class TestViews:
         assert data['id'] == 8
         assert data['rebuild_strategy'] == 'changed-and-after'
         assert data['state_name'] == 'init'
-        assert data['state_url'] == '/module-build-service/1/module-builds/8'
+        assert data['state_url'] == '/module-build-service/{0}/module-builds/8'.format(api_version)
         assert len(data['state_trace']) == 1
         assert data['state_trace'][0]['state'] == 0
         assert data['tasks'] == {}
@@ -912,7 +928,7 @@ class TestViews:
             rv = self.client.get('/module-build-service/1/about/')
         data = json.loads(rv.data)
         assert rv.status_code == 200
-        assert data == {'auth_method': 'kerberos', 'version': version}
+        assert data == {'auth_method': 'kerberos', 'api_version': 2, 'version': version}
 
     def test_rebuild_strategy_api(self):
         rv = self.client.get('/module-build-service/1/rebuild-strategies/')

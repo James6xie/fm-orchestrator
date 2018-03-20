@@ -553,17 +553,18 @@ class ModuleBuild(MBSBase):
         })
         return json
 
-    def extended_json(self, show_state_url=False):
+    def extended_json(self, show_state_url=False, api_version=1):
         """
         :kwarg show_state_url: this will determine if `get_url_for` should be run to determine
         what the `state_url` is. This should be set to `False` when extended_json is called from
         the backend because it forces an app context to be created, which causes issues with
         SQLAlchemy sessions.
+        :kwarg api_version: the API version to use when building the state URL
         """
         json = self.json()
         state_url = None
         if show_state_url:
-            state_url = get_url_for('module_build', id=self.id)
+            state_url = get_url_for('module_build', api_version=api_version, id=self.id)
         json.update({
             'component_builds': [build.id for build in self.component_builds],
             'build_context': self.build_context,
@@ -722,17 +723,18 @@ class ComponentBuild(MBSBase):
 
         return retval
 
-    def extended_json(self, show_state_url=False):
+    def extended_json(self, show_state_url=False, api_version=1):
         """
         :kwarg show_state_url: this will determine if `get_url_for` should be run to determine
         what the `state_url` is. This should be set to `False` when extended_json is called from
         the backend because it forces an app context to be created, which causes issues with
         SQLAlchemy sessions.
+        :kwarg api_version: the API version to use when building the state URL
         """
         json = self.json()
         state_url = None
         if show_state_url:
-            state_url = get_url_for('component_build', id=self.id)
+            state_url = get_url_for('component_build', api_version=api_version, id=self.id)
         json.update({
             'state_trace': [{'time': _utc_datetime_to_iso(record.state_time),
                              'state': record.state,
