@@ -132,7 +132,8 @@ def make_session(conf):
         return
 
     # Needs to be set to create app_context.
-    if 'SERVER_NAME' not in app.config or not app.config['SERVER_NAME']:
+    if (not has_app_context() and
+            ('SERVER_NAME' not in app.config or not app.config['SERVER_NAME'])):
         app.config['SERVER_NAME'] = 'localhost'
 
     # If there is no app_context, we have to create one before creating
