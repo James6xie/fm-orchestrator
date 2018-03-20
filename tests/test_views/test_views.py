@@ -200,6 +200,7 @@ class TestViews:
         assert data['time_submitted'] == u'2016-09-03T11:23:20Z'
         assert data['version'] == '2'
         assert data['rebuild_strategy'] == 'changed-and-after'
+        assert data['siblings'] == []
 
     def test_pagination_metadata(self):
         rv = self.client.get('/module-build-service/1/module-builds/?per_page=2&page=2')
@@ -532,6 +533,7 @@ class TestViews:
         assert len(data['state_trace']) == 1
         assert data['state_trace'][0]['state'] == 0
         assert data['tasks'] == {}
+        assert data['siblings'] == []
         mmd = Modulemd.Module().new_from_string(data['modulemd'])
         mmd.upgrade()
 

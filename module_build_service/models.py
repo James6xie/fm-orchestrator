@@ -32,7 +32,7 @@ from collections import OrderedDict
 from datetime import datetime
 import hashlib
 import sqlalchemy
-from sqlalchemy.orm import validates, scoped_session, sessionmaker
+from sqlalchemy.orm import validates, scoped_session, sessionmaker, load_only
 from flask import has_app_context
 from module_build_service import db, log, get_url_for, app, conf, Modulemd
 import module_build_service.messaging
@@ -392,6 +392,13 @@ class ModuleBuild(MBSBase):
     def context(self):
         return ModuleBuild.context_from_contexts(self.build_context, self.runtime_context)
 
+    @property
+    def siblings(self):
+        query = self.query.filter_by(
+            name=self.name, stream=self.stream, version=self.version).options(
+                load_only('id')).filter(ModuleBuild.id != self.id)
+        return [build.id for build in query.all()]
+
     @classmethod
     def create(cls, session, conf, name, stream, version, modulemd, scmurl, username,
                copr_owner=None, copr_project=None, rebuild_strategy=None, publish_msg=True):
@@ -568,7 +575,8 @@ class ModuleBuild(MBSBase):
                              'reason': record.state_reason}
                             for record
                             in self.state_trace(self.id)],
-            'state_url': state_url
+            'state_url': state_url,
+            'siblings': self.siblings
         })
 
         return json

@@ -22,8 +22,8 @@
 
 import os
 
-from tests.test_models import init_data
-from tests import init_data as init_data_contexts
+from tests.test_models import init_data, module_build_from_modulemd
+from tests import init_data as init_data_contexts, clean_database
 from module_build_service import conf, Modulemd
 from module_build_service.models import ComponentBuild, ModuleBuild, make_session
 
@@ -71,6 +71,25 @@ class TestModels:
         assert build.build_context == 'f6e2aeec7576196241b9afa0b6b22acf2b6873d7'
         assert build.runtime_context == 'bbc84c7b817ab3dd54916c0bcd6c6bdf512f7f9c'
         assert build.context == 'f1a17afd'
+
+    def test_siblings_property(self):
+        """ Tests that the siblings property returns the ID of all modules with
+        the same name:stream:version
+        """
+        clean_database()
+        yaml_path = os.path.join(
+            os.path.dirname(__file__), '..', 'staged_data', 'formatted_testmodule.yaml')
+        mmd = Modulemd.Module.new_from_file(yaml_path)
+        mmd.upgrade()
+        with make_session(conf) as session:
+            for i in range(3):
+                build = module_build_from_modulemd(mmd.dumps())
+                build.build_context = 'f6e2aeec7576196241b9afa0b6b22acf2b6873d' + str(i)
+                build.runtime_context = 'bbc84c7b817ab3dd54916c0bcd6c6bdf512f7f9c' + str(i)
+                session.add(build)
+        session.commit()
+        build_one = ModuleBuild.query.get(2)
+        assert build_one.siblings == [3, 4]
 
 
 class TestModelsGetStreamsContexts:
