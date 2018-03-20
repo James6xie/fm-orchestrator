@@ -36,7 +36,7 @@ $script = <<SCRIPT
         rpm-build \
         swig \
         systemd-devel \
-        https://kojipkgs.fedoraproject.org//packages/libmodulemd/1.0.4/1.fc26/x86_64/libmodulemd-1.0.4-1.fc26.x86_64.rpm
+        https://kojipkgs.fedoraproject.org//packages/libmodulemd/1.1.3/1.fc27/x86_64/libmodulemd-1.1.3-1.fc27.x86_64.rpm
     cd /opt/module_build_service
     python setup.py develop
     python setup.py egg_info
