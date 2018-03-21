@@ -28,7 +28,7 @@ This is the implementation of the orchestrator's public RESTful API.
 
 import json
 import module_build_service.auth
-from flask import request, jsonify, url_for
+from flask import request, url_for
 from flask.views import MethodView
 from builtins import str
 
@@ -39,6 +39,8 @@ from module_build_service.utils import (
     get_scm_url_re, cors_header, validate_api_version)
 from module_build_service.errors import (
     ValidationError, Forbidden, NotFound, ProgrammingError)
+from module_build_service.backports import jsonify
+
 
 api_routes = {
     'module_builds': {
