@@ -26,6 +26,7 @@ import pytest
 
 import module_build_service.utils
 from module_build_service import models, glib, Modulemd
+from module_build_service.errors import StreamAmbigous
 from tests import (db, clean_database)
 
 
@@ -161,53 +162,77 @@ class TestUtilsModuleStreamExpansion:
         contexts = set([mmd.get_context() for mmd in mmds])
         assert set(['3031e5a5', '6d10e00e']) == contexts
 
-    @pytest.mark.parametrize('requires,build_requires,expected_xmd,expected_buildrequires', [
-        ({"gtk": ["1", "2"]}, {"gtk": ["1", "2"]},
-         set([
-             frozenset(['platform:f28:0:c10', 'gtk:2:0:c4']),
-             frozenset(['platform:f28:0:c10', 'gtk:1:0:c2'])
-         ]),
-         set([
-             frozenset(['gtk:1']),
-             frozenset(['gtk:2']),
-         ])),
+    @pytest.mark.parametrize(
+        'requires,build_requires,stream_ambigous,expected_xmd,expected_buildrequires', [
+            ({"gtk": ["1", "2"]}, {"gtk": ["1", "2"]}, True,
+             set([
+                 frozenset(['platform:f28:0:c10', 'gtk:2:0:c4']),
+                 frozenset(['platform:f28:0:c10', 'gtk:1:0:c2'])
+             ]),
+             set([
+                 frozenset(['gtk:1']),
+                 frozenset(['gtk:2']),
+             ])),
 
-        ({"gtk": ["1"], "foo": ["1"]}, {"gtk": ["1"], "foo": ["1"]},
-         set([
-             frozenset(['foo:1:0:c2', 'gtk:1:0:c2', 'platform:f28:0:c10'])
-         ]),
-         set([
-             frozenset(['foo:1', 'gtk:1'])
-         ])),
+            ({"gtk": ["1"], "foo": ["1"]}, {"gtk": ["1"], "foo": ["1"]}, False,
+             set([
+                 frozenset(['foo:1:0:c2', 'gtk:1:0:c2', 'platform:f28:0:c10'])
+             ]),
+             set([
+                 frozenset(['foo:1', 'gtk:1'])
+             ])),
 
-        ({"gtk": ["1"], "foo": ["1"]}, {"gtk": ["1"], "foo": ["1"], "platform": ["f28"]},
-         set([
-             frozenset(['foo:1:0:c2', 'gtk:1:0:c2', 'platform:f28:0:c10'])
-         ]),
-         set([
-             frozenset(['foo:1', 'gtk:1'])
-         ])),
+            ({"gtk": ["1"], "foo": ["1"]}, {"gtk": ["1"], "foo": ["1"], "platform": ["f28"]}, False,
+             set([
+                 frozenset(['foo:1:0:c2', 'gtk:1:0:c2', 'platform:f28:0:c10'])
+             ]),
+             set([
+                 frozenset(['foo:1', 'gtk:1'])
+             ])),
 
-        ({"gtk": ["-2"], "foo": ["-2"]}, {"gtk": ["-2"], "foo": ["-2"]},
-         set([
-             frozenset(['foo:1:0:c2', 'gtk:1:0:c2', 'platform:f28:0:c10'])
-         ]),
-         set([
-             frozenset(['foo:1', 'gtk:1'])
-         ])),
+            ({"gtk": ["-2"], "foo": ["-2"]}, {"gtk": ["-2"], "foo": ["-2"]}, True,
+             set([
+                 frozenset(['foo:1:0:c2', 'gtk:1:0:c2', 'platform:f28:0:c10'])
+             ]),
+             set([
+                 frozenset(['foo:1', 'gtk:1'])
+             ])),
 
-        ({"gtk": ["1"], "foo": ["1"]}, {"gtk": ["-1", "1"], "foo": ["-2", "1"]},
-         set([
-             frozenset(['foo:1:0:c2', 'gtk:1:0:c2', 'platform:f28:0:c10'])
-         ]),
-         set([
-             frozenset(['foo:1', 'gtk:1'])
-         ])),
-    ])
-    def test_generate_expanded_mmds_buildrequires(self, requires, build_requires,
-                                                  expected_xmd, expected_buildrequires):
+            ({"gtk": ["1"], "foo": ["1"]}, {"gtk": ["-1", "1"], "foo": ["-2", "1"]}, False,
+             set([
+                 frozenset(['foo:1:0:c2', 'gtk:1:0:c2', 'platform:f28:0:c10'])
+             ]),
+             set([
+                 frozenset(['foo:1', 'gtk:1'])
+             ])),
+        ])
+    def test_generate_expanded_mmds_buildrequires(
+            self, requires, build_requires, stream_ambigous, expected_xmd,
+            expected_buildrequires):
         self._generate_default_modules()
         module_build = self._make_module("app:1:0:c1", requires, build_requires)
+
+        # Check that generate_expanded_mmds raises an exception if stream is ambigous
+        # and also that it does not raise an exception otherwise.
+        if stream_ambigous:
+            with pytest.raises(StreamAmbigous):
+                module_build_service.utils.generate_expanded_mmds(
+                    db.session, module_build.mmd(), raise_if_stream_ambigous=True)
+        else:
+            module_build_service.utils.generate_expanded_mmds(
+                db.session, module_build.mmd(), raise_if_stream_ambigous=True)
+
+        # Check that if stream is ambigous and we define the stream, it does not raise
+        # an exception.
+        if stream_ambigous:
+            default_streams = {}
+            for ns in list(expected_buildrequires)[0]:
+                name, stream = ns.split(":")
+                default_streams[name] = stream
+            module_build_service.utils.generate_expanded_mmds(
+                db.session, module_build.mmd(), raise_if_stream_ambigous=True,
+                default_streams=default_streams)
+
         mmds = module_build_service.utils.generate_expanded_mmds(
             db.session, module_build.mmd())
 

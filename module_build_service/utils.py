@@ -40,7 +40,7 @@ from sqlalchemy.sql.sqltypes import Boolean as sqlalchemy_boolean
 
 from module_build_service import log, models, Modulemd, api_version
 from module_build_service.errors import (ValidationError, UnprocessableEntity,
-                                         ProgrammingError, NotFound)
+                                         ProgrammingError, NotFound, StreamAmbigous)
 from module_build_service import conf, db
 from module_build_service.errors import (Forbidden, Conflict)
 import module_build_service.messaging
@@ -970,14 +970,26 @@ def submit_module_build_from_scm(username, url, branch, allow_local_url=False,
     return submit_module_build(username, url, mmd, scm, optional_params)
 
 
-def generate_expanded_mmds(session, mmd):
+def generate_expanded_mmds(session, mmd, raise_if_stream_ambigous=False, default_streams=None):
     """
     Returns list with MMDs with buildrequires and requires set according
     to module stream expansion rules. These module metadata can be directly
     built using MBS.
+
+    :param session: SQLAlchemy DB session.
+    :param Modulemd.Module mmd: Modulemd metadata with original unexpanded module.
+    :param bool raise_if_stream_ambigous: When True, raises a StreamAmbigous exception in case
+        there are multiple streams for some dependency of module and the module name is not
+        defined in `default_streams`, so it is not clear which stream should be used.
+    :param dict default_streams: Dict in {module_name: module_stream, ...} format defining
+        the default stream to choose for module in case when there are multiple streams to
+        choose from.
     """
     if not session:
         session = db.session
+
+    if not default_streams:
+        default_streams = {}
 
     # Create local copy of mmd, because we will expand its dependencies,
     # which would change the module.
@@ -989,13 +1001,13 @@ def generate_expanded_mmds(session, mmd):
     current_mmd.set_context(None)
 
     # Expands the MSE streams. This mainly handles '-' prefix in MSE streams.
-    expand_mse_streams(session, current_mmd)
+    expand_mse_streams(session, current_mmd, default_streams, raise_if_stream_ambigous)
 
     # Get the list of all MMDs which this module can be possibly built against
     # and add them to MMDResolver.
     mmd_resolver = MMDResolver()
     mmds_for_resolving = get_mmds_required_by_module_recursively(
-        session, current_mmd)
+        session, current_mmd, default_streams, raise_if_stream_ambigous)
     for m in mmds_for_resolving:
         mmd_resolver.add_modules(m)
 
@@ -1102,10 +1114,41 @@ def generate_expanded_mmds(session, mmd):
 
 
 def submit_module_build(username, url, mmd, scm, optional_params=None):
+    """
+    Submits new module build.
+
+    :param str username: Username of the build's owner.
+    :param str url: SCM URL of submitted build.
+    :param Modulemd.Module mmd: Modulemd defining the build.
+    :param scm.SCM scm: SCM class representing the cloned git repo.
+    :param dict optional_params: Dict with optional params for a build:
+        - "local_build" (bool): The module is being built locally (the MBS is
+          not running in infra, but on local developer's machine).
+        - "default_streams" (dict): Dict with name:stream mapping defining the stream
+          to choose for given module name if multiple streams are available to choose from.
+        - Any optional ModuleBuild class field (str).
+    :rtype: list with ModuleBuild
+    :return: List with submitted module builds.
+    """
     import koji  # Placed here to avoid py2/py3 conflicts...
 
+    # For local builds, we want the user to choose the exact stream using the default_streams
+    # in case there are multiple streams to choose from and raise an exception otherwise.
+    if optional_params and "local_build" in optional_params:
+        raise_if_stream_ambigous = True
+        del optional_params["local_build"]
+    else:
+        raise_if_stream_ambigous = False
+
+    # Get the default_streams if set.
+    if optional_params and "default_streams" in optional_params:
+        default_streams = optional_params["default_streams"]
+        del optional_params["default_streams"]
+    else:
+        default_streams = {}
+
     validate_mmd(mmd)
-    mmds = generate_expanded_mmds(db.session, mmd)
+    mmds = generate_expanded_mmds(db.session, mmd, raise_if_stream_ambigous, default_streams)
     modules = []
 
     for mmd in mmds:
@@ -1521,11 +1564,22 @@ def get_reusable_component(session, module, component_name,
     return reusable_component
 
 
-def _expand_mse_streams(session, name, streams):
+def _expand_mse_streams(session, name, streams, default_streams, raise_if_stream_ambigous):
     """
     Helper method for `expand_mse_stream()` expanding single name:[streams].
     Returns list of expanded streams.
+
+    :param session: SQLAlchemy DB session.
+    :param str name: Name of the module which will be expanded.
+    :param list streams: List of streams to expand.
+    :param dict default_streams: Dict in {module_name: module_stream, ...} format defining
+        the default stream to choose for module in case when there are multiple streams to
+        choose from.
+    :param bool raise_if_stream_ambigous: When True, raises a StreamAmbigous exception in case
+        there are multiple streams for some dependency of module and the module name is not
+        defined in `default_streams`, so it is not clear which stream should be used.
     """
+    default_streams = default_streams or {}
     # Stream can be prefixed with '-' sign to define that this stream should
     # not appear in a resulting list of streams. There can be two situations:
     # a) all streams have '-' prefix. In this case, we treat list of streams
@@ -1536,9 +1590,15 @@ def _expand_mse_streams(session, name, streams):
     #    '-' prefix to the list of valid streams.
     streams_is_blacklist = all(stream.startswith("-") for stream in streams.get())
     if streams_is_blacklist or len(streams.get()) == 0:
-        builds = models.ModuleBuild.get_last_build_in_all_streams(
-            session, name)
-        expanded_streams = [build.stream for build in builds]
+        if name in default_streams:
+            expanded_streams = [default_streams[name]]
+        elif raise_if_stream_ambigous:
+            raise StreamAmbigous(
+                "There are multiple streams to choose from for module %s." % name)
+        else:
+            builds = models.ModuleBuild.get_last_build_in_all_streams(
+                session, name)
+            expanded_streams = [build.stream for build in builds]
     else:
         expanded_streams = []
     for stream in streams.get():
@@ -1547,30 +1607,50 @@ def _expand_mse_streams(session, name, streams):
                 expanded_streams.remove(stream[1:])
         else:
             expanded_streams.append(stream)
+
+    if len(expanded_streams) > 1:
+        if name in default_streams:
+            expanded_streams = [default_streams[name]]
+        elif raise_if_stream_ambigous:
+            raise StreamAmbigous("There are multiple streams %r to choose from for module %s."
+                                 % (expanded_streams, name))
+
     return expanded_streams
 
 
-def expand_mse_streams(session, mmd):
+def expand_mse_streams(session, mmd, default_streams=None, raise_if_stream_ambigous=False):
     """
     Expands streams in both buildrequires/requires sections of MMD.
+
+    :param session: SQLAlchemy DB session.
+    :param Modulemd.Module mmd: Modulemd metadata with original unexpanded module.
+    :param dict default_streams: Dict in {module_name: module_stream, ...} format defining
+        the default stream to choose for module in case when there are multiple streams to
+        choose from.
+    :param bool raise_if_stream_ambigous: When True, raises a StreamAmbigous exception in case
+        there are multiple streams for some dependency of module and the module name is not
+        defined in `default_streams`, so it is not clear which stream should be used.
     """
     for deps in mmd.get_dependencies():
         expanded = {}
         for name, streams in deps.get_requires().items():
             streams_set = Modulemd.SimpleSet()
-            streams_set.set(_expand_mse_streams(session, name, streams))
+            streams_set.set(_expand_mse_streams(
+                session, name, streams, default_streams, raise_if_stream_ambigous))
             expanded[name] = streams_set
         deps.set_requires(expanded)
 
         expanded = {}
         for name, streams in deps.get_buildrequires().items():
             streams_set = Modulemd.SimpleSet()
-            streams_set.set(_expand_mse_streams(session, name, streams))
+            streams_set.set(_expand_mse_streams(
+                session, name, streams, default_streams, raise_if_stream_ambigous))
             expanded[name] = streams_set
         deps.set_buildrequires(expanded)
 
 
-def _get_mmds_from_requires(session, requires, mmds, recursive=False):
+def _get_mmds_from_requires(session, requires, mmds, recursive=False,
+                            default_streams=None, raise_if_stream_ambigous=False):
     """
     Helper method for get_mmds_required_by_module_recursively returning
     the list of module metadata objects defined by `requires` dict.
@@ -1580,12 +1660,28 @@ def _get_mmds_from_requires(session, requires, mmds, recursive=False):
     :param mmds: Dictionary with already handled name:streams as a keys and lists
         of resulting mmds as values.
     :param recursive: If True, the requires are checked recursively.
+    :param dict default_streams: Dict in {module_name: module_stream, ...} format defining
+        the default stream to choose for module in case when there are multiple streams to
+        choose from.
+    :param bool raise_if_stream_ambigous: When True, raises a StreamAmbigous exception in case
+        there are multiple streams for some dependency of module and the module name is not
+        defined in `default_streams`, so it is not clear which stream should be used.
     :return: Dict with name:stream as a key and list with mmds as value.
     """
+    default_streams = default_streams or {}
     # To be able to call itself recursively, we need to store list of mmds
     # we have added to global mmds list in this particular call.
     added_mmds = {}
+    resolver = module_build_service.resolver.GenericResolver.create(conf)
+
     for name, streams in requires.items():
+        streams_to_try = streams.get()
+        if name in default_streams:
+            streams_to_try = [default_streams[name]]
+        elif len(streams_to_try) > 1 and raise_if_stream_ambigous:
+            raise StreamAmbigous("There are multiple streams %r to choose from for module %s."
+                                 % (streams_to_try, name))
+
         # For each valid stream, find the last build in a stream and also all
         # its contexts and add mmds of these builds to `mmds` and `added_mmds`.
         # Of course only do that if we have not done that already in some
@@ -1595,14 +1691,8 @@ def _get_mmds_from_requires(session, requires, mmds, recursive=False):
             if ns in mmds:
                 continue
 
-            builds = models.ModuleBuild.get_last_builds_in_stream(
-                session, name, stream)
-            if not builds:
-                raise ValueError("Cannot find any module build for %s:%s "
-                                 "in MBS database" % (name, stream))
-            else:
-                mmds[ns] = [build.mmd() for build in builds]
-                added_mmds[ns] = mmds[ns]
+            mmds[ns] = resolver.get_module_modulemds(name, stream, strict=True)
+            added_mmds[ns] = mmds[ns]
 
     # Get the requires recursively.
     if recursive:
@@ -1614,7 +1704,8 @@ def _get_mmds_from_requires(session, requires, mmds, recursive=False):
     return mmds
 
 
-def get_mmds_required_by_module_recursively(session, mmd):
+def get_mmds_required_by_module_recursively(
+        session, mmd, default_streams=None, raise_if_stream_ambigous=False):
     """
     Returns the list of Module metadata objects of all modules required while
     building the module defined by `mmd` module metadata. This presumes the
@@ -1628,6 +1719,12 @@ def get_mmds_required_by_module_recursively(session, mmd):
     recursively all the "requires" and finds the latest version of each
     required module and also all contexts of these latest versions.
 
+    :param dict default_streams: Dict in {module_name: module_stream, ...} format defining
+        the default stream to choose for module in case when there are multiple streams to
+        choose from.
+    :param bool raise_if_stream_ambigous: When True, raises a StreamAmbigous exception in case
+        there are multiple streams for some dependency of module and the module name is not
+        defined in `default_streams`, so it is not clear which stream should be used.
     :rtype: list of Modulemd metadata
     :return: List of all modulemd metadata of all modules required to build
         the module `mmd`.
@@ -1640,13 +1737,17 @@ def get_mmds_required_by_module_recursively(session, mmd):
 
     # At first get all the buildrequires of the module of interest.
     for deps in mmd.get_dependencies():
-        mmds = _get_mmds_from_requires(session, deps.get_buildrequires(), mmds)
+        mmds = _get_mmds_from_requires(
+            session, deps.get_buildrequires(), mmds, False, default_streams,
+            raise_if_stream_ambigous)
 
     # Now get the requires of buildrequires recursively.
     for mmd_key in list(mmds.keys()):
         for mmd in mmds[mmd_key]:
             for deps in mmd.get_dependencies():
-                mmds = _get_mmds_from_requires(session, deps.get_requires(), mmds, True)
+                mmds = _get_mmds_from_requires(
+                    session, deps.get_requires(), mmds, True, default_streams,
+                    raise_if_stream_ambigous)
 
     # Make single list from dict of lists.
     res = []

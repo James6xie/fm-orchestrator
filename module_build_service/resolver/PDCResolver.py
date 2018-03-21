@@ -28,15 +28,13 @@
 
 import pdc_client
 from module_build_service import db
-from module_build_service import models, Modulemd
+from module_build_service import models
 from module_build_service.errors import UnprocessableEntity
 from module_build_service.resolver.base import GenericResolver
 
 import inspect
 import pprint
 import logging
-import six
-import copy
 import kobo.rpmlib
 log = logging.getLogger()
 
@@ -69,107 +67,29 @@ class PDCResolver(GenericResolver):
                 insecure=self.config.pdc_insecure,
             )
 
-    def _get_variant_dict(self, data):
+    def _query_from_nsvc(self, name, stream, version=None, context=None, active=None):
         """
-        :param data: one of following
-                        pdc variant_dict {'variant_id': value, 'variant_version': value, }
-                        module dict {'name': value, 'version': value }
-                        modulemd
+        Generates dict with PDC query.
 
-        :return final list of module_info which pass repoclosure
+        :param str name: Name of the module to query.
+        :param str stream: Stream of the module to query.
+        :param str version/int: Version of the module to query.
+        :param str context: Context of the module to query.
+        :param bool active: Include "active" in a query.
         """
-        def is_module_dict(data):
-            if not isinstance(data, dict):
-                return False
+        query = {
+            "variant_id": name,
+            "variant_version": stream,
+        }
+        if active is not None:
+            query["active"] = active
+        if version is not None:
+            query["variant_release"] = str(version)
+        if context is not None:
+            query["variant_context"] = context
+        return query
 
-            for attr in ('name', 'version'):
-                if attr not in data.keys():
-                    return False
-            return True
-
-        def is_variant_dict(data):
-            if not isinstance(data, dict):
-                return False
-
-            if ('variant_id' not in data or
-                    ('variant_stream' not in data and
-                     'variant_version' not in data)):
-                return False
-            return True
-
-        def is_modulemd(data):
-            return isinstance(data, Modulemd.Module)
-
-        def is_module_str(data):
-            return isinstance(data, six.string_types)
-
-        result = None
-
-        if is_module_str(data):
-            result = self._variant_dict_from_str(data)
-
-        elif is_modulemd(data):
-            result = {
-                'variant_id': data.get_name(),
-                'variant_release': data.get_version(),
-                'variant_version': data.get_stream()
-            }
-
-        elif is_variant_dict(data):
-            result = data.copy()
-
-            # This is a transitionary thing until we've ported PDC away from the old nomenclature
-            if 'variant_version' not in result and 'variant_stream' in result:
-                result['variant_version'] = result['variant_stream']
-                del result['variant_stream']
-
-            # ensure that variant_type is in result
-            if 'variant_type' not in result.keys():
-                result['variant_type'] = 'module'
-
-        elif is_module_dict(data):
-            result = {'variant_id': data['name'], 'variant_version': data['version']}
-            if data.get('context'):
-                result['variant_context'] = data['context']
-
-            if 'release' in data:
-                result['variant_release'] = data['release']
-
-            if 'active' in data:
-                result['active'] = data['active']
-
-        if not result:
-            raise RuntimeError("Couldn't get variant_dict from %s" % data)
-
-        return result
-
-    def _variant_dict_from_str(self, module_str):
-        """
-        :param module_str: a string to match in PDC
-        :return module_info dict
-
-        Example minimal module_info:
-            {
-                'variant_id': module_name,
-                'variant_version': module_version,
-                'variant_type': 'module'
-            }
-        """
-        log.debug("variant_dict_from_str(%r)" % module_str)
-        # best match due several filters not being provided such as variant type ...
-
-        module_info = {}
-
-        release_start = module_str.rfind('-')
-        version_start = module_str.rfind('-', 0, release_start)
-        module_info['variant_release'] = module_str[release_start + 1:]
-        module_info['variant_version'] = module_str[version_start + 1:release_start]
-        module_info['variant_id'] = module_str[:version_start]
-        module_info['variant_type'] = 'module'
-
-        return module_info
-
-    def _get_module(self, module_info, strict=False):
+    def _get_modules(self, name, stream, version=None, context=None, active=None, strict=False):
         """
         :param module_info: pdc variant_dict, str, mmd or module dict
         :param strict: Normally this function returns None if no module can be
@@ -177,20 +97,7 @@ class PDCResolver(GenericResolver):
 
         :return final list of module_info which pass repoclosure
         """
-
-        log.debug("get_module(%r, strict=%r)" % (module_info, strict))
-        variant_dict = self._get_variant_dict(module_info)
-
-        query = dict(
-            variant_id=variant_dict['variant_id'],
-            variant_version=variant_dict['variant_version'],
-        )
-        if variant_dict.get('variant_release'):
-            query['variant_release'] = variant_dict['variant_release']
-        if module_info.get('active'):
-            query['active'] = module_info['active']
-        if module_info.get('context'):
-            query['variant_context'] = module_info['context']
+        query = self._query_from_nsvc(name, stream, version, context, active)
 
         # TODO: So far sorting on Fedora prod PDC instance is broken and it sorts
         # only by variant_uid by default. Once the sorting is fixed, we can start
@@ -203,7 +110,7 @@ class PDCResolver(GenericResolver):
             retval = self.session['unreleasedvariants']._(page_size=1, **query)
         except Exception as ex:
             log.debug("error during PDC lookup: %r" % ex)
-            raise RuntimeError("Error during PDC lookup for module %s" % module_info["name"])
+            raise RuntimeError("Error during PDC lookup for module %s" % name)
 
         # Error handling
         if not retval or len(retval["results"]) == 0:
@@ -212,16 +119,31 @@ class PDCResolver(GenericResolver):
             else:
                 return None
 
-        # Jump to last page to latest module release.
-        if retval['count'] != 1:
-            query['page'] = retval['count']
-            retval = self.session['unreleasedvariants']._(page_size=1, **query)
+        # Get all the contexts of given module in case there is just NS or NSV input.
+        if not version or not context:
+            # If the version is not set, we have to jump to last page to get the latest
+            # version in PDC.
+            if not version:
+                query['page'] = retval['count']
+                retval = self.session['unreleasedvariants']._(page_size=1, **query)
+                del query['page']
+                query["variant_release"] = retval["results"][0]["variant_release"]
+            retval = self.session['unreleasedvariants']._(page_size=-1, **query)
+            return retval
 
         results = retval["results"]
-        assert len(results) <= 1, pprint.pformat(retval)
-        return results[0]
+        # Error handling
+        if len(results) == 0:
+            if strict:
+                raise UnprocessableEntity("Failed to find module in PDC %r" % query)
+            else:
+                return None
+        return results
 
-    def get_module_tag(self, name, stream, version, context, strict=False):
+    def _get_module(self, name, stream, version=None, context=None, active=None, strict=False):
+        return self._get_modules(name, stream, version, context, active, strict)[0]
+
+    def get_module_tag(self, name, stream, version=None, context=None, strict=False):
         """
         :param name: a module's name
         :param stream: a module's stream
@@ -231,115 +153,41 @@ class PDCResolver(GenericResolver):
                found.  If strict=True, then an UnprocessableEntity is raised.
         :return: koji tag string
         """
-        module_info = {
-            'name': name,
-            'version': stream,
-            'release': str(version),
-            'context': context
-        }
-        return self._get_module(module_info, strict=strict)['koji_tag']
+        return self._get_module(
+            name, stream, version, context, active=True, strict=strict)['koji_tag']
 
-    def _get_module_modulemd(self, module_info, strict=False):
+    def get_module_modulemds(self, name, stream, version=None, context=None, strict=False):
         """
-        :param module_info: list of module_info dicts
-        :param strict: Normally this function returns None if no module can be
-               found.  If strict=True, then an UnprocessableEntity is raised.
-        :return: ModuleMetadata instance
+        Gets the module modulemds from the resolver.
+        :param name: a string of the module's name
+        :param stream: a string of the module's stream
+        :param version: a string or int of the module's version. When None, latest version will
+            be returned.
+        :param context: a string of the module's context. When None, all contexts will
+            be returned.
+        :kwarg strict: Normally this function returns [] if no module can be
+            found.  If strict=True, then a UnprocessableEntity is raised.
+        :return: List of Modulemd metadata instances matching the query
         """
         yaml = None
-        module = self._get_module(module_info, strict=strict)
-        if module:
-            yaml = module['modulemd']
+        modules = self._get_modules(name, stream, version, context, active=True, strict=strict)
+        if not modules:
+            return []
 
-        if not yaml:
-            if strict:
-                raise UnprocessableEntity(
-                    "Failed to find modulemd entry in PDC for %r" % module_info)
-            else:
-                return None
+        mmds = []
+        for module in modules:
+            if module:
+                yaml = module['modulemd']
 
-        return self.extract_modulemd(yaml, strict=strict)
+            if not yaml:
+                if strict:
+                    raise UnprocessableEntity(
+                        "Failed to find modulemd entry in PDC for %r" % module)
+                else:
+                    return None
 
-    def _get_recursively_required_modules(self, info, modules=None,
-                                          strict=False):
-        """
-        :param info: pdc variant_dict, str, mmd or module dict
-        :param modules: Used by recursion only, list of modules found by previous
-                        iteration of this method.
-        :param strict: Normally this function returns empty list if no module can
-                       be found.  If strict=True, then an UnprocessableEntity is raised.
-
-        Returns list of modules by recursively querying PDC based on a "requires"
-        list of an input module represented by `info`. The returned list
-        therefore contains all modules the input module "requires".
-
-        If there are some modules loaded by utils.load_local_builds(...), these
-        local modules will be used instead of querying PDC for the particular
-        module found in local module builds database.
-
-        The returned list contains only "modulemd" and "koji_tag" fields returned
-        by PDC, because other fields are not known for local builds.
-        """
-        modules = modules or []
-
-        variant_dict = self._get_variant_dict(info)
-        local_modules = models.ModuleBuild.local_modules(
-            db.session, variant_dict["variant_id"],
-            variant_dict['variant_version'])
-        if local_modules:
-            local_module = local_modules[0]
-            log.info("Using local module %r as a dependency.",
-                     local_module)
-            mmd = local_module.mmd()
-            module_info = {}
-            module_info["modulemd"] = local_module.modulemd
-            module_info["koji_tag"] = local_module.koji_tag
-        else:
-            module_info = self._get_module(variant_dict, strict)
-            module_info = {k: v for k, v in module_info.items()
-                           if k in ["modulemd", "koji_tag"]}
-            module_info = {
-                'modulemd': module_info['modulemd'],
-                'koji_tag': module_info['koji_tag']
-            }
-
-            yaml = module_info['modulemd']
-            mmd = self.extract_modulemd(yaml)
-
-        # Check if we have examined this koji_tag already - no need to do
-        # it again...
-        if module_info in modules:
-            return modules
-
-        modules.append(module_info)
-
-        # We want to use the same stream as the one used in the time this
-        # module was built. But we still should fallback to plain mmd.requires
-        # in case this module depends on some older module for which we did
-        # not populate mmd.xmd['mbs']['requires'].
-        mbs_xmd = mmd.get_xmd().get('mbs')
-        if 'requires' in mbs_xmd.keys():
-            requires = {name: data['stream'] for name, data in mbs_xmd['requires'].items()}
-        else:
-            # Since MBS doesn't support v2 modulemds submitted by a user, we will
-            # always only have one stream per require. That way it's safe to just take the first
-            # element of the list.
-            # TODO: Change this once module stream expansion is implemented
-            requires = {
-                name: deps.get()[0]
-                for name, deps in mmd.get_dependencies()[0].get_requires().items()}
-
-        for name, stream in requires.items():
-            modified_dep = {
-                'name': name,
-                'version': stream,
-                # Only return details about module builds that finished
-                'active': True,
-            }
-            modules = self._get_recursively_required_modules(
-                modified_dep, modules, strict)
-
-        return modules
+            mmds.append(self.extract_modulemd(yaml, strict=strict))
+        return mmds
 
     def resolve_profiles(self, mmd, keys):
         """
@@ -373,12 +221,9 @@ class PDCResolver(GenericResolver):
                 continue
 
             # Find the dep in the built modules in PDC
-            module_info = {
-                'variant_id': module_name,
-                'variant_stream': module_info['stream'],
-                'variant_release': module_info['version']}
-            modules = self._get_recursively_required_modules(
-                module_info, strict=True)
+            modules = self._get_modules(
+                module_name, module_info['stream'], module_info['version'],
+                module_info['context'], strict=True)
 
             for module in modules:
                 yaml = module['modulemd']
@@ -418,13 +263,8 @@ class PDCResolver(GenericResolver):
         if mmd:
             queried_mmd = mmd
         else:
-            module_info = {
-                'name': name,
-                'version': stream,
-                'release': str(version),
-                'context': context
-            }
-            queried_module = self._get_module(module_info, strict=strict)
+            queried_module = self._get_module(
+                name, stream, version, context, strict=strict)
             yaml = queried_module['modulemd']
             queried_mmd = self.extract_modulemd(yaml, strict=strict)
 
@@ -432,20 +272,14 @@ class PDCResolver(GenericResolver):
                 'buildrequires' not in queried_mmd.get_xmd()['mbs'].keys()):
             raise RuntimeError(
                 'The module "{0!r}" did not contain its modulemd or did not have '
-                'its xmd attribute filled out in PDC'.format(module_info))
+                'its xmd attribute filled out in PDC'.format(queried_mmd))
 
         buildrequires = queried_mmd.get_xmd()['mbs']['buildrequires']
         # Queue up the next tier of deps that we should look at..
         for name, details in buildrequires.items():
-            modified_dep = {
-                'name': name,
-                'version': details['stream'],
-                'release': details['version'],
-                # Only return details about module builds that finished
-                'active': True,
-            }
-            modules = self._get_recursively_required_modules(
-                modified_dep, strict=strict)
+            modules = self._get_modules(
+                name, details['stream'], details['version'],
+                details['context'], active=True, strict=True)
             for m in modules:
                 if m["koji_tag"] in module_tags:
                     continue
@@ -474,8 +308,18 @@ class PDCResolver(GenericResolver):
 
         Raises RuntimeError on PDC lookup error.
         """
-        new_requires = copy.deepcopy(requires)
-        for module_name, module_stream in requires.items():
+        new_requires = {}
+        for nsvc in requires:
+            nsvc_splitted = nsvc.split(":")
+            if len(nsvc_splitted) == 2:
+                module_name, module_stream = nsvc_splitted
+                module_version = None
+                module_context = None
+            elif len(nsvc_splitted) == 4:
+                module_name, module_stream, module_version, module_context = nsvc_splitted
+            else:
+                raise ValueError(
+                    "Only N:S or N:S:V:C is accepted by resolve_requires, got %s" % nsvc)
             # Try to find out module dependency in the local module builds
             # added by utils.load_local_builds(...).
             local_modules = models.ModuleBuild.local_modules(
@@ -494,16 +338,12 @@ class PDCResolver(GenericResolver):
                 }
                 continue
 
-            # Assumes that module_stream is the stream and not the commit hash
-            module_info = {
-                'name': module_name,
-                'version': module_stream,
-                'active': True}
-
             commit_hash = None
             version = None
             filtered_rpms = []
-            module = self._get_module(module_info, strict=True)
+            module = self._get_module(
+                module_name, module_stream, module_version,
+                module_context, active=True, strict=True)
             if module.get('modulemd'):
                 mmd = self.extract_modulemd(module['modulemd'])
                 if mmd.get_xmd().get('mbs') and 'commit' in mmd.get_xmd()['mbs'].keys():
@@ -531,6 +371,7 @@ class PDCResolver(GenericResolver):
                     'ref': commit_hash,
                     'stream': module_stream,
                     'version': str(version),
+                    'context': module["variant_context"],
                     'filtered_rpms': filtered_rpms,
                 }
             else:

@@ -36,6 +36,7 @@ from module_build_service.utils import (
     submit_module_build_from_yaml,
     load_local_builds, load_mmd, import_mmd
 )
+from module_build_service.errors import StreamAmbigous
 import module_build_service.messaging
 import module_build_service.scheduler.consumer
 
@@ -103,7 +104,9 @@ def import_module(mmd_file):
 @manager.option('--file', action='store', dest="yaml_file")
 @manager.option('--skiptests', action='store_true', dest="skiptests")
 @manager.option('-l', '--add-local-build', action='append', default=None, dest='local_build_nsvs')
-def build_module_locally(local_build_nsvs=None, yaml_file=None, stream=None, skiptests=False):
+@manager.option('-s', '--set-stream', action='append', default=[], dest='default_streams')
+def build_module_locally(local_build_nsvs=None, yaml_file=None, stream=None, skiptests=False,
+                         default_streams=None):
     """ Performs local module build using Mock
     """
     if 'SERVER_NAME' not in app.config or not app.config['SERVER_NAME']:
@@ -126,16 +129,31 @@ def build_module_locally(local_build_nsvs=None, yaml_file=None, stream=None, ski
         db.create_all()
         load_local_builds(local_build_nsvs)
 
+        optional_params = {}
+        optional_params["local_build"] = True
+        optional_params["default_streams"] = {}
+        for ns in default_streams:
+            name, stream = ns.split(":")
+            optional_params["default_streams"][name] = stream
+
         username = getpass.getuser()
-        if yaml_file and yaml_file.endswith(".yaml"):
-            yaml_file_path = os.path.abspath(yaml_file)
-            with open(yaml_file_path) as fd:
-                filename = os.path.basename(yaml_file)
-                handle = FileStorage(fd)
-                handle.filename = filename
-                submit_module_build_from_yaml(username, handle, str(stream), skiptests)
-        else:
+        if not yaml_file or not yaml_file.endswith(".yaml"):
             raise IOError("Provided modulemd file is not a yaml file.")
+
+        yaml_file_path = os.path.abspath(yaml_file)
+        with open(yaml_file_path) as fd:
+            filename = os.path.basename(yaml_file)
+            handle = FileStorage(fd)
+            handle.filename = filename
+            try:
+                submit_module_build_from_yaml(
+                    username, handle, str(stream), skiptests, optional_params)
+            except StreamAmbigous as e:
+                logging.error(str(e))
+                logging.error(
+                    "Use '-s module_name:module_stream' to choose the stream")
+                return
+
         stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
 
         # Run the consumer until stop_condition returns True

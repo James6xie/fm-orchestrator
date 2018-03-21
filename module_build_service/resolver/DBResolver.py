@@ -38,6 +38,35 @@ class DBResolver(GenericResolver):
     def __init__(self, config):
         self.config = config
 
+    def get_module_modulemds(self, name, stream, version=None, context=None, strict=False):
+        """
+        Gets the module modulemds from the resolver.
+        :param name: a string of the module's name
+        :param stream: a string of the module's stream
+        :param version: a string or int of the module's version. When None, latest version will
+            be returned.
+        :param context: a string of the module's context. When None, all contexts will
+            be returned.
+        :kwarg strict: Normally this function returns [] if no module can be
+            found.  If strict=True, then a ValueError is raised.
+        :return: List of Modulemd metadata instances matching the query
+        """
+        with models.make_session(self.config) as session:
+            if version and context:
+                builds = [models.ModuleBuild.get_build_from_nsvc(
+                    session, name, stream, version, context)]
+            elif not version and not context:
+                builds = models.ModuleBuild.get_last_builds_in_stream(
+                    session, name, stream)
+            else:
+                raise NotImplemented(
+                    "This combination of name/stream/version/context is not implemented")
+
+            if not builds and strict:
+                raise ValueError("Cannot find any module build for %s:%s "
+                                 "in MBS database" % (name, stream))
+            return [build.mmd() for build in builds]
+
     def get_module_tag(self, name, stream, version, context, strict=False):
         """
         Gets the module tag from the resolver. Since the resolver is the DB, it is just generated

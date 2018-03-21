@@ -51,6 +51,10 @@ class ProgrammingError(ValueError):
     pass
 
 
+class StreamAmbigous(ValueError):
+    pass
+
+
 def json_error(status, error, message):
     response = jsonify(
         {'status': status,

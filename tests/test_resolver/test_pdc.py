@@ -21,7 +21,6 @@
 # Written by Ralph Bean <rbean@redhat.com>
 
 import os
-import copy
 
 from mock import patch, PropertyMock
 import pytest
@@ -29,7 +28,7 @@ import pytest
 import module_build_service.resolver as mbs_resolver
 import module_build_service.utils
 import module_build_service.models
-from module_build_service import app, db
+from module_build_service import app
 from module_build_service import glib, Modulemd
 import tests
 
@@ -39,32 +38,21 @@ base_dir = os.path.join(os.path.dirname(__file__), "..")
 
 class TestPDCModule:
 
-    def test_get_variant_dict_module_dict_active(self):
-        """
-        Tests that "active" is honored by get_variant_dict(...).
-        """
-        dep = {
-            'name': "platform",
-            'version': "master",
-            'active': True,
-        }
-        expected = {
-            'active': True,
-            'variant_id': 'platform',
-            'variant_version': 'master'
-        }
-
+    def test_get_module_modulemds_nsvc(self, pdc_module_active_two_contexts):
         resolver = mbs_resolver.GenericResolver.create(tests.conf, backend='pdc')
-        variant_dict = resolver._get_variant_dict(dep)
-        assert variant_dict == expected
+        ret = resolver.get_module_modulemds('testmodule', 'master', '20180205135154', 'c2c572ec')
+        nsvcs = set(m.dup_nsvc() for m in ret)
+        expected = set(["testmodule:master:125a91f56532:c2c572ec"])
+        assert nsvcs == expected
 
-    def test_get_module_simple_as_dict(self, pdc_module_active):
-        query = {'name': 'testmodule', 'version': 'master'}
+    @pytest.mark.parametrize('kwargs', [{'version': '20180205135154'}, {}])
+    def test_get_module_modulemds_partial(self, pdc_module_active_two_contexts, kwargs):
         resolver = mbs_resolver.GenericResolver.create(tests.conf, backend='pdc')
-        result = resolver._get_module(query)
-        assert result['variant_name'] == 'testmodule'
-        assert result['variant_version'] == 'master'
-        assert 'build_deps' in result
+        ret = resolver.get_module_modulemds('testmodule', 'master', **kwargs)
+        nsvcs = set(m.dup_nsvc() for m in ret)
+        expected = set(["testmodule:master:125a91f56532:c2c572ec",
+                        "testmodule:master:125a91f56532:c2c572ed"])
+        assert nsvcs == expected
 
     @pytest.mark.parametrize('empty_buildrequires', [False, True])
     def test_get_module_build_dependencies(self, pdc_module_active, empty_buildrequires):
@@ -89,74 +77,6 @@ class TestPDCModule:
         result = resolver.get_module_build_dependencies(
             'testmodule', 'master', '20180205135154', 'c2c572ec').keys()
         assert set(result) == expected
-
-    def test_get_module_build_dependencies_recursive(self, pdc_module_active):
-        """
-        Tests that we return just direct build-time dependencies of testmodule.
-        """
-        # Add testmodule2 that requires testmodule
-        pdc_module_active.endpoints['unreleasedvariants']['GET'].append(
-            copy.deepcopy(pdc_module_active.endpoints['unreleasedvariants']['GET'][-1]))
-        pdc_item = pdc_module_active.endpoints['unreleasedvariants']['GET'][-1]
-        mmd = Modulemd.Module().new_from_string(pdc_item['modulemd'])
-        mmd.set_name('testmodule2')
-        mmd.set_version(20180123171545)
-        requires = mmd.get_dependencies()[0].get_requires()
-        requires['testmodule'] = Modulemd.SimpleSet()
-        requires['testmodule'].add('master')
-        mmd.get_dependencies()[0].set_requires(requires)
-        xmd = glib.from_variant_dict(mmd.get_xmd())
-        xmd['mbs']['requires']['testmodule'] = {
-            'filtered_rpms': [],
-            'ref': '620ec77321b2ea7b0d67d82992dda3e1d67055b4',
-            'stream': 'master',
-            'version': '20180205135154'
-        }
-        mmd.set_xmd(glib.dict_values(xmd))
-        pdc_item.update({
-            'variant_id': 'testmodule2',
-            'variant_name': 'testmodule2',
-            'variant_release': str(mmd.get_version()),
-            'koji_tag': 'module-ae2adf69caf0e1b6',
-            'modulemd': mmd.dumps()
-        })
-
-        resolver = mbs_resolver.GenericResolver.create(tests.conf, backend='pdc')
-        result = resolver.get_module_build_dependencies(
-            'testmodule2', 'master', '20180123171545', 'c2c572ec').keys()
-        assert set(result) == set(['module-f28-build'])
-
-    @patch("module_build_service.config.Config.system",
-           new_callable=PropertyMock, return_value="test")
-    @patch("module_build_service.config.Config.mock_resultsdir",
-           new_callable=PropertyMock,
-           return_value=os.path.join(base_dir, 'staged_data', "local_builds"))
-    def test_get_module_build_dependencies_recursive_requires(
-            self, resultdir, conf_system):
-        """
-        Tests that we return Requires of Buildrequires of a module
-        recursively.
-        """
-        with app.app_context():
-            module_build_service.utils.load_local_builds(
-                ["platform", "parent", "child", "testmodule"])
-
-            build = module_build_service.models.ModuleBuild.local_modules(
-                db.session, "child", "master")
-            resolver = mbs_resolver.GenericResolver.create(tests.conf, backend='pdc')
-            result = resolver.get_module_build_dependencies(mmd=build[0].mmd()).keys()
-
-            local_path = os.path.join(base_dir, 'staged_data', "local_builds")
-
-            expected = [
-                os.path.join(
-                    local_path,
-                    'module-platform-f28-3/results'),
-                os.path.join(
-                    local_path,
-                    'module-parent-master-20170816080815/results'),
-            ]
-            assert set(result) == set(expected)
 
     def test_resolve_profiles(self, pdc_module_active):
         yaml_path = os.path.join(
@@ -185,6 +105,7 @@ class TestPDCModule:
            new_callable=PropertyMock,
            return_value=os.path.join(base_dir, 'staged_data', "local_builds"))
     def test_resolve_profiles_local_module(self, local_builds, conf_system):
+        tests.clean_database()
         with app.app_context():
             module_build_service.utils.load_local_builds(['platform'])
 

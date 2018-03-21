@@ -44,6 +44,12 @@ _mmd2 = Modulemd.Module().new_from_file(
 _mmd2.upgrade()
 TESTMODULE_MODULEMD = _mmd2.dumps()
 
+_mmd3 = Modulemd.Module().new_from_file(
+    os.path.join(STAGED_DATA_DIR, 'formatted_testmodule.yaml'))
+_mmd3.upgrade()
+_mmd3.set_context("c2c572ed")
+TESTMODULE_MODULEMD_SECOND_CONTEXT = _mmd3.dumps()
+
 
 class MockPDCFilterAPI(pdc_client.test_helpers.MockAPI):
     """ A modified pdc_client.test_helpers.MockAPI that supports basic filtering on GET requests
@@ -57,7 +63,7 @@ class MockPDCFilterAPI(pdc_client.test_helpers.MockAPI):
         page_size = filters.get('page_size', 20)
         # End of code taken from pdc_client/test_helpers.py
 
-        if not (isinstance(data, list) and page_size > 0):
+        if not isinstance(data, list):
             return data
 
         # Keep track of indexes to pop since we can't pop them during the loop
@@ -87,6 +93,9 @@ class MockPDCFilterAPI(pdc_client.test_helpers.MockAPI):
         # values remain valid as we pop them.
         for index in sorted(indexes_to_pop, reverse=True):
             rv_data.pop(index)
+
+        if page_size <= 0:
+            return rv_data
 
         # Code taken from pdc_client/test_helpers.py
         page = filters.get('page', 1)
@@ -174,6 +183,29 @@ def pdc_module_active(pdc_module_inactive):
         ]
     })
     return pdc_module_active
+
+
+@pytest.fixture(scope='function')
+def pdc_module_active_two_contexts(pdc_module_active):
+    # Rename it for clarity
+    pdc_module_active_two_contexts = pdc_module_active
+    pdc_module_active_two_contexts.endpoints['unreleasedvariants']['GET'][-1].update({
+        'active': True,
+        'rpms': [
+            'tangerine-0:0.22-6.module+0+814cfa39.noarch.rpm',
+            'tangerine-0:0.22-6.module+0+814cfa39.src.rpm',
+            'perl-Tangerine-0:0.22-2.module+0+814cfa39.noarch.rpm',
+            'perl-Tangerine-0:0.22-2.module+0+814cfa39.src.rpm',
+            'perl-List-Compare-0:0.53-8.module+0+814cfa39.noarch.rpm',
+            'perl-List-Compare-0:0.53-8.module+0+814cfa39.src.rpm'
+        ]
+    })
+    pdc_module_active_two_contexts.endpoints['unreleasedvariants']['GET'].append(
+        dict(pdc_module_active.endpoints['unreleasedvariants']['GET'][-1]))
+    pdc_module_active_two_contexts.endpoints['unreleasedvariants']['GET'][-1].update({
+        "variant_context": "c2c572ed",
+        "modulemd": TESTMODULE_MODULEMD_SECOND_CONTEXT})
+    return pdc_module_active_two_contexts
 
 
 @pytest.fixture(scope='function')
