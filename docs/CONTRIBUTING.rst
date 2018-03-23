@@ -50,41 +50,8 @@ Development
 In most cases, you don't need to deploy your development instance. Please,
 refer to the `Running Tests` section first.
 
-We have two mechanisms for quickly setting up a development environment,
-`docker-compose` and `vagrant`.
-
-Docker
-------
-
-You can use docker containers for development. Here's a guide on how to setup
-`docker <https://developer.fedoraproject.org/tools/docker/about.html>`_ and
-`docker-compose <https://developer.fedoraproject.org/tools/docker/compose.html>`_
-for Fedora users (it's just a `dnf install` away). Mac users should see `these
-docs <https://docs.docker.com/docker-for-mac/>`_.
-
-After your docker engine is set up and running and docker-compose is installed,
-you can start the entire development environment with a single command::
-
-    $ sudo docker-compose up
-
-That will start a number of services in containers, including the `frontend`
-and the backend `scheduler`.
-
-You may want to wipe your local development database from time to time. Try the
-following commands, and you should have a fresh environment::
-
-    $ rm module_build_service.db
-    $ docker-compose down -v && docker-compose up
-
-If things get really screwy and your containers won't start properly, the
-best thing to do is to rebuild the environment from scratch::
-
-    $ docker-compose down -v
-    $ docker-compose build --no-cache --pull
-
-The first command will stop and remove all your containers and volumes and
-the second command will pull the latest base image and perform a clean build
-without using the cache.
+The easiest way to setup a development environment is by using `vagrant`. You can see instructions
+about it below.
 
 Vagrant
 -------
@@ -150,10 +117,9 @@ Environment
 
 The environment variable `MODULE_BUILD_SERVICE_DEVELOPER_ENV`, which if
 set to "1", indicates to the Module Build Service that the development
-configuration should be used. Docker and Vagrant are being run with this
-environment variable set. This overrides all configuration settings and forces
-usage of DevConfiguration section in `conf/config.py` from MBS's develop
-instance.
+configuration should be used. Vagrant already runs with this environment variable set.
+This overrides all configuration settings and forces usage of DevConfiguration section
+in `conf/config.py` from MBS's develop instance.
 
 Prior to starting MBS, you can force development mode::
 

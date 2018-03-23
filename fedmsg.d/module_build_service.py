@@ -36,7 +36,7 @@ config = {
     # End of code signing configuration
 }
 
-# developer's instance (docker/vagrant/...)
+# developer's instance
 if 'MODULE_BUILD_SERVICE_DEVELOPER_ENV' in os.environ and \
    os.environ['MODULE_BUILD_SERVICE_DEVELOPER_ENV'].lower() in (
        '1', 'on', 'true', 'y', 'yes'):
