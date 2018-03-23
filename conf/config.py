@@ -62,8 +62,8 @@ class BaseConfiguration(object):
         # 'modularity-wg',
     ])
 
-    # Available backends are: console, file, journal.
-    LOG_BACKEND = 'journal'
+    # Available backends are: console and file
+    LOG_BACKEND = 'console'
 
     # Path to log file when LOG_BACKEND is set to "file".
     LOG_FILE = 'module_build_service.log'

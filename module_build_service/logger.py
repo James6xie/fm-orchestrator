@@ -163,7 +163,7 @@ def str_to_log_level(level):
 
 
 def supported_log_backends():
-    return ("console", "journal", "file")
+    return ("console", "file")
 
 
 def init_logging(conf):
@@ -176,16 +176,6 @@ def init_logging(conf):
         logging.basicConfig(level=conf.log_level, format=log_format)
         log = logging.getLogger()
         log.setLevel(conf.log_level)
-    elif log_backend == "journal":
-        logging.basicConfig(level=conf.log_level, format=log_format)
-        try:
-            from systemd import journal
-        except Exception:
-            raise ValueError("systemd.journal module is not installed")
-
-        log = logging.getLogger()
-        log.propagate = False
-        log.addHandler(journal.JournalHandler())
     else:
         logging.basicConfig(filename=conf.log_file, level=conf.log_level,
                             format=log_format)
