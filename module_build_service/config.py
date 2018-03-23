@@ -302,9 +302,8 @@ class Config(object):
         'distgits': {
             'type': dict,
             'default': {
-                'git://pkgs.fedoraproject.org':
-                    ('fedpkg clone --anonymous {}',
-                     'fedpkg --release module sources'),
+                'git://pkgs.fedoraproject.org': ('fedpkg clone --anonymous {}',
+                                                 'fedpkg --release module sources'),
             },
             'desc': 'Mapping between dist-git and command to '},
         'mock_config': {
@@ -401,8 +400,8 @@ class Config(object):
         'base_module_names': {
             'type': set,
             'default': set(['platform', 'bootstrap']),
-            'desc': "Set of module names which defines the product version "
-                    "(by their stream) of modules depending on them."},
+            'desc': ("Set of module names which defines the product version "
+                     "(by their stream) of modules depending on them.")},
         'koji_cg_build_tag_template': {
             'type': str,
             'default': "{}-modular-updates-candidate",
@@ -586,7 +585,7 @@ class Config(object):
             raise ValueError('Unsupported authentication method')
         if s.lower() == 'kerberos':
             try:
-                import ldap3 # noqa
+                import ldap3  # noqa
             except ImportError:
                 raise ValueError("ldap3 is required for kerberos authz")
         self._auth_method = s.lower()

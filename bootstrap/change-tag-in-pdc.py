@@ -1,6 +1,7 @@
 import os
 import sys
 
+from six.moves import input
 import pdc_client
 
 servername, token, variant_uid, new_tag = \
@@ -15,7 +16,7 @@ pdc = pdc_client.PDCClient(servername, token=token)
 
 print("Querying for %r to see what tag it has today" % variant_uid)
 obj = pdc['unreleasedvariants'][variant_uid]()
-answer = raw_input("Change koji_tag for %r from %r to %r? [y/N]" % (
+answer = input("Change koji_tag for %r from %r to %r? [y/N]" % (
     variant_uid, obj['koji_tag'], new_tag))
 if not answer.lower() in ('y', 'yes'):
     print("Exiting, taking no action.")

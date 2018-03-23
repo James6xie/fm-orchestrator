@@ -397,7 +397,7 @@ class ModuleBuild(MBSBase):
     def siblings(self):
         query = self.query.filter_by(
             name=self.name, stream=self.stream, version=self.version).options(
-                load_only('id')).filter(ModuleBuild.id != self.id)
+            load_only('id')).filter(ModuleBuild.id != self.id)
         return [build.id for build in query.all()]
 
     @classmethod

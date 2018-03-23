@@ -73,7 +73,7 @@ class KojiContentGenerator(object):
         :param output: list, decoded output (str) from the rpm subprocess
         :param tags: list, str fields used for query output
         :return: list, dicts describing each rpm package
-        """ # noqa
+        """  # noqa: E501
 
         def field(tag):
             """

@@ -1210,7 +1210,8 @@ class TestBuild:
             module = db.session.query(models.ModuleBuild).get(module_build_id)
             return module.batch == 2 or module.state >= models.BUILD_STATES['done']
 
-        with patch('module_build_service.utils.batches.at_concurrent_component_threshold') as mock_acct:
+        with patch('module_build_service.utils.batches.at_concurrent_component_threshold') as \
+                mock_acct:
             # Once we get to batch 2, then simulate the concurrent threshold being met
             def _at_concurrent_component_threshold(config, session):
                 return db.session.query(models.ModuleBuild).get(module_build_id).batch == 2

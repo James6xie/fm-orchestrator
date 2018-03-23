@@ -22,6 +22,7 @@
 GLib Related helper functions
 Originally written by Nils Philippsen in https://pagure.io/modulemd/pull-request/63
 """
+from six import text_type
 from gi.repository import GLib
 
 
@@ -52,7 +53,7 @@ def variant_list(l):
             item = ''
         if type(item) == str:
             l_variant.append(variant_str(item))
-        elif type(item) == unicode:
+        elif type(item) == text_type:
             l_variant.append(variant_str(item.encode('utf-8')))
         elif type(item) == list:
             l_variant.append(variant_list(item))
@@ -86,7 +87,7 @@ def dict_values(d):
             v = ''
         if type(v) == str:
             d_variant[k] = variant_str(v)
-        elif type(v) == unicode:
+        elif type(v) == text_type:
             d_variant[k] = variant_str(v.encode('utf-8'))
         elif type(v) == list:
             d_variant[k] = variant_list(v)

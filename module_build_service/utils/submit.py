@@ -491,7 +491,7 @@ def load_local_builds(local_build_nsvs, session=None):
     # Sort with the biggest version first
     try:
         # py27
-        builds.sort(lambda a, b: -cmp(a[2], b[2]))
+        builds.sort(lambda a, b: -cmp(a[2], b[2]))  # noqa: F821
     except TypeError:
         # py3
         builds.sort(key=lambda a: a[2], reverse=True)
