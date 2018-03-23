@@ -1,6 +1,5 @@
 -r requirements.txt
 
-copr
 mock
 pytest
 flake8
