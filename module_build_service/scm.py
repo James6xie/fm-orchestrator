@@ -37,14 +37,14 @@ import datetime
 from module_build_service import log, conf
 from module_build_service.errors import (
     Forbidden, ValidationError, UnprocessableEntity, ProgrammingError)
-import module_build_service.utils
+from module_build_service.utils.general import scm_url_schemes, retry
 
 
 class SCM(object):
     "SCM abstraction class"
 
     # Assuming git for HTTP schemas
-    types = module_build_service.utils.scm_url_schemes()
+    types = scm_url_schemes()
 
     def __init__(self, url, branch=None, allowed_scm=None, allow_local=False):
         """Initialize the SCM object using the specified scmurl.
@@ -129,7 +129,7 @@ class SCM(object):
         return None
 
     @staticmethod
-    @module_build_service.utils.retry(
+    @retry(
         timeout=conf.scm_net_timeout,
         interval=conf.scm_net_retry_interval,
         wait_on=UnprocessableEntity)

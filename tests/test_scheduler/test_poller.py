@@ -43,7 +43,7 @@ class TestPoller:
         clean_database()
 
     @pytest.mark.parametrize('fresh', [True, False])
-    @patch('module_build_service.utils.start_build_component')
+    @patch('module_build_service.utils.batches.start_build_component')
     def test_process_paused_module_builds(self, start_build_component, create_builder,
                                           koji_get_session, global_consumer,
                                           dbg, fresh):

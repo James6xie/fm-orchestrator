@@ -197,7 +197,7 @@ class TestUtilsComponentReuse:
             db.session, second_module_build, 'tangerine')
         assert tangerine_rv is None
 
-    @patch("module_build_service.utils.submit_module_build")
+    @patch("module_build_service.utils.submit.submit_module_build")
     def test_submit_module_build_from_yaml_with_skiptests(self, mock_submit):
         """
         Tests local module build from a yaml file with the skiptests option
@@ -619,7 +619,7 @@ class TestBatches:
         # Check that packages have been tagged just once.
         assert len(DummyModuleBuilder.TAGGED_COMPONENTS) == 2
 
-    @patch('module_build_service.utils.start_build_component')
+    @patch('module_build_service.utils.batches.start_build_component')
     def test_start_next_batch_build_reuse_some(self, mock_sbc, default_buildroot_groups):
         """
         Tests that start_next_batch_build:
@@ -660,7 +660,7 @@ class TestBatches:
         assert plc_component.reused_component_id is None
         mock_sbc.assert_called_once()
 
-    @patch('module_build_service.utils.start_build_component')
+    @patch('module_build_service.utils.batches.start_build_component')
     @patch('module_build_service.config.Config.rebuild_strategy',
            new_callable=mock.PropertyMock, return_value='all')
     def test_start_next_batch_build_rebuild_strategy_all(
@@ -685,7 +685,7 @@ class TestBatches:
         # Make sure that both components in the batch were submitted
         assert len(mock_sbc.mock_calls) == 2
 
-    @patch('module_build_service.utils.start_build_component')
+    @patch('module_build_service.utils.batches.start_build_component')
     @patch('module_build_service.config.Config.rebuild_strategy',
            new_callable=mock.PropertyMock, return_value='only-changed')
     def test_start_next_batch_build_rebuild_strategy_only_changed(
@@ -749,7 +749,7 @@ class TestBatches:
         assert component_build.reused_component_id is not None
         mock_sbc.assert_not_called()
 
-    @patch('module_build_service.utils.start_build_component')
+    @patch('module_build_service.utils.batches.start_build_component')
     def test_start_next_batch_build_smart_scheduling(self, mock_sbc, default_buildroot_groups):
         """
         Tests that components with the longest build time will be scheduled first
@@ -788,7 +788,7 @@ class TestBatches:
         expected_calls = [mock.call(builder, plc_component), mock.call(builder, pt_component)]
         assert mock_sbc.mock_calls == expected_calls
 
-    @patch('module_build_service.utils.start_build_component')
+    @patch('module_build_service.utils.batches.start_build_component')
     def test_start_next_batch_continue(self, mock_sbc, default_buildroot_groups):
         """
         Tests that start_next_batch_build does not start new batch when

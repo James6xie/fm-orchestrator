@@ -1111,7 +1111,7 @@ class TestBuild:
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
         stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
 
-        with patch('module_build_service.utils.format_mmd') as mock_format_mmd:
+        with patch('module_build_service.utils.submit.format_mmd') as mock_format_mmd:
             mock_format_mmd.side_effect = Forbidden(
                 'Custom component repositories aren\'t allowed.')
             rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
@@ -1210,7 +1210,7 @@ class TestBuild:
             module = db.session.query(models.ModuleBuild).get(module_build_id)
             return module.batch == 2 or module.state >= models.BUILD_STATES['done']
 
-        with patch('module_build_service.utils.at_concurrent_component_threshold') as mock_acct:
+        with patch('module_build_service.utils.batches.at_concurrent_component_threshold') as mock_acct:
             # Once we get to batch 2, then simulate the concurrent threshold being met
             def _at_concurrent_component_threshold(config, session):
                 return db.session.query(models.ModuleBuild).get(module_build_id).batch == 2

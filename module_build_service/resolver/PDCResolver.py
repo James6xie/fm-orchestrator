@@ -33,7 +33,6 @@ from module_build_service.errors import UnprocessableEntity
 from module_build_service.resolver.base import GenericResolver
 
 import inspect
-import pprint
 import logging
 import kobo.rpmlib
 log = logging.getLogger()
