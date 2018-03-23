@@ -1,48 +1,13 @@
 Running Tests
 =============
 
-The proper way how to run unit tests is using `tox
-<http://tox.readthedocs.io/>`_. See `tox.ini` configuration file in the
-topmost directory of the project's repository.
+Since MBS requires Python dependencies that aren't available using PyPi (e.g. libsolv bindings),
+there is a Docker image that can be used to run the code analysis and unit tests.
 
-For most cases, you need to work against tox's `py27` environment. This
-will just invoke the `pytest` command. For the full set of tests, omit the `-e
-py27` argument. This will invoke code analysis, security analysis, and
-code coverage checks. This will also run any additional environments
-that will be added to the `tox.ini` file in the future.
+To run the tests::
 
+    $ sudo docker build -t mbs/test -f Dockerfile-tests . && sudo docker run mbs/test
 
-Examples
---------
-
-Purge environment (this will remove all untracked files/dirs and
-uncommited changes!) and run tests::
-
-    $ git clean -fdxe '/.vagrant'
-    $ tox -e py27
-
-Just recreate tox's `py27` environment and run the tests::
-
-    $ tox -e py27 -r
-
-Just rerun tests in the existing `py27` enviromnent::
-
-    $ tox -e py27
-
-Pass additional arg(s) to `pytest`, e.g. `-x` to exit on first
-error/failed test::
-
-    $ tox -e py27 -- -x
-
-Run only tests in the given file or directory::
-
-    $ tox -e py27 -- path/to/test_file.py/or/test_dir
-
-For more `tox` or `pytest` options, see the corresponding help/man pages.
-
-*Note: Consider using detox which makes efficient use of multiple CPUs
-by running all possible activities in parallel. It has the same options
-and configuration that tox has.*
 
 Development
 ===========
