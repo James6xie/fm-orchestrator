@@ -58,21 +58,6 @@ altering your default Copr configuration.
 _`Client tooling`
 =================
 
-``mbs-build``
--------------
-
-This command submits and manages module builds.
-
-The most frequently used subcommand would be 'submit'. After providing
-access credentials, a module build is passed to a preconfigured
-MBS instanace. When 'scm_url' or 'branch' is not set, it presumes you
-are executing this command in a directory with a cloned git repository
-containing a module prescript. The same approach is used in the case of
-local module submission.
-
-Other subcommands allow local module submission, watching module builds,
-canceling them etc. For more info, there's an existing help available.
-
 ``mbs-manager``
 ---------------
 
