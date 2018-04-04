@@ -26,6 +26,7 @@ $script = <<SCRIPT
         python-mock \
         python-qpid \
         python-solv \
+        python-sqlalchemy \
         python-virtualenv \
         python-futures \
         python3 \
