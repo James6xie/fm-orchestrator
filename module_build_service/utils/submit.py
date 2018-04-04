@@ -496,12 +496,12 @@ def load_local_builds(local_build_nsvs, session=None):
         # py3
         builds.sort(key=lambda a: a[2], reverse=True)
 
-    for build_id in local_build_nsvs:
-        parts = build_id.split(':')
+    for nsv in local_build_nsvs:
+        parts = nsv.split(':')
         if len(parts) < 1 or len(parts) > 3:
             raise RuntimeError(
                 'The local build "{0}" couldn\'t be be parsed into '
-                'NAME[:STREAM[:VERSION]]'.format(build_id))
+                'NAME[:STREAM[:VERSION]]'.format(nsv))
 
         name = parts[0]
         stream = parts[1] if len(parts) > 1 else None
@@ -522,7 +522,7 @@ def load_local_builds(local_build_nsvs, session=None):
         if not found_build:
             raise RuntimeError(
                 'The local build "{0}" couldn\'t be found in "{1}"'.format(
-                    build_id, conf.mock_resultsdir))
+                    nsv, conf.mock_resultsdir))
 
         # Load the modulemd metadata.
         path = os.path.join(conf.mock_resultsdir, found_build[3], 'results')
