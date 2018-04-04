@@ -90,32 +90,6 @@ Prior to starting MBS, you can force development mode::
 
     $ export MODULE_BUILD_SERVICE_DEVELOPER_ENV=1
 
-
-fedmsg Signing for Development
-------------------------------
-
-In order to enable fedmsg signing in development, you will need to follow
-a series of steps. Note that this will conflict with signed messages from
-a different CA that are on the message bus, so this may cause unexpected results.
-
-Generate the CA, the certificate to be used by fedmsg, and the CRL with::
-
-    $ python manage.py gendevfedmsgcert
-
-Setup Apache to host the CRL::
-
-    $ dnf install httpd && systemctl enable httpd && systemctl start httpd
-    $ mkdir -p /var/www/html/crl
-    $ ln -s /opt/module_build_service/pki/ca.crl /var/www/html/crl/ca.crl
-    $ ln -s /opt/module_build_service/pki/ca.crt /var/www/html/crl/ca.crt
-
-Create a directory to house the fedmsg cache::
-
-    $ mkdir -p /etc/pki/fedmsg
-
-Then uncomment the fedmsg signing configuration in
-`fedmsg.d/module_build_service.py`.
-
 PEP 8
 =====
 
