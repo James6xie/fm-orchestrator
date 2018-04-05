@@ -48,7 +48,7 @@ class DBResolver(GenericResolver):
         :param context: a string of the module's context. When None, all contexts will
             be returned.
         :kwarg strict: Normally this function returns [] if no module can be
-            found.  If strict=True, then a ValueError is raised.
+            found.  If strict=True, then a UnprocessableEntity is raised.
         :return: List of Modulemd metadata instances matching the query
         """
         with models.make_session(self.config) as session:
@@ -63,8 +63,8 @@ class DBResolver(GenericResolver):
                     "This combination of name/stream/version/context is not implemented")
 
             if not builds and strict:
-                raise ValueError("Cannot find any module build for %s:%s "
-                                 "in MBS database" % (name, stream))
+                raise UnprocessableEntity(
+                    "Cannot find any module builds for %s:%s" % (name, stream))
             return [build.mmd() for build in builds]
 
     def get_module_tag(self, name, stream, version, context, strict=False):
