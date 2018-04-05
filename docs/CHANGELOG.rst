@@ -1,6 +1,13 @@
 Change Log
 ==========
 
+v2.0.1
+------
+
+* Fix Koji Content Generator imports
+* Fix a module stream expansion issue that occurs when a module requires a module that isn't also a
+  buildrequire
+
 v2.0.0
 ------
 
