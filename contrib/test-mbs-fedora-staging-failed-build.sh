@@ -13,7 +13,7 @@ git checkout fail-mbs-test
 git commit --allow-empty -m "Empty test commit, for MBS in staging."
 git push origin fail-mbs-test
 
-build_id=$(fedpkg-stage module-build | tail -1 | awk '{ print $3 }' | cut -c 2-)
+build_id=$(fedpkg-stage module-build | tail -1 | awk '{ print $3 }')
 echo "Working with module build $build_id"
 fedpkg-stage module-build-watch $build_id
 
