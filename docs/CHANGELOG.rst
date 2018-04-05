@@ -1,6 +1,12 @@
 Change Log
 ==========
 
+v2.0.2
+------
+
+* Return a friendly error when a module build's dependencies can't be met
+* Remove unused dependencies
+
 v2.0.1
 ------
 
