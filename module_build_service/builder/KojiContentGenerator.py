@@ -33,9 +33,9 @@ import shutil
 import subprocess
 import tempfile
 import time
-from builtins import str
 from io import open
 
+from six import text_type
 import koji
 
 from module_build_service import log, build_logs
@@ -170,7 +170,7 @@ class KojiContentGenerator(object):
         tools = [u"modulemd"]
         ret = []
         for tool in tools:
-            version = str(pkg_resources.get_distribution(tool).version)
+            version = text_type(pkg_resources.get_distribution(tool).version)
             ret.append({u"name": tool,
                         u"version": version})
         return ret
@@ -233,15 +233,15 @@ class KojiContentGenerator(object):
         ret = {
             u"id": 1,
             u"host": {
-                u"arch": str(platform.machine()),
+                u"arch": text_type(platform.machine()),
                 u'os': u"%s %s" % (distro[0], distro[1])
             },
             u"content_generator": {
                 u"name": u"module-build-service",
-                u"version": str(version)
+                u"version": text_type(version)
             },
             u"container": {
-                u"arch": str(platform.machine()),
+                u"arch": text_type(platform.machine()),
                 u"type": u"none"
             },
             u"components": self.__get_rpms(),
@@ -278,7 +278,7 @@ class KojiContentGenerator(object):
                 },
                 u'filesize': len(self.mmd),
                 u'checksum_type': u'md5',
-                u'checksum': str(hashlib.md5(self.mmd.encode('utf-8')).hexdigest()),
+                u'checksum': text_type(hashlib.md5(self.mmd.encode('utf-8')).hexdigest()),
                 u'filename': u'modulemd.txt',
                 u'components': components
             }
