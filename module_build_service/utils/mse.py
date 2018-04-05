@@ -279,7 +279,7 @@ def generate_expanded_mmds(session, mmd, raise_if_stream_ambigous=False, default
         # Each generated MMD must be new Module object...
         # TODO: Use copy method once its in released libmodulemd:
         # https://github.com/fedora-modularity/libmodulemd/pull/20
-        mmd_copy = Modulemd.Module.new_from_string(mmd.dumps())
+        mmd_copy = Modulemd.Module.new_from_string(current_mmd.dumps())
         xmd = glib.from_variant_dict(mmd_copy.get_xmd())
 
         # Requires contain the NSVC representing the input mmd.
@@ -319,17 +319,21 @@ def generate_expanded_mmds(session, mmd, raise_if_stream_ambigous=False, default
         dep_requires = dep.get_requires()
         dep_buildrequires = dep.get_buildrequires()
         for req_name, req_streams in dep_requires.items():
-            if (req_name not in dep_buildrequires or
-                    set(req_streams.get()) != set(dep_buildrequires[req_name].get())):
+            if req_name not in dep_buildrequires:
+                # This require is not a buildrequire so just copy this runtime requirement to
+                # new_dep and don't touch buildrequires
+                new_dep.add_requires(req_name, req_streams.get())
+            elif set(req_streams.get()) != set(dep_buildrequires[req_name].get()):
                 # Streams in runtime section are not the same as in buildtime section,
                 # so just copy this runtime requirement to new_dep.
                 new_dep.add_requires(req_name, req_streams.get())
+                new_dep.add_buildrequires(req_name, [req_name_stream[req_name]])
             else:
                 # This runtime requirement has the same streams in both runtime/buildtime
                 # requires sections, so replace streams in both sections by the one we
                 # really used in this resolved variant.
                 new_dep.add_requires(req_name, [req_name_stream[req_name]])
-            new_dep.add_buildrequires(req_name, [req_name_stream[req_name]])
+                new_dep.add_buildrequires(req_name, [req_name_stream[req_name]])
         mmd_copy.set_dependencies((new_dep, ))
 
         # The Modulemd.Dependencies() stores only streams, but to really build this

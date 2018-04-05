@@ -3,7 +3,7 @@ FROM centos:7
 WORKDIR /build
 RUN yum -y update
 RUN yum -y install epel-release yum-utils
-RUN yum-config-manager --add-repo https://kojipkgs.fedoraproject.org/repos-dist/epel7Server-infra-stg/latest/x86_64/
+RUN yum-config-manager --add-repo https://kojipkgs.fedoraproject.org/repos-dist/epel7Server-infra/latest/x86_64/
 RUN yum -y install \
     --nogpgcheck \
     --setopt=deltarpm=0 \
@@ -31,7 +31,7 @@ RUN yum -y install \
     python-mock \
     python-pip \
     python-six \
-    python2-solv \
+    python-solv \
     python-sqlalchemy \
     python-tabulate \
     # Test-only dependencies
