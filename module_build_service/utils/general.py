@@ -178,9 +178,16 @@ def get_rpm_release(module_build):
     dist_str = '.'.join([module_build.name, module_build.stream, str(module_build.version),
                          str(module_build.context)]).encode('utf-8')
     dist_hash = hashlib.sha1(dist_str).hexdigest()[:8]
+
+    # We need to share the same auto-incrementing index in dist tag between all MSE builds.
+    # We can achieve that by using the lowest build ID of all the MSE siblings including
+    # this module build.
+    mse_build_ids = module_build.siblings + [module_build.id or 0]
+    mse_build_ids.sort()
+    index = mse_build_ids[0]
     return "{prefix}{index}+{dist_hash}".format(
         prefix=conf.default_dist_tag_prefix,
-        index=module_build.id or 0,
+        index=index,
         dist_hash=dist_hash,
     )
 

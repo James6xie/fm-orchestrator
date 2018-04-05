@@ -29,7 +29,7 @@ import module_build_service.scm
 from module_build_service import models, conf
 from module_build_service.errors import ProgrammingError, ValidationError, UnprocessableEntity
 from tests import (
-    reuse_component_init_data, db, reuse_shared_userspace_init_data, clean_database)
+    reuse_component_init_data, db, reuse_shared_userspace_init_data, clean_database, init_data)
 import mock
 import koji
 import pytest
@@ -238,6 +238,15 @@ class TestUtils:
 
     def teardown_method(self, test_method):
         clean_database()
+
+    def test_get_rpm_release_mse(self):
+        init_data(contexts=True)
+        build_one = models.ModuleBuild.query.get(2)
+        build_two = models.ModuleBuild.query.get(3)
+        release_one = module_build_service.utils.get_rpm_release(build_one)
+        release_two = module_build_service.utils.get_rpm_release(build_two)
+        assert release_one == "module+2+b8645bbb"
+        assert release_two == "module+2+17e35784"
 
     @pytest.mark.parametrize('scmurl', [
         ('git://pkgs.stg.fedoraproject.org/modules/testmodule.git'
