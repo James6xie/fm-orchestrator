@@ -1,6 +1,18 @@
 Change Log
 ==========
 
+v2.0.0
+------
+
+* Add module stream expansion support
+* Remove deprecated mbs-build tool (fedpkg/rhpkg should be used instead)
+* Add the `mbs-manager import_module` command
+* Add a database resolver for resolving dependencies for increased performance
+* Support modulemd v2
+* Fix error that occurs when a batch hasn't started but a repo regen message is received
+* Improve Python 3 compatibility
+* Improve unit testing performance
+
 v1.7.0
 ------
 
