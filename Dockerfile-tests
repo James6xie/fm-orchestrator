@@ -20,7 +20,6 @@ RUN yum -y install \
     python-backports-ssl_match_hostname \
     python-dogpile-cache \
     python-enum34 \
-    python-fedora \
     python-flask \
     python-flask-migrate \
     python-flask-sqlalchemy \
@@ -30,10 +29,10 @@ RUN yum -y install \
     python-ldap3 \
     python-mock \
     python-pip \
+    python-requests \
     python-six \
     python-solv \
     python-sqlalchemy \
-    python-tabulate \
     # Test-only dependencies
     python-flake8 \
     python-mock \
