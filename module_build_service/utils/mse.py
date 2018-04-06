@@ -279,7 +279,7 @@ def generate_expanded_mmds(session, mmd, raise_if_stream_ambigous=False, default
         # Each generated MMD must be new Module object...
         # TODO: Use copy method once its in released libmodulemd:
         # https://github.com/fedora-modularity/libmodulemd/pull/20
-        mmd_copy = Modulemd.Module.new_from_string(current_mmd.dumps())
+        mmd_copy = Modulemd.Module.new_from_string(mmd.dumps())
         xmd = glib.from_variant_dict(mmd_copy.get_xmd())
 
         # Requires contain the NSVC representing the input mmd.

@@ -213,6 +213,14 @@ class TestUtilsModuleStreamExpansion:
              set([
                  frozenset(['gtk:1'])
              ])),
+
+            ({"gtk": []}, {"gtk": ["1"]}, True,
+             set([
+                 frozenset(['gtk:1:0:c2', 'platform:f28:0:c10'])
+             ]),
+             set([
+                 frozenset(['gtk:1'])
+             ])),
         ])
     def test_generate_expanded_mmds_buildrequires(
             self, requires, build_requires, stream_ambigous, expected_xmd,
@@ -291,6 +299,11 @@ class TestUtilsModuleStreamExpansion:
         ({"gtk": ["-1", "1"], "foo": ["-2", "1"]}, {"gtk": ["-1", "1"], "foo": ["-2", "1"]},
          set([
              frozenset(['foo:1', 'gtk:1']),
+         ])),
+
+        ({"gtk": [], "foo": []}, {"gtk": ["1"], "foo": ["1"]},
+         set([
+             frozenset([]),
          ])),
 
     ])
