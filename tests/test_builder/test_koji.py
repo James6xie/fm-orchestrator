@@ -446,7 +446,7 @@ class TestKojiBuilder:
         assert session.packageListBlock.mock_calls == expected_calls
 
     @pytest.mark.parametrize('blocklist', [False, True])
-    def test_create_tag(self, blocklist):
+    def test_buildroot_connect_create_tag(self, blocklist):
         if blocklist:
             mmd = self.module.mmd()
             xmd = glib.from_variant_dict(mmd.get_xmd())
@@ -463,7 +463,7 @@ class TestKojiBuilder:
         groups = OrderedDict()
         groups['build'] = set(["unzip"])
         groups['srpm-build'] = set(["fedora-release"])
-        builder._koji_create_tag("module-foo-build")
+        builder.buildroot_connect(groups)
 
         if blocklist:
             expected_calls = [mock.call('module-foo-build', 'foo'),

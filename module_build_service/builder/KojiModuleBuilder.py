@@ -389,6 +389,10 @@ chmod 644 %buildroot/%_sysconfdir/rpm/macros.zz-modules
     def buildroot_connect(self, groups):
         log.info("%r connecting buildroot." % self)
 
+        # Check if the build_tag exists, because there are Koji calls later which must be called
+        # only if we are creating the build_tag for first time.
+        build_tag_exists = self.koji_session.getTag(self.tag_name + "-build")
+
         # Create or update individual tags
         # the main tag needs arches so pungi can dump it
         self.module_tag = self._koji_create_tag(
@@ -397,6 +401,14 @@ chmod 644 %buildroot/%_sysconfdir/rpm/macros.zz-modules
             self.tag_name + "-build", self.arches, perm="admin")
 
         self._koji_whitelist_packages(self.components)
+
+        # If we have just created the build tag in this buildroot_connect call, block all
+        # the components in `blocked_packages` list. We want to do that just once, because
+        # there might be some unblocked packages later and we would block them again...
+        if not build_tag_exists:
+            xmd = self.mmd.get_xmd()
+            if "mbs_options" in xmd.keys() and "blocked_packages" in xmd["mbs_options"].keys():
+                self._koji_block_packages(xmd["mbs_options"]["blocked_packages"])
 
         @module_build_service.utils.retry(wait_on=SysCallError, interval=5)
         def add_groups():
@@ -442,7 +454,7 @@ chmod 644 %buildroot/%_sysconfdir/rpm/macros.zz-modules
             packages = [package for package in packages
                         if package in xmd["mbs_options"]["blocked_packages"]]
             if packages:
-                self._koji_unblock_packages(self.module_build_tag, packages)
+                self._koji_unblock_packages(packages)
 
         tagged_nvrs = self._get_tagged_nvrs(self.module_build_tag['name'])
 
@@ -848,20 +860,20 @@ chmod 644 %buildroot/%_sysconfdir/rpm/macros.zz-modules
                 self.koji_session.packageListAdd(tag['name'], package, self.owner)
         self.koji_session.multiCall(strict=True)
 
-    def _koji_block_packages(self, tag, packages):
+    def _koji_block_packages(self, packages):
         """
         Blocks the `packages` for the module_build_tag.
         """
-        log.info("Blocking packages in tag %s: %r", tag["name"], packages)
-        args = [[tag["name"], package] for package in packages]
+        log.info("Blocking packages in tag %s: %r", self.module_build_tag["name"], packages)
+        args = [[self.module_build_tag["name"], package] for package in packages]
         koji_multicall_map(self.koji_session, self.koji_session.packageListBlock, args)
 
-    def _koji_unblock_packages(self, tag, packages):
+    def _koji_unblock_packages(self, packages):
         """
         Unblocks the `packages` for the module_build_tag.
         """
-        log.info("Unblocking packages in tag %s: %r", tag["name"], packages)
-        args = [[tag["name"], package] for package in packages]
+        log.info("Unblocking packages in tag %s: %r", self.module_build_tag["name"], packages)
+        args = [[self.module_build_tag["name"], package] for package in packages]
         koji_multicall_map(self.koji_session, self.koji_session.packageListUnblock, args)
 
     @module_build_service.utils.validate_koji_tag(['build_tag', 'dest_tag'])
