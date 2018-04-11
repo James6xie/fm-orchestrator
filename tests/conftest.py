@@ -146,7 +146,7 @@ def pdc_module_inactive(pdc):
         'variant_type': 'module',
         'variant_version': 'master',
         'variant_release': '20180205135154',
-        'variant_context': 'c2c572ec',
+        'variant_context': '9c690d0e',
         'koji_tag': 'module-95b214a704c984be',
         'modulemd': TESTMODULE_MODULEMD,
         'runtime_deps': [

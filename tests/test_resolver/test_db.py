@@ -44,6 +44,7 @@ class TestDBModule:
         Tests that the buildrequires of testmodule are returned
         """
         expected = set(['module-f28-build'])
+        module = models.ModuleBuild.query.get(2)
         if empty_buildrequires:
             expected = set()
             module = models.ModuleBuild.query.get(2)
@@ -58,7 +59,7 @@ class TestDBModule:
             db.session.commit()
         resolver = mbs_resolver.GenericResolver.create(tests.conf, backend='db')
         result = resolver.get_module_build_dependencies(
-            'testmodule', 'master', '20170109091357', '7c29193d').keys()
+            'testmodule', 'master', '20170109091357', 'c40c156c').keys()
         assert set(result) == expected
 
     def test_get_module_build_dependencies_recursive(self):
@@ -89,7 +90,7 @@ class TestDBModule:
 
         resolver = mbs_resolver.GenericResolver.create(tests.conf, backend='db')
         result = resolver.get_module_build_dependencies(
-            'testmodule2', 'master', '20180123171545', '7c29193d').keys()
+            'testmodule2', 'master', '20180123171545', 'c40c156c').keys()
         assert set(result) == set(['module-f28-build'])
 
     @patch("module_build_service.config.Config.system",

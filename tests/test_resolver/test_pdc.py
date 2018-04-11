@@ -40,9 +40,9 @@ class TestPDCModule:
 
     def test_get_module_modulemds_nsvc(self, pdc_module_active_two_contexts):
         resolver = mbs_resolver.GenericResolver.create(tests.conf, backend='pdc')
-        ret = resolver.get_module_modulemds('testmodule', 'master', '20180205135154', 'c2c572ec')
+        ret = resolver.get_module_modulemds('testmodule', 'master', '20180205135154', '9c690d0e')
         nsvcs = set(m.dup_nsvc() for m in ret)
-        expected = set(["testmodule:master:125a91f56532:c2c572ec"])
+        expected = set(["testmodule:master:125a91f56532:9c690d0e"])
         assert nsvcs == expected
 
     @pytest.mark.parametrize('kwargs', [{'version': '20180205135154'}, {}])
@@ -50,7 +50,7 @@ class TestPDCModule:
         resolver = mbs_resolver.GenericResolver.create(tests.conf, backend='pdc')
         ret = resolver.get_module_modulemds('testmodule', 'master', **kwargs)
         nsvcs = set(m.dup_nsvc() for m in ret)
-        expected = set(["testmodule:master:125a91f56532:c2c572ec",
+        expected = set(["testmodule:master:125a91f56532:9c690d0e",
                         "testmodule:master:125a91f56532:c2c572ed"])
         assert nsvcs == expected
 
@@ -75,7 +75,7 @@ class TestPDCModule:
             })
         resolver = mbs_resolver.GenericResolver.create(tests.conf, backend='pdc')
         result = resolver.get_module_build_dependencies(
-            'testmodule', 'master', '20180205135154', 'c2c572ec').keys()
+            'testmodule', 'master', '20180205135154', '9c690d0e').keys()
         assert set(result) == expected
 
     def test_resolve_profiles(self, pdc_module_active):

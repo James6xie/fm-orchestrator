@@ -170,6 +170,7 @@ class ModuleBuild(MBSBase):
     name = db.Column(db.String, nullable=False)
     stream = db.Column(db.String, nullable=False)
     version = db.Column(db.String, nullable=False)
+    ref_build_context = db.Column(db.String)
     build_context = db.Column(db.String)
     runtime_context = db.Column(db.String)
     state = db.Column(db.Integer, nullable=False)
@@ -345,6 +346,16 @@ class ModuleBuild(MBSBase):
 
     @staticmethod
     def contexts_from_mmd(mmd_str):
+        """
+        Returns tuple (ref_build_context, build_context, runtime_context) with hashes:
+            - ref_build_context - Hash of commit hashes of expanded buildrequires.
+            - build_context - Hash of stream names of expanded buildrequires.
+            - runtime_context - Hash of stream names of expanded runtime requires.
+
+        :param str mmd_str: String with Modulemd metadata.
+        :rtype: tuple of strings
+        :return: Tuple with build_context, strem_build_context and runtime_context hashes.
+        """
         try:
             mmd = Modulemd.Module().new_from_string(mmd_str)
             mmd.upgrade()
@@ -360,6 +371,12 @@ class ModuleBuild(MBSBase):
             raise ValueError('The module\'s modulemd hasn\'t been formatted by MBS')
         mmd_formatted_buildrequires = {
             dep: info['ref'] for dep, info in mbs_xmd["buildrequires"].items()}
+        property_json = json.dumps(OrderedDict(sorted(mmd_formatted_buildrequires.items())))
+        rv.append(hashlib.sha1(property_json).hexdigest())
+
+        # Get the streams of buildrequires and hash it.
+        mmd_formatted_buildrequires = {
+            dep: info['stream'] for dep, info in mbs_xmd["buildrequires"].items()}
         property_json = json.dumps(OrderedDict(sorted(mmd_formatted_buildrequires.items())))
         rv.append(hashlib.sha1(property_json).hexdigest())
 
@@ -568,6 +585,7 @@ class ModuleBuild(MBSBase):
             state_url = get_url_for('module_build', api_version=api_version, id=self.id)
         json.update({
             'component_builds': [build.id for build in self.component_builds],
+            'ref_build_context': self.ref_build_context,
             'build_context': self.build_context,
             'modulemd': self.modulemd,
             'runtime_context': self.runtime_context,

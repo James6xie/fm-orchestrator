@@ -143,7 +143,10 @@ class TestUtilsComponentReuse:
             db.session, second_module_build, 'perl-Tangerine')
         assert pt_rv is None
 
-    def test_get_reusable_component_different_buildrequires_hash(self):
+    @pytest.mark.parametrize('rebuild_strategy', models.ModuleBuild.rebuild_strategies.keys())
+    def test_get_reusable_component_different_buildrequires_hash(self, rebuild_strategy):
+        first_module_build = models.ModuleBuild.query.filter_by(id=2).one()
+        first_module_build.rebuild_strategy = rebuild_strategy
         second_module_build = models.ModuleBuild.query.filter_by(id=3).one()
         mmd = second_module_build.mmd()
         xmd = glib.from_variant_dict(mmd.get_xmd())
@@ -151,19 +154,49 @@ class TestUtilsComponentReuse:
             'da39a3ee5e6b4b0d3255bfef95601890afd80709'
         mmd.set_xmd(glib.dict_values(xmd))
         second_module_build.modulemd = mmd.dumps()
-        second_module_build.build_context = '37c6c57bedf4305ef41249c1794760b5cb8fad17'
+        second_module_build.ref_build_context = '37c6c57bedf4305ef41249c1794760b5cb8fad17'
+        second_module_build.rebuild_strategy = rebuild_strategy
         db.session.commit()
 
         plc_rv = module_build_service.utils.get_reusable_component(
             db.session, second_module_build, 'perl-List-Compare')
-        assert plc_rv is None
-
         pt_rv = module_build_service.utils.get_reusable_component(
             db.session, second_module_build, 'perl-Tangerine')
-        assert pt_rv is None
-
         tangerine_rv = module_build_service.utils.get_reusable_component(
             db.session, second_module_build, 'tangerine')
+
+        if rebuild_strategy == "only-changed":
+            assert plc_rv is not None
+            assert pt_rv is not None
+            assert tangerine_rv is not None
+        else:
+            assert plc_rv is None
+            assert pt_rv is None
+            assert tangerine_rv is None
+
+    @pytest.mark.parametrize('rebuild_strategy', models.ModuleBuild.rebuild_strategies.keys())
+    def test_get_reusable_component_different_buildrequires_stream(self, rebuild_strategy):
+        first_module_build = models.ModuleBuild.query.filter_by(id=2).one()
+        first_module_build.rebuild_strategy = rebuild_strategy
+        second_module_build = models.ModuleBuild.query.filter_by(id=3).one()
+        mmd = second_module_build.mmd()
+        xmd = glib.from_variant_dict(mmd.get_xmd())
+        xmd['mbs']['buildrequires']['platform']['stream'] = 'different'
+        mmd.set_xmd(glib.dict_values(xmd))
+        second_module_build.modulemd = mmd.dumps()
+        second_module_build.build_context = '37c6c57bedf4305ef41249c1794760b5cb8fad17'
+        second_module_build.rebuild_strategy = rebuild_strategy
+        db.session.commit()
+
+        plc_rv = module_build_service.utils.get_reusable_component(
+            db.session, second_module_build, 'perl-List-Compare')
+        pt_rv = module_build_service.utils.get_reusable_component(
+            db.session, second_module_build, 'perl-Tangerine')
+        tangerine_rv = module_build_service.utils.get_reusable_component(
+            db.session, second_module_build, 'tangerine')
+
+        assert plc_rv is None
+        assert pt_rv is None
         assert tangerine_rv is None
 
     def test_get_reusable_component_different_buildrequires(self):
@@ -182,7 +215,7 @@ class TestUtilsComponentReuse:
         }
         mmd.set_xmd(glib.dict_values(xmd))
         second_module_build.modulemd = mmd.dumps()
-        second_module_build.build_context = '37c6c57bedf4305ef41249c1794760b5cb8fad17'
+        second_module_build.ref_build_context = '37c6c57bedf4305ef41249c1794760b5cb8fad17'
         db.session.commit()
 
         plc_rv = module_build_service.utils.get_reusable_component(

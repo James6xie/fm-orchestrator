@@ -41,10 +41,13 @@ data:
       buildrequires:
         zebra:
           ref: 08f8671f5925ecbd7c55d83e8368dd0be81ef8ed
+          stream: 2.0
         base-runtime:
           ref: ae993ba84f4bce554471382ccba917ef16265f11
+          stream: f28
         fluffy:
           ref: ea83325b231f64c575ea104bb698e9d43b80469a
+          stream: foo
       requires:
         fidget:
           ref: 5aa32bd61aadaec8295ef90f79daaf190e387509

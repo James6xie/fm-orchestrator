@@ -773,9 +773,9 @@ class TestBuild:
         # Check that components are tagged after the batch is built.
         tag_groups = []
         tag_groups.append(set(
-            ['perl-Tangerine-0.23-1.module+0+814cfa39',
-             'perl-List-Compare-0.53-5.module+0+814cfa39',
-             'tangerine-0.22-3.module+0+814cfa39']))
+            ['perl-Tangerine-0.23-1.module+0+a43e2001',
+             'perl-List-Compare-0.53-5.module+0+a43e2001',
+             'tangerine-0.22-3.module+0+a43e2001']))
 
         def on_tag_artifacts_cb(cls, artifacts, dest_tag=True):
             if dest_tag is True:
@@ -784,9 +784,9 @@ class TestBuild:
 
         buildtag_groups = []
         buildtag_groups.append(set(
-            ['perl-Tangerine-0.23-1.module+0+814cfa39',
-             'perl-List-Compare-0.53-5.module+0+814cfa39',
-             'tangerine-0.22-3.module+0+814cfa39']))
+            ['perl-Tangerine-0.23-1.module+0+a43e2001',
+             'perl-List-Compare-0.53-5.module+0+a43e2001',
+             'tangerine-0.22-3.module+0+a43e2001']))
 
         def on_buildroot_add_artifacts_cb(cls, artifacts, install):
             assert buildtag_groups.pop(0) == set(artifacts)
@@ -829,9 +829,9 @@ class TestBuild:
         # Check that components are tagged after the batch is built.
         tag_groups = []
         tag_groups.append(set(
-            ['perl-Tangerine-0.23-1.module+0+814cfa39',
-             'perl-List-Compare-0.53-5.module+0+814cfa39',
-             'tangerine-0.22-3.module+0+814cfa39']))
+            ['perl-Tangerine-0.23-1.module+0+a43e2001',
+             'perl-List-Compare-0.53-5.module+0+a43e2001',
+             'tangerine-0.22-3.module+0+a43e2001']))
 
         def on_tag_artifacts_cb(cls, artifacts, dest_tag=True):
             if dest_tag is True:
@@ -840,9 +840,9 @@ class TestBuild:
 
         buildtag_groups = []
         buildtag_groups.append(set(
-            ['perl-Tangerine-0.23-1.module+0+814cfa39',
-             'perl-List-Compare-0.53-5.module+0+814cfa39',
-             'tangerine-0.22-3.module+0+814cfa39']))
+            ['perl-Tangerine-0.23-1.module+0+a43e2001',
+             'perl-List-Compare-0.53-5.module+0+a43e2001',
+             'tangerine-0.22-3.module+0+a43e2001']))
 
         def on_buildroot_add_artifacts_cb(cls, artifacts, install):
             assert buildtag_groups.pop(0) == set(artifacts)
@@ -879,7 +879,8 @@ class TestBuild:
         build_one.stream = 'master'
         build_one.version = 20180205135154
         build_one.build_context = 'return_runtime_context'
-        build_one.runtime_context = 'c7b355af'
+        build_one.ref_build_context = 'return_runtime_context'
+        build_one.runtime_context = '9c690d0e'
         build_one.state = models.BUILD_STATES['failed']
         current_dir = os.path.dirname(__file__)
         formatted_testmodule_yml_path = os.path.join(
@@ -911,7 +912,7 @@ class TestBuild:
         component_one.format = 'rpms'
         component_one.scmurl = 'git://pkgs.stg.fedoraproject.org/rpms/perl-Tangerine.git?#master'
         component_one.state = koji.BUILD_STATES['COMPLETE']
-        component_one.nvr = 'perl-Tangerine-0:0.22-2.module+0+814cfa39'
+        component_one.nvr = 'perl-Tangerine-0:0.22-2.module+0+a43e2001'
         component_one.batch = 2
         component_one.module_id = 2
         component_one.ref = '7e96446223f1ad84a26c7cf23d6591cd9f6326c6'
@@ -1006,7 +1007,8 @@ class TestBuild:
         build_one.stream = 'master'
         build_one.version = 20180205135154
         build_one.build_context = 'return_runtime_context'
-        build_one.runtime_context = 'c7b355af'
+        build_one.ref_build_context = 'return_runtime_context'
+        build_one.runtime_context = '9c690d0e'
         build_one.state = models.BUILD_STATES['failed']
         current_dir = os.path.dirname(__file__)
         formatted_testmodule_yml_path = os.path.join(

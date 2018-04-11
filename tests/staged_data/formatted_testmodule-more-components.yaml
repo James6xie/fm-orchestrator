@@ -4,7 +4,7 @@ data:
   name: testmodule-more-components
   stream: master
   version: 20180205135154
-  context: c2c572ec
+  context: 9c690d0e
   summary: A test module in all its beautiful beauty
   description: This module demonstrates how to write simple modulemd files And can
     be used for testing the build and release pipeline.
