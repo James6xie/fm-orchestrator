@@ -436,6 +436,14 @@ chmod 644 %buildroot/%_sysconfdir/rpm/macros.zz-modules
         log.info("%r adding artifacts %r" % (self, artifacts))
         build_tag = self._get_tag(self.module_build_tag)['id']
 
+        xmd = self.mmd.get_xmd()
+        if "mbs_options" in xmd.keys() and "blocked_packages" in xmd["mbs_options"].keys():
+            packages = [kobo.rpmlib.parse_nvr(nvr)["name"] for nvr in artifacts]
+            packages = [package for package in packages
+                        if package in xmd["mbs_options"]["blocked_packages"]]
+            if packages:
+                self._koji_unblock_packages(self.module_build_tag, packages)
+
         tagged_nvrs = self._get_tagged_nvrs(self.module_build_tag['name'])
 
         self.koji_session.multicall = True
@@ -775,6 +783,10 @@ chmod 644 %buildroot/%_sysconfdir/rpm/macros.zz-modules
         if not taginfo:
             self.koji_session.createTag(tag_name)
             taginfo = self._get_tag(tag_name)
+            if tag_name.endswith("-build"):
+                xmd = self.mmd.get_xmd()
+                if "mbs_options" in xmd.keys() and "blocked_packages" in xmd["mbs_options"].keys():
+                    self._koji_block_packages(taginfo, xmd["mbs_options"]["blocked_packages"])
 
         opts = {}
         if arches:
@@ -835,6 +847,22 @@ chmod 644 %buildroot/%_sysconfdir/rpm/macros.zz-modules
 
                 self.koji_session.packageListAdd(tag['name'], package, self.owner)
         self.koji_session.multiCall(strict=True)
+
+    def _koji_block_packages(self, tag, packages):
+        """
+        Blocks the `packages` for the module_build_tag.
+        """
+        log.info("Blocking packages in tag %s: %r", tag["name"], packages)
+        args = [[tag["name"], package] for package in packages]
+        koji_multicall_map(self.koji_session, self.koji_session.packageListBlock, args)
+
+    def _koji_unblock_packages(self, tag, packages):
+        """
+        Unblocks the `packages` for the module_build_tag.
+        """
+        log.info("Unblocking packages in tag %s: %r", tag["name"], packages)
+        args = [[tag["name"], package] for package in packages]
+        koji_multicall_map(self.koji_session, self.koji_session.packageListUnblock, args)
 
     @module_build_service.utils.validate_koji_tag(['build_tag', 'dest_tag'])
     def _koji_add_target(self, name, build_tag, dest_tag):

@@ -26,11 +26,13 @@ try:
     import xmlrpclib
 except ImportError:
     import xmlrpc.client as xmlrpclib
+from collections import OrderedDict
 
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.repos
 import module_build_service.models
 import module_build_service.builder
+from module_build_service import glib
 
 import pytest
 from mock import patch, MagicMock
@@ -47,10 +49,32 @@ class FakeKojiModuleBuilder(KojiModuleBuilder):
         koji_session = MagicMock()
         koji_session.getRepo.return_value = {'create_event': 'fake event'}
 
+        FakeKojiModuleBuilder.tags = {
+            "module-foo": {
+                "name": "module-foo", "id": 1, "arches": "x86_64", "locked": False,
+                "perm": "admin"},
+            "module-foo-build": {
+                "name": "module-foo-build", "id": 2, "arches": "x86_64", "locked": False,
+                "perm": "admin"}
+        }
+
         def _get_tag(name):
-            _id = 2 if name.endswith("build") else 1
-            return {"name": name, "id": _id}
+            return FakeKojiModuleBuilder.tags.get(name, {})
         koji_session.getTag = _get_tag
+
+        def _createTag(name):
+            FakeKojiModuleBuilder.tags[name] = {
+                "name": name, "id": len(FakeKojiModuleBuilder.tags) + 1, "arches": "x86_64",
+                "locked": False, "perm": "admin"}
+        koji_session.createTag = _createTag
+
+        def _getBuildTarget(name):
+            return {"build_tag_name": name + "-build", "dest_tag_name": name}
+        koji_session.getBuildTarget = _getBuildTarget
+
+        def _getAllPerms(*args, **kwargs):
+            return [{"id": 1, "name": "admin"}]
+        koji_session.getAllPerms = _getAllPerms
 
         return koji_session
 
@@ -214,11 +238,19 @@ class TestKojiBuilder:
             fake_kmb.buildroot_ready()
         assert mocked_kojiutil.checkForBuilds.call_count == 3
 
-    def test_tagging_already_tagged_artifacts(self):
+    @pytest.mark.parametrize('blocklist', [False, True])
+    def test_tagging_already_tagged_artifacts(self, blocklist):
         """
         Tests that buildroot_add_artifacts and tag_artifacts do not try to
         tag already tagged artifacts
         """
+        if blocklist:
+            mmd = self.module.mmd()
+            xmd = glib.from_variant_dict(mmd.get_xmd())
+            xmd["mbs_options"] = {"blocked_packages": ["foo", "bar", "new"]}
+            mmd.set_xmd(glib.dict_values(xmd))
+            self.module.modulemd = mmd.dumps()
+
         builder = FakeKojiModuleBuilder(owner=self.module.owner,
                                         module=self.module,
                                         config=conf,
@@ -236,6 +268,14 @@ class TestKojiBuilder:
         # Try to tag one artifact which is already tagged and one new ...
         to_tag = ["foo-1.0-1.module_e0095747", "new-1.0-1.module_e0095747"]
         builder.buildroot_add_artifacts(to_tag)
+
+        if blocklist:
+            # "foo" and "new" packages should be unblocked before tagging.
+            expected_calls = [mock.call('module-foo-build', 'foo'),
+                              mock.call('module-foo-build', 'new')]
+        else:
+            expected_calls = []
+        assert builder.koji_session.packageListUnblock.mock_calls == expected_calls
 
         # ... only new one should be added.
         builder.koji_session.tagBuild.assert_called_once_with(
@@ -368,3 +408,66 @@ class TestKojiBuilder:
         get_session.return_value = session
         weights = KojiModuleBuilder.get_build_weights(["httpd", "apr"])
         assert weights == {"httpd": 1.5, "apr": 1.5}
+
+    @pytest.mark.parametrize('blocklist', [False, True])
+    def test_buildroot_connect(self, blocklist):
+        if blocklist:
+            mmd = self.module.mmd()
+            xmd = glib.from_variant_dict(mmd.get_xmd())
+            xmd["mbs_options"] = {"blocked_packages": ["foo", "nginx"]}
+            mmd.set_xmd(glib.dict_values(xmd))
+            self.module.modulemd = mmd.dumps()
+
+        builder = FakeKojiModuleBuilder(
+            owner=self.module.owner, module=self.module, config=conf, tag_name='module-foo',
+            components=["nginx"])
+        session = builder.koji_session
+
+        groups = OrderedDict()
+        groups['build'] = set(["unzip"])
+        groups['srpm-build'] = set(["fedora-release"])
+        builder.buildroot_connect(groups)
+
+        expected_calls = [mock.call('module-foo', 'nginx', u'Moe Szyslak'),
+                          mock.call('module-foo-build', 'nginx', u'Moe Szyslak')]
+        assert session.packageListAdd.mock_calls == expected_calls
+
+        expected_calls = [mock.call('module-foo-build', 'build'),
+                          mock.call('module-foo-build', 'srpm-build')]
+        assert session.groupListAdd.mock_calls == expected_calls
+
+        expected_calls = [mock.call('module-foo-build', 'build', 'unzip'),
+                          mock.call('module-foo-build', 'srpm-build', 'fedora-release')]
+        assert session.groupPackageListAdd.mock_calls == expected_calls
+
+        # packageListBlock should not be called, because we set the block list only when creating
+        # new Koji tag to prevent overriding it on each buildroot_connect.
+        expected_calls = []
+        assert session.packageListBlock.mock_calls == expected_calls
+
+    @pytest.mark.parametrize('blocklist', [False, True])
+    def test_create_tag(self, blocklist):
+        if blocklist:
+            mmd = self.module.mmd()
+            xmd = glib.from_variant_dict(mmd.get_xmd())
+            xmd["mbs_options"] = {"blocked_packages": ["foo", "nginx"]}
+            mmd.set_xmd(glib.dict_values(xmd))
+            self.module.modulemd = mmd.dumps()
+
+        builder = FakeKojiModuleBuilder(
+            owner=self.module.owner, module=self.module, config=conf, tag_name='module-foo',
+            components=["nginx"])
+        session = builder.koji_session
+        FakeKojiModuleBuilder.tags = {}
+
+        groups = OrderedDict()
+        groups['build'] = set(["unzip"])
+        groups['srpm-build'] = set(["fedora-release"])
+        builder._koji_create_tag("module-foo-build")
+
+        if blocklist:
+            expected_calls = [mock.call('module-foo-build', 'foo'),
+                              mock.call('module-foo-build', 'nginx')]
+        else:
+            expected_calls = []
+        assert session.packageListBlock.mock_calls == expected_calls
