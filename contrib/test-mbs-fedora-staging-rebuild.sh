@@ -15,7 +15,7 @@ git clone ssh://$FAS@pkgs.stg.fedoraproject.org/modules/testmodule
 cd testmodule
 git commit --allow-empty -m "Empty test commit, for MBS in staging."
 git push origin master
-build_id=$(fedpkg-stage module-build --optional rebuild_strategy=only-changed | tail -1 | awk '{ print $3 }' | cut -c 2-)
+build_id=$(fedpkg-stage module-build --optional rebuild_strategy=only-changed | tail -1 | awk '{ print $3 }')
 echo "Working with module build $build_id"
 fedpkg-stage module-build-watch $build_id
 url=https://mbs.stg.fedoraproject.org/module-build-service/1/module-builds/$build_id
@@ -34,7 +34,7 @@ git push origin master
 cd ../testmodule
 git commit --allow-empty -m "Empty test commit, for MBS in staging."
 git push origin master
-build_id=$(fedpkg-stage module-build --optional rebuild_strategy=only-changed | tail -1 | awk '{ print $3 }' | cut -c 2-)
+build_id=$(fedpkg-stage module-build --optional rebuild_strategy=only-changed | tail -1 | awk '{ print $3 }')
 echo "Working with module build $build_id"
 fedpkg-stage module-build-watch $build_id
 

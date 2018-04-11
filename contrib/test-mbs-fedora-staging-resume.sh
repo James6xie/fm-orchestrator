@@ -17,7 +17,7 @@ git push origin master
 cd ../testmodule
 git commit --allow-empty -m "Empty test commit, for MBS in staging."
 git push origin master
-build_id=$(fedpkg-stage module-build --optional rebuild_strategy=only-changed | tail -1 | awk '{ print $3 }' | cut -c 2-)
+build_id=$(fedpkg-stage module-build --optional rebuild_strategy=only-changed | tail -1 | awk '{ print $3 }')
 echo "Working with module build $build_id"
 
 echo "Sleeping for 10 seconds before cancelling the build."
@@ -27,7 +27,7 @@ echo "Build cancellation submitted."
 
 sleep 10
 echo "Submitting build again.  Should resume."
-build_id_two=$(fedpkg-stage module-build --optional rebuild_strategy=only-changed | tail -1 | awk '{ print $3 }' | cut -c 2-)
+build_id_two=$(fedpkg-stage module-build --optional rebuild_strategy=only-changed | tail -1 | awk '{ print $3 }')
 if [ "$build_id_two" -ne "$build_id" ]; then
     echo "The module build didn't resume."; exit 1;
 fi
