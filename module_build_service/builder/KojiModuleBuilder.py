@@ -795,10 +795,6 @@ chmod 644 %buildroot/%_sysconfdir/rpm/macros.zz-modules
         if not taginfo:
             self.koji_session.createTag(tag_name)
             taginfo = self._get_tag(tag_name)
-            if tag_name.endswith("-build"):
-                xmd = self.mmd.get_xmd()
-                if "mbs_options" in xmd.keys() and "blocked_packages" in xmd["mbs_options"].keys():
-                    self._koji_block_packages(taginfo, xmd["mbs_options"]["blocked_packages"])
 
         opts = {}
         if arches:
