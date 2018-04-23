@@ -99,10 +99,6 @@ class GenericResolver(six.with_metaclass(ABCMeta)):
         raise NotImplementedError()
 
     @abstractmethod
-    def get_module_tag(self, name, stream, version, context, strict=False):
-        raise NotImplementedError()
-
-    @abstractmethod
     def resolve_profiles(self, mmd, keys):
         raise NotImplementedError()
 

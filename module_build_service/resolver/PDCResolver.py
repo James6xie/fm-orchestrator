@@ -142,19 +142,6 @@ class PDCResolver(GenericResolver):
     def _get_module(self, name, stream, version=None, context=None, active=None, strict=False):
         return self._get_modules(name, stream, version, context, active, strict)[0]
 
-    def get_module_tag(self, name, stream, version=None, context=None, strict=False):
-        """
-        :param name: a module's name
-        :param stream: a module's stream
-        :param version: a module's version
-        :param context: a module's context
-        :param strict: Normally this function returns None if no module can be
-               found.  If strict=True, then an UnprocessableEntity is raised.
-        :return: koji tag string
-        """
-        return self._get_module(
-            name, stream, version, context, active=True, strict=strict)['koji_tag']
-
     def get_module_modulemds(self, name, stream, version=None, context=None, strict=False):
         """
         Gets the module modulemds from the resolver.

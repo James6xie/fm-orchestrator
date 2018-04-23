@@ -298,7 +298,7 @@ def scheduler_init_data(tangerine_state=None):
     build_one.state = BUILD_STATES['build']
     build_one.build_context = 'ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0'
     build_one.runtime_context = 'ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0'
-    build_one.koji_tag = 'module-95b214a704c984be'
+    build_one.koji_tag = 'module-testmodule-master-20170109091357-7c29193d'
     build_one.scmurl = 'git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#ff1ea79'
     if tangerine_state:
         build_one.batch = 3
@@ -403,7 +403,7 @@ def reuse_component_init_data():
     build_one.ref_build_context = 'ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0'
     build_one.runtime_context = 'ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0'
     build_one.build_context = 'ac4de1c346dcf09ce77d38cd4e75094ec1c08eb1'
-    build_one.koji_tag = 'module-de3adf79caf3e1b8'
+    build_one.koji_tag = 'module-testmodule-master-20170109091357-78e4a6fd'
     build_one.scmurl = 'git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#ff1ea79'
     build_one.batch = 3
     build_one.owner = 'Tom Brady'
@@ -578,7 +578,7 @@ def reuse_shared_userspace_init_data():
         build_one.runtime_context = '50dd3eb5dde600d072e45d4120e1548ce66bc94a'
         build_one.state = BUILD_STATES['ready']
         build_one.modulemd = mmd.dumps()
-        build_one.koji_tag = 'module-testmodule-master-20170109091357'
+        build_one.koji_tag = 'module-shared-userspace-f26-20170601141014-75f92abb'
         build_one.scmurl = ('git://pkgs.stg.fedoraproject.org/modules/testmodule.'
                             'git?#7fea453')
         build_one.batch = 16
@@ -629,7 +629,7 @@ def reuse_shared_userspace_init_data():
         build_one.runtime_context = '50dd3eb5dde600d072e45d4120e1548ce66bc94a'
         build_one.state = BUILD_STATES['done']
         build_one.modulemd = mmd2.dumps()
-        build_one.koji_tag = 'module-testmodule-master-20170109091357'
+        build_one.koji_tag = 'module-shared-userspace-f26-20170605091544-75f92abb'
         build_one.scmurl = ('git://pkgs.stg.fedoraproject.org/modules/testmodule.'
                             'git?#7fea453')
         build_one.batch = 0

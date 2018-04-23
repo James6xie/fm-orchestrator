@@ -21,8 +21,6 @@
 #
 # Written by Matt Prahl <mprahl@redhat.com>
 
-import hashlib
-
 from module_build_service import log
 from module_build_service.resolver.base import GenericResolver
 from module_build_service import models
@@ -66,21 +64,6 @@ class DBResolver(GenericResolver):
                 raise UnprocessableEntity(
                     "Cannot find any module builds for %s:%s" % (name, stream))
             return [build.mmd() for build in builds]
-
-    def get_module_tag(self, name, stream, version, context, strict=False):
-        """
-        Gets the module tag from the resolver. Since the resolver is the DB, it is just generated
-        here.
-        :param name: a string of the module's name
-        :param stream: a string of the module's stream
-        :param version: a string or int of the module's version
-        :param context: a string of the module's context
-        :kwarg strict: Here solely for compatibility with the base class' function signature
-        :return: a string of the tag to use
-        """
-        # This algorithm mimicks what pdc-updater does
-        tag_str = '.'.join([name, stream, str(version), context])
-        return 'module-{0}'.format(hashlib.sha1(tag_str).hexdigest()[:16])
 
     def resolve_profiles(self, mmd, keys):
         """

@@ -67,7 +67,7 @@ class TestRepoDone:
         build_fn.return_value = 1234, 1, '', None
 
         msg = module_build_service.messaging.KojiRepoChange(
-            'some_msg_id', 'module-95b214a704c984be-build')
+            'some_msg_id', 'module-testmodule-master-20170109091357-7c29193d-build')
         module_build_service.scheduler.handlers.repos.done(
             config=conf, session=db.session, msg=msg)
         build_fn.assert_called_once_with(
@@ -101,7 +101,7 @@ class TestRepoDone:
         build_fn.return_value = None, 4, 'Failed to submit artifact tangerine to Koji', None
 
         msg = module_build_service.messaging.KojiRepoChange(
-            'some_msg_id', 'module-95b214a704c984be-build')
+            'some_msg_id', 'module-testmodule-master-20170109091357-7c29193d-build')
         module_build_service.scheduler.handlers.repos.done(
             config=conf, session=db.session, msg=msg)
         build_fn.assert_called_once_with(
@@ -119,7 +119,7 @@ class TestRepoDone:
         """
         scheduler_init_data(1)
         msg = module_build_service.messaging.KojiRepoChange(
-            'some_msg_id', 'module-95b214a704c984be-build')
+            'some_msg_id', 'module-testmodule-master-20170109091357-7c29193d-build')
         component_build = module_build_service.models.ComponentBuild.query\
             .filter_by(package='tangerine').one()
         component_build.tagged = False
@@ -156,7 +156,7 @@ class TestRepoDone:
             build_fn.return_value = None, 4, 'Failed to submit artifact x to Koji', None
 
             msg = module_build_service.messaging.KojiRepoChange(
-                'some_msg_id', 'module-95b214a704c984be-build')
+                'some_msg_id', 'module-testmodule-master-20170109091357-7c29193d-build')
             module_build_service.scheduler.handlers.repos.done(
                 config=conf, session=db.session, msg=msg)
             module_build = module_build_service.models.ModuleBuild.query.get(2)

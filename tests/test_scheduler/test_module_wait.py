@@ -59,6 +59,7 @@ class TestModuleWait:
         mocked_module_build.name = 'foo'
         mocked_module_build.stream = 'stream'
         mocked_module_build.version = '1'
+        mocked_module_build.context = '1234567'
         mocked_module_build.state = 1
         mocked_module_build.id = 1
         mocked_module_build.json.return_value = {

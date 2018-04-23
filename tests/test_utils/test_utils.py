@@ -535,6 +535,22 @@ class TestUtils:
             for c in module_build.component_builds:
                 assert c.weight == 1.5
 
+    def test_generate_koji_tag_in_nsvc_format(self):
+        name, stream, version, context = ('testmodule', 'master', '20170816080815', '37c6c57')
+
+        tag = module_build_service.utils.generate_koji_tag(name, stream, version, context)
+
+        assert tag == 'module-testmodule-master-20170816080815-37c6c57'
+
+    def test_generate_koji_tag_in_hash_format(self):
+        name, version, context = ('testmodule', '20170816080815', '37c6c57')
+        stream = 'this-is-a-stream-with-very-looooong-name' + '-blah' * 50
+        nsvc_list = [name, stream, version, context]
+
+        tag = module_build_service.utils.generate_koji_tag(*nsvc_list)
+        expected_tag = 'module-1cf457d452e54dda'
+        assert tag == expected_tag
+
 
 class DummyModuleBuilder(GenericBuilder):
     """

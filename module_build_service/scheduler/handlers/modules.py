@@ -31,7 +31,8 @@ import module_build_service.messaging
 from module_build_service.utils import (
     attempt_to_reuse_all_components,
     record_component_builds,
-    get_rpm_release)
+    get_rpm_release,
+    generate_koji_tag)
 from module_build_service.errors import UnprocessableEntity, Forbidden, ValidationError
 from module_build_service.builder.KojiContentGenerator import KojiContentGenerator
 
@@ -244,8 +245,7 @@ def wait(config, session, msg):
                     break
 
             log.info('Getting tag for {0}'.format(nsvc))
-            tag = resolver.get_module_tag(
-                build.name, build.stream, build.version, build.context, strict=True)
+            tag = generate_koji_tag(build.name, build.stream, build.version, build.context)
 
         return dependencies, tag, cg_build_koji_tag
 

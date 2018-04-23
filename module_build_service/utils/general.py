@@ -93,6 +93,27 @@ def module_build_state_from_msg(msg):
     return state
 
 
+def generate_koji_tag(name, stream, version, context):
+    """
+    Generate a koji tag from name, stream, version and context.
+
+    :param name: a module's name
+    :param stream: a module's stream
+    :param version: a module's version
+    :param context: a module's context
+    :return: a Koji tag
+    """
+    nsvc_list = [name, stream, str(version), context]
+    nsvc_tag = 'module-' + '-'.join(nsvc_list)
+    if len(nsvc_tag) + len('-build') > 256:
+        # Koji supports tag names with a max length of 256, fallback
+        # to the old way of 'module-<hash>' if the generated koji tag
+        # name is too long
+        nsvc_hash = hashlib.sha1('.'.join(nsvc_list)).hexdigest()[:16]
+        return 'module-' + nsvc_hash
+    return nsvc_tag
+
+
 def validate_koji_tag(tag_arg_names, pre='', post='-', dict_key='name'):
     """
     Used as a decorator validates koji tag arg(s)' value(s)
