@@ -395,10 +395,10 @@ class TestPoller:
         assert module_build_two.state == models.BUILD_STATES['failed']
         # Make sure the builds were untagged
         builder.untag_artifacts.assert_called_once_with([
-            'perl-Tangerine-0.23-1.module+0+814cfa39',
-            'perl-List-Compare-0.53-5.module+0+814cfa39',
-            'tangerine-0.22-3.module+0+814cfa39',
-            'module-build-macros-0.1-1.module+0+814cfa39'
+            'perl-Tangerine-0.23-1.module+0+a43e2001',
+            'perl-List-Compare-0.53-5.module+0+a43e2001',
+            'tangerine-0.22-3.module+0+a43e2001',
+            'module-build-macros-0.1-1.module+0+a43e2001'
         ])
 
     def test_cleanup_stale_failed_builds_no_components(self, create_builder, koji_get_session,

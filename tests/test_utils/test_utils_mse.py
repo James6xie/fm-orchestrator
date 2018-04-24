@@ -116,6 +116,7 @@ class TestUtilsModuleStreamExpansion:
         module_build.time_modified = datetime(2017, 2, 15, 16, 19, 35)
         module_build.rebuild_strategy = 'changed-and-after'
         module_build.build_context = context
+        module_build.stream_build_context = context
         module_build.runtime_context = context
         module_build.modulemd = mmd.dumps()
         db.session.add(module_build)
@@ -160,7 +161,7 @@ class TestUtilsModuleStreamExpansion:
         mmds = module_build_service.utils.generate_expanded_mmds(
             db.session, module_build.mmd())
         contexts = set([mmd.get_context() for mmd in mmds])
-        assert set(['3031e5a5', '6d10e00e']) == contexts
+        assert set(['ea432ace', 'b613fe68']) == contexts
 
     @pytest.mark.parametrize(
         'requires,build_requires,stream_ambigous,expected_xmd,expected_buildrequires', [

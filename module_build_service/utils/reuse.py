@@ -95,6 +95,7 @@ def _get_reusable_module(session, module):
         .filter_by(stream=mmd.get_stream())\
         .filter(models.ModuleBuild.state.in_([3, 5]))\
         .filter(models.ModuleBuild.scmurl.isnot(None))\
+        .filter_by(build_context=module.build_context)\
         .order_by(models.ModuleBuild.time_completed.desc())
     # If we are rebuilding with the "changed-and-after" option, then we can't reuse
     # components from modules that were built more liberally
@@ -102,7 +103,7 @@ def _get_reusable_module(session, module):
         previous_module_build = previous_module_build.filter(
             models.ModuleBuild.rebuild_strategy.in_(['all', 'changed-and-after']))
         previous_module_build = previous_module_build.filter_by(
-            build_context=module.build_context)
+            ref_build_context=module.ref_build_context)
     previous_module_build = previous_module_build.first()
     # The component can't be reused if there isn't a previous build in the done
     # or ready state
