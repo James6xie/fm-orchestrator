@@ -31,7 +31,7 @@ from os.path import dirname
 import hashlib
 import pytest
 
-from tests import app, init_data
+from tests import app, init_data, clean_database
 from module_build_service.errors import UnprocessableEntity
 from module_build_service.models import ModuleBuild
 from module_build_service import db, version, Modulemd
@@ -308,6 +308,49 @@ class TestViews:
             }
         ]
 
+        assert items == expected
+
+    def test_query_builds_with_context(self):
+        clean_database()
+        init_data(2, contexts=True)
+        rv = self.client.get('/module-build-service/1/module-builds/?context=3a4057d2')
+        items = json.loads(rv.data)['items']
+        expected = [
+            {
+                "context": "3a4057d2",
+                "id": 3,
+                "koji_tag": "module-nginx-1.2",
+                "name": "nginx",
+                "owner": "Moe Szyslak",
+                "rebuild_strategy": "changed-and-after",
+                "scmurl": ("git://pkgs.domain.local/modules/nginx"
+                           "?#ba95886c7a443b36a9ce31abda1f9bef22f2f8c9"),
+                "state": 5,
+                "state_name": "ready",
+                "state_reason": None,
+                "stream": "0",
+                "tasks": {
+                    "rpms": {
+                        "module-build-macros": {
+                            "nvr": "module-build-macros-01-1.module+4+0557c87d",
+                            "state": 1,
+                            "state_reason": None,
+                            "task_id": 47383993
+                        },
+                        "postgresql": {
+                            "nvr": "postgresql-9.5.3-4.module+4+0557c87d",
+                            "state": 1,
+                            "state_reason": None,
+                            "task_id": 2433433
+                        }
+                    }
+                },
+                "time_completed": "2016-09-03T11:25:32Z",
+                "time_modified": "2016-09-03T11:25:32Z",
+                "time_submitted": "2016-09-03T11:23:20Z",
+                "version": "2"
+            }
+        ]
         assert items == expected
 
     def test_query_builds_with_id_error(self):
