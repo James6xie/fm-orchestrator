@@ -122,6 +122,8 @@ def _populate_data(session, data_size=10, contexts=False):
                 build_one.build_context = unique_hash
                 build_one.runtime_context = unique_hash
                 build_one.ref_build_context = unique_hash
+                combined_hashes = '{0}:{1}'.format(unique_hash, unique_hash)
+                build_one.context = hashlib.sha1(combined_hashes).hexdigest()[:8]
             with open(os.path.join(base_dir, "staged_data", "nginx_mmd.yaml")) as mmd:
                 build_one.modulemd = mmd.read()
             build_one.koji_tag = 'module-nginx-1.2'
@@ -298,6 +300,7 @@ def scheduler_init_data(tangerine_state=None):
     build_one.state = BUILD_STATES['build']
     build_one.build_context = 'ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0'
     build_one.runtime_context = 'ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0'
+    build_one.context = '7c29193d'
     build_one.koji_tag = 'module-testmodule-master-20170109091357-7c29193d'
     build_one.scmurl = 'git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#ff1ea79'
     if tangerine_state:
@@ -403,6 +406,7 @@ def reuse_component_init_data():
     build_one.ref_build_context = 'ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0'
     build_one.runtime_context = 'ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0'
     build_one.build_context = 'ac4de1c346dcf09ce77d38cd4e75094ec1c08eb1'
+    build_one.context = '78e4a6fd'
     build_one.koji_tag = 'module-testmodule-master-20170109091357-78e4a6fd'
     build_one.scmurl = 'git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#ff1ea79'
     build_one.batch = 3
@@ -487,7 +491,8 @@ def reuse_component_init_data():
     build_two.ref_build_context = 'ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0'
     build_two.runtime_context = 'ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0'
     build_two.build_context = 'ac4de1c346dcf09ce77d38cd4e75094ec1c08eb1'
-    build_two.koji_tag = 'module-fe3adf73caf3e1b7'
+    build_two.context = 'c40c156c'
+    build_two.koji_tag = 'module-testmodule-master-20170219191323-c40c156c'
     build_two.scmurl = 'git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#55f4a0a'
     build_two.batch = 1
     build_two.owner = 'Tom Brady'

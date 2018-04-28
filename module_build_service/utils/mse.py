@@ -359,9 +359,8 @@ def generate_expanded_mmds(session, mmd, raise_if_stream_ambigous=False, default
         mmd_copy.set_xmd(glib.dict_values(xmd))
 
         # Now we have all the info to actually compute context of this module.
-        ref_build_context, build_context, runtime_context = \
+        ref_build_context, build_context, runtime_context, context = \
             models.ModuleBuild.contexts_from_mmd(mmd_copy.dumps())
-        context = models.ModuleBuild.context_from_contexts(build_context, runtime_context)
         mmd_copy.set_context(context)
 
         mmds.append(mmd_copy)

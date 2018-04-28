@@ -47,7 +47,7 @@ GET_USER_RV = {
 class TestBuild:
 
     def setup_method(self, test_method):
-        init_data(1)
+        init_data(1, contexts=True)
         module = models.ModuleBuild.query.filter_by(id=2).one()
         module.cg_build_koji_tag = "f27-module-candidate"
         self.cg = KojiContentGenerator(module, conf)
@@ -173,7 +173,7 @@ class TestBuild:
         self.cg._tag_cg_build()
 
         koji_session.getTag.assert_called_once_with(self.cg.module.cg_build_koji_tag)
-        koji_session.tagBuild.assert_called_once_with(123, "nginx-1-2.00000000")
+        koji_session.tagBuild.assert_called_once_with(123, "nginx-0-2.10e50d06")
 
     @patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
     def test_tag_cg_build_fallback_to_default_tag(self, get_session):
@@ -188,7 +188,7 @@ class TestBuild:
         assert koji_session.getTag.mock_calls == [
             call(self.cg.module.cg_build_koji_tag),
             call(conf.koji_cg_default_build_tag)]
-        koji_session.tagBuild.assert_called_once_with(123, "nginx-1-2.00000000")
+        koji_session.tagBuild.assert_called_once_with(123, "nginx-0-2.10e50d06")
 
     @patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
     def test_tag_cg_build_no_tag_set(self, get_session):

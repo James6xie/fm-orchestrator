@@ -239,72 +239,72 @@ class TestViews:
         items = json.loads(rv.data)['items']
         expected = [
             {
-                "state_name": "wait",
+                "context": "00000000",
+                "id": 7,
+                "koji_tag": None,
                 "name": "testmodule",
-                "tasks": {
-                    "rpms": {
-                        "module-build-macros": {
-                            "state": 1,
-                            "state_reason": None,
-                            "task_id": 47383994,
-                            "nvr": "module-build-macros-01-1.module+7+f95651e2"
-                        },
-                        "rubygem-rails": {
-                            "state": 3,
-                            "state_reason": None,
-                            "task_id": 2433434,
-                            "nvr": "postgresql-9.5.3-4.module+7+f95651e2"
-                        }
-                    }
-                },
                 "owner": "some_other_user",
-                "version": "7",
-                "state_reason": None,
-                "state": 1,
-                "stream": "4.3.43",
-                "time_submitted": "2016-09-03T12:38:33Z",
+                "rebuild_strategy": "changed-and-after",
                 "scmurl": ("git://pkgs.domain.local/modules/testmodule"
                            "?#ca95886c7a443b36a9ce31abda1f9bef22f2f8c9"),
-                "id": 7,
-                "context": "00000000",
-                "time_completed": None,
-                "time_modified": "2016-09-03T12:38:40Z",
-                "rebuild_strategy": "changed-and-after",
-                "koji_tag": None
-            },
-            {
-                "state_name": "done",
-                "name": "postgressql",
+                "state": 1,
+                "state_name": "wait",
+                "state_reason": None,
+                "stream": "4.3.43",
                 "tasks": {
                     "rpms": {
                         "module-build-macros": {
+                            "nvr": "module-build-macros-01-1.module+7+f95651e2",
                             "state": 1,
                             "state_reason": None,
-                            "task_id": 47383994,
-                            "nvr": "module-build-macros-01-1.module+6+fa947d31"
+                            "task_id": 47383994
                         },
-                        "postgresql": {
-                            "state": 1,
+                        "rubygem-rails": {
+                            "nvr": "postgresql-9.5.3-4.module+7+f95651e2",
+                            "state": 3,
                             "state_reason": None,
-                            "task_id": 2433434,
-                            "nvr": "postgresql-9.5.3-4.module+6+fa947d31"
+                            "task_id": 2433434
                         }
                     }
                 },
+                "time_completed": None,
+                "time_modified": "2016-09-03T12:38:40Z",
+                "time_submitted": "2016-09-03T12:38:33Z",
+                "version": "7"
+            },
+            {
+                "context": "00000000",
+                "id": 6,
+                "koji_tag": "module-postgressql-1.2",
+                "name": "postgressql",
                 "owner": "some_user",
-                "version": "3",
-                "state_reason": None,
-                "state": 3,
-                "stream": "1",
-                "time_submitted": "2016-09-03T12:35:33Z",
+                "rebuild_strategy": "changed-and-after",
                 "scmurl": ("git://pkgs.domain.local/modules/postgressql"
                            "?#aa95886c7a443b36a9ce31abda1f9bef22f2f8c9"),
-                "id": 6,
-                "context": "00000000",
+                "state": 3,
+                "state_name": "done",
+                "state_reason": None,
+                "stream": "1",
+                "tasks": {
+                    "rpms": {
+                        "module-build-macros": {
+                            "nvr": "module-build-macros-01-1.module+6+fa947d31",
+                            "state": 1,
+                            "state_reason": None,
+                            "task_id": 47383994
+                        },
+                        "postgresql": {
+                            "nvr": "postgresql-9.5.3-4.module+6+fa947d31",
+                            "state": 1,
+                            "state_reason": None,
+                            "task_id": 2433434
+                        }
+                    }
+                },
                 "time_completed": "2016-09-03T11:37:19Z",
                 "time_modified": "2016-09-03T12:37:19Z",
-                "rebuild_strategy": "changed-and-after",
-                "koji_tag": "module-postgressql-1.2"
+                "time_submitted": "2016-09-03T12:35:33Z",
+                "version": "3"
             }
         ]
 

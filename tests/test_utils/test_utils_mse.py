@@ -21,7 +21,6 @@
 
 from datetime import datetime
 
-from mock import patch
 import pytest
 
 import module_build_service.utils
@@ -35,24 +34,8 @@ class TestUtilsModuleStreamExpansion:
     def setup_method(self, test_method):
         clean_database(False)
 
-        def mocked_context(build_context, runtime_context):
-            """
-            Changes the ModuleBuild.context behaviour to return
-            ModuleBuild.build_context instead of computing new context hash.
-            """
-            return build_context[:8]
-
-        # For these tests, we need the ModuleBuild.context to return the well-known
-        # context as we define it in test data. Therefore patch the ModuleBuild.context
-        # to return ModuleBuild.build_context, which we can control.
-        self.modulebuild_context_patcher = patch(
-            "module_build_service.models.ModuleBuild.context_from_contexts")
-        modulebuild_context = self.modulebuild_context_patcher.start()
-        modulebuild_context.side_effect = mocked_context
-
     def teardown_method(self, test_method):
         clean_database()
-        self.modulebuild_context_patcher.stop()
 
     def _make_module(self, nsvc, requires_list, build_requires_list):
         """
@@ -108,6 +91,7 @@ class TestUtilsModuleStreamExpansion:
         module_build.name = name
         module_build.stream = stream
         module_build.version = version
+        module_build.context = context
         module_build.state = models.BUILD_STATES['ready']
         module_build.scmurl = 'git://pkgs.stg.fedoraproject.org/modules/unused.git?#ff1ea79'
         module_build.batch = 1
@@ -161,7 +145,7 @@ class TestUtilsModuleStreamExpansion:
         mmds = module_build_service.utils.generate_expanded_mmds(
             db.session, module_build.mmd())
         contexts = set([mmd.get_context() for mmd in mmds])
-        assert set(['ea432ace', 'b613fe68']) == contexts
+        assert set(['e1e005fb', 'ce132a1e']) == contexts
 
     @pytest.mark.parametrize(
         'requires,build_requires,stream_ambigous,expected_xmd,expected_buildrequires', [

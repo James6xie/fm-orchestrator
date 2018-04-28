@@ -377,8 +377,8 @@ def submit_module_build(username, url, mmd, scm, optional_params=None):
                 username=username,
                 **(optional_params or {})
             )
-            module.ref_build_context, module.build_context, module.runtime_context = \
-                module.contexts_from_mmd(module.modulemd)
+            (module.ref_build_context, module.build_context, module.runtime_context,
+             module.context) = module.contexts_from_mmd(module.modulemd)
 
         db.session.add(module)
         db.session.commit()

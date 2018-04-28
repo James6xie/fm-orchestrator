@@ -278,15 +278,6 @@ class FakeModuleBuilder(GenericBuilder):
         return msgs
 
 
-original_context_from_contexts = models.ModuleBuild.context_from_contexts
-
-
-def mocked_context_from_contexts(build_context, runtime_context):
-    if build_context == "return_runtime_context":
-        return runtime_context
-    return original_context_from_contexts(build_context, runtime_context)
-
-
 def cleanup_moksha():
     # Necessary to restart the twisted reactor for the next test.
     import sys
@@ -773,9 +764,9 @@ class TestBuild:
         # Check that components are tagged after the batch is built.
         tag_groups = []
         tag_groups.append(set(
-            ['perl-Tangerine-0.23-1.module+0+a43e2001',
-             'perl-List-Compare-0.53-5.module+0+a43e2001',
-             'tangerine-0.22-3.module+0+a43e2001']))
+            ['perl-Tangerine-0.23-1.module+0+d027b723',
+             'perl-List-Compare-0.53-5.module+0+d027b723',
+             'tangerine-0.22-3.module+0+d027b723']))
 
         def on_tag_artifacts_cb(cls, artifacts, dest_tag=True):
             if dest_tag is True:
@@ -784,9 +775,9 @@ class TestBuild:
 
         buildtag_groups = []
         buildtag_groups.append(set(
-            ['perl-Tangerine-0.23-1.module+0+a43e2001',
-             'perl-List-Compare-0.53-5.module+0+a43e2001',
-             'tangerine-0.22-3.module+0+a43e2001']))
+            ['perl-Tangerine-0.23-1.module+0+d027b723',
+             'perl-List-Compare-0.53-5.module+0+d027b723',
+             'tangerine-0.22-3.module+0+d027b723']))
 
         def on_buildroot_add_artifacts_cb(cls, artifacts, install):
             assert buildtag_groups.pop(0) == set(artifacts)
@@ -829,9 +820,9 @@ class TestBuild:
         # Check that components are tagged after the batch is built.
         tag_groups = []
         tag_groups.append(set(
-            ['perl-Tangerine-0.23-1.module+0+a43e2001',
-             'perl-List-Compare-0.53-5.module+0+a43e2001',
-             'tangerine-0.22-3.module+0+a43e2001']))
+            ['perl-Tangerine-0.23-1.module+0+d027b723',
+             'perl-List-Compare-0.53-5.module+0+d027b723',
+             'tangerine-0.22-3.module+0+d027b723']))
 
         def on_tag_artifacts_cb(cls, artifacts, dest_tag=True):
             if dest_tag is True:
@@ -840,9 +831,9 @@ class TestBuild:
 
         buildtag_groups = []
         buildtag_groups.append(set(
-            ['perl-Tangerine-0.23-1.module+0+a43e2001',
-             'perl-List-Compare-0.53-5.module+0+a43e2001',
-             'tangerine-0.22-3.module+0+a43e2001']))
+            ['perl-Tangerine-0.23-1.module+0+d027b723',
+             'perl-List-Compare-0.53-5.module+0+d027b723',
+             'tangerine-0.22-3.module+0+d027b723']))
 
         def on_buildroot_add_artifacts_cb(cls, artifacts, install):
             assert buildtag_groups.pop(0) == set(artifacts)
@@ -862,15 +853,11 @@ class TestBuild:
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    @patch("module_build_service.models.ModuleBuild.context_from_contexts")
-    def test_submit_build_resume(self, context_from_contexts, mocked_scm, mocked_get_user,
-                                 conf_system, dbg):
+    def test_submit_build_resume(self, mocked_scm, mocked_get_user, conf_system, dbg):
         """
         Tests that resuming the build works even when previous batches
         are already built.
         """
-        context_from_contexts.side_effect = mocked_context_from_contexts
-
         now = datetime.utcnow()
         submitted_time = now - timedelta(minutes=3)
         # Create a module in the failed state
@@ -881,13 +868,14 @@ class TestBuild:
         build_one.build_context = 'return_runtime_context'
         build_one.ref_build_context = 'return_runtime_context'
         build_one.runtime_context = '9c690d0e'
+        build_one.context = '9c690d0e'
         build_one.state = models.BUILD_STATES['failed']
         current_dir = os.path.dirname(__file__)
         formatted_testmodule_yml_path = os.path.join(
             current_dir, '..', 'staged_data', 'formatted_testmodule.yaml')
         with open(formatted_testmodule_yml_path, 'r') as f:
             build_one.modulemd = f.read()
-        build_one.koji_tag = 'module-95b214a704c984be'
+        build_one.koji_tag = 'module-testmodule-master-20180205135154-9c690d0e'
         build_one.scmurl = 'git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#7fea453'
         build_one.batch = 2
         build_one.owner = 'Homer J. Simpson'
@@ -912,7 +900,7 @@ class TestBuild:
         component_one.format = 'rpms'
         component_one.scmurl = 'git://pkgs.stg.fedoraproject.org/rpms/perl-Tangerine.git?#master'
         component_one.state = koji.BUILD_STATES['COMPLETE']
-        component_one.nvr = 'perl-Tangerine-0:0.22-2.module+0+a43e2001'
+        component_one.nvr = 'perl-Tangerine-0:0.22-2.module+0+d027b723'
         component_one.batch = 2
         component_one.module_id = 2
         component_one.ref = '7e96446223f1ad84a26c7cf23d6591cd9f6326c6'
@@ -988,16 +976,12 @@ class TestBuild:
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    @patch("module_build_service.models.ModuleBuild.context_from_contexts")
     def test_submit_build_resume_recover_orphaned_macros(
-            self, context_from_contexts, mocked_scm, mocked_get_user,
-            conf_system, dbg):
+            self, mocked_scm, mocked_get_user, conf_system, dbg):
         """
         Tests that resuming the build works when module-build-macros is orphaned but marked as
         failed in the database
         """
-        context_from_contexts.side_effect = mocked_context_from_contexts
-
         FakeModuleBuilder.INSTANT_COMPLETE = True
         now = datetime.utcnow()
         submitted_time = now - timedelta(minutes=3)
@@ -1010,12 +994,15 @@ class TestBuild:
         build_one.ref_build_context = 'return_runtime_context'
         build_one.runtime_context = '9c690d0e'
         build_one.state = models.BUILD_STATES['failed']
+        # this is not calculated by real but just a value to
+        # match the calculated context from expanded test mmd
+        build_one.context = '9c690d0e'
         current_dir = os.path.dirname(__file__)
         formatted_testmodule_yml_path = os.path.join(
             current_dir, '..', 'staged_data', 'formatted_testmodule.yaml')
         with open(formatted_testmodule_yml_path, 'r') as f:
             build_one.modulemd = f.read()
-        build_one.koji_tag = 'module-95b214a704c984be'
+        build_one.koji_tag = 'module-testmodule-master-20180205135154-6ef9a711'
         build_one.scmurl = 'git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#7fea453'
         build_one.batch = 2
         build_one.owner = 'Homer J. Simpson'

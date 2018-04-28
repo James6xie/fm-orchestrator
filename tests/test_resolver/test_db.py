@@ -59,7 +59,7 @@ class TestDBModule:
             db.session.commit()
         resolver = mbs_resolver.GenericResolver.create(tests.conf, backend='db')
         result = resolver.get_module_build_dependencies(
-            'testmodule', 'master', '20170109091357', 'c40c156c').keys()
+            'testmodule', 'master', '20170109091357', '78e4a6fd').keys()
         assert set(result) == expected
 
     def test_get_module_build_dependencies_recursive(self):

@@ -647,17 +647,17 @@
     ],
     "metadata_version": 0,
     "build": {
-        "version": "1",
+        "version": "0",
         "end_time": 1472901932,
         "name": "nginx",
-        "release": "2.00000000",
+        "release": "2.10e50d06",
         "owner": "Moe Szyslak",
         "extra": {
             "typeinfo": {
                 "module": {
                     "name": "nginx",
-                    "context": "00000000",
-                    "stream": "1",
+                    "context": "10e50d06",
+                    "stream": "0",
                     "version": "2",
                     "module_build_service_id": 2,
                     "content_koji_tag": "module-nginx-1.2",

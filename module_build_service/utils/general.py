@@ -290,6 +290,7 @@ def import_mmd(session, mmd):
     build.koji_tag = koji_tag
     build.state = models.BUILD_STATES['ready']
     build.modulemd = mmd.dumps()
+    build.context = context
     build.owner = "mbs_import"
     build.rebuild_strategy = 'all'
     build.time_submitted = datetime.utcnow()

@@ -173,6 +173,7 @@ class ModuleBuild(MBSBase):
     ref_build_context = db.Column(db.String)
     build_context = db.Column(db.String)
     runtime_context = db.Column(db.String)
+    context = db.Column(db.String, server_default='00000000')
     state = db.Column(db.Integer, nullable=False)
     state_reason = db.Column(db.String)
     modulemd = db.Column(db.String, nullable=False)
@@ -347,14 +348,17 @@ class ModuleBuild(MBSBase):
     @staticmethod
     def contexts_from_mmd(mmd_str):
         """
-        Returns tuple (ref_build_context, build_context, runtime_context) with hashes:
+        Returns tuple (ref_build_context, build_context, runtime_context, context)
+        with hashes:
             - ref_build_context - Hash of commit hashes of expanded buildrequires.
             - build_context - Hash of stream names of expanded buildrequires.
             - runtime_context - Hash of stream names of expanded runtime requires.
+            - context - Hash of combined hashes of build_context and runtime_context.
 
         :param str mmd_str: String with Modulemd metadata.
         :rtype: tuple of strings
-        :return: Tuple with build_context, strem_build_context and runtime_context hashes.
+        :return: Tuple with build_context, strem_build_context, runtime_context and
+                 context hashes.
         """
         try:
             mmd = Modulemd.Module().new_from_string(mmd_str)
@@ -378,7 +382,8 @@ class ModuleBuild(MBSBase):
         mmd_formatted_buildrequires = {
             dep: info['stream'] for dep, info in mbs_xmd["buildrequires"].items()}
         property_json = json.dumps(OrderedDict(sorted(mmd_formatted_buildrequires.items())))
-        rv.append(hashlib.sha1(property_json).hexdigest())
+        build_context = hashlib.sha1(property_json).hexdigest()
+        rv.append(build_context)
 
         # Get the requires from the real "dependencies" section in MMD.
         mmd_requires = {}
@@ -392,23 +397,14 @@ class ModuleBuild(MBSBase):
         mmd_requires = {
             dep: sorted(list(streams)) for dep, streams in mmd_requires.items()}
         property_json = json.dumps(OrderedDict(sorted(mmd_requires.items())))
-        rv.append(hashlib.sha1(property_json.encode('utf-8')).hexdigest())
+        runtime_context = hashlib.sha1(property_json.encode('utf-8')).hexdigest()
+        rv.append(runtime_context)
+
+        combined_hashes = '{0}:{1}'.format(build_context, runtime_context).encode('utf-8')
+        context = hashlib.sha1(combined_hashes).hexdigest()[:8]
+        rv.append(context)
 
         return tuple(rv)
-
-    @staticmethod
-    def context_from_contexts(build_context, runtime_context):
-        if build_context and runtime_context:
-            combined_hashes = '{0}:{1}'.format(build_context, runtime_context).encode('utf-8')
-            return hashlib.sha1(combined_hashes).hexdigest()[:8]
-        else:
-            # We can't compute the context because the necessary data isn't there, so return a
-            # default value
-            return '00000000'
-
-    @property
-    def context(self):
-        return ModuleBuild.context_from_contexts(self.build_context, self.runtime_context)
 
     @property
     def siblings(self):

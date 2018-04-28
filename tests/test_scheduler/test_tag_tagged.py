@@ -54,7 +54,9 @@ class TestTagTagged:
         that we do nothing gracefully.
         """
         msg = module_build_service.messaging.KojiTagChange(
-            'id', 'module-fe3adf73caf3e1b7-build', "artifact")
+            'id',
+            'module-testmodule-master-20170219191323-c40c156c-build',
+            "artifact")
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
 
@@ -75,7 +77,8 @@ class TestTagTagged:
         builder = mock.MagicMock()
         builder.koji_session = koji_session
         builder.buildroot_ready.return_value = False
-        builder.module_build_tag = {"name": "module-fe3adf73caf3e1b7-build"}
+        builder.module_build_tag = {
+            "name": "module-testmodule-master-20170219191323-c40c156c-build"}
         create_builder.return_value = builder
 
         module_build = module_build_service.models.ModuleBuild.query.filter_by(id=3).one()
@@ -94,12 +97,16 @@ class TestTagTagged:
 
         # Tag the first component to the buildroot.
         msg = module_build_service.messaging.KojiTagChange(
-            'id', 'module-fe3adf73caf3e1b7-build', "perl-Tangerine")
+            'id',
+            'module-testmodule-master-20170219191323-c40c156c-build',
+            "perl-Tangerine")
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
         # Tag the first component to the final tag.
         msg = module_build_service.messaging.KojiTagChange(
-            'id', 'module-fe3adf73caf3e1b7', "perl-Tangerine")
+            'id',
+            'module-testmodule-master-20170219191323-c40c156c',
+            "perl-Tangerine")
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
 
@@ -109,7 +116,9 @@ class TestTagTagged:
 
         # Tag the second component to the buildroot.
         msg = module_build_service.messaging.KojiTagChange(
-            'id', 'module-fe3adf73caf3e1b7-build', "perl-List-Compare")
+            'id',
+            'module-testmodule-master-20170219191323-c40c156c-build',
+            "perl-List-Compare")
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
 
@@ -119,12 +128,15 @@ class TestTagTagged:
 
         # Tag the first component to the final tag.
         msg = module_build_service.messaging.KojiTagChange(
-            'id', 'module-fe3adf73caf3e1b7', "perl-List-Compare")
+            'id',
+            'module-testmodule-master-20170219191323-c40c156c',
+            "perl-List-Compare")
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
 
         # newRepo should be called now - all components have been tagged.
-        koji_session.newRepo.assert_called_once_with("module-fe3adf73caf3e1b7-build")
+        koji_session.newRepo.assert_called_once_with(
+            "module-testmodule-master-20170219191323-c40c156c-build")
 
         # Refresh our module_build object.
         db.session.expunge(module_build)
@@ -151,7 +163,8 @@ class TestTagTagged:
         builder = mock.MagicMock()
         builder.koji_session = koji_session
         builder.buildroot_ready.return_value = False
-        builder.module_build_tag = {"name": "module-fe3adf73caf3e1b7-build"}
+        builder.module_build_tag = {
+            "name": "module-testmodule-master-20170219191323-c40c156c-build"}
         create_builder.return_value = builder
 
         module_build = module_build_service.models.ModuleBuild.query.filter_by(id=3).one()
@@ -163,12 +176,16 @@ class TestTagTagged:
 
         # Tag the perl-List-Compare component to the buildroot.
         msg = module_build_service.messaging.KojiTagChange(
-            'id', 'module-fe3adf73caf3e1b7-build', "perl-Tangerine")
+            'id',
+            'module-testmodule-master-20170219191323-c40c156c-build',
+            "perl-Tangerine")
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
         # Tag the perl-List-Compare component to final tag.
         msg = module_build_service.messaging.KojiTagChange(
-            'id', 'module-fe3adf73caf3e1b7', "perl-Tangerine")
+            'id',
+            'module-testmodule-master-20170219191323-c40c156c',
+            "perl-Tangerine")
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
 
@@ -193,7 +210,8 @@ class TestTagTagged:
         builder = mock.MagicMock()
         builder.koji_session = koji_session
         builder.buildroot_ready.return_value = False
-        builder.module_build_tag = {"name": "module-fe3adf73caf3e1b7-build"}
+        builder.module_build_tag = {
+            "name": "module-testmodule-master-20170219191323-c40c156c-build"}
         create_builder.return_value = builder
 
         module_build = module_build_service.models.ModuleBuild.query.filter_by(id=3).one()
@@ -216,18 +234,23 @@ class TestTagTagged:
 
         # Tag the perl-List-Compare component to the buildroot.
         msg = module_build_service.messaging.KojiTagChange(
-            'id', 'module-fe3adf73caf3e1b7-build', "perl-List-Compare")
+            'id',
+            'module-testmodule-master-20170219191323-c40c156c-build',
+            "perl-List-Compare")
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
         # Tag the perl-List-Compare component to final tag.
         msg = module_build_service.messaging.KojiTagChange(
-            'id', 'module-fe3adf73caf3e1b7', "perl-List-Compare")
+            'id',
+            'module-testmodule-master-20170219191323-c40c156c',
+            "perl-List-Compare")
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
 
         # newRepo should be called now - all successfully built
         # components have been tagged.
-        koji_session.newRepo.assert_called_once_with("module-fe3adf73caf3e1b7-build")
+        koji_session.newRepo.assert_called_once_with(
+            "module-testmodule-master-20170219191323-c40c156c-build")
 
         # Refresh our module_build object.
         db.session.expunge(module_build)
@@ -257,7 +280,8 @@ class TestTagTagged:
         builder = mock.MagicMock()
         builder.koji_session = koji_session
         builder.buildroot_ready.return_value = False
-        builder.module_build_tag = {"name": "module-fe3adf73caf3e1b7-build"}
+        builder.module_build_tag = {
+            "name": "module-testmodule-master-20170219191323-c40c156c-build"}
         create_builder.return_value = builder
 
         module_build = module_build_service.models.ModuleBuild.query.filter_by(id=3).one()
@@ -272,12 +296,16 @@ class TestTagTagged:
 
         # Tag the first component to the buildroot.
         msg = module_build_service.messaging.KojiTagChange(
-            'id', 'module-fe3adf73caf3e1b7-build', "perl-Tangerine")
+            'id',
+            'module-testmodule-master-20170219191323-c40c156c-build',
+            "perl-Tangerine")
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
         # Tag the first component to the final tag.
         msg = module_build_service.messaging.KojiTagChange(
-            'id', 'module-fe3adf73caf3e1b7', "perl-Tangerine")
+            'id',
+            'module-testmodule-master-20170219191323-c40c156c',
+            "perl-Tangerine")
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
 
@@ -287,12 +315,16 @@ class TestTagTagged:
 
         # Tag the second component to the buildroot.
         msg = module_build_service.messaging.KojiTagChange(
-            'id', 'module-fe3adf73caf3e1b7-build', "perl-List-Compare")
+            'id',
+            'module-testmodule-master-20170219191323-c40c156c-build',
+            "perl-List-Compare")
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
         # Tag the second component to final tag.
         msg = module_build_service.messaging.KojiTagChange(
-            'id', 'module-fe3adf73caf3e1b7', "perl-List-Compare")
+            'id',
+            'module-testmodule-master-20170219191323-c40c156c',
+            "perl-List-Compare")
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
 
@@ -302,17 +334,22 @@ class TestTagTagged:
 
         # Tag the component from first batch to final tag.
         msg = module_build_service.messaging.KojiTagChange(
-            'id', 'module-fe3adf73caf3e1b7', "module-build-macros")
+            'id',
+            'module-testmodule-master-20170219191323-c40c156c',
+            "module-build-macros")
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
         # Tag the component from first batch to the buildroot.
         msg = module_build_service.messaging.KojiTagChange(
-            'id', 'module-fe3adf73caf3e1b7-build', "module-build-macros")
+            'id',
+            'module-testmodule-master-20170219191323-c40c156c-build',
+            "module-build-macros")
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
 
         # newRepo should be called now - all components have been tagged.
-        koji_session.newRepo.assert_called_once_with("module-fe3adf73caf3e1b7-build")
+        koji_session.newRepo.assert_called_once_with(
+            "module-testmodule-master-20170219191323-c40c156c-build")
 
         # Refresh our module_build object.
         db.session.expunge(module_build)
@@ -340,7 +377,8 @@ class TestTagTagged:
         builder = mock.MagicMock()
         builder.koji_session = koji_session
         builder.buildroot_ready.return_value = False
-        builder.module_build_tag = {"name": "module-fe3adf73caf3e1b7-build"}
+        builder.module_build_tag = {
+            "name": "module-testmodule-master-20170219191323-c40c156c-build"}
         create_builder.return_value = builder
 
         module_build = module_build_service.models.ModuleBuild.query.filter_by(id=3).one()
@@ -366,24 +404,31 @@ class TestTagTagged:
 
         # Tag the perl-Tangerine component to the buildroot.
         msg = module_build_service.messaging.KojiTagChange(
-            'id', 'module-fe3adf73caf3e1b7-build', "perl-Tangerine")
+            'id',
+            'module-testmodule-master-20170219191323-c40c156c-build',
+            "perl-Tangerine")
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
         assert not koji_session.newRepo.called
         # Tag the perl-List-Compare component to the buildroot.
         msg = module_build_service.messaging.KojiTagChange(
-            'id', 'module-fe3adf73caf3e1b7-build', "perl-List-Compare")
+            'id',
+            'module-testmodule-master-20170219191323-c40c156c-build',
+            "perl-List-Compare")
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
         # Tag the perl-List-Compare component to final tag.
         msg = module_build_service.messaging.KojiTagChange(
-            'id', 'module-fe3adf73caf3e1b7', "perl-List-Compare")
+            'id',
+            'module-testmodule-master-20170219191323-c40c156c',
+            "perl-List-Compare")
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
 
         # newRepo should be called now - all successfully built
         # components have been tagged.
-        koji_session.newRepo.assert_called_once_with("module-fe3adf73caf3e1b7-build")
+        koji_session.newRepo.assert_called_once_with(
+            "module-testmodule-master-20170219191323-c40c156c-build")
 
         # Refresh our module_build object.
         db.session.expunge(module_build)
