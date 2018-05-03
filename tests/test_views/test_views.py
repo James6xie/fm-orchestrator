@@ -536,6 +536,18 @@ class TestViews:
         for idx, item in enumerate(items):
             assert item["id"] == items[0]["id"] - idx
 
+    def test_query_builds_order_desc_by_context(self):
+        clean_database()
+        init_data(2, contexts=True)
+
+        rv = self.client.get('/module-build-service/1/module-builds/?'
+                             'per_page=10&name=nginx&order_desc_by=context')
+        sorted_items = json.loads(rv.data)['items']
+        sorted_contexts = [m['context'] for m in sorted_items]
+
+        expected_contexts = ['d5a6c0fa', '795e97c1', '3a4057d2', '10e50d06']
+        assert sorted_contexts == expected_contexts
+
     def test_query_builds_order_by_order_desc_by(self):
         """
         Test that when both order_by and order_desc_by is set,
