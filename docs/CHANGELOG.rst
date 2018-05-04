@@ -1,6 +1,16 @@
 Change Log
 ==========
 
+v2.1.0
+------
+
+* Change ModuleBuild.context to a database column which allows filtering
+* Generate informative Koji tag names when "name:stream:version" is not too long
+* Reuse components only from modules with the same build_context (same buildrequires names and streams)
+* Generate 'context' from hash based on buildrequires/requires stream instead of commit hashes
+* Allow defining list of packages which are blocked in the "-build" tag until they are built in a module
+* Keep the 'module_name:[]' in requires unexpanded in the recorded modulemd
+
 v2.0.2
 ------
 
