@@ -11,8 +11,6 @@ kerberos
 kobo>=0.5.0
 koji
 ldap3
-m2crypto
-m2ext
 moksha.hub
 munch
 pdc-client
