@@ -69,7 +69,10 @@ class FakeKojiModuleBuilder(KojiModuleBuilder):
         koji_session.createTag = _createTag
 
         def _getBuildTarget(name):
-            return {"build_tag_name": name + "-build", "dest_tag_name": name}
+            return {
+                "build_tag_name": self.module_build_tag['name'],
+                "dest_tag_name": self.module_tag['name']
+            }
         koji_session.getBuildTarget = _getBuildTarget
 
         def _getAllPerms(*args, **kwargs):
