@@ -455,7 +455,7 @@ def load_mmd(yaml, is_file=False):
         mmd.upgrade()
     except Exception:
         error = 'The following invalid modulemd was encountered: {0}'.format(yaml)
-        log.error(error)
+        log.exception(error)
         raise UnprocessableEntity(error)
 
     return mmd
