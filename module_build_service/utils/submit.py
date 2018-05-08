@@ -206,7 +206,7 @@ def record_component_builds(mmd, module, initial_batch=1,
     # If the modulemd yaml specifies components, then submit them for build
     rpm_components = mmd.get_rpm_components().values()
     module_components = mmd.get_module_components().values()
-    all_components = rpm_components + module_components
+    all_components = list(rpm_components) + list(module_components)
     if not all_components:
         return
 
