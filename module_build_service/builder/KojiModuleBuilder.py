@@ -418,10 +418,15 @@ chmod 644 %buildroot/%_sysconfdir/rpm/macros.zz-modules
             )
         add_groups()
 
+        # Koji targets can only be 50 characters long, but the generate_koji_tag function
+        # checks the length with '-build' at the end, but we know we will never append '-build',
+        # so we can safely have the name check be more characters
+        target_length = 50 + len('-build')
+        target = module_build_service.utils.generate_koji_tag(
+            self.module.name, self.module.stream, self.module.version, self.module.context,
+            target_length)
         # Add main build target.
-        self.module_target = self._koji_add_target(self.tag_name,
-                                                   self.module_build_tag,
-                                                   self.module_tag)
+        self.module_target = self._koji_add_target(target, self.module_build_tag, self.module_tag)
 
         self.__prep = True
         log.info("%r buildroot sucessfully connected." % self)
