@@ -1,6 +1,12 @@
 Change Log
 ==========
 
+v2.1.1
+------
+
+* Some py3 compat fixes.
+* Fallback to the old Koji tag format for the target when the tag name is too long
+
 v2.1.0
 ------
 
