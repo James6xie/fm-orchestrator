@@ -376,13 +376,13 @@ class ModuleBuild(MBSBase):
         mmd_formatted_buildrequires = {
             dep: info['ref'] for dep, info in mbs_xmd["buildrequires"].items()}
         property_json = json.dumps(OrderedDict(sorted(mmd_formatted_buildrequires.items())))
-        rv.append(hashlib.sha1(property_json).hexdigest())
+        rv.append(hashlib.sha1(property_json.encode('utf-8')).hexdigest())
 
         # Get the streams of buildrequires and hash it.
         mmd_formatted_buildrequires = {
             dep: info['stream'] for dep, info in mbs_xmd["buildrequires"].items()}
         property_json = json.dumps(OrderedDict(sorted(mmd_formatted_buildrequires.items())))
-        build_context = hashlib.sha1(property_json).hexdigest()
+        build_context = hashlib.sha1(property_json.encode('utf-8')).hexdigest()
         rv.append(build_context)
 
         # Get the requires from the real "dependencies" section in MMD.
@@ -400,8 +400,8 @@ class ModuleBuild(MBSBase):
         runtime_context = hashlib.sha1(property_json.encode('utf-8')).hexdigest()
         rv.append(runtime_context)
 
-        combined_hashes = '{0}:{1}'.format(build_context, runtime_context).encode('utf-8')
-        context = hashlib.sha1(combined_hashes).hexdigest()[:8]
+        combined_hashes = '{0}:{1}'.format(build_context, runtime_context)
+        context = hashlib.sha1(combined_hashes.encode('utf-8')).hexdigest()[:8]
         rv.append(context)
 
         return tuple(rv)
