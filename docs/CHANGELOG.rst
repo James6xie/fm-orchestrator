@@ -1,6 +1,12 @@
 Change Log
 ==========
 
+v2.2.0
+------
+
+* Make the published messages smaller
+* Show siblings and component_builds in the standard modules API
+
 v2.1.1
 ------
 
