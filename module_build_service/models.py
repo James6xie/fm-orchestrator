@@ -552,19 +552,22 @@ class ModuleBuild(MBSBase):
             'context': self.context,
         }
 
-    def json(self):
+    def json(self, show_tasks=True):
         json = self.short_json()
         json.update({
-            'state_reason': self.state_reason,
+            'component_builds': [build.id for build in self.component_builds],
+            'koji_tag': self.koji_tag,
             'owner': self.owner,
             'rebuild_strategy': self.rebuild_strategy,
             'scmurl': self.scmurl,
-            'time_submitted': _utc_datetime_to_iso(self.time_submitted),
-            'time_modified': _utc_datetime_to_iso(self.time_modified),
+            'siblings': self.siblings,
+            'state_reason': self.state_reason,
             'time_completed': _utc_datetime_to_iso(self.time_completed),
-            'koji_tag': self.koji_tag,
-            'tasks': self.tasks(),
+            'time_modified': _utc_datetime_to_iso(self.time_modified),
+            'time_submitted': _utc_datetime_to_iso(self.time_submitted)
         })
+        if show_tasks:
+            json['tasks'] = self.tasks()
         return json
 
     def extended_json(self, show_state_url=False, api_version=1):
@@ -575,24 +578,24 @@ class ModuleBuild(MBSBase):
         SQLAlchemy sessions.
         :kwarg api_version: the API version to use when building the state URL
         """
-        json = self.json()
+        json = self.json(show_tasks=True)
         state_url = None
         if show_state_url:
             state_url = get_url_for('module_build', api_version=api_version, id=self.id)
         json.update({
-            'component_builds': [build.id for build in self.component_builds],
-            'ref_build_context': self.ref_build_context,
             'build_context': self.build_context,
             'modulemd': self.modulemd,
+            'ref_build_context': self.ref_build_context,
             'runtime_context': self.runtime_context,
-            'state_trace': [{'time': _utc_datetime_to_iso(record.state_time),
-                             'state': record.state,
-                             'state_name': INVERSE_BUILD_STATES[record.state],
-                             'reason': record.state_reason}
-                            for record
-                            in self.state_trace(self.id)],
+            'state_trace': [
+                {
+                    'time': _utc_datetime_to_iso(record.state_time),
+                    'state': record.state,
+                    'state_name': INVERSE_BUILD_STATES[record.state],
+                    'reason': record.state_reason
+                } for record in self.state_trace(self.id)
+            ],
             'state_url': state_url,
-            'siblings': self.siblings
         })
 
         return json

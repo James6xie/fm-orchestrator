@@ -122,6 +122,7 @@ class TestViews:
         assert data['name'] == 'nginx'
         assert data['owner'] == 'Moe Szyslak'
         assert data['stream'] == '1'
+        assert data['siblings'] == []
         assert data['state'] == 5
         assert data['state_reason'] is None
         assert data['tasks'] == {
@@ -180,6 +181,7 @@ class TestViews:
         assert data['owner'] == 'Moe Szyslak'
         assert data['scmurl'] == ('git://pkgs.domain.local/modules/nginx'
                                   '?#ba95886c7a443b36a9ce31abda1f9bef22f2f8c9')
+        assert data['siblings'] == []
         assert data['state'] == 5
         assert data['state_name'] == 'ready'
         assert data['state_reason'] is None
@@ -239,6 +241,7 @@ class TestViews:
         items = json.loads(rv.data)['items']
         expected = [
             {
+                "component_builds": [11, 12],
                 "context": "00000000",
                 "id": 7,
                 "koji_tag": None,
@@ -247,6 +250,7 @@ class TestViews:
                 "rebuild_strategy": "changed-and-after",
                 "scmurl": ("git://pkgs.domain.local/modules/testmodule"
                            "?#ca95886c7a443b36a9ce31abda1f9bef22f2f8c9"),
+                "siblings": [],
                 "state": 1,
                 "state_name": "wait",
                 "state_reason": None,
@@ -273,6 +277,7 @@ class TestViews:
                 "version": "7"
             },
             {
+                "component_builds": [9, 10],
                 "context": "00000000",
                 "id": 6,
                 "koji_tag": "module-postgressql-1.2",
@@ -281,6 +286,7 @@ class TestViews:
                 "rebuild_strategy": "changed-and-after",
                 "scmurl": ("git://pkgs.domain.local/modules/postgressql"
                            "?#aa95886c7a443b36a9ce31abda1f9bef22f2f8c9"),
+                "siblings": [],
                 "state": 3,
                 "state_name": "done",
                 "state_reason": None,
@@ -317,6 +323,7 @@ class TestViews:
         items = json.loads(rv.data)['items']
         expected = [
             {
+                "component_builds": [3, 4],
                 "context": "3a4057d2",
                 "id": 3,
                 "koji_tag": "module-nginx-1.2",
@@ -325,6 +332,7 @@ class TestViews:
                 "rebuild_strategy": "changed-and-after",
                 "scmurl": ("git://pkgs.domain.local/modules/nginx"
                            "?#ba95886c7a443b36a9ce31abda1f9bef22f2f8c9"),
+                "siblings": [2],
                 "state": 5,
                 "state_name": "ready",
                 "state_reason": None,
