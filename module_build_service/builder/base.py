@@ -147,8 +147,8 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
         builder = GenericBuilder.create(
             module.owner, module, config.system, config, tag_name=module.koji_tag,
             components=components)
-        groups = GenericBuilder.default_buildroot_groups(session, module)
         if buildroot_connect is True:
+            groups = GenericBuilder.default_buildroot_groups(session, module)
             builder.buildroot_connect(groups)
         return builder
 
