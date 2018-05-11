@@ -40,7 +40,7 @@ RUN yum -y install \
     rpm-build \
     && yum clean all
 # We currently require a newer versions of these Python packages for the tests
-RUN pip install --upgrade flask-sqlalchemy pytest flake8
+RUN pip install --upgrade flask-sqlalchemy pytest flake8 tox
 # TODO: Consider making this a volume instead
 COPY . .
 # We install the python-koji RPM but it doesn't register as installed through pip.
