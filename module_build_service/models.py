@@ -298,13 +298,8 @@ class ModuleBuild(MBSBase):
         Returns build defined by NSVC. Optional kwargs are passed to SQLAlchemy
         filter_by method.
         """
-        # TODO: Rewrite this to use self.context when we add it.
-        builds = session.query(ModuleBuild).filter_by(
-            name=name, stream=stream, version=version, **kwargs).all()
-        for build in builds:
-            if build.context == context:
-                return build
-        return None
+        return session.query(ModuleBuild).filter_by(
+            name=name, stream=stream, version=version, context=context, **kwargs).first()
 
     def mmd(self):
         try:
