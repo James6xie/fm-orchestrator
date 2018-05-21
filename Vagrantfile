@@ -15,6 +15,7 @@ $script = <<SCRIPT
         koji \
         krb5-workstation \
         libffi-devel \
+        libmodulemd \
         mock-scm \
         openssl-devel \
         python \
@@ -35,8 +36,7 @@ $script = <<SCRIPT
         redhat-rpm-config \
         redhat-rpm-config \
         rpm-build \
-        swig \
-        https://kojipkgs.fedoraproject.org//packages/libmodulemd/1.1.3/1.fc27/x86_64/libmodulemd-1.1.3-1.fc27.x86_64.rpm
+        swig
     cd /opt/module_build_service
     python setup.py develop
     python setup.py egg_info
