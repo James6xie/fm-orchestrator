@@ -3,6 +3,7 @@ import mock
 import koji
 import tempfile
 import shutil
+from textwrap import dedent
 
 import kobo.rpmlib
 
@@ -116,8 +117,14 @@ class TestMockModuleBuilder:
                 "mksh-56b-1.module+24957a32.x86_64.rpm",
                 "module-build-macros-0.1-1.module+24957a32.noarch.rpm"
             ]
+            rpm_qf_output = dedent("""\
+                ed 0 1.14.1 4.module+24957a32 x86_64
+                mksh 0 56b-1 module+24957a32 x86_64
+                module-build-macros 0 0.1 1.module+24957a32 noarch
+                """)
             with mock.patch("os.listdir", return_value=rpms):
-                builder._createrepo()
+                with mock.patch("subprocess.check_output", return_value=rpm_qf_output):
+                    builder._createrepo()
 
             with open(os.path.join(self.resultdir, "pkglist"), "r") as fd:
                 pkglist = fd.read().strip()
@@ -136,8 +143,13 @@ class TestMockModuleBuilder:
                 "ed-1.14.1-4.module+24957a32.x86_64.rpm",
                 "mksh-56b-1.module+24957a32.x86_64.rpm",
             ]
+            rpm_qf_output = dedent("""\
+                ed 0 1.14.1 4.module+24957a32 x86_64
+                mksh 0 56b-1 module+24957a32 x86_64
+                """)
             with mock.patch("os.listdir", return_value=rpms):
-                builder._createrepo()
+                with mock.patch("subprocess.check_output", return_value=rpm_qf_output):
+                    builder._createrepo()
 
             with open(os.path.join(self.resultdir, "pkglist"), "r") as fd:
                 pkglist = fd.read().strip()

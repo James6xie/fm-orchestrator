@@ -29,6 +29,7 @@ import kobo.rpmlib
 import pipes
 import platform
 import re
+import subprocess
 import threading
 
 from module_build_service import conf, log, Modulemd
@@ -174,24 +175,35 @@ class MockModuleBuilder(GenericBuilder):
         # Generate the mmd the same way as pungi does.
         m1 = ModuleBuild.query.filter(ModuleBuild.name == self.module_str).one()
         m1_mmd = m1.mmd()
-        for rpm in os.listdir(self.resultsdir):
-            if not rpm.endswith(".rpm"):
-                continue
+        artifacts = Modulemd.SimpleSet()
+
+        rpm_files = [f
+                     for f in os.listdir(self.resultsdir)
+                     if f.endswith(".rpm")]
+
+        output = subprocess.check_output(['rpm',
+                                          '--queryformat',
+                                          '%{NAME} %{EPOCHNUM} %{VERSION} %{RELEASE} %{ARCH}\n',
+                                          '-qp'] + rpm_files,
+                                         cwd=self.resultsdir,
+                                         universal_newlines=True)
+        nevras = output.strip().split('\n')
+        if len(nevras) != len(rpm_files):
+            raise RuntimeError("rpm -qp returned an unexpected number of lines")
+
+        for rpm_file, nevra in zip(rpm_files, nevras):
+            name, epoch, version, release, arch = nevra.split()
 
             if m1.last_batch_id() == m1.batch:
                 # If RPM is filtered-out, do not add it to artifacts list.
-                nvr = kobo.rpmlib.parse_nvr(rpm)
-                if nvr["name"] in m1_mmd.get_rpm_filter().get():
+                if name in m1_mmd.get_rpm_filter().get():
                     continue
 
-            pkglist_f.write(rpm + '\n')
-            rpm = rpm[:-len(".rpm")]
-            component = Modulemd.ComponentRpm()
-            component.set_name(str(rpm))
-            component.set_rationale('none')
-            m1_mmd.add_rpm_component(component)
+            pkglist_f.write(rpm_file + '\n')
+            artifacts.add('{}-{}:{}-{}.{}'.format(name, epoch, version, release, arch))
 
         pkglist_f.close()
+        m1_mmd.set_rpm_artifacts(artifacts)
 
         mmd_path = os.path.join(path, "modules.yaml")
         m1_mmd.dump(mmd_path)
