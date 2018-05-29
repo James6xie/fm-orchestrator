@@ -1,6 +1,12 @@
 Change Log
 ==========
 
+v2.2.1
+------
+
+* Fix exception in the poller when processing old module builds
+* Revert the context values in the database to what they were previous to the algorithm change
+
 v2.2.0
 ------
 
