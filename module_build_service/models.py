@@ -410,12 +410,14 @@ class ModuleBuild(MBSBase):
 
     @classmethod
     def create(cls, session, conf, name, stream, version, modulemd, scmurl, username,
+               context=None,
                copr_owner=None, copr_project=None, rebuild_strategy=None, publish_msg=True):
         now = datetime.utcnow()
         module = cls(
             name=name,
             stream=stream,
             version=version,
+            context=context,
             state="init",
             modulemd=modulemd,
             scmurl=scmurl,

@@ -317,6 +317,7 @@ class PDCResolver(GenericResolver):
                     'ref': None,
                     'stream': local_build.stream,
                     'version': local_build.version,
+                    'context': local_build.context,
                     # No need to set filtered_rpms for local builds, because MBS
                     # filters the RPMs automatically when the module build is
                     # done.

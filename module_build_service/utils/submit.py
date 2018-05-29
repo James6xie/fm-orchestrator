@@ -535,6 +535,7 @@ def load_local_builds(local_build_nsvs, session=None):
             name=mmd.get_name(),
             stream=mmd.get_stream(),
             version=str(mmd.get_version()),
+            context=mmd.get_context(),
             modulemd=mmd.dumps(),
             scmurl="",
             username="mbs",
