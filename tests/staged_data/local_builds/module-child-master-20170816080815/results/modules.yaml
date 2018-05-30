@@ -3,9 +3,9 @@ data:
   api:
     rpms: [ed, mksh]
   artifacts:
-    rpms: [ed-debuginfo-1.14.1-4.module_92fc48de.x86_64, ed-1.14.1-4.module_92fc48de.x86_64,
-      module-build-macros-0.1-1.module_92fc48de.src, module-build-macros-0.1-1.module_92fc48de.noarch,
-      ed-1.14.1-4.module_92fc48de.src]
+    rpms: ['ed-debuginfo-0:1.14.1-4.module_92fc48de.x86_64', 'ed-0:1.14.1-4.module_92fc48de.x86_64',
+      'module-build-macros-0:0.1-1.module_92fc48de.src', 'module-build-macros-0:0.1-1.module_92fc48de.noarch',
+      'ed-0:1.14.1-4.module_92fc48de.src']
   components:
     rpms:
       ed: {cache: 'http://pkgs.fedoraproject.org/repo/pkgs/ed', rationale: A build
