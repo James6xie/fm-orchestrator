@@ -1,6 +1,11 @@
 Change Log
 ==========
 
+v2.2.2
+------
+
+* Fix some local build issues
+
 v2.2.1
 ------
 
