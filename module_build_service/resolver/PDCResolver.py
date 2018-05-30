@@ -156,6 +156,11 @@ class PDCResolver(GenericResolver):
         :return: List of Modulemd metadata instances matching the query
         """
         yaml = None
+
+        local_modules = models.ModuleBuild.local_modules(db.session, name, stream)
+        if local_modules:
+            return [m.mmd() for m in local_modules]
+
         modules = self._get_modules(name, stream, version, context, active=True, strict=strict)
         if not modules:
             return []
@@ -263,6 +268,13 @@ class PDCResolver(GenericResolver):
         buildrequires = queried_mmd.get_xmd()['mbs']['buildrequires']
         # Queue up the next tier of deps that we should look at..
         for name, details in buildrequires.items():
+            local_modules = models.ModuleBuild.local_modules(
+                db.session, name, details['stream'])
+            if local_modules:
+                for m in local_modules:
+                    module_tags[m.koji_tag] = m.mmd()
+                continue
+
             modules = self._get_modules(
                 name, details['stream'], details['version'],
                 details['context'], active=True, strict=True)
