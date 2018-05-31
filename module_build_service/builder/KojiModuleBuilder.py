@@ -279,13 +279,13 @@ It should NEVER be installed on any system as it will really mess up
 %build
 
 %install
-mkdir -p %buildroot/%_sysconfdir/rpm 2>/dev/null |:
-cp %SOURCE1 %buildroot/%_sysconfdir/rpm/macros.zz-modules
-chmod 644 %buildroot/%_sysconfdir/rpm/macros.zz-modules
+mkdir -p %buildroot/etc/rpm 2>/dev/null |:
+cp %SOURCE1 %buildroot/etc/rpm/macros.zz-modules
+chmod 644 %buildroot/etc/rpm/macros.zz-modules
 
 
 %files
-%_sysconfdir/rpm/macros.zz-modules
+/etc/rpm/macros.zz-modules
 
 
 
