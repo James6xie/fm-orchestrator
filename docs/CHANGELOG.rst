@@ -1,6 +1,11 @@
 Change Log
 ==========
 
+v2.2.3
+------
+
+* Fix an issue that occurred when the legacy modulemd module wasn't installed
+
 v2.2.2
 ------
 
