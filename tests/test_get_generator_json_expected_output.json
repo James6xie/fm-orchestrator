@@ -11,8 +11,8 @@
         },
         "tools": [
             {
-                "name": "modulemd",
-                "version": "current-tested-version"
+                "name": "libmodulemd",
+                "version": "1.4"
             }
         ],
         "components": [

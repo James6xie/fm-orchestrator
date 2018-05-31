@@ -74,12 +74,14 @@ class TestBuild:
 
     @patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
     @patch("subprocess.Popen")
+    @patch("subprocess.check_output", return_value='1.4')
     @patch("pkg_resources.get_distribution")
     @patch("platform.linux_distribution")
     @patch("platform.machine")
     @patch(("module_build_service.builder.KojiContentGenerator.KojiContentGenerator."
            "_koji_rpms_in_tag"))
-    def test_get_generator_json(self, rpms_in_tag, machine, distro, pkg_res, popen, get_session):
+    def test_get_generator_json(self, rpms_in_tag, machine, distro, pkg_res, coutput, popen,
+                                get_session):
         """ Test generation of content generator json """
         koji_session = MagicMock()
         koji_session.getUser.return_value = GET_USER_RV
@@ -118,12 +120,13 @@ class TestBuild:
 
     @patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
     @patch("subprocess.Popen")
+    @patch("subprocess.check_output", return_value='1.4')
     @patch("pkg_resources.get_distribution")
     @patch("platform.linux_distribution")
     @patch("platform.machine")
     @patch(("module_build_service.builder.KojiContentGenerator.KojiContentGenerator."
            "_koji_rpms_in_tag"))
-    def test_get_generator_json_no_log(self, rpms_in_tag, machine, distro, pkg_res, popen,
+    def test_get_generator_json_no_log(self, rpms_in_tag, machine, distro, pkg_res, coutput, popen,
                                        get_session):
         """ Test generation of content generator json """
         koji_session = MagicMock()

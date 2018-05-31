@@ -167,13 +167,19 @@ class KojiContentGenerator(object):
     def __get_tools(self):
         """Return list of tools which are important for reproducing mbs outputs"""
 
-        tools = [u"modulemd"]
-        ret = []
-        for tool in tools:
-            version = text_type(pkg_resources.get_distribution(tool).version)
-            ret.append({u"name": tool,
-                        u"version": version})
-        return ret
+        # TODO: In libmodulemd v1.5, there'll be a property we can check instead
+        # of using RPM
+        try:
+            libmodulemd_version = subprocess.check_output(
+                ['rpm', '--queryformat', '%{VERSION}', '-q', 'libmodulemd'],
+                universal_newlines=True).strip()
+        except subprocess.CalledProcessError:
+            libmodulemd_version = 'unknown'
+
+        return [{
+            'name': 'libmodulemd',
+            'version': libmodulemd_version
+        }]
 
     def _koji_rpms_in_tag(self, tag):
         """ Return the list of koji rpms in a tag. """
