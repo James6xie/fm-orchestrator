@@ -1,6 +1,11 @@
 Change Log
 ==========
 
+v2.2.4
+------
+
+* Use /etc instead of %_sysconfdir in module-build-macros to fix builds with flatpak-rpm-macros
+
 v2.2.3
 ------
 
