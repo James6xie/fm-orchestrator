@@ -498,7 +498,8 @@ parameters include:
 - ``owner``
 - ``rebuild_strategy``
 - ``scmurl``
-- ``state`` (can be the state name or the state ID e.g. ``state=done``)
+- ``state`` (Can be the state name or the state ID e.g. ``state=done``. This
+  parameter can be given multiple times, in which case or-ing will be used.)
 - ``state_reason``
 - ``stream``
 - ``submitted_after`` (Zulu ISO 8601 format e.g. ``submitted_after=2016-08-22T09:40:07Z``)
@@ -662,7 +663,9 @@ parameters include:
 - ``package``
 - ``ref``
 - ``scmurl``
-- ``state``
+- ``state`` (Can be the state name or the state ID. Koji states are used
+  for resolving to IDs. This parameter can be given multiple times, in which
+  case or-ing will be used.)
 - ``state_reason``
 - ``tagged`` (boolean e.g. "true" or "false")
 - ``tagged_in_final`` (boolean e.g. "true" or "false")
