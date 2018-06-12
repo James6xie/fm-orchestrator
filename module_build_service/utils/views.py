@@ -196,6 +196,13 @@ def filter_module_builds(flask_request):
             else:
                 raise ValidationError('An invalid state was supplied')
 
+    nsvc = flask_request.args.get('nsvc', None)
+    if nsvc:
+        nsvc_parts = nsvc.split(":")
+        query_keys = ["name", "stream", "version", "context"]
+        for key, part in zip(query_keys, nsvc_parts):
+            search_query[key] = part
+
     query = models.ModuleBuild.query
 
     if search_query:

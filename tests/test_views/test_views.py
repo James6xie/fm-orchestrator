@@ -373,6 +373,25 @@ class TestViews:
         }
         assert actual == expected
 
+    def test_query_builds_with_nsvc(self):
+        nsvcs = ["testmodule:4.3.43:7:00000000",
+                 "testmodule:4.3.43:7",
+                 "testmodule:4.3.43",
+                 "testmodule"]
+
+        results = []
+        for nsvc in nsvcs:
+            rv = self.client.get('/module-build-service/1/module-builds/?nsvc=%s&per_page=2' % nsvc)
+            results.append(json.loads(rv.data)['items'])
+
+        nsvc_keys = ["name", "stream", "version", "context"]
+
+        for items, nsvc in zip(results, nsvcs):
+            nsvc_parts = nsvc.split(":")
+            for item in items:
+                for key, part in zip(nsvc_keys, nsvc_parts):
+                    assert item[key] == part
+
     def test_query_component_build(self):
         rv = self.client.get('/module-build-service/1/component-builds/1')
         data = json.loads(rv.data)
