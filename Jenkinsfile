@@ -33,12 +33,12 @@ node('factory2'){
         }
 
         stage('Build Docker Image') {
-            onmyduffynode 'cd fm-orchestrator && docker build -t mbs/test -f Dockerfile-tests .'
+            onmyduffynode 'cd fm-orchestrator && docker build -t mbs/test -f docker/Dockerfile-tests .'
         }
 
         stage('Run Test Suite') {
             timeout(20) {
-                onmyduffynode 'cd fm-orchestrator && docker run mbs/test'
+                onmyduffynode 'cd fm-orchestrator && docker run -v $PWD:/src:Z mbs/test'
             }
         }
 

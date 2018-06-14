@@ -20,3 +20,4 @@ test_module_build_service.db
 tests/test_module_build_service.db-journal
 *.swp
 .pytest_cache/
+requirements.txt.orig

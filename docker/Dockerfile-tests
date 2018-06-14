@@ -9,6 +9,7 @@ RUN yum -y install \
     --setopt=deltarpm=0 \
     --setopt=install_weak_deps=false \
     --setopt=tsflags=nodocs \
+    bash \
     createrepo_c \
     fedmsg \
     fedmsg-hub \
@@ -41,13 +42,6 @@ RUN yum -y install \
     && yum clean all
 # We currently require a newer versions of these Python packages for the tests
 RUN pip install --upgrade flask-sqlalchemy pytest flake8 tox
-# TODO: Consider making this a volume instead
-COPY . .
-# We install the python-koji RPM but it doesn't register as installed through pip.
-# This hacks keeps tox from install koji from PyPi.
-RUN sed -i '/koji/d' requirements.txt
-# Delete any leftover compiled Python files
-RUN find . -type f \( -name '*.pyc' -or -name '*.pyc' -or -name '__pycache__' \) -exec rm -rf {} \;
-# Since tox seems to ignore `usedevelop` when we have `sitepackages` on, we have to run it manually
-RUN python setup.py develop
-CMD ["/usr/bin/tox", "-e", "flake8,py27"]
+VOLUME /src
+WORKDIR /src
+CMD ["bash", "docker/test.sh"]
