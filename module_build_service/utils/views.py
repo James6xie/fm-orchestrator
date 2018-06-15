@@ -134,6 +134,9 @@ def filter_component_builds(flask_request):
     """
     search_query = dict()
     for key in request.args.keys():
+        # Search by state will be handled separately
+        if key == 'state':
+            continue
         # Only filter on valid database columns
         if key in models.ComponentBuild.__table__.columns.keys():
             if isinstance(models.ComponentBuild.__table__.columns[key].type, sqlalchemy_boolean):
@@ -141,10 +144,12 @@ def filter_component_builds(flask_request):
             else:
                 search_query[key] = flask_request.args[key]
 
-    state = flask_request.args.get('state', None)
-    if state:
+    # Multiple states can be supplied => or-ing will take place
+    states = flask_request.args.getlist('state')
+    search_states = []
+    for state in states:
         if state.isdigit():
-            search_query['state'] = state
+            search_states.append(state)
         else:
             try:
                 import koji
@@ -152,9 +157,9 @@ def filter_component_builds(flask_request):
                 raise ValidationError('Cannot filter by state names because koji isn\'t installed')
 
             if state.upper() in koji.BUILD_STATES:
-                search_query['state'] = koji.BUILD_STATES[state.upper()]
+                search_states.append(koji.BUILD_STATES[state.upper()])
             else:
-                raise ValidationError('An invalid state was supplied')
+                raise ValidationError('Invalid state was supplied: %s' % state)
 
     # Allow the user to specify the module build ID with a more intuitive key name
     if 'module_build' in flask_request.args:
@@ -164,6 +169,8 @@ def filter_component_builds(flask_request):
 
     if search_query:
         query = query.filter_by(**search_query)
+    if search_states:
+        query = query.filter(models.ComponentBuild.state.in_(search_states))
 
     query = _add_order_by_clause(flask_request, query, models.ComponentBuild)
 
@@ -186,15 +193,17 @@ def filter_module_builds(flask_request):
         if key not in special_columns and key in models.ModuleBuild.__table__.columns.keys():
             search_query[key] = flask_request.args[key]
 
-    state = flask_request.args.get('state', None)
-    if state:
+    # Multiple states can be supplied => or-ing will take place
+    states = flask_request.args.getlist('state')
+    search_states = []
+    for state in states:
         if state.isdigit():
-            search_query['state'] = state
+            search_states.append(state)
         else:
             if state in models.BUILD_STATES:
-                search_query['state'] = models.BUILD_STATES[state]
+                search_states.append(models.BUILD_STATES[state])
             else:
-                raise ValidationError('An invalid state was supplied')
+                raise ValidationError('Invalid state was supplied: %s' % state)
 
     nsvc = flask_request.args.get('nsvc', None)
     if nsvc:
@@ -207,6 +216,8 @@ def filter_module_builds(flask_request):
 
     if search_query:
         query = query.filter_by(**search_query)
+    if search_states:
+        query = query.filter(models.ModuleBuild.state.in_(search_states))
 
     # This is used when filtering the date request parameters, but it is here to avoid recompiling
     utc_iso_datetime_regex = re.compile(

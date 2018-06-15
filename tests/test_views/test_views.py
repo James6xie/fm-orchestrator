@@ -461,6 +461,16 @@ class TestViews:
         data = json.loads(rv.data)
         assert data['meta']['total'] == 1
 
+    def test_query_component_builds_filter_state(self):
+        rv = self.client.get('/module-build-service/1/component-builds/?state=3')
+        data = json.loads(rv.data)
+        assert data['meta']['total'] == 2
+
+    def test_query_component_builds_filter_multiple_states(self):
+        rv = self.client.get('/module-build-service/1/component-builds/?state=3&state=1')
+        data = json.loads(rv.data)
+        assert data['meta']['total'] == 12
+
     def test_query_builds_filter_name(self):
         rv = self.client.get('/module-build-service/1/module-builds/?name=nginx')
         data = json.loads(rv.data)
@@ -518,6 +528,12 @@ class TestViews:
             '/module-build-service/1/module-builds/?state=3')
         data = json.loads(rv.data)
         assert data['meta']['total'] == 2
+
+    def test_query_builds_filter_multiple_states(self):
+        rv = self.client.get(
+            '/module-build-service/1/module-builds/?state=3&state=1')
+        data = json.loads(rv.data)
+        assert data['meta']['total'] == 4
 
     def test_query_builds_two_filters(self):
         rv = self.client.get('/module-build-service/1/module-builds/?owner=Moe%20Szyslak'
