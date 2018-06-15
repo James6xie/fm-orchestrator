@@ -21,6 +21,7 @@ data:
   stream: master
   summary: A test module in all its beautiful beauty
   version: 20170816080815
+  context: 321
   xmd:
     mbs:
       buildrequires:

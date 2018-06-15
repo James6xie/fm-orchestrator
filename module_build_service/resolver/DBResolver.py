@@ -156,9 +156,12 @@ class DBResolver(GenericResolver):
 
             buildrequires = xmd_mbs['buildrequires']
             for br_name, details in buildrequires.items():
-                build = session.query(models.ModuleBuild).filter_by(
-                    name=br_name, stream=details['stream'], version=details['version'],
-                    state=models.BUILD_STATES['ready']).first()
+                build = models.ModuleBuild.get_build_from_nsvc(
+                    session, br_name, details['stream'], details['version'], details['context'],
+                    state=models.BUILD_STATES['ready'])
+                if not build:
+                    raise RuntimeError(
+                        'Buildrequired module %s %r does not exist in MBS db' % (br_name, details))
                 module_tags[build.koji_tag] = build.mmd()
 
         return module_tags

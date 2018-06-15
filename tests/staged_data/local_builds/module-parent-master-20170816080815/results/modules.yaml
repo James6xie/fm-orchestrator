@@ -21,11 +21,12 @@ data:
   stream: master
   summary: A test module in all its beautiful beauty
   version: 20170816080815
+  context: 123
   xmd:
     mbs:
       buildrequires:
         testmodule: {ref: 147dca4ca65aa9a1ac51f71b7e687f9178ffa5df, stream: master,
-          version: '20170616125652'}
+          version: '20170616125652', context: '321'}
       requires:
         platform: {ref: virtual, stream: f28, version: '3'}
       commit: 722fd739fd6cf66faf29f6fb95dd64f60ba3e39a
