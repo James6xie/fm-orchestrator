@@ -1,6 +1,14 @@
 Change Log
 ==========
 
+v2.3.0
+------
+
+* Get buildrequired modules for Koji tag inheritance using NSVC instead of NSV
+* Support querying for modules/components with multiple state filters
+* Support querying for builds by an NSVC string
+* Fix an MSE issue when a module buildrequires on the same name and stream as itself
+
 v2.2.4
 ------
 
