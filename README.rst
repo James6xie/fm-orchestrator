@@ -265,6 +265,8 @@ module builds are displayed. These parameters are:
 
 - ``verbose`` - Shows the builds with additional detail such as the modulemd
   and state trace (i.e. ``verbose=True``). This value defaults to ``False``.
+- ``short`` - Shows the builds with a minimum amount of information
+  (i.e. ``short=True``). This value defaults to ``False``.
 - ``page`` - Specifies which page should be displayed (e.g. ``page=3``). This
   value defaults to 1.
 - ``per_page`` - Specifies how many items per page should be displayed
@@ -488,22 +490,22 @@ parameters include:
 
 - ``batch``
 - ``cg_build_koji_tag``
-- ``completed_after`` (Zulu ISO 8601 format e.g. ``completed_after=2016-08-23T09:40:07Z``)
-- ``completed_before`` (Zulu ISO 8601 format e.g. ``completed_before=2016-08-22T09:40:07Z``)
+- ``completed_after`` - Zulu ISO 8601 format e.g. ``completed_after=2016-08-23T09:40:07Z``
+- ``completed_before`` - Zulu ISO 8601 format e.g. ``completed_before=2016-08-22T09:40:07Z``
 - ``koji_tag``
-- ``modified_after`` (Zulu ISO 8601 format e.g. ``modified_after=2016-08-22T09:40:07Z``)
-- ``modified_before`` (Zulu ISO 8601 format e.g. ``modified_before=2016-08-23T09:40:07Z``)
+- ``modified_after`` - Zulu ISO 8601 format e.g. ``modified_after=2016-08-22T09:40:07Z``
+- ``modified_before`` - Zulu ISO 8601 format e.g. ``modified_before=2016-08-23T09:40:07Z``
 - ``name``
 - ``new_repo_task_id``
 - ``owner``
 - ``rebuild_strategy``
 - ``scmurl``
-- ``state`` (Can be the state name or the state ID e.g. ``state=done``. This
-  parameter can be given multiple times, in which case or-ing will be used.)
+- ``state`` - Can be the state name or the state ID e.g. ``state=done``. This
+  parameter can be given multiple times, in which case or-ing will be used.
 - ``state_reason``
 - ``stream``
-- ``submitted_after`` (Zulu ISO 8601 format e.g. ``submitted_after=2016-08-22T09:40:07Z``)
-- ``submitted_before`` (Zulu ISO 8601 format e.g. ``submitted_before=2016-08-23T09:40:07Z``)
+- ``submitted_after`` - Zulu ISO 8601 format e.g. ``submitted_after=2016-08-22T09:40:07Z``
+- ``submitted_before`` - Zulu ISO 8601 format e.g. ``submitted_before=2016-08-23T09:40:07Z``
 - ``version``
 
 An example of querying the "module-builds" resource with the "state",
@@ -656,19 +658,19 @@ The component builds can be filtered by a variety of GET parameters. Some of the
 parameters include:
 
 - ``batch``
-- ``build_time_only`` (boolean e.g. "true" or "false")
+- ``build_time_only`` - boolean e.g. "true" or "false"
 - ``format``
 - ``module_id`` or ``module_build``
 - ``nvr``
 - ``package``
 - ``ref``
 - ``scmurl``
-- ``state`` (Can be the state name or the state ID. Koji states are used
+- ``state`` - Can be the state name or the state ID. Koji states are used
   for resolving to IDs. This parameter can be given multiple times, in which
-  case or-ing will be used.)
+  case or-ing will be used.
 - ``state_reason``
-- ``tagged`` (boolean e.g. "true" or "false")
-- ``tagged_in_final`` (boolean e.g. "true" or "false")
+- ``tagged`` - boolean e.g. "true" or "false"
+- ``tagged_in_final`` - boolean e.g. "true" or "false"
 - ``task_id``
 
 
