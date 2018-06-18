@@ -297,9 +297,13 @@ def generate_expanded_mmds(session, mmd, raise_if_stream_ambigous=False, default
 
         # Get the values for dependencies_id, self_nsvca and req_name_stream variables.
         for nsvca in requires:
-            req_name, req_stream, _ = nsvca.split(":", 2)
-            if req_name == current_mmd.get_name() and req_stream == current_mmd.get_stream():
-                dependencies_id = int(nsvca.split(":")[3])
+            req_name, req_stream, _, req_context, req_arch = nsvca.split(":")
+            if req_arch == 'src':
+                assert req_name == current_mmd.get_name()
+                assert req_stream == current_mmd.get_stream()
+                assert dependencies_id is None
+                assert self_nsvca is None
+                dependencies_id = int(req_context)
                 self_nsvca = nsvca
                 continue
             req_name_stream[req_name] = req_stream
