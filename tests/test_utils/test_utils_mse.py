@@ -137,6 +137,7 @@ class TestUtilsModuleStreamExpansion:
         self._make_module("foo:2:0:c5", {"platform": ["f29"]}, {})
         self._make_module("platform:f28:0:c10", {}, {})
         self._make_module("platform:f29:0:c11", {}, {})
+        self._make_module("app:1:0:c6", {"platform": ["f29"]}, {})
 
     def test_generate_expanded_mmds_context(self):
         self._generate_default_modules()
@@ -205,6 +206,14 @@ class TestUtilsModuleStreamExpansion:
              ]),
              set([
                  frozenset(['gtk:1'])
+             ])),
+
+            ({}, {"app": ["1"]}, False,
+             set([
+                 frozenset(['app:1:0:c6', 'platform:f29:0:c11'])
+             ]),
+             set([
+                 frozenset([])
              ])),
         ])
     def test_generate_expanded_mmds_buildrequires(
