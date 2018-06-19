@@ -838,6 +838,10 @@ chmod 644 %buildroot/etc/rpm/macros.zz-modules
             'repo_include_all': True,
         }
 
+        xmd = self.mmd.get_xmd()
+        if "mbs_options" in xmd.keys() and "repo_include_all" in xmd["mbs_options"].keys():
+            opts['extra']['repo_include_all'] = xmd["mbs_options"]["repo_include_all"]
+
         # edit tag with opts
         self.koji_session.editTag2(tag_name, **opts)
         return self._get_tag(tag_name)  # Return up2date taginfo

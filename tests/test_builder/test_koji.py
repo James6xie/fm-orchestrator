@@ -414,7 +414,8 @@ class TestKojiBuilder:
 
     @pytest.mark.parametrize('blocklist', [False, True])
     @pytest.mark.parametrize('custom_whitelist', [False, True])
-    def test_buildroot_connect(self, custom_whitelist, blocklist):
+    @pytest.mark.parametrize('repo_include_all', [False, True])
+    def test_buildroot_connect(self, custom_whitelist, blocklist, repo_include_all):
         if blocklist:
             mmd = self.module.mmd()
             xmd = glib.from_variant_dict(mmd.get_xmd())
@@ -427,6 +428,15 @@ class TestKojiBuilder:
             opts = mmd.get_buildopts()
             opts.set_rpm_whitelist(['custom1', 'custom2'])
             mmd.set_buildopts(opts)
+            self.module.modulemd = mmd.dumps()
+
+        if repo_include_all is False:
+            mmd = self.module.mmd()
+            xmd = glib.from_variant_dict(mmd.get_xmd())
+            mbs_options = xmd["mbs_options"] if "mbs_options" in xmd.keys() else {}
+            mbs_options["repo_include_all"] = False
+            xmd["mbs_options"] = mbs_options
+            mmd.set_xmd(glib.dict_values(xmd))
             self.module.modulemd = mmd.dumps()
 
         builder = FakeKojiModuleBuilder(
@@ -465,6 +475,14 @@ class TestKojiBuilder:
         # new Koji tag to prevent overriding it on each buildroot_connect.
         expected_calls = []
         assert session.packageListBlock.mock_calls == expected_calls
+
+        expected_calls = [mock.call('module-foo', arches='i686 armv7hl x86_64',
+                                    extra={'mock.package_manager': 'dnf',
+                                           'repo_include_all': repo_include_all}),
+                          mock.call('module-foo-build', arches='i686 armv7hl x86_64',
+                                    extra={'mock.package_manager': 'dnf',
+                                           'repo_include_all': repo_include_all})]
+        assert session.editTag2.mock_calls == expected_calls
 
     @pytest.mark.parametrize('blocklist', [False, True])
     def test_buildroot_connect_create_tag(self, blocklist):
