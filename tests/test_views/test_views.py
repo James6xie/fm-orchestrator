@@ -24,14 +24,15 @@ import json
 
 import module_build_service.scm
 
-from mock import patch, PropertyMock
+from mock import patch, PropertyMock, Mock
 from shutil import copyfile
 from os import path, mkdir
 from os.path import dirname
+from requests.utils import quote
 import hashlib
 import pytest
 
-from tests import app, init_data, clean_database
+from tests import app, init_data, clean_database, reuse_component_init_data
 from module_build_service.errors import UnprocessableEntity
 from module_build_service.models import ModuleBuild
 from module_build_service import db, version, Modulemd
@@ -391,6 +392,51 @@ class TestViews:
             for item in items:
                 for key, part in zip(nsvc_keys, nsvc_parts):
                     assert item[key] == part
+
+    @patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
+    def test_query_builds_with_binary_rpm(self, mock_get_session):
+        """
+        Test for querying MBS with the binary rpm filename. MBS should return all the modules,
+        which contain the rpm.
+        """
+        # update database with builds which contain koji tags.
+        reuse_component_init_data()
+        mock_rpm_md = {"build_id": 1065871}
+        mock_tags = [{"name": "module-testmodule-master-20170219191323-c40c156c"},
+                     {"name": "module-testmodule-master-20170219191323-c40c156c-build"},
+                     {"name": "non-module-tag"},
+                     {"name": "module-testmodule-master-20170109091357-78e4a6fd"}]
+
+        mock_session = Mock()
+        mock_session.getRPM.return_value = mock_rpm_md
+        mock_session.listTags.return_value = mock_tags
+        mock_get_session.return_value = mock_session
+
+        rpm = quote('module-build-macros-0.1-1.testmodule_master_20170303190726.src.rpm')
+        rv = self.client.get('/module-build-service/1/module-builds/?rpm=%s' % rpm)
+        results = json.loads(rv.data)['items']
+
+        assert len(results) == 2
+        assert results[0]["koji_tag"] == "module-testmodule-master-20170219191323-c40c156c"
+        assert results[1]["koji_tag"] == "module-testmodule-master-20170109091357-78e4a6fd"
+
+        mock_session.getRPM.assert_called_once_with(
+            "module-build-macros-0.1-1.testmodule_master_20170303190726.src.rpm")
+        mock_session.listTags.assert_called_once_with(mock_rpm_md["build_id"])
+
+    @patch('module_build_service.config.Config.system',
+           new_callable=PropertyMock, return_value="invalid_builder")
+    def test_query_builds_with_binary_rpm_not_koji(self, mock_builder):
+        rpm = quote('module-build-macros-0.1-1.testmodule_master_20170303190726.src.rpm')
+        rv = self.client.get('/module-build-service/1/module-builds/?rpm=%s' % rpm)
+        results = json.loads(rv.data)
+        expected_error = {
+            'error': 'Bad Request',
+            'message': 'Configured builder does not allow to search by rpm binary name!',
+            'status': 400
+        }
+        assert rv.status_code == 400
+        assert results == expected_error
 
     def test_query_component_build(self):
         rv = self.client.get('/module-build-service/1/component-builds/1')

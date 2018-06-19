@@ -30,7 +30,7 @@ from datetime import datetime
 from flask import request, url_for, Response
 from sqlalchemy.sql.sqltypes import Boolean as sqlalchemy_boolean
 
-from module_build_service import models, api_version
+from module_build_service import models, api_version, conf
 from module_build_service.errors import ValidationError, NotFound
 from .general import scm_url_schemes
 
@@ -212,12 +212,25 @@ def filter_module_builds(flask_request):
         for key, part in zip(query_keys, nsvc_parts):
             search_query[key] = part
 
+    rpm = flask_request.args.get('rpm', None)
+    koji_tags = []
+    if rpm:
+        if conf.system == "koji":
+            # we are importing the koji builder here so we can search for the rpm metadata
+            # from koji. If we imported this regulary we would have gotten a circular import error.
+            from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder # noqa
+            koji_tags = KojiModuleBuilder.get_rpm_module_tag(rpm)
+        else:
+            raise ValidationError("Configured builder does not allow to search by rpm binary name!")
+
     query = models.ModuleBuild.query
 
     if search_query:
         query = query.filter_by(**search_query)
     if search_states:
         query = query.filter(models.ModuleBuild.state.in_(search_states))
+    if koji_tags:
+        query = query.filter(models.ModuleBuild.koji_tag.in_(koji_tags)).filter_by(**search_query)
 
     # This is used when filtering the date request parameters, but it is here to avoid recompiling
     utc_iso_datetime_regex = re.compile(

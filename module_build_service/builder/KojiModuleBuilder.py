@@ -1064,3 +1064,26 @@ chmod 644 %buildroot/etc/rpm/macros.zz-modules
         if self.config.koji_enable_content_generator and self.module.state == 3:
             cg = KojiContentGenerator(self.module, self.config)
             cg.koji_import()
+
+    @staticmethod
+    def get_rpm_module_tag(rpm):
+        """
+        Returns koji tag of a given rpm filename.
+
+        :param str rpm: the *.rpm filename of a rpm
+        :rtype: str
+        :return: koji tag
+        """
+
+        session = KojiModuleBuilder.get_session(conf, None)
+        rpm_md = session.getRPM(rpm)
+        if not rpm_md:
+            return None
+
+        tags = []
+        koji_tags = session.listTags(rpm_md["build_id"])
+        for t in koji_tags:
+            if not t["name"].endswith("-build") and t["name"].startswith("module-"):
+                tags.append(t["name"])
+
+        return tags
