@@ -55,7 +55,7 @@ setup(name='module-build-service',
               'mock = module_build_service.builder.MockModuleBuilder:MockModuleBuilder',
           ],
           'mbs.resolver_backends': [
-              'pdc = module_build_service.resolver.PDCResolver:PDCResolver',
+              'mbs = module_build_service.resolver.MBSResolver:MBSResolver',
               'db = module_build_service.resolver.DBResolver:DBResolver',
           ],
       },

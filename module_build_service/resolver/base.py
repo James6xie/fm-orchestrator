@@ -47,7 +47,7 @@ class GenericResolver(six.with_metaclass(ABCMeta)):
     @classmethod
     def create(cls, config, backend=None, **extra):
         """
-        :param backend: a string representing resolver e.g. 'pdc'
+        :param backend: a string representing resolver e.g. 'db'
 
         Any additional arguments are optional extras which can be passed along
         and are implementation-dependent.

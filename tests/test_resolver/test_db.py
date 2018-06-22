@@ -153,7 +153,7 @@ class TestDBModule:
         with app.app_context():
             utils.load_local_builds(['platform'])
             mmd = models.ModuleBuild.query.get(2).mmd()
-            resolver = mbs_resolver.GenericResolver.create(tests.conf, backend='pdc')
+            resolver = mbs_resolver.GenericResolver.create(tests.conf, backend='mbs')
             result = resolver.resolve_profiles(mmd, ('buildroot', 'srpm-buildroot'))
             expected = {
                 'buildroot':

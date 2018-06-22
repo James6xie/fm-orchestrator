@@ -17,7 +17,6 @@ RUN yum -y install \
     kobo \
     kobo-rpmlib \
     libmodulemd \
-    pdc-client \
     python-backports-ssl_match_hostname \
     python-dogpile-cache \
     python-enum34 \

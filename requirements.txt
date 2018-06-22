@@ -13,7 +13,6 @@ koji
 ldap3
 moksha.hub
 munch
-pdc-client
 pyOpenSSL
 pygobject
 requests

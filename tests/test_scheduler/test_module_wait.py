@@ -88,7 +88,7 @@ class TestModuleWait:
            return_value={'build': [], 'srpm-build': []})
     @patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
     @patch("module_build_service.builder.GenericBuilder.create_from_module")
-    @patch('module_build_service.resolver.PDCResolver')
+    @patch('module_build_service.resolver.DBResolver')
     @patch('module_build_service.resolver.GenericResolver')
     def test_new_repo_called_when_macros_reused(
             self, generic_resolver, resolver, create_builder, koji_get_session, dbg):
@@ -110,7 +110,7 @@ class TestModuleWait:
             create_builder.return_value = builder
 
             resolver = mock.MagicMock()
-            resolver.backend = 'pdc'
+            resolver.backend = 'db'
             resolver.get_module_tag.return_value = "module-testmodule-master-20170109091357"
             generic_resolver.create.return_value = resolver
 
@@ -130,7 +130,7 @@ class TestModuleWait:
            return_value={'build': [], 'srpm-build': []})
     @patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
     @patch("module_build_service.builder.GenericBuilder.create_from_module")
-    @patch('module_build_service.resolver.PDCResolver')
+    @patch('module_build_service.resolver.DBResolver')
     @patch('module_build_service.resolver.GenericResolver')
     def test_new_repo_not_called_when_macros_not_reused(
             self, generic_resolver, resolver, create_builder, koji_get_session, dbg):
@@ -152,7 +152,7 @@ class TestModuleWait:
             create_builder.return_value = builder
 
             resolver = mock.MagicMock()
-            resolver.backend = 'pdc'
+            resolver.backend = 'db'
             resolver.get_module_tag.return_value = "module-testmodule-master-20170109091357"
             generic_resolver.create.return_value = resolver
 
@@ -166,7 +166,7 @@ class TestModuleWait:
            return_value={'build': [], 'srpm-build': []})
     @patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
     @patch("module_build_service.builder.GenericBuilder.create_from_module")
-    @patch('module_build_service.resolver.PDCResolver')
+    @patch('module_build_service.resolver.DBResolver')
     @patch('module_build_service.resolver.GenericResolver')
     def test_set_cg_build_koji_tag_fallback_to_default(
             self, generic_resolver, resolver, create_builder, koji_get_session, dbg):
@@ -192,7 +192,7 @@ class TestModuleWait:
             create_builder.return_value = builder
 
             resolver = mock.MagicMock()
-            resolver.backend = 'pdc'
+            resolver.backend = 'db'
             resolver.get_module_tag.return_value = "module-testmodule-master-20170109091357"
             resolver.get_module_build_dependencies.return_value = {
                 "module-bootstrap-tag": base_mmd}
@@ -209,7 +209,7 @@ class TestModuleWait:
            return_value={'build': [], 'srpm-build': []})
     @patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
     @patch("module_build_service.builder.GenericBuilder.create_from_module")
-    @patch('module_build_service.resolver.PDCResolver')
+    @patch('module_build_service.resolver.DBResolver')
     @patch('module_build_service.resolver.GenericResolver')
     @patch("module_build_service.config.Config.base_module_names",
            new_callable=mock.PropertyMock, return_value=set(["base-runtime"]))
@@ -237,7 +237,7 @@ class TestModuleWait:
             create_builder.return_value = builder
 
             resolver = mock.MagicMock()
-            resolver.backend = 'pdc'
+            resolver.backend = 'db'
             resolver.get_module_tag.return_value = "module-testmodule-master-20170109091357"
             resolver.get_module_build_dependencies.return_value = {
                 "module-bootstrap-tag": base_mmd}

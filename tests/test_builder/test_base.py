@@ -37,17 +37,17 @@ class TestGenericBuilder:
         init_data(1)
         self.module = module_build_service.models.ModuleBuild.query.filter_by(id=1).one()
 
-    @patch('module_build_service.resolver.PDCResolver')
+    @patch('module_build_service.resolver.DBResolver')
     @patch('module_build_service.resolver.GenericResolver')
     def test_default_buildroot_groups_cache(self, generic_resolver, resolver):
-        pdc_groups = {
+        mbs_groups = {
             "buildroot": [],
             "srpm-buildroot": []
         }
 
         resolver = mock.MagicMock()
-        resolver.backend = 'pdc'
-        resolver.resolve_profiles.return_value = pdc_groups
+        resolver.backend = 'mbs'
+        resolver.resolve_profiles.return_value = mbs_groups
         generic_resolver.create.return_value = resolver
 
         expected_groups = {

@@ -112,6 +112,10 @@ def build_module_locally(local_build_nsvs=None, yaml_file=None, stream=None, ski
     if 'SERVER_NAME' not in app.config or not app.config['SERVER_NAME']:
         app.config["SERVER_NAME"] = 'localhost'
 
+        if app.config['RESOLVER'] == 'db':
+            raise ValueError("Please set RESOLVER to 'mbs' in your "
+                             "configuration for local builds.")
+
     with app.app_context():
         conf.set_item("system", "mock")
 

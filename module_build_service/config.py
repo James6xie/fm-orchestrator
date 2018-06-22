@@ -38,8 +38,8 @@ from module_build_service import logger
 SUPPORTED_STRATEGIES = ['changed-and-after', 'only-changed', 'all']
 
 SUPPORTED_RESOLVERS = {
-    'pdc': {'builders': ['koji', 'mock']},
-    'db': {'builders': ['koji', 'mock']}
+    'mbs': {'builders': ['mock']},
+    'db': {'builders': ['koji', 'mock', 'copr']}
 }
 
 
@@ -155,18 +155,10 @@ class Config(object):
             'type': Path,
             'default': '~/modulebuild/cache',
             'desc': 'Cache directory'},
-        'pdc_url': {
+        'mbs_url': {
             'type': str,
-            'default': '',
-            'desc': 'PDC URL.'},
-        'pdc_insecure': {
-            'type': bool,
-            'default': False,
-            'desc': 'Allow insecure connection to PDC.'},
-        'pdc_develop': {
-            'type': bool,
-            'default': False,
-            'desc': 'PDC Development mode, basically noauth.'},
+            'default': 'https://mbs.fedoraproject.org/module-build-service/1/module-builds/',
+            'desc': 'MBS instance url for MBSResolver'},
         'koji_config': {
             'type': str,
             'default': None,
@@ -435,7 +427,7 @@ class Config(object):
                      'the "garbage" state.')},
         'resolver': {
             'type': str,
-            'default': 'pdc',
+            'default': 'db',
             'desc': 'Where to look up for modules. Note that this can (and '
                     'probably will) be builder-specific.'},
     }

@@ -224,9 +224,8 @@ def create_dogpile_key_generator_func(skip_first_n_args=0):
       ModuleBuild.__str__() output, which contains also batch and other data
       which changes during the build of a module.
     - it is able to skip first N arguments of a cached method. This is useful
-      when the db.session or PDCClient instance is part of cached method call,
-      and the caching should work no matter what session instance is passed
-      to cached method argument.
+      when the db.session is part of cached method call, and the caching should
+      work no matter what session instance is passed to cached method argument.
     """
     def key_generator(namespace, fn):
         fname = fn.__name__

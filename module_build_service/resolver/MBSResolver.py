@@ -21,126 +21,94 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 #
-# Written by Lubos Kocman <lkocman@redhat.com>
-#            Filip Valder <fvalder@redhat.com>
+# Written by Martin Curlej <mcurlej@redhat.com>
 
-"""PDC handler functions."""
+"""MBS handler functions."""
 
-import pdc_client
+import logging
+import kobo.rpmlib
+import requests
+
 from module_build_service import db
 from module_build_service import models
 from module_build_service.errors import UnprocessableEntity
 from module_build_service.resolver.base import GenericResolver
 
-import inspect
-import logging
-import kobo.rpmlib
 log = logging.getLogger()
 
 
-class PDCResolver(GenericResolver):
+class MBSResolver(GenericResolver):
 
-    backend = "pdc"
+    backend = "mbs"
 
     def __init__(self, config):
-        self.config = config
-        self.session = self._get_client_session(self.config)
+        self.mbs_prod_url = config.mbs_url
+        self.session = requests.Session()
+        adapter = requests.adapters.HTTPAdapter(max_retries=3)
+        self.session.mount(self.mbs_prod_url, adapter)
 
-    def _get_client_session(self, config):
+    def _query_from_nsvc(self, name, stream, version=None, context=None, state="ready"):
         """
-        :param config: instance of module_build_service.config.Config
-        :return pdc_client.PDCClient instance
-        """
-        if 'ssl_verify' in inspect.getargspec(pdc_client.PDCClient.__init__).args:
-            # New API
-            return pdc_client.PDCClient(
-                server=self.config.pdc_url,
-                develop=self.config.pdc_develop,
-                ssl_verify=not self.config.pdc_insecure,
-            )
-        else:
-            # Old API
-            return pdc_client.PDCClient(
-                server=self.config.pdc_url,
-                develop=self.config.pdc_develop,
-                insecure=self.config.pdc_insecure,
-            )
-
-    def _query_from_nsvc(self, name, stream, version=None, context=None, active=None):
-        """
-        Generates dict with PDC query.
+        Generates dict with MBS params query.
 
         :param str name: Name of the module to query.
         :param str stream: Stream of the module to query.
         :param str version/int: Version of the module to query.
         :param str context: Context of the module to query.
-        :param bool active: Include "active" in a query.
         """
         query = {
-            "variant_id": name,
-            "variant_version": stream,
+            "name": name,
+            "stream": stream,
+            "state": state,
+            "verbose": True,
+            "order_desc_by": "version"
         }
-        if active is not None:
-            query["active"] = active
         if version is not None:
-            query["variant_release"] = str(version)
+            query["version"] = str(version)
         if context is not None:
-            query["variant_context"] = context
+            query["context"] = context
         return query
 
-    def _get_modules(self, name, stream, version=None, context=None, active=None, strict=False):
+    def _get_modules(self, name, stream, version=None, context=None, state="ready", strict=False):
         """
-        :param module_info: pdc variant_dict, str, mmd or module dict
+        :param module_info: str, mmd or module dict
         :param strict: Normally this function returns None if no module can be
                found.  If strict=True, then an UnprocessableEntity is raised.
 
         :return final list of module_info which pass repoclosure
         """
-        query = self._query_from_nsvc(name, stream, version, context, active)
+        query = self._query_from_nsvc(name, stream, version, context, state)
+        query["page"] = 1
+        query["per_page"] = 10
+        modules = []
 
-        # TODO: So far sorting on Fedora prod PDC instance is broken and it sorts
-        # only by variant_uid by default. Once the sorting is fixed, we can start
-        # using '-variant_release' ordering and just get the first variant from
-        # there. But in the meantime, we have to get the first variant with
-        # page_size set to 1 to find out how many variants (pages) are there in
-        # results set and jump to last one in another query. The last one is always
-        # the latest one (the one with the highest version).
-        try:
-            retval = self.session['unreleasedvariants']._(page_size=1, **query)
-        except Exception as ex:
-            log.debug("error during PDC lookup: %r" % ex)
-            raise RuntimeError("Error during PDC lookup for module %s" % name)
+        while True:
+            res = self.session.get(self.mbs_prod_url, params=query)
+            if not res.ok:
+                raise RuntimeError("Failed to query MBS with query %r returned HTTP status %s" %
+                                   (query, res.status_code))
+                break
+
+            data = res.json()
+            modules_per_page = data["items"]
+            modules += modules_per_page
+
+            if not data["meta"]["next"]:
+                break
+
+            query["page"] += 1
 
         # Error handling
-        if not retval or len(retval["results"]) == 0:
+        if not modules:
             if strict:
-                raise UnprocessableEntity("Failed to find module in PDC %r" % query)
+                raise UnprocessableEntity("Failed to find module in MBS %r" % query)
             else:
                 return None
 
-        # Get all the contexts of given module in case there is just NS or NSV input.
-        if not version or not context:
-            # If the version is not set, we have to jump to last page to get the latest
-            # version in PDC.
-            if not version:
-                query['page'] = retval['count']
-                retval = self.session['unreleasedvariants']._(page_size=1, **query)
-                del query['page']
-                query["variant_release"] = retval["results"][0]["variant_release"]
-            retval = self.session['unreleasedvariants']._(page_size=-1, **query)
-            return retval
+        return modules
 
-        results = retval["results"]
-        # Error handling
-        if len(results) == 0:
-            if strict:
-                raise UnprocessableEntity("Failed to find module in PDC %r" % query)
-            else:
-                return None
-        return results
-
-    def _get_module(self, name, stream, version=None, context=None, active=None, strict=False):
-        return self._get_modules(name, stream, version, context, active, strict)[0]
+    def _get_module(self, name, stream, version, context, state="ready", strict=False):
+        return self._get_modules(name, stream, version, context, state, strict)[0]
 
     def get_module_modulemds(self, name, stream, version=None, context=None, strict=False):
         """
@@ -161,7 +129,7 @@ class PDCResolver(GenericResolver):
         if local_modules:
             return [m.mmd() for m in local_modules]
 
-        modules = self._get_modules(name, stream, version, context, active=True, strict=strict)
+        modules = self._get_modules(name, stream, version, context, strict=strict)
         if not modules:
             return []
 
@@ -173,7 +141,7 @@ class PDCResolver(GenericResolver):
             if not yaml:
                 if strict:
                     raise UnprocessableEntity(
-                        "Failed to find modulemd entry in PDC for %r" % module)
+                        "Failed to find modulemd entry in MBS for %r" % module)
                 else:
                     return None
 
@@ -211,7 +179,7 @@ class PDCResolver(GenericResolver):
                         results[key] |= set(dep_mmd.get_profiles()[key].get_rpms().get())
                 continue
 
-            # Find the dep in the built modules in PDC
+            # Find the dep in the built modules in MBS
             modules = self._get_modules(
                 module_name, module_info['stream'], module_info['version'],
                 module_info['context'], strict=True)
@@ -234,11 +202,12 @@ class PDCResolver(GenericResolver):
         :param stream: a module's stream (required if mmd is not set)
         :param version: a module's version (required if mmd is not set)
         :param context: a module's context (required if mmd is not set)
-        :param mmd: uses the mmd instead of the name, stream, version to query PDC
+        :param mmd: uses the mmd instead of the name, stream, version
         :param strict: Normally this function returns None if no module can be
             found.  If strict=True, then an UnprocessableEntity is raised.
         :return dict with koji_tag as a key and ModuleMetadata object as value.
         """
+
         if mmd:
             log.debug("get_module_build_dependencies(mmd=%r strict=%r)" % (mmd, strict))
         elif any(x is None for x in [name, stream, version, context]):
@@ -263,7 +232,7 @@ class PDCResolver(GenericResolver):
                 'buildrequires' not in queried_mmd.get_xmd()['mbs'].keys()):
             raise RuntimeError(
                 'The module "{0!r}" did not contain its modulemd or did not have '
-                'its xmd attribute filled out in PDC'.format(queried_mmd))
+                'its xmd attribute filled out in MBS'.format(queried_mmd))
 
         buildrequires = queried_mmd.get_xmd()['mbs']['buildrequires']
         # Queue up the next tier of deps that we should look at..
@@ -275,9 +244,11 @@ class PDCResolver(GenericResolver):
                     module_tags[m.koji_tag] = m.mmd()
                 continue
 
+            if "context" not in details:
+                details["context"] = "00000000"
             modules = self._get_modules(
                 name, details['stream'], details['version'],
-                details['context'], active=True, strict=True)
+                details['context'], strict=True)
             for m in modules:
                 if m["koji_tag"] in module_tags:
                     continue
@@ -304,7 +275,7 @@ class PDCResolver(GenericResolver):
         If there are some modules loaded by utils.load_local_builds(...), these
         local modules will be considered when resolving the requires.
 
-        Raises RuntimeError on PDC lookup error.
+        Raises RuntimeError on MBS lookup error.
         """
         new_requires = {}
         for nsvc in requires:
@@ -342,7 +313,7 @@ class PDCResolver(GenericResolver):
             filtered_rpms = []
             module = self._get_module(
                 module_name, module_stream, module_version,
-                module_context, active=True, strict=True)
+                module_context, strict=True)
             if module.get('modulemd'):
                 mmd = self.extract_modulemd(module['modulemd'])
                 if mmd.get_xmd().get('mbs') and 'commit' in mmd.get_xmd()['mbs'].keys():
@@ -362,20 +333,20 @@ class PDCResolver(GenericResolver):
                             continue
                         filtered_rpms.append(nvr)
 
-            if module.get('variant_release'):
-                version = module['variant_release']
+            if module.get('version'):
+                version = module['version']
 
             if version and commit_hash:
                 new_requires[module_name] = {
                     'ref': commit_hash,
                     'stream': module_stream,
                     'version': str(version),
-                    'context': module["variant_context"],
+                    'context': module["context"],
                     'filtered_rpms': filtered_rpms,
                 }
             else:
                 raise RuntimeError(
                     'The module "{0}" didn\'t contain either a commit hash or a'
-                    ' version in PDC'.format(module_name))
+                    ' version in MBS'.format(module_name))
 
         return new_requires

@@ -152,7 +152,7 @@ class DBResolver(GenericResolver):
             if not xmd_mbs or 'buildrequires' not in xmd_mbs.keys():
                 raise RuntimeError(
                     'The module {} did not contain its modulemd or did not have '
-                    'its xmd attribute filled out in PDC'.format(nsvc))
+                    'its xmd attribute filled out in MBS'.format(nsvc))
 
             buildrequires = xmd_mbs['buildrequires']
             for br_name, details in buildrequires.items():

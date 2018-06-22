@@ -24,7 +24,7 @@
 
 """Generic component build functions."""
 
-# TODO: Query the PDC to find what modules satisfy the build dependencies and
+# TODO: Query the MBS to find what modules satisfy the build dependencies and
 #       their tag names.
 # TODO: Ensure the RPM %dist tag is set according to the policy.
 
@@ -196,7 +196,7 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
         necessarily have to directly install artifacts (e.g. koji), just make
         them available.
 
-        E.g. the koji implementation of the call uses PDC to get koji_tag
+        E.g. the koji implementation of the call uses MBS to get koji_tag
         associated with each module dep and adds the tag to $module-build tag
         inheritance.
         """
@@ -307,7 +307,7 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
             mmd = module.mmd()
             resolver = module_build_service.resolver.GenericResolver.create(conf)
 
-            # Resolve default buildroot groups using the PDC, but only for
+            # Resolve default buildroot groups using the MBS, but only for
             # non-local modules.
             groups = resolver.resolve_profiles(
                 mmd, ('buildroot', 'srpm-buildroot'))

@@ -93,7 +93,7 @@ def failed(config, session, msg):
     else:
         # Do not overwrite state_reason set by Frontend if any.
         if not build.state_reason:
-            reason = "Missing koji tag. Assuming previously failed module lookup in PDC."
+            reason = "Missing koji tag. Assuming previously failed module lookup."
             log.error(reason)
             build.transition(config, state="failed", state_reason=reason)
             session.commit()
@@ -222,12 +222,12 @@ def wait(config, session, msg):
         if conf.system not in ['koji', 'test']:
             # In case of non-koji backend, we want to get the dependencies
             # of the local module build based on ModuleMetadata, because the
-            # local build is not stored in PDC and therefore we cannot query
-            # it using the `query` as for Koji below.
+            # local build is not stored in the external MBS and therefore we
+            # cannot query it using the `query` as for Koji below.
             dependencies = resolver.get_module_build_dependencies(
                 mmd=build.mmd(), strict=True).keys()
 
-            # We also don't want to get the tag name from the PDC, but just
+            # We also don't want to get the tag name from the MBS, but just
             # generate it locally instead.
             tag = '-'.join(['module', build.name, build.stream, build.version])
         else:
@@ -257,7 +257,7 @@ def wait(config, session, msg):
     try:
         dependencies, tag, cg_build_koji_tag = _get_deps_and_tag()
     except ValueError:
-        reason = "Failed to get module info from PDC. Max retries reached."
+        reason = "Failed to get module info from MBS. Max retries reached."
         log.exception(reason)
         build.transition(config, state="failed", state_reason=reason)
         session.commit()

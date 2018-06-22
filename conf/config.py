@@ -132,6 +132,7 @@ class LocalBuildConfiguration(BaseConfiguration):
     ARCH_FALLBACK = 'x86_64'
 
     ALLOW_CUSTOM_SCMURLS = True
+    RESOLVER = 'mbs'
 
 
 class DevConfiguration(LocalBuildConfiguration):
