@@ -413,12 +413,20 @@ class TestKojiBuilder:
         assert weights == {"httpd": 1.5, "apr": 1.5}
 
     @pytest.mark.parametrize('blocklist', [False, True])
-    def test_buildroot_connect(self, blocklist):
+    @pytest.mark.parametrize('custom_whitelist', [False, True])
+    def test_buildroot_connect(self, custom_whitelist, blocklist):
         if blocklist:
             mmd = self.module.mmd()
             xmd = glib.from_variant_dict(mmd.get_xmd())
             xmd["mbs_options"] = {"blocked_packages": ["foo", "nginx"]}
             mmd.set_xmd(glib.dict_values(xmd))
+            self.module.modulemd = mmd.dumps()
+
+        if custom_whitelist:
+            mmd = self.module.mmd()
+            opts = mmd.get_buildopts()
+            opts.set_rpm_whitelist(['custom1', 'custom2'])
+            mmd.set_buildopts(opts)
             self.module.modulemd = mmd.dumps()
 
         builder = FakeKojiModuleBuilder(
@@ -431,8 +439,18 @@ class TestKojiBuilder:
         groups['srpm-build'] = set(["fedora-release"])
         builder.buildroot_connect(groups)
 
-        expected_calls = [mock.call('module-foo', 'nginx', u'Moe Szyslak'),
-                          mock.call('module-foo-build', 'nginx', u'Moe Szyslak')]
+        if custom_whitelist:
+            expected_calls = [
+                mock.call('module-foo', 'custom1', 'Moe Szyslak'),
+                mock.call('module-foo', 'custom2', 'Moe Szyslak'),
+                mock.call('module-foo-build', 'custom1', 'Moe Szyslak'),
+                mock.call('module-foo-build', 'custom2', 'Moe Szyslak')
+            ]
+        else:
+            expected_calls = [
+                mock.call('module-foo', 'nginx', 'Moe Szyslak'),
+                mock.call('module-foo-build', 'nginx', 'Moe Szyslak')
+            ]
         assert session.packageListAdd.mock_calls == expected_calls
 
         expected_calls = [mock.call('module-foo-build', 'build'),

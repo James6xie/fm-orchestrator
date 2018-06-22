@@ -400,7 +400,8 @@ chmod 644 %buildroot/etc/rpm/macros.zz-modules
         self.module_build_tag = self._koji_create_tag(
             self.tag_name + "-build", self.arches, perm="admin")
 
-        self._koji_whitelist_packages(self.components)
+        self._koji_whitelist_packages(
+            self.mmd.props.buildopts.props.rpm_whitelist or self.components)
 
         # If we have just created the build tag in this buildroot_connect call, block all
         # the components in `blocked_packages` list. We want to do that just once, because
