@@ -619,6 +619,9 @@ class DummyModuleBuilder(GenericBuilder):
     def repo_from_tag(self, config, tag_name, arch):
         pass
 
+    def finalize(self):
+        pass
+
 
 @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
        return_value={'build': [], 'srpm-build': []})

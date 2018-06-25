@@ -103,7 +103,6 @@ def _finalize(config, session, msg, state):
             parent.transition(config, state=models.BUILD_STATES['failed'],
                               state_reason="Some components failed to build.")
             session.commit()
-            builder.finalize()
             return []
         elif not built_components_in_batch:
             # If there are no successfully built components in a batch, there is nothing to tag.

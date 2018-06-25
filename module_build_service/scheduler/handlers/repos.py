@@ -146,6 +146,5 @@ def done(config, session, msg):
         else:
             module_build.transition(config, state=models.BUILD_STATES['done'])
         session.commit()
-        builder.finalize()
 
     return further_work

@@ -277,6 +277,9 @@ class FakeModuleBuilder(GenericBuilder):
                 component_build.module_build.koji_tag + '-build', component_build.package))
         return msgs
 
+    def finalize(self):
+        pass
+
 
 def cleanup_moksha():
     # Necessary to restart the twisted reactor for the next test.

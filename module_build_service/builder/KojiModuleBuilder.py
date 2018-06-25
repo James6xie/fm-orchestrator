@@ -50,6 +50,7 @@ from module_build_service.builder.utils import execute_cmd
 from module_build_service.errors import ProgrammingError
 
 from module_build_service.builder.base import GenericBuilder
+from module_build_service.builder.KojiContentGenerator import KojiContentGenerator
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -1057,3 +1058,9 @@ chmod 644 %buildroot/etc/rpm/macros.zz-modules
             weights[component_name] = weight
 
         return weights
+
+    def finalize(self):
+        # Only import to koji CG if the module is "done".
+        if self.config.koji_enable_content_generator and self.module.state == 3:
+            cg = KojiContentGenerator(self.module, self.config)
+            cg.koji_import()

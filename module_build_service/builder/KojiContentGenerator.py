@@ -39,9 +39,13 @@ from six import text_type
 import koji
 
 from module_build_service import log, build_logs
-from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
 
 logging.basicConfig(level=logging.DEBUG)
+
+
+def get_session(config, owner):
+    from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
+    KojiModuleBuilder.get_session(config, owner)
 
 
 class KojiContentGenerator(object):
@@ -184,7 +188,7 @@ class KojiContentGenerator(object):
     def _koji_rpms_in_tag(self, tag):
         """ Return the list of koji rpms in a tag. """
         log.debug("Listing rpms in koji tag %s", tag)
-        session = KojiModuleBuilder.get_session(self.config, self.owner)
+        session = get_session(self.config, self.owner)
 
         try:
             rpms, builds = session.listTaggedRPMS(tag, latest=True)
@@ -227,7 +231,7 @@ class KojiContentGenerator(object):
                 }
             }
         }
-        session = KojiModuleBuilder.get_session(self.config, None)
+        session = get_session(self.config, None)
         # Only add the CG build owner if the user exists in Koji
         if session.getUser(self.owner):
             ret[u'owner'] = self.owner
@@ -373,7 +377,7 @@ class KojiContentGenerator(object):
         """
         Tags the Content Generator build to module.cg_build_koji_tag.
         """
-        session = KojiModuleBuilder.get_session(self.config, self.owner)
+        session = get_session(self.config, self.owner)
 
         tag_name = self.module.cg_build_koji_tag
         if not tag_name:
@@ -409,7 +413,7 @@ class KojiContentGenerator(object):
         a content generator based build
 
         Raises an exception when error is encountered during import"""
-        session = KojiModuleBuilder.get_session(self.config, self.owner)
+        session = get_session(self.config, self.owner)
 
         file_dir = self._prepare_file_directory()
         metadata = self._get_content_generator_metadata(file_dir)

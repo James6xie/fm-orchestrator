@@ -153,7 +153,7 @@ class MockModuleBuilder(GenericBuilder):
         # Workaround koji specific code in modules.py
         return {"name": self.tag_name}
 
-    def _createrepo(self):
+    def _createrepo(self, include_module_yaml=False):
         """
         Creates the repository using "createrepo_c" command in the resultsdir.
         """
@@ -205,12 +205,14 @@ class MockModuleBuilder(GenericBuilder):
         pkglist_f.close()
         m1_mmd.set_rpm_artifacts(artifacts)
 
-        mmd_path = os.path.join(path, "modules.yaml")
-        m1_mmd.dump(mmd_path)
-
-        # Generate repo and inject modules.yaml there.
+        # Generate repo.
         execute_cmd(['/usr/bin/createrepo_c', '--pkglist', pkglist, path])
-        execute_cmd(['/usr/bin/modifyrepo_c', '--mdtype=modules', mmd_path, repodata_path])
+
+        # ...and inject modules.yaml there if asked.
+        if include_module_yaml:
+            mmd_path = os.path.join(path, "modules.yaml")
+            m1_mmd.dump(mmd_path)
+            execute_cmd(['/usr/bin/modifyrepo_c', '--mdtype=modules', mmd_path, repodata_path])
 
     def _add_repo(self, name, baseurl, extra=""):
         """
@@ -511,6 +513,10 @@ class MockModuleBuilder(GenericBuilder):
 
     def repo_from_tag(cls, config, tag_name, arch):
         pass
+
+    def finalize(self):
+        # One last createrepo, to include the module metadata.
+        self._createrepo(include_module_yaml=True)
 
 
 class BaseBuilder(object):

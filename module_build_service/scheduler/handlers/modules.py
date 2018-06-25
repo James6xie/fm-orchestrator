@@ -34,7 +34,6 @@ from module_build_service.utils import (
     get_rpm_release,
     generate_koji_tag)
 from module_build_service.errors import UnprocessableEntity, Forbidden, ValidationError
-from module_build_service.builder.KojiContentGenerator import KojiContentGenerator
 
 from requests.exceptions import ConnectionError
 
@@ -88,6 +87,9 @@ def failed(config, session, msg):
             component.state = koji.BUILD_STATES['FAILED']
             component.state_reason = build.state_reason
             session.add(component)
+
+        # Tell the external buildsystem to wrap up (copr API)
+        builder.finalize()
     else:
         # Do not overwrite state_reason set by Frontend if any.
         if not build.state_reason:
@@ -100,7 +102,9 @@ def failed(config, session, msg):
     # Don't transition it again if it's already been transitioned
     if build.state != models.BUILD_STATES["failed"]:
         build.transition(config, state="failed")
+
     session.commit()
+
     build_logs.stop(build)
     module_build_service.builder.GenericBuilder.clear_cache(build)
 
@@ -121,10 +125,11 @@ def done(config, session, msg):
         # This is ok.. it's a race condition we can ignore.
         pass
 
-    if config.system == 'koji' and config.koji_enable_content_generator:
-        # KojiContentGenerator import
-        cg = KojiContentGenerator(build, config)
-        cg.koji_import()
+    builder = module_build_service.builder.GenericBuilder.create_from_module(
+        session, build, config)
+
+    # Tell the external buildsystem to wrap up (CG import, copr API, createrepo, etc.)
+    builder.finalize()
 
     build.transition(config, state="ready")
     session.commit()

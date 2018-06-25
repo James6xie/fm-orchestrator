@@ -269,6 +269,7 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
         """
         raise NotImplementedError()
 
+    @abstractmethod
     def finalize(self):
         """
         :return: None
