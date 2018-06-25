@@ -38,7 +38,7 @@ node('factory2'){
 
         stage('Run Test Suite') {
             timeout(20) {
-                onmyduffynode 'cd fm-orchestrator && docker run -v $PWD:/src:Z mbs/test'
+                onmyduffynode 'docker run -v ~/fm-orchestrator:/src:Z mbs/test'
             }
         }
 
