@@ -45,7 +45,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 def get_session(config, owner):
     from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
-    KojiModuleBuilder.get_session(config, owner)
+    return KojiModuleBuilder.get_session(config, owner)
 
 
 class KojiContentGenerator(object):
