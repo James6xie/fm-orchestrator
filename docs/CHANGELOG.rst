@@ -8,6 +8,8 @@ v2.3.2
 v2.3.1
 ------
 * Support the modulemd buildopts.rpms.whitelist option
+* Allow searching for modules by a binary RPM using the MBS API
+* Some fixes around local builds
 
 v2.3.0
 ------
