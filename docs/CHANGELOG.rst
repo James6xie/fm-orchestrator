@@ -1,6 +1,10 @@
 Change Log
 ==========
 
+v2.3.1
+------
+* Support the modulemd buildopts.rpms.whitelist option
+
 v2.3.0
 ------
 
