@@ -1,6 +1,10 @@
 Change Log
 ==========
 
+v2.3.2
+------
+* Typofix related to the v2.3.1 release.
+
 v2.3.1
 ------
 * Support the modulemd buildopts.rpms.whitelist option
