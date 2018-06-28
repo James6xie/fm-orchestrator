@@ -43,14 +43,6 @@ from module_build_service.utils import create_dogpile_key_generator_func
 
 """
 Example workflows - helps to see the difference in implementations
-Copr workflow:
-
-1) create project (input: name, chroot deps:  e.g. epel7)
-2) optional: selects project dependencies e.g. epel-7
-3) build package a.src.rpm # package is automatically added into buildroot
-   after it's finished
-4) createrepo (package.a.src.rpm is available)
-
 Koji workflow
 
 1) create tag, and build-tag
@@ -279,7 +271,7 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
 
         It could be utilized for various purposes such as cleaning or
         running additional build-system based operations on top of
-        finished builds (e.g. for copr - composing them into module)
+        finished builds
         """
         pass
 

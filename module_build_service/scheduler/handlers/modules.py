@@ -88,7 +88,7 @@ def failed(config, session, msg):
             component.state_reason = build.state_reason
             session.add(component)
 
-        # Tell the external buildsystem to wrap up (copr API)
+        # Tell the external buildsystem to wrap up
         builder.finalize()
     else:
         # Do not overwrite state_reason set by Frontend if any.
@@ -128,7 +128,7 @@ def done(config, session, msg):
     builder = module_build_service.builder.GenericBuilder.create_from_module(
         session, build, config)
 
-    # Tell the external buildsystem to wrap up (CG import, copr API, createrepo, etc.)
+    # Tell the external buildsystem to wrap up (CG import, createrepo, etc.)
     builder.finalize()
 
     build.transition(config, state="ready")

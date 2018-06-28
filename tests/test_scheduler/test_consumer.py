@@ -25,7 +25,6 @@ from module_build_service.messaging import KojiTagChange, KojiRepoChange
 
 class TestConsumer:
 
-    @patch('module_build_service.messaging.conf.messaging', new='fedmsg')
     def test_get_abstracted_msg_fedmsg(self):
         """
         Test the output of get_abstracted_msg() when using the
@@ -63,7 +62,6 @@ class TestConsumer:
 
     @patch('module_build_service.scheduler.consumer.models')
     @patch.object(MBSConsumer, 'process_message')
-    @patch('module_build_service.messaging.conf.messaging', new='fedmsg')
     def test_consume_fedmsg(self, process_message, models):
         """
         Test the MBSConsumer.consume() method when using the

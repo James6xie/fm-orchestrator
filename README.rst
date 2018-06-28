@@ -46,15 +46,6 @@ MBS is able to perform local module builds by directing local Mock.
 MBS supports threaded Mock builds which utilizes performance and
 significantly speeds up local module builds.
 
-Copr
-----
-
-Copr is yet another an easy-to-use automatic build system providing a
-package repository as its output.
-
-As with Koji, MBS comes with its own ``copr.conf`` config file which allows
-altering your default Copr configuration.
-
 _`Client tooling`
 =================
 

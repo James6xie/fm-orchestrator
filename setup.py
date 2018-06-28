@@ -53,9 +53,6 @@ setup(name='module-build-service',
           'mbs.builder_backends': [
               'koji = module_build_service.builder.KojiModuleBuilder:KojiModuleBuilder',
               'mock = module_build_service.builder.MockModuleBuilder:MockModuleBuilder',
-              # TODO - let's move this out into its own repo so @frostyx can
-              # iterate without us blocking him.
-              'copr = module_build_service.builder.CoprModuleBuilder:CoprModuleBuilder',
           ],
           'mbs.resolver_backends': [
               'pdc = module_build_service.resolver.PDCResolver:PDCResolver',
@@ -64,7 +61,6 @@ setup(name='module-build-service',
       },
       data_files=[('/etc/module-build-service/', ['conf/cacert.pem',
                                                   'conf/config.py',
-                                                  'conf/copr.conf',
                                                   'conf/koji.conf',
                                                   'conf/mock.cfg',
                                                   'conf/yum.conf']),

@@ -132,10 +132,6 @@ class MBSProducer(PollingProducer):
                     )
                     module_build_service.scheduler.consumer.work_queue_put(msg)
 
-        elif conf.system == 'copr':
-            # @TODO
-            pass
-
         elif conf.system == 'mock':
             pass
 

@@ -23,7 +23,6 @@
 
 from module_build_service import messaging
 from module_build_service.messaging import KojiRepoChange # noqa
-from mock import patch, PropertyMock
 
 
 class TestFedmsgMessaging:
@@ -52,43 +51,6 @@ class TestFedmsgMessaging:
 
         assert msg.build_id == 614503
         assert msg.build_new_state == 1
-
-    @patch("module_build_service.config.Config.system",
-           new_callable=PropertyMock, return_value="copr")
-    def test_copr_build_end(self, conf_system):
-        # http://fedora-fedmsg.readthedocs.io/en/latest/topics.html#copr-build-end
-        copr_build_end_msg = {
-            'msg': {
-                'build': 100,
-                'chroot': 'fedora-20-x86_64',
-                'copr': 'mutt-kz',
-                'ip': '172.16.3.3',
-                'pid': 12010,
-                'pkg': 'mutt-kz',  # Reality doesnt match the linked docs
-                'status': 1,
-                'user': 'fatka',
-                'version': '1.5.23.1-1.20150203.git.c8504a8a.fc21',
-                'what': ('build end: user:fatka copr:mutt-kz build:100 ip:172.16.3.3  '
-                         'pid:12010 status:1'),
-                'who': 'worker-2'
-            },
-            'msg_id': '2013-b05a323d-37ee-4396-9635-7b5dfaf5441b',
-            'timestamp': 1383956707.634,
-            'topic': 'org.fedoraproject.prod.copr.build.end',
-            'username': 'copr'
-        }
-
-        msg = messaging.FedmsgMessageParser().parse(copr_build_end_msg)
-        assert isinstance(msg, messaging.KojiBuildChange)
-        assert msg.msg_id == '2013-b05a323d-37ee-4396-9635-7b5dfaf5441b'
-        assert msg.build_id == 100
-        assert msg.task_id == 100
-        assert msg.build_new_state == 1
-        assert msg.build_name == 'mutt-kz'
-        assert msg.build_version == '1.5.23.1'
-        assert msg.build_release == '1.20150203.git.c8504a8a.fc21'
-        assert msg.state_reason == ('build end: user:fatka copr:mutt-kz build:100 ip:172.16.3.3  '
-                                    'pid:12010 status:1')
 
     def test_buildsys_tag(self):
         # https://fedora-fedmsg.readthedocs.io/en/latest/topics.html#id134

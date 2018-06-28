@@ -32,7 +32,6 @@ class BaseConfiguration(object):
     KOJI_REPOSITORY_URL = 'https://kojipkgs.fedoraproject.org/repos'
     KOJI_TAG_PREFIXES = ['module']
     KOJI_ENABLE_CONTENT_GENERATOR = True
-    COPR_CONFIG = '/etc/module-build-service/copr.conf'
     PDC_URL = 'https://pdc.fedoraproject.org/rest_api/v1'
     PDC_INSECURE = False
     PDC_DEVELOP = True
@@ -138,4 +137,3 @@ class LocalBuildConfiguration(BaseConfiguration):
 class DevConfiguration(LocalBuildConfiguration):
     DEBUG = True
     LOG_BACKEND = 'console'
-    COPR_CONFIG = path.join(confdir, 'copr.conf')

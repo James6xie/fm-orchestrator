@@ -38,9 +38,8 @@ from module_build_service import logger
 SUPPORTED_STRATEGIES = ['changed-and-after', 'only-changed', 'all']
 
 SUPPORTED_RESOLVERS = {
-    'pdc': {'builders': ['koji', 'mock', 'copr']},
-    'copr': {'builders': ['copr', 'mock']},
-    'db': {'builders': ['koji', 'mock', 'copr']}
+    'pdc': {'builders': ['koji', 'mock']},
+    'db': {'builders': ['koji', 'mock']}
 }
 
 
@@ -511,7 +510,7 @@ class Config(object):
 
     def _setifok_system(self, s):
         s = str(s)
-        if s not in ("koji", "copr", "mock"):
+        if s not in ("koji", "mock"):
             raise ValueError("Unsupported buildsystem: %s." % s)
         self._system = s
 

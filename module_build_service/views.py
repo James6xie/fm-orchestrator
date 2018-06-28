@@ -285,12 +285,6 @@ class BaseHandler(object):
             raise ValidationError('The request contains unspecified parameters: {}'
                                   .format(", ".join(forbidden_params)))
 
-        forbidden_params = [k for k in self.data if k.startswith("copr_")]
-        if conf.system != "copr" and forbidden_params:
-            raise ValidationError(('The request contains parameters specific to Copr builder:'
-                                   ' {} even though {} is used')
-                                  .format(", ".join(forbidden_params), conf.system))
-
         if not conf.no_auth and "owner" in self.data:
             raise ValidationError(("The request contains 'owner' parameter,"
                                    " however NO_AUTH is not allowed"))

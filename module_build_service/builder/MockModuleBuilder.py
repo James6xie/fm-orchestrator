@@ -52,11 +52,6 @@ logging.basicConfig(level=logging.DEBUG)
 
 
 class MockModuleBuilder(GenericBuilder):
-    """
-    See http://blog.samalik.com/copr-in-the-modularity-world/
-    especially section "Building a stack"
-    """
-
     backend = "mock"
     # Global build_id/task_id we increment when new build is executed.
     _build_id_lock = threading.Lock()
@@ -314,8 +309,6 @@ class MockModuleBuilder(GenericBuilder):
         pass
 
     def buildroot_add_repos(self, dependencies):
-        # TODO: We support only dependencies from Koji here. This should be
-        # extended to Copr in the future.
         self._load_mock_config()
         for tag in dependencies:
             # If tag starts with mock_resultdir, it means it is path to local

@@ -180,8 +180,6 @@ class ModuleBuild(MBSBase):
     koji_tag = db.Column(db.String)  # This gets set after 'wait'
     # Koji tag to which tag the Content Generator Koji build.
     cg_build_koji_tag = db.Column(db.String)  # This gets set after wait
-    copr_owner = db.Column(db.String)
-    copr_project = db.Column(db.String)
     scmurl = db.Column(db.String)
     owner = db.Column(db.String, nullable=False)
     time_submitted = db.Column(db.DateTime, nullable=False)
@@ -410,8 +408,7 @@ class ModuleBuild(MBSBase):
 
     @classmethod
     def create(cls, session, conf, name, stream, version, modulemd, scmurl, username,
-               context=None,
-               copr_owner=None, copr_project=None, rebuild_strategy=None, publish_msg=True):
+               context=None, rebuild_strategy=None, publish_msg=True):
         now = datetime.utcnow()
         module = cls(
             name=name,
@@ -424,8 +421,6 @@ class ModuleBuild(MBSBase):
             owner=username,
             time_submitted=now,
             time_modified=now,
-            copr_owner=copr_owner,
-            copr_project=copr_project,
             # If the rebuild_strategy isn't specified, use the default
             rebuild_strategy=rebuild_strategy or conf.rebuild_strategy
         )
@@ -482,7 +477,7 @@ class ModuleBuild(MBSBase):
         list everytime, because local modules make sense only when
         building using Mock backend or during tests.
         """
-        if conf.system in ["koji", "copr"]:
+        if conf.system in ["koji"]:
             return []
 
         filters = {}

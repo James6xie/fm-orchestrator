@@ -453,25 +453,6 @@ class TestBuild:
         assert models.ModuleBuild.query.first().state == models.BUILD_STATES['ready']
 
     @patch('module_build_service.auth.get_user', return_value=user)
-    def test_submit_build_with_optional_params(self, mocked_get_user, conf_system, dbg):
-        params = {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
-                            'testmodule.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4'}
-        not_existing_param = {"not_existing_param": "foo"}
-        copr_owner_param = {"copr_owner": "foo"}
-
-        def submit(data):
-            rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(data))
-            return json.loads(rv.data)
-
-        data = submit(dict(params, **not_existing_param))
-        assert "The request contains unspecified parameters:" in data["message"]
-        assert "not_existing_param" in data["message"]
-        assert data["status"] == 400
-
-        data = submit(dict(params, **copr_owner_param))
-        assert "The request contains parameters specific to Copr builder" in data["message"]
-
-    @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     def test_submit_build_cancel(self, mocked_scm, mocked_get_user, conf_system, dbg):
         """

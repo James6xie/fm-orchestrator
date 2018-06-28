@@ -32,7 +32,7 @@ try:
 except ImportError:
     from funcsigs import signature
 
-from module_build_service import log, conf
+from module_build_service import log
 
 
 class IgnoreMessage(Exception):
@@ -164,15 +164,6 @@ class FedmsgMessageParser(MessageParser):
                 msg_obj = MBSModule(
                     msg_id, msg_inner_msg.get('id'), msg_inner_msg.get('state'))
 
-            elif conf.system == category == 'copr' and object == 'build':
-                copr = msg_inner_msg.get('copr')
-                build = msg_inner_msg.get('build')
-                status = msg_inner_msg.get('status')
-                pkg = msg_inner_msg.get('pkg')
-                version = msg_inner_msg.get('version')
-                what = msg_inner_msg.get('what')
-                msg_obj = CoprBuildEnd(msg_id, build, status, copr, pkg, version, what)
-
             # If the message matched the regex and is important to the app,
             # it will be returned
             if msg_obj:
@@ -233,39 +224,6 @@ class KojiRepoChange(BaseMessage):
     def __init__(self, msg_id, repo_tag):
         super(KojiRepoChange, self).__init__(msg_id)
         self.repo_tag = repo_tag
-
-
-class CoprBuildEnd(KojiBuildChange):
-    """ A class that inherits from KojiBuildChange to provide a message
-     object for a build info from Copr
-
-     @TODO There should be a base class for CoprBuildEnd and KojiBuildChange
-     and conditions in the code should check for it's descendants instead of KojiBuildChange
-     directly.
-     In such case this class would not have to inherit from koji class
-
-    :param msg_id: the id of the msg (e.g. 2016-SomeGUID)
-    :param build_id: the id of the build (e.g. 264382)
-    :param status: the new build state
-    (see http://copr-backend.readthedocs.io/package/constants.html#backend.constants.BuildStatus )
-    :param copr: the project name
-    :param pkg: the full name of what is being built
-    (e.g. mutt-kz-1.5.23.1-1.20150203.git.c8504a8a.fc21)
-    :param state_reason: the optional reason as to why the state changed
-    """
-    def __init__(self, msg_id, build_id, status, copr, pkg, version, what=None):
-        ver, rel = version.split("-", 1)
-        super(CoprBuildEnd, self).__init__(
-            msg_id=msg_id,
-            build_id=build_id,
-            task_id=build_id,
-            build_new_state=status,
-            build_name=pkg,
-            build_version=ver,
-            build_release=rel,
-            state_reason=what,
-        )
-        self.copr = copr
 
 
 class MBSModule(BaseMessage):
@@ -340,7 +298,7 @@ def _in_memory_publish(topic, msg, conf, service):
 
 _fedmsg_backend = {
     'publish': _fedmsg_publish,
-    'services': ['buildsys', 'mbs', 'copr'],
+    'services': ['buildsys', 'mbs'],
     'parser': FedmsgMessageParser(),
     'topic_suffix': '.',
 }
