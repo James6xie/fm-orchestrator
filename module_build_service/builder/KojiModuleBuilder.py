@@ -251,9 +251,11 @@ class KojiModuleBuilder(GenericBuilder):
 
         spec_content = """
 %global dist {disttag}
+%global disttag module({module_name}:{module_stream}:{module_version}:{module_context})
 %global _module_name {module_name}
 %global _module_stream {module_stream}
 %global _module_version {module_version}
+%global _module_context {module_context}
 
 Name:       {name}
 Version:    {version}
@@ -298,6 +300,7 @@ chmod 644 %buildroot/etc/rpm/macros.zz-modules
            module_name=module_build.name,
            module_stream=module_build.stream,
            module_version=module_build.version,
+           module_context=module_build.context,
            filter_conflicts=filter_conflicts)
 
         modulemd_macros = ""
@@ -310,10 +313,12 @@ chmod 644 %buildroot/etc/rpm/macros.zz-modules
 # General macros set by MBS
 
 %dist {disttag}
+%disttag module({module_name}:{module_stream}:{module_version}:{module_context})
 %_module_build 1
 %_module_name {module_name}
 %_module_stream {module_stream}
 %_module_version {module_version}
+%_module_context {module_context}
 
 # Macros set by module author:
 
@@ -321,6 +326,7 @@ chmod 644 %buildroot/etc/rpm/macros.zz-modules
 """.format(disttag=disttag, module_name=module_build.name,
            module_stream=module_build.stream,
            module_version=module_build.version,
+           module_context=module_build.context,
            modulemd_macros=modulemd_macros)
 
         td = tempfile.mkdtemp(prefix="module_build_service-build-macros")
