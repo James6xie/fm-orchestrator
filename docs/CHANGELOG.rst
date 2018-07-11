@@ -1,6 +1,12 @@
 Change Log
 ==========
 
+v2.4.0
+------
+* MBS local builds now use the production MBS API for dependency resolution instead of PDC
+* Remove COPR support (this hasn't been working for several months now)
+* Make `repo_include_all setting` configurable in xmd
+
 v2.3.2
 ------
 * Typofix related to the v2.3.1 release.
