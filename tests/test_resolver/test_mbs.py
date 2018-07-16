@@ -49,7 +49,7 @@ class TestMBSModule:
                     "modulemd": testmodule_mmd_9c690d0e
                 }
             ],
-            "next": None
+            "meta": {"next": None}
         }
 
         mock_session().get.return_value = mock_res
@@ -100,7 +100,7 @@ class TestMBSModule:
                     "modulemd": testmodule_mmd_c2c572ed
                 }
             ],
-            "next": None
+            "meta": {"next": None}
         }
 
         mock_session().get.return_value = mock_res
@@ -142,7 +142,7 @@ class TestMBSModule:
                         "modulemd": testmodule_mmd_9c690d0e
                     }
                 ],
-                "next": None
+                "meta": {"next": None}
             }, {
                 "items": [
                     {
@@ -154,7 +154,7 @@ class TestMBSModule:
                         "koji_tag": "module-f28-build"
                     }
                 ],
-                "next": None
+                "meta": {"next": None}
             }
         ]
 
@@ -218,7 +218,7 @@ class TestMBSModule:
                         "build_deps": []
                     }
                 ],
-                "next": None
+                "meta": {"next": None}
             }
         ]
 
@@ -259,7 +259,7 @@ class TestMBSModule:
                     "modulemd": platform_mmd
                 }
             ],
-            "next": None
+            "meta": {"next": None}
         }
 
         mock_session().get.return_value = mock_res
