@@ -90,8 +90,9 @@ class TestUtilsComponentReuse:
         second_module_build = models.ModuleBuild.query.filter_by(id=3).one()
         if changed_component:
             mmd = second_module_build.mmd()
-            mmd.get_rpm_components()['tangerine'].set_ref(
-                '00ea1da4192a2030f9ae023de3b3143ed647bbab')
+            components = mmd.get_rpm_components()
+            components['tangerine'].set_ref('00ea1da4192a2030f9ae023de3b3143ed647bbab')
+            mmd.set_rpm_components(components)
             second_module_build.modulemd = mmd.dumps()
             second_module_changed_component = models.ComponentBuild.query.filter_by(
                 package=changed_component, module_id=3).one()
@@ -204,7 +205,9 @@ class TestUtilsComponentReuse:
         mmd = second_module_build.mmd()
         br_list = Modulemd.SimpleSet()
         br_list.add('master')
-        mmd.get_dependencies()[0].set_buildrequires({'some_module': br_list})
+        deps = mmd.get_dependencies()
+        deps[0].set_buildrequires({'some_module': br_list})
+        mmd.set_dependencies(deps)
         xmd = glib.from_variant_dict(mmd.get_xmd())
         xmd['mbs']['buildrequires'] = {
             'some_module': {
@@ -306,9 +309,11 @@ class TestUtils:
         mmd = Modulemd.Module().new_from_file(
             path.join(BASE_DIR, '..', 'staged_data', 'testmodule.yaml'))
         mmd.upgrade()
+        components = mmd.get_rpm_components()
         # Modify the component branches so we can identify them later on
-        mmd.get_rpm_components()['perl-Tangerine'].set_ref('f28')
-        mmd.get_rpm_components()['tangerine'].set_ref('f27')
+        components['perl-Tangerine'].set_ref('f28')
+        components['tangerine'].set_ref('f27')
+        mmd.set_rpm_components(components)
         module_build_service.utils.format_mmd(mmd, scmurl)
 
         # Make sure that original refs are not changed.

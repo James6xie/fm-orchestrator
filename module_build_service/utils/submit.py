@@ -100,11 +100,13 @@ def format_mmd(mmd, scmurl, session=None):
         else:
             xmd['mbs']['commit'] = scm.get_latest()
 
-    if mmd.get_rpm_components() or mmd.get_module_components():
+    rpm_components = mmd.get_rpm_components()
+    module_components = mmd.get_module_components()
+    if rpm_components or module_components:
         if 'rpms' not in xmd['mbs']:
             xmd['mbs']['rpms'] = {}
         # Add missing data in RPM components
-        for pkgname, pkg in mmd.get_rpm_components().items():
+        for pkgname, pkg in rpm_components.items():
             if pkg.get_repository() and not conf.rpms_allow_repository:
                 raise Forbidden(
                     "Custom component repositories aren't allowed.  "
@@ -119,9 +121,10 @@ def format_mmd(mmd, scmurl, session=None):
                 pkg.set_cache(conf.rpms_default_cache + pkgname)
             if not pkg.get_ref():
                 pkg.set_ref('master')
+        mmd.set_rpm_components(rpm_components)
 
         # Add missing data in included modules components
-        for modname, mod in mmd.get_module_components().items():
+        for modname, mod in module_components.items():
             if mod.get_repository() and not conf.modules_allow_repository:
                 raise Forbidden(
                     "Custom module repositories aren't allowed.  "
@@ -130,11 +133,12 @@ def format_mmd(mmd, scmurl, session=None):
                 mod.set_repository(conf.modules_default_repository + modname)
             if not mod.get_ref():
                 mod.set_ref('master')
+        mmd.set_module_components(module_components)
 
         # Check that SCM URL is valid and replace potential branches in pkg refs
         # by real SCM hash and store the result to our private xmd place in modulemd.
         pool = ThreadPool(20)
-        pkg_dicts = pool.map(_scm_get_latest, mmd.get_rpm_components().values())
+        pkg_dicts = pool.map(_scm_get_latest, rpm_components.values())
         err_msg = ""
         for pkg_dict in pkg_dicts:
             if pkg_dict["error"]:

@@ -291,7 +291,9 @@ def scheduler_init_data(tangerine_state=None):
         current_dir, 'staged_data', 'formatted_testmodule.yaml')
     mmd = Modulemd.Module().new_from_file(formatted_testmodule_yml_path)
     mmd.upgrade()
-    mmd.get_rpm_components()['tangerine'].set_buildorder(0)
+    components = mmd.get_rpm_components()
+    components['tangerine'].set_buildorder(0)
+    mmd.set_rpm_components(components)
 
     build_one = module_build_service.models.ModuleBuild()
     build_one.name = 'testmodule'
