@@ -9,7 +9,7 @@ for dir in module_build_service tests; do
     find ${dir} -type f \( -name '*.pyc' -or -name '*.pyc' \) -exec rm -f {} \;
 done
 # Since tox seems to ignore `usedevelop` when we have `sitepackages` on, we have to run it manually
-python setup.py develop
+python setup.py develop --no-deps
 /usr/bin/tox -e flake8,py27
 # After running tox, we can revert back to the original requirements.txt file
 rm -f requirements.txt

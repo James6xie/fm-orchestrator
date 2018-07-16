@@ -28,6 +28,7 @@ RUN yum -y install \
     python-koji \
     python-ldap3 \
     python-mock \
+    python-munch \
     python-pip \
     python-requests \
     python-six \
