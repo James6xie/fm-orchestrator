@@ -36,7 +36,8 @@ from module_build_service import app, conf, log, models, db, version, api_versio
 from module_build_service.utils import (
     pagination_metadata, filter_module_builds, filter_component_builds,
     submit_module_build_from_scm, submit_module_build_from_yaml,
-    get_scm_url_re, cors_header, validate_api_version)
+    get_scm_url_re, cors_header, validate_api_version, import_mmd,
+    get_mmd_from_scm)
 from module_build_service.errors import (
     ValidationError, Forbidden, NotFound, ProgrammingError)
 from module_build_service.backports import jsonify
@@ -85,6 +86,12 @@ api_routes = {
         'url': '/module-build-service/<int:api_version>/rebuild-strategies/',
         'options': {
             'methods': ['GET']
+        }
+    },
+    'import_module': {
+        'url': '/module-build-service/<int:api_version>/import-module/',
+        'options': {
+            'methods': ['POST'],
         }
     }
 }
@@ -152,6 +159,12 @@ class ModuleBuildAPI(AbstractQueryableBuildAPI):
     query_filter = staticmethod(filter_module_builds)
     model = models.ModuleBuild
 
+    @staticmethod
+    def check_groups(username, groups, allowed_groups=conf.allowed_groups):
+        if allowed_groups and not (allowed_groups & groups):
+            raise Forbidden("%s is not in any of %r, only %r" % (
+                username, allowed_groups, groups))
+
     # Additional POST and DELETE handlers for modules follow.
     @validate_api_version()
     def post(self, api_version):
@@ -163,9 +176,7 @@ class ModuleBuildAPI(AbstractQueryableBuildAPI):
         if conf.no_auth is True and handler.username == "anonymous" and "owner" in handler.data:
             handler.username = handler.data["owner"]
 
-        if conf.allowed_groups and not (conf.allowed_groups & handler.groups):
-            raise Forbidden("%s is not in any of  %r, only %r" % (
-                handler.username, conf.allowed_groups, handler.groups))
+        self.check_groups(handler.username, handler.groups)
 
         handler.validate()
         modules = handler.post()
@@ -193,9 +204,7 @@ class ModuleBuildAPI(AbstractQueryableBuildAPI):
             elif username == "anonymous":
                 username = r["owner"]
 
-        if conf.allowed_groups and not (conf.allowed_groups & groups):
-            raise Forbidden("%s is not in any of  %r, only %r" % (
-                username, conf.allowed_groups, groups))
+        self.check_groups(username, groups)
 
         module = models.ModuleBuild.query.filter_by(id=id).first()
         if not module:
@@ -268,6 +277,36 @@ class RebuildStrategies(MethodView):
         return jsonify({'items': items}), 200
 
 
+class ImportModuleAPI(MethodView):
+
+    @validate_api_version()
+    def post(self, api_version):
+        # disable this API endpoint if no groups are defined
+        if not conf.allowed_groups_to_import_module:
+            log.error(
+                "Import module API is disabled. Set 'ALLOWED_GROUPS_TO_IMPORT_MODULE'"
+                " configuration value first.")
+            raise Forbidden(
+                "Import module API is disabled.")
+
+        # auth checks
+        username, groups = module_build_service.auth.get_user(request)
+        ModuleBuildAPI.check_groups(username, groups,
+                                    allowed_groups=conf.allowed_groups_to_import_module)
+
+        # process request using SCM handler
+        handler = SCMHandler(request)
+        handler.validate(skip_branch=True, skip_optional_params=True)
+
+        mmd = get_mmd_from_scm(handler.data["scmurl"])
+        build, messages = import_mmd(db.session, mmd)
+        json_data = {"module": build.json(show_tasks=False),
+                     "messages": messages}
+
+        # return 201 Created if we reach this point
+        return jsonify(json_data), 201
+
+
 class BaseHandler(object):
     def __init__(self, request):
         self.username, self.groups = module_build_service.auth.get_user(request)
@@ -310,7 +349,7 @@ class SCMHandler(BaseHandler):
             log.error('Invalid JSON submitted')
             raise ValidationError('Invalid JSON submitted')
 
-    def validate(self):
+    def validate(self, skip_branch=False, skip_optional_params=False):
         if "scmurl" not in self.data:
             log.error('Missing scmurl')
             raise ValidationError('Missing scmurl')
@@ -325,11 +364,12 @@ class SCMHandler(BaseHandler):
             log.error("The submitted scmurl %r is not valid" % url)
             raise Forbidden("The submitted scmurl %s is not valid" % url)
 
-        if "branch" not in self.data:
+        if not skip_branch and "branch" not in self.data:
             log.error('Missing branch')
             raise ValidationError('Missing branch')
 
-        self.validate_optional_params()
+        if not skip_optional_params:
+            self.validate_optional_params()
 
     def post(self):
         url = self.data["scmurl"]
@@ -369,6 +409,7 @@ def register_api():
     component_view = ComponentBuildAPI.as_view('component_builds')
     about_view = AboutAPI.as_view('about')
     rebuild_strategies_view = RebuildStrategies.as_view('rebuild_strategies')
+    import_module = ImportModuleAPI.as_view('import_module')
     for key, val in api_routes.items():
         if key.startswith('component_build'):
             app.add_url_rule(val['url'],
@@ -389,6 +430,11 @@ def register_api():
             app.add_url_rule(val['url'],
                              endpoint=key,
                              view_func=rebuild_strategies_view,
+                             **val['options'])
+        elif key == 'import_module':
+            app.add_url_rule(val['url'],
+                             endpoint=key,
+                             view_func=import_module,
                              **val['options'])
         else:
             raise NotImplementedError("Unhandled api key.")

@@ -247,6 +247,10 @@ class Config(object):
             'type': set,
             'default': set(['packager']),
             'desc': 'The set of groups allowed to submit builds.'},
+        'allowed_groups_to_import_module': {
+            'type': set,
+            'default': set(),
+            'desc': 'The set of groups allowed to import module builds.'},
         'log_backend': {
             'type': str,
             'default': None,
@@ -350,7 +354,7 @@ class Config(object):
         'yaml_submit_allowed': {
             'type': bool,
             'default': False,
-            'desc': 'Is it allowed to directly submit modulemd yaml file?'},
+            'desc': 'Is it allowed to directly submit build by modulemd yaml file?'},
         'num_concurrent_builds': {
             'type': int,
             'default': 0,

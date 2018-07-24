@@ -36,10 +36,14 @@ from .general import scm_url_schemes
 
 
 def get_scm_url_re():
+    """
+    Returns a regular expression for SCM URL extraction and validation.
+    """
     schemes_re = '|'.join(map(re.escape, scm_url_schemes(terse=True)))
-    return re.compile(
-        r"(?P<giturl>(?:(?P<scheme>(" + schemes_re + r"))://(?P<host>[^/]+))?"
-        r"(?P<repopath>/[^\?]+))\?(?P<modpath>[^#]*)#(?P<revision>.+)")
+    regex = (
+        r"(?P<giturl>(?P<scheme>(?:" + schemes_re + r"))://(?P<host>[^/]+)?"
+        r"(?P<repopath>/[^\?]+))(?:\?(?P<modpath>[^#]+)?)?#(?P<revision>.+)")
+    return re.compile(regex)
 
 
 def pagination_metadata(p_query, api_version, request_args):

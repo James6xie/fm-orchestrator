@@ -667,6 +667,75 @@ parameters include:
 - ``task_id``
 
 
+Import module
+-------------
+
+Importing of modules is done via posting the SCM URL of a repository
+which contains the generated modulemd YAML file. Name, stream, version,
+context and other important information must be present in the metadata.
+
+::
+
+    POST /module-build-service/1/import-module/
+
+::
+
+    {
+      "scmurl": "git://pkgs.fedoraproject.org/modules/foo.git?#21f92fb05572d81d78fd9a27d313942d45055840"
+    }
+
+
+If the module build is imported successfully, JSON containing the most
+important information is returned from MBS. The JSON also contains log
+messages collected during the import.
+
+::
+
+    HTTP 201 Created
+
+::
+
+    {
+      "module": {
+        "component_builds": [],
+        "context": "00000000",
+        "id": 3,
+        "koji_tag": "",
+        "name": "mariadb",
+        "owner": "mbs_import",
+        "rebuild_strategy": "all",
+        "scmurl": null,
+        "siblings": [],
+        "state": 5,
+        "state_name": "ready",
+        "state_reason": null,
+        "stream": "10.2",
+        "time_completed": "2018-07-24T12:58:14Z",
+        "time_modified": "2018-07-24T12:58:14Z",
+        "time_submitted": "2018-07-24T12:58:14Z",
+        "version": "20180724000000"
+      },
+      "messages": [
+        "Updating existing module build mariadb:10.2:20180724000000:00000000.",
+        "Module mariadb:10.2:20180724000000:00000000 imported"
+      ]
+    }
+
+
+If the module import fails, an error message is returned.
+
+::
+
+    HTTP 422 Unprocessable Entity
+
+::
+
+    {
+      "error": "Unprocessable Entity",
+      "message": "Incomplete NSVC: None:None:0:00000000"
+    }
+
+
 Listing about
 -------------
 

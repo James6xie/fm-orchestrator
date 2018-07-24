@@ -62,6 +62,8 @@ class BaseConfiguration(object):
         # 'modularity-wg',
     ])
 
+    ALLOWED_GROUPS_TO_IMPORT_MODULE = set()
+
     # Available backends are: console and file
     LOG_BACKEND = 'console'
 
@@ -119,6 +121,8 @@ class TestConfiguration(BaseConfiguration):
     SCMURLS = ["git://pkgs.stg.fedoraproject.org/modules/"]
     AUTH_METHOD = 'oidc'
     RESOLVER = 'db'
+
+    ALLOWED_GROUPS_TO_IMPORT_MODULE = set(['mbs-import-module'])
 
 
 class ProdConfiguration(BaseConfiguration):

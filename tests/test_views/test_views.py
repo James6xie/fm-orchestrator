@@ -33,6 +33,7 @@ import hashlib
 import pytest
 
 from tests import app, init_data, clean_database, reuse_component_init_data
+from tests.test_scm import base_dir as scm_base_dir
 from module_build_service.errors import UnprocessableEntity
 from module_build_service.models import ModuleBuild
 from module_build_service import db, version, Modulemd
@@ -43,6 +44,7 @@ import module_build_service.scheduler.handlers.modules
 user = ('Homer J. Simpson', set(['packager']))
 other_user = ('some_other_user', set(['packager']))
 anonymous_user = ('anonymous', set(['packager']))
+import_module_user = ('Import M. King', set(['mbs-import-module']))
 base_dir = dirname(dirname(__file__))
 
 
@@ -1191,3 +1193,176 @@ class TestViews:
     def test_cors_header_decorator(self):
         rv = self.client.get('/module-build-service/1/module-builds/')
         assert rv.headers['Access-Control-Allow-Origin'] == '*'
+
+    @pytest.mark.parametrize('api_version', [1, 2])
+    @patch('module_build_service.auth.get_user', return_value=user)
+    @patch.object(module_build_service.config.Config, 'allowed_groups_to_import_module',
+                  new_callable=PropertyMock, return_value=set())
+    def test_import_build_disabled(self, mocked_groups, mocked_get_user, api_version):
+        post_url = '/module-build-service/{0}/import-module/'.format(api_version)
+        rv = self.client.post(post_url)
+        data = json.loads(rv.data)
+
+        assert data['error'] == 'Forbidden'
+        assert data['message'] == (
+            'Import module API is disabled.')
+
+    @pytest.mark.parametrize('api_version', [1, 2])
+    @patch('module_build_service.auth.get_user', return_value=user)
+    def test_import_build_user_not_allowed(self, mocked_get_user, api_version):
+        post_url = '/module-build-service/{0}/import-module/'.format(api_version)
+        rv = self.client.post(post_url)
+        data = json.loads(rv.data)
+
+        assert data['error'] == 'Forbidden'
+        assert data['message'] == (
+            'Homer J. Simpson is not in any of '
+            'set([\'mbs-import-module\']), only set([\'packager\'])')
+
+    @pytest.mark.parametrize('api_version', [1, 2])
+    @patch('module_build_service.auth.get_user', return_value=import_module_user)
+    def test_import_build_scm_invalid_json(self, mocked_get_user, api_version):
+        post_url = '/module-build-service/{0}/import-module/'.format(api_version)
+        rv = self.client.post(post_url, data='')
+        data = json.loads(rv.data)
+
+        assert data['error'] == 'Bad Request'
+        assert data['message'] == 'Invalid JSON submitted'
+
+    @pytest.mark.parametrize('api_version', [1, 2])
+    @patch('module_build_service.auth.get_user', return_value=import_module_user)
+    def test_import_build_scm_url_not_allowed(self, mocked_get_user, api_version):
+        post_url = '/module-build-service/{0}/import-module/'.format(api_version)
+        rv = self.client.post(
+            post_url,
+            data=json.dumps({'scmurl': 'file://' + scm_base_dir + '/mariadb'}))
+        data = json.loads(rv.data)
+
+        assert data['error'] == 'Forbidden'
+        assert data['message'].startswith('The submitted scmurl ')
+        assert data['message'].endswith('/tests/scm_data/mariadb is not allowed')
+
+    @pytest.mark.parametrize('api_version', [1, 2])
+    @patch('module_build_service.auth.get_user', return_value=import_module_user)
+    @patch.object(module_build_service.config.Config, 'allow_custom_scmurls',
+                  new_callable=PropertyMock, return_value=True)
+    def test_import_build_scm_url_not_in_list(self, mocked_scmurls, mocked_get_user,
+                                              api_version):
+        post_url = '/module-build-service/{0}/import-module/'.format(api_version)
+        rv = self.client.post(
+            post_url,
+            data=json.dumps({'scmurl': 'file://' + scm_base_dir + (
+                '/mariadb?#b17bea85de2d03558f24d506578abcfcf467e5bc')}))
+        data = json.loads(rv.data)
+
+        assert data['error'] == 'Forbidden'
+        assert data['message'].endswith(
+            '/tests/scm_data/mariadb?#b17bea85de2d03558f24d506578abcfcf467e5bc '
+            'is not in the list of allowed SCMs')
+
+    @pytest.mark.parametrize('api_version', [1, 2])
+    @patch('module_build_service.auth.get_user', return_value=import_module_user)
+    @patch.object(module_build_service.config.Config, 'scmurls',
+                  new_callable=PropertyMock, return_value=['file://'])
+    def test_import_build_scm(self, mocked_scmurls, mocked_get_user, api_version):
+        post_url = '/module-build-service/{0}/import-module/'.format(api_version)
+        rv = self.client.post(
+            post_url,
+            data=json.dumps({'scmurl': 'file://' + scm_base_dir + (
+                '/mariadb?#7cf8fb26db8dbfea075eb5f898cc053139960250')}))
+        data = json.loads(rv.data)
+
+        assert 'Module mariadb:10.2:20180724000000:00000000 imported' in data['messages']
+        assert data['module']['name'] == 'mariadb'
+        assert data['module']['stream'] == '10.2'
+        assert data['module']['version'] == '20180724000000'
+        assert data['module']['context'] == '00000000'
+        assert data['module']['owner'] == 'mbs_import'
+        assert data['module']['state'] == 5
+        assert data['module']['state_reason'] is None
+        assert data['module']['state_name'] == 'ready'
+        assert data['module']['scmurl'] is None
+        assert data['module']['component_builds'] == []
+        assert data['module']['time_submitted'] == data['module']['time_modified'] == \
+            data['module']['time_completed']
+        assert data['module']['koji_tag'] == 'mariadb-10.2-20180724000000-00000000'
+        assert data['module']['siblings'] == []
+        assert data['module']['rebuild_strategy'] == 'all'
+
+    @pytest.mark.parametrize('api_version', [1, 2])
+    @patch('module_build_service.auth.get_user', return_value=import_module_user)
+    @patch.object(module_build_service.config.Config, 'scmurls',
+                  new_callable=PropertyMock, return_value=['file://'])
+    def test_import_build_scm_another_commit_hash(self, mocked_scmurls, mocked_get_user,
+                                                  api_version):
+        post_url = '/module-build-service/{0}/import-module/'.format(api_version)
+        rv = self.client.post(
+            post_url,
+            data=json.dumps({'scmurl': 'file://' + scm_base_dir + (
+                '/mariadb?#1a43ea22cd32f235c2f119de1727a37902a49f20')}))
+        data = json.loads(rv.data)
+
+        assert 'Module mariadb:10.2:20180724065109:00000000 imported' in data['messages']
+        assert data['module']['name'] == 'mariadb'
+        assert data['module']['stream'] == '10.2'
+        assert data['module']['version'] == '20180724065109'
+        assert data['module']['context'] == '00000000'
+        assert data['module']['owner'] == 'mbs_import'
+        assert data['module']['state'] == 5
+        assert data['module']['state_reason'] is None
+        assert data['module']['state_name'] == 'ready'
+        assert data['module']['scmurl'] is None
+        assert data['module']['component_builds'] == []
+        assert data['module']['time_submitted'] == data['module']['time_modified'] == \
+            data['module']['time_completed']
+        assert data['module']['koji_tag'] == 'mariadb-10.2-20180724065109-00000000'
+        assert data['module']['siblings'] == []
+        assert data['module']['rebuild_strategy'] == 'all'
+
+    @pytest.mark.parametrize('api_version', [1, 2])
+    @patch('module_build_service.auth.get_user', return_value=import_module_user)
+    @patch.object(module_build_service.config.Config, 'scmurls',
+                  new_callable=PropertyMock, return_value=['file://'])
+    def test_import_build_scm_incomplete_nsvc(self, mocked_scmurls, mocked_get_user,
+                                              api_version):
+        post_url = '/module-build-service/{0}/import-module/'.format(api_version)
+        rv = self.client.post(
+            post_url,
+            data=json.dumps({'scmurl': 'file://' + scm_base_dir + (
+                '/mariadb?#b17bea85de2d03558f24d506578abcfcf467e5bc')}))
+        data = json.loads(rv.data)
+
+        assert data['error'] == 'Unprocessable Entity'
+        assert data['message'] == 'Incomplete NSVC: None:None:0:00000000'
+
+    @pytest.mark.parametrize('api_version', [1, 2])
+    @patch('module_build_service.auth.get_user', return_value=import_module_user)
+    @patch.object(module_build_service.config.Config, 'scmurls',
+                  new_callable=PropertyMock, return_value=['file://'])
+    def test_import_build_scm_yaml_is_bad(self, mocked_scmurls, mocked_get_user,
+                                          api_version):
+        post_url = '/module-build-service/{0}/import-module/'.format(api_version)
+        rv = self.client.post(
+            post_url,
+            data=json.dumps({'scmurl': 'file://' + scm_base_dir + (
+                '/mariadb?#cb7cf7069059141e0797ad2cf5a559fb673ef43d')}))
+        data = json.loads(rv.data)
+
+        assert data['error'] == 'Unprocessable Entity'
+        assert data['message'].startswith('The following invalid modulemd was encountered')
+
+    @pytest.mark.parametrize('api_version', [1, 2])
+    @patch('module_build_service.auth.get_user', return_value=import_module_user)
+    @patch.object(module_build_service.config.Config, 'scmurls',
+                  new_callable=PropertyMock, return_value=['file://'])
+    def test_import_build_scm_missing_koji_tag(self, mocked_scmurls, mocked_get_user,
+                                               api_version):
+        post_url = '/module-build-service/{0}/import-module/'.format(api_version)
+        rv = self.client.post(
+            post_url,
+            data=json.dumps({'scmurl': 'file://' + scm_base_dir + (
+                '/mariadb?#9ab5fdeba83eb3382413ee8bc06299344ef4477d')}))
+        data = json.loads(rv.data)
+
+        assert data['error'] == 'Unprocessable Entity'
+        assert data['message'].startswith('\'koji_tag\' is not set in xmd[\'mbs\'] for module')

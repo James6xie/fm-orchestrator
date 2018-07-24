@@ -462,7 +462,8 @@ def _is_eol_in_pdc(name, stream):
     return not results[0]['active']
 
 
-def _fetch_mmd(url, branch=None, allow_local_url=False, whitelist_url=False):
+def _fetch_mmd(url, branch=None, allow_local_url=False, whitelist_url=False,
+               mandatory_checks=True):
     # Import it here, because SCM uses utils methods
     # and fails to import them because of dep-chain.
     import module_build_service.scm
@@ -477,7 +478,7 @@ def _fetch_mmd(url, branch=None, allow_local_url=False, whitelist_url=False):
         else:
             scm = module_build_service.scm.SCM(url, branch, conf.scmurls, allow_local_url)
         scm.checkout(td)
-        if not whitelist_url:
+        if not whitelist_url and mandatory_checks:
             scm.verify()
         cofn = scm.get_module_yaml()
         mmd = load_mmd(cofn, is_file=True)
@@ -494,6 +495,9 @@ def _fetch_mmd(url, branch=None, allow_local_url=False, whitelist_url=False):
         if _is_eol_in_pdc(scm.name, scm.branch):
             raise ValidationError(
                 'Module {}:{} is marked as EOL in PDC.'.format(scm.name, scm.branch))
+
+    if not mandatory_checks:
+        return mmd, scm
 
     # If the name was set in the modulemd, make sure it matches what the scmurl
     # says it should be

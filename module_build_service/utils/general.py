@@ -29,7 +29,8 @@ import time
 from datetime import datetime
 
 from module_build_service import conf, log, models
-from module_build_service.errors import ValidationError, ProgrammingError
+from module_build_service.errors import (
+    ValidationError, ProgrammingError, UnprocessableEntity)
 
 
 def scm_url_schemes(terse=False):
@@ -258,6 +259,10 @@ def import_mmd(session, mmd):
     the module, we have no idea what build_context or runtime_context is - we only
     know the resulting "context", but there is no way to store it into do DB.
     By now, we just ignore mmd.get_context() and use default 00000000 context instead.
+
+    :return: module build (ModuleBuild),
+             log messages collected during import (list)
+    :rtype: tuple
     """
     mmd.set_context("00000000")
     name = mmd.get_name()
@@ -265,22 +270,33 @@ def import_mmd(session, mmd):
     version = str(mmd.get_version())
     context = mmd.get_context()
 
+    # Log messages collected during import
+    msgs = []
+
     # NSVC is used for logging purpose later.
-    nsvc = ":".join([name, stream, version, context])
+    try:
+        nsvc = ":".join([name, stream, version, context])
+    except TypeError:
+        msg = "Incomplete NSVC: {}:{}:{}:{}".format(name, stream, version, context)
+        log.error(msg)
+        raise UnprocessableEntity(msg)
 
     # Get the koji_tag.
-    xmd = mmd.get_xmd()
-    if "mbs" in xmd.keys() and "koji_tag" in xmd["mbs"].keys():
+    try:
+        xmd = mmd.get_xmd()
         koji_tag = xmd["mbs"]["koji_tag"]
-    else:
-        log.warn("'koji_tag' is not set in xmd['mbs'] for module %s", nsvc)
-        koji_tag = ""
+    except KeyError:
+        msg = "'koji_tag' is not set in xmd['mbs'] for module {}".format(nsvc)
+        log.error(msg)
+        raise UnprocessableEntity(msg)
 
     # Get the ModuleBuild from DB.
     build = models.ModuleBuild.get_build_from_nsvc(
         session, name, stream, version, context)
     if build:
-        log.info("Updating existing module build %s.", nsvc)
+        msg = "Updating existing module build {}.".format(nsvc)
+        log.info(msg)
+        msgs.append(msg)
     else:
         build = models.ModuleBuild()
 
@@ -298,4 +314,22 @@ def import_mmd(session, mmd):
     build.time_completed = datetime.utcnow()
     session.add(build)
     session.commit()
-    log.info("Module %s imported", nsvc)
+    msg = "Module {} imported".format(nsvc)
+    log.info(msg)
+    msgs.append(msg)
+
+    return build, msgs
+
+
+def get_mmd_from_scm(url):
+    """
+    Provided an SCM URL, fetch mmd from the corresponding module YAML
+    file. If ref is specified within the URL, the mmd will be returned
+    as of the ref.
+    """
+    from module_build_service.utils.submit import _fetch_mmd
+
+    mmd, _ = _fetch_mmd(url, branch=None, allow_local_url=False,
+                        whitelist_url=False, mandatory_checks=False)
+
+    return mmd
