@@ -47,14 +47,14 @@ node('factory2'){
         }
 
         stage('Clone Test Suite') {
-            onmyduffynode "git clone -b \"${env.BRANCH_NAME}\" --single-branch --depth 1 https://pagure.io/fm-orchestrator"
+            onmyduffynode "git clone --single-branch --depth 1 https://pagure.io/fm-orchestrator.git"
 
             onmyduffynode "cd fm-orchestrator && git remote add proposed \"${env.REPO}\""
             onmyduffynode "cd fm-orchestrator && git fetch proposed"
-            onmyduffynode "cd fm-orchestrator && git checkout origin master"
+            onmyduffynode "cd fm-orchestrator && git checkout origin/master"
             onmyduffynode "cd fm-orchestrator && git config --global user.email ci@centos.org"
             onmyduffynode "cd fm-orchestrator && git config --global user.name CentOS CI"
-            onmyduffynode "cd fm-orchestrator && git merge --no-ff \"proposed/${env.BRANCH}\" -m \"Merge PR\""
+            onmyduffynode "cd fm-orchestrator && git merge --no-ff \"proposed/${env.BRANCH}\" -m \'Merge PR\'"
             onmyduffynode "cd fm-orchestrator && git log -2"
 
 
