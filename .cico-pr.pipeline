@@ -1,6 +1,6 @@
 import groovy.json.JsonOutput
 
-def notifyPagurePR(repo, msg, status, phase, credentials = 'pagure-auth'){
+def notifyPagurePR(repo, msg, status, phase, credentials = 'fm-orchestrator-auth'){
     def json = JsonOutput.toJson([name: 'pagure', url: env.JOB_NAME, build: [full_url: currentBuild.absoluteUrl, status: status, number: currentBuild.number, phase: phase]])
     println json
 
