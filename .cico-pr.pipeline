@@ -24,11 +24,11 @@ def onmyduffynode(script){
 node('factory2'){
 
     properties([
-            parameters([
-                string(defaultValue: "", description: "", name: "REPO"),
-                string(defaultValue: "", description: "", name: "BRANCH"),
-                ])
-            ])
+        parameters([
+            string(defaultValue: "", description: "", name: "REPO"),
+            string(defaultValue: "", description: "", name: "BRANCH"),
+        ])
+    ])
 
     stage('Allocate Node'){
         env.CICO_API_KEY = readFile("${env.HOME}/duffy.key").trim()
@@ -42,13 +42,11 @@ node('factory2'){
 
     try{
         stage('Pre Setup Node'){
-            // Install EPEL and the SCLs repo
             onmyduffynode 'yum -y install git docker && systemctl start docker'
         }
 
         stage('Clone Test Suite') {
             onmyduffynode "git clone --single-branch --depth 1 https://pagure.io/fm-orchestrator.git"
-
             onmyduffynode "cd fm-orchestrator && git remote add proposed \"${env.REPO}\""
             onmyduffynode "cd fm-orchestrator && git fetch proposed"
             onmyduffynode "cd fm-orchestrator && git checkout origin/master"
@@ -56,8 +54,6 @@ node('factory2'){
             onmyduffynode "cd fm-orchestrator && git config --global user.name CentOS CI"
             onmyduffynode "cd fm-orchestrator && git merge --no-ff \"proposed/${env.BRANCH}\" -m \'Merge PR\'"
             onmyduffynode "cd fm-orchestrator && git log -2"
-
-
         }
 
         stage('Build Docker Image') {
