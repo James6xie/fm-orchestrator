@@ -14,10 +14,12 @@ import sqlalchemy as sa
 
 
 def upgrade():
-    op.drop_column('module_builds', 'copr_project')
-    op.drop_column('module_builds', 'copr_owner')
+    with op.batch_alter_table('module_builds') as b:
+        b.drop_column('copr_project')
+        b.drop_column('copr_owner')
 
 
 def downgrade():
-    op.add_column('module_builds', sa.Column('copr_owner', sa.VARCHAR(), nullable=True))
-    op.add_column('module_builds', sa.Column('copr_project', sa.VARCHAR(), nullable=True))
+    with op.batch_alter_table('module_builds') as b:
+        b.add_column('copr_project', sa.VARCHAR(), nullable=True)
+        b.add_column('copr_owner', sa.VARCHAR(), nullable=True)
