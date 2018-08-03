@@ -610,6 +610,7 @@ chmod 644 %buildroot/etc/rpm/macros.zz-modules
         component_build.state = koji.BUILD_STATES['COMPLETE']
         component_build.nvr = build['nvr']
         component_build.task_id = build['task_id']
+        component_build.build_id = build['build_id']
         component_build.state_reason = 'Found existing build'
         nvr_dict = kobo.rpmlib.parse_nvr(component_build.nvr)
         # Trigger a completed build message
@@ -630,7 +631,8 @@ chmod 644 %buildroot/etc/rpm/macros.zz-modules
             log.info('The build being skipped isn\'t tagged in the "{0}" tag. Will send a '
                      'message to the tag handler'.format(tag))
             further_work.append(module_build_service.messaging.KojiTagChange(
-                'recover_orphaned_artifact: fake message', tag, component_build.package))
+                'recover_orphaned_artifact: fake message', tag, component_build.package,
+                component_build.build_id))
         return further_work
 
     def build(self, artifact_name, source):

@@ -58,13 +58,14 @@ def reuse_component(component, previous_component_build,
     component.state_reason = \
         'Reused component from previous module build'
     component.nvr = previous_component_build.nvr
+    component.build_id = previous_component_build.build_id
     nvr_dict = kobo.rpmlib.parse_nvr(component.nvr)
     # Add this message to further_work so that the reused
     # component will be tagged properly
     return [
         module_build_service.messaging.KojiBuildChange(
             msg_id='reuse_component: fake msg',
-            build_id=None,
+            build_id=component.build_id,
             task_id=component.task_id,
             build_new_state=previous_component_build.state,
             build_name=component.package,

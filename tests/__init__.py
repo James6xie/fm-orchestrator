@@ -149,6 +149,7 @@ def _populate_data(session, data_size=10, contexts=False):
                 ('git://pkgs.domain.local/rpms/nginx?'
                  '#ga95886c8a443b36a9ce31abda1f9bed22f2f8c3')
             component_one_build_one.format = 'rpms'
+            component_one_build_one.build_id = 2345 + index
             component_one_build_one.task_id = 12312345 + index
             component_one_build_one.state = koji.BUILD_STATES['COMPLETE']
             component_one_build_one.nvr = 'nginx-1.10.1-2.{0}'.format(build_one_component_release)
@@ -163,6 +164,7 @@ def _populate_data(session, data_size=10, contexts=False):
                 ('/tmp/module_build_service-build-macrosWZUPeK/SRPMS/'
                  'module-build-macros-0.1-1.module_nginx_1_2.src.rpm')
             component_two_build_one.format = 'rpms'
+            component_two_build_one.build_id = 4356 + index
             component_two_build_one.task_id = 12312321 + index
             component_two_build_one.state = koji.BUILD_STATES['COMPLETE']
             component_two_build_one.nvr = \
@@ -200,6 +202,7 @@ def _populate_data(session, data_size=10, contexts=False):
             ('git://pkgs.domain.local/rpms/postgresql?'
              '#dc95586c4a443b26a9ce38abda1f9bed22f2f8c3')
         component_one_build_two.format = 'rpms'
+        component_one_build_two.build_id = 345345 + index
         component_one_build_two.task_id = 2433433 + index
         component_one_build_two.state = koji.BUILD_STATES['COMPLETE']
         component_one_build_two.nvr = 'postgresql-9.5.3-4.{0}'.format(build_two_component_release)
@@ -214,6 +217,7 @@ def _populate_data(session, data_size=10, contexts=False):
             ('/tmp/module_build_service-build-macrosWZUPeK/SRPMS/'
              'module-build-macros-0.1-1.module_postgresql_1_2.src.rpm')
         component_two_build_two.format = 'rpms'
+        component_two_build_two.build_id = 567567 + index
         component_two_build_two.task_id = 47383993 + index
         component_two_build_two.state = koji.BUILD_STATES['COMPLETE']
         component_two_build_two.nvr = \
@@ -250,6 +254,7 @@ def _populate_data(session, data_size=10, contexts=False):
             ('git://pkgs.domain.local/rpms/rubygem-rails?'
              '#dd55886c4a443b26a9ce38abda1f9bed22f2f8c3')
         component_one_build_three.format = 'rpms'
+        component_one_build_three.build_id = 345353 + index
         component_one_build_three.task_id = 2433433 + index
         component_one_build_three.state = koji.BUILD_STATES['FAILED']
         component_one_build_three.nvr = \
@@ -263,6 +268,7 @@ def _populate_data(session, data_size=10, contexts=False):
             ('/tmp/module_build_service-build-macrosWZUPeK/SRPMS/'
              'module-build-macros-0.1-1.module_testmodule_1_2.src.rpm')
         component_two_build_three.format = 'rpms'
+        component_two_build_three.build_id = 83732 + index
         component_two_build_three.task_id = 47383993 + index
         component_two_build_three.state = koji.BUILD_STATES['COMPLETE']
         component_two_build_three.nvr = \
@@ -431,6 +437,7 @@ def reuse_component_init_data():
         ('git://pkgs.fedoraproject.org/rpms/perl-Tangerine'
          '?#4ceea43add2366d8b8c5a622a2fb563b625b9abf')
     component_one_build_one.format = 'rpms'
+    component_one_build_one.build_id = 23456
     component_one_build_one.task_id = 90276227
     component_one_build_one.state = koji.BUILD_STATES['COMPLETE']
     component_one_build_one.nvr = \
@@ -446,6 +453,7 @@ def reuse_component_init_data():
         ('git://pkgs.fedoraproject.org/rpms/perl-List-Compare'
          '?#76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb')
     component_two_build_one.format = 'rpms'
+    component_two_build_one.build_id = 23457
     component_two_build_one.task_id = 90276228
     component_two_build_one.state = koji.BUILD_STATES['COMPLETE']
     component_two_build_one.nvr = \
@@ -461,6 +469,7 @@ def reuse_component_init_data():
         ('git://pkgs.fedoraproject.org/rpms/tangerine'
          '?#fbed359411a1baa08d4a88e0d12d426fbf8f602c')
     component_three_build_one.format = 'rpms'
+    component_three_build_one.build_id = 23458
     component_three_build_one.task_id = 90276315
     component_three_build_one.state = koji.BUILD_STATES['COMPLETE']
     component_three_build_one.nvr = \
@@ -476,6 +485,7 @@ def reuse_component_init_data():
         ('/tmp/module_build_service-build-macrosqr4AWH/SRPMS/module-build-'
          'macros-0.1-1.module_testmodule_master_20170109091357.src.rpm')
     component_four_build_one.format = 'rpms'
+    component_four_build_one.build_id = 23459
     component_four_build_one.task_id = 90276181
     component_four_build_one.state = koji.BUILD_STATES['COMPLETE']
     component_four_build_one.nvr = \
@@ -542,6 +552,7 @@ def reuse_component_init_data():
         ('/tmp/module_build_service-build-macrosqr4AWH/SRPMS/module-build-'
          'macros-0.1-1.module_testmodule_master_20170219191323.src.rpm')
     component_four_build_two.format = 'rpms'
+    component_four_build_two.build_id = 456789
     component_four_build_two.task_id = 90276186
     component_four_build_two.state = koji.BUILD_STATES['COMPLETE']
     component_four_build_two.nvr = \

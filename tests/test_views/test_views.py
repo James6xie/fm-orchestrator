@@ -441,6 +441,7 @@ class TestViews:
     def test_query_component_build(self):
         rv = self.client.get('/module-build-service/1/component-builds/1')
         data = json.loads(rv.data)
+        assert data['build_id'] == 2345
         assert data['id'] == 1
         assert data['format'] == 'rpms'
         assert data['module_build'] == 2
@@ -453,6 +454,7 @@ class TestViews:
     def test_query_component_build_short(self):
         rv = self.client.get('/module-build-service/1/component-builds/1?short=True')
         data = json.loads(rv.data)
+        assert data['build_id'] == 2345
         assert data['id'] == 1
         assert data['format'] == 'rpms'
         assert data['module_build'] == 2
@@ -465,6 +467,7 @@ class TestViews:
     def test_query_component_build_verbose(self):
         rv = self.client.get('/module-build-service/1/component-builds/3?verbose=true')
         data = json.loads(rv.data)
+        assert data['build_id'] == 345345
         assert data['id'] == 3
         assert data['format'] == 'rpms'
         assert data['module_build'] == 3
