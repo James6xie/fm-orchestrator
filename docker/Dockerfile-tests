@@ -13,6 +13,7 @@ RUN yum -y install \
     createrepo_c \
     fedmsg \
     fedmsg-hub \
+    gcc \
     git \
     kobo \
     kobo-rpmlib \
