@@ -444,6 +444,7 @@ class TestViews:
         assert data['id'] == 1
         assert data['format'] == 'rpms'
         assert data['module_build'] == 2
+        assert data['nvr'] == 'nginx-1.10.1-2.module+2+b8661ee4'
         assert data['package'] == 'nginx'
         assert data['state'] == 1
         assert data['state_name'] == 'COMPLETE'
@@ -456,6 +457,7 @@ class TestViews:
         assert data['id'] == 1
         assert data['format'] == 'rpms'
         assert data['module_build'] == 2
+        assert data['nvr'] == 'nginx-1.10.1-2.module+2+b8661ee4'
         assert data['package'] == 'nginx'
         assert data['state'] == 1
         assert data['state_name'] == 'COMPLETE'
@@ -468,6 +470,7 @@ class TestViews:
         assert data['id'] == 3
         assert data['format'] == 'rpms'
         assert data['module_build'] == 3
+        assert data['nvr'] == 'postgresql-9.5.3-4.module+3+0557c87d'
         assert data['package'] == 'postgresql'
         assert data['state'] == 1
         assert data['state_name'] == 'COMPLETE'

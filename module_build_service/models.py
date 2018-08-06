@@ -721,6 +721,7 @@ class ComponentBuild(MBSBase):
             'state': self.state,
             'state_reason': self.state_reason,
             'module_build': self.module_id,
+            'nvr': self.nvr
         }
 
         try:

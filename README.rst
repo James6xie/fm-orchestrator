@@ -559,6 +559,7 @@ about the referenced component build.
       "format": "rpms",
       "id": 854,
       "module_build": 42,
+      "nvr": "pth-1-1",
       "package": "pth",
       "state": 1,
       "state_name": "COMPLETE",
@@ -571,6 +572,7 @@ The response includes:
 
 - ``id`` - the ID of the component build.
 - ``format`` - typically "rpms".
+- ``nvr`` - the NVR of the component build.
 - ``package`` - the package name.
 - ``state`` - the numerical state of the component build.
 - ``state_name`` - the named component build state and can be "COMPLETE",
