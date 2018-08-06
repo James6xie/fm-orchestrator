@@ -337,6 +337,14 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
         raise NotImplementedError()
 
     @classmethod
+    def get_built_rpms_in_module_build(cls, build):
+        """
+        :param ModuleBuild build: Module build to get the built RPMs from.
+        :return: list of NVRs
+        """
+        raise NotImplementedError()
+
+    @classmethod
     def recover_orphaned_artifact(cls, component_build):
         """
         Searches for a complete build of an artifact belonging to the module and sets the

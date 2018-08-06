@@ -20,6 +20,9 @@
 # SOFTWARE.
 #
 # Written by Matt Prahl <mprahl@redhat.com>
+#            Jan Kaluza <jkaluza@redhat.com>
+
+import kobo.rpmlib
 
 from module_build_service import log
 from module_build_service.resolver.base import GenericResolver
@@ -177,6 +180,7 @@ class DBResolver(GenericResolver):
         :param requires: a dictionary with the module name as the key and the stream as the value
         :return: a dictionary
         """
+        from module_build_service.builder import GenericBuilder
         new_requires = {}
         with models.make_session(self.config) as session:
             for nsvc in requires:
@@ -236,9 +240,12 @@ class DBResolver(GenericResolver):
                 # Find out the particular NVR of filtered packages
                 rpm_filter = mmd.get_rpm_filter()
                 if rpm_filter and rpm_filter.get():
-                    for rpm in build.component_builds:
-                        if rpm.package in rpm_filter.get():
-                            filtered_rpms.append(rpm.nvr)
+                    rpm_filter = rpm_filter.get()
+                    built_nvrs = GenericBuilder.get_built_rpms_in_module_build(build)
+                    for nvr in built_nvrs:
+                        parsed_nvr = kobo.rpmlib.parse_nvr(nvr)
+                        if parsed_nvr["name"] in rpm_filter:
+                            filtered_rpms.append(nvr)
 
                 new_requires[module_name] = {
                     'ref': commit_hash,

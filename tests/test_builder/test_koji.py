@@ -510,3 +510,23 @@ class TestKojiBuilder:
         else:
             expected_calls = []
         assert session.packageListBlock.mock_calls == expected_calls
+
+    @patch('module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session')
+    def test_get_built_rpms_in_module_build(self, get_session):
+        session = MagicMock()
+        session.listTaggedRPMS.return_value = ([
+            {'build_id': 735939, 'name': 'tar', 'extra': None, 'arch': 'ppc64le',
+             'buildtime': 1533299221, 'id': 6021394, 'epoch': 2, 'version': '1.30',
+             'metadata_only': False, 'release': '4.el8+1308+551bfa71',
+             'buildroot_id': 4321122, 'payloadhash': '0621ab2091256d21c47dcac868e7fc2a',
+             'size': 878684},
+            {'build_id': 735939, 'name': 'bar', 'extra': None, 'arch': 'ppc64le',
+             'buildtime': 1533299221, 'id': 6021394, 'epoch': 2, 'version': '1.30',
+             'metadata_only': False, 'release': '4.el8+1308+551bfa71',
+             'buildroot_id': 4321122, 'payloadhash': '0621ab2091256d21c47dcac868e7fc2a',
+             'size': 878684}], [])
+        get_session.return_value = session
+
+        ret = KojiModuleBuilder.get_built_rpms_in_module_build(self.module)
+        assert set(ret) == set(
+            ['bar-2:1.30-4.el8+1308+551bfa71', 'tar-2:1.30-4.el8+1308+551bfa71'])

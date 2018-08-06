@@ -1071,6 +1071,17 @@ chmod 644 %buildroot/etc/rpm/macros.zz-modules
 
         return weights
 
+    @classmethod
+    def get_built_rpms_in_module_build(cls, build):
+        """
+        :param ModuleBuild build: Module build to get the built RPMs from.
+        :return: list of NVRs
+        """
+        koji_session = KojiModuleBuilder.get_session(conf, None)
+        rpms = koji_session.listTaggedRPMS(build.koji_tag, latest=True)[0]
+        nvrs = set(kobo.rpmlib.make_nvr(rpm, force_epoch=True) for rpm in rpms)
+        return list(nvrs)
+
     def finalize(self):
         # Only import to koji CG if the module is "done".
         if self.config.koji_enable_content_generator and self.module.state == 3:

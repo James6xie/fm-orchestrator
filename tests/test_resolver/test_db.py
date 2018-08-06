@@ -120,6 +120,37 @@ class TestDBModule:
             ]
             assert set(result) == set(expected)
 
+    @patch("module_build_service.builder.base.GenericBuilder.get_built_rpms_in_module_build")
+    def test_resolve_requires(self, built_rpms):
+        build = models.ModuleBuild.query.get(2)
+        mmd = build.mmd()
+        filter_list = Modulemd.SimpleSet()
+        filter_list.add("foo")
+        filter_list.add("bar")
+        mmd.set_rpm_filter(filter_list)
+        build.modulemd = mmd.dumps()
+        db.session.commit()
+
+        built_rpms.return_value = [
+            "foo-0:2.4.48-3.el8+1308+551bfa71",
+            "foo-debuginfo-0:2.4.48-3.el8+1308+551bfa71",
+            "bar-0:2.5.48-3.el8+1308+551bfa71",
+            "bar-debuginfo-0:2.5.48-3.el8+1308+551bfa71",
+            "x-0:2.5.48-3.el8+1308+551bfa71",
+            "x-debuginfo-0:2.5.48-3.el8+1308+551bfa71"]
+
+        resolver = mbs_resolver.GenericResolver.create(tests.conf, backend='db')
+        result = resolver.resolve_requires([":".join([
+            build.name, build.stream, build.version, build.context])])
+
+        assert result == {
+            'testmodule': {
+                'stream': 'master', 'version': '20170109091357', 'context': u'78e4a6fd',
+                'ref': 'ff1ea79fc952143efeed1851aa0aa006559239ba',
+                'filtered_rpms': [
+                    'foo-0:2.4.48-3.el8+1308+551bfa71',
+                    'bar-0:2.5.48-3.el8+1308+551bfa71']}}
+
     def test_resolve_profiles(self):
         """
         Tests that the profiles get resolved recursively
