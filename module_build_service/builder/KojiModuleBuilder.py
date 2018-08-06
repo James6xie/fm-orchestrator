@@ -199,7 +199,7 @@ class KojiModuleBuilder(GenericBuilder):
 
         tag_id = self.module_target['build_tag']
         repo = self.koji_session.getRepo(tag_id)
-        builds = [self.koji_session.getBuild(a) for a in artifacts or []]
+        builds = [self.koji_session.getBuild(a, strict=True) for a in artifacts or []]
         log.info("%r checking buildroot readiness for "
                  "repo: %r, tag_id: %r, artifacts: %r, builds: %r" % (
                      self, repo, tag_id, artifacts, builds))
