@@ -1,6 +1,10 @@
 Change Log
 ==========
 
+v2.4.2
+------
+* Fix a bug where the fedmsg messaging plugin wouldn't send the NVR on a KojiTagChange message
+
 v2.4.1
 ------
 * Fix bugs when building modules with SCL components
