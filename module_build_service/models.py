@@ -658,8 +658,7 @@ class ComponentBuild(MBSBase):
     scmurl = db.Column(db.String, nullable=False)
     # XXX: Consider making this a proper ENUM
     format = db.Column(db.String, nullable=False)
-    build_id = db.Column(db.Integer)  # This is the id of the build in Koji
-    task_id = db.Column(db.Integer)  # This is the id of the build task in Koji
+    task_id = db.Column(db.Integer)  # This is the id of the build in koji
     # This is the commit hash that component was built with
     ref = db.Column(db.String, nullable=True)
     # XXX: Consider making this a proper ENUM (or an int)
@@ -709,18 +708,12 @@ class ComponentBuild(MBSBase):
         return session.query(cls).filter_by(
             package=component_name, module_id=module_id).first()
 
-    @classmethod
-    def from_component_build_id(cls, session, build_id, module_id):
-        return session.query(cls).filter_by(
-            build_id=build_id, module_id=module_id).first()
-
     def state_trace(self, component_id):
         return ComponentBuildTrace.query.filter_by(
             component_id=component_id).order_by(ComponentBuildTrace.state_time).all()
 
     def json(self):
         retval = {
-            'build_id': self.build_id,
             'id': self.id,
             'package': self.package,
             'format': self.format,
@@ -765,9 +758,8 @@ class ComponentBuild(MBSBase):
         return json
 
     def __repr__(self):
-        return ("<ComponentBuild %s, %r, state: %r, build_id: %r, task_id: %r, batch: %r, "
-                "state_reason: %s>") % (self.package, self.module_id, self.state, self.build_id,
-                                        self.task_id, self.batch, self.state_reason)
+        return "<ComponentBuild %s, %r, state: %r, task_id: %r, batch: %r, state_reason: %s>" % (
+            self.package, self.module_id, self.state, self.task_id, self.batch, self.state_reason)
 
 
 class ComponentBuildTrace(MBSBase):

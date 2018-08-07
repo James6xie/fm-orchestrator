@@ -103,7 +103,6 @@ class FakeModuleBuilder(GenericBuilder):
     on_cancel_cb = None
     on_buildroot_add_artifacts_cb = None
     on_tag_artifacts_cb = None
-    component_ids = {}
 
     @module_build_service.utils.validate_koji_tag('tag_name')
     def __init__(self, owner, module, config, tag_name, components):
@@ -121,7 +120,6 @@ class FakeModuleBuilder(GenericBuilder):
         FakeModuleBuilder.on_tag_artifacts_cb = None
         FakeModuleBuilder.DEFAULT_GROUPS = None
         FakeModuleBuilder.backend = 'test'
-        FakeModuleBuilder.component_ids = {}
 
     def buildroot_connect(self, groups):
         default_groups = FakeModuleBuilder.DEFAULT_GROUPS or {
@@ -157,10 +155,15 @@ class FakeModuleBuilder(GenericBuilder):
             FakeModuleBuilder.on_buildroot_add_artifacts_cb(self, artifacts, install)
         if self.backend == 'test':
             for nvr in artifacts:
-                component = models.ComponentBuild.query.filter_by(nvr=nvr).first()
+                # buildroot_add_artifacts received a list of NVRs, but the tag message expects the
+                # component name. At this point, the NVR may not be set if we are trying to reuse
+                # all components, so we can't search the database. We must parse the package name
+                # from the nvr and then tag it in the build tag. Kobo doesn't work when parsing
+                # the NVR of a component with a module dist-tag, so we must manually do it.
+                package_name = nvr.split('.module')[0].rsplit('-', 2)[0]
                 # When INSTANT_COMPLETE is on, the components are already in the build tag
                 if self.INSTANT_COMPLETE is False:
-                    self._send_tag(component, dest_tag=False)
+                    self._send_tag(package_name, dest_tag=False)
         elif self.backend == 'testlocal':
             self._send_repo_done()
 
@@ -175,8 +178,8 @@ class FakeModuleBuilder(GenericBuilder):
             for nvr in artifacts:
                 # tag_artifacts received a list of NVRs, but the tag message expects the
                 # component name
-                component = models.ComponentBuild.query.filter_by(nvr=nvr).first()
-                self._send_tag(component, dest_tag=dest_tag)
+                artifact = models.ComponentBuild.query.filter_by(nvr=nvr).first().package
+                self._send_tag(artifact, dest_tag=dest_tag)
 
     @property
     def koji_session(self):
@@ -199,20 +202,15 @@ class FakeModuleBuilder(GenericBuilder):
         )
         module_build_service.scheduler.consumer.work_queue_put(msg)
 
-    def _send_tag(self, component, dest_tag=True):
+    def _send_tag(self, artifact, dest_tag=True):
         if dest_tag:
             tag = self.tag_name
         else:
             tag = self.tag_name + "-build"
-
-        if not FakeModuleBuilder.component_ids.get(component.package):
-            FakeModuleBuilder.component_ids[component.package] = component.build_id
-
         msg = module_build_service.messaging.KojiTagChange(
             msg_id='a faked internal message',
             tag=tag,
-            artifact=component.package,
-            build_id=FakeModuleBuilder.component_ids[component.package]
+            artifact=artifact
         )
         module_build_service.scheduler.consumer.work_queue_put(msg)
 
@@ -232,10 +230,7 @@ class FakeModuleBuilder(GenericBuilder):
 
     def build(self, artifact_name, source):
         print("Starting building artifact %s: %s" % (artifact_name, source))
-        # Make sure we have consistent component IDs on every message
-        if artifact_name not in FakeModuleBuilder.component_ids:
-            FakeModuleBuilder.component_ids[artifact_name] = randint(1000, 9999999)
-        build_id = FakeModuleBuilder.component_ids[artifact_name]
+        build_id = randint(1000, 9999999)
 
         if FakeModuleBuilder.on_build_cb:
             FakeModuleBuilder.on_build_cb(self, artifact_name, source)
@@ -269,21 +264,17 @@ class FakeModuleBuilder(GenericBuilder):
             component_build.state = koji.BUILD_STATES['COMPLETE']
             component_build.nvr = nvr
             component_build.task_id = component_build.id + 51234
-            if component_build.package not in FakeModuleBuilder.component_ids:
-                FakeModuleBuilder.component_ids[component_build.package] = component_build.id + 123
-            component_build.build_id = FakeModuleBuilder.component_ids[component_build.package]
             component_build.state_reason = 'Found existing build'
             nvr_dict = kobo.rpmlib.parse_nvr(component_build.nvr)
             # Send a message stating the build is complete
             msgs.append(module_build_service.messaging.KojiBuildChange(
-                'recover_orphaned_artifact: fake message', component_build.build_id,
+                'recover_orphaned_artifact: fake message', randint(1, 9999999),
                 component_build.task_id, koji.BUILD_STATES['COMPLETE'], component_build.package,
                 nvr_dict['version'], nvr_dict['release'], component_build.module_build.id))
             # Send a message stating that the build was tagged in the build tag
             msgs.append(module_build_service.messaging.KojiTagChange(
                 'recover_orphaned_artifact: fake message',
-                component_build.module_build.koji_tag + '-build', component_build.package,
-                component_build.build_id))
+                component_build.module_build.koji_tag + '-build', component_build.package))
         return msgs
 
     def finalize(self):

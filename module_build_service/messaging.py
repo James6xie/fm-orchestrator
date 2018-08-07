@@ -157,8 +157,7 @@ class FedmsgMessageParser(MessageParser):
             elif category == 'buildsys' and event == 'tag':
                 tag = msg_inner_msg.get('tag')
                 artifact = msg_inner_msg.get('name')
-                build_id = msg_inner_msg.get('build_id')
-                msg_obj = KojiTagChange(msg_id, tag, artifact, build_id)
+                msg_obj = KojiTagChange(msg_id, tag, artifact)
 
             elif category == 'mbs' and object == 'module' and \
                     subobject == 'state' and event == 'change':
@@ -210,11 +209,10 @@ class KojiTagChange(BaseMessage):
     :param tag: the name of tag (e.g. module-123456789-build)
     :param artifact: the name of tagged artifact (e.g. module-build-macros)
     """
-    def __init__(self, msg_id, tag, artifact, build_id):
+    def __init__(self, msg_id, tag, artifact):
         super(KojiTagChange, self).__init__(msg_id)
         self.tag = tag
         self.artifact = artifact
-        self.build_id = build_id
 
 
 class KojiRepoChange(BaseMessage):

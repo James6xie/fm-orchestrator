@@ -62,7 +62,6 @@ def _finalize(config, session, msg, state):
     component_build.state = state
     component_build.nvr = nvr
     component_build.state_reason = state_reason
-    component_build.build_id = msg.build_id
     session.commit()
 
     parent = component_build.module_build
