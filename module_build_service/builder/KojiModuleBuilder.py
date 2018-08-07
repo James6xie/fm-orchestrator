@@ -630,7 +630,8 @@ chmod 644 %buildroot/etc/rpm/macros.zz-modules
             log.info('The build being skipped isn\'t tagged in the "{0}" tag. Will send a '
                      'message to the tag handler'.format(tag))
             further_work.append(module_build_service.messaging.KojiTagChange(
-                'recover_orphaned_artifact: fake message', tag, component_build.package))
+                'recover_orphaned_artifact: fake message', tag, component_build.package,
+                component_build.nvr))
         return further_work
 
     def build(self, artifact_name, source):

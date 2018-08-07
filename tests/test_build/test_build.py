@@ -163,7 +163,7 @@ class FakeModuleBuilder(GenericBuilder):
                 package_name = nvr.split('.module')[0].rsplit('-', 2)[0]
                 # When INSTANT_COMPLETE is on, the components are already in the build tag
                 if self.INSTANT_COMPLETE is False:
-                    self._send_tag(package_name, dest_tag=False)
+                    self._send_tag(package_name, nvr, dest_tag=False)
         elif self.backend == 'testlocal':
             self._send_repo_done()
 
@@ -179,7 +179,7 @@ class FakeModuleBuilder(GenericBuilder):
                 # tag_artifacts received a list of NVRs, but the tag message expects the
                 # component name
                 artifact = models.ComponentBuild.query.filter_by(nvr=nvr).first().package
-                self._send_tag(artifact, dest_tag=dest_tag)
+                self._send_tag(artifact, nvr, dest_tag=dest_tag)
 
     @property
     def koji_session(self):
@@ -202,7 +202,7 @@ class FakeModuleBuilder(GenericBuilder):
         )
         module_build_service.scheduler.consumer.work_queue_put(msg)
 
-    def _send_tag(self, artifact, dest_tag=True):
+    def _send_tag(self, artifact, nvr, dest_tag=True):
         if dest_tag:
             tag = self.tag_name
         else:
@@ -210,7 +210,8 @@ class FakeModuleBuilder(GenericBuilder):
         msg = module_build_service.messaging.KojiTagChange(
             msg_id='a faked internal message',
             tag=tag,
-            artifact=artifact
+            artifact=artifact,
+            nvr=nvr
         )
         module_build_service.scheduler.consumer.work_queue_put(msg)
 
@@ -274,7 +275,8 @@ class FakeModuleBuilder(GenericBuilder):
             # Send a message stating that the build was tagged in the build tag
             msgs.append(module_build_service.messaging.KojiTagChange(
                 'recover_orphaned_artifact: fake message',
-                component_build.module_build.koji_tag + '-build', component_build.package))
+                component_build.module_build.koji_tag + '-build', component_build.package,
+                component_build.nvr))
         return msgs
 
     def finalize(self):

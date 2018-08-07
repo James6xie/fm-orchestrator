@@ -708,6 +708,10 @@ class ComponentBuild(MBSBase):
         return session.query(cls).filter_by(
             package=component_name, module_id=module_id).first()
 
+    @classmethod
+    def from_component_nvr(cls, session, nvr, module_id):
+        return session.query(cls).filter_by(nvr=nvr, module_id=module_id).first()
+
     def state_trace(self, component_id):
         return ComponentBuildTrace.query.filter_by(
             component_id=component_id).order_by(ComponentBuildTrace.state_time).all()

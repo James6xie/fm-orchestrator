@@ -45,7 +45,8 @@ class TestTagTagged:
         """
         from_tag_change_event.return_value = None
         msg = module_build_service.messaging.KojiTagChange(
-            'no matches for this...', '2016-some-nonexistent-build', "artifact")
+            'no matches for this...', '2016-some-nonexistent-build', 'artifact',
+            'artifact-1.2-1')
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
 
@@ -54,9 +55,8 @@ class TestTagTagged:
         that we do nothing gracefully.
         """
         msg = module_build_service.messaging.KojiTagChange(
-            'id',
-            'module-testmodule-master-20170219191323-c40c156c-build',
-            "artifact")
+            'id', 'module-testmodule-master-20170219191323-c40c156c-build',
+            'artifact', 'artifact-1.2-1')
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
 
@@ -92,21 +92,23 @@ class TestTagTagged:
 
         module_build.batch = 2
         for c in module_build.current_batch():
+            if c.package == 'perl-Tangerine':
+                c.nvr = 'perl-Tangerine-0.23-1.module+0+d027b723'
+            elif c.package == 'perl-List-Compare':
+                c.nvr = 'perl-List-Compare-0.53-5.module+0+d027b723'
             c.state = koji.BUILD_STATES["COMPLETE"]
         db.session.commit()
 
         # Tag the first component to the buildroot.
         msg = module_build_service.messaging.KojiTagChange(
-            'id',
-            'module-testmodule-master-20170219191323-c40c156c-build',
-            "perl-Tangerine")
+            'id', 'module-testmodule-master-20170219191323-c40c156c-build',
+            'perl-Tangerine', 'perl-Tangerine-0.23-1.module+0+d027b723')
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
         # Tag the first component to the final tag.
         msg = module_build_service.messaging.KojiTagChange(
-            'id',
-            'module-testmodule-master-20170219191323-c40c156c',
-            "perl-Tangerine")
+            'id', 'module-testmodule-master-20170219191323-c40c156c',
+            'perl-Tangerine', 'perl-Tangerine-0.23-1.module+0+d027b723')
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
 
@@ -116,9 +118,8 @@ class TestTagTagged:
 
         # Tag the second component to the buildroot.
         msg = module_build_service.messaging.KojiTagChange(
-            'id',
-            'module-testmodule-master-20170219191323-c40c156c-build',
-            "perl-List-Compare")
+            'id', 'module-testmodule-master-20170219191323-c40c156c-build',
+            'perl-List-Compare', 'perl-List-Compare-0.53-5.module+0+d027b723')
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
 
@@ -128,9 +129,8 @@ class TestTagTagged:
 
         # Tag the first component to the final tag.
         msg = module_build_service.messaging.KojiTagChange(
-            'id',
-            'module-testmodule-master-20170219191323-c40c156c',
-            "perl-List-Compare")
+            'id', 'module-testmodule-master-20170219191323-c40c156c',
+            'perl-List-Compare', 'perl-List-Compare-0.53-5.module+0+d027b723')
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
 
@@ -172,20 +172,19 @@ class TestTagTagged:
         component = module_build_service.models.ComponentBuild.query\
             .filter_by(package='perl-Tangerine', module_id=module_build.id).one()
         component.state = koji.BUILD_STATES["BUILDING"]
+        component.nvr = 'perl-Tangerine-0.23-1.module+0+d027b723'
         db.session.commit()
 
         # Tag the perl-List-Compare component to the buildroot.
         msg = module_build_service.messaging.KojiTagChange(
-            'id',
-            'module-testmodule-master-20170219191323-c40c156c-build',
-            "perl-Tangerine")
+            'id', 'module-testmodule-master-20170219191323-c40c156c-build',
+            'perl-Tangerine', 'perl-Tangerine-0.23-1.module+0+d027b723')
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
         # Tag the perl-List-Compare component to final tag.
         msg = module_build_service.messaging.KojiTagChange(
-            'id',
-            'module-testmodule-master-20170219191323-c40c156c',
-            "perl-Tangerine")
+            'id', 'module-testmodule-master-20170219191323-c40c156c',
+            'perl-Tangerine', 'perl-Tangerine-0.23-1.module+0+d027b723')
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
 
@@ -227,23 +226,23 @@ class TestTagTagged:
         component = module_build_service.models.ComponentBuild.query\
             .filter_by(package='perl-Tangerine', module_id=module_build.id).one()
         component.state = koji.BUILD_STATES["FAILED"]
+        component.nvr = 'perl-Tangerine-0.23-1.module+0+d027b723'
         component = module_build_service.models.ComponentBuild.query\
             .filter_by(package='perl-List-Compare', module_id=module_build.id).one()
         component.state = koji.BUILD_STATES["COMPLETE"]
+        component.nvr = 'perl-List-Compare-0.53-5.module+0+d027b723'
         db.session.commit()
 
         # Tag the perl-List-Compare component to the buildroot.
         msg = module_build_service.messaging.KojiTagChange(
-            'id',
-            'module-testmodule-master-20170219191323-c40c156c-build',
-            "perl-List-Compare")
+            'id', 'module-testmodule-master-20170219191323-c40c156c-build',
+            'perl-List-Compare', 'perl-List-Compare-0.53-5.module+0+d027b723')
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
         # Tag the perl-List-Compare component to final tag.
         msg = module_build_service.messaging.KojiTagChange(
-            'id',
-            'module-testmodule-master-20170219191323-c40c156c',
-            "perl-List-Compare")
+            'id', 'module-testmodule-master-20170219191323-c40c156c',
+            'perl-List-Compare', 'perl-List-Compare-0.53-5.module+0+d027b723')
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
 
@@ -291,21 +290,23 @@ class TestTagTagged:
         mbm.tagged = False
         db.session.add(mbm)
         for c in module_build.current_batch():
+            if c.package == 'perl-Tangerine':
+                c.nvr = 'perl-Tangerine-0.23-1.module+0+d027b723'
+            elif c.package == 'perl-List-Compare':
+                c.nvr = 'perl-List-Compare-0.53-5.module+0+d027b723'
             c.state = koji.BUILD_STATES["COMPLETE"]
         db.session.commit()
 
         # Tag the first component to the buildroot.
         msg = module_build_service.messaging.KojiTagChange(
-            'id',
-            'module-testmodule-master-20170219191323-c40c156c-build',
-            "perl-Tangerine")
+            'id', 'module-testmodule-master-20170219191323-c40c156c-build',
+            'perl-Tangerine', 'perl-Tangerine-0.23-1.module+0+d027b723')
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
         # Tag the first component to the final tag.
         msg = module_build_service.messaging.KojiTagChange(
-            'id',
-            'module-testmodule-master-20170219191323-c40c156c',
-            "perl-Tangerine")
+            'id', 'module-testmodule-master-20170219191323-c40c156c',
+            'perl-Tangerine', 'perl-Tangerine-0.23-1.module+0+d027b723')
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
 
@@ -315,16 +316,14 @@ class TestTagTagged:
 
         # Tag the second component to the buildroot.
         msg = module_build_service.messaging.KojiTagChange(
-            'id',
-            'module-testmodule-master-20170219191323-c40c156c-build',
-            "perl-List-Compare")
+            'id', 'module-testmodule-master-20170219191323-c40c156c-build',
+            'perl-List-Compare', 'perl-List-Compare-0.53-5.module+0+d027b723')
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
         # Tag the second component to final tag.
         msg = module_build_service.messaging.KojiTagChange(
-            'id',
-            'module-testmodule-master-20170219191323-c40c156c',
-            "perl-List-Compare")
+            'id', 'module-testmodule-master-20170219191323-c40c156c',
+            'perl-List-Compare', 'perl-List-Compare-0.53-5.module+0+d027b723')
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
 
@@ -334,16 +333,14 @@ class TestTagTagged:
 
         # Tag the component from first batch to final tag.
         msg = module_build_service.messaging.KojiTagChange(
-            'id',
-            'module-testmodule-master-20170219191323-c40c156c',
-            "module-build-macros")
+            'id', 'module-testmodule-master-20170219191323-c40c156c',
+            'module-build-macros', 'module-build-macros-0.1-1.module+0+b0a1d1f7')
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
         # Tag the component from first batch to the buildroot.
         msg = module_build_service.messaging.KojiTagChange(
-            'id',
-            'module-testmodule-master-20170219191323-c40c156c-build',
-            "module-build-macros")
+            'id', 'module-testmodule-master-20170219191323-c40c156c-build',
+            'module-build-macros', 'module-build-macros-0.1-1.module+0+b0a1d1f7')
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
 
@@ -386,6 +383,8 @@ class TestTagTagged:
         # Set previous components as COMPLETE and tagged.
         module_build.batch = 1
         for c in module_build.up_to_current_batch():
+            if c.package == 'module-build-macros':
+                c.nvr = 'module-build-macros-0.1-1.module+0+b0a1d1f7'
             c.state = koji.BUILD_STATES["COMPLETE"]
             c.tagged = True
             c.tagged_in_final = True
@@ -397,31 +396,30 @@ class TestTagTagged:
         component.build_time_only = True
         component.tagged = False
         component.tagged_in_final = False
+        component.nvr = 'perl-Tangerine-0.23-1.module+0+d027b723'
         component = module_build_service.models.ComponentBuild.query\
             .filter_by(package='perl-List-Compare', module_id=module_build.id).one()
         component.state = koji.BUILD_STATES["COMPLETE"]
+        component.nvr = 'perl-List-Compare-0.53-5.module+0+d027b723'
         db.session.commit()
 
         # Tag the perl-Tangerine component to the buildroot.
         msg = module_build_service.messaging.KojiTagChange(
-            'id',
-            'module-testmodule-master-20170219191323-c40c156c-build',
-            "perl-Tangerine")
+            'id', 'module-testmodule-master-20170219191323-c40c156c-build',
+            'perl-Tangerine', 'perl-Tangerine-0.23-1.module+0+d027b723')
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
         assert not koji_session.newRepo.called
         # Tag the perl-List-Compare component to the buildroot.
         msg = module_build_service.messaging.KojiTagChange(
-            'id',
-            'module-testmodule-master-20170219191323-c40c156c-build',
-            "perl-List-Compare")
+            'id', 'module-testmodule-master-20170219191323-c40c156c-build',
+            'perl-List-Compare', 'perl-List-Compare-0.53-5.module+0+d027b723')
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
         # Tag the perl-List-Compare component to final tag.
         msg = module_build_service.messaging.KojiTagChange(
-            'id',
-            'module-testmodule-master-20170219191323-c40c156c',
-            "perl-List-Compare")
+            'id', 'module-testmodule-master-20170219191323-c40c156c',
+            'perl-List-Compare', 'perl-List-Compare-0.53-5.module+0+d027b723')
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, session=db.session, msg=msg)
 
