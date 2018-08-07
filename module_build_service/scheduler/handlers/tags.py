@@ -47,7 +47,7 @@ def tagged(config, session, msg):
     component = models.ComponentBuild.from_component_nvr(
         session, msg.nvr, module_build.id)
     if not component:
-        log.error("No component %s in module %r", msg.artifact, module_build)
+        log.error("No component %s in module %r", msg.nvr, module_build)
         return
 
     log.info("Saw relevant component tag of %r from %r." % (component.nvr,
