@@ -747,6 +747,7 @@ class ComponentBuild(MBSBase):
         if show_state_url:
             state_url = get_url_for('component_build', api_version=api_version, id=self.id)
         json.update({
+            'batch': self.batch,
             'state_trace': [{'time': _utc_datetime_to_iso(record.state_time),
                              'state': record.state,
                              'state_name': INVERSE_BUILD_STATES[record.state],
