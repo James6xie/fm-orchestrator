@@ -156,9 +156,13 @@ class FedmsgMessageParser(MessageParser):
 
             elif category == 'buildsys' and event == 'tag':
                 tag = msg_inner_msg.get('tag')
-                artifact = msg_inner_msg.get('name')
-                nvr = msg_inner_msg.get('nvr')
-                msg_obj = KojiTagChange(msg_id, tag, artifact, nvr)
+                name = msg_inner_msg.get('name')
+                version = msg_inner_msg.get('version')
+                release = msg_inner_msg.get('release')
+                nvr = None
+                if name and version and release:
+                    nvr = '-'.join((name, version, release))
+                msg_obj = KojiTagChange(msg_id, tag, name, nvr)
 
             elif category == 'mbs' and object == 'module' and \
                     subobject == 'state' and event == 'change':
