@@ -1,6 +1,11 @@
 Change Log
 ==========
 
+v2.4.1
+------
+* Fix bugs when building modules with SCL components
+* Expose the component build's NVR and batch in the REST API
+
 v2.4.0
 ------
 * MBS local builds now use the production MBS API for dependency resolution instead of PDC
