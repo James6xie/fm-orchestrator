@@ -167,7 +167,7 @@ def attempt_to_reuse_all_components(builder, session, module):
     return True
 
 
-def get_reusable_components(session, module, component_names):
+def get_reusable_components(session, module, component_names, previous_module_build=None):
     """
     Returns the list of ComponentBuild instances belonging to previous module
     build which can be reused in the build of module `module`.
@@ -181,6 +181,9 @@ def get_reusable_components(session, module, component_names):
     :param session: SQLAlchemy database session
     :param module: the ModuleBuild object of module being built.
     :param component_names: List of component names to be reused.
+    :kwarg previous_module_build: the ModuleBuild instance of a module build
+        which contains the components to reuse. If not passed, get_reusable_module
+        is called to get the ModuleBuild instance.
     :return: List of ComponentBuild instances to reuse in the same
              order as `component_names`
     """
@@ -188,7 +191,8 @@ def get_reusable_components(session, module, component_names):
     if conf.system not in ['koji', 'test']:
         return [None] * len(component_names)
 
-    previous_module_build = get_reusable_module(session, module)
+    if not previous_module_build:
+        previous_module_build = get_reusable_module(session, module)
     if not previous_module_build:
         return [None] * len(component_names)
 

@@ -37,7 +37,7 @@ from module_build_service import glib
 import pytest
 from mock import patch, MagicMock
 
-from tests import conf, init_data
+from tests import conf, init_data, reuse_component_init_data
 
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
 
@@ -530,3 +530,79 @@ class TestKojiBuilder:
         ret = KojiModuleBuilder.get_built_rpms_in_module_build(self.module)
         assert set(ret) == set(
             ['bar-2:1.30-4.el8+1308+551bfa71', 'tar-2:1.30-4.el8+1308+551bfa71'])
+
+    @pytest.mark.parametrize('br_filtered_rpms,expected', (
+        (
+            ['perl-Tangerine-0.23-1.module+0+d027b723', 'not-in-tag-5.0-1.module+0+d027b723'],
+            ['not-in-tag-5.0-1.module+0+d027b723']
+        ),
+        (
+            ['perl-Tangerine-0.23-1.module+0+d027b723',
+             'perl-List-Compare-0.53-5.module+0+d027b723'],
+            []
+        ),
+        (
+            ['perl-Tangerine-0.23-1.module+0+d027b723',
+             'perl-List-Compare-0.53-5.module+0+d027b723',
+             'perl-Tangerine-0.23-1.module+0+d027b723'],
+            []
+        ),
+        (
+            ['perl-Tangerine-0.23-1.module+0+diff_module', 'not-in-tag-5.0-1.module+0+d027b723'],
+            ['perl-Tangerine-0.23-1.module+0+diff_module', 'not-in-tag-5.0-1.module+0+d027b723']
+        ),
+        (
+            [],
+            []
+        ),
+    ))
+    @patch('module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session')
+    def test_get_filtered_rpms_on_self_dep(self, get_session, br_filtered_rpms, expected):
+        session = MagicMock()
+        session.listTaggedRPMS.return_value = (
+            [
+                {
+                    'build_id': 12345,
+                    'epoch': None,
+                    'name': 'perl-Tangerine',
+                    'release': '1.module+0+d027b723',
+                    'version': '0.23'
+                },
+                {
+                    'build_id': 23456,
+                    'epoch': None,
+                    'name': 'perl-List-Compare',
+                    'release': '5.module+0+d027b723',
+                    'version': '0.53'
+                },
+                {
+                    'build_id': 34567,
+                    'epoch': None,
+                    'name': 'tangerine',
+                    'release': '3.module+0+d027b723',
+                    'version': '0.22'
+                }
+            ],
+            [
+                {
+                    'build_id': 12345,
+                    'name': 'perl-Tangerine',
+                    'nvr': 'perl-Tangerine-0.23-1.module+0+d027b723'
+                },
+                {
+                    'build_id': 23456,
+                    'name': 'perl-List-Compare',
+                    'nvr': 'perl-List-Compare-0.53-5.module+0+d027b723'
+                },
+                {
+                    'build_id': 34567,
+                    'name': 'tangerine',
+                    'nvr': 'tangerine-0.22-3.module+0+d027b723'
+                }
+            ]
+        )
+        get_session.return_value = session
+        reuse_component_init_data()
+        current_module = module_build_service.models.ModuleBuild.query.get(3)
+        rv = KojiModuleBuilder._get_filtered_rpms_on_self_dep(current_module, br_filtered_rpms)
+        assert set(rv) == set(expected)
