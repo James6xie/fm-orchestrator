@@ -76,7 +76,7 @@ def reuse_component(component, previous_component_build,
     ]
 
 
-def _get_reusable_module(session, module):
+def get_reusable_module(session, module):
     """
     Returns previous module build of the module `module` in case it can be
     used as a source module to get the components to reuse from.
@@ -123,7 +123,7 @@ def attempt_to_reuse_all_components(builder, session, module):
     False is returned, no component has been reused.
     """
 
-    previous_module_build = _get_reusable_module(session, module)
+    previous_module_build = get_reusable_module(session, module)
     if not previous_module_build:
         return False
 
@@ -188,7 +188,7 @@ def get_reusable_components(session, module, component_names):
     if conf.system not in ['koji', 'test']:
         return [None] * len(component_names)
 
-    previous_module_build = _get_reusable_module(session, module)
+    previous_module_build = get_reusable_module(session, module)
     if not previous_module_build:
         return [None] * len(component_names)
 
@@ -215,7 +215,7 @@ def get_reusable_component(session, module, component_name,
     :param component_name: the name of the component (RPM) that you'd like to
         reuse a previous build of
     :param previous_module_build: the ModuleBuild instances of a module build
-        which contains the components to reuse. If not passed, _get_reusable_module
+        which contains the components to reuse. If not passed, get_reusable_module
         is called to get the ModuleBuild instance. Consider passing the ModuleBuild
         instance in case you plan to call get_reusable_component repeatedly for the
         same module to make this method faster.
@@ -240,7 +240,7 @@ def get_reusable_component(session, module, component_name,
         return None
 
     if not previous_module_build:
-        previous_module_build = _get_reusable_module(session, module)
+        previous_module_build = get_reusable_module(session, module)
         if not previous_module_build:
             return None
 
