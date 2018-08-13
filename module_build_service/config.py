@@ -197,6 +197,16 @@ class Config(object):
             'default': True,
             'desc': 'Enable or disable imports to koji using content '
                     'generator api'},
+        'allow_name_override_from_scm': {
+            'type': bool,
+            'default': False,
+            'desc': 'Allow modulemd files to override the module name '
+            'if different from the scm repo name.'},
+        'allow_stream_override_from_scm': {
+            'type': bool,
+            'default': False,
+            'desc': 'Allow modulemd files to override the module stream '
+            'if different from the scm repo branch.'},
         'allow_custom_scmurls': {
             'type': bool,
             'default': False,
