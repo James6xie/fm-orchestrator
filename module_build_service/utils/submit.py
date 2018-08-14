@@ -418,17 +418,19 @@ def _fetch_mmd(url, branch=None, allow_local_url=False, whitelist_url=False):
     # If the name was set in the modulemd, make sure it matches what the scmurl
     # says it should be
     if mmd.get_name() and mmd.get_name() != scm.name:
-        raise ValidationError('The name "{0}" that is stored in the modulemd '
-                              'is not valid'.format(mmd.get_name()))
+        if not conf.allow_name_override_from_scm:
+            raise ValidationError('The name "{0}" that is stored in the modulemd '
+                                  'is not valid'.format(mmd.get_name()))
     else:
         mmd.set_name(scm.name)
 
     # If the stream was set in the modulemd, make sure it matches what the repo
     # branch is
     if mmd.get_stream() and mmd.get_stream() != scm.branch:
-        raise ValidationError('The stream "{0}" that is stored in the modulemd '
-                              'does not match the branch "{1}"'.format(
-                                  mmd.get_stream(), scm.branch))
+        if not conf.allow_stream_override_from_scm:
+            raise ValidationError('The stream "{0}" that is stored in the modulemd '
+                                  'does not match the branch "{1}"'.format(
+                                      mmd.get_stream(), scm.branch))
     else:
         mmd.set_stream(str(scm.branch))
 
