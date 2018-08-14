@@ -196,9 +196,6 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
                     callback, key, argspec, expected))
 
     def process_message(self, session, msg):
-        log.debug('Received a message with an ID of "{0}" and of type "{1}"'
-                  .format(getattr(msg, 'msg_id', None), type(msg).__name__))
-
         # set module build to None and let's populate it later
         build = None
 
@@ -218,7 +215,6 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
             handler = self.on_module_change[module_build_state_from_msg(msg)]
             build = models.ModuleBuild.from_module_event(session, msg)
         else:
-            log.debug("Unhandled message...")
             return
 
         if not build:
