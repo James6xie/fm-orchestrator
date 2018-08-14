@@ -145,8 +145,6 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
             super(MBSConsumer, self).validate(message)
 
     def consume(self, message):
-        log.debug("Received %r" % message)
-
         # Sometimes, the messages put into our queue are artificially put there
         # by other parts of our own codebase.  If they are already abstracted
         # messages, then just use them as-is.  If they are not already
