@@ -393,6 +393,10 @@ class Config(object):
             'default': set(['platform', 'bootstrap']),
             'desc': ("Set of module names which defines the product version "
                      "(by their stream) of modules depending on them.")},
+        'base_module_koji_arches': {
+            'type': dict,
+            'default': {},
+            'desc': 'Per base-module name:stream Koji arches list.'},
         'koji_cg_build_tag_template': {
             'type': str,
             'default': "{}-modular-updates-candidate",
@@ -603,6 +607,16 @@ class Config(object):
             raise ValueError('The strategy "{0}" is not supported. Choose from: {1}'
                              .format(strategy, ', '.join(SUPPORTED_STRATEGIES)))
         self._rebuild_strategy = strategy
+
+    def _setifok_base_module_koji_arches(self, data):
+        if not isinstance(data, dict):
+            raise ValueError("BASE_MODULE_KOJI_ARCHES must be a dict")
+        for ns, arches in data.items():
+            if len(ns.split(":")) != 2:
+                raise ValueError("BASE_MODULE_KOJI_ARCHES keys must be in 'name:stream' format")
+            if not isinstance(arches, list):
+                raise ValueError("BASE_MODULE_KOJI_ARCHES values must be lists")
+        self._base_module_koji_arches = data
 
     def _setifok_rebuild_strategies_allowed(self, strategies):
         if not isinstance(strategies, list):

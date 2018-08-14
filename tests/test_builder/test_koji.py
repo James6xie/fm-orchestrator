@@ -412,10 +412,14 @@ class TestKojiBuilder:
         weights = KojiModuleBuilder.get_build_weights(["httpd", "apr"])
         assert weights == {"httpd": 1.5, "apr": 1.5}
 
+    @patch.object(conf, 'base_module_koji_arches',
+                  new={"platform:xx": ["x86_64", "i686"]})
     @pytest.mark.parametrize('blocklist', [False, True])
     @pytest.mark.parametrize('custom_whitelist', [False, True])
     @pytest.mark.parametrize('repo_include_all', [False, True])
-    def test_buildroot_connect(self, custom_whitelist, blocklist, repo_include_all):
+    @pytest.mark.parametrize('override_arches', [False, True])
+    def test_buildroot_connect(self, custom_whitelist, blocklist, repo_include_all,
+                               override_arches):
         if blocklist:
             mmd = self.module.mmd()
             xmd = glib.from_variant_dict(mmd.get_xmd())
@@ -436,6 +440,15 @@ class TestKojiBuilder:
             mbs_options = xmd["mbs_options"] if "mbs_options" in xmd.keys() else {}
             mbs_options["repo_include_all"] = False
             xmd["mbs_options"] = mbs_options
+            mmd.set_xmd(glib.dict_values(xmd))
+            self.module.modulemd = mmd.dumps()
+
+        if override_arches:
+            mmd = self.module.mmd()
+            xmd = glib.from_variant_dict(mmd.get_xmd())
+            mbs_options = xmd["mbs"] if "mbs" in xmd.keys() else {}
+            mbs_options["buildrequires"] = {"platform": {"stream": "xx"}}
+            xmd["mbs"] = mbs_options
             mmd.set_xmd(glib.dict_values(xmd))
             self.module.modulemd = mmd.dumps()
 
@@ -476,10 +489,15 @@ class TestKojiBuilder:
         expected_calls = []
         assert session.packageListBlock.mock_calls == expected_calls
 
-        expected_calls = [mock.call('module-foo', arches='i686 armv7hl x86_64',
+        if override_arches:
+            expected_arches = "x86_64 i686"
+        else:
+            expected_arches = "i686 armv7hl x86_64"
+
+        expected_calls = [mock.call('module-foo', arches=expected_arches,
                                     extra={'mock.package_manager': 'dnf',
                                            'repo_include_all': repo_include_all}),
-                          mock.call('module-foo-build', arches='i686 armv7hl x86_64',
+                          mock.call('module-foo-build', arches=expected_arches,
                                     extra={'mock.package_manager': 'dnf',
                                            'repo_include_all': repo_include_all})]
         assert session.editTag2.mock_calls == expected_calls

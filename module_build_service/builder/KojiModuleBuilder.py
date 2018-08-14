@@ -171,6 +171,16 @@ class KojiModuleBuilder(GenericBuilder):
 
         self.koji_session = self.get_session(config, owner)
         self.arches = config.koji_arches
+
+        # Handle BASE_MODULE_KOJI_ARCHES. Find out the base modules in buildrequires
+        # section of XMD and set the Koji tag arches according to it.
+        if "mbs" in self.mmd.get_xmd().keys():
+            for req_name, req_data in self.mmd.get_xmd()["mbs"]["buildrequires"].items():
+                ns = ":".join([req_name, req_data["stream"]])
+                if ns in config.base_module_koji_arches:
+                    self.arches = config.base_module_koji_arches[ns]
+                    break
+
         if not self.arches:
             raise ValueError("No koji_arches specified in the config.")
 
