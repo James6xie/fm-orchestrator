@@ -1,6 +1,13 @@
 Change Log
 ==========
 
+v2.5.0
+------
+* Cleaned up some debug log spam.
+* Modulemd files can now override stream and name from scm if server is configured to allow it.
+* Modules will now be built for architectures derived from a per-basemodule config map.
+* Some fixes to filter generation.
+
 v2.4.2
 ------
 * Fix a bug where the fedmsg messaging plugin wouldn't send the NVR on a KojiTagChange message
