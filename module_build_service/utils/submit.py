@@ -134,7 +134,11 @@ def format_mmd(mmd, scmurl, session=None):
         # Check that SCM URL is valid and replace potential branches in pkg refs
         # by real SCM hash and store the result to our private xmd place in modulemd.
         pool = ThreadPool(20)
-        pkg_dicts = pool.map(_scm_get_latest, mmd.get_rpm_components().values())
+        try:
+            pkg_dicts = pool.map(_scm_get_latest, mmd.get_rpm_components().values())
+        finally:
+            pool.close()
+
         err_msg = ""
         for pkg_dict in pkg_dicts:
             if pkg_dict["error"]:

@@ -150,8 +150,10 @@ def create_local_repo_from_koji_tag(config, tag, repo_dir, archs=None):
 
     # Download the RPMs four at a time.
     pool = ThreadPool(4)
-    pool.map(_download_file, download_args)
-    pool.close()
+    try:
+        pool.map(_download_file, download_args)
+    finally:
+        pool.close()
 
     # If we downloaded something, run the createrepo_c.
     if repo_changed:
