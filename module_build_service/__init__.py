@@ -113,43 +113,44 @@ def load_views():
 @app.errorhandler(ValidationError)
 def validationerror_error(e):
     """Flask error handler for ValidationError exceptions"""
-    return json_error(400, 'Bad Request', e.args[0])
+    return json_error(400, 'Bad Request', str(e))
 
 
 @app.errorhandler(Unauthorized)
 def unauthorized_error(e):
     """Flask error handler for NotAuthorized exceptions"""
-    return json_error(401, 'Unauthorized', e.args[0])
+    return json_error(401, 'Unauthorized', str(e))
 
 
 @app.errorhandler(Forbidden)
 def forbidden_error(e):
     """Flask error handler for Forbidden exceptions"""
-    return json_error(403, 'Forbidden', e.args[0])
+    return json_error(403, 'Forbidden', str(e))
 
 
 @app.errorhandler(RuntimeError)
 def runtimeerror_error(e):
     """Flask error handler for RuntimeError exceptions"""
-    return json_error(500, 'Internal Server Error', e.args[0])
+    log.exception("RuntimeError exception raised")
+    return json_error(500, 'Internal Server Error', str(e))
 
 
 @app.errorhandler(UnprocessableEntity)
 def unprocessableentity_error(e):
     """Flask error handler for UnprocessableEntity exceptions"""
-    return json_error(422, 'Unprocessable Entity', e.args[0])
+    return json_error(422, 'Unprocessable Entity', str(e))
 
 
 @app.errorhandler(Conflict)
 def conflict_error(e):
     """Flask error handler for Conflict exceptions"""
-    return json_error(409, 'Conflict', e.args[0])
+    return json_error(409, 'Conflict', str(e))
 
 
 @app.errorhandler(NotFound)
 def notfound_error(e):
     """Flask error handler for Conflict exceptions"""
-    return json_error(404, 'Not Found', e.args[0])
+    return json_error(404, 'Not Found', str(e))
 
 
 init_logging(conf)
