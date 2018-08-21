@@ -1,6 +1,11 @@
 Change Log
 ==========
 
+v2.5.1
+------
+* List of filtered RPMs is now generated on backend, so frontend does not query Koji.
+* Fix issues when some exception raised in frontend were not forwarded to MBS client.
+
 v2.5.0
 ------
 * Cleaned up some debug log spam.
