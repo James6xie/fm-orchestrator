@@ -28,7 +28,7 @@ from tests import conf, clean_database
 from tests.test_views.test_views import FakeSCM
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.modules
-from module_build_service import build_logs
+from module_build_service import build_logs, Modulemd, db
 from module_build_service.models import make_session, ModuleBuild, ComponentBuild
 
 
@@ -39,7 +39,7 @@ class TestModuleInit:
         self.staged_data_dir = os.path.join(
             os.path.dirname(__file__), '../', 'staged_data')
         testmodule_yml_path = os.path.join(
-            self.staged_data_dir, 'testmodule.yaml')
+            self.staged_data_dir, 'testmodule_init.yaml')
         with open(testmodule_yml_path, 'r') as f:
             yaml = f.read()
         scmurl = 'git://pkgs.domain.local/modules/testmodule?#620ec77'
@@ -55,19 +55,43 @@ class TestModuleInit:
         except Exception:
             pass
 
+    @patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder."
+           "get_built_rpms_in_module_build")
     @patch('module_build_service.scm.SCM')
-    def test_init_basic(self, mocked_scm):
-        FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
+    def test_init_basic(self, mocked_scm, built_rpms):
+        FakeSCM(mocked_scm, 'testmodule', 'testmodule_init.yaml',
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+
+        built_rpms.return_value = [
+            "foo-0:2.4.48-3.el8+1308+551bfa71",
+            "foo-debuginfo-0:2.4.48-3.el8+1308+551bfa71",
+            "bar-0:2.5.48-3.el8+1308+551bfa71",
+            "bar-debuginfo-0:2.5.48-3.el8+1308+551bfa71",
+            "x-0:2.5.48-3.el8+1308+551bfa71",
+            "x-debuginfo-0:2.5.48-3.el8+1308+551bfa71"]
+
+        platform_build = ModuleBuild.query.get(1)
+        mmd = platform_build.mmd()
+        filter_list = Modulemd.SimpleSet()
+        filter_list.add("foo")
+        filter_list.add("bar")
+        mmd.set_rpm_filter(filter_list)
+        platform_build.modulemd = mmd.dumps()
+        db.session.commit()
+
         msg = module_build_service.messaging.MBSModule(
             msg_id=None, module_build_id=2, module_build_state='init')
+
         with make_session(conf) as session:
             self.fn(config=conf, session=session, msg=msg)
         build = ModuleBuild.query.filter_by(id=2).one()
         # Make sure the module entered the wait state
         assert build.state == 1, build.state
         # Make sure format_mmd was run properly
-        assert type(build.mmd().get_xmd()['mbs']) is GLib.Variant
+        xmd_mbs = build.mmd().get_xmd()['mbs']
+        assert type(xmd_mbs) is GLib.Variant
+        assert xmd_mbs["buildrequires"]["platform"]["filtered_rpms"] == [
+            'foo-0:2.4.48-3.el8+1308+551bfa71', 'bar-0:2.5.48-3.el8+1308+551bfa71']
 
     @patch('module_build_service.scm.SCM')
     def test_init_scm_not_available(self, mocked_scm):
@@ -90,7 +114,7 @@ class TestModuleInit:
            new_callable=PropertyMock, return_value=True)
     @patch('module_build_service.scm.SCM')
     def test_init_includedmodule(self, mocked_scm, mocked_mod_allow_repo):
-        FakeSCM(mocked_scm, "includedmodules", ['testmodule.yaml'])
+        FakeSCM(mocked_scm, "includedmodules", ['testmodule_init.yaml'])
         includedmodules_yml_path = os.path.join(
             self.staged_data_dir, 'includedmodules.yaml')
         with open(includedmodules_yml_path, 'r') as f:

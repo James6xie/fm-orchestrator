@@ -22,8 +22,6 @@
 # Written by Matt Prahl <mprahl@redhat.com>
 #            Jan Kaluza <jkaluza@redhat.com>
 
-import kobo.rpmlib
-
 from module_build_service import log
 from module_build_service.resolver.base import GenericResolver
 from module_build_service import models
@@ -173,14 +171,13 @@ class DBResolver(GenericResolver):
         """
         Resolves the requires list of N:S or N:S:V:C to a dictionary with keys as
         the module name and the values as a dictionary with keys of ref,
-        stream, version, filtered_rpms.
+        stream, version.
         If there are some modules loaded by utils.load_local_builds(...), these
         local modules will be considered when resolving the requires. A RuntimeError
         is raised on DB lookup errors.
         :param requires: a dictionary with the module name as the key and the stream as the value
         :return: a dictionary
         """
-        from module_build_service.builder import GenericBuilder
         new_requires = {}
         with models.make_session(self.config) as session:
             for nsvc in requires:
@@ -203,11 +200,7 @@ class DBResolver(GenericResolver):
                         'ref': None,
                         'stream': local_build.stream,
                         'version': local_build.version,
-                        'context': local_build.context,
-                        # No need to set filtered_rpms for local builds, because MBS
-                        # filters the RPMs automatically when the module build is
-                        # done.
-                        'filtered_rpms': []
+                        'context': local_build.context
                     }
                     continue
 
@@ -222,7 +215,6 @@ class DBResolver(GenericResolver):
                     raise UnprocessableEntity('The module {} was not found'.format(nsvc))
 
                 commit_hash = None
-                filtered_rpms = []
                 mmd = build.mmd()
                 mbs_xmd = mmd.get_xmd().get('mbs')
                 if mbs_xmd and 'commit' in mbs_xmd.keys():
@@ -237,22 +229,11 @@ class DBResolver(GenericResolver):
                         'The module "{}" is not built using Module Stream Expansion. '
                         'Please rebuild this module first'.format(nsvc))
 
-                # Find out the particular NVR of filtered packages
-                rpm_filter = mmd.get_rpm_filter()
-                if rpm_filter and rpm_filter.get():
-                    rpm_filter = rpm_filter.get()
-                    built_nvrs = GenericBuilder.get_built_rpms_in_module_build(build)
-                    for nvr in built_nvrs:
-                        parsed_nvr = kobo.rpmlib.parse_nvr(nvr)
-                        if parsed_nvr["name"] in rpm_filter:
-                            filtered_rpms.append(nvr)
-
                 new_requires[module_name] = {
                     'ref': commit_hash,
                     'stream': module_stream,
                     'version': build.version,
-                    'context': build.context,
-                    'filtered_rpms': filtered_rpms,
+                    'context': build.context
                 }
 
         return new_requires

@@ -266,8 +266,7 @@ class MBSResolver(GenericResolver):
             "module_name": {
                 "ref": module_commit_hash,
                 "stream": original_module_stream,
-                "version": module_version,
-                "filtered_rpms": ["nvr", ...]
+                "version": module_version
             },
             ...
         }

@@ -32,7 +32,8 @@ from module_build_service.utils import (
     attempt_to_reuse_all_components,
     record_component_builds,
     get_rpm_release,
-    generate_koji_tag)
+    generate_koji_tag,
+    record_filtered_rpms)
 from module_build_service.errors import UnprocessableEntity, Forbidden, ValidationError
 
 from requests.exceptions import ConnectionError
@@ -151,6 +152,7 @@ def init(config, session, msg):
     try:
         mmd = build.mmd()
         record_component_builds(mmd, build, session=session)
+        mmd = record_filtered_rpms(mmd)
         build.modulemd = mmd.dumps()
         build.transition(conf, models.BUILD_STATES["wait"])
     # Catch custom exceptions that we can expose to the user

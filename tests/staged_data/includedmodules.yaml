@@ -18,6 +18,9 @@ data:
     api:
         rpms:
             - bash
+    xmd:
+        mbs:
+            buildrequires: {}
     components:
         rpms:
             file:

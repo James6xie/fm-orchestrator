@@ -337,9 +337,9 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
         raise NotImplementedError()
 
     @classmethod
-    def get_built_rpms_in_module_build(cls, build):
+    def get_built_rpms_in_module_build(cls, mmd):
         """
-        :param ModuleBuild build: Module build to get the built RPMs from.
+        :param Modulemd mmd: Modulemd to get the built RPMs from.
         :return: list of NVRs
         """
         raise NotImplementedError()

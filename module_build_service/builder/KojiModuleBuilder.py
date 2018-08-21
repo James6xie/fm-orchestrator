@@ -1151,15 +1151,19 @@ chmod 644 %buildroot/etc/rpm/macros.zz-modules
         return weights
 
     @classmethod
-    def get_built_rpms_in_module_build(cls, build):
+    def get_built_rpms_in_module_build(cls, mmd):
         """
-        :param ModuleBuild build: Module build to get the built RPMs from.
+        :param Modulemd mmd: Modulemd to get the built RPMs from.
         :return: list of NVRs
         """
-        koji_session = KojiModuleBuilder.get_session(conf, None)
-        rpms = koji_session.listTaggedRPMS(build.koji_tag, latest=True)[0]
-        nvrs = set(kobo.rpmlib.make_nvr(rpm, force_epoch=True) for rpm in rpms)
-        return list(nvrs)
+        with models.make_session(conf) as db_session:
+            build = models.ModuleBuild.get_build_from_nsvc(
+                db_session, mmd.get_name(), mmd.get_stream(), mmd.get_version(),
+                mmd.get_context())
+            koji_session = KojiModuleBuilder.get_session(conf, None)
+            rpms = koji_session.listTaggedRPMS(build.koji_tag, latest=True)[0]
+            nvrs = set(kobo.rpmlib.make_nvr(rpm, force_epoch=True) for rpm in rpms)
+            return list(nvrs)
 
     def finalize(self):
         # Only import to koji CG if the module is "done".
