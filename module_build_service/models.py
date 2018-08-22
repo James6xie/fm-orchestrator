@@ -297,7 +297,7 @@ class ModuleBuild(MBSBase):
         filter_by method.
         """
         return session.query(ModuleBuild).filter_by(
-            name=name, stream=stream, version=version, context=context, **kwargs).first()
+            name=name, stream=stream, version=str(version), context=context, **kwargs).first()
 
     def mmd(self):
         try:
