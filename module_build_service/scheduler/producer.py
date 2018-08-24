@@ -328,3 +328,38 @@ class MBSProducer(PollingProducer):
             if delta.total_seconds() > config.koji_target_delete_time:
                 log.info("Removing target of module %r", module)
                 koji_session.deleteBuildTarget(target['id'])
+
+    def cancel_stuck_module_builds(self, config, session):
+        """
+        Method transitions builds which are stuck in one state too long to the "failed" state.
+        The states are defined with the "cleanup_stuck_builds_states" config option and the
+        time is defined by the "cleanup_stuck_builds_time" config option.
+        """
+        log.info(('Looking for module builds stuck in the states "{states}" '
+                  'more than {days} days').format(
+            states=' and '.join(config.cleanup_stuck_builds_states),
+            days=config.cleanup_stuck_builds_time
+        ))
+
+        delta = timedelta(days=config.cleanup_stuck_builds_time)
+        now = datetime.utcnow()
+        threshold = now - delta
+        states = [module_build_service.models.BUILD_STATES[state]
+                  for state in config.cleanup_stuck_builds_states]
+
+        module_builds = session.query(models.ModuleBuild).filter(
+            models.ModuleBuild.state.in_(states),
+            models.ModuleBuild.time_modified < threshold).all()
+
+        log.info(' {0!r} module builds are stuck...'.format(len(module_builds)))
+
+        for build in module_builds:
+            nsvc = ":".join([build.name, build.stream, build.version, build.context])
+            log.info('Transitioning build "{nsvc}" to "Failed" state.'.format(nsvc=nsvc))
+
+            state_reason = "The module was in {state} for more than {days} days".format(
+                state=build.state,
+                days=config.cleanup_stuck_builds_time
+            )
+            build.transition(config, state=models.BUILD_STATES["failed"], state_reason=state_reason)
+            session.commit()
