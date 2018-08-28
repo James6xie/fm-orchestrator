@@ -338,6 +338,14 @@ def generate_expanded_mmds(session, mmd, raise_if_stream_ambigous=False, default
                 # really used in this resolved variant.
                 new_dep.add_requires(req_name, [req_name_stream[req_name]])
                 new_dep.add_buildrequires(req_name, [req_name_stream[req_name]])
+
+        # There might be buildrequires which are not in runtime requires list.
+        # Such buildrequires must be copied to expanded MMD.
+        for req_name, req_streams in dep_buildrequires.items():
+            if req_name not in dep_requires:
+                new_dep.add_buildrequires(req_name, [req_name_stream[req_name]])
+
+        # Set the new dependencies.
         mmd_copy.set_dependencies((new_dep, ))
 
         # The Modulemd.Dependencies() stores only streams, but to really build this

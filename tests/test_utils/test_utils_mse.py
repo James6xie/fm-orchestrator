@@ -160,6 +160,16 @@ class TestUtilsModuleStreamExpansion:
                  frozenset(['gtk:2']),
              ])),
 
+            ({"foo": ["1"]}, {"foo": ["1"], "gtk": ["1", "2"]}, True,
+             set([
+                 frozenset(['foo:1:0:c2', 'gtk:1:0:c2', 'platform:f28:0:c10']),
+                 frozenset(['foo:1:0:c2', 'gtk:2:0:c4', 'platform:f28:0:c10'])
+             ]),
+             set([
+                 frozenset(['foo:1', 'gtk:1']),
+                 frozenset(['foo:1', 'gtk:2'])
+             ])),
+
             ({"gtk": ["1"], "foo": ["1"]}, {"gtk": ["1"], "foo": ["1"]}, False,
              set([
                  frozenset(['foo:1:0:c2', 'gtk:1:0:c2', 'platform:f28:0:c10'])
@@ -173,7 +183,7 @@ class TestUtilsModuleStreamExpansion:
                  frozenset(['foo:1:0:c2', 'gtk:1:0:c2', 'platform:f28:0:c10'])
              ]),
              set([
-                 frozenset(['foo:1', 'gtk:1'])
+                 frozenset(['foo:1', 'gtk:1', 'platform:f28'])
              ])),
 
             ({"gtk": ["-2"], "foo": ["-2"]}, {"gtk": ["-2"], "foo": ["-2"]}, True,
@@ -213,7 +223,7 @@ class TestUtilsModuleStreamExpansion:
                  frozenset(['app:1:0:c6', 'platform:f29:0:c11'])
              ]),
              set([
-                 frozenset([])
+                 frozenset(['app:1'])
              ])),
         ])
     def test_generate_expanded_mmds_buildrequires(
