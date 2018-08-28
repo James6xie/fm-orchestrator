@@ -87,10 +87,10 @@ class MMDResolver(object):
 
         # Check each dependency dict in `deps` list and generate the solv requirements.
         reqs = None
-        for deps in deps:
+        for dep_dicts in deps:
             # Contains the solv.Dep requirements for current dict.
             require = None
-            for name, streams in deps.items():
+            for name, streams in dep_dicts.items():
                 # The req_pos will store solv.Dep expression for "positive" requirements.
                 # That is the case of 'gtk': ['1', '2'].
                 # The req_neg will store negative requirements like 'gtk': ['-1', '-2'].
