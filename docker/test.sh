@@ -11,6 +11,8 @@ done
 # Since tox seems to ignore `usedevelop` when we have `sitepackages` on, we have to run it manually
 python setup.py develop --no-deps
 /usr/bin/tox -e flake8,py27
+rv=$?
 # After running tox, we can revert back to the original requirements.txt file
 rm -f requirements.txt
 mv requirements.txt.orig requirements.txt
+exit $rv
