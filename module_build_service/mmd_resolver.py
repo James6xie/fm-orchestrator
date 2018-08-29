@@ -48,7 +48,7 @@ class MMDResolver(object):
 
     def _deps2reqs(self, deps):
         """
-        Helper method converting dependencies from MMD to sov.Dep instance expressing
+        Helper method converting dependencies from MMD to solv.Dep instance expressing
         the dependencies in a way libsolv accepts as input.
 
         So for example for following input:
@@ -87,10 +87,10 @@ class MMDResolver(object):
 
         # Check each dependency dict in `deps` list and generate the solv requirements.
         reqs = None
-        for deps in deps:
+        for dep_dicts in deps:
             # Contains the solv.Dep requirements for current dict.
             require = None
-            for name, streams in deps.items():
+            for name, streams in dep_dicts.items():
                 # The req_pos will store solv.Dep expression for "positive" requirements.
                 # That is the case of 'gtk': ['1', '2'].
                 # The req_neg will store negative requirements like 'gtk': ['-1', '-2'].
@@ -127,7 +127,7 @@ class MMDResolver(object):
         Adds module represented by `mmd` metadata to MMDResolver. Modules added by this
         method will be considered as possible dependencies while resolving the dependencies
         using the `solve(...)` method only if their "context" is None. Otherwise they are
-        threated like input modules we want to resolve dependencies for.
+        treated like input modules we want to resolve dependencies for.
 
         :param Modulemd mmd: Metadata of module to add.
         :rtype: list
@@ -136,7 +136,7 @@ class MMDResolver(object):
         n, s, v, c = mmd.get_name(), mmd.get_stream(), mmd.get_version(), mmd.get_context()
         pool = self.pool
 
-        # Helper method tu return the dependencies of `mmd` in the {name: [streams], ... form}.
+        # Helper method to return the dependencies of `mmd` in the {name: [streams], ... form}.
         # The `fn` is either "get_requires" or "get_buildrequires" str depending on whether
         # the return deps should be runtime requires or buildrequires.
         normdeps = lambda mmd, fn: [{name: streams.get()
@@ -145,7 +145,7 @@ class MMDResolver(object):
 
         # Each solvable object has name, version, architecture and list of
         # provides/requires/conflicts which defines its relations with other solvables.
-        # You can image solvable as an single RPM.
+        # You can imagine solvable as a single RPM.
         # Single module can be represented by multiple solvables - read further inline
         # comments for more info. Therefore we use list to store them.
         solvables = []
@@ -161,7 +161,7 @@ class MMDResolver(object):
             # is sufficient.
             solvable.arch = "x86_64"
 
-            # Add "Provides: module(name)", beach every module provides itself.
+            # Add "Provides: module(name)", each module provides itself.
             # This is used for example to find the buildrequired module when
             # no particular stream is used - for example when buildrequiring
             # "gtk: []"
@@ -182,7 +182,7 @@ class MMDResolver(object):
             solvable.add_deparray(solv.SOLVABLE_CONFLICTS, pool.Dep("module(%s)" % n))
             solvables.append(solvable)
         else:
-            # For input module, we might have mulptiple buildrequires/requires pairs in the
+            # For input module, we might have multiple buildrequires/requires pairs in the
             # input `mmd`. For example like this:
             #   - buildrequires:
             #       gtk: [1]
@@ -370,7 +370,7 @@ class MMDResolver(object):
                 for ns, trans in transactions.items():
                     try:
                         # The transation to keep is defined by the name:stream comparison,
-                        # so we always returnt he same name:stream if the input is the same.
+                        # so we always return the same name:stream if the input is the same.
                         transactions[ns] = [next(t for t in trans
                                                  if set(ns) <= set(s2ns(s) for s in t))]
                     except StopIteration:
