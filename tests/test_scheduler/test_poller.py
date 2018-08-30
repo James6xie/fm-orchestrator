@@ -442,3 +442,39 @@ class TestPoller:
         assert module_build_one.state == models.BUILD_STATES['failed']
         # Make sure that the builder was never instantiated
         create_builder.assert_not_called()
+
+    @pytest.mark.parametrize('test_state', [models.BUILD_STATES[state]
+                                            for state in conf.cleanup_stuck_builds_states])
+    def test_cancel_stuck_module_builds(self, create_builder, koji_get_session, global_consumer,
+                                        dbg, test_state):
+
+        module_build1 = models.ModuleBuild.query.get(1)
+        module_build1.state = test_state
+        under_thresh = conf.cleanup_stuck_builds_time - 1
+        module_build1.time_modified = datetime.utcnow() - timedelta(
+            days=under_thresh, hours=23, minutes=59)
+
+        module_build2 = models.ModuleBuild.query.get(2)
+        module_build2.state = test_state
+        module_build2.time_modified = datetime.utcnow() - timedelta(
+            days=conf.cleanup_stuck_builds_time)
+
+        module_build2 = models.ModuleBuild.query.get(3)
+        module_build2.state = test_state
+        module_build2.time_modified = datetime.utcnow()
+
+        db.session.commit()
+
+        consumer = mock.MagicMock()
+        consumer.incoming = queue.Queue()
+        global_consumer.return_value = consumer
+        hub = mock.MagicMock()
+        poller = MBSProducer(hub)
+
+        assert consumer.incoming.qsize() == 0
+
+        poller.cancel_stuck_module_builds(conf, db.session)
+
+        module = models.ModuleBuild.query.filter_by(state=4).all()
+        assert len(module) == 1
+        assert module[0].id == 2

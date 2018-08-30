@@ -439,6 +439,18 @@ class Config(object):
             'default': 180,
             'desc': ('Time in days when to cleanup failed module builds and transition them to '
                      'the "garbage" state.')},
+        'cleanup_stuck_builds_time': {
+            'type': int,
+            'default': 7,
+            'desc': ('Time in days when to cleanup stuck module builds and transition them to '
+                     'the "failed" state. The module has to be in a state defined by the '
+                     '"cleanup_stuck_builds_states" option.')},
+        'cleanup_stuck_builds_states': {
+            'type': list,
+            'default': ["init", "build"],
+            'desc': ('States of builds which will be considered to move to failed state when a'
+                     ' build is in one of those states longer than the value configured in the '
+                     '"cleanup_stuck_builds_time"')},
         'resolver': {
             'type': str,
             'default': 'db',
