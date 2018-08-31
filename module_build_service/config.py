@@ -159,6 +159,14 @@ class Config(object):
             'type': str,
             'default': 'https://mbs.fedoraproject.org/module-build-service/1/module-builds/',
             'desc': 'MBS instance url for MBSResolver'},
+        'pdc_check_for_eol': {
+            'type': bool,
+            'default': False,
+            'desc': 'Flag to determine whether or not MBS should block EOL modules from building.'},
+        'pdc_url': {
+            'type': str,
+            'default': 'https://pdc.fedoraproject.org/rest_api/v1',
+            'desc': 'PDC URL, used for checking stream EOL.'},
         'koji_config': {
             'type': str,
             'default': None,

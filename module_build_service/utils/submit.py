@@ -29,7 +29,9 @@ import tempfile
 import os
 from multiprocessing.dummy import Pool as ThreadPool
 from datetime import datetime
+
 import kobo.rpmlib
+import requests
 
 from module_build_service import conf, db, log, models, Modulemd
 from module_build_service.errors import (
@@ -440,6 +442,26 @@ def submit_module_build(username, url, mmd, scm, optional_params=None):
     return modules
 
 
+def _is_eol_in_pdc(name, stream):
+    """ Check PDC if the module name:stream is no longer active. """
+
+    params = {'type': 'module', 'global_component': name, 'name': stream}
+    url = conf.pdc_url + '/component-branches/'
+
+    response = requests.get(url, params=params)
+    if not response:
+        raise ValidationError("Failed to talk to PDC {}{}".format(response, response.text))
+
+    data = response.json()
+    results = data['results']
+    if not results:
+        raise ValidationError("No such module {}:{} found at {}".format(
+            name, stream, response.request.url))
+
+    # If the module is active, then it is not EOL and vice versa.
+    return not results[0]['active']
+
+
 def _fetch_mmd(url, branch=None, allow_local_url=False, whitelist_url=False):
     # Import it here, because SCM uses utils methods
     # and fails to import them because of dep-chain.
@@ -466,6 +488,11 @@ def _fetch_mmd(url, branch=None, allow_local_url=False, whitelist_url=False):
             log.warning(
                 "Failed to remove temporary directory {!r}: {}".format(
                     td, str(e)))
+
+    if conf.pdc_check_for_eol:
+        if _is_eol_in_pdc(scm.name, scm.branch):
+            raise ValidationError(
+                'Module {}:{} is marked as EOL in PDC.'.format(scm.name, scm.branch))
 
     # If the name was set in the modulemd, make sure it matches what the scmurl
     # says it should be

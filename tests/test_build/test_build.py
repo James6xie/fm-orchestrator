@@ -414,6 +414,25 @@ class TestBuild:
         # Make sure the build is done
         assert module_build.state == models.BUILD_STATES['ready']
 
+    @patch('module_build_service.config.Config.pdc_check_for_eol',
+           new_callable=PropertyMock, return_value=True)
+    @patch('module_build_service.utils.submit._is_eol_in_pdc', return_value=True)
+    @patch('module_build_service.auth.get_user', return_value=user)
+    @patch('module_build_service.scm.SCM')
+    def test_submit_build_eol_module(self, mocked_scm, mocked_get_user, is_eol, check,
+                                     conf_system, dbg):
+        """ Tests the build of a module with an eol stream.  """
+        FakeSCM(mocked_scm, 'python3', 'python3-no-components.yaml',
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+        rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
+            {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+                'testmodule.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4'}))
+
+        assert rv.status_code == 400
+        data = json.loads(rv.data)
+        assert data['status'] == 400
+        assert data['message'] == u'Module python3:master is marked as EOL in PDC.'
+
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     def test_submit_build_from_yaml_not_allowed(
