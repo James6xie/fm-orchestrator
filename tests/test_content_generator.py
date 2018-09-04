@@ -29,7 +29,7 @@ import module_build_service.messaging
 import module_build_service.scheduler.handlers.repos # noqa
 from module_build_service import models, conf, build_logs
 
-from mock import patch, Mock, MagicMock, call
+from mock import patch, Mock, MagicMock, call, mock_open
 
 from tests import init_data
 
@@ -85,6 +85,7 @@ class TestBuild:
         """ Test generation of content generator json """
         koji_session = MagicMock()
         koji_session.getUser.return_value = GET_USER_RV
+        koji_session.getTag.return_value = {"arches": ""}
         get_session.return_value = koji_session
         distro.return_value = ("Fedora", "25", "Twenty Five")
         machine.return_value = "i686"
@@ -113,6 +114,7 @@ class TestBuild:
         build_logs.start(self.cg.module)
         build_logs.stop(self.cg.module)
 
+        self.cg._load_koji_tag(koji_session)
         file_dir = self.cg._prepare_file_directory()
         ret = self.cg._get_content_generator_metadata(file_dir)
         rpms_in_tag.assert_called_once()
@@ -131,6 +133,7 @@ class TestBuild:
         """ Test generation of content generator json """
         koji_session = MagicMock()
         koji_session.getUser.return_value = GET_USER_RV
+        koji_session.getTag.return_value = {"arches": ""}
         get_session.return_value = koji_session
         distro.return_value = ("Fedora", "25", "Twenty Five")
         machine.return_value = "i686"
@@ -154,6 +157,7 @@ class TestBuild:
                                          "test_get_generator_json_expected_output.json")
         with open(expected_output_path) as expected_output_file:
             expected_output = json.load(expected_output_file)
+        self.cg._load_koji_tag(koji_session)
         file_dir = self.cg._prepare_file_directory()
         ret = self.cg._get_content_generator_metadata(file_dir)
         rpms_in_tag.assert_called_once()
@@ -164,6 +168,19 @@ class TestBuild:
         dir_path = self.cg._prepare_file_directory()
         with open(path.join(dir_path, "modulemd.txt")) as mmd:
             assert len(mmd.read()) == 1134
+
+    def test_prepare_file_directory_per_arch_mmds(self):
+        """ Test preparation of directory with output files """
+        self.cg.arches = ["x86_64", "i686"]
+        dir_path = self.cg._prepare_file_directory()
+        with open(path.join(dir_path, "modulemd.txt")) as mmd:
+            assert len(mmd.read()) == 1134
+
+        with open(path.join(dir_path, "modulemd.x86_64.txt")) as mmd:
+            assert len(mmd.read()) == 242
+
+        with open(path.join(dir_path, "modulemd.i686.txt")) as mmd:
+            assert len(mmd.read()) == 242
 
     @patch("module_build_service.builder.KojiContentGenerator.get_session")
     def test_tag_cg_build(self, get_session):
@@ -217,3 +234,70 @@ class TestBuild:
         self.cg._tag_cg_build()
 
         koji_session.tagBuild.assert_not_called()
+
+    @patch("module_build_service.builder.KojiContentGenerator.open", create=True)
+    def test_get_arch_mmd_output(self, patched_open):
+        patched_open.return_value = mock_open(
+            read_data=self.cg.mmd).return_value
+        ret = self.cg._get_arch_mmd_output("./fake-dir", "x86_64")
+        assert ret == {
+            'arch': 'x86_64',
+            'buildroot_id': 1,
+            'checksum': 'bf1615b15f6a0fee485abe94af6b56b6',
+            'checksum_type': 'md5',
+            'components': [],
+            'extra': {'typeinfo': {'module': {}}},
+            'filename': 'modulemd.x86_64.txt',
+            'filesize': 1134,
+            'type': 'file'
+        }
+
+    @patch("module_build_service.builder.KojiContentGenerator.open", create=True)
+    def test_get_arch_mmd_output_components(self, patched_open):
+        mmd = self.cg.module.mmd()
+        rpm_artifacts = mmd.get_rpm_artifacts()
+        rpm_artifacts.add("dhcp-libs-12:4.3.5-5.module_2118aef6.x86_64")
+        mmd.set_rpm_artifacts(rpm_artifacts)
+        mmd_data = mmd.dumps()
+
+        patched_open.return_value = mock_open(
+            read_data=mmd_data).return_value
+
+        self.cg.rpms = [{
+            "name": "dhcp",
+            "version": "4.3.5",
+            "release": "5.module_2118aef6",
+            "arch": "x86_64",
+            "epoch": "12",
+            "payloadhash": "hash",
+        }]
+
+        self.cg.rpms_dict = {
+            "dhcp-libs-12:4.3.5-5.module_2118aef6.x86_64": {
+                "name": "dhcp",
+                "version": "4.3.5",
+                "release": "5.module_2118aef6",
+                "arch": "x86_64",
+                "epoch": "12",
+                "payloadhash": "hash",
+            }
+        }
+
+        ret = self.cg._get_arch_mmd_output("./fake-dir", "x86_64")
+        assert ret == {
+            'arch': 'x86_64',
+            'buildroot_id': 1,
+            'checksum': '1bcc38b6f19285b3656b84a0443f46d2',
+            'checksum_type': 'md5',
+            'components': [{u'arch': 'x86_64',
+                            u'epoch': '12',
+                            u'name': 'dhcp',
+                            u'release': '5.module_2118aef6',
+                            u'sigmd5': 'hash',
+                            u'type': u'rpm',
+                            u'version': '4.3.5'}],
+            'extra': {'typeinfo': {'module': {}}},
+            'filename': 'modulemd.x86_64.txt',
+            'filesize': 315,
+            'type': 'file'
+        }

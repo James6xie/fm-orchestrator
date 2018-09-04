@@ -34,11 +34,12 @@ import subprocess
 import tempfile
 import time
 from io import open
+import kobo.rpmlib
 
 from six import text_type
 import koji
 
-from module_build_service import log, build_logs
+from module_build_service import log, build_logs, Modulemd
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -62,6 +63,12 @@ class KojiContentGenerator(object):
         self.module_name = module.name
         self.mmd = module.modulemd
         self.config = config
+        # List of architectures the module is built for.
+        self.arches = []
+        # List of RPMs tagged in module.koji_tag as returned by Koji.
+        self.rpms = []
+        # Dict constructed from `self.rpms` with NEVRA as a key.
+        self.rpms_dict = {}
 
     def __repr__(self):
         return "<KojiContentGenerator module: %s>" % (self.module_name)
@@ -259,40 +266,91 @@ class KojiContentGenerator(object):
         }
         return ret
 
+    def _koji_rpm_to_component_record(self, rpm):
+        """
+        Helper method returning CG "output" for RPM from the `rpm` dict.
+
+        :param dict rpm: RPM dict as returned by Koji.
+        :rtype: dict
+        :return: CG "output" dict.
+        """
+        return {
+            u"name": rpm["name"],
+            u"version": rpm["version"],
+            u"release": rpm["release"],
+            u"arch": rpm["arch"],
+            u"epoch": rpm["epoch"],
+            u"sigmd5": rpm["payloadhash"],
+            u"type": u"rpm"
+        }
+
+    def _get_arch_mmd_output(self, output_path, arch):
+        """
+        Returns the CG "output" dict for architecture specific modulemd file.
+
+        :param str output_path: Path where the modulemd files are stored.
+        :param str arch: Architecture for which to generate the "output" dict.
+        :param dict rpms_dict: Dictionary with all RPMs built in this module.
+            The key is NEVRA string, value is RPM dict as obtained from Koji.
+            This dict is used to generate architecture specific "components"
+            section in the "output" record.
+        :rtype: dict
+        :return: Dictionary with record in "output" list.
+        """
+        ret = {
+            'buildroot_id': 1,
+            'arch': arch,
+            'type': 'file',
+            'extra': {
+                'typeinfo': {
+                    'module': {}
+                }
+            },
+            'checksum_type': 'md5',
+        }
+
+        # Noarch architecture represents "generic" modulemd.txt.
+        if arch == "noarch":
+            mmd_filename = "modulemd.txt"
+        else:
+            mmd_filename = "modulemd.%s.txt" % arch
+
+        # Read the modulemd file to get the filesize/checksum and also
+        # parse it to get the Modulemd instance.
+        mmd_path = os.path.join(output_path, mmd_filename)
+        with open(mmd_path) as mmd_f:
+            data = mmd_f.read()
+            mmd = Modulemd.Module().new_from_string(data)
+            ret['filename'] = mmd_filename
+            ret['filesize'] = len(data)
+            ret['checksum'] = hashlib.md5(data.encode('utf-8')).hexdigest()
+
+        components = []
+        if arch == "noarch":
+            # For generic noarch modulemd, include all the RPMs.
+            for rpm in self.rpms:
+                components.append(
+                    self._koji_rpm_to_component_record(rpm))
+        else:
+            # Check the RPM artifacts built for this architecture in modulemd file,
+            # find the matchign RPM in the `rpms_dict` comming from Koji and use it
+            # to generate list of components for this architecture.
+            # We cannot simply use the data from MMD here without `rpms_dict`, because
+            # RPM sigmd5 signature is not stored in MMD.
+            for rpm in mmd.get_rpm_artifacts().get():
+                if rpm not in self.rpms_dict:
+                    raise RuntimeError("RPM %s found in the final modulemd but not "
+                                       "in Koji tag." % rpm)
+                tag_rpm = self.rpms_dict[rpm]
+                components.append(
+                    self._koji_rpm_to_component_record(tag_rpm))
+        ret["components"] = components
+        return ret
+
     def _get_output(self, output_path):
         ret = []
-        rpms = self._koji_rpms_in_tag(self.module.koji_tag)
-        components = []
-        for rpm in rpms:
-            components.append(
-                {
-                    u"name": rpm["name"],
-                    u"version": rpm["version"],
-                    u"release": rpm["release"],
-                    u"arch": rpm["arch"],
-                    u"epoch": rpm["epoch"],
-                    u"sigmd5": rpm["payloadhash"],
-                    u"type": u"rpm"
-                }
-            )
-
-        ret.append(
-            {
-                u'buildroot_id': 1,
-                u'arch': u'noarch',
-                u'type': u'file',
-                u'extra': {
-                    u'typeinfo': {
-                        u'module': {}
-                    }
-                },
-                u'filesize': len(self.mmd),
-                u'checksum_type': u'md5',
-                u'checksum': text_type(hashlib.md5(self.mmd.encode('utf-8')).hexdigest()),
-                u'filename': u'modulemd.txt',
-                u'components': components
-            }
-        )
+        for arch in self.arches + ["noarch"]:
+            ret.append(self._get_arch_mmd_output(output_path, arch))
 
         try:
             log_path = os.path.join(output_path, "build.log")
@@ -326,6 +384,21 @@ class KojiContentGenerator(object):
 
         return ret
 
+    def _finalize_mmd(self, arch):
+        """
+        Finalizes the modulemd:
+            - TODO: Fills in the list of built RPMs respecting filters, whitelist and multilib.
+            - TODO: Fills in the list of licences.
+
+        :param str arch: Name of arch to generate the final modulemd for.
+        :rtype: str
+        :return: Finalized modulemd string.
+        """
+        mmd = self.module.mmd()
+        # TODO: Fill in the list of built RPMs.
+        # TODO: Fill in the licences.
+        return unicode(mmd.dumps())
+
     def _prepare_file_directory(self):
         """ Creates a temporary directory that will contain all the files
         mentioned in the outputs section
@@ -334,9 +407,16 @@ class KojiContentGenerator(object):
         """
         prepdir = tempfile.mkdtemp(prefix="koji-cg-import")
         mmd_path = os.path.join(prepdir, "modulemd.txt")
-        log.info("Writing modulemd.yaml to %r" % mmd_path)
+        log.info("Writing generic modulemd.yaml to %r" % mmd_path)
         with open(mmd_path, "w") as mmd_f:
             mmd_f.write(self.mmd)
+
+        for arch in self.arches:
+            mmd_path = os.path.join(prepdir, "modulemd.%s.txt" % arch)
+            log.info("Writing %s modulemd.yaml to %r" % (arch, mmd_path))
+            mmd = self._finalize_mmd(arch)
+            with open(mmd_path, "w") as mmd_f:
+                mmd_f.write(mmd)
 
         log_path = os.path.join(prepdir, "build.log")
         try:
@@ -408,12 +488,19 @@ class KojiContentGenerator(object):
                  "Koji", nvr, tag)
         session.tagBuild(tag_info["id"], nvr)
 
+    def _load_koji_tag(self, koji_session):
+        tag = koji_session.getTag(self.module.koji_tag)
+        self.arches = tag["arches"].split(" ") if tag["arches"] else []
+        self.rpms = self._koji_rpms_in_tag(self.module.koji_tag)
+        self.rpms_dict = {kobo.rpmlib.make_nvra(rpm, force_epoch=True): rpm for rpm in self.rpms}
+
     def koji_import(self):
         """This method imports given module into the configured koji instance as
         a content generator based build
 
         Raises an exception when error is encountered during import"""
         session = get_session(self.config, self.owner)
+        self._load_koji_tag(session)
 
         file_dir = self._prepare_file_directory()
         metadata = self._get_content_generator_metadata(file_dir)
