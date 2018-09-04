@@ -489,7 +489,7 @@ def _fetch_mmd(url, branch=None, allow_local_url=False, whitelist_url=False):
                 "Failed to remove temporary directory {!r}: {}".format(
                     td, str(e)))
 
-    if conf.pdc_check_for_eol:
+    if conf.check_for_eol:
         if _is_eol_in_pdc(scm.name, scm.branch):
             raise ValidationError(
                 'Module {}:{} is marked as EOL in PDC.'.format(scm.name, scm.branch))

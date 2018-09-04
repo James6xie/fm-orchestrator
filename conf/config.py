@@ -32,7 +32,7 @@ class BaseConfiguration(object):
     KOJI_REPOSITORY_URL = 'https://kojipkgs.fedoraproject.org/repos'
     KOJI_TAG_PREFIXES = ['module']
     KOJI_ENABLE_CONTENT_GENERATOR = True
-    PDC_CHECK_FOR_EOL = False
+    CHECK_FOR_EOL = False
     PDC_URL = 'https://pdc.fedoraproject.org/rest_api/v1'
     PDC_INSECURE = False
     PDC_DEVELOP = True

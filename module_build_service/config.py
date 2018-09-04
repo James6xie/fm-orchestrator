@@ -159,7 +159,7 @@ class Config(object):
             'type': str,
             'default': 'https://mbs.fedoraproject.org/module-build-service/1/module-builds/',
             'desc': 'MBS instance url for MBSResolver'},
-        'pdc_check_for_eol': {
+        'check_for_eol': {
             'type': bool,
             'default': False,
             'desc': 'Flag to determine whether or not MBS should block EOL modules from building.'},

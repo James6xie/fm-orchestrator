@@ -414,7 +414,7 @@ class TestBuild:
         # Make sure the build is done
         assert module_build.state == models.BUILD_STATES['ready']
 
-    @patch('module_build_service.config.Config.pdc_check_for_eol',
+    @patch('module_build_service.config.Config.check_for_eol',
            new_callable=PropertyMock, return_value=True)
     @patch('module_build_service.utils.submit._is_eol_in_pdc', return_value=True)
     @patch('module_build_service.auth.get_user', return_value=user)
