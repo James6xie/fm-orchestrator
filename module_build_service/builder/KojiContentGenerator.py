@@ -38,6 +38,7 @@ import kobo.rpmlib
 
 from six import text_type
 import koji
+import pungi.arch
 
 from module_build_service import log, build_logs, Modulemd
 
@@ -47,6 +48,16 @@ logging.basicConfig(level=logging.DEBUG)
 def get_session(config, owner):
     from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
     return KojiModuleBuilder.get_session(config, owner)
+
+
+def koji_retrying_multicall_map(*args, **kwargs):
+    """
+    Wrapper around KojiModuleBuilder.koji_retrying_multicall_map, because
+    we cannot import that method normally because of import loop.
+    """
+    from module_build_service.builder.KojiModuleBuilder import \
+        koji_retrying_multicall_map as multicall
+    return multicall(*args, **kwargs)
 
 
 class KojiContentGenerator(object):
@@ -204,12 +215,36 @@ class KojiContentGenerator(object):
             # If the tag doesn't exist.. then there are no rpms in that tag.
             return []
 
-        # Extract some srpm-level info from the build attach it to each rpm
+        # Get the exclusivearch and excludearch lists for each RPM.
+        # The exclusivearch and excludearch lists are set in source RPM from which the RPM
+        # was built.
+        # Create temporary dict with source RPMs in rpm_id:build_id format.
+        src_rpms_ids = {rpm["id"]: rpm["build_id"] for rpm in rpms if rpm["arch"] == "src"}
+        # Prepare the arguments for Koji multicall.
+        # We will call session.getRPMHeaders(...) for each SRC RPM to get exclusivearch and
+        # excludearch headers.
+        multicall_kwargs = [{"rpmID": rpm_id, "headers": ["exclusivearch", "excludearch"]}
+                            for rpm_id in src_rpms_ids.keys()]
+        src_rpms_headers = koji_retrying_multicall_map(
+            session, session.getRPMHeaders, list_of_kwargs=multicall_kwargs)
+
+        # Temporary dict with build_id as a key to find builds easily.
         builds = {build['build_id']: build for build in builds}
+
+        # Handle the multicall result. For each build associated with the source RPM,
+        # store the exclusivearch and excludearch lists.
+        for build_id, headers in zip(src_rpms_ids.values(), src_rpms_headers):
+            builds[build_id]["exclusivearch"] = headers["exclusivearch"]
+            builds[build_id]["excludearch"] = headers["excludearch"]
+
+        # Check each RPM and fill-in additional data from its build to get them
+        # easily in other methods.
         for rpm in rpms:
             idx = rpm['build_id']
             rpm['srpm_name'] = builds[idx]['name']
             rpm['srpm_nevra'] = builds[idx]['nvr']
+            rpm['exclusivearch'] = builds[idx]['exclusivearch']
+            rpm['excludearch'] = builds[idx]['excludearch']
 
         return rpms
 
@@ -333,7 +368,7 @@ class KojiContentGenerator(object):
                     self._koji_rpm_to_component_record(rpm))
         else:
             # Check the RPM artifacts built for this architecture in modulemd file,
-            # find the matchign RPM in the `rpms_dict` comming from Koji and use it
+            # find the matching RPM in the `rpms_dict` coming from Koji and use it
             # to generate list of components for this architecture.
             # We cannot simply use the data from MMD here without `rpms_dict`, because
             # RPM sigmd5 signature is not stored in MMD.
@@ -384,10 +419,109 @@ class KojiContentGenerator(object):
 
         return ret
 
+    def _fill_in_rpms_list(self, mmd, arch):
+        """
+        Fills in the list of built RPMs in architecture specific `mmd` for `arch`
+        using the data from `self.rpms_dict`.
+
+        :param Modulemd.Module mmd: MMD to add built RPMs to.
+        :param str arch: Architecture for which to add RPMs.
+        :rtype: Modulemd.Module
+        :return: MMD with built RPMs filled in.
+        """
+        # List of all architectures compatible with input architecture including
+        # the multilib architectures.
+        # Example input/output:
+        #   "x86_64" -> ['x86_64', 'athlon', 'i686', 'i586', 'i486', 'i386', 'noarch']
+        #   "i686" -> ['i686', 'i586', 'i486', 'i386', 'noarch']
+        compatible_arches = pungi.arch.get_compatible_arches(arch, multilib=True)
+        # List of only multilib architectures.
+        # For example:
+        #   "x86_64" -> ['athlon', 'i386', 'i586', 'i486', 'i686']
+        #   "i686" -> []
+        multilib_arches = set(compatible_arches) - set(
+            pungi.arch.get_compatible_arches(arch))
+
+        # Modulemd.SimpleSet into which we will add the RPMs.
+        rpm_artifacts = Modulemd.SimpleSet()
+
+        # Check each RPM in `self.rpms_dict` to find out if it can be included in mmd
+        # for this architecture.
+        for nevra, rpm in self.rpms_dict.items():
+            srpm = rpm["srpm_name"]
+
+            # Skip the RPM if it is excluded on this arch or exclusive
+            # for different arch.
+            if rpm["excludearch"] and set(rpm["excludearch"]) & set(compatible_arches):
+                continue
+            if rpm["exclusivearch"] and not set(rpm["exclusivearch"]) & set(compatible_arches):
+                continue
+
+            # Check the "whitelist" buildopts section of MMD.
+            # When "whitelist" is defined, it overrides component names in
+            # `mmd.get_rpm_components()`. The whitelist is used when module needs to build
+            # package with different SRPM name than the package name. This is case for example
+            # for software collections where SRPM name can be "httpd24-httpd", but package name
+            # is still "httpd". In this case, get_rpm_components() would contain "httpd", but the
+            # rpm["srpm_name"] would be "httpd24-httpd".
+            whitelist = None
+            buildopts = mmd.get_buildopts()
+            if buildopts:
+                whitelist = buildopts.get_rpm_whitelist()
+                if whitelist:
+                    if srpm not in whitelist:
+                        # Package is not in the whitelist, skip it.
+                        continue
+
+            # If there is no whitelist, just check that the SRPM name we have here
+            # exists in the list of components.
+            # In theory, there should never be situation where modular tag contains
+            # some RPM built from SRPM not included in get_rpm_components() or in whitelist,
+            # but the original Pungi code checked for this case.
+            if not whitelist and srpm not in mmd.get_rpm_components().keys():
+                continue
+
+            # Do not include this RPM if it is filtered.
+            if rpm["name"] in mmd.get_rpm_filter().get():
+                continue
+
+            # Skip the rpm if it's built for multilib arch, but
+            # multilib is not enabled for this srpm in MMD.
+            try:
+                mmd_component = mmd.get_rpm_components()[srpm]
+                multilib = mmd_component.get_multilib()
+                multilib = multilib.get() if multilib else set()
+                # The `multilib` set defines the list of architectures for which
+                # the multilib is enabled.
+                #
+                # Filter out RPMs from multilib architectures if multilib is not
+                # enabled for current arch. Keep the RPMs from non-multilib compatible
+                # architectures.
+                if arch not in multilib and rpm["arch"] in multilib_arches:
+                    continue
+            except KeyError:
+                # TODO: This exception is raised only when "whitelist" is used.
+                # Since components in whitelist have different names than ones in
+                # components list, we won't find them there.
+                # We would need to track the RPMs srpm_name from whitelist back to
+                # original package name used in MMD's components list. This is possible
+                # but original Pungi code is not doing that. This is TODO for future
+                # improvements.
+
+                # No such component, disable any multilib
+                if rpm["arch"] not in ("noarch", arch):
+                    continue
+
+            # Add RPM to packages.
+            rpm_artifacts.add(nevra)
+
+        mmd.set_rpm_artifacts(rpm_artifacts)
+        return mmd
+
     def _finalize_mmd(self, arch):
         """
         Finalizes the modulemd:
-            - TODO: Fills in the list of built RPMs respecting filters, whitelist and multilib.
+            - Fills in the list of built RPMs respecting filters, whitelist and multilib.
             - TODO: Fills in the list of licences.
 
         :param str arch: Name of arch to generate the final modulemd for.
@@ -395,7 +529,9 @@ class KojiContentGenerator(object):
         :return: Finalized modulemd string.
         """
         mmd = self.module.mmd()
-        # TODO: Fill in the list of built RPMs.
+        # Fill in the list of built RPMs.
+        mmd = self._fill_in_rpms_list(mmd, arch)
+
         # TODO: Fill in the licences.
         return unicode(mmd.dumps())
 

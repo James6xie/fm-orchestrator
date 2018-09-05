@@ -30,9 +30,11 @@ $script = <<SCRIPT
         python-sqlalchemy \
         python-virtualenv \
         python-futures \
+        python2-pungi \
         python3 \
         python3-devel \
         python3-docutils \
+        python3-pungi \
         redhat-rpm-config \
         redhat-rpm-config \
         rpm-build \
