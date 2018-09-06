@@ -477,7 +477,8 @@ def _fetch_mmd(url, branch=None, allow_local_url=False, whitelist_url=False):
         else:
             scm = module_build_service.scm.SCM(url, branch, conf.scmurls, allow_local_url)
         scm.checkout(td)
-        scm.verify()
+        if not whitelist_url:
+            scm.verify()
         cofn = scm.get_module_yaml()
         mmd = load_mmd(cofn, is_file=True)
     finally:
