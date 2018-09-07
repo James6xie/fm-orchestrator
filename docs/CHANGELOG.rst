@@ -1,6 +1,18 @@
 Change Log
 ==========
 
+v2.6.0
+------
+* Bugfix: Fix to local builds of components in local git repos prefixed with file:///.
+* Bugfix: Allow module components to use a git ref outside of the master branch.
+  https://pagure.io/fm-orchestrator/pull-request/1008
+* Bugfix: Fix to recording of buildrequires in the modulemd xmd block.
+* RFE: Add a new API to allow importing modules to the MBS DB.  This facilitates
+  management of so-called pseudo-modules.
+* RFE: Module builds stuck in a state for more than a week will now be cleaned up
+  by the poller.
+* RFE: If configured, MBS can now refuse to build modules if their stream is EOL.
+
 v2.5.1
 ------
 * List of filtered RPMs is now generated on backend, so frontend does not query Koji.
