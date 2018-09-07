@@ -486,11 +486,11 @@ class MockModuleBuilder(GenericBuilder):
         else:
             os.makedirs(resultsdir)
 
-        # Git sources are treated specially.
-        if source.startswith(("git://", "http://", "https://")):
-            builder = SCMBuilder(mock_config, resultsdir, source, artifact_name)
+        if source.endswith('.src.rpm'):
+            builder = SRPMBuilder(mock_config, resultsdir, source)
         else:
-            builder = LocalBuilder(mock_config, resultsdir, source)
+            # Otherwise, assume we're building from some scm repo
+            builder = SCMBuilder(mock_config, resultsdir, source, artifact_name)
         return self.build_srpm(artifact_name, source, build_id, builder)
 
     @staticmethod
@@ -524,9 +524,9 @@ class BaseBuilder(object):
         execute_cmd(self.cmd, stdout=stdout, stderr=stderr)
 
 
-class LocalBuilder(BaseBuilder):
+class SRPMBuilder(BaseBuilder):
     def __init__(self, config, resultsdir, source):
-        super(LocalBuilder, self).__init__(config, resultsdir)
+        super(SRPMBuilder, self).__init__(config, resultsdir)
         self.cmd.extend(["--rebuild", source])
 
 
