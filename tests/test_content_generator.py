@@ -19,7 +19,9 @@
 # SOFTWARE.
 #
 # Written by Stanislav Ochotnicky <sochotnicky@redhat.com>
+#            Jan Kaluza <jkaluza@redhat.com>
 
+import pytest
 import json
 
 import os
@@ -364,8 +366,10 @@ class TestBuild:
         koji_session.listTaggedRPMS.return_value = (rpms, builds)
         koji_session.multiCall.side_effect = [
             # getRPMHeaders response
-            [[{'excludearch': ["x86_64"], 'exclusivearch': []}],
-             [{'excludearch': [], 'exclusivearch': ["x86_64"]}]]
+            [[{'excludearch': ["x86_64"], 'exclusivearch': [], 'license': 'MIT'}],
+             [{'excludearch': [], 'exclusivearch': ["x86_64"], 'license': 'GPL'}],
+             [{'license': 'MIT'}],
+             [{'license': 'GPL'}]]
         ]
         get_session.return_value = koji_session
 
@@ -374,11 +378,14 @@ class TestBuild:
             # We want to mainly check the excludearch and exclusivearch code.
             if rpm["name"] == "module-build-macros":
                 assert rpm["excludearch"] == ["x86_64"]
+                assert rpm["license"] == "MIT"
             else:
                 assert rpm["exclusivearch"] == ["x86_64"]
+                assert rpm["license"] == "GPL"
 
     def _add_test_rpm(self, nevra, srpm_name=None, multilib=None,
-                      koji_srpm_name=None, excludearch=None, exclusivearch=None):
+                      koji_srpm_name=None, excludearch=None, exclusivearch=None,
+                      license=None):
         """
         Helper method to add test RPM to ModuleBuild used by KojiContentGenerator
         and also to Koji tag used to generate the Content Generator build.
@@ -392,6 +399,7 @@ class TestBuild:
             `srpm_name` is "httpd" but `koji_srpm_name` would be "httpd24-httpd".
         :param list excludearch: List of architectures this package is excluded from.
         :param list exclusivearch: List of architectures this package is exclusive for.
+        :param str license: License of this RPM.
         """
         parsed_nevra = kobo.rpmlib.parse_nvra(nevra)
         parsed_nevra["payloadhash"] = "hash"
@@ -401,6 +409,7 @@ class TestBuild:
             parsed_nevra["srpm_name"] = srpm_name
         parsed_nevra["excludearch"] = excludearch or []
         parsed_nevra["exclusivearch"] = exclusivearch or []
+        parsed_nevra["license"] = license or ""
         self.cg.rpms.append(parsed_nevra)
         self.cg.rpms_dict[nevra] = parsed_nevra
 
@@ -519,3 +528,24 @@ class TestBuild:
             "dhcp-libs-12:4.3.5-5.module_2118aef6.x86_64",
             "dhcp-libs-12:4.3.5-5.module_2118aef6.i686",
             "perl-Tangerine-12:4.3.5-5.module_2118aef6.x86_64"])
+
+    @pytest.mark.parametrize(
+        "licenses, expected", (
+            (["GPL", "MIT"], ["GPL", "MIT"]),
+            (["GPL", ""], ["GPL"]),
+            (["GPL", "GPL"], ["GPL"]),
+        )
+    )
+    def test_fill_in_rpms_list_license(self, licenses, expected):
+        self._add_test_rpm("dhcp-libs-12:4.3.5-5.module_2118aef6.x86_64", "dhcp",
+                           license=licenses[0])
+        self._add_test_rpm("dhcp-libs-12:4.3.5-5.module_2118aef6.i686", "dhcp")
+        self._add_test_rpm("perl-Tangerine-12:4.3.5-5.module_2118aef6.x86_64", "perl-Tangerine",
+                           license=licenses[1])
+        self._add_test_rpm("perl-Tangerine-12:4.3.5-5.module_2118aef6.i686", "perl-Tangerine")
+
+        mmd = self.cg.module.mmd()
+        mmd = self.cg._fill_in_rpms_list(mmd, "x86_64")
+
+        # Only x86_64 packages should be filled in, because we requested x86_64 arch.
+        assert set(mmd.get_content_licenses().get()) == set(expected)

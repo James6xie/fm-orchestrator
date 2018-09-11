@@ -215,36 +215,46 @@ class KojiContentGenerator(object):
             # If the tag doesn't exist.. then there are no rpms in that tag.
             return []
 
-        # Get the exclusivearch and excludearch lists for each RPM.
+        # Get the exclusivearch, excludearch and license data for each RPM.
         # The exclusivearch and excludearch lists are set in source RPM from which the RPM
         # was built.
-        # Create temporary dict with source RPMs in rpm_id:build_id format.
-        src_rpms_ids = {rpm["id"]: rpm["build_id"] for rpm in rpms if rpm["arch"] == "src"}
+        # Create temporary dict with source RPMs in rpm_id:rpms_list_index format.
+        src_rpms = {}
+        binary_rpms = {}
+        for rpm in rpms:
+            if rpm["arch"] == "src":
+                src_rpms[rpm["id"]] = rpm
+            else:
+                binary_rpms[rpm["id"]] = rpm
         # Prepare the arguments for Koji multicall.
-        # We will call session.getRPMHeaders(...) for each SRC RPM to get exclusivearch and
-        # excludearch headers.
-        multicall_kwargs = [{"rpmID": rpm_id, "headers": ["exclusivearch", "excludearch"]}
-                            for rpm_id in src_rpms_ids.keys()]
-        src_rpms_headers = koji_retrying_multicall_map(
+        # We will call session.getRPMHeaders(...) for each SRC RPM to get exclusivearch,
+        # excludearch and license headers.
+        multicall_kwargs = [{"rpmID": rpm_id,
+                             "headers": ["exclusivearch", "excludearch", "license"]}
+                            for rpm_id in src_rpms.keys()]
+        # For each binary RPM, we only care about the "license" header.
+        multicall_kwargs += [{"rpmID": rpm_id, "headers": ["license"]}
+                             for rpm_id in binary_rpms.keys()]
+        rpms_headers = koji_retrying_multicall_map(
             session, session.getRPMHeaders, list_of_kwargs=multicall_kwargs)
 
         # Temporary dict with build_id as a key to find builds easily.
         builds = {build['build_id']: build for build in builds}
 
         # Handle the multicall result. For each build associated with the source RPM,
-        # store the exclusivearch and excludearch lists.
-        for build_id, headers in zip(src_rpms_ids.values(), src_rpms_headers):
-            builds[build_id]["exclusivearch"] = headers["exclusivearch"]
-            builds[build_id]["excludearch"] = headers["excludearch"]
+        # store the exclusivearch and excludearch lists. For each RPM, store the 'license' and
+        # also other useful data from the Build associated with the RPM.
+        for rpm, headers in zip(src_rpms.values() + binary_rpms.values(), rpms_headers):
+            build = builds[rpm["build_id"]]
+            if "exclusivearch" in headers and "excludearch" in headers:
+                build["exclusivearch"] = headers["exclusivearch"]
+                build["excludearch"] = headers["excludearch"]
 
-        # Check each RPM and fill-in additional data from its build to get them
-        # easily in other methods.
-        for rpm in rpms:
-            idx = rpm['build_id']
-            rpm['srpm_name'] = builds[idx]['name']
-            rpm['srpm_nevra'] = builds[idx]['nvr']
-            rpm['exclusivearch'] = builds[idx]['exclusivearch']
-            rpm['excludearch'] = builds[idx]['excludearch']
+            rpm["license"] = headers["license"]
+            rpm['srpm_name'] = build['name']
+            rpm['srpm_nevra'] = build['nvr']
+            rpm['exclusivearch'] = build['exclusivearch']
+            rpm['excludearch'] = build['excludearch']
 
         return rpms
 
@@ -422,7 +432,7 @@ class KojiContentGenerator(object):
     def _fill_in_rpms_list(self, mmd, arch):
         """
         Fills in the list of built RPMs in architecture specific `mmd` for `arch`
-        using the data from `self.rpms_dict`.
+        using the data from `self.rpms_dict` as well as the content licenses field.
 
         :param Modulemd.Module mmd: MMD to add built RPMs to.
         :param str arch: Architecture for which to add RPMs.
@@ -444,6 +454,9 @@ class KojiContentGenerator(object):
 
         # Modulemd.SimpleSet into which we will add the RPMs.
         rpm_artifacts = Modulemd.SimpleSet()
+
+        # Modulemd.SimpleSet into which we will add licenses of all RPMs.
+        rpm_licenses = Modulemd.SimpleSet()
 
         # Check each RPM in `self.rpms_dict` to find out if it can be included in mmd
         # for this architecture.
@@ -515,6 +528,11 @@ class KojiContentGenerator(object):
             # Add RPM to packages.
             rpm_artifacts.add(nevra)
 
+            # Not all RPMs have licenses (for example debuginfo packages).
+            if "license" in rpm and rpm["license"]:
+                rpm_licenses.add(rpm["license"])
+
+        mmd.set_content_licenses(rpm_licenses)
         mmd.set_rpm_artifacts(rpm_artifacts)
         return mmd
 
@@ -522,7 +540,6 @@ class KojiContentGenerator(object):
         """
         Finalizes the modulemd:
             - Fills in the list of built RPMs respecting filters, whitelist and multilib.
-            - TODO: Fills in the list of licences.
 
         :param str arch: Name of arch to generate the final modulemd for.
         :rtype: str
@@ -532,7 +549,6 @@ class KojiContentGenerator(object):
         # Fill in the list of built RPMs.
         mmd = self._fill_in_rpms_list(mmd, arch)
 
-        # TODO: Fill in the licences.
         return unicode(mmd.dumps())
 
     def _prepare_file_directory(self):
