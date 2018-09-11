@@ -70,12 +70,18 @@ class MBSResolver(GenericResolver):
         return query
 
     def _get_modules(self, name, stream, version=None, context=None, state="ready", strict=False):
-        """
-        :param module_info: str, mmd or module dict
-        :param strict: Normally this function returns None if no module can be
-               found.  If strict=True, then an UnprocessableEntity is raised.
+        """Query and return modules from MBS with specific info
 
-        :return final list of module_info which pass repoclosure
+        :param str name: module's name.
+        :param str stream: module's stream.
+        :kwarg str version: module's version. Optional.
+        :kwarg str context: module's context. Optional.
+        :kwarg str state: module's state. Defaults to ``ready``.
+        :kwarg bool strict: Normally this function returns None if no module can be
+            found. If strict=True, then an UnprocessableEntity is raised.
+        :return: final list of module_info which pass repoclosure
+        :rtype: list[dict]
+        :raises UnprocessableEntity: if no modules are found and ``strict`` is True.
         """
         query = self._query_from_nsvc(name, stream, version, context, state)
         query["page"] = 1
@@ -197,7 +203,8 @@ class MBSResolver(GenericResolver):
 
     def get_module_build_dependencies(self, name=None, stream=None, version=None, context=None,
                                       mmd=None, strict=False):
-        """
+        """Get module's build dependencies defined in xmd/mbs section
+
         :param name: a module's name (required if mmd is not set)
         :param stream: a module's stream (required if mmd is not set)
         :param version: a module's version (required if mmd is not set)
@@ -205,7 +212,9 @@ class MBSResolver(GenericResolver):
         :param mmd: uses the mmd instead of the name, stream, version
         :param strict: Normally this function returns None if no module can be
             found.  If strict=True, then an UnprocessableEntity is raised.
-        :return dict with koji_tag as a key and ModuleMetadata object as value.
+        :return: a mapping containing buildrequire modules info in key/value pairs,
+            where key is koji_tag and value is the ModuleMetadata object.
+        :rtype: dict(str, :class:`ModuleMetadata`)
         """
 
         if mmd:
