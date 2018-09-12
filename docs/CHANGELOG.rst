@@ -1,6 +1,13 @@
 Change Log
 ==========
 
+v2.6.1
+------
+* RFE: Attach architecture specific modulemd files to content generator build in Koji.
+  These modulemd files respect multilib, filters, whitelists and RPM headers. They also
+  include list of licences.
+* Bugfix: Fix bug breaking local builds in createrepo phase.
+
 v2.6.0
 ------
 * Bugfix: Fix to local builds of components in local git repos prefixed with file:///.
