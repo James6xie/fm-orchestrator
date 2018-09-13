@@ -57,7 +57,11 @@ class TestMBSModule:
         resolver = mbs_resolver.GenericResolver.create(tests.conf, backend='mbs')
         module_mmds = resolver.get_module_modulemds('testmodule', 'master', '20180205135154',
                                                     '9c690d0e')
-        nsvcs = set(m.dup_nsvc() for m in module_mmds)
+        nsvcs = set(
+            '{}:{}:{}:{}'.format(m.peek_name(), m.peek_stream(),
+                                 m.peek_version(), m.peek_context())
+            for m in module_mmds
+        )
         expected = set(["testmodule:master:20180205135154:9c690d0e"])
         mbs_url = tests.conf.mbs_url
         expected_query = {
@@ -106,7 +110,11 @@ class TestMBSModule:
         mock_session().get.return_value = mock_res
         resolver = mbs_resolver.GenericResolver.create(tests.conf, backend='mbs')
         ret = resolver.get_module_modulemds('testmodule', 'master', version)
-        nsvcs = set(m.dup_nsvc() for m in ret)
+        nsvcs = set(
+            '{}:{}:{}:{}'.format(m.peek_name(), m.peek_stream(),
+                                 m.peek_version(), m.peek_context())
+            for m in ret
+        )
         expected = set(["testmodule:master:20180205135154:9c690d0e",
                         "testmodule:master:20180205135154:c2c572ed"])
         mbs_url = tests.conf.mbs_url
