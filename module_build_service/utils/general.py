@@ -264,7 +264,7 @@ def import_mmd(session, mmd):
              log messages collected during import (list)
     :rtype: tuple
     """
-    mmd.set_context("00000000")
+    mmd.set_context(models.DEFAULT_MODULE_CONTEXT)
     name = mmd.get_name()
     stream = mmd.get_stream()
     version = str(mmd.get_version())

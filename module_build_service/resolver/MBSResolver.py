@@ -245,7 +245,7 @@ class MBSResolver(GenericResolver):
                 continue
 
             if "context" not in details:
-                details["context"] = "00000000"
+                details["context"] = models.DEFAULT_MODULE_CONTEXT
             modules = self._get_modules(
                 name, details['stream'], details['version'],
                 details['context'], strict=True)

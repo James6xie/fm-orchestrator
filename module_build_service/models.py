@@ -40,6 +40,8 @@ import module_build_service.messaging
 from sqlalchemy.orm import lazyload
 from sqlalchemy import func, and_
 
+DEFAULT_MODULE_CONTEXT = '00000000'
+
 
 # Just like koji.BUILD_STATES, except our own codes for modules.
 BUILD_STATES = {
@@ -173,7 +175,7 @@ class ModuleBuild(MBSBase):
     ref_build_context = db.Column(db.String)
     build_context = db.Column(db.String)
     runtime_context = db.Column(db.String)
-    context = db.Column(db.String, server_default='00000000')
+    context = db.Column(db.String, server_default=DEFAULT_MODULE_CONTEXT)
     state = db.Column(db.Integer, nullable=False)
     state_reason = db.Column(db.String)
     modulemd = db.Column(db.String, nullable=False)

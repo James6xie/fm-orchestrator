@@ -139,7 +139,7 @@ class DBResolver(GenericResolver):
                 queried_mmd = mmd
                 nsvc = ':'.join([
                     mmd.get_name(), mmd.get_stream(), str(mmd.get_version()),
-                    mmd.get_context() or '00000000'])
+                    mmd.get_context() or models.DEFAULT_MODULE_CONTEXT])
             else:
                 build = models.ModuleBuild.get_build_from_nsvc(
                     session, name, stream, version, context)
