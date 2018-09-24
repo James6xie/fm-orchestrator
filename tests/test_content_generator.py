@@ -180,10 +180,10 @@ class TestBuild:
             assert len(mmd.read()) == 1134
 
         with open(path.join(dir_path, "modulemd.x86_64.txt")) as mmd:
-            assert len(mmd.read()) == 242
+            assert len(mmd.read()) == 257
 
         with open(path.join(dir_path, "modulemd.i686.txt")) as mmd:
-            assert len(mmd.read()) == 242
+            assert len(mmd.read()) == 255
 
     @patch("module_build_service.builder.KojiContentGenerator.get_session")
     def test_tag_cg_build(self, get_session):

@@ -20,6 +20,7 @@
 # SOFTWARE.
 #
 # Written by Stanislav Ochotnicky <sochotnicky@redhat.com>
+#            Jan Kaluza <jkaluza@redhat.com>
 
 
 import calendar
@@ -546,6 +547,8 @@ class KojiContentGenerator(object):
         :return: Finalized modulemd string.
         """
         mmd = self.module.mmd()
+        # Set the "Arch" field in mmd.
+        mmd.set_arch(pungi.arch.tree_arch_to_yum_arch(arch))
         # Fill in the list of built RPMs.
         mmd = self._fill_in_rpms_list(mmd, arch)
 
