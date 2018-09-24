@@ -1,6 +1,10 @@
 Change Log
 ==========
 
+v2.6.2
+------
+* Bugfix:  Set modulemd 'arch' field in arch-specific modulemd files imported to CG build.
+
 v2.6.1
 ------
 * RFE: Attach architecture specific modulemd files to content generator build in Koji.
