@@ -648,7 +648,7 @@ chmod 644 %buildroot/etc/rpm/macros.zz-modules
         Searches for a complete build of an artifact belonging to the module and sets the
         component_build in the MBS database to the found build. This usually returns nothing since
         these builds should *not* exist.
-        :param artifact_name: a ComponentBuild object
+        :param component_build: a ComponentBuild object
         :return: a list of msgs that MBS needs to process
         """
         opts = {'latest': True, 'package': component_build.package, 'inherit': False}
@@ -843,15 +843,19 @@ chmod 644 %buildroot/etc/rpm/macros.zz-modules
             self.koji_session.setInheritanceData(tag['id'], inheritance_data)
 
     @module_build_service.utils.validate_koji_tag('dest_tag')
-    def _koji_add_groups_to_tag(self, dest_tag, groups=None):
-        """
-        :param build_tag_name
-        :param groups: A dict {'group' : [package, ...]}
+    def _koji_add_groups_to_tag(self, dest_tag, groups):
+        """Add groups to a tag as well as packages listed by group
+
+        :param dest_tag: the tag groups will be added to. This argument could
+            be a string representing tag name, or a mapping containing tag info
+            which must have name at least.
+        :type dest_tag: str or dict
+        :param dict groups: A dict ``{'group' : [package, ...]}``. If one of
+            the groups has been added to the tag, the group is skipped.
         """
         log.debug("Adding groups=%s to tag=%s" % (list(groups), dest_tag))
         if groups and not isinstance(groups, dict):
             raise ValueError("Expected dict {'group' : [str(package1), ...]")
-
         dest_tag = self._get_tag(dest_tag)['name']
         existing_groups = dict([(p['name'], p['group_id'])
                                 for p
@@ -874,12 +878,15 @@ chmod 644 %buildroot/etc/rpm/macros.zz-modules
 
     @module_build_service.utils.validate_koji_tag('tag_name')
     def _koji_create_tag(self, tag_name, arches=None, perm=None):
-        """
-        :param tag_name: name of koji tag
-        :param arches: list of architectures for the tag
-        :param perm: permissions for the tag (used in lock-tag)
+        """Create a tag in Koji
 
         This call is safe to call multiple times.
+
+        :param str tag_name: name of koji tag
+        :kwarg list arches: list of architectures for the tag
+        :kwarg str perm: permissions for the tag (used in lock-tag)
+        :return: a mapping containing raw tag info returned from Koji.
+        :rtype: dict
         """
 
         log.debug("Ensuring existence of tag='%s'." % tag_name)
@@ -936,7 +943,7 @@ chmod 644 %buildroot/etc/rpm/macros.zz-modules
         if not tags:
             tags = [self.module_tag, self.module_build_tag]
 
-        # This will help with potential resubmiting of failed builds
+        # This will help with potential resubmitting of failed builds
         pkglists = {}
         for tag in tags:
             pkglists[tag['id']] = dict([(p['package_name'], p['package_id'])
@@ -971,14 +978,21 @@ chmod 644 %buildroot/etc/rpm/macros.zz-modules
 
     @module_build_service.utils.validate_koji_tag(['build_tag', 'dest_tag'])
     def _koji_add_target(self, name, build_tag, dest_tag):
-        """
-        :param name: target name
-        :param build-tag: build_tag name
-        :param dest_tag: dest tag name
+        """Add build target if it doesn't exist or validate the existing one
 
         This call is safe to call multiple times. Raises SystemError() if the existing target
         doesn't match params. The reason not to touch existing target, is that we don't want to
-        accidentaly alter a target which was already used to build some artifacts.
+        accidentally alter a target which was already used to build some artifacts.
+
+        :param str name: target name.
+        :param dict build_tag: build tag info, which must have name at least.
+        :param dict dest_tag: dest tag info, which must have name at least.
+        :return: a mapping containing raw build target info returned from Koji.
+            If a new build target is created, it is the new one. Otherwise,
+            existing build target is returned.
+        :rtype: dict
+        :raises SystemError: if existing build target does not have build_tag
+            name or dest_tag name.
         """
         build_tag = self._get_tag(build_tag)
         dest_tag = self._get_tag(dest_tag)

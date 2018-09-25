@@ -61,7 +61,11 @@ class MMDResolver(object):
 
         See the inline comments for more information.
 
-        :param list deps: List of dicts with dependency name as key and list of streams as value.
+        :param list deps: List of dicts with dependency name as key and list of
+            streams as value. Generally, it is just the return value from
+            ``Modulemd.Dependencies.get_requires`` or
+            ``Modulemd.Dependencies.get_buildrequires`` whose value is
+            converted from ``Modulemd.SimpleSet`` to list.
         :rtype: solv.Dep
         :return: solv.Dep instance with dependencies in form libsolv accepts.
         """

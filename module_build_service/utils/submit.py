@@ -206,6 +206,16 @@ def format_mmd(mmd, scmurl, session=None):
 
 
 def validate_mmd(mmd):
+    """Validate module metadata
+
+    If everything is ok, just keep quiet, otherwise error is raised for
+    specific problem.
+
+    :param mmd: modulemd object representing module metadata.
+    :type mmd: Modulemd.Module
+    :raises Forbidden: if metadata contains module repository but it is not
+        allowed.
+    """
     for modname, mod in mmd.get_module_components().items():
         if mod.get_repository() and not conf.modules_allow_repository:
             raise Forbidden(

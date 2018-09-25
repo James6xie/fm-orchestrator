@@ -66,7 +66,6 @@ class KojiContentGenerator(object):
 
     def __init__(self, module, config):
         """
-        :param owner: a string representing who kicked off the builds
         :param module: module_build_service.models.ModuleBuild instance.
         :param config: module_build_service.config.Config instance
         """
