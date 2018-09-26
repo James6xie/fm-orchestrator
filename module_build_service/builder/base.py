@@ -111,7 +111,7 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
         and are implementation-dependent.
         """
         # check if the backend is within allowed backends for the used resolver
-        resolver = module_build_service.resolver.GenericResolver.create(config)
+        resolver = module_build_service.resolver.system_resolver
         if not resolver.is_builder_compatible(backend):
             raise ValueError("Builder backend '{}' is not compatible with "
                              "resolver backend '{}'. Check your configuration."
@@ -305,7 +305,7 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
 
         try:
             mmd = module.mmd()
-            resolver = module_build_service.resolver.GenericResolver.create(conf)
+            resolver = module_build_service.resolver.system_resolver
 
             # Resolve default buildroot groups using the MBS, but only for
             # non-local modules.

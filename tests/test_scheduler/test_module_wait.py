@@ -27,6 +27,7 @@ import module_build_service.scheduler.handlers.modules
 import os
 import koji
 from tests import conf, db, app, scheduler_init_data
+import module_build_service.resolver
 from module_build_service import build_logs, Modulemd
 from module_build_service.models import ComponentBuild, ModuleBuild
 
@@ -48,8 +49,7 @@ class TestModuleWait:
 
     @patch('module_build_service.builder.GenericBuilder.create_from_module')
     @patch('module_build_service.models.ModuleBuild.from_module_event')
-    @patch('module_build_service.resolver.GenericResolver')
-    def test_init_basic(self, resolver, from_module_event, create_builder):
+    def test_init_basic(self, from_module_event, create_builder):
         builder = mock.Mock()
         builder.get_disttag_srpm.return_value = 'some srpm disttag'
         builder.build.return_value = 1234, 1, "", None
@@ -82,7 +82,8 @@ class TestModuleWait:
 
         msg = module_build_service.messaging.MBSModule(msg_id=None, module_build_id=1,
                                                        module_build_state='some state')
-        self.fn(config=self.config, session=self.session, msg=msg)
+        with patch.object(module_build_service.resolver, 'system_resolver'):
+            self.fn(config=self.config, session=self.session, msg=msg)
 
     @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
            return_value={'build': [], 'srpm-build': []})
@@ -112,13 +113,13 @@ class TestModuleWait:
             resolver = mock.MagicMock()
             resolver.backend = 'db'
             resolver.get_module_tag.return_value = "module-testmodule-master-20170109091357"
-            generic_resolver.create.return_value = resolver
 
-            msg = module_build_service.messaging.MBSModule(msg_id=None, module_build_id=2,
-                                                           module_build_state='some state')
-            module_build_service.scheduler.handlers.modules.wait(
-                config=conf, session=db.session, msg=msg)
-            koji_session.newRepo.assert_called_once_with("module-123-build")
+            with patch.object(module_build_service.resolver, 'system_resolver', new=resolver):
+                msg = module_build_service.messaging.MBSModule(msg_id=None, module_build_id=2,
+                                                               module_build_state='some state')
+                module_build_service.scheduler.handlers.modules.wait(
+                    config=conf, session=db.session, msg=msg)
+                koji_session.newRepo.assert_called_once_with("module-123-build")
 
             # When module-build-macros is reused, it still has to appear only
             # once in database.
@@ -154,13 +155,13 @@ class TestModuleWait:
             resolver = mock.MagicMock()
             resolver.backend = 'db'
             resolver.get_module_tag.return_value = "module-testmodule-master-20170109091357"
-            generic_resolver.create.return_value = resolver
 
-            msg = module_build_service.messaging.MBSModule(msg_id=None, module_build_id=2,
-                                                           module_build_state='some state')
-            module_build_service.scheduler.handlers.modules.wait(
-                config=conf, session=db.session, msg=msg)
-            assert koji_session.newRepo.called
+            with patch.object(module_build_service.resolver, 'system_resolver', new=resolver):
+                msg = module_build_service.messaging.MBSModule(msg_id=None, module_build_id=2,
+                                                               module_build_state='some state')
+                module_build_service.scheduler.handlers.modules.wait(
+                    config=conf, session=db.session, msg=msg)
+                assert koji_session.newRepo.called
 
     @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
            return_value={'build': [], 'srpm-build': []})
@@ -196,14 +197,14 @@ class TestModuleWait:
             resolver.get_module_tag.return_value = "module-testmodule-master-20170109091357"
             resolver.get_module_build_dependencies.return_value = {
                 "module-bootstrap-tag": base_mmd}
-            generic_resolver.create.return_value = resolver
 
-            msg = module_build_service.messaging.MBSModule(msg_id=None, module_build_id=2,
-                                                           module_build_state='some state')
-            module_build_service.scheduler.handlers.modules.wait(
-                config=conf, session=db.session, msg=msg)
-            module_build = ModuleBuild.query.filter_by(id=2).one()
-            assert module_build.cg_build_koji_tag == "modular-updates-candidate"
+            with patch.object(module_build_service.resolver, 'system_resolver', new=resolver):
+                msg = module_build_service.messaging.MBSModule(msg_id=None, module_build_id=2,
+                                                               module_build_state='some state')
+                module_build_service.scheduler.handlers.modules.wait(
+                    config=conf, session=db.session, msg=msg)
+                module_build = ModuleBuild.query.filter_by(id=2).one()
+                assert module_build.cg_build_koji_tag == "modular-updates-candidate"
 
     @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
            return_value={'build': [], 'srpm-build': []})
@@ -241,11 +242,11 @@ class TestModuleWait:
             resolver.get_module_tag.return_value = "module-testmodule-master-20170109091357"
             resolver.get_module_build_dependencies.return_value = {
                 "module-bootstrap-tag": base_mmd}
-            generic_resolver.create.return_value = resolver
 
-            msg = module_build_service.messaging.MBSModule(msg_id=None, module_build_id=2,
-                                                           module_build_state='some state')
-            module_build_service.scheduler.handlers.modules.wait(
-                config=conf, session=db.session, msg=msg)
-            module_build = ModuleBuild.query.filter_by(id=2).one()
-            assert module_build.cg_build_koji_tag == "f27-modular-updates-candidate"
+            with patch.object(module_build_service.resolver, 'system_resolver', new=resolver):
+                msg = module_build_service.messaging.MBSModule(msg_id=None, module_build_id=2,
+                                                               module_build_state='some state')
+                module_build_service.scheduler.handlers.modules.wait(
+                    config=conf, session=db.session, msg=msg)
+                module_build = ModuleBuild.query.filter_by(id=2).one()
+                assert module_build.cg_build_koji_tag == "f27-modular-updates-candidate"

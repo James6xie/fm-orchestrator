@@ -23,6 +23,7 @@
 
 import pkg_resources
 
+from module_build_service import conf
 from module_build_service.resolver.base import GenericResolver
 
 # NOTE: if you are adding a new resolver to MBS please note that you also have to add
@@ -32,3 +33,8 @@ for entrypoint in pkg_resources.iter_entry_points('mbs.resolver_backends'):
 
 if not GenericResolver.backends:
     raise ValueError("No resolver plugins are installed or available.")
+
+# Config has the option of which resolver should be used for current MBS run.
+# Hence, create a singleton system wide resolver for use. However, resolver
+# could be created with other required arguments in concrete cases.
+system_resolver = GenericResolver.create(conf)

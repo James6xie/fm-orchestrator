@@ -33,11 +33,13 @@ from datetime import datetime
 import kobo.rpmlib
 import requests
 
+import module_build_service.scm
+import module_build_service.resolver
+
 from module_build_service import conf, db, log, models, Modulemd
 from module_build_service.errors import (
     ValidationError, UnprocessableEntity, Forbidden, Conflict)
 from module_build_service import glib
-import module_build_service.scm
 from .mse import generate_expanded_mmds
 
 
@@ -54,7 +56,7 @@ def record_filtered_rpms(mmd):
     from module_build_service.builder import GenericBuilder
 
     new_buildrequires = {}
-    resolver = module_build_service.resolver.GenericResolver.create(conf)
+    resolver = module_build_service.resolver.system_resolver
     for req_name, req_data in mmd.get_xmd()["mbs"]["buildrequires"].items():
         # In case this is module resubmit or local build, the filtered_rpms
         # will already be there, so there is no point in generating them again.

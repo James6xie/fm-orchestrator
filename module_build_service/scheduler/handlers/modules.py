@@ -209,7 +209,7 @@ def wait(config, session, msg):
     tag = None
     dependencies = []
 
-    resolver = module_build_service.resolver.GenericResolver.create(config)
+    resolver = module_build_service.resolver.system_resolver
 
     @module_build_service.utils.retry(
         interval=10, timeout=120,
