@@ -129,7 +129,9 @@ class TestDBModule:
         assert result == {
             'testmodule': {
                 'stream': 'master', 'version': '20170109091357', 'context': u'78e4a6fd',
-                'ref': 'ff1ea79fc952143efeed1851aa0aa006559239ba'}}
+                'ref': 'ff1ea79fc952143efeed1851aa0aa006559239ba',
+                'koji_tag': 'module-testmodule-master-20170109091357-78e4a6fd'
+            }}
 
     def test_resolve_profiles(self):
         """

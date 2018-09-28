@@ -309,6 +309,7 @@ class MBSResolver(GenericResolver):
                     'stream': local_build.stream,
                     'version': local_build.version,
                     'context': local_build.context,
+                    'koji_tag': local_build.koji_tag,
                     # No need to set filtered_rpms for local builds, because MBS
                     # filters the RPMs automatically when the module build is
                     # done.
@@ -350,6 +351,7 @@ class MBSResolver(GenericResolver):
                     'stream': module_stream,
                     'version': str(version),
                     'context': module["context"],
+                    'koji_tag': module['koji_tag'],
                     'filtered_rpms': filtered_rpms,
                 }
             else:

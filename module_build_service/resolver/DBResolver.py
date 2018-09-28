@@ -200,7 +200,8 @@ class DBResolver(GenericResolver):
                         'ref': None,
                         'stream': local_build.stream,
                         'version': local_build.version,
-                        'context': local_build.context
+                        'context': local_build.context,
+                        'koji_tag': local_build.koji_tag,
                     }
                     continue
 
@@ -233,7 +234,8 @@ class DBResolver(GenericResolver):
                     'ref': commit_hash,
                     'stream': module_stream,
                     'version': build.version,
-                    'context': build.context
+                    'context': build.context,
+                    'koji_tag': build.koji_tag,
                 }
 
         return new_requires
