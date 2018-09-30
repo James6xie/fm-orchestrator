@@ -366,6 +366,11 @@ class ModuleBuild(MBSBase):
                 sqlalchemy.cast(ModuleBuild.version, db.BigInteger) == subq.c.maxversion))
         return query.all()
 
+    @staticmethod
+    def get_build_by_koji_tag(session, tag):
+        """Get build by its koji_tag"""
+        return session.query(ModuleBuild).filter_by(koji_tag=tag).first()
+
     def mmd(self):
         try:
             mmd = Modulemd.Module().new_from_string(self.modulemd)

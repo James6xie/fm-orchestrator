@@ -19,9 +19,13 @@
 # SOFTWARE.
 #
 # Written by Jan Kaluza <jkaluza@redhat.com>
+import os
+import shutil
+import tempfile
 
 import mock
 import koji
+
 try:
     import xmlrpclib
 except ImportError:
@@ -37,7 +41,7 @@ from module_build_service import glib, db
 import pytest
 from mock import patch, MagicMock
 
-from tests import conf, init_data, reuse_component_init_data
+from tests import conf, init_data, reuse_component_init_data, clean_database
 
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
 
@@ -634,3 +638,82 @@ class TestKojiBuilder:
         current_module = module_build_service.models.ModuleBuild.query.get(3)
         rv = KojiModuleBuilder._get_filtered_rpms_on_self_dep(current_module, br_filtered_rpms)
         assert set(rv) == set(expected)
+
+
+class TestGetDistTagSRPM:
+    """Test KojiModuleBuilder.get_disttag_srpm"""
+
+    def setup_method(self):
+        clean_database()
+
+        self.tmp_srpm_build_dir = tempfile.mkdtemp(prefix='test-koji-builder-')
+        self.spec_file = os.path.join(self.tmp_srpm_build_dir, 'module-build-macros.spec')
+        self.srpms_dir = os.path.join(self.tmp_srpm_build_dir, 'SRPMS')
+        os.mkdir(self.srpms_dir)
+        self.expected_srpm_file = os.path.join(
+            self.srpms_dir, 'module-build-macros.src.rpm')
+
+        # Don't care about the content, just assert the existence.
+        with open(self.expected_srpm_file, 'w') as f:
+            f.write('')
+
+        module_nsvc = dict(
+            name='testmodule',
+            stream='master',
+            version='1',
+            context=module_build_service.models.DEFAULT_MODULE_CONTEXT
+        )
+
+        xmd = {
+            'mbs': {
+                'buildrequires': {
+                    'modulea': {
+                        'filtered_rpms': ['baz-devel-0:0.1-6.fc28',
+                                          'baz-doc-0:0.1-6.fc28'],
+                    },
+                    'platform': {
+                        'filtered_rpms': [],
+                        'stream_collision_modules': ['modulefoo-s-v-c'],
+                        'ursine_rpms': ['foo-0:1.0-1.fc28', 'bar-0:2.0-1.fc28']
+                    }
+                },
+                'koji_tag': 'module-{name}-{stream}-{version}-{context}'
+                .format(**module_nsvc)
+            }
+        }
+        from tests import make_module
+        self.module_build = make_module(
+            '{name}:{stream}:{version}:{context}'.format(**module_nsvc),
+            xmd=xmd)
+
+    def teardown_method(self):
+        shutil.rmtree(self.tmp_srpm_build_dir)
+        clean_database()
+
+    @patch('tempfile.mkdtemp')
+    @patch('module_build_service.builder.KojiModuleBuilder.execute_cmd')
+    def _build_srpm(self, execute_cmd, mkdtemp):
+        mkdtemp.return_value = self.tmp_srpm_build_dir
+        return KojiModuleBuilder.get_disttag_srpm('disttag', self.module_build)
+
+    def test_return_srpm_file(self):
+        srpm_file = self._build_srpm()
+        assert self.expected_srpm_file == srpm_file
+
+    def test_filtered_rpms_are_added(self):
+        self._build_srpm()
+
+        with open(self.spec_file, 'r') as f:
+            content = f.read()
+        for nevr in ['baz-devel-0:0.1-6.fc28', 'baz-doc-0:0.1-6.fc28']:
+            assert KojiModuleBuilder.format_conflicts_line(nevr) + '\n' in content
+
+    def test_ursine_rpms_are_added(self):
+        self._build_srpm()
+
+        with open(self.spec_file, 'r') as f:
+            content = f.read()
+
+        assert '# modulefoo-s-v-c\n' in content
+        for nevr in ['foo-0:1.0-1.fc28', 'bar-0:2.0-1.fc28']:
+            assert KojiModuleBuilder.format_conflicts_line(nevr) + '\n' in content

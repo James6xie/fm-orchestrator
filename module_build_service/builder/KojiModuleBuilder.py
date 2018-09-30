@@ -41,7 +41,9 @@ except ImportError:
     import xmlrpc.client as xmlrpclib
 
 import munch
+from itertools import chain
 from OpenSSL.SSL import SysCallError
+
 
 from module_build_service import log, conf, models
 import module_build_service.scm
@@ -288,6 +290,12 @@ class KojiModuleBuilder(GenericBuilder):
         return filtered_rpms
 
     @staticmethod
+    def format_conflicts_line(nevr):
+        """Helper method to format a Conflicts line with a RPM N-E:V-R"""
+        parsed_nvr = kobo.rpmlib.parse_nvr(nevr)
+        return "Conflicts: {name} = {epoch}:{version}-{release}".format(**parsed_nvr)
+
+    @staticmethod
     def get_disttag_srpm(disttag, module_build):
 
         # Taken from Karsten's create-distmacro-pkg.sh
@@ -304,22 +312,29 @@ class KojiModuleBuilder(GenericBuilder):
         # build-requires based on their "mmd.filter.rpms". So we set the
         # module-build-macros to conflict with these filtered RPMs to ensure
         # they won't be installed to buildroot.
-        filter_conflicts = ""
+        filter_conflicts = []
         for req_name, req_data in mmd.get_xmd()["mbs"]["buildrequires"].items():
             if req_data["filtered_rpms"]:
-                filter_conflicts += "# Filtered rpms from %s module:\n" % (
-                    req_name)
+                filter_conflicts.append("# Filtered rpms from %s module:" % req_name)
             # Check if the module depends on itself
             if req_name == module_build.name:
                 filtered_rpms = KojiModuleBuilder._get_filtered_rpms_on_self_dep(
                     module_build, req_data["filtered_rpms"])
             else:
                 filtered_rpms = req_data["filtered_rpms"]
-            for nvr in filtered_rpms:
-                parsed_nvr = kobo.rpmlib.parse_nvr(nvr)
-                filter_conflicts += "Conflicts: %s = %s:%s-%s\n" % (
-                    parsed_nvr["name"], parsed_nvr["epoch"],
-                    parsed_nvr["version"], parsed_nvr["release"])
+            filter_conflicts.extend(map(
+                KojiModuleBuilder.format_conflicts_line, filtered_rpms))
+
+            if req_name in conf.base_module_names and 'ursine_rpms' in req_data:
+                comments = (
+                    '# Filter out RPMs from stream collision modules found from ursine content'
+                    ' for base module {}:'.format(req_name),
+                    '# ' + ', '.join(req_data['stream_collision_modules']),
+                )
+                filter_conflicts.extend(chain(
+                    comments,
+                    map(KojiModuleBuilder.format_conflicts_line, req_data['ursine_rpms'])
+                ))
 
         spec_content = """
 %global dist {disttag}
@@ -373,7 +388,7 @@ chmod 644 %buildroot/etc/rpm/macros.zz-modules
            module_stream=module_build.stream,
            module_version=module_build.version,
            module_context=module_build.context,
-           filter_conflicts=filter_conflicts)
+           filter_conflicts='\n'.join(filter_conflicts))
 
         modulemd_macros = ""
         rpm_buildopts = mmd.get_rpm_buildopts()

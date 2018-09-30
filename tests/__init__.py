@@ -693,18 +693,27 @@ def reuse_shared_userspace_init_data():
             session.add(build)
 
 
-def make_module(nsvc, requires_list, build_requires_list, base_module=None):
+def make_module(nsvc, requires_list=None, build_requires_list=None, base_module=None,
+                filtered_rpms=None, xmd=None, store_to_db=True):
     """
     Creates new models.ModuleBuild defined by `nsvc` string with requires
-    and buildrequires set according to `requires_list` and `build_requires_list`.
+    and buildrequires set according to ``requires_list`` and ``build_requires_list``.
 
     :param str nsvc: name:stream:version:context of a module.
     :param list_of_dicts requires_list: List of dictionaries defining the
         requires in the mmd requires field format.
     :param list_of_dicts build_requires_list: List of dictionaries defining the
         build_requires_list in the mmd build_requires_list field format.
-    :rtype: ModuleBuild
-    :return: New Module Build.
+    :param filtered_rpms: list of filtered RPMs which are added to filter
+        section in module metadata.
+    :type filtered_rpms: list[str]
+    :param dict xmd: a mapping representing XMD section in module metadata. A
+        custom xmd could be passed for particular test purpose and some default
+        key/value pairs are added if not present.
+    :param bool store_to_db: whether to store create module metadata to database.
+    :return: New Module Build if set to store module metadata to database,
+        otherwise the module metadata is returned.
+    :rtype: ModuleBuild or Modulemd.Module
     """
     name, stream, version, context = nsvc.split(":")
     mmd = Modulemd.Module()
@@ -719,29 +728,45 @@ def make_module(nsvc, requires_list, build_requires_list, base_module=None):
     licenses.add("GPL")
     mmd.set_module_licenses(licenses)
 
-    if not isinstance(requires_list, list):
-        requires_list = [requires_list]
-    if not isinstance(build_requires_list, list):
-        build_requires_list = [build_requires_list]
+    if filtered_rpms:
+        rpm_filter_set = Modulemd.SimpleSet()
+        rpm_filter_set.set(filtered_rpms)
+        mmd.set_rpm_filter(rpm_filter_set)
 
-    xmd = {
-        "mbs": {
-            "buildrequires": {},
-            "requires": {},
-            "commit": "ref_%s" % context,
-            "mse": "true",
-        }
-    }
-    deps_list = []
-    for requires, build_requires in zip(requires_list, build_requires_list):
-        deps = Modulemd.Dependencies()
-        for req_name, req_streams in requires.items():
-            deps.add_requires(req_name, req_streams)
-        for req_name, req_streams in build_requires.items():
-            deps.add_buildrequires(req_name, req_streams)
-        deps_list.append(deps)
-    mmd.set_dependencies(deps_list)
+    if requires_list is not None and build_requires_list is not None:
+        if not isinstance(requires_list, list):
+            requires_list = [requires_list]
+        if not isinstance(build_requires_list, list):
+            build_requires_list = [build_requires_list]
+
+        deps_list = []
+        for requires, build_requires in zip(requires_list,
+                                            build_requires_list):
+            deps = Modulemd.Dependencies()
+            for req_name, req_streams in requires.items():
+                deps.add_requires(req_name, req_streams)
+            for req_name, req_streams in build_requires.items():
+                deps.add_buildrequires(req_name, req_streams)
+            deps_list.append(deps)
+        mmd.set_dependencies(deps_list)
+
+    # Caller could pass whole xmd including mbs, but if something is missing,
+    # default values are given here.
+    xmd = xmd or {'mbs': {}}
+    xmd_mbs = xmd['mbs']
+    if 'buildrequires' not in xmd_mbs:
+        xmd_mbs['buildrequires'] = {}
+    if 'requires' not in xmd_mbs:
+        xmd_mbs['requires'] = {}
+    if 'commit' not in xmd_mbs:
+        xmd_mbs['commit'] = 'ref_%s' % context
+    if 'mse' not in xmd_mbs:
+        xmd_mbs['mse'] = 'true'
+
     mmd.set_xmd(glib.dict_values(xmd))
+
+    if not store_to_db:
+        return mmd
 
     module_build = ModuleBuild()
     module_build.name = name
@@ -762,6 +787,8 @@ def make_module(nsvc, requires_list, build_requires_list, base_module=None):
     module_build.modulemd = mmd.dumps()
     if base_module:
         module_build.buildrequires.append(base_module)
+    if 'koji_tag' in xmd['mbs']:
+        module_build.koji_tag = xmd['mbs']['koji_tag']
     db.session.add(module_build)
     db.session.commit()
 

@@ -292,6 +292,7 @@ def cleanup_moksha():
     import moksha.hub.reactor # noqa
 
 
+@patch('module_build_service.utils.submit.record_stream_collision_modules')
 @patch.object(module_build_service.config.Config, 'system', new_callable=PropertyMock,
               return_value='test')
 @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
@@ -326,7 +327,7 @@ class TestBuild:
     @pytest.mark.parametrize('mmd_version', [1, 2])
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build(self, mocked_scm, mocked_get_user, conf_system, dbg,
+    def test_submit_build(self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc,
                           mmd_version):
         """
         Tests the build of testmodule.yaml using FakeModuleBuilder which
@@ -392,7 +393,7 @@ class TestBuild:
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build_no_components(self, mocked_scm, mocked_get_user, conf_system, dbg):
+    def test_submit_build_no_components(self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc):
         """
         Tests the build of a module with no components
         """
@@ -420,7 +421,7 @@ class TestBuild:
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     def test_submit_build_eol_module(self, mocked_scm, mocked_get_user, is_eol, check,
-                                     conf_system, dbg):
+                                     conf_system, dbg, hmsc):
         """ Tests the build of a module with an eol stream.  """
         FakeSCM(mocked_scm, 'python3', 'python3-no-components.yaml',
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
@@ -436,7 +437,7 @@ class TestBuild:
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     def test_submit_build_from_yaml_not_allowed(
-            self, mocked_scm, mocked_get_user, conf_system, dbg):
+            self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc):
         FakeSCM(mocked_scm, "testmodule", "testmodule.yaml")
 
         testmodule = os.path.join(base_dir, 'staged_data', 'testmodule.yaml')
@@ -454,7 +455,8 @@ class TestBuild:
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build_from_yaml_allowed(self, mocked_scm, mocked_get_user, conf_system, dbg):
+    def test_submit_build_from_yaml_allowed(
+            self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc):
         FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
         testmodule = os.path.join(base_dir, 'staged_data', 'testmodule.yaml')
@@ -475,7 +477,7 @@ class TestBuild:
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build_cancel(self, mocked_scm, mocked_get_user, conf_system, dbg):
+    def test_submit_build_cancel(self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc):
         """
         Submit all builds for a module and cancel the module build later.
         """
@@ -526,7 +528,8 @@ class TestBuild:
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build_instant_complete(self, mocked_scm, mocked_get_user, conf_system, dbg):
+    def test_submit_build_instant_complete(
+            self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc):
         """
         Tests the build of testmodule.yaml using FakeModuleBuilder which
         succeeds everytime.
@@ -559,7 +562,7 @@ class TestBuild:
            new_callable=PropertyMock, return_value=1)
     def test_submit_build_concurrent_threshold(self, conf_num_concurrent_builds,
                                                mocked_scm, mocked_get_user,
-                                               conf_system, dbg):
+                                               conf_system, dbg, hmsc):
         """
         Tests the build of testmodule.yaml using FakeModuleBuilder with
         num_concurrent_builds set to 1.
@@ -603,7 +606,7 @@ class TestBuild:
            new_callable=PropertyMock, return_value=2)
     def test_try_to_reach_concurrent_threshold(self, conf_num_concurrent_builds,
                                                mocked_scm, mocked_get_user,
-                                               conf_system, dbg):
+                                               conf_system, dbg, hmsc):
         """
         Tests that we try to submit new component build right after
         the previous one finished without waiting for all
@@ -652,7 +655,7 @@ class TestBuild:
     @patch("module_build_service.config.Config.num_concurrent_builds",
            new_callable=PropertyMock, return_value=1)
     def test_build_in_batch_fails(self, conf_num_concurrent_builds, mocked_scm,
-                                  mocked_get_user, conf_system, dbg):
+                                  mocked_get_user, conf_system, dbg, hmsc):
         """
         Tests that if the build in batch fails, other components in a batch
         are still build, but next batch is not started.
@@ -711,7 +714,7 @@ class TestBuild:
     @patch("module_build_service.config.Config.num_concurrent_builds",
            new_callable=PropertyMock, return_value=1)
     def test_all_builds_in_batch_fail(self, conf_num_concurrent_builds, mocked_scm,
-                                      mocked_get_user, conf_system, dbg):
+                                      mocked_get_user, conf_system, dbg, hmsc):
         """
         Tests that if the build in batch fails, other components in a batch
         are still build, but next batch is not started.
@@ -755,7 +758,7 @@ class TestBuild:
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build_reuse_all(self, mocked_scm, mocked_get_user, conf_system, dbg):
+    def test_submit_build_reuse_all(self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc):
         """
         Tests that we do not try building module-build-macros when reusing all
         components in a module build.
@@ -806,7 +809,7 @@ class TestBuild:
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     def test_submit_build_reuse_all_without_build_macros(self, mocked_scm, mocked_get_user,
-                                                         conf_system, dbg):
+                                                         conf_system, dbg, hmsc):
         """
         Tests that we can reuse components even when the reused module does
         not have module-build-macros component.
@@ -858,7 +861,7 @@ class TestBuild:
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build_resume(self, mocked_scm, mocked_get_user, conf_system, dbg):
+    def test_submit_build_resume(self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc):
         """
         Tests that resuming the build works even when previous batches
         are already built.
@@ -982,7 +985,7 @@ class TestBuild:
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     def test_submit_build_resume_recover_orphaned_macros(
-            self, mocked_scm, mocked_get_user, conf_system, dbg):
+            self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc):
         """
         Tests that resuming the build works when module-build-macros is orphaned but marked as
         failed in the database
@@ -1097,7 +1100,8 @@ class TestBuild:
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build_resume_failed_init(self, mocked_scm, mocked_get_user, conf_system, dbg):
+    def test_submit_build_resume_failed_init(
+            self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc):
         """
         Tests that resuming the build works when the build failed during the init step
         """
@@ -1151,7 +1155,8 @@ class TestBuild:
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build_resume_init_fail(self, mocked_scm, mocked_get_user, conf_system, dbg):
+    def test_submit_build_resume_init_fail(
+            self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc):
         """
         Tests that resuming the build fails when the build is in init state
         """
@@ -1181,7 +1186,7 @@ class TestBuild:
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     def test_submit_build_repo_regen_not_started_batch(self, mocked_scm, mocked_get_user,
-                                                       conf_system, dbg):
+                                                       conf_system, dbg, hmsc):
         """
         Tests that if MBS starts a new batch, the concurrent component threshold is met before a
         build can start, and an unexpected repo regen occurs, the build will not fail.
@@ -1254,13 +1259,14 @@ class TestLocalBuild:
             except Exception:
                 pass
 
+    @patch('module_build_service.utils.submit.record_stream_collision_modules')
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     @patch("module_build_service.config.Config.mock_resultsdir",
            new_callable=PropertyMock,
            return_value=path.join(base_dir, 'staged_data', "local_builds"))
     def test_submit_build_local_dependency(
-            self, resultsdir, mocked_scm, mocked_get_user, conf_system):
+            self, resultsdir, mocked_scm, mocked_get_user, conf_system, hmsc):
         """
         Tests local module build dependency.
         """

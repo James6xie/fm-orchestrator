@@ -115,3 +115,13 @@ class GenericResolver(six.with_metaclass(ABCMeta)):
     @abstractmethod
     def resolve_requires(self, requires):
         raise NotImplementedError()
+
+    @abstractmethod
+    def get_modulemd_by_koji_tag(self, tag):
+        """Get module metadata by module's koji_tag
+
+        :param str tag: name of module's koji_tag.
+        :return: module metadata
+        :rtype: Modulemd.Module
+        """
+        raise NotImplementedError()

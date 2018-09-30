@@ -42,47 +42,30 @@ from module_build_service.errors import (
     ValidationError, UnprocessableEntity, Forbidden, Conflict)
 from module_build_service import glib
 from .mse import generate_expanded_mmds
+from module_build_service.utils.ursine import record_stream_collision_modules
 
 
 def record_filtered_rpms(mmd):
-    """
-    Reads the mmd["xmd"]["buildrequires"] and extends it with "filtered_rpms"
-    list containing the NVRs of filtered RPMs in a buildrequired module.
+    """Record filtered RPMs that should not be installed into buildroot
 
-    :param Modulemd mmd: Modulemd of input module.
-    :rtype: Modulemd
+    These RPMs are filtered:
+
+    * Reads the mmd["xmd"]["buildrequires"] and extends it with "filtered_rpms"
+      list containing the NVRs of filtered RPMs in a buildrequired module.
+
+    * Every base module could have stream collision modules, whose built RPMs
+      should be filtered out to avoid collision. The filtered out RPMs will be
+      stored into the base module as well.
+
+    :param Modulemd mmd: Modulemd that will be built next.
+    :rtype: Modulemd.Module
     :return: Modulemd extended with the "filtered_rpms" in XMD section.
     """
-    # Imported here to allow import of utils in GenericBuilder.
-    from module_build_service.builder import GenericBuilder
-
     new_buildrequires = {}
-    resolver = module_build_service.resolver.system_resolver
     for req_name, req_data in mmd.get_xmd()["mbs"]["buildrequires"].items():
-        # In case this is module resubmit or local build, the filtered_rpms
-        # will already be there, so there is no point in generating them again.
-        if "filtered_rpms" in req_data:
-            new_buildrequires[req_name] = req_data
-            continue
-
-        # We can just get the first modulemd data from result right here thanks to
-        # strict=True, so in case the module cannot be found, get_module_modulemds
-        # raises an exception.
-        req_mmd = resolver.get_module_modulemds(
-            req_name, req_data["stream"], req_data["version"], req_data["context"], True)[0]
-
-        # Find out the particular NVR of filtered packages
-        filtered_rpms = []
-        rpm_filter = req_mmd.get_rpm_filter()
-        if rpm_filter and rpm_filter.get():
-            rpm_filter = rpm_filter.get()
-            built_nvrs = GenericBuilder.backends[conf.system].get_built_rpms_in_module_build(
-                req_mmd)
-            for nvr in built_nvrs:
-                parsed_nvr = kobo.rpmlib.parse_nvr(nvr)
-                if parsed_nvr["name"] in rpm_filter:
-                    filtered_rpms.append(nvr)
-        req_data["filtered_rpms"] = filtered_rpms
+        _record_filtered_rpms(req_name, req_data)
+        if req_name in conf.base_module_names and 'stream_collision_modules' in req_data:
+            _record_ursine_rpms(req_data)
         new_buildrequires[req_name] = req_data
 
     # Replace the old buildrequires with new ones.
@@ -90,6 +73,85 @@ def record_filtered_rpms(mmd):
     xmd["mbs"]["buildrequires"] = new_buildrequires
     mmd.set_xmd(glib.dict_values(xmd))
     return mmd
+
+
+def _record_filtered_rpms(req_name, req_data):
+    """Store filtered RPMs by a buildrequire module
+
+    This methods looks for key ``filtered_rpms`` in a buildrequired module's
+    metadata. If there is, nothing is done, just keep it unchanged, which case
+    could be a module is resubmitted or a local build.
+
+    Otherwise, ``_record_filtered_rpms`` will get module's RPMs listed in
+    filter section, then store them with the key into metadata in place.
+
+    :param str req_name: name of a buildrequired module.
+    :param dict req_data: a mapping containing metadata of the buildrequired
+        module. A pair of ``req_name`` and ``req_data`` is usually the one of
+        xmd.mbs.buildrequires, which are stored during the module stream
+        expansion process. At least, ``req_data`` must have keys stream,
+        version and context. Key ``filtered_rpms`` will be added as a list of
+        RPMs N-E:V-R.
+    """
+    # Imported here to allow import of utils in GenericBuilder.
+    from module_build_service.builder import GenericBuilder
+
+    # In case this is module resubmit or local build, the filtered_rpms
+    # will already be there, so there is no point in generating them again.
+    if "filtered_rpms" in req_data:
+        return
+
+    resolver = module_build_service.resolver.GenericResolver.create(conf)
+
+    # We can just get the first modulemd data from result right here thanks to
+    # strict=True, so in case the module cannot be found, get_module_modulemds
+    # raises an exception.
+    req_mmd = resolver.get_module_modulemds(
+        req_name, req_data["stream"], req_data["version"], req_data["context"], True)[0]
+
+    # Find out the particular NVR of filtered packages
+    filtered_rpms = []
+    rpm_filter = req_mmd.get_rpm_filter()
+    if rpm_filter and rpm_filter.get():
+        rpm_filter = rpm_filter.get()
+        built_nvrs = GenericBuilder.backends[conf.system].get_built_rpms_in_module_build(
+            req_mmd)
+        for nvr in built_nvrs:
+            parsed_nvr = kobo.rpmlib.parse_nvr(nvr)
+            if parsed_nvr["name"] in rpm_filter:
+                filtered_rpms.append(nvr)
+    req_data["filtered_rpms"] = filtered_rpms
+
+
+def _record_ursine_rpms(req_data):
+    """Store ursine RPMs
+
+    This method handles key ``stream_collision_modules`` from a buildrequired
+    module's metadata to find out all built RPMs and then store them with a new
+    key ``ursine_rpms`` into metadata in place.
+
+    :param dict req_data: a mapping containing metadata of the buildrequired
+        module. At least, ``req_data`` must have keys stream, version and
+        context. As a result, a new key ``filtered_ursine_rpms`` will be added
+        with a list of RPMs N-E:V-R which are built for the found stream
+        collision modules.
+    """
+    from module_build_service.builder import GenericBuilder
+    resolver = module_build_service.resolver.GenericResolver.create(conf)
+
+    # Key stream_collision_modules is not used after rpms are recorded, but
+    # just keep it here in case it would be helpful in the future.
+    modules_nsvc = req_data['stream_collision_modules']
+    get_built_rpms = GenericBuilder.backends[conf.system].get_built_rpms_in_module_build
+    built_rpms = []
+
+    for nsvc in modules_nsvc:
+        name, stream, version, context = nsvc.split(':')
+        mmd = resolver.get_module_modulemds(
+            name, stream, version, context, True)[0]
+        built_rpms.extend(get_built_rpms(mmd))
+
+    req_data['ursine_rpms'] = built_rpms
 
 
 def _scm_get_latest(pkg):
@@ -363,21 +425,24 @@ def record_component_builds(mmd, module, initial_batch=1,
     return batch
 
 
-def submit_module_build_from_yaml(username, handle, stream=None, skiptests=False,
-                                  optional_params=None):
-    yaml_file = handle.read()
-    mmd = load_mmd(yaml_file)
-
+def mmd_set_default_nsv(mmd, filename, stream=None):
     # Mimic the way how default values are generated for modules that are stored in SCM
     # We can take filename as the module name as opposed to repo name,
     # and also we can take numeric representation of current datetime
     # as opposed to datetime of the last commit
     dt = datetime.utcfromtimestamp(int(time.time()))
-    def_name = str(os.path.splitext(os.path.basename(handle.filename))[0])
+    def_name = str(os.path.splitext(os.path.basename(filename))[0])
     def_version = int(dt.strftime("%Y%m%d%H%M%S"))
     mmd.set_name(mmd.get_name() or def_name)
     mmd.set_stream(stream or mmd.get_stream() or "master")
     mmd.set_version(mmd.get_version() or def_version)
+
+
+def submit_module_build_from_yaml(username, handle, stream=None, skiptests=False,
+                                  optional_params=None):
+    yaml_file = handle.read()
+    mmd = load_mmd(yaml_file)
+    mmd_set_default_nsv(mmd, handle.filename, stream=stream)
     if skiptests:
         buildopts = mmd.get_rpm_buildopts()
         buildopts["macros"] = buildopts.get("macros", "") + "\n\n%__spec_check_pre exit 0\n"
@@ -486,6 +551,13 @@ def submit_module_build(username, url, mmd, optional_params=None):
     modules = []
 
     for mmd in mmds:
+        # Whatever this expanded modulemd exists, check and record possible
+        # stream collision modules. Corresponding modules could be updated
+        # before an existing module is resubmitted again, so MBS has to ensure
+        # stream collision modules list is up-to-date.
+        log.info('Start to handle potential module stream collision.')
+        record_stream_collision_modules(mmd)
+
         # Prefix the version of the modulemd based on the base module it buildrequires
         version = get_prefixed_version(mmd)
         mmd.set_version(version)

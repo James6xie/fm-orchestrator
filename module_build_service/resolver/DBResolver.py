@@ -306,3 +306,8 @@ class DBResolver(GenericResolver):
                 }
 
         return new_requires
+
+    def get_modulemd_by_koji_tag(self, tag):
+        with models.make_session(self.config) as session:
+            module = models.ModuleBuild.get_build_by_koji_tag(session, tag)
+            return module.mmd() if module else None

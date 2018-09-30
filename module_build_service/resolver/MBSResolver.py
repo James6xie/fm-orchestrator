@@ -394,3 +394,12 @@ class MBSResolver(GenericResolver):
                 import_mmd(db.session, mmd)
 
         return new_requires
+
+    def get_modulemd_by_koji_tag(self, tag):
+        resp = self.session.get(self.mbs_prod_url, params={'koji_tag': tag, 'verbose': True})
+        data = resp.json()
+        if data['items']:
+            modulemd = data['items'][0]['modulemd']
+            return self.extract_modulemd(modulemd)
+        else:
+            return None
