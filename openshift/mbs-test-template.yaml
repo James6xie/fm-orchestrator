@@ -1,0 +1,905 @@
+---
+apiVersion: v1
+kind: Template
+metadata:
+  name: mbs-test-template
+
+objects:
+# frontend
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: "mbs-frontend-fedmsg-config"
+    labels:
+      app: mbs
+      environment: "test-${TEST_ID}"
+      service: frontend
+  data:
+    logging.py: |
+      bare_format = "[%(asctime)s][%(name)10s %(levelname)7s] %(message)s"
+
+      config = dict(
+          logging=dict(
+              version=1,
+              formatters=dict(
+                  bare={
+                      "datefmt": "%Y-%m-%d %H:%M:%S",
+                      "format": bare_format
+                  },
+              ),
+              handlers=dict(
+                  console={
+                      "class": "logging.StreamHandler",
+                      "formatter": "bare",
+                      "level": "DEBUG",
+                      "stream": "ext://sys.stdout",
+                  },
+              ),
+              loggers=dict(
+                  fedmsg={
+                      "level": "DEBUG",
+                      "propagate": True,
+                  },
+                  moksha={
+                      "level": "DEBUG",
+                      "propagate": True,
+                  },
+              ),
+          ),
+      )
+    mbs-logging.py: |
+      config = dict(
+          logging=dict(
+              loggers=dict(
+                  # Quiet this guy down...
+                  requests={
+                      "level": "WARNING",
+                      "propagate": True,
+                  },
+                  module_build_service={
+                      "level": "DEBUG",
+                      "propagate": True,
+                  },
+                  mbs_messaging_umb={
+                      "level": "DEBUG",
+                      "propagate": True,
+                  },
+              ),
+              root=dict(
+                  handlers=["console"],
+                  level="DEBUG",
+              ),
+          ),
+      )
+    mbs-fedmsg.py: |
+      config = {
+          'zmq_enabled': False,
+          'validate_signatures': False,
+          'endpoints': {},
+          'stomp_uri': '${STOMP_URI}',
+          'stomp_heartbeat': 5000,
+          'stomp_ssl_crt': '/etc/mbs-certs/messaging.crt',
+          'stomp_ssl_key': '/etc/mbs-certs/messaging.key',
+          'stomp_ack_mode': 'auto',
+      }
+    mbs-scheduler.py: |
+      config = {
+          # The frontend should have these turned off in perpetuity.
+          'mbsconsumer': False,
+          'mbspoller': False,
+      }
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: "mbs-frontend-config"
+    labels:
+      app: mbs
+      environment: "test-${TEST_ID}"
+      service: frontend
+  data:
+    config.py: |
+      class ProdConfiguration(object):
+          DEBUG = False
+
+          SECRET_KEY = ''
+
+          SQLALCHEMY_DATABASE_URI = 'postgresql://mbs:${DATABASE_PASSWORD}@mbs-database:5432/mbs'
+          SQLALCHEMY_TRACK_MODIFICATIONS = True
+
+          # Global network-related values, in seconds
+          NET_TIMEOUT = 120
+          NET_RETRY_INTERVAL = 30
+
+          SYSTEM = 'koji'
+          MESSAGING = 'umb'
+          MESSAGING_TOPIC_PREFIX = ['']
+          KOJI_CONFIG = '/etc/module-build-service/koji.conf'
+          KOJI_PROFILE = 'test'
+          KOJI_ARCHES = ['x86_64']
+          KOJI_PROXYUSER = False
+          KOJI_REPOSITORY_URL = ''
+          PDC_URL = ''
+          PDC_INSECURE = True
+          PDC_DEVELOP = True
+          SCMURLS = []
+
+          RESOLVER = 'db'
+
+          # This is a whitelist of prefixes of koji tags we're allowed to manipulate
+          KOJI_TAG_PREFIXES = ["module"]
+
+          DEFAULT_DIST_TAG_PREFIX = 'module'
+
+          # Use the same priority as all other builds
+          KOJI_BUILD_PRIORITY = 0
+
+          # Control where modules get tagged post-build.
+          BASE_MODULE_NAMES = ['platform']
+          KOJI_CG_BUILD_TAG_TEMPLATE = ''
+          KOJI_CG_DEFAULT_BUILD_TAG = ''
+
+          # yes, we want everyone to authenticate
+          NO_AUTH = False
+
+          YAML_SUBMIT_ALLOWED = False
+
+          # Allow maintainers to specify something that differs from the git branch.
+          ALLOW_NAME_OVERRIDE_FROM_SCM = False
+          ALLOW_STREAM_OVERRIDE_FROM_SCM = False
+
+          # How often should we resort to polling, in seconds
+          # Set to zero to disable polling
+          POLLING_INTERVAL = 600
+
+          # Determines how many builds that can be submitted to the builder
+          # and be in the build state at a time. Set this to 0 for no restrictions
+          NUM_CONCURRENT_BUILDS = 2
+
+          RPMS_DEFAULT_REPOSITORY = ''
+          RPMS_ALLOW_REPOSITORY = False
+          RPMS_DEFAULT_CACHE = ''
+          RPMS_ALLOW_CACHE = False
+          MODULES_DEFAULT_REPOSITORY = ''
+          MODULES_ALLOW_REPOSITORY = False
+
+          # Our per-build logs for the Koji content generator go here.
+          # CG imports are controlled by KOJI_ENABLE_CONTENT_GENERATOR
+          BUILD_LOGS_DIR = '/var/tmp'
+
+          # Time after which MBS will delete koji targets it created.
+          KOJI_TARGET_DELETE_TIME = 86400
+
+          # Whether or not to import modules back to koji.
+          KOJI_ENABLE_CONTENT_GENERATOR = False
+
+          # Available backends are: console, file.
+          LOG_BACKEND = 'console'
+
+          # Available log levels are: debug, info, warn, error.
+          LOG_LEVEL = 'debug'
+
+          REBUILD_STRATEGY_ALLOW_OVERRIDE = True
+          REBUILD_STRATEGY = 'only-changed'
+
+          # Settings for Kerberos + LDAP auth
+          AUTH_METHOD = 'oidc'
+          # These groups are allowed to submit builds.
+          ALLOWED_GROUPS = []
+          # These groups are allowed to cancel the builds of other users.
+          ADMIN_GROUPS = []
+    koji.conf: |
+      [test]
+      server = ${KOJI_URL}/kojihub
+      weburl = ${KOJI_URL}/koji/
+      topurl = ${KOJI_URL}/kojiroot/
+      authtype = ssl
+      ;client certificate
+      cert = /etc/koji-certs/kojiadmin.crt
+      ;certificate of the CA that issued the client certificate
+      ;ca = /etc/koji-certs/clientca.crt
+      ;certificate of the CA that issued the HTTP server certificate
+      serverca = /etc/koji-certs/koji_ca_cert.crt
+    mock.cfg: |
+      config_opts['root'] = '$root'
+      config_opts['target_arch'] = '$arch'
+      config_opts['legal_host_arches'] = ('$arch',)
+      config_opts['chroot_setup_cmd'] = 'install $group'
+      config_opts['dist'] = ''
+      config_opts['extra_chroot_dirs'] = [ '/run/lock', ]
+      config_opts['releasever'] = ''
+      config_opts['package_manager'] = 'dnf'
+      config_opts['nosync'] = True
+      config_opts['use_bootstrap_container'] = False
+
+      config_opts['yum.conf'] = """
+      $yum_conf
+      """
+    yum.conf: |
+      [main]
+      keepcache=1
+      debuglevel=2
+      reposdir=/dev/null
+      logfile=/var/log/yum.log
+      retries=20
+      obsoletes=1
+      gpgcheck=0
+      assumeyes=1
+      syslog_ident=mock
+      syslog_device=
+      install_weak_deps=0
+      metadata_expire=3600
+      mdpolicy=group:primary
+
+      # repos
+    platform.yaml: |
+      document: modulemd
+      version: 1
+      data:
+        description: Fedora 28 traditional base
+        name: platform
+        license:
+          module: [MIT]
+        profiles:
+          buildroot:
+            rpms: [bash, bzip2, coreutils, cpio, diffutils, fedora-release, findutils, gawk,
+              gcc, gcc-c++, grep, gzip, info, make, patch, redhat-rpm-config, rpm-build,
+              sed, shadow-utils, tar, unzip, util-linux, which, xz]
+          srpm-buildroot:
+            rpms: [bash, fedora-release, fedpkg-minimal, gnupg2, redhat-rpm-config, rpm-build,
+              shadow-utils]
+        stream: f28
+        summary: Fedora 28 traditional base
+        version: 3
+        context: 00000000
+        xmd:
+          mbs:
+            buildrequires: {}
+            commit: virtual
+            requires: {}
+            mse: true
+            koji_tag: module-f28-build
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: "mbs-httpd-config"
+    labels:
+      app: mbs
+      environment: "test-${TEST_ID}"
+      service: frontend
+  data:
+    mbs.conf: |
+      <Location />
+          Require all granted
+      </Location>
+
+      RedirectMatch ^/$ /module-build-service/1/module-builds/
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: "mbs-wsgi-config"
+    labels:
+      app: mbs
+      environment: "test-${TEST_ID}"
+      service: frontend
+  data:
+    mbs.wsgi: |
+      #-*- coding: utf-8 -*-
+
+      import logging
+      logging.basicConfig(level='DEBUG')
+
+      from module_build_service import app as application
+- apiVersion: v1
+  kind: Secret
+  metadata:
+    name: "mbs-frontend-certificates"
+    labels:
+      environment: "test-${TEST_ID}"
+      app: mbs
+      service: frontend
+  data:
+    messaging.crt: |-
+      ${MESSAGING_CERT}
+    messaging.key: |-
+      ${MESSAGING_KEY}
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: "mbs-frontend"
+    labels:
+      environment: "test-${TEST_ID}"
+      app: mbs
+      service: frontend
+  spec:
+    selector:
+      app: mbs
+      environment: "test-${TEST_ID}"
+      service: frontend
+    ports:
+      - name: https
+        port: 443
+        targetPort: https
+      - name: http
+        port: 80
+        targetPort: http
+- apiVersion: v1
+  kind: Route
+  metadata:
+    name: mbs-api
+    labels:
+      environment: "test-${TEST_ID}"
+      app: mbs
+      service: frontend
+  spec:
+    to:
+      kind: Service
+      name: mbs-frontend
+    tls:
+      termination: edge
+      insecureEdgeTerminationPolicy: Redirect
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    name: "mbs-frontend"
+    labels:
+      environment: "test-${TEST_ID}"
+      service: frontend
+      app: mbs
+  spec:
+    replicas: 1
+    strategy:
+      type: Recreate
+    selector:
+      app: mbs
+      environment: "test-${TEST_ID}"
+      service: frontend
+    strategy:
+      type: Rolling
+    template:
+      metadata:
+        labels:
+          environment: "test-${TEST_ID}"
+          service: frontend
+          app: mbs
+      spec:
+        containers:
+        - name: frontend
+          image: "${MBS_FRONTEND_IMAGE}"
+          imagePullPolicy: Always
+          ports:
+          - containerPort: 8080
+            protocol: TCP
+            name: http
+          - containerPort: 8443
+            protocol: TCP
+            name: https
+          volumeMounts:
+          - name: fedmsg-config
+            mountPath: /etc/fedmsg.d
+            readOnly: true
+          - name: frontend-certificates
+            mountPath: /etc/mbs-certs
+            readOnly: true
+          - name: mbs-config
+            mountPath: /etc/module-build-service
+            readOnly: true
+          - name: httpd-config
+            mountPath: /etc/httpd/conf.d
+            readOnly: true
+          - name: wsgi-config
+            mountPath: /usr/share/mbs
+            readOnly: true
+          - name: koji-certificates
+            mountPath: /etc/koji-certs
+            readOnly: true
+          resources:
+            limits:
+              memory: 400Mi
+              cpu: 300m
+        volumes:
+        - name: fedmsg-config
+          configMap:
+            name: mbs-frontend-fedmsg-config
+        - name: frontend-certificates
+          secret:
+            secretName: mbs-frontend-certificates
+        - name: mbs-config
+          configMap:
+            name: mbs-frontend-config
+        - name: httpd-config
+          configMap:
+            name: mbs-httpd-config
+        - name: wsgi-config
+          configMap:
+            name: mbs-wsgi-config
+        - name: koji-certificates
+          secret:
+            secretName: mbs-koji-secrets
+      triggers:
+      - type: ConfigChange
+# backend
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: "mbs-backend-fedmsg-config"
+    labels:
+      app: mbs
+      environment: "test-${TEST_ID}"
+      service: backend
+  data:
+    logging.py: |
+      bare_format = "[%(asctime)s][%(name)10s %(levelname)7s] %(message)s"
+
+      config = dict(
+          logging=dict(
+              version=1,
+              formatters=dict(
+                  bare={
+                      "datefmt": "%Y-%m-%d %H:%M:%S",
+                      "format": bare_format
+                  },
+              ),
+              handlers=dict(
+                  console={
+                      "class": "logging.StreamHandler",
+                      "formatter": "bare",
+                      "level": "DEBUG",
+                      "stream": "ext://sys.stdout",
+                  },
+              ),
+              loggers=dict(
+                  fedmsg={
+                      "level": "DEBUG",
+                      "propagate": True,
+                  },
+                  moksha={
+                      "level": "DEBUG",
+                      "propagate": True,
+                  },
+              ),
+          ),
+      )
+    mbs-logging.py: |
+      config = dict(
+          logging=dict(
+              loggers=dict(
+                  # Quiet this guy down...
+                  requests={
+                      "level": "WARNING",
+                      "propagate": True,
+                  },
+                  module_build_service={
+                      "level": "DEBUG",
+                      "propagate": True,
+                  },
+                  mbs_messaging_umb={
+                      "level": "DEBUG",
+                      "propagate": True,
+                  },
+              ),
+              root=dict(
+                  handlers=["console"],
+                  level="DEBUG",
+              ),
+          ),
+      )
+    mbs-fedmsg.py: |
+      config = {
+          'zmq_enabled': False,
+          'validate_signatures': False,
+          'endpoints': {},
+          'stomp_uri': '${STOMP_URI}',
+          'stomp_heartbeat': 5000,
+          'stomp_ssl_crt': '/etc/mbs-certs/messaging.crt',
+          'stomp_ssl_key': '/etc/mbs-certs/messaging.key',
+          'stomp_ack_mode': 'auto',
+      }
+    mbs-scheduler.py: |
+      config = {
+          'mbsconsumer': True,
+          'mbspoller': True,
+      }
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: "mbs-backend-config"
+    labels:
+      app: mbs
+      environment: "test-${TEST_ID}"
+      service: backend
+  data:
+    config.py: |
+      class ProdConfiguration(object):
+          DEBUG = False
+
+          SECRET_KEY = ''
+
+          SQLALCHEMY_DATABASE_URI = 'postgresql://mbs:${DATABASE_PASSWORD}@mbs-database:5432/mbs'
+          SQLALCHEMY_TRACK_MODIFICATIONS = True
+
+          # Global network-related values, in seconds
+          NET_TIMEOUT = 120
+          NET_RETRY_INTERVAL = 30
+
+          SYSTEM = 'koji'
+          MESSAGING = 'umb'
+          MESSAGING_TOPIC_PREFIX = ['']
+          KOJI_CONFIG = '/etc/module-build-service/koji.conf'
+          KOJI_PROFILE = 'test'
+          KOJI_ARCHES = ['x86_64']
+          KOJI_PROXYUSER = False
+          KOJI_REPOSITORY_URL = ''
+          PDC_URL = ''
+          PDC_INSECURE = True
+          PDC_DEVELOP = True
+          SCMURLS = []
+
+          RESOLVER = 'db'
+
+          # This is a whitelist of prefixes of koji tags we're allowed to manipulate
+          KOJI_TAG_PREFIXES = ["module"]
+
+          DEFAULT_DIST_TAG_PREFIX = 'module'
+
+          # Use the same priority as all other builds
+          KOJI_BUILD_PRIORITY = 0
+
+          # Control where modules get tagged post-build.
+          BASE_MODULE_NAMES = ['platform']
+          KOJI_CG_BUILD_TAG_TEMPLATE = ''
+          KOJI_CG_DEFAULT_BUILD_TAG = ''
+
+          # yes, we want everyone to authenticate
+          NO_AUTH = False
+
+          YAML_SUBMIT_ALLOWED = False
+
+          # Allow maintainers to specify something that differs from the git branch.
+          ALLOW_NAME_OVERRIDE_FROM_SCM = False
+          ALLOW_STREAM_OVERRIDE_FROM_SCM = False
+
+          # How often should we resort to polling, in seconds
+          # Set to zero to disable polling
+          POLLING_INTERVAL = 20
+
+          # Determines how many builds that can be submitted to the builder
+          # and be in the build state at a time. Set this to 0 for no restrictions
+          NUM_CONCURRENT_BUILDS = 2
+
+          RPMS_DEFAULT_REPOSITORY = ''
+          RPMS_ALLOW_REPOSITORY = False
+          RPMS_DEFAULT_CACHE = ''
+          RPMS_ALLOW_CACHE = False
+          MODULES_DEFAULT_REPOSITORY = ''
+          MODULES_ALLOW_REPOSITORY = False
+
+          # Our per-build logs for the Koji content generator go here.
+          # CG imports are controlled by KOJI_ENABLE_CONTENT_GENERATOR
+          BUILD_LOGS_DIR = '/var/tmp'
+
+          # Time after which MBS will delete koji targets it created.
+          KOJI_TARGET_DELETE_TIME = 86400
+
+          # Whether or not to import modules back to koji.
+          KOJI_ENABLE_CONTENT_GENERATOR = False
+
+          # Available backends are: console, file.
+          LOG_BACKEND = 'console'
+
+          # Available log levels are: debug, info, warn, error.
+          LOG_LEVEL = 'debug'
+
+          REBUILD_STRATEGY_ALLOW_OVERRIDE = True
+          REBUILD_STRATEGY = 'only-changed'
+    koji.conf: |
+      [test]
+      server = ${KOJI_URL}/kojihub
+      weburl = ${KOJI_URL}/koji/
+      topurl = ${KOJI_URL}/kojiroot/
+      authtype = ssl
+      ;client certificate
+      cert = /etc/koji-certs/kojiadmin.crt
+      ;certificate of the CA that issued the client certificate
+      ;ca = /etc/koji-certs/clientca.crt
+      ;certificate of the CA that issued the HTTP server certificate
+      serverca = /etc/koji-certs/koji_ca_cert.crt
+    mock.cfg: |
+      config_opts['root'] = '$root'
+      config_opts['target_arch'] = '$arch'
+      config_opts['legal_host_arches'] = ('$arch',)
+      config_opts['chroot_setup_cmd'] = 'install $group'
+      config_opts['dist'] = ''
+      config_opts['extra_chroot_dirs'] = [ '/run/lock', ]
+      config_opts['releasever'] = ''
+      config_opts['package_manager'] = 'dnf'
+      config_opts['nosync'] = True
+      config_opts['use_bootstrap_container'] = False
+
+      config_opts['yum.conf'] = """
+      $yum_conf
+      """
+    yum.conf: |
+      [main]
+      keepcache=1
+      debuglevel=2
+      reposdir=/dev/null
+      logfile=/var/log/yum.log
+      retries=20
+      obsoletes=1
+      gpgcheck=0
+      assumeyes=1
+      syslog_ident=mock
+      syslog_device=
+      install_weak_deps=0
+      metadata_expire=3600
+      mdpolicy=group:primary
+
+      # repos
+    platform.yaml: |
+      document: modulemd
+      version: 1
+      data:
+        description: Fedora 28 traditional base
+        name: platform
+        license:
+          module: [MIT]
+        profiles:
+          buildroot:
+            rpms: [bash, bzip2, coreutils, cpio, diffutils, fedora-release, findutils, gawk,
+              gcc, gcc-c++, grep, gzip, info, make, patch, redhat-rpm-config, rpm-build,
+              sed, shadow-utils, tar, unzip, util-linux, which, xz]
+          srpm-buildroot:
+            rpms: [bash, fedora-release, fedpkg-minimal, gnupg2, redhat-rpm-config, rpm-build,
+              shadow-utils]
+        stream: f28
+        summary: Fedora 28 traditional base
+        version: 3
+        context: 00000000
+        xmd:
+          mbs:
+            buildrequires: {}
+            commit: virtual
+            requires: {}
+            mse: true
+            koji_tag: module-f28-build
+- apiVersion: v1
+  kind: Secret
+  metadata:
+    name: mbs-backend-secrets
+    labels:
+      environment: "test-${TEST_ID}"
+      app: mbs
+      service: backend
+  data:
+    messaging.crt: |-
+      ${MESSAGING_CERT}
+    messaging.key: |-
+      ${MESSAGING_KEY}
+- apiVersion: v1
+  kind: Secret
+  metadata:
+    name: mbs-koji-secrets
+    labels:
+      environment: "test-${TEST_ID}"
+      app: mbs
+  data:
+    kojiadmin.crt: |-
+      ${KOJI_CERT}
+    koji_ca_cert.crt: |-
+      ${KOJI_SERVERCA}
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    name: "mbs-backend"
+    labels:
+      environment: "test-${TEST_ID}"
+      service: backend
+      app: mbs
+  spec:
+    replicas: 1
+    strategy:
+      type: Recreate
+    selector:
+      app: mbs
+      environment: "test-${TEST_ID}"
+      service: backend
+    strategy:
+      type: Rolling
+      rollingParams:
+        pre:
+          failurePolicy: Abort
+          execNewPod:
+            containerName: backend
+            command:
+            - /bin/sh
+            - -i
+            - -c
+            - |
+              # try for 10 minutes (600 seconds)
+              e=$(( $(date +%s) + 600 ))
+              i=0
+              while [ $(date +%s) -lt $e ]; do
+                echo 'TRY #'$((++i))
+                if mbs-upgradedb ; then
+                  mbs-manager import_module /etc/module-build-service/platform.yaml
+                  exit 0
+                fi
+              done
+              exit 1
+            volumes:
+            - mbs-config
+    template:
+      metadata:
+        labels:
+          environment: "test-${TEST_ID}"
+          service: backend
+          app: mbs
+      spec:
+        containers:
+        - name: backend
+          image: "${MBS_BACKEND_IMAGE}"
+          imagePullPolicy: Always
+          volumeMounts:
+          - name: fedmsg-config
+            mountPath: /etc/fedmsg.d
+            readOnly: true
+          - name: mbs-config
+            mountPath: /etc/module-build-service
+            readOnly: true
+          - name: backend-certificates
+            mountPath: /etc/mbs-certs
+            readOnly: true
+          - name: koji-certificates
+            mountPath: /etc/koji-certs
+            readOnly: true
+          resources:
+            limits:
+              memory: 400Mi
+              cpu: 300m
+        volumes:
+        - name: fedmsg-config
+          configMap:
+            name: mbs-backend-fedmsg-config
+        - name: mbs-config
+          configMap:
+            name: mbs-backend-config
+        - name: backend-certificates
+          secret:
+            secretName: mbs-backend-secrets
+        - name: koji-certificates
+          secret:
+            secretName: mbs-koji-secrets
+      triggers:
+      - type: ConfigChange
+# postgresql
+- apiVersion: v1
+  kind: Secret
+  metadata:
+    name: "mbs-database-secret"
+    labels:
+      environment: "test-${TEST_ID}"
+      app: mbs
+      service: database
+  stringData:
+    database-password: "${DATABASE_PASSWORD}"
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: "mbs-database"
+    labels:
+      environment: "test-${TEST_ID}"
+      app: mbs
+      service: database
+  spec:
+    selector:
+      app: mbs
+      environment: "test-${TEST_ID}"
+      service: database
+    ports:
+    - name: postgresql
+      port: 5432
+      targetPort: 5432
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    name: "mbs-database"
+    labels:
+      environment: "test-${TEST_ID}"
+      service: database
+      app: mbs
+  spec:
+    replicas: 1
+    strategy:
+      type: Recreate
+    selector:
+      app: mbs
+      environment: "test-${TEST_ID}"
+      service: database
+    template:
+      metadata:
+        labels:
+          environment: "test-${TEST_ID}"
+          service: database
+          app: mbs
+      spec:
+        containers:
+        - name: postgresql
+          image: registry.access.redhat.com/rhscl/postgresql-95-rhel7:latest
+          imagePullPolicy: Always
+          ports:
+          - containerPort: 5432
+            protocol: TCP
+          resources:
+            limits:
+              memory: 512Mi
+              cpu: 0.4
+          readinessProbe:
+            timeoutSeconds: 1
+            initialDelaySeconds: 5
+            exec:
+              command: [ /bin/sh, -i, -c, "psql -h 127.0.0.1 -U $POSTGRESQL_USER -q -d $POSTGRESQL_DATABASE -c 'SELECT 1'" ]
+          livenessProbe:
+            timeoutSeconds: 1
+            initialDelaySeconds: 30
+            tcpSocket:
+              port: 5432
+          env:
+          - name: POSTGRESQL_USER
+            value: mbs
+          - name: POSTGRESQL_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: "mbs-database-secret"
+                key: database-password
+          - name: POSTGRESQL_DATABASE
+            value: mbs
+    triggers:
+    - type: ConfigChange
+
+# template parameters
+parameters:
+- name: TEST_ID
+  displayName: Test id
+  description: Short unique identifier for this test run (e.g. Jenkins job number)
+  required: true
+- name: MBS_BACKEND_IMAGE
+  displayName: Container image for MBS backend
+  description: Image to be used for MBS backend deployment
+  value: 172.30.1.1:5000/myproject/mbs-backend:latest
+  required: true
+- name: MBS_FRONTEND_IMAGE
+  displayName: Container image for MBS frontend
+  description: Image to be used for MBS frontend deployment
+  value: 172.30.1.1:5000/myproject/mbs-frontend:latest
+  required: true
+- name: MESSAGING_CERT
+  displayName: SSL certificate for messaging
+  description: base64 encoded SSL certificate for message bus authentication
+  required: true
+- name: MESSAGING_KEY
+  displayName: SSL key for messaging
+  description: base64 encoded SSL key for message bus authentication
+  required: true
+- name: KOJI_CERT
+  displayName: Koji client certificate
+  description: base 64 encoded client certificate used to authenticate with Koji
+  required: true
+- name: KOJI_SERVERCA
+  displayName: Koji server CA
+  description: >-
+    base64 encoded certificate of the CA
+    that issued the HTTP server certificate for Koji
+  required: true
+- name: DATABASE_PASSWORD
+  displayName: Database password
+  generate: expression
+  from: "[\\w]{32}"
+- name: STOMP_URI
+  displayName: Messagebus URI
+  description: Messagebus URI
+  required: true
+- name: KOJI_URL
+  displayName: Top level URL of the Koji instance to use
+  description: Top level URL of the Koji instance to use. Without a '/' at the end.
+  default: https://mbs-brew-hub.usersys.redhat.com
+  required: true
