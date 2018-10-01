@@ -22,7 +22,7 @@
 # Written by Ralph Bean <rbean@redhat.com>
 #            Matt Prahl <mprahl@redhat.com>
 #            Jan Kaluza <jkaluza@redhat.com>
-from module_build_service import log, models, Modulemd, conf, db
+from module_build_service import log, models, Modulemd, db
 from module_build_service.errors import StreamAmbigous
 from module_build_service.mmd_resolver import MMDResolver
 from module_build_service import glib
@@ -137,7 +137,7 @@ def _get_mmds_from_requires(session, requires, mmds, recursive=False,
     # To be able to call itself recursively, we need to store list of mmds
     # we have added to global mmds list in this particular call.
     added_mmds = {}
-    resolver = module_build_service.resolver.GenericResolver.create(conf)
+    resolver = module_build_service.resolver.system_resolver
 
     for name, streams in requires.items():
         streams_to_try = streams.get()
@@ -364,7 +364,7 @@ def generate_expanded_mmds(session, mmd, raise_if_stream_ambigous=False, default
         # Resolve the buildrequires and store the result in XMD.
         if 'mbs' not in xmd:
             xmd['mbs'] = {}
-        resolver = module_build_service.resolver.GenericResolver.create(conf)
+        resolver = module_build_service.resolver.system_resolver
         xmd['mbs']['buildrequires'] = resolver.resolve_requires(br_list)
         xmd['mbs']['mse'] = True
 
