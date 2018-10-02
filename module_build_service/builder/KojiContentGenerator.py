@@ -451,6 +451,10 @@ class KojiContentGenerator(object):
         #   "i686" -> []
         multilib_arches = set(compatible_arches) - set(
             pungi.arch.get_compatible_arches(arch))
+        # List of architectures that should be in ExclusiveArch tag or missing
+        # from ExcludeArch tag. Multilib should not be enabled here.
+        exclusive_arches = pungi.arch.get_valid_arches(
+            arch, multilib=False, add_noarch=False)
 
         # Modulemd.SimpleSet into which we will add the RPMs.
         rpm_artifacts = Modulemd.SimpleSet()
@@ -465,9 +469,9 @@ class KojiContentGenerator(object):
 
             # Skip the RPM if it is excluded on this arch or exclusive
             # for different arch.
-            if rpm["excludearch"] and set(rpm["excludearch"]) & set(compatible_arches):
+            if rpm["excludearch"] and set(rpm["excludearch"]) & set(exclusive_arches):
                 continue
-            if rpm["exclusivearch"] and not set(rpm["exclusivearch"]) & set(compatible_arches):
+            if rpm["exclusivearch"] and not set(rpm["exclusivearch"]) & set(exclusive_arches):
                 continue
 
             # Check the "whitelist" buildopts section of MMD.

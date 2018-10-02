@@ -549,3 +549,18 @@ class TestBuild:
 
         # Only x86_64 packages should be filled in, because we requested x86_64 arch.
         assert set(mmd.get_content_licenses().get()) == set(expected)
+
+    def test_fill_in_rpms_list_noarch_filtering_not_influenced_by_multilib(self):
+        # A build has ExcludeArch: i686 (because it only works on 64 bit arches).
+        # A noarch package is built there, and this noarch packages should be
+        # included in x86_64 repo.
+        self._add_test_rpm("dhcp-libs-12:4.3.5-5.module_2118aef6.noarch", "dhcp",
+                           excludearch=["i686"])
+
+        mmd = self.cg.module.mmd()
+        mmd = self.cg._fill_in_rpms_list(mmd, "x86_64")
+
+        # Only i686 package for dhcp-libs should be added, because perl-Tangerine does not have
+        # multilib set.
+        assert set(mmd.get_rpm_artifacts().get()) == set([
+            "dhcp-libs-12:4.3.5-5.module_2118aef6.noarch"])
