@@ -116,7 +116,7 @@ def format_mmd(mmd, scmurl, session=None):
     Prepares the modulemd for the MBS. This does things such as replacing the
     branches of components with commit hashes and adding metadata in the xmd
     dictionary.
-    :param mmd: the ModuleMetadata object to format
+    :param mmd: the Modulemd.Module object to format
     :param scmurl: the url to the modulemd
     """
     # Import it here, because SCM uses utils methods and fails to import

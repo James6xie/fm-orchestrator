@@ -223,7 +223,7 @@ def wait(config, session, msg):
         cg_build_koji_tag = conf.koji_cg_default_build_tag
         if conf.system not in ['koji', 'test']:
             # In case of non-koji backend, we want to get the dependencies
-            # of the local module build based on ModuleMetadata, because the
+            # of the local module build based on Modulemd.Module, because the
             # local build is not stored in the external MBS and therefore we
             # cannot query it using the `query` as for Koji below.
             dependencies = resolver.get_module_build_dependencies(

@@ -121,7 +121,7 @@ def _get_mmds_from_requires(session, requires, mmds, recursive=False,
     the list of module metadata objects defined by `requires` dict.
 
     :param session: SQLAlchemy DB session.
-    :param requires: Modulemetadata requires or buildrequires.
+    :param requires: Modulemd.Module requires or buildrequires.
     :param mmds: Dictionary with already handled name:streams as a keys and lists
         of resulting mmds as values.
     :param recursive: If True, the requires are checked recursively.

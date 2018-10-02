@@ -156,7 +156,7 @@ class MBSResolver(GenericResolver):
 
     def resolve_profiles(self, mmd, keys):
         """
-        :param mmd: ModuleMetadata instance of module
+        :param mmd: Modulemd.Module instance of module
         :param keys: list of modulemd installation profiles to include in
                      the result.
         :return: Dictionary with keys set according to `keys` param and values
@@ -213,8 +213,8 @@ class MBSResolver(GenericResolver):
         :param strict: Normally this function returns None if no module can be
             found.  If strict=True, then an UnprocessableEntity is raised.
         :return: a mapping containing buildrequire modules info in key/value pairs,
-            where key is koji_tag and value is the ModuleMetadata object.
-        :rtype: dict(str, :class:`ModuleMetadata`)
+            where key is koji_tag and value is the Modulemd.Module object.
+        :rtype: dict(str, :class:`Modulemd.Module`)
         """
 
         if mmd:
