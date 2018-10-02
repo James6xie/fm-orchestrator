@@ -462,7 +462,7 @@ def submit_module_build(username, url, mmd, scm, optional_params=None):
     modules = []
 
     for mmd in mmds:
-        # Prefix the version of the modulemd based on the platform it buildrequires
+        # Prefix the version of the modulemd based on the base module it buildrequires
         version = get_prefixed_version(mmd)
         mmd.set_version(version)
         version_str = str(version)

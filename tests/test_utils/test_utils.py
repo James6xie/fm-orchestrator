@@ -282,6 +282,12 @@ class TestUtils:
         assert release_one == "module+2+b8645bbb"
         assert release_two == "module+2+17e35784"
 
+    def test_get_rpm_release_platform_stream(self):
+        scheduler_init_data(1)
+        build_one = models.ModuleBuild.query.get(2)
+        release = module_build_service.utils.get_rpm_release(build_one)
+        assert release == 'module+f28+2+814cfa39'
+
     @pytest.mark.parametrize('scmurl', [
         ('git://pkgs.stg.fedoraproject.org/modules/testmodule.git'
          '?#620ec77321b2ea7b0d67d82992dda3e1d67055b4'),

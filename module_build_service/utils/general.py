@@ -212,8 +212,26 @@ def get_rpm_release(module_build):
     mse_build_ids = module_build.siblings + [module_build.id or 0]
     mse_build_ids.sort()
     index = mse_build_ids[0]
-    return "{prefix}{index}+{dist_hash}".format(
+    try:
+        buildrequires = module_build.mmd().get_xmd()['mbs']['buildrequires']
+    except (ValueError, KeyError):
+        log.warn('Module build {0} does not have buildrequires in its xmd'.format(module_build.id))
+        buildrequires = None
+
+    base_module_stream = ''
+    if buildrequires:
+        for base_module in conf.base_module_names:
+            base_module_stream = buildrequires.get(base_module, {}).get('stream', '')
+            if base_module_stream:
+                base_module_stream += '+'
+                break
+        else:
+            log.warn('Module build {0} does not buildrequire a base module ({1})'
+                     .format(module_build.id, ' or '.join(conf.base_module_names)))
+
+    return '{prefix}{base_module_stream}{index}+{dist_hash}'.format(
         prefix=conf.default_dist_tag_prefix,
+        base_module_stream=base_module_stream,
         index=index,
         dist_hash=dist_hash,
     )
