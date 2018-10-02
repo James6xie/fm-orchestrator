@@ -32,6 +32,7 @@ from datetime import datetime
 
 import kobo.rpmlib
 import requests
+from gi.repository import GLib
 
 import module_build_service.scm
 import module_build_service.resolver
@@ -205,6 +206,70 @@ def format_mmd(mmd, scmurl, session=None):
 
     # Set the modified xmd back to the modulemd
     mmd.set_xmd(glib.dict_values(xmd))
+
+
+def get_prefixed_version(mmd):
+        """
+        Return the prefixed version of the module based on the buildrequired base module stream.
+
+        :param mmd: the Modulemd.Module object to format
+        :return: the prefixed version
+        :rtype: int
+        """
+        xmd = mmd.get_xmd()
+        version = mmd.get_version()
+        base_module_stream = None
+        for base_module in conf.base_module_names:
+            # xmd is a GLib Variant and doesn't support .get() syntax
+            try:
+                base_module_stream = xmd['mbs']['buildrequires'].get(base_module, {}).get('stream')
+                if base_module_stream:
+                    # Break after finding the first base module that is buildrequired
+                    break
+            except KeyError:
+                log.warning('The module\'s mmd is missing information in the xmd section')
+                return version
+        else:
+            log.warning('This module does not buildrequire a base module ({0})'
+                        .format(' or '.join(conf.base_module_names)))
+            return version
+
+        # The platform version (e.g. prefix1.2.0 => 010200)
+        version_prefix = ''
+        for char in base_module_stream:
+            try:
+                # See if the current character is an integer, signifying the version
+                # has started
+                int(char)
+                version_prefix += char
+            except ValueError:
+                # If version_prefix isn't set, then a digit hasn't been encountered
+                if version_prefix:
+                    # If the character is a period and the version_prefix is set, then
+                    # the loop is still processing the version part of the stream
+                    if char == '.':
+                        version_prefix += '.'
+                    # If the version_prefix is set and the character is not a period or
+                    # digit, then the remainder of the stream is a suffix like "-beta"
+                    else:
+                        break
+
+        # Remove the periods and pad the numbers if necessary
+        version_prefix = ''.join([section.zfill(2) for section in version_prefix.split('.')])
+
+        if not version_prefix:
+            log.warning('The "{0}" stream "{1}" couldn\'t be used to prefix the module\'s '
+                        'version'.format(base_module, base_module_stream))
+            return version
+
+        # Since the version must be stored as a number, we convert the string back to
+        # an integer which consequently drops the leading zero if there is one
+        new_version = int(version_prefix + str(version))
+        if new_version > GLib.MAXUINT64:
+            log.warning('The "{0}" stream "{1}" caused the module\'s version prefix to be '
+                        'too long'.format(base_module, base_module_stream))
+            return version
+        return new_version
 
 
 def validate_mmd(mmd):
@@ -397,12 +462,15 @@ def submit_module_build(username, url, mmd, scm, optional_params=None):
     modules = []
 
     for mmd in mmds:
+        # Prefix the version of the modulemd based on the platform it buildrequires
+        version = get_prefixed_version(mmd)
+        mmd.set_version(version)
+        version_str = str(version)
+
         log.debug('Checking whether module build already exists: %s.',
-                  ":".join([mmd.get_name(), mmd.get_stream(),
-                           str(mmd.get_version()), mmd.get_context()]))
+                  ":".join([mmd.get_name(), mmd.get_stream(), version_str, mmd.get_context()]))
         module = models.ModuleBuild.get_build_from_nsvc(
-            db.session, mmd.get_name(), mmd.get_stream(), str(mmd.get_version()),
-            mmd.get_context())
+            db.session, mmd.get_name(), mmd.get_stream(), version_str, mmd.get_context())
         if module:
             if module.state != models.BUILD_STATES['failed']:
                 err_msg = ('Module (state=%s) already exists. Only a new build or resubmission of '
@@ -438,7 +506,7 @@ def submit_module_build(username, url, mmd, scm, optional_params=None):
                 conf,
                 name=mmd.get_name(),
                 stream=mmd.get_stream(),
-                version=str(mmd.get_version()),
+                version=version_str,
                 modulemd=mmd.dumps(),
                 scmurl=url,
                 username=username,
@@ -451,7 +519,7 @@ def submit_module_build(username, url, mmd, scm, optional_params=None):
         db.session.commit()
         modules.append(module)
         log.info("%s submitted build of %s, stream=%s, version=%s, context=%s", username,
-                 mmd.get_name(), mmd.get_stream(), mmd.get_version(), mmd.get_context())
+                 mmd.get_name(), mmd.get_stream(), version_str, mmd.get_context())
     return modules
 
 

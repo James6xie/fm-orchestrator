@@ -29,7 +29,8 @@ import module_build_service.scm
 from module_build_service import models, conf
 from module_build_service.errors import ProgrammingError, ValidationError, UnprocessableEntity
 from tests import (
-    reuse_component_init_data, db, reuse_shared_userspace_init_data, clean_database, init_data)
+    reuse_component_init_data, db, reuse_shared_userspace_init_data, clean_database, init_data,
+    scheduler_init_data)
 import mock
 import koji
 import pytest
@@ -578,6 +579,22 @@ class TestUtils:
 
         is_eol = module_build_service.utils.submit._is_eol_in_pdc('mariadb', '10.1')
         assert is_eol
+
+    def test_get_prefixed_version_f28(self):
+        scheduler_init_data(1)
+        build_one = models.ModuleBuild.query.get(2)
+        v = module_build_service.utils.submit.get_prefixed_version(build_one.mmd())
+        assert v == 2820180205135154
+
+    def test_get_prefixed_version_fl701(self):
+        scheduler_init_data(1)
+        build_one = models.ModuleBuild.query.get(2)
+        mmd = build_one.mmd()
+        xmd = glib.from_variant_dict(mmd.get_xmd())
+        xmd['mbs']['buildrequires']['platform']['stream'] = 'fl7.0.1-beta'
+        mmd.set_xmd(glib.dict_values(xmd))
+        v = module_build_service.utils.submit.get_prefixed_version(mmd)
+        assert v == 7000120180205135154
 
 
 class DummyModuleBuilder(GenericBuilder):

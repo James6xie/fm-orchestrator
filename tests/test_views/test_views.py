@@ -685,7 +685,7 @@ class TestViews:
         assert data['name'] == 'testmodule'
         assert data['scmurl'] == ('git://pkgs.stg.fedoraproject.org/modules/testmodule.git'
                                   '?#68931c90de214d9d13feefbd35246a81b6cb8d49')
-        assert data['version'] == '1'
+        assert data['version'] == '281'
         assert data['time_submitted'] is not None
         assert data['time_modified'] is not None
         assert data['time_completed'] is None
