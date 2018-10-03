@@ -173,6 +173,10 @@ def format_mmd(mmd, scmurl, session=None):
                 pkg.set_cache(conf.rpms_default_cache + pkgname)
             if not pkg.get_ref():
                 pkg.set_ref('master')
+            if pkg.get_arches().size() == 0:
+                arches = Modulemd.SimpleSet()
+                arches.set(conf.koji_arches)
+                pkg.set_arches(arches)
 
         # Add missing data in included modules components
         for modname, mod in mmd.get_module_components().items():

@@ -542,6 +542,45 @@ class TestUtils:
             for c in module_build.component_builds:
                 assert c.weight == 1.5
 
+    @patch('module_build_service.scm.SCM')
+    def test_format_mmd_arches(self, mocked_scm):
+        with app.app_context():
+            clean_database()
+            mocked_scm.return_value.commit = \
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4'
+            mocked_scm.return_value.get_latest.side_effect = [
+                '4ceea43add2366d8b8c5a622a2fb563b625b9abf',
+                'fbed359411a1baa08d4a88e0d12d426fbf8f602c',
+                'dbed259411a1baa08d4a88e0d12d426fbf8f6037',
+                '4ceea43add2366d8b8c5a622a2fb563b625b9abf',
+                'fbed359411a1baa08d4a88e0d12d426fbf8f602c',
+                'dbed259411a1baa08d4a88e0d12d426fbf8f6037']
+
+            testmodule_mmd_path = path.join(
+                BASE_DIR, '..', 'staged_data', 'testmodule.yaml')
+            test_archs = ['powerpc', 'i486']
+
+            mmd1 = Modulemd.Module().new_from_file(testmodule_mmd_path)
+            mmd1.upgrade()
+
+            module_build_service.utils.format_mmd(mmd1, None)
+
+            for pkg in mmd1.get_rpm_components().values():
+                assert set(pkg.get_arches().get()) == set(conf.koji_arches)
+
+            mmd2 = Modulemd.Module().new_from_file(testmodule_mmd_path)
+            mmd2.upgrade()
+
+            new_arches = Modulemd.SimpleSet()
+            new_arches.set(test_archs)
+            for pkg in mmd2.get_rpm_components().values():
+                pkg.set_arches(new_arches)
+
+            module_build_service.utils.format_mmd(mmd2, None)
+
+            for pkg in mmd2.get_rpm_components().values():
+                assert set(pkg.get_arches().get()) == set(test_archs)
+
     def test_generate_koji_tag_in_nsvc_format(self):
         name, stream, version, context = ('testmodule', 'master', '20170816080815', '37c6c57')
 
