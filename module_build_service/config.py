@@ -412,7 +412,7 @@ class Config(object):
                      'the groups in LDAP')},
         'base_module_names': {
             'type': set,
-            'default': set(['platform', 'bootstrap']),
+            'default': set(['platform']),
             'desc': ("Set of module names which defines the product version "
                      "(by their stream) of modules depending on them.")},
         'base_module_koji_arches': {
