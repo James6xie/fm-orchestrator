@@ -411,9 +411,9 @@ class Config(object):
             'desc': ('The distinguished name of the container or organizational unit containing '
                      'the groups in LDAP')},
         'base_module_names': {
-            'type': set,
-            'default': set(['platform']),
-            'desc': ("Set of module names which defines the product version "
+            'type': list,
+            'default': ['platform'],
+            'desc': ("List of base module names which define the product version "
                      "(by their stream) of modules depending on them.")},
         'base_module_koji_arches': {
             'type': dict,
