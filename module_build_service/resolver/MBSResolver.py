@@ -74,7 +74,8 @@ class MBSResolver(GenericResolver):
 
         :param str name: module's name.
         :param str stream: module's stream.
-        :kwarg str version: module's version. Optional.
+        :kwarg str version: a string or int of the module's version. When None,
+            latest version will be returned.
         :kwarg str context: module's context. Optional.
         :kwarg str state: module's state. Defaults to ``ready``.
         :kwarg bool strict: Normally this function returns None if no module can be
@@ -111,7 +112,11 @@ class MBSResolver(GenericResolver):
             else:
                 return None
 
-        return modules
+        if version is None:
+            # Only return the latest version
+            return [m for m in modules if m["version"] == modules[0]["version"]]
+        else:
+            return modules
 
     def _get_module(self, name, stream, version, context, state="ready", strict=False):
         return self._get_modules(name, stream, version, context, state, strict)[0]
