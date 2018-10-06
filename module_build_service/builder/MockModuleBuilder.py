@@ -46,7 +46,8 @@ from module_build_service.builder.utils import (
     get_koji_config
 )
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
-from module_build_service.models import ModuleBuild
+
+from module_build_service import models
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -85,6 +86,7 @@ class MockModuleBuilder(GenericBuilder):
     @module_build_service.utils.validate_koji_tag('tag_name')
     def __init__(self, owner, module, config, tag_name, components):
         self.module_str = module.name
+        self.module = module
         self.tag_name = tag_name
         self.config = config
         self.groups = []
@@ -168,7 +170,7 @@ class MockModuleBuilder(GenericBuilder):
         pkglist_f = open(pkglist, "w")
 
         # Generate the mmd the same way as pungi does.
-        m1 = ModuleBuild.query.filter(ModuleBuild.name == self.module_str).one()
+        m1 = models.ModuleBuild.query.filter(models.ModuleBuild.name == self.module_str).one()
         m1_mmd = m1.mmd()
         artifacts = Modulemd.SimpleSet()
 
@@ -508,8 +510,11 @@ class MockModuleBuilder(GenericBuilder):
         pass
 
     def finalize(self):
-        # One last createrepo, to include the module metadata.
-        self._createrepo(include_module_yaml=True)
+        # If the state is "done", run one last createrepo, to include
+        # the module metadata. We don't want to do this for failed builds,
+        # since that makes it impossible to retry a build manually.
+        if self.module.state == models.BUILD_STATES["done"]:
+            self._createrepo(include_module_yaml=True)
 
 
 class BaseBuilder(object):
