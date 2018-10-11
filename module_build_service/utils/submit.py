@@ -239,36 +239,14 @@ def get_prefixed_version(mmd):
             return version
 
         # The platform version (e.g. prefix1.2.0 => 010200)
-        version_prefix = ''
-        for char in base_module_stream:
-            try:
-                # See if the current character is an integer, signifying the version
-                # has started
-                int(char)
-                version_prefix += char
-            except ValueError:
-                # If version_prefix isn't set, then a digit hasn't been encountered
-                if version_prefix:
-                    # If the character is a period and the version_prefix is set, then
-                    # the loop is still processing the version part of the stream
-                    if char == '.':
-                        version_prefix += '.'
-                    # If the version_prefix is set and the character is not a period or
-                    # digit, then the remainder of the stream is a suffix like "-beta"
-                    else:
-                        break
-
-        # Remove the periods and pad the numbers if necessary
-        version_prefix = ''.join([section.zfill(2) for section in version_prefix.split('.')])
+        version_prefix = models.ModuleBuild.get_stream_version(base_module_stream)
 
         if not version_prefix:
             log.warning('The "{0}" stream "{1}" couldn\'t be used to prefix the module\'s '
                         'version'.format(base_module, base_module_stream))
             return version
 
-        # Since the version must be stored as a number, we convert the string back to
-        # an integer which consequently drops the leading zero if there is one
-        new_version = int(version_prefix + str(version))
+        new_version = int(str(version_prefix) + str(version))
         if new_version > GLib.MAXUINT64:
             log.warning('The "{0}" stream "{1}" caused the module\'s version prefix to be '
                         'too long'.format(base_module, base_module_stream))

@@ -620,6 +620,42 @@ class ModuleBuild(MBSBase):
         return ModuleBuildTrace.query.filter_by(
             module_id=module_id).order_by(ModuleBuildTrace.state_time).all()
 
+    @staticmethod
+    def get_stream_version(stream):
+        """
+        Parse the supplied stream to find its version.
+
+        This will parse a stream such as "f27" and return 270000. Another example would be a stream
+        of "f27.0.1" and return 270001.
+        :param str stream: the module stream
+        :return: a stream version represented as an integer
+        :rtype: int or None if the stream doesn't have a valid version
+        """
+        # The platform version (e.g. prefix1.2.0 => 010200)
+        version = ''
+        for char in stream:
+            # See if the current character is an integer, signifying the version has started
+            if char.isdigit():
+                version += char
+            # If version isn't set, then a digit hasn't been encountered
+            elif version:
+                # If the character is a period and the version is set, then
+                # the loop is still processing the version part of the stream
+                if char == '.':
+                    version += '.'
+                # If the version is set and the character is not a period or
+                # digit, then the remainder of the stream is a suffix like "-beta"
+                else:
+                    break
+
+        # Remove the periods and pad the numbers if necessary
+        version = ''.join([section.zfill(2) for section in version.split('.')])
+
+        if version:
+            # Since the version must be stored as a number, we convert the string back to
+            # an integer which consequently drops the leading zero if there is one
+            return int(version)
+
     def __repr__(self):
         return (("<ModuleBuild %s, id=%d, stream=%s, version=%s, state %r,"
                  " batch %r, state_reason %r>")

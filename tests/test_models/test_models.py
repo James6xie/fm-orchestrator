@@ -93,6 +93,11 @@ class TestModels:
         build_one = ModuleBuild.query.get(2)
         assert build_one.siblings == [3, 4]
 
+    def test_get_stream_version(self):
+        """Test the ModuleBuild.get_stream_version method when right_pad is True."""
+        assert ModuleBuild.get_stream_version('f27') == 270000
+        assert ModuleBuild.get_stream_version('f27.02.30') == 270230
+
 
 class TestModelsGetStreamsContexts:
 
