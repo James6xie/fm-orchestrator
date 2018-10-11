@@ -21,6 +21,7 @@
 # Written by Matt Prahl <mprahl@redhat.com>
 
 import json
+from datetime import datetime
 
 import module_build_service.scm
 
@@ -39,6 +40,7 @@ from module_build_service.models import ModuleBuild
 from module_build_service import db, version, Modulemd
 import module_build_service.config as mbs_config
 import module_build_service.scheduler.handlers.modules
+from module_build_service.utils import import_mmd, load_mmd
 
 
 user = ('Homer J. Simpson', set(['packager']))
@@ -172,6 +174,7 @@ class TestViews:
     def test_query_build_with_verbose_mode(self):
         rv = self.client.get('/module-build-service/1/module-builds/2?verbose=true')
         data = json.loads(rv.data)
+        assert data['base_module_buildrequires'] == []
         assert data['component_builds'] == [1, 2]
         assert data['context'] == '00000000'
         # There is no xmd information on this module, so these values should be None
@@ -215,6 +218,21 @@ class TestViews:
         assert data['version'] == '2'
         assert data['rebuild_strategy'] == 'changed-and-after'
         assert data['siblings'] == []
+
+    def test_query_build_with_br_verbose_mode(self):
+        reuse_component_init_data()
+        rv = self.client.get('/module-build-service/1/module-builds/2?verbose=true')
+        data = json.loads(rv.data)
+        assert data['base_module_buildrequires'] == [{
+            'context': '00000000',
+            'id': 1,
+            'name': 'platform',
+            'state': 5,
+            'state_name': 'ready',
+            'stream': 'f28',
+            'stream_version': 280000,
+            'version': '3'
+        }]
 
     def test_pagination_metadata(self):
         rv = self.client.get('/module-build-service/1/module-builds/?per_page=2&page=2')
@@ -662,6 +680,77 @@ class TestViews:
         assert data['error'] == 'Bad Request'
         assert data['message'] == 'An invalid order_by or order_desc_by key was supplied'
 
+    def test_query_base_module_br_filters(self):
+        reuse_component_init_data()
+        mmd = load_mmd(path.join(base_dir, 'staged_data', 'platform.yaml'), True)
+        mmd.set_stream('f30.1.3')
+        import_mmd(db.session, mmd)
+        platform_f300103 = ModuleBuild.query.filter_by(stream='f30.1.3').one()
+        build = ModuleBuild(
+            name='testmodule',
+            stream='master',
+            version=20170109091357,
+            state=5,
+            build_context='dd4de1c346dcf09ce77d38cd4e75094ec1c08ec3',
+            runtime_context='ec4de1c346dcf09ce77d38cd4e75094ec1c08ef7',
+            context='7c29193d',
+            koji_tag='module-testmodule-master-20170109091357-7c29193d',
+            scmurl='git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#ff1ea79',
+            batch=3,
+            owner='Dr. Pepper',
+            time_submitted=datetime(2018, 11, 15, 16, 8, 18),
+            time_modified=datetime(2018, 11, 15, 16, 19, 35),
+            rebuild_strategy='changed-and-after',
+            modulemd='---'
+        )
+        build.buildrequires.append(platform_f300103)
+        db.session.add(build)
+        db.session.commit()
+        # Query by NSVC
+        rv = self.client.get(
+            '/module-build-service/1/module-builds/?base_module_br=platform:f28:3:00000000')
+        data = json.loads(rv.data)
+        assert data['meta']['total'] == 2
+        rv = self.client.get(
+            '/module-build-service/1/module-builds/?base_module_br=platform:f30.1.3:3:00000000')
+        data = json.loads(rv.data)
+        assert data['meta']['total'] == 1
+        # Query by non-existent NVC
+        rv = self.client.get(
+            '/module-build-service/1/module-builds/?base_module_br=platform:f12:3:00000000')
+        data = json.loads(rv.data)
+        assert data['meta']['total'] == 0
+        # Query by name and stream
+        rv = self.client.get('/module-build-service/1/module-builds/?base_module_br_name=platform'
+                             '&base_module_br_stream=f28')
+        data = json.loads(rv.data)
+        assert data['meta']['total'] == 2
+        # Query by stream version
+        rv = self.client.get('/module-build-service/1/module-builds/?base_module_br_stream_version='
+                             '280000')
+        data = json.loads(rv.data)
+        assert data['meta']['total'] == 2
+        # Query by lte stream version
+        rv = self.client.get('/module-build-service/1/module-builds/?base_module_br_stream_version_'
+                             'lte=290000')
+        data = json.loads(rv.data)
+        assert data['meta']['total'] == 2
+        # Query by lte stream version with no results
+        rv = self.client.get('/module-build-service/1/module-builds/?base_module_br_stream_version_'
+                             'lte=270000')
+        data = json.loads(rv.data)
+        assert data['meta']['total'] == 0
+        # Query by gte stream version
+        rv = self.client.get('/module-build-service/1/module-builds/?base_module_br_stream_version_'
+                             'gte=270000')
+        data = json.loads(rv.data)
+        assert data['meta']['total'] == 3
+        # Query by gte stream version with no results
+        rv = self.client.get('/module-build-service/1/module-builds/?base_module_br_stream_version_'
+                             'gte=320000')
+        data = json.loads(rv.data)
+        assert data['meta']['total'] == 0
+
     @pytest.mark.parametrize('api_version', [1, 2])
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
@@ -701,6 +790,15 @@ class TestViews:
         assert data['siblings'] == []
         mmd = Modulemd.Module().new_from_string(data['modulemd'])
         mmd.upgrade()
+
+        # Make sure the buildrequires entry was created
+        module = ModuleBuild.query.get(8)
+        assert len(module.buildrequires) == 1
+        assert module.buildrequires[0].name == 'platform'
+        assert module.buildrequires[0].stream == 'f28'
+        assert module.buildrequires[0].version == '3'
+        assert module.buildrequires[0].context == '00000000'
+        assert module.buildrequires[0].stream_version == 280000
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')

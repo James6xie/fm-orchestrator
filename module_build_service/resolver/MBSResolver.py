@@ -29,10 +29,11 @@ import logging
 import kobo.rpmlib
 import requests
 
-from module_build_service import db
+from module_build_service import db, conf
 from module_build_service import models
 from module_build_service.errors import UnprocessableEntity
 from module_build_service.resolver.base import GenericResolver
+from module_build_service.utils.general import import_mmd
 
 log = logging.getLogger()
 
@@ -363,5 +364,9 @@ class MBSResolver(GenericResolver):
                 raise RuntimeError(
                     'The module "{0}" didn\'t contain either a commit hash or a'
                     ' version in MBS'.format(module_name))
+            # If the module is a base module, then import it in the database so that entries in
+            # the module_builds_to_module_buildrequires table can be created later on
+            if module_name in conf.base_module_names:
+                import_mmd(db.session, mmd)
 
         return new_requires

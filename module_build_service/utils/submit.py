@@ -239,7 +239,7 @@ def get_prefixed_version(mmd):
             return version
 
         # The platform version (e.g. prefix1.2.0 => 010200)
-        version_prefix = models.ModuleBuild.get_stream_version(base_module_stream)
+        version_prefix = models.ModuleBuild.get_stream_version(base_module_stream, right_pad=False)
 
         if not version_prefix:
             log.warning('The "{0}" stream "{1}" couldn\'t be used to prefix the module\'s '

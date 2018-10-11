@@ -98,6 +98,11 @@ class TestModels:
         assert ModuleBuild.get_stream_version('f27') == 270000
         assert ModuleBuild.get_stream_version('f27.02.30') == 270230
 
+    def test_get_stream_version_no_right_pad(self):
+        """Test the ModuleBuild.get_stream_version method when right_pad is False."""
+        assert ModuleBuild.get_stream_version('f27', False) == 27
+        assert ModuleBuild.get_stream_version('f27.02.30', False) == 270230
+
 
 class TestModelsGetStreamsContexts:
 

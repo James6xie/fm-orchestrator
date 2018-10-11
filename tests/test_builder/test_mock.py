@@ -50,18 +50,6 @@ class TestMockModuleBuilder:
         mmd = Modulemd.Module().new_from_file(os.path.join(
             base_dir, '..', 'staged_data', 'testmodule-with-filters.yaml'))
         mmd.upgrade()
-
-        module = ModuleBuild.create(
-            session,
-            conf,
-            name="mbs-testmodule",
-            stream="test",
-            version="20171027111452",
-            modulemd=mmd.dumps(),
-            scmurl="file:///testdir",
-            username="test",
-        )
-        module.koji_tag = "module-mbs-testmodule-test-20171027111452"
         mmd.set_xmd(glib.dict_values({
             'mbs': {
                 'rpms': {
@@ -74,13 +62,16 @@ class TestMockModuleBuilder:
                         'version': '20171024133034',
                         'filtered_rpms': [],
                         'stream': 'master',
-                        'ref': '6df253bb3c53e84706c01b8ab2d5cac24f0b6d45'
+                        'ref': '6df253bb3c53e84706c01b8ab2d5cac24f0b6d45',
+                        'context': '00000000'
                     },
                     'platform': {
                         'version': '20171028112959',
                         'filtered_rpms': [],
                         'stream': 'master',
-                        'ref': '4f7787370a931d57421f9f9555fc41c3e31ff1fa'}
+                        'ref': '4f7787370a931d57421f9f9555fc41c3e31ff1fa',
+                        'context': '00000000'
+                    }
                 },
                 'scmurl': 'file:///testdir',
                 'commit': '5566bc792ec7a03bb0e28edd1b104a96ba342bd8',
@@ -89,11 +80,23 @@ class TestMockModuleBuilder:
                         'version': '20171028112959',
                         'filtered_rpms': [],
                         'stream': 'master',
-                        'ref': '4f7787370a931d57421f9f9555fc41c3e31ff1fa'}
+                        'ref': '4f7787370a931d57421f9f9555fc41c3e31ff1fa',
+                        'context': '00000000'
+                    }
                 }
             }
         }))
-        module.modulemd = mmd.dumps()
+        module = ModuleBuild.create(
+            session,
+            conf,
+            name="mbs-testmodule",
+            stream="test",
+            version="20171027111452",
+            modulemd=mmd.dumps(),
+            scmurl="file:///testdir",
+            username="test",
+        )
+        module.koji_tag = "module-mbs-testmodule-test-20171027111452"
         module.batch = batch
         session.add(module)
 
@@ -101,6 +104,7 @@ class TestMockModuleBuilder:
             cb = ComponentBuild(**dict(build, format="rpms", state=state))
             session.add(cb)
             session.commit()
+        session.commit()
 
         return module
 
