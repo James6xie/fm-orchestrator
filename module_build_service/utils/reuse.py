@@ -334,6 +334,15 @@ def get_reusable_component(session, module, component_name,
                      'previous batches differ.')
             return None
 
+    for pkg_name, pkg in mmd.get_rpm_components().items():
+        if pkg_name not in old_mmd.get_rpm_components():
+            log.info('Cannot re-use. Package lists are different.')
+            return None
+        if set(pkg.get_arches().get()) != \
+                set(old_mmd.get_rpm_components()[pkg_name].get_arches().get()):
+            log.info('Cannot re-use. Architectures are different for package: %s.' % pkg_name)
+            return None
+
     reusable_component = models.ComponentBuild.query.filter_by(
         package=component_name, module_id=previous_module_build.id).one()
     log.debug('Found reusable component!')
