@@ -1,6 +1,16 @@
 Change Log
 ==========
 
+v2.7.0
+------
+* Fix filtering noarch RPMs when generating the Koji CG build information
+* Prefix the module version based on the first base module (e.g. platform) it buildrequires
+* Prefix the component disttag with the first base module stream the module buildrequires
+* Add consistency to the way dependencies were chosen when doing a local build
+* Don't run the final `createrepo` if the module build failed when doing a local build to help debug build errors
+* The config option `base_module_names` is now a list instead of a set, so that there is an order of preference for some operations
+* Set the default `base_module_names` config option to be `['platform']`
+
 v2.6.2
 ------
 * Bugfix:  Set modulemd 'arch' field in arch-specific modulemd files imported to CG build.
