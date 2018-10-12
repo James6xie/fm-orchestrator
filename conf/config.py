@@ -28,7 +28,7 @@ class BaseConfiguration(object):
     MESSAGING_TOPIC_PREFIX = ['org.fedoraproject.prod']
     KOJI_CONFIG = '/etc/module-build-service/koji.conf'
     KOJI_PROFILE = 'koji'
-    KOJI_ARCHES = ['i686', 'armv7hl', 'x86_64']
+    ARCHES = ['i686', 'armv7hl', 'x86_64']
     KOJI_REPOSITORY_URL = 'https://kojipkgs.fedoraproject.org/repos'
     KOJI_TAG_PREFIXES = ['module']
     KOJI_ENABLE_CONTENT_GENERATOR = True

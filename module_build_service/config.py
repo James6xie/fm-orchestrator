@@ -175,7 +175,7 @@ class Config(object):
             'type': str,
             'default': None,
             'desc': 'Koji config profile.'},
-        'koji_arches': {
+        'arches': {
             'type': list,
             'default': [],
             'desc': 'Koji architectures.'},
@@ -415,7 +415,7 @@ class Config(object):
             'default': ['platform'],
             'desc': ("List of base module names which define the product version "
                      "(by their stream) of modules depending on them.")},
-        'base_module_koji_arches': {
+        'base_module_arches': {
             'type': dict,
             'default': {},
             'desc': 'Per base-module name:stream Koji arches list.'},
@@ -642,15 +642,15 @@ class Config(object):
                              .format(strategy, ', '.join(SUPPORTED_STRATEGIES)))
         self._rebuild_strategy = strategy
 
-    def _setifok_base_module_koji_arches(self, data):
+    def _setifok_base_module_arches(self, data):
         if not isinstance(data, dict):
-            raise ValueError("BASE_MODULE_KOJI_ARCHES must be a dict")
+            raise ValueError("BASE_MODULE_ARCHES must be a dict")
         for ns, arches in data.items():
             if len(ns.split(":")) != 2:
-                raise ValueError("BASE_MODULE_KOJI_ARCHES keys must be in 'name:stream' format")
+                raise ValueError("BASE_MODULE_ARCHES keys must be in 'name:stream' format")
             if not isinstance(arches, list):
-                raise ValueError("BASE_MODULE_KOJI_ARCHES values must be lists")
-        self._base_module_koji_arches = data
+                raise ValueError("BASE_MODULE_ARCHES values must be lists")
+        self._base_module_arches = data
 
     def _setifok_rebuild_strategies_allowed(self, strategies):
         if not isinstance(strategies, list):

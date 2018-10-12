@@ -355,3 +355,24 @@ def get_mmd_from_scm(url):
                         whitelist_url=False, mandatory_checks=False)
 
     return mmd
+
+
+def get_build_arches(mmd, config):
+    """
+    Returns the list of architectures for which the module `mmd` should be built.
+
+    :param mmd: Module MetaData
+    :param config: config (module_build_service.config.Config instance)
+    :return list of architectures
+    """
+    arches = config.arches
+
+    # Handle BASE_MODULE_ARCHES. Find out the base modules in buildrequires
+    # section of XMD and set the Koji tag arches according to it.
+    if "mbs" in mmd.get_xmd().keys():
+        for req_name, req_data in mmd.get_xmd()["mbs"]["buildrequires"].items():
+            ns = ":".join([req_name, req_data["stream"]])
+            if ns in config.base_module_arches:
+                arches = config.base_module_arches[ns]
+                break
+    return arches

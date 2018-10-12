@@ -388,12 +388,12 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
 
         :param components: List of comopnent names to compute the weight for.
         :param arches: List of arches to build for or None. If the value is None,
-            conf.koji_arches will be used instead.
+            conf.arches will be used instead.
         :rtype: dict
         :return: {component_name: weight_as_float, ...}
         """
         if not arches:
-            arches = conf.koji_arches
+            arches = conf.arches
 
         weights = {}
 

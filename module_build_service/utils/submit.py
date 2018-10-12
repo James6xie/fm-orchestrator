@@ -175,7 +175,7 @@ def format_mmd(mmd, scmurl, session=None):
                 pkg.set_ref('master')
             if pkg.get_arches().size() == 0:
                 arches = Modulemd.SimpleSet()
-                arches.set(conf.koji_arches)
+                arches.set(conf.arches)
                 pkg.set_arches(arches)
 
         # Add missing data in included modules components

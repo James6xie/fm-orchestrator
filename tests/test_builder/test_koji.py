@@ -412,7 +412,7 @@ class TestKojiBuilder:
         weights = KojiModuleBuilder.get_build_weights(["httpd", "apr"])
         assert weights == {"httpd": 1.5, "apr": 1.5}
 
-    @patch.object(conf, 'base_module_koji_arches',
+    @patch.object(conf, 'base_module_arches',
                   new={"platform:xx": ["x86_64", "i686"]})
     @pytest.mark.parametrize('blocklist', [False, True])
     @pytest.mark.parametrize('custom_whitelist', [False, True])

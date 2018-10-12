@@ -566,7 +566,7 @@ class TestUtils:
             module_build_service.utils.format_mmd(mmd1, None)
 
             for pkg in mmd1.get_rpm_components().values():
-                assert set(pkg.get_arches().get()) == set(conf.koji_arches)
+                assert set(pkg.get_arches().get()) == set(conf.arches)
 
             mmd2 = Modulemd.Module().new_from_file(testmodule_mmd_path)
             mmd2.upgrade()

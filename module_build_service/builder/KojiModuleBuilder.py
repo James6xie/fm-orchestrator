@@ -51,7 +51,7 @@ from module_build_service.errors import ProgrammingError
 
 from module_build_service.builder.base import GenericBuilder
 from module_build_service.builder.KojiContentGenerator import KojiContentGenerator
-from module_build_service.utils import get_reusable_components, get_reusable_module
+from module_build_service.utils import get_reusable_components, get_reusable_module, get_build_arches
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -170,19 +170,10 @@ class KojiModuleBuilder(GenericBuilder):
         log.debug("Using koji_config: %s" % config.koji_config)
 
         self.koji_session = self.get_session(config, owner)
-        self.arches = config.koji_arches
-
-        # Handle BASE_MODULE_KOJI_ARCHES. Find out the base modules in buildrequires
-        # section of XMD and set the Koji tag arches according to it.
-        if "mbs" in self.mmd.get_xmd().keys():
-            for req_name, req_data in self.mmd.get_xmd()["mbs"]["buildrequires"].items():
-                ns = ":".join([req_name, req_data["stream"]])
-                if ns in config.base_module_koji_arches:
-                    self.arches = config.base_module_koji_arches[ns]
-                    break
+        self.arches = get_build_arches(self.mmd, self.config)
 
         if not self.arches:
-            raise ValueError("No koji_arches specified in the config.")
+            raise ValueError("No arches specified in the config.")
 
         # These eventually get populated by calling _connect and __prep is set to True
         self.module_tag = None  # string
