@@ -28,6 +28,7 @@ import pytest
 
 from module_build_service.mmd_resolver import MMDResolver
 from module_build_service import Modulemd
+from module_build_service import glib
 
 
 class TestMMDResolver:
@@ -39,7 +40,7 @@ class TestMMDResolver:
         pass
 
     @staticmethod
-    def _make_mmd(nsvc, requires):
+    def _make_mmd(nsvc, requires, xmd_buildrequires=None, virtual_streams=None):
         name, stream, version = nsvc.split(":", 2)
         mmd = Modulemd.Module()
         mmd.set_mdversion(2)
@@ -50,6 +51,17 @@ class TestMMDResolver:
         licenses = Modulemd.SimpleSet()
         licenses.add("GPL")
         mmd.set_module_licenses(licenses)
+
+        xmd = glib.from_variant_dict(mmd.get_xmd())
+        xmd["mbs"] = {}
+        xmd["mbs"]["buildrequires"] = {}
+        if xmd_buildrequires:
+            for ns in xmd_buildrequires:
+                n, s = ns.split(":")
+                xmd["mbs"]["buildrequires"][n] = {"stream": s}
+        if virtual_streams:
+            xmd["mbs"]["virtual_streams"] = virtual_streams
+        mmd.set_xmd(glib.dict_values(xmd))
 
         if ":" in version:
             version, context = version.split(":")
@@ -156,6 +168,92 @@ class TestMMDResolver:
 
         app = self._make_mmd("app:1:0", buildrequires)
         expanded = self.mmd_resolver.solve(app)
+
+        expected = set(frozenset(["app:1:0:%d:src" % c] + e)
+                       for c, exp in enumerate(expected)
+                       for e in exp)
+
+        assert expanded == expected
+
+    @pytest.mark.parametrize(
+        "buildrequires, xmd_buildrequires, expected", (
+            # BR all platform streams -> build for all platform streams.
+            ({"platform": []}, {}, [
+                [["platform:el8.2.0:0:c0:x86_64"],
+                 ["platform:el8.1.0:0:c0:x86_64"],
+                 ["platform:el8.0.0:0:c0:x86_64"],
+                 ["platform:el7.6.0:0:c0:x86_64"]],
+            ]),
+            # BR "el8" platform stream -> build for all el8 platform streams.
+            ({"platform": ["el8"]}, {}, [
+                [["platform:el8.2.0:0:c0:x86_64"],
+                 ["platform:el8.1.0:0:c0:x86_64"],
+                 ["platform:el8.0.0:0:c0:x86_64"]],
+            ]),
+            # BR "el8.1.0" platfrom stream -> build just for el8.1.0.
+            ({"platform": ["el8"]}, ["platform:el8.1.0"], [
+                [["platform:el8.1.0:0:c0:x86_64"]],
+            ]),
+            # BR platform:el8.1.0 and gtk:3, which is not built against el8.1.0,
+            # but it is built only against el8.0.0 -> cherry-pick gtk:3 from el8.0.0
+            # and build once against platform:el8.1.0.
+            ({"platform": ["el8"], "gtk": ["3"]}, ["platform:el8.1.0"], [
+                [["platform:el8.1.0:0:c0:x86_64", "gtk:3:0:c8:x86_64", ]],
+            ]),
+            # BR platform:el8.2.0 and gtk:3, this time gtk:3 build against el8.2.0 exists
+            # -> use both platform and gtk from el8.2.0 and build once.
+            ({"platform": ["el8"], "gtk": ["3"]}, ["platform:el8.2.0"], [
+                [["platform:el8.2.0:0:c0:x86_64", "gtk:3:1:c8:x86_64", ]],
+            ]),
+            # BR platform:el8.2.0 and mess:1 which is built against platform:el8.1.0 and
+            # requires gtk:3 which is built against platform:el8.2.0 and platform:el8.0.0
+            # -> Use platform:el8.2.0 and
+            # -> cherry-pick mess:1 from el8.1.0 and
+            # -> use gtk:3:1 from el8.2.0.
+            ({"platform": ["el8"], "mess": ["1"]}, ["platform:el8.2.0"], [
+                [["platform:el8.2.0:0:c0:x86_64", "mess:1:0:c0:x86_64", "gtk:3:1:c8:x86_64", ]],
+            ]),
+            # BR platform:el8.1.0 and mess:1 which is built against platform:el8.1.0 and
+            # requires gtk:3 which is built against platform:el8.2.0 and platform:el8.0.0
+            # -> Use platform:el8.1.0 and
+            # -> Used mess:1 from el8.1.0 and
+            # -> cherry-pick gtk:3:0 from el8.0.0.
+            ({"platform": ["el8"], "mess": ["1"]}, ["platform:el8.1.0"], [
+                [["platform:el8.1.0:0:c0:x86_64", "mess:1:0:c0:x86_64", "gtk:3:0:c8:x86_64", ]],
+            ]),
+            # BR platform:el8.0.0 and mess:1 which is built against platform:el8.1.0 and
+            # requires gtk:3 which is built against platform:el8.2.0 and platform:el8.0.0
+            # -> No valid combination, because mess:1 is only available in el8.1.0 and later.
+            ({"platform": ["el8"], "mess": ["1"]}, ["platform:el8.0.0"], []),
+            # This is undefined... it might build just once against latest platform or
+            # against all the platforms... we don't know
+            # ({"platform": ["el8"], "gtk": ["3"]}, {}, [
+            #     [["platform:el8.2.0:0:c0:x86_64", "gtk:3:1:c8:x86_64"]],
+            # ]),
+        )
+    )
+    def test_solve_virtual_streams(self, buildrequires, xmd_buildrequires, expected):
+        modules = (
+            # (nsvc, buildrequires, expanded_buildrequires, virtual_streams)
+            ("platform:el8.0.0:0:c0", {}, {}, ["el8"]),
+            ("platform:el8.1.0:0:c0", {}, {}, ["el8"]),
+            ("platform:el8.2.0:0:c0", {}, {}, ["el8"]),
+            ("platform:el7.6.0:0:c0", {}, {}, ["el7"]),
+            ("gtk:3:0:c8", {"platform": ["el8"]}, {"platform:el8.0.0"}, None),
+            ("gtk:3:1:c8", {"platform": ["el8"]}, {"platform:el8.2.0"}, None),
+            ("mess:1:0:c0", [{"gtk": ["3"], "platform": ["el8"]}], {"platform:el8.1.0"}, None),
+        )
+        for n, req, xmd_br, virtual_streams in modules:
+            self.mmd_resolver.add_modules(self._make_mmd(
+                n, req, xmd_br, virtual_streams))
+
+        app = self._make_mmd("app:1:0", buildrequires, xmd_buildrequires)
+        if not expected:
+            with pytest.raises(RuntimeError):
+                self.mmd_resolver.solve(app)
+            return
+        else:
+            expanded = self.mmd_resolver.solve(app)
 
         expected = set(frozenset(["app:1:0:%d:src" % c] + e)
                        for c, exp in enumerate(expected)

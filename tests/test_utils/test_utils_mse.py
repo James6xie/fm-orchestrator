@@ -70,8 +70,8 @@ class TestUtilsModuleStreamExpansion:
 
         xmd = {
             "mbs": {
-                "buildrequires": [],
-                "requires": [],
+                "buildrequires": {},
+                "requires": {},
                 "commit": "ref_%s" % context,
                 "mse": "true",
             }

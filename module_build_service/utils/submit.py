@@ -222,11 +222,13 @@ def get_prefixed_version(mmd):
         """
         xmd = mmd.get_xmd()
         version = mmd.get_version()
+
         base_module_stream = None
         for base_module in conf.base_module_names:
             # xmd is a GLib Variant and doesn't support .get() syntax
             try:
-                base_module_stream = xmd['mbs']['buildrequires'].get(base_module, {}).get('stream')
+                base_module_stream = xmd['mbs']['buildrequires'].get(
+                    base_module, {}).get('stream')
                 if base_module_stream:
                     # Break after finding the first base module that is buildrequired
                     break

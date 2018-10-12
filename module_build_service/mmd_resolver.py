@@ -27,7 +27,8 @@ import enum
 import collections
 import itertools
 import solv
-from module_build_service import log
+from module_build_service import log, conf
+from module_build_service.models import ModuleBuild
 
 
 class MMDResolverPolicy(enum.Enum):
@@ -45,8 +46,11 @@ class MMDResolver(object):
         self.pool.setarch("x86_64")
         self.build_repo = self.pool.add_repo("build")
         self.available_repo = self.pool.add_repo("available")
+        # Solvable objects representing modules stored in a list grouped by
+        # the name:stream.
+        self.solvables = {}
 
-    def _deps2reqs(self, deps):
+    def _deps2reqs(self, deps, base_module_stream_overrides=None, exact_versions=True):
         """
         Helper method converting dependencies from MMD to solv.Dep instance expressing
         the dependencies in a way libsolv accepts as input.
@@ -55,6 +59,24 @@ class MMDResolver(object):
             deps = [{'gtk': ['1'], 'foo': ['1']}]
         The resulting solv.Dep expression will be:
             ((module(gtk) with module(gtk:1)) and (module(foo) with module(foo:1)))
+
+        Base modules are handled in a special way in case when the stream of base module
+        contains version in the "x.y.z" format. For example "el8.0.0" or "el7.6.0".
+        In this case, the resulting solv.Dep expression for such base module will contain verison
+        string computed using ModuleBuild.get_stream_version() method:
+        For example:
+            module(platform) with module(platform:el8) = 080200
+
+        The stream used to compute the version can be also overriden using the
+        `base_module_stream_overrides` dict which has base module name as a key and
+        the stream which will be used to compute the version as a value.
+        This is needed for cases when module requires just "platform:el8", but was
+        in fact built against particular platform stream, for example platform:el8.1.0.
+        In this case, such module should still require platform:el8, but in particular
+        version which is passed to this method using the `base_module_stream_overrides`.
+
+        When `exact_versions` is set to False, the base module dependency will contain
+        ">=" operator instead of "=".
 
         The "with" syntax is here to allow depending on "module(gtk)" meaning "any gtk".
         This can happen in case {'gtk': []} is used as an input.
@@ -66,6 +88,11 @@ class MMDResolver(object):
             ``Modulemd.Dependencies.get_requires`` or
             ``Modulemd.Dependencies.get_buildrequires`` whose value is
             converted from ``Modulemd.SimpleSet`` to list.
+        :param dict base_module_stream_overrides: The key is base module name, value
+            is the stream string which will be used to compute `version` part of the
+            base module solv.Dep expression.
+        :param bool exact_versions: When set to False, the base module dependency
+            will contain ">=" operator instead of "=".
         :rtype: solv.Dep
         :return: solv.Dep instance with dependencies in form libsolv accepts.
         """
@@ -78,6 +105,8 @@ class MMDResolver(object):
         # or "Requires:".
         # This method creates such solve.Dep.
         stream_dep = lambda n, s: pool.Dep("module(%s:%s)" % (n, s))
+        versioned_stream_dep = lambda n, s, v, op: pool.Dep("module(%s:%s)" % (n, s)).Rel(
+            op, pool.Dep(str(v)))
 
         # There are relations between modules in `deps`. For example:
         #   deps = [{'gtk': ['1'], 'foo': ['1']}]" means "gtk:1 and foo:1" are both required.
@@ -95,6 +124,8 @@ class MMDResolver(object):
             # Contains the solv.Dep requirements for current dict.
             require = None
             for name, streams in dep_dicts.items():
+                is_base_module = name in conf.base_module_names
+
                 # The req_pos will store solv.Dep expression for "positive" requirements.
                 # That is the case of 'gtk': ['1', '2'].
                 # The req_neg will store negative requirements like 'gtk': ['-1', '-2'].
@@ -103,10 +134,65 @@ class MMDResolver(object):
                 # For each stream in `streams` for this dependency, generate the
                 # module(name:stream) solv.Dep and add REL_OR relations between them.
                 for stream in streams:
-                    if stream.startswith("-"):
-                        req_neg = rel_or_dep(req_neg, solv.REL_OR, stream_dep(name, stream[1:]))
+                    if is_base_module:
+                        # Override the stream which is used to compute the stream version in case
+                        # `base_module_stream_overrides` is set.
+                        if base_module_stream_overrides and name in base_module_stream_overrides:
+                            stream_for_version = base_module_stream_overrides[name]
+                        else:
+                            stream_for_version = stream
+
+                        # In case x.y.z versioning is not used for this base module, do not
+                        # use versions solv.Dep.
+                        if len(str(ModuleBuild.get_stream_version(
+                                stream_for_version, right_pad=False))) < 5:
+                            if stream.startswith("-"):
+                                req_neg = rel_or_dep(
+                                    req_neg, solv.REL_OR, stream_dep(name, stream[1:]))
+                            else:
+                                req_pos = rel_or_dep(
+                                    req_pos, solv.REL_OR, stream_dep(name, stream))
+                        else:
+                            # The main reason why to use `exact_versions` is the case when
+                            # adding deps for the input module we want to resolve. This module
+                            # buildrequires exact stream version of base module against which it
+                            # needs for building and we should never pull in different one.
+                            # But for modules which are buildrequires of this input module, we
+                            # want to use "base_module >= stream_version" relation, because they
+                            # can be chery-picked even when newer base module stream_version is
+                            # requested, for example:
+                            # - foo buildrequires bar and also buildrequires platform:el8 = 080100.
+                            # - bar:1 is built against platform:el8.0.0.
+                            # - bar:2 is built against platform:el8.2.0.
+                            # We need libsolv to allow chery-picking "bar:1", and ignore "bar:2",
+                            # because it is built against newer platform stream version than the
+                            # requested and and such newer version can be incompatible with the
+                            # old one. so we express bar's dependencies on platform like this:
+                            # - bar:1 buildrequires platform:el8 >= 080000.
+                            # - bar:2 buildrequires platform:el8 >= 080200.
+                            # Because the "foo" limits the solving to platform:el8 = 080100,
+                            # the bar:2 won't be returned by libsolv, because 080100 < 080200.
+                            # But that bar:1 will be returned by libsovl, because it buildrequires
+                            # platform 080000 which is lesser than 080100.
+                            op = solv.REL_EQ
+                            if not exact_versions:
+                                op |= solv.REL_GT
+                            version = ModuleBuild.get_stream_version(
+                                stream_for_version, right_pad=False)
+                            if stream.startswith("-"):
+                                req_neg = rel_or_dep(
+                                    req_neg, solv.REL_OR,
+                                    versioned_stream_dep(name, stream[1:], version, op))
+                            else:
+                                req_pos = rel_or_dep(
+                                    req_pos, solv.REL_OR,
+                                    versioned_stream_dep(name, stream, version, op))
                     else:
-                        req_pos = rel_or_dep(req_pos, solv.REL_OR, stream_dep(name, stream))
+                        if stream.startswith("-"):
+                            req_neg = rel_or_dep(
+                                req_neg, solv.REL_OR, stream_dep(name, stream[1:]))
+                        else:
+                            req_pos = rel_or_dep(req_pos, solv.REL_OR, stream_dep(name, stream))
 
                 # Generate the module(name) solv.Dep.
                 req = pool.Dep("module(%s)" % name)
@@ -125,6 +211,64 @@ class MMDResolver(object):
             reqs = rel_or_dep(reqs, solv.REL_OR, require)
 
         return reqs
+
+    def _add_virtual_provides(self, solvable, mmd):
+        """
+        Adds "virtual_streams" from XMD section of `mmd` to `solvable`.
+
+        Base modules like "platform" can contain virtual streams which need to be considered
+        when resolving dependencies. For example module "platform:el8.1.0" can provide virtual
+        stream "el8". In this case the solvable will have following additional Provides:
+
+        - module(platform:el8.1.0) = 80100 - Modules can require specific platform stream.
+        - module(platform:el8) = 80100 - Module can also require just platform:el8.
+        """
+        xmd = mmd.get_xmd()
+        # Return in case virtual_streams are not set for this mmd.
+        if "mbs" not in xmd.keys() or "virtual_streams" not in xmd["mbs"].keys():
+            return
+
+        # When depsolving, we will need to follow specific rules to choose the right base
+        # module, like sorting the base modules sharing the same virtual streams based on
+        # their "stream version" - For example stream "el8.1" is lower than stream "el8.2"
+        # and so on. We therefore need to convert the stream and version of base module to
+        # integer representation and add "module($name:$stream) = $stream_based_version"
+        # to Provides.
+        version = ModuleBuild.get_stream_version(
+            mmd.get_stream(), right_pad=False)
+        dep = self.pool.Dep("module(%s:%s)" % (mmd.get_name(), mmd.get_stream())).Rel(
+            solv.REL_EQ, self.pool.Dep(str(version)))
+        solvable.add_deparray(solv.SOLVABLE_PROVIDES, dep)
+
+        # For each virtual stream, add
+        # "module($name:$stream) = $virtual_stream_based_version" provide.
+        for stream in xmd["mbs"]["virtual_streams"]:
+            dep = self.pool.Dep("module(%s:%s)" % (mmd.get_name(), stream)).Rel(
+                solv.REL_EQ, self.pool.Dep(str(version)))
+            solvable.add_deparray(solv.SOLVABLE_PROVIDES, dep)
+
+    def _get_base_module_stream_overrides(self, mmd):
+        """
+        Checks the xmd["mbs"]["buildrequires"] and returns the dict containing
+        base module name as a key and stream of base module against which this
+        module was built. This is later used to override base module streams
+        in the _deps2reqs method.
+
+        :param Modulemd mmd: Metadata of module for which the stream overrides are returned.
+        :rtype: dict
+        :return: Dict with module name as a key and new stream as a value.
+        """
+        overrides = {}
+        if "mbs" in mmd.get_xmd().keys():
+            for base_module_name in conf.base_module_names:
+                if base_module_name not in mmd.get_xmd()["mbs"]["buildrequires"].keys():
+                    continue
+                if "stream" not in mmd.get_xmd()["mbs"]["buildrequires"][base_module_name].keys():
+                    continue
+                stream = mmd.get_xmd()["mbs"]["buildrequires"][base_module_name]["stream"]
+
+                overrides[base_module_name] = stream
+        return overrides
 
     def add_modules(self, mmd):
         """
@@ -146,6 +290,8 @@ class MMDResolver(object):
         normdeps = lambda mmd, fn: [{name: streams.get()
                                      for name, streams in getattr(dep, fn)().items()}
                                     for dep in mmd.get_dependencies()]
+
+        base_module_stream_overrides = self._get_base_module_stream_overrides(mmd)
 
         # Each solvable object has name, version, architecture and list of
         # provides/requires/conflicts which defines its relations with other solvables.
@@ -177,14 +323,24 @@ class MMDResolver(object):
                                   pool.Dep("module(%s:%s)" % (n, s)).Rel(
                                       solv.REL_EQ, pool.Dep(str(v))))
 
+            self._add_virtual_provides(solvable, mmd)
+
             # Fill in the "Requires" of this module, so we can track its dependencies
             # on other modules.
-            requires = self._deps2reqs(normdeps(mmd, "get_requires"))
+            requires = self._deps2reqs(normdeps(mmd, "get_requires"),
+                                       base_module_stream_overrides, False)
+            log.debug("Adding module %s with requires: %r", solvable.name, requires)
             solvable.add_deparray(solv.SOLVABLE_REQUIRES, requires)
 
             # Add "Conflicts: module(name)", because TODO, ask ignatenko.
             solvable.add_deparray(solv.SOLVABLE_CONFLICTS, pool.Dep("module(%s)" % n))
             solvables.append(solvable)
+
+            # Add solvable to solvables list. Sorting is done later in the solve method.
+            ns = ":".join([n, s])
+            if ns not in self.solvables:
+                self.solvables[ns] = []
+            self.solvables[ns].append(solvable)
         else:
             # For input module, we might have multiple buildrequires/requires pairs in the
             # input `mmd`. For example like this:
@@ -224,10 +380,16 @@ class MMDResolver(object):
                 solvable.evr = str(v)
                 solvable.arch = "src"
 
-                requires = self._deps2reqs([normalized_deps[c]])
+                requires = self._deps2reqs([normalized_deps[c]], base_module_stream_overrides)
+                log.debug("Adding module %s with requires: %r", solvable.name, requires)
                 solvable.add_deparray(solv.SOLVABLE_REQUIRES, requires)
 
                 solvables.append(solvable)
+                # Add solvable to solvables list. Sorting is done later in the solve method.
+                ns = ":".join([n, s])
+                if ns not in self.solvables:
+                    self.solvables[ns] = []
+                self.solvables[ns].append(solvable)
 
         return solvables
 
@@ -266,6 +428,10 @@ class MMDResolver(object):
         s2nsvc = lambda s: "%s:%s" % (s.name, s.arch)
         # "solvable to n:s"
         s2ns = lambda s: ":".join(s.name.split(":", 2)[:2])
+
+        # Sort the solvables by version for NSVC in descending order.
+        for ns, unordered_solvables in self.solvables.items():
+            unordered_solvables.sort(key=lambda s: int(s.name.split(":")[2]), reverse=True)
 
         # For each solvable object generated from input module, run the solver.
         # For reasons why there might be multiple solvable objects, please read the
@@ -359,12 +525,27 @@ class MMDResolver(object):
                 # of our jobs - those are the modules we are looking for.
                 newsolvables = solver.transaction().newsolvables()
                 log.debug("Transaction:")
+
                 for s in newsolvables:
                     log.debug("  - %s", s)
+
+                # Skip this alternative in case not all the favored Solvables are in
+                # the solution. For example if we favored gtk:4:1:c8, but it simply
+                # cannot be installed because of other dependencies, we know this is not a
+                # possible combination and we should not treat it as an alternative.
+                all_solvables_found = True
+                for s in opt:
+                    if s not in newsolvables:
+                        all_solvables_found = False
+                        break
+
                 # Append them as an alternative for this src_alternative.
                 # Remember that src_alternatives are grouped by NS or NSVC depending on
                 # MMDResolverPolicy, so there might be more of them.
-                alternative.append(newsolvables)
+                if all_solvables_found:
+                    alternative.append(newsolvables)
+                else:
+                    log.debug("  - ^ Not all favored solvables found in the result, skipping.")
 
         # If the MMDResolverPolicy is First, we will check all the alternatives and keep
         # just the "first" one.
@@ -372,15 +553,37 @@ class MMDResolver(object):
             # Prune
             for transactions in alternatives.values():
                 for ns, trans in transactions.items():
-                    try:
-                        # The transation to keep is defined by the name:stream comparison,
-                        # so we always return the same name:stream if the input is the same.
-                        transactions[ns] = [next(t for t in trans
-                                                 if set(ns) <= set(s2ns(s) for s in t))]
-                    except StopIteration:
-                        # No transactions found for requested N:S
-                        del transactions[ns]
-                        continue
+                    # Each transaction in trans lists all the possible working
+                    # combination of solvables. Our goal here is to find out the
+                    # transaction which installs the most latest Solvables - ideally
+                    # always the latest versions of the Solvables we have, but this might
+                    # not be always possible because of dependencies.
+                    #
+                    # We achieve that by generating sorted_trans list in follwing format:
+                    #   [[transaction_id, [solvable1_index, solvable2_index, ...]], [...], ...]
+                    #
+                    # The solvableN_index is a number saying how new the solvable is. We use
+                    # `self.solvables` to get that number and it is simply index
+                    # of the solvable in the particular self.solvables[name_stream] list.
+                    # The newest solvable has therefore index 0, the next newest solvable index 1
+                    # and so on.
+                    #
+                    # Then we simply sort the `sorted_trans` based on the sum of solvableN_index
+                    # which gives us the transaction with the most recent versions. This is
+                    # used as a solution.
+                    sorted_trans = []
+                    for i, t in enumerate(trans):
+                        idx = []
+                        for s in t:
+                            name_stream = s2ns(s)
+                            if name_stream not in self.solvables:
+                                continue
+                            index = self.solvables[name_stream].index(s)
+                            idx.append(index)
+                        sorted_trans.append([i, idx])
+                    sorted_trans.sort(key=lambda i: sum(i[1]))
+                    if sorted_trans:
+                        transactions[ns] = [trans[sorted_trans[0][0]]]
 
         # Convert the solvables in alternatives to nsvc and return them as set of frozensets.
         return set(frozenset(s2nsvc(s) for s in transactions[0])
