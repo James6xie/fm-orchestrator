@@ -465,6 +465,13 @@ class KojiContentGenerator(object):
         # Check each RPM in `self.rpms_dict` to find out if it can be included in mmd
         # for this architecture.
         for nevra, rpm in self.rpms_dict.items():
+            # Filter out RPMs which will never end up in final modulemd:
+            # - the architecture of an RPM is not multilib architecture for `arch`.
+            # - the architecture of an RPM is not the final mmd architecture.
+            # - the architecture of an RPM is not "noarch".
+            if rpm["arch"] not in multilib_arches and rpm["arch"] not in [arch, "noarch"]:
+                continue
+
             srpm = rpm["srpm_name"]
 
             # Skip the RPM if it is excluded on this arch or exclusive
