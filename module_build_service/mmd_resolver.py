@@ -154,7 +154,7 @@ class MMDResolver(object):
         # comments for more info. Therefore we use list to store them.
         solvables = []
         if c is not None:
-            # If context is not set, the module we are adding should be used as dependencies
+            # If context is set, the module we are adding should be used as dependencies
             # for input module. Therefore add it in "available_repo".
             solvable = self.available_repo.add_solvable()
 
