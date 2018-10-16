@@ -755,9 +755,16 @@ chmod 644 %buildroot/etc/rpm/macros.zz-modules
             else:
                 module_target = self.module_target['name']
 
-            build_opts = {"skip_tag": True,
-                          "mbs_artifact_name": artifact_name,
-                          "mbs_module_target": module_target}
+            build_opts = {
+                "skip_tag": True,
+                "mbs_artifact_name": artifact_name,
+                "mbs_module_target": module_target
+            }
+
+            # disabled by default, wouldn't work until Koji issue #1158 is done
+            if conf.allow_arch_override:
+                build_opts['arch_override'] = \
+                    self.mmd.get_rpm_components()[artifact_name].get_arches().get()
 
             task_id = self.koji_session.build(source, module_target, build_opts,
                                               priority=self.build_priority)

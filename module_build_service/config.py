@@ -179,6 +179,10 @@ class Config(object):
             'type': list,
             'default': [],
             'desc': 'Koji architectures.'},
+        'allow_arch_override': {
+            'type': bool,
+            'default': False,
+            'desc': 'Allow to support a custom architecture set'},
         'koji_build_priority': {
             'type': int,
             'default': 10,

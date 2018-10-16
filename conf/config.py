@@ -29,6 +29,7 @@ class BaseConfiguration(object):
     KOJI_CONFIG = '/etc/module-build-service/koji.conf'
     KOJI_PROFILE = 'koji'
     ARCHES = ['i686', 'armv7hl', 'x86_64']
+    ALLOW_ARCH_OVERRIDE = False
     KOJI_REPOSITORY_URL = 'https://kojipkgs.fedoraproject.org/repos'
     KOJI_TAG_PREFIXES = ['module']
     KOJI_ENABLE_CONTENT_GENERATOR = True
