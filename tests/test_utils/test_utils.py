@@ -144,6 +144,31 @@ class TestUtilsComponentReuse:
             db.session, second_module_build, 'perl-Tangerine')
         assert pt_rv is None
 
+    @pytest.mark.parametrize('set_current_arch', [True, False])
+    @pytest.mark.parametrize('set_database_arch', [True, False])
+    def test_get_reusable_component_different_arches(self, set_database_arch, set_current_arch):
+        second_module_build = models.ModuleBuild.query.filter_by(id=3).one()
+        if set_current_arch:       # set architecture for current build
+            mmd = second_module_build.mmd()
+            arches = Modulemd.SimpleSet()
+            arches.set(['i686'])
+            mmd.get_rpm_components()['tangerine'].set_arches(arches)
+            second_module_build.modulemd = mmd.dumps()
+        if set_database_arch:       # set architecture for build in database
+            second_module_changed_component = models.ComponentBuild.query.filter_by(
+                package='tangerine', module_id=2).one()
+            mmd = second_module_changed_component.module_build.mmd()
+            arches = Modulemd.SimpleSet()
+            arches.set(['i686'])
+            mmd.get_rpm_components()['tangerine'].set_arches(arches)
+            second_module_changed_component.module_build.modulemd = mmd.dumps()
+            db.session.add(second_module_changed_component)
+            db.session.commit()
+
+        tangerine = module_build_service.utils.get_reusable_component(
+            db.session, second_module_build, 'tangerine')
+        assert bool(tangerine is None) != bool(set_current_arch == set_database_arch)
+
     @pytest.mark.parametrize('rebuild_strategy', models.ModuleBuild.rebuild_strategies.keys())
     def test_get_reusable_component_different_buildrequires_hash(self, rebuild_strategy):
         first_module_build = models.ModuleBuild.query.filter_by(id=2).one()

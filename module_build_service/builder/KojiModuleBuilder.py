@@ -51,7 +51,8 @@ from module_build_service.errors import ProgrammingError
 
 from module_build_service.builder.base import GenericBuilder
 from module_build_service.builder.KojiContentGenerator import KojiContentGenerator
-from module_build_service.utils import get_reusable_components, get_reusable_module, get_build_arches
+from module_build_service.utils import get_reusable_components, get_reusable_module
+from module_build_service.utils import get_build_arches
 
 logging.basicConfig(level=logging.DEBUG)
 
