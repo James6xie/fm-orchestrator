@@ -272,23 +272,14 @@ class MBSResolver(GenericResolver):
 
     def resolve_requires(self, requires):
         """
-        Takes `requires` dict with module_name as key and module_stream as value.
-        Resolves the stream to particular latest version of a module and returns
-        new dict in following format:
-
-        {
-            "module_name": {
-                "ref": module_commit_hash,
-                "stream": original_module_stream,
-                "version": module_version
-            },
-            ...
-        }
-
+        Resolves the requires list of N:S or N:S:V:C to a dictionary with keys as
+        the module name and the values as a dictionary with keys of ref,
+        stream, version.
         If there are some modules loaded by utils.load_local_builds(...), these
-        local modules will be considered when resolving the requires.
-
-        Raises RuntimeError on MBS lookup error.
+        local modules will be considered when resolving the requires. A RuntimeError
+        is raised on MBS lookup errors.
+        :param requires: a list of N:S or N:S:V:C strings
+        :return: a dictionary
         """
         new_requires = {}
         for nsvc in requires:

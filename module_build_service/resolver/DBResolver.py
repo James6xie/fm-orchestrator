@@ -175,7 +175,7 @@ class DBResolver(GenericResolver):
         If there are some modules loaded by utils.load_local_builds(...), these
         local modules will be considered when resolving the requires. A RuntimeError
         is raised on DB lookup errors.
-        :param requires: a dictionary with the module name as the key and the stream as the value
+        :param requires: a list of N:S or N:S:V:C strings
         :return: a dictionary
         """
         new_requires = {}
