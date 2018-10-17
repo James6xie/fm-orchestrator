@@ -166,6 +166,15 @@ class MBSBase(db.Model):
     __abstract__ = True
 
 
+module_builds_to_module_buildrequires = db.Table(
+    'module_builds_to_module_buildrequires',
+    db.Column('module_id', db.Integer, db.ForeignKey('module_builds.id'), nullable=False),
+    db.Column('module_buildrequire_id', db.Integer, db.ForeignKey('module_builds.id'),
+              nullable=False),
+    db.UniqueConstraint('module_id', 'module_buildrequire_id', name='unique_buildrequires')
+)
+
+
 class ModuleBuild(MBSBase):
     __tablename__ = "module_builds"
     id = db.Column(db.Integer, primary_key=True)
@@ -194,6 +203,16 @@ class ModuleBuild(MBSBase):
     # iteration this module is currently on for successive rebuilds of its
     # components.  Think like 'mockchain --recurse'
     batch = db.Column(db.Integer, default=0)
+
+    # This is only used for base modules for ordering purposes (f27.0.1 => 270001)
+    stream_version = db.Column(db.Integer)
+    buildrequires = db.relationship(
+        'ModuleBuild',
+        secondary=module_builds_to_module_buildrequires,
+        primaryjoin=module_builds_to_module_buildrequires.c.module_id == id,
+        secondaryjoin=module_builds_to_module_buildrequires.c.module_buildrequire_id == id,
+        backref='buildrequire_for'
+    )
 
     rebuild_strategies = {
         'all': 'All components will be rebuilt',
@@ -429,6 +448,11 @@ class ModuleBuild(MBSBase):
         # Add a state transition to "init"
         mbt = ModuleBuildTrace(state_time=now, state=module.state)
         module.module_builds_trace.append(mbt)
+
+        # Record the base modules this module buildrequires
+        for base_module in module.get_buildrequired_base_modules():
+            module.buildrequires.append(base_module)
+
         session.add(module)
         session.commit()
         if publish_msg:
@@ -535,8 +559,8 @@ class ModuleBuild(MBSBase):
 
         return query.first()
 
-    def short_json(self):
-        return {
+    def short_json(self, show_stream_version=False):
+        rv = {
             'id': self.id,
             'state': self.state,
             'state_name': INVERSE_BUILD_STATES[self.state],
@@ -545,6 +569,9 @@ class ModuleBuild(MBSBase):
             'name': self.name,
             'context': self.context,
         }
+        if show_stream_version:
+            rv['stream_version'] = self.stream_version
+        return rv
 
     def json(self, show_tasks=True):
         json = self.short_json()
@@ -576,7 +603,9 @@ class ModuleBuild(MBSBase):
         state_url = None
         if show_state_url:
             state_url = get_url_for('module_build', api_version=api_version, id=self.id)
+
         json.update({
+            'base_module_buildrequires': [br.short_json(True) for br in self.buildrequires],
             'build_context': self.build_context,
             'modulemd': self.modulemd,
             'ref_build_context': self.ref_build_context,
@@ -619,6 +648,78 @@ class ModuleBuild(MBSBase):
     def state_trace(self, module_id):
         return ModuleBuildTrace.query.filter_by(
             module_id=module_id).order_by(ModuleBuildTrace.state_time).all()
+
+    @staticmethod
+    def get_stream_version(stream, right_pad=True):
+        """
+        Parse the supplied stream to find its version.
+
+        This will parse a stream such as "f27" and return 270000. Another example would be a stream
+        of "f27.0.1" and return 270001.
+        :param str stream: the module stream
+        :kwarg bool right_pad: determines if the right side of the stream version should be padded
+            with zeroes (e.g. `f27` => `27` vs `270000`)
+        :return: a stream version represented as an integer
+        :rtype: int or None if the stream doesn't have a valid version
+        """
+        # The platform version (e.g. prefix1.2.0 => 010200)
+        version = ''
+        for char in stream:
+            # See if the current character is an integer, signifying the version has started
+            if char.isdigit():
+                version += char
+            # If version isn't set, then a digit hasn't been encountered
+            elif version:
+                # If the character is a period and the version is set, then
+                # the loop is still processing the version part of the stream
+                if char == '.':
+                    version += '.'
+                # If the version is set and the character is not a period or
+                # digit, then the remainder of the stream is a suffix like "-beta"
+                else:
+                    break
+
+        # Remove the periods and pad the numbers if necessary
+        version = ''.join([section.zfill(2) for section in version.split('.')])
+
+        if version:
+            if right_pad:
+                version += (6 - len(version)) * '0'
+            # Since the version must be stored as a number, we convert the string back to
+            # an integer which consequently drops the leading zero if there is one
+            return int(version)
+
+    def get_buildrequired_base_modules(self):
+        """
+        Find the base modules in the modulemd's xmd section.
+
+        :return: a list of ModuleBuild objects of the base modules that are buildrequired with the
+            ordering in conf.base_module_names preserved
+        :rtype: list
+        :raises RuntimeError: when the xmd section isn't properly filled out by MBS
+        """
+        rv = []
+        xmd = self.mmd().get_xmd()
+        with make_session(conf) as db_session:
+            for bm in conf.base_module_names:
+                # xmd is a GLib Variant and doesn't support .get() syntax
+                try:
+                    bm_dict = xmd['mbs']['buildrequires'].get(bm)
+                except KeyError:
+                    raise RuntimeError(
+                        'The module\'s mmd is missing information in the xmd section')
+
+                if not bm_dict:
+                    continue
+                base_module = self.get_build_from_nsvc(
+                    db_session, bm, bm_dict['stream'], bm_dict['version'], bm_dict['context'])
+                if not base_module:
+                    log.error('Module #{} buildrequires "{}" but it wasn\'t found in the database'
+                              .format(self.id, repr(bm_dict)))
+                    continue
+                rv.append(base_module)
+
+        return rv
 
     def __repr__(self):
         return (("<ModuleBuild %s, id=%d, stream=%s, version=%s, state %r,"

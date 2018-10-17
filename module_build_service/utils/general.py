@@ -334,6 +334,8 @@ def import_mmd(session, mmd):
     build.time_submitted = datetime.utcnow()
     build.time_modified = datetime.utcnow()
     build.time_completed = datetime.utcnow()
+    if build.name in conf.base_module_names:
+        build.stream_version = models.ModuleBuild.get_stream_version(stream)
     session.add(build)
     session.commit()
     msg = "Module {} imported".format(nsvc)

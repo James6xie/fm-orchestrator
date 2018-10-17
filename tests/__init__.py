@@ -293,6 +293,8 @@ def scheduler_init_data(tangerine_state=None):
     mmd.upgrade()
     mmd.get_rpm_components()['tangerine'].set_buildorder(0)
 
+    platform_br = module_build_service.models.ModuleBuild.query.get(1)
+
     build_one = module_build_service.models.ModuleBuild()
     build_one.name = 'testmodule'
     build_one.stream = 'master'
@@ -314,6 +316,7 @@ def scheduler_init_data(tangerine_state=None):
     build_one.rebuild_strategy = 'changed-and-after'
     build_one.modulemd = mmd.dumps()
     build_one_component_release = get_rpm_release(build_one)
+    build_one.buildrequires.append(platform_br)
 
     component_one_build_one = module_build_service.models.ComponentBuild()
     component_one_build_one.package = 'perl-Tangerine'
@@ -381,6 +384,7 @@ def scheduler_init_data(tangerine_state=None):
     component_four_build_one.build_time_only = True
 
     with make_session(conf) as session:
+        session.add(platform_br)
         session.add(build_one)
         session.add(component_one_build_one)
         session.add(component_two_build_one)
@@ -397,6 +401,8 @@ def reuse_component_init_data():
         current_dir, 'staged_data', 'formatted_testmodule.yaml')
     mmd = Modulemd.Module().new_from_file(formatted_testmodule_yml_path)
     mmd.upgrade()
+
+    platform_br = module_build_service.models.ModuleBuild.query.get(1)
 
     build_one = module_build_service.models.ModuleBuild()
     build_one.name = 'testmodule'
@@ -422,6 +428,7 @@ def reuse_component_init_data():
     xmd['mbs']['commit'] = 'ff1ea79fc952143efeed1851aa0aa006559239ba'
     mmd.set_xmd(glib.dict_values(xmd))
     build_one.modulemd = mmd.dumps()
+    build_one.buildrequires.append(platform_br)
 
     component_one_build_one = module_build_service.models.ComponentBuild()
     component_one_build_one.package = 'perl-Tangerine'
@@ -506,6 +513,7 @@ def reuse_component_init_data():
     xmd['mbs']['commit'] = '55f4a0a2e6cc255c88712a905157ab39315b8fd8'
     mmd.set_xmd(glib.dict_values(xmd))
     build_two.modulemd = mmd.dumps()
+    build_two.buildrequires.append(platform_br)
 
     component_one_build_two = module_build_service.models.ComponentBuild()
     component_one_build_two.package = 'perl-Tangerine'
@@ -550,6 +558,7 @@ def reuse_component_init_data():
     component_four_build_two.build_time_only = True
 
     with make_session(conf) as session:
+        session.add(platform_br)
         session.add(build_one)
         session.add(component_one_build_one)
         session.add(component_two_build_one)

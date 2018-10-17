@@ -29,6 +29,7 @@ from datetime import datetime
 
 from flask import request, url_for, Response
 from sqlalchemy.sql.sqltypes import Boolean as sqlalchemy_boolean
+from sqlalchemy.orm import aliased
 
 from module_build_service import models, api_version, conf
 from module_build_service.errors import ValidationError, NotFound
@@ -264,6 +265,55 @@ def filter_module_builds(flask_request):
                     query = query.filter(column >= item_datetime)
                 elif context == 'before':
                     query = query.filter(column <= item_datetime)
+
+    br_joined = False
+    module_br_alias = None
+    for item in ('base_module_br', 'name', 'stream', 'version', 'context', 'stream_version',
+                 'stream_version_lte', 'stream_version_gte'):
+        if item == 'base_module_br':
+            request_arg_name = item
+        else:
+            request_arg_name = 'base_module_br_{}'.format(item)
+        request_arg = flask_request.args.get(request_arg_name)
+
+        if not request_arg:
+            continue
+
+        if not br_joined:
+            module_br_alias = aliased(models.ModuleBuild, name='module_br')
+            # Shorten this table name for clarity in the query below
+            mb_to_br = models.module_builds_to_module_buildrequires
+            # The following joins get added:
+            # JOIN module_builds_to_module_buildrequires
+            #     ON module_builds_to_module_buildrequires.module_id = module_builds.id
+            # JOIN module_builds AS module_br
+            #     ON module_builds_to_module_buildrequires.module_buildrequire_id = module_br.id
+            query = query.join(mb_to_br, mb_to_br.c.module_id == models.ModuleBuild.id)\
+                         .join(module_br_alias,
+                               mb_to_br.c.module_buildrequire_id == module_br_alias.id)
+            br_joined = True
+
+        if item == 'base_module_br':
+            try:
+                name, stream, version, context = flask_request.args['base_module_br'].split(':')
+            except ValueError:
+                raise ValidationError(
+                    'The filter argument for "base_module_br" must be in the format of N:S:V:C')
+            query = query.filter(
+                module_br_alias.name == name,
+                module_br_alias.stream == stream,
+                module_br_alias.version == version,
+                module_br_alias.context == context
+            )
+        elif item.endswith('_lte'):
+            column = getattr(module_br_alias, item[:-4])
+            query = query.filter(column <= request_arg)
+        elif item.endswith('_gte'):
+            column = getattr(module_br_alias, item[:-4])
+            query = query.filter(column >= request_arg)
+        else:
+            column = getattr(module_br_alias, item)
+            query = query.filter(column == request_arg)
 
     query = _add_order_by_clause(flask_request, query, models.ModuleBuild)
 

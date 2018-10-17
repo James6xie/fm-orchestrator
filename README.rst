@@ -369,6 +369,15 @@ parameters::
     {
       "items": [
         {
+          "base_module_buildrequires": [
+            {
+              "context": "00000000",
+              "name": "platform",
+              "stream": "f29",
+              "stream_version": 290000,
+              "version": "5"
+            }
+          ],
           "component_builds": [
             57047,
             57048
@@ -479,6 +488,16 @@ Filtering module builds
 The module builds can be filtered by a variety of GET parameters. Some of these
 parameters include:
 
+- ``base_module_br`` - the name:stream:version:context of a base module the module buildrequires
+- ``base_module_br_context`` - the context of a base module the module buildrequires
+- ``base_module_br_name`` - the name of a base module the module buildrequires
+- ``base_module_br_stream`` - the stream of a base module the module buildrequires
+- ``base_module_br_stream_version`` - the stream version of a base module the module buildrequires
+- ``base_module_br_stream_version_lte`` - less than or equal to the stream version of a base module
+  the module buildrequires
+- ``base_module_br_stream_version_gte`` - greater than or equal to the stream version of a base
+  module the module buildrequires
+- ``base_module_br_version`` - the version of a base module the module buildrequires
 - ``batch``
 - ``cg_build_koji_tag``
 - ``completed_after`` - Zulu ISO 8601 format e.g. ``completed_after=2016-08-23T09:40:07Z``
