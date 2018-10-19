@@ -679,3 +679,75 @@ def reuse_shared_userspace_init_data():
                 ref=pkgref
             )
             session.add(build)
+
+
+def make_module(nsvc, requires_list, build_requires_list):
+    """
+    Creates new models.ModuleBuild defined by `nsvc` string with requires
+    and buildrequires set according to `requires_list` and `build_requires_list`.
+
+    :param str nsvc: name:stream:version:context of a module.
+    :param list_of_dicts requires_list: List of dictionaries defining the
+        requires in the mmd requires field format.
+    :param list_of_dicts build_requires_list: List of dictionaries defining the
+        build_requires_list in the mmd build_requires_list field format.
+    :rtype: ModuleBuild
+    :return: New Module Build.
+    """
+    name, stream, version, context = nsvc.split(":")
+    mmd = Modulemd.Module()
+    mmd.set_mdversion(2)
+    mmd.set_name(name)
+    mmd.set_stream(stream)
+    mmd.set_version(int(version))
+    mmd.set_context(context)
+    mmd.set_summary("foo")
+    mmd.set_description("foo")
+    licenses = Modulemd.SimpleSet()
+    licenses.add("GPL")
+    mmd.set_module_licenses(licenses)
+
+    if not isinstance(requires_list, list):
+        requires_list = [requires_list]
+    if not isinstance(build_requires_list, list):
+        build_requires_list = [build_requires_list]
+
+    xmd = {
+        "mbs": {
+            "buildrequires": {},
+            "requires": {},
+            "commit": "ref_%s" % context,
+            "mse": "true",
+        }
+    }
+    deps_list = []
+    for requires, build_requires in zip(requires_list, build_requires_list):
+        deps = Modulemd.Dependencies()
+        for req_name, req_streams in requires.items():
+            deps.add_requires(req_name, req_streams)
+        for req_name, req_streams in build_requires.items():
+            deps.add_buildrequires(req_name, req_streams)
+        deps_list.append(deps)
+    mmd.set_dependencies(deps_list)
+    mmd.set_xmd(glib.dict_values(xmd))
+
+    module_build = ModuleBuild()
+    module_build.name = name
+    module_build.stream = stream
+    module_build.version = version
+    module_build.context = context
+    module_build.state = BUILD_STATES['ready']
+    module_build.scmurl = 'git://pkgs.stg.fedoraproject.org/modules/unused.git?#ff1ea79'
+    module_build.batch = 1
+    module_build.owner = 'Tom Brady'
+    module_build.time_submitted = datetime(2017, 2, 15, 16, 8, 18)
+    module_build.time_modified = datetime(2017, 2, 15, 16, 19, 35)
+    module_build.rebuild_strategy = 'changed-and-after'
+    module_build.build_context = context
+    module_build.stream_build_context = context
+    module_build.runtime_context = context
+    module_build.modulemd = mmd.dumps()
+    db.session.add(module_build)
+    db.session.commit()
+
+    return module_build

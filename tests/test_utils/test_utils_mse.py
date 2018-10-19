@@ -18,15 +18,12 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-
-from datetime import datetime
-
 import pytest
 
 import module_build_service.utils
-from module_build_service import models, glib, Modulemd
+from module_build_service import glib
 from module_build_service.errors import StreamAmbigous
-from tests import (db, clean_database)
+from tests import (db, clean_database, make_module)
 
 
 class TestUtilsModuleStreamExpansion:
@@ -36,77 +33,6 @@ class TestUtilsModuleStreamExpansion:
 
     def teardown_method(self, test_method):
         clean_database()
-
-    def _make_module(self, nsvc, requires_list, build_requires_list):
-        """
-        Creates new models.ModuleBuild defined by `nsvc` string with requires
-        and buildrequires set according to `requires_list` and `build_requires_list`.
-
-        :param str nsvc: name:stream:version:context of a module.
-        :param list_of_dicts requires_list: List of dictionaries defining the
-            requires in the mmd requires field format.
-        :param list_of_dicts build_requires_list: List of dictionaries defining the
-            build_requires_list in the mmd build_requires_list field format.
-        :rtype: ModuleBuild
-        :return: New Module Build.
-        """
-        name, stream, version, context = nsvc.split(":")
-        mmd = Modulemd.Module()
-        mmd.set_mdversion(2)
-        mmd.set_name(name)
-        mmd.set_stream(stream)
-        mmd.set_version(int(version))
-        mmd.set_context(context)
-        mmd.set_summary("foo")
-        mmd.set_description("foo")
-        licenses = Modulemd.SimpleSet()
-        licenses.add("GPL")
-        mmd.set_module_licenses(licenses)
-
-        if not isinstance(requires_list, list):
-            requires_list = [requires_list]
-        if not isinstance(build_requires_list, list):
-            build_requires_list = [build_requires_list]
-
-        xmd = {
-            "mbs": {
-                "buildrequires": {},
-                "requires": {},
-                "commit": "ref_%s" % context,
-                "mse": "true",
-            }
-        }
-        deps_list = []
-        for requires, build_requires in zip(requires_list, build_requires_list):
-            deps = Modulemd.Dependencies()
-            for req_name, req_streams in requires.items():
-                deps.add_requires(req_name, req_streams)
-            for req_name, req_streams in build_requires.items():
-                deps.add_buildrequires(req_name, req_streams)
-            deps_list.append(deps)
-        mmd.set_dependencies(deps_list)
-        mmd.set_xmd(glib.dict_values(xmd))
-
-        module_build = module_build_service.models.ModuleBuild()
-        module_build.name = name
-        module_build.stream = stream
-        module_build.version = version
-        module_build.context = context
-        module_build.state = models.BUILD_STATES['ready']
-        module_build.scmurl = 'git://pkgs.stg.fedoraproject.org/modules/unused.git?#ff1ea79'
-        module_build.batch = 1
-        module_build.owner = 'Tom Brady'
-        module_build.time_submitted = datetime(2017, 2, 15, 16, 8, 18)
-        module_build.time_modified = datetime(2017, 2, 15, 16, 19, 35)
-        module_build.rebuild_strategy = 'changed-and-after'
-        module_build.build_context = context
-        module_build.stream_build_context = context
-        module_build.runtime_context = context
-        module_build.modulemd = mmd.dumps()
-        db.session.add(module_build)
-        db.session.commit()
-
-        return module_build
 
     def _get_mmds_required_by_module_recursively(self, module_build):
         """
@@ -127,21 +53,21 @@ class TestUtilsModuleStreamExpansion:
         Generates gtk:1, gtk:2, foo:1 and foo:2 modules requiring the
         platform:f28 and platform:f29 modules.
         """
-        self._make_module("gtk:1:0:c2", {"platform": ["f28"]}, {})
-        self._make_module("gtk:1:0:c3", {"platform": ["f29"]}, {})
-        self._make_module("gtk:2:0:c4", {"platform": ["f28"]}, {})
-        self._make_module("gtk:2:0:c5", {"platform": ["f29"]}, {})
-        self._make_module("foo:1:0:c2", {"platform": ["f28"]}, {})
-        self._make_module("foo:1:0:c3", {"platform": ["f29"]}, {})
-        self._make_module("foo:2:0:c4", {"platform": ["f28"]}, {})
-        self._make_module("foo:2:0:c5", {"platform": ["f29"]}, {})
-        self._make_module("platform:f28:0:c10", {}, {})
-        self._make_module("platform:f29:0:c11", {}, {})
-        self._make_module("app:1:0:c6", {"platform": ["f29"]}, {})
+        make_module("gtk:1:0:c2", {"platform": ["f28"]}, {})
+        make_module("gtk:1:0:c3", {"platform": ["f29"]}, {})
+        make_module("gtk:2:0:c4", {"platform": ["f28"]}, {})
+        make_module("gtk:2:0:c5", {"platform": ["f29"]}, {})
+        make_module("foo:1:0:c2", {"platform": ["f28"]}, {})
+        make_module("foo:1:0:c3", {"platform": ["f29"]}, {})
+        make_module("foo:2:0:c4", {"platform": ["f28"]}, {})
+        make_module("foo:2:0:c5", {"platform": ["f29"]}, {})
+        make_module("platform:f28:0:c10", {}, {})
+        make_module("platform:f29:0:c11", {}, {})
+        make_module("app:1:0:c6", {"platform": ["f29"]}, {})
 
     def test_generate_expanded_mmds_context(self):
         self._generate_default_modules()
-        module_build = self._make_module(
+        module_build = make_module(
             "app:1:0:c1", {"gtk": ["1", "2"]}, {"gtk": ["1", "2"]})
         mmds = module_build_service.utils.generate_expanded_mmds(
             db.session, module_build.mmd())
@@ -230,7 +156,7 @@ class TestUtilsModuleStreamExpansion:
             self, requires, build_requires, stream_ambigous, expected_xmd,
             expected_buildrequires):
         self._generate_default_modules()
-        module_build = self._make_module("app:1:0:c1", requires, build_requires)
+        module_build = make_module("app:1:0:c1", requires, build_requires)
 
         # Check that generate_expanded_mmds raises an exception if stream is ambigous
         # and also that it does not raise an exception otherwise.
@@ -313,7 +239,7 @@ class TestUtilsModuleStreamExpansion:
     ])
     def test_generate_expanded_mmds_requires(self, requires, build_requires, expected):
         self._generate_default_modules()
-        module_build = self._make_module("app:1:0:c1", requires, build_requires)
+        module_build = make_module("app:1:0:c1", requires, build_requires)
         mmds = module_build_service.utils.generate_expanded_mmds(
             db.session, module_build.mmd())
 
@@ -356,7 +282,7 @@ class TestUtilsModuleStreamExpansion:
           'platform:f28:0:c10', 'gtk:1:0:c2', 'gtk:1:0:c3']),
     ])
     def test_get_required_modules_simple(self, requires, build_requires, expected):
-        module_build = self._make_module("app:1:0:c1", requires, build_requires)
+        module_build = make_module("app:1:0:c1", requires, build_requires)
         self._generate_default_modules()
         nsvcs = self._get_mmds_required_by_module_recursively(module_build)
         assert set(nsvcs) == set(expected)
@@ -367,16 +293,16 @@ class TestUtilsModuleStreamExpansion:
         and lorem:1 modules which require base:f29 module requiring
         platform:f29 module :).
         """
-        self._make_module("gtk:1:0:c2", {"foo": ["unknown"]}, {})
-        self._make_module("gtk:1:1:c2", {"foo": ["1"]}, {})
-        self._make_module("foo:1:0:c2", {"bar": ["unknown"]}, {})
-        self._make_module("foo:1:1:c2", {"bar": ["1"], "lorem": ["1"]}, {})
-        self._make_module("bar:1:0:c2", {"base": ["unknown"]}, {})
-        self._make_module("bar:1:1:c2", {"base": ["f29"]}, {})
-        self._make_module("lorem:1:0:c2", {"base": ["unknown"]}, {})
-        self._make_module("lorem:1:1:c2", {"base": ["f29"]}, {})
-        self._make_module("base:f29:0:c3", {"platform": ["f29"]}, {})
-        self._make_module("platform:f29:0:c11", {}, {})
+        make_module("gtk:1:0:c2", {"foo": ["unknown"]}, {})
+        make_module("gtk:1:1:c2", {"foo": ["1"]}, {})
+        make_module("foo:1:0:c2", {"bar": ["unknown"]}, {})
+        make_module("foo:1:1:c2", {"bar": ["1"], "lorem": ["1"]}, {})
+        make_module("bar:1:0:c2", {"base": ["unknown"]}, {})
+        make_module("bar:1:1:c2", {"base": ["f29"]}, {})
+        make_module("lorem:1:0:c2", {"base": ["unknown"]}, {})
+        make_module("lorem:1:1:c2", {"base": ["f29"]}, {})
+        make_module("base:f29:0:c3", {"platform": ["f29"]}, {})
+        make_module("platform:f29:0:c11", {}, {})
 
     @pytest.mark.parametrize('requires,build_requires,expected', [
         ({}, {"gtk": ["1"]},
@@ -388,7 +314,7 @@ class TestUtilsModuleStreamExpansion:
           'bar:1:1:c2', 'lorem:1:1:c2']),
     ])
     def test_get_required_modules_recursion(self, requires, build_requires, expected):
-        module_build = self._make_module("app:1:0:c1", requires, build_requires)
+        module_build = make_module("app:1:0:c1", requires, build_requires)
         self._generate_default_modules_recursion()
         nsvcs = self._get_mmds_required_by_module_recursively(module_build)
         assert set(nsvcs) == set(expected)
