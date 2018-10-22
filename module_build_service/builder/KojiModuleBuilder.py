@@ -265,7 +265,7 @@ class KojiModuleBuilder(GenericBuilder):
                 if component_name not in package_to_rpms:
                     continue
 
-                # Loop through the RPMs associted with the reusable component
+                # Loop through the RPMs associated with the reusable component
                 for nvr in package_to_rpms[component_name]:
                     parsed_nvr = kobo.rpmlib.parse_nvr(nvr)
                     # Don't compare with the epoch
