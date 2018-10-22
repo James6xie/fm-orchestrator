@@ -388,7 +388,7 @@ def submit_module_build_from_yaml(username, handle, stream=None, skiptests=False
         buildopts = mmd.get_rpm_buildopts()
         buildopts["macros"] = buildopts.get("macros", "") + "\n\n%__spec_check_pre exit 0\n"
         mmd.set_rpm_buildopts(buildopts)
-    return submit_module_build(username, None, mmd, None, optional_params)
+    return submit_module_build(username, None, mmd, optional_params)
 
 
 _url_check_re = re.compile(r"^[^:/]+:.*$")
@@ -404,17 +404,16 @@ def submit_module_build_from_scm(username, url, branch, allow_local_url=False,
         url = "file://" + url
     mmd, scm = _fetch_mmd(url, branch, allow_local_url)
 
-    return submit_module_build(username, url, mmd, scm, optional_params)
+    return submit_module_build(username, url, mmd, optional_params)
 
 
-def submit_module_build(username, url, mmd, scm, optional_params=None):
+def submit_module_build(username, url, mmd, optional_params=None):
     """
     Submits new module build.
 
     :param str username: Username of the build's owner.
     :param str url: SCM URL of submitted build.
     :param Modulemd.Module mmd: Modulemd defining the build.
-    :param scm.SCM scm: SCM class representing the cloned git repo.
     :param dict optional_params: Dict with optional params for a build:
         - "local_build" (bool): The module is being built locally (the MBS is
           not running in infra, but on local developer's machine).
