@@ -42,8 +42,7 @@ class TestUtilsModuleStreamExpansion:
         """
         mmd = module_build.mmd()
         module_build_service.utils.expand_mse_streams(db.session, mmd)
-        modules = module_build_service.utils.get_mmds_required_by_module_recursively(
-            db.session, mmd)
+        modules = module_build_service.utils.get_mmds_required_by_module_recursively(mmd)
         nsvcs = [":".join([m.get_name(), m.get_stream(), str(m.get_version()), m.get_context()])
                  for m in modules]
         return nsvcs

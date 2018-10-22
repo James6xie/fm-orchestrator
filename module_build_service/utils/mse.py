@@ -114,13 +114,12 @@ def expand_mse_streams(session, mmd, default_streams=None, raise_if_stream_ambig
         deps.set_buildrequires(expanded)
 
 
-def _get_mmds_from_requires(session, requires, mmds, recursive=False,
+def _get_mmds_from_requires(requires, mmds, recursive=False,
                             default_streams=None, raise_if_stream_ambigous=False):
     """
     Helper method for get_mmds_required_by_module_recursively returning
     the list of module metadata objects defined by `requires` dict.
 
-    :param session: SQLAlchemy DB session.
     :param requires: Modulemd.Module requires or buildrequires.
     :param mmds: Dictionary with already handled name:streams as a keys and lists
         of resulting mmds as values.
@@ -164,13 +163,13 @@ def _get_mmds_from_requires(session, requires, mmds, recursive=False,
         for mmd_list in added_mmds.values():
             for mmd in mmd_list:
                 for deps in mmd.get_dependencies():
-                    mmds = _get_mmds_from_requires(session, deps.get_requires(), mmds, True)
+                    mmds = _get_mmds_from_requires(deps.get_requires(), mmds, True)
 
     return mmds
 
 
 def get_mmds_required_by_module_recursively(
-        session, mmd, default_streams=None, raise_if_stream_ambigous=False):
+        mmd, default_streams=None, raise_if_stream_ambigous=False):
     """
     Returns the list of Module metadata objects of all modules required while
     building the module defined by `mmd` module metadata. This presumes the
@@ -203,7 +202,7 @@ def get_mmds_required_by_module_recursively(
     # At first get all the buildrequires of the module of interest.
     for deps in mmd.get_dependencies():
         mmds = _get_mmds_from_requires(
-            session, deps.get_buildrequires(), mmds, False, default_streams,
+            deps.get_buildrequires(), mmds, False, default_streams,
             raise_if_stream_ambigous)
 
     # Now get the requires of buildrequires recursively.
@@ -211,7 +210,7 @@ def get_mmds_required_by_module_recursively(
         for mmd in mmds[mmd_key]:
             for deps in mmd.get_dependencies():
                 mmds = _get_mmds_from_requires(
-                    session, deps.get_requires(), mmds, True, default_streams,
+                    deps.get_requires(), mmds, True, default_streams,
                     raise_if_stream_ambigous)
 
     # Make single list from dict of lists.
@@ -258,7 +257,7 @@ def generate_expanded_mmds(session, mmd, raise_if_stream_ambigous=False, default
     # and add them to MMDResolver.
     mmd_resolver = MMDResolver()
     mmds_for_resolving = get_mmds_required_by_module_recursively(
-        session, current_mmd, default_streams, raise_if_stream_ambigous)
+        current_mmd, default_streams, raise_if_stream_ambigous)
     for m in mmds_for_resolving:
         mmd_resolver.add_modules(m)
 
