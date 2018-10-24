@@ -22,10 +22,13 @@
 # Written by Matt Prahl <mprahl@redhat.com>
 #            Jan Kaluza <jkaluza@redhat.com>
 
-from module_build_service import log
+from sqlalchemy.orm import aliased
+
+from module_build_service import log, db
 from module_build_service.resolver.base import GenericResolver
 from module_build_service import models
 from module_build_service.errors import UnprocessableEntity
+import sqlalchemy
 
 
 class DBResolver(GenericResolver):
@@ -37,7 +40,8 @@ class DBResolver(GenericResolver):
     def __init__(self, config):
         self.config = config
 
-    def get_module_modulemds(self, name, stream, version=None, context=None, strict=False):
+    def get_module_modulemds(self, name, stream, version=None, context=None, strict=False,
+                             stream_version_lte=False):
         """
         Gets the module modulemds from the resolver.
         :param name: a string of the module's name
@@ -48,6 +52,9 @@ class DBResolver(GenericResolver):
             be returned.
         :kwarg strict: Normally this function returns [] if no module can be
             found.  If strict=True, then a UnprocessableEntity is raised.
+        :kwarg stream_version_lte: If True and if the `stream` can be transformed to
+            "stream version", the returned list will include all the modules with stream version
+            less than or equal the stream version computed from `stream`.
         :return: List of Modulemd metadata instances matching the query
         """
         with models.make_session(self.config) as session:
@@ -55,8 +62,14 @@ class DBResolver(GenericResolver):
                 builds = [models.ModuleBuild.get_build_from_nsvc(
                     session, name, stream, version, context)]
             elif not version and not context:
-                builds = models.ModuleBuild.get_last_builds_in_stream(
-                    session, name, stream)
+                if (stream_version_lte and len(str(models.ModuleBuild.get_stream_version(
+                        stream, right_pad=False))) >= 5):
+                    stream_version = models.ModuleBuild.get_stream_version(stream)
+                    builds = models.ModuleBuild.get_last_builds_in_stream_version_lte(
+                        session, name, stream_version)
+                else:
+                    builds = models.ModuleBuild.get_last_builds_in_stream(
+                        session, name, stream)
             else:
                 raise NotImplementedError(
                     "This combination of name/stream/version/context is not implemented")
@@ -65,6 +78,60 @@ class DBResolver(GenericResolver):
                 raise UnprocessableEntity(
                     "Cannot find any module builds for %s:%s" % (name, stream))
             return [build.mmd() for build in builds]
+
+    def get_buildrequired_modulemds(self, name, stream, base_module_nsvc):
+        """
+        Returns modulemd metadata of all module builds with `name` and `stream` buildrequiring
+        base module defined by `base_module_nsvc` NSVC.
+
+        :param str name: Name of module to return.
+        :param str stream: Stream of module to return.
+        :param str base_module_nsvc: NSVC of base module which must be buildrequired by returned
+            modules.
+        :rtype: list
+        :return: List of modulemd metadata.
+        """
+        log.debug("Looking for %s:%s buildrequiring %s", name, stream, base_module_nsvc)
+        with models.make_session(self.config) as session:
+            query = session.query(models.ModuleBuild)
+            query = query.filter_by(name=name, stream=stream, state=models.BUILD_STATES["ready"])
+
+            module_br_alias = aliased(models.ModuleBuild, name='module_br')
+            # Shorten this table name for clarity in the query below
+            mb_to_br = models.module_builds_to_module_buildrequires
+            # The following joins get added:
+            # JOIN module_builds_to_module_buildrequires
+            #     ON module_builds_to_module_buildrequires.module_id = module_builds.id
+            # JOIN module_builds AS module_br
+            #     ON module_builds_to_module_buildrequires.module_buildrequire_id = module_br.id
+            query = query.join(mb_to_br, mb_to_br.c.module_id == models.ModuleBuild.id)\
+                .join(module_br_alias, mb_to_br.c.module_buildrequire_id == module_br_alias.id)
+
+            # Get only modules buildrequiring particular base_module_nsvc
+            n, s, v, c = base_module_nsvc.split(":")
+            query = query.filter(
+                module_br_alias.name == n, module_br_alias.stream == s,
+                module_br_alias.version == v, module_br_alias.context == c)
+            query = query.order_by(
+                sqlalchemy.cast(models.ModuleBuild.version, db.BigInteger).desc())
+            all_builds = query.all()
+
+            # The `all_builds` list contains builds sorted by "build.version". We need only
+            # the builds with latest version, but in all contexts.
+            builds = []
+            latest_version = None
+            for build in all_builds:
+                if latest_version is None:
+                    latest_version = build.version
+                if latest_version != build.version:
+                    break
+                builds.append(build)
+
+            mmds = [build.mmd() for build in builds]
+            nsvcs = [":".join([mmd.get_name(), mmd.get_stream(),
+                               str(mmd.get_version()), mmd.get_context()]) for mmd in mmds]
+            log.debug("Found: %r", nsvcs)
+            return mmds
 
     def resolve_profiles(self, mmd, keys):
         """

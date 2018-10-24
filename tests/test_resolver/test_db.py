@@ -22,11 +22,14 @@
 
 import os
 
+from datetime import datetime
 from mock import patch, PropertyMock
 import pytest
 
 import module_build_service.resolver as mbs_resolver
 from module_build_service import app, db, models, glib, utils, Modulemd
+from module_build_service.utils import import_mmd, load_mmd
+from module_build_service.models import ModuleBuild
 import tests
 
 
@@ -37,6 +40,54 @@ class TestDBModule:
 
     def setup_method(self):
         tests.reuse_component_init_data()
+
+    def test_get_buildrequired_modulemds(self):
+        mmd = load_mmd(os.path.join(base_dir, 'staged_data', 'platform.yaml'), True)
+        mmd.set_stream('f30.1.3')
+        import_mmd(db.session, mmd)
+        platform_f300103 = ModuleBuild.query.filter_by(stream='f30.1.3').one()
+        mmd.set_name("testmodule")
+        mmd.set_stream("master")
+        mmd.set_version(20170109091357)
+        mmd.set_context("123")
+        build = ModuleBuild(
+            name='testmodule',
+            stream='master',
+            version=20170109091357,
+            state=5,
+            build_context='dd4de1c346dcf09ce77d38cd4e75094ec1c08ec3',
+            runtime_context='ec4de1c346dcf09ce77d38cd4e75094ec1c08ef7',
+            context='7c29193d',
+            koji_tag='module-testmodule-master-20170109091357-7c29193d',
+            scmurl='git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#ff1ea79',
+            batch=3,
+            owner='Dr. Pepper',
+            time_submitted=datetime(2018, 11, 15, 16, 8, 18),
+            time_modified=datetime(2018, 11, 15, 16, 19, 35),
+            rebuild_strategy='changed-and-after',
+            modulemd=mmd.dumps()
+        )
+        build.buildrequires.append(platform_f300103)
+        db.session.add(build)
+        db.session.commit()
+
+        resolver = mbs_resolver.GenericResolver.create(tests.conf, backend='db')
+        result = resolver.get_buildrequired_modulemds(
+            "testmodule", "master", platform_f300103.mmd().dup_nsvc())
+        nsvcs = set([m.dup_nsvc() for m in result])
+        assert nsvcs == set(['testmodule:master:20170109091357:123'])
+
+    @pytest.mark.parametrize('stream_versions', [False, True])
+    def test_get_module_modulemds_stream_versions(self, stream_versions):
+        tests.init_data(1, multiple_stream_versions=True)
+        resolver = mbs_resolver.GenericResolver.create(tests.conf, backend='db')
+        result = resolver.get_module_modulemds(
+            "platform", "f29.1.0", stream_version_lte=stream_versions)
+        nsvcs = set([mmd.dup_nsvc() for mmd in result])
+        if stream_versions:
+            assert nsvcs == set(['platform:f29.1.0:3:00000000', 'platform:f29.0.0:3:00000000'])
+        else:
+            assert nsvcs == set(['platform:f29.1.0:3:00000000'])
 
     @pytest.mark.parametrize('empty_buildrequires', [False, True])
     def test_get_module_build_dependencies(self, empty_buildrequires):

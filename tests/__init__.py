@@ -93,15 +93,27 @@ def clean_database(add_platform_module=True):
         import_mmd(db.session, mmd)
 
 
-def init_data(data_size=10, contexts=False):
+def init_data(data_size=10, contexts=False, multiple_stream_versions=False):
     """
     Creates data_size * 3 modules in database in different states and
     with different component builds. See _populate_data for more info.
 
     :param bool contexts: If True, multiple streams and contexts in each stream
         are generated for 'nginx' module.
+    :param bool multiple_stream_versions: If true, multiple base modules with
+        difference stream versions are generated.
     """
     clean_database()
+    if multiple_stream_versions:
+        mmd = load_mmd(os.path.join(base_dir, 'staged_data', 'platform.yaml'), True)
+        for stream in ["f28.0.0", "f29.0.0", "f29.1.0", "f29.2.0"]:
+            mmd.set_name("platform")
+            mmd.set_stream(stream)
+            import_mmd(db.session, mmd)
+            # Just to possibly confuse tests by adding another base module.
+            mmd.set_name("bootstrap")
+            mmd.set_stream(stream)
+            import_mmd(db.session, mmd)
     with make_session(conf) as session:
         _populate_data(session, data_size, contexts=contexts)
 
@@ -681,7 +693,7 @@ def reuse_shared_userspace_init_data():
             session.add(build)
 
 
-def make_module(nsvc, requires_list, build_requires_list):
+def make_module(nsvc, requires_list, build_requires_list, base_module=None):
     """
     Creates new models.ModuleBuild defined by `nsvc` string with requires
     and buildrequires set according to `requires_list` and `build_requires_list`.
@@ -734,6 +746,7 @@ def make_module(nsvc, requires_list, build_requires_list):
     module_build = ModuleBuild()
     module_build.name = name
     module_build.stream = stream
+    module_build.stream_version = module_build.get_stream_version(stream)
     module_build.version = version
     module_build.context = context
     module_build.state = BUILD_STATES['ready']
@@ -747,6 +760,8 @@ def make_module(nsvc, requires_list, build_requires_list):
     module_build.stream_build_context = context
     module_build.runtime_context = context
     module_build.modulemd = mmd.dumps()
+    if base_module:
+        module_build.buildrequires.append(base_module)
     db.session.add(module_build)
     db.session.commit()
 

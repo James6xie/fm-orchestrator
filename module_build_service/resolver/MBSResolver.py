@@ -70,7 +70,8 @@ class MBSResolver(GenericResolver):
             query["context"] = context
         return query
 
-    def _get_modules(self, name, stream, version=None, context=None, state="ready", strict=False):
+    def _get_modules(self, name, stream, version=None, context=None, state="ready", strict=False,
+                     **kwargs):
         """Query and return modules from MBS with specific info
 
         :param str name: module's name.
@@ -88,6 +89,7 @@ class MBSResolver(GenericResolver):
         query = self._query_from_nsvc(name, stream, version, context, state)
         query["page"] = 1
         query["per_page"] = 10
+        query.update(kwargs)
         modules = []
 
         while True:
@@ -113,7 +115,7 @@ class MBSResolver(GenericResolver):
             else:
                 return None
 
-        if version is None:
+        if version is None and "stream_version_lte" not in kwargs:
             # Only return the latest version
             return [m for m in modules if m["version"] == modules[0]["version"]]
         else:
@@ -122,7 +124,8 @@ class MBSResolver(GenericResolver):
     def _get_module(self, name, stream, version, context, state="ready", strict=False):
         return self._get_modules(name, stream, version, context, state, strict)[0]
 
-    def get_module_modulemds(self, name, stream, version=None, context=None, strict=False):
+    def get_module_modulemds(self, name, stream, version=None, context=None, strict=False,
+                             stream_version_lte=False):
         """
         Gets the module modulemds from the resolver.
         :param name: a string of the module's name
@@ -141,7 +144,13 @@ class MBSResolver(GenericResolver):
         if local_modules:
             return [m.mmd() for m in local_modules]
 
-        modules = self._get_modules(name, stream, version, context, strict=strict)
+        extra_args = {}
+        if (stream_version_lte and len(str(models.ModuleBuild.get_stream_version(
+                stream, right_pad=False))) >= 5):
+            stream_version = models.ModuleBuild.get_stream_version(stream)
+            extra_args["stream_version_lte"] = stream_version
+
+        modules = self._get_modules(name, stream, version, context, strict=strict, **extra_args)
         if not modules:
             return []
 
@@ -158,6 +167,30 @@ class MBSResolver(GenericResolver):
                     return None
 
             mmds.append(self.extract_modulemd(yaml, strict=strict))
+        return mmds
+
+    def get_buildrequired_modulemds(self, name, stream, base_module_nsvc):
+        """
+        Returns modulemd metadata of all module builds with `name` and `stream` buildrequiring
+        base module defined by `base_module_nsvc` NSVC.
+
+        :param str name: Name of module to return.
+        :param str stream: Stream of module to return.
+        :param str base_module_nsvc: NSVC of base module which must be buildrequired by returned
+            modules.
+        :rtype: list
+        :return: List of modulemd metadata.
+        """
+        yaml = None
+        modules = self._get_modules(name, stream, strict=False,
+                                    base_module_br=base_module_nsvc)
+        if not modules:
+            return []
+
+        mmds = []
+        for module in modules:
+            yaml = module['modulemd']
+            mmds.append(self.extract_modulemd(yaml))
         return mmds
 
     def resolve_profiles(self, mmd, keys):

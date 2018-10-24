@@ -22,8 +22,9 @@
 # Written by Ralph Bean <rbean@redhat.com>
 #            Matt Prahl <mprahl@redhat.com>
 #            Jan Kaluza <jkaluza@redhat.com>
-from module_build_service import log, models, Modulemd, db
+from module_build_service import log, models, Modulemd, db, conf
 from module_build_service.errors import StreamAmbigous
+from module_build_service.errors import UnprocessableEntity
 from module_build_service.mmd_resolver import MMDResolver
 from module_build_service import glib
 import module_build_service.resolver
@@ -115,7 +116,8 @@ def expand_mse_streams(session, mmd, default_streams=None, raise_if_stream_ambig
 
 
 def _get_mmds_from_requires(requires, mmds, recursive=False,
-                            default_streams=None, raise_if_stream_ambigous=False):
+                            default_streams=None, raise_if_stream_ambigous=False,
+                            base_module_mmds=None):
     """
     Helper method for get_mmds_required_by_module_recursively returning
     the list of module metadata objects defined by `requires` dict.
@@ -130,6 +132,9 @@ def _get_mmds_from_requires(requires, mmds, recursive=False,
     :param bool raise_if_stream_ambigous: When True, raises a StreamAmbigous exception in case
         there are multiple streams for some dependency of module and the module name is not
         defined in `default_streams`, so it is not clear which stream should be used.
+    :param list base_module_mmds: List of modulemd metadata instances. When set, the
+        returned list contains MMDs build against each base module defined in
+        `base_module_mmds` list.
     :return: Dict with name:stream as a key and list with mmds as value.
     """
     default_streams = default_streams or {}
@@ -139,6 +144,10 @@ def _get_mmds_from_requires(requires, mmds, recursive=False,
     resolver = module_build_service.resolver.system_resolver
 
     for name, streams in requires.items():
+        # Base modules are already added to `mmds`.
+        if name in conf.base_module_names:
+            continue
+
         streams_to_try = streams.get()
         if name in default_streams:
             streams_to_try = [default_streams[name]]
@@ -152,20 +161,60 @@ def _get_mmds_from_requires(requires, mmds, recursive=False,
         # previous call of this method.
         for stream in streams.get():
             ns = "%s:%s" % (name, stream)
-            if ns in mmds:
-                continue
+            if ns not in mmds:
+                mmds[ns] = []
+            if ns not in added_mmds:
+                added_mmds[ns] = []
 
-            mmds[ns] = resolver.get_module_modulemds(name, stream, strict=True)
-            added_mmds[ns] = mmds[ns]
+            if base_module_mmds:
+                for base_module_mmd in base_module_mmds:
+                    base_module_nsvc = ":".join([
+                        base_module_mmd.get_name(), base_module_mmd.get_stream(),
+                        str(base_module_mmd.get_version()), base_module_mmd.get_context()])
+                    mmds[ns] += resolver.get_buildrequired_modulemds(
+                        name, stream, base_module_nsvc)
+            else:
+                mmds[ns] = resolver.get_module_modulemds(name, stream, strict=True)
+            added_mmds[ns] += mmds[ns]
 
     # Get the requires recursively.
     if recursive:
         for mmd_list in added_mmds.values():
             for mmd in mmd_list:
                 for deps in mmd.get_dependencies():
-                    mmds = _get_mmds_from_requires(deps.get_requires(), mmds, True)
+                    mmds = _get_mmds_from_requires(
+                        deps.get_requires(), mmds, True, base_module_mmds=base_module_mmds)
 
     return mmds
+
+
+def _get_base_module_mmds(mmd):
+    """
+    Returns list of MMDs of base modules buildrequired by `mmd` including the compatible
+    old versions of the base module based on the stream version.
+
+    :param Modulemd mmd: Input modulemd metadata.
+    :rtype: list of Modulemd
+    :return: List of MMDs of base modules buildrequired by `mmd`.
+    """
+    seen = set()
+    ret = []
+
+    resolver = module_build_service.resolver.system_resolver
+    for deps in mmd.get_dependencies():
+        buildrequires = deps.get_buildrequires()
+        for name in conf.base_module_names:
+            if name not in buildrequires.keys():
+                continue
+
+            for stream in buildrequires[name].get():
+                ns = ":".join([name, stream])
+                if ns in seen:
+                    continue
+                seen.add(ns)
+                ret += resolver.get_module_modulemds(name, stream, stream_version_lte=True)
+            break
+    return ret
 
 
 def get_mmds_required_by_module_recursively(
@@ -199,11 +248,23 @@ def get_mmds_required_by_module_recursively(
     # handled from DB.
     mmds = {}
 
-    # At first get all the buildrequires of the module of interest.
+    # Get the MMDs of all compatible base modules based on the buildrequires.
+    base_module_mmds = _get_base_module_mmds(mmd)
+    if not base_module_mmds:
+        raise ValueError("No base module found in buildrequires section of %s" % ":".join(
+            [mmd.get_name(), mmd.get_stream(), str(mmd.get_version())]))
+
+    # Add base modules to `mmds`.
+    for base_module in base_module_mmds:
+        ns = ":".join([base_module.get_name(), base_module.get_stream()])
+        mmds.setdefault(ns, [])
+        mmds[ns].append(base_module)
+
+    # Get all the buildrequires of the module of interest.
     for deps in mmd.get_dependencies():
         mmds = _get_mmds_from_requires(
             deps.get_buildrequires(), mmds, False, default_streams,
-            raise_if_stream_ambigous)
+            raise_if_stream_ambigous, base_module_mmds)
 
     # Now get the requires of buildrequires recursively.
     for mmd_key in list(mmds.keys()):
@@ -211,11 +272,14 @@ def get_mmds_required_by_module_recursively(
             for deps in mmd.get_dependencies():
                 mmds = _get_mmds_from_requires(
                     deps.get_requires(), mmds, True, default_streams,
-                    raise_if_stream_ambigous)
+                    raise_if_stream_ambigous, base_module_mmds)
 
     # Make single list from dict of lists.
     res = []
-    for mmds_list in mmds.values():
+    for ns, mmds_list in mmds.items():
+        if len(mmds_list) == 0:
+            raise UnprocessableEntity(
+                "Cannot find any module builds for %s" % (ns))
         res += mmds_list
     return res
 

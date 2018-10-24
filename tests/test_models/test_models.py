@@ -23,7 +23,7 @@
 import os
 
 from tests.test_models import init_data, module_build_from_modulemd
-from tests import init_data as init_data_contexts, clean_database
+from tests import (init_data as init_data_contexts, clean_database)
 from module_build_service import conf, Modulemd
 from module_build_service.models import ComponentBuild, ModuleBuild, make_session
 
@@ -132,3 +132,12 @@ class TestModelsGetStreamsContexts:
             builds = ["%s:%s:%s:%s" % (build.name, build.stream, str(build.version),
                                        build.context) for build in builds]
             assert builds == ['nginx:1:3:d5a6c0fa', 'nginx:1:3:795e97c1']
+
+    def test_get_last_builds_in_stream_version_lte(self):
+        init_data_contexts(1, multiple_stream_versions=True)
+        with make_session(conf) as session:
+            builds = ModuleBuild.get_last_builds_in_stream_version_lte(
+                session, "platform", 290100)
+            builds = set(["%s:%s:%s:%s" % (build.name, build.stream, str(build.version),
+                                           build.context) for build in builds])
+            assert builds == set(['platform:f29.0.0:3:00000000', 'platform:f29.1.0:3:00000000'])

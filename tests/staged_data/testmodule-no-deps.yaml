@@ -9,6 +9,7 @@ data:
         module: [ MIT ]
     dependencies:
         buildrequires:
+            platform: f28
             chineese_food: good
         requires:
             noodles: lomein

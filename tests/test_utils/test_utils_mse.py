@@ -52,22 +52,22 @@ class TestUtilsModuleStreamExpansion:
         Generates gtk:1, gtk:2, foo:1 and foo:2 modules requiring the
         platform:f28 and platform:f29 modules.
         """
-        make_module("gtk:1:0:c2", {"platform": ["f28"]}, {})
-        make_module("gtk:1:0:c3", {"platform": ["f29"]}, {})
-        make_module("gtk:2:0:c4", {"platform": ["f28"]}, {})
-        make_module("gtk:2:0:c5", {"platform": ["f29"]}, {})
-        make_module("foo:1:0:c2", {"platform": ["f28"]}, {})
-        make_module("foo:1:0:c3", {"platform": ["f29"]}, {})
-        make_module("foo:2:0:c4", {"platform": ["f28"]}, {})
-        make_module("foo:2:0:c5", {"platform": ["f29"]}, {})
-        make_module("platform:f28:0:c10", {}, {})
-        make_module("platform:f29:0:c11", {}, {})
-        make_module("app:1:0:c6", {"platform": ["f29"]}, {})
+        platform_f28 = make_module("platform:f28:0:c10", {}, {})
+        platform_f29 = make_module("platform:f29:0:c11", {}, {})
+        make_module("gtk:1:0:c2", {"platform": ["f28"]}, {}, platform_f28)
+        make_module("gtk:1:0:c3", {"platform": ["f29"]}, {}, platform_f29)
+        make_module("gtk:2:0:c4", {"platform": ["f28"]}, {}, platform_f28)
+        make_module("gtk:2:0:c5", {"platform": ["f29"]}, {}, platform_f29)
+        make_module("foo:1:0:c2", {"platform": ["f28"]}, {}, platform_f28)
+        make_module("foo:1:0:c3", {"platform": ["f29"]}, {}, platform_f29)
+        make_module("foo:2:0:c4", {"platform": ["f28"]}, {}, platform_f28)
+        make_module("foo:2:0:c5", {"platform": ["f29"]}, {}, platform_f29)
+        make_module("app:1:0:c6", {"platform": ["f29"]}, {}, platform_f29)
 
     def test_generate_expanded_mmds_context(self):
         self._generate_default_modules()
         module_build = make_module(
-            "app:1:0:c1", {"gtk": ["1", "2"]}, {"gtk": ["1", "2"]})
+            "app:1:0:c1", {"gtk": ["1", "2"]}, {"platform": ["f28"], "gtk": ["1", "2"]})
         mmds = module_build_service.utils.generate_expanded_mmds(
             db.session, module_build.mmd())
         contexts = set([mmd.get_context() for mmd in mmds])
@@ -75,35 +75,30 @@ class TestUtilsModuleStreamExpansion:
 
     @pytest.mark.parametrize(
         'requires,build_requires,stream_ambigous,expected_xmd,expected_buildrequires', [
-            ({"gtk": ["1", "2"]}, {"gtk": ["1", "2"]}, True,
+            ({"gtk": ["1", "2"]},
+             {"platform": ["f28"], "gtk": ["1", "2"]}, True,
              set([
                  frozenset(['platform:f28:0:c10', 'gtk:2:0:c4']),
                  frozenset(['platform:f28:0:c10', 'gtk:1:0:c2'])
              ]),
              set([
-                 frozenset(['gtk:1']),
-                 frozenset(['gtk:2']),
+                 frozenset(['gtk:1', 'platform:f28']),
+                 frozenset(['gtk:2', 'platform:f28']),
              ])),
 
-            ({"foo": ["1"]}, {"foo": ["1"], "gtk": ["1", "2"]}, True,
+            ({"foo": ["1"]},
+             {"platform": ["f28"], "foo": ["1"], "gtk": ["1", "2"]}, True,
              set([
                  frozenset(['foo:1:0:c2', 'gtk:1:0:c2', 'platform:f28:0:c10']),
                  frozenset(['foo:1:0:c2', 'gtk:2:0:c4', 'platform:f28:0:c10'])
              ]),
              set([
-                 frozenset(['foo:1', 'gtk:1']),
-                 frozenset(['foo:1', 'gtk:2'])
+                 frozenset(['foo:1', 'gtk:1', 'platform:f28']),
+                 frozenset(['foo:1', 'gtk:2', 'platform:f28'])
              ])),
 
-            ({"gtk": ["1"], "foo": ["1"]}, {"gtk": ["1"], "foo": ["1"]}, False,
-             set([
-                 frozenset(['foo:1:0:c2', 'gtk:1:0:c2', 'platform:f28:0:c10'])
-             ]),
-             set([
-                 frozenset(['foo:1', 'gtk:1'])
-             ])),
-
-            ({"gtk": ["1"], "foo": ["1"]}, {"gtk": ["1"], "foo": ["1"], "platform": ["f28"]}, False,
+            ({"gtk": ["1"], "foo": ["1"]},
+             {"platform": ["f28"], "gtk": ["1"], "foo": ["1"]}, False,
              set([
                  frozenset(['foo:1:0:c2', 'gtk:1:0:c2', 'platform:f28:0:c10'])
              ]),
@@ -111,44 +106,56 @@ class TestUtilsModuleStreamExpansion:
                  frozenset(['foo:1', 'gtk:1', 'platform:f28'])
              ])),
 
-            ({"gtk": ["-2"], "foo": ["-2"]}, {"gtk": ["-2"], "foo": ["-2"]}, True,
+            ({"gtk": ["1"], "foo": ["1"]},
+             {"gtk": ["1"], "foo": ["1"], "platform": ["f28"]}, False,
              set([
                  frozenset(['foo:1:0:c2', 'gtk:1:0:c2', 'platform:f28:0:c10'])
              ]),
              set([
-                 frozenset(['foo:1', 'gtk:1'])
+                 frozenset(['foo:1', 'gtk:1', 'platform:f28'])
              ])),
 
-            ({"gtk": ["1"], "foo": ["1"]}, {"gtk": ["-1", "1"], "foo": ["-2", "1"]}, False,
+            ({"gtk": ["-2"], "foo": ["-2"]},
+             {"platform": ["f28"], "gtk": ["-2"], "foo": ["-2"]}, True,
              set([
                  frozenset(['foo:1:0:c2', 'gtk:1:0:c2', 'platform:f28:0:c10'])
              ]),
              set([
-                 frozenset(['foo:1', 'gtk:1'])
+                 frozenset(['foo:1', 'gtk:1', 'platform:f28'])
              ])),
 
-            ({"gtk": ["1"], "foo": ["1"]}, {"gtk": ["1"]}, False,
+            ({"gtk": ["1"], "foo": ["1"]},
+             {"platform": ["f28"], "gtk": ["-1", "1"], "foo": ["-2", "1"]}, False,
+             set([
+                 frozenset(['foo:1:0:c2', 'gtk:1:0:c2', 'platform:f28:0:c10'])
+             ]),
+             set([
+                 frozenset(['foo:1', 'gtk:1', 'platform:f28'])
+             ])),
+
+            ({"gtk": ["1"], "foo": ["1"]},
+             {"platform": ["f28"], "gtk": ["1"]}, False,
              set([
                  frozenset(['gtk:1:0:c2', 'platform:f28:0:c10'])
              ]),
              set([
-                 frozenset(['gtk:1'])
+                 frozenset(['gtk:1', 'platform:f28'])
              ])),
 
-            ({"gtk": []}, {"gtk": ["1"]}, True,
+            ({"gtk": []}, {"platform": ["f28"], "gtk": ["1"]}, True,
              set([
                  frozenset(['gtk:1:0:c2', 'platform:f28:0:c10'])
              ]),
              set([
-                 frozenset(['gtk:1'])
+                 frozenset(['gtk:1', 'platform:f28'])
              ])),
 
-            ({}, {"app": ["1"]}, False,
+            ({}, {"platform": ["f29"], "app": ["1"]}, False,
              set([
                  frozenset(['app:1:0:c6', 'platform:f29:0:c11'])
              ]),
              set([
-                 frozenset(['app:1'])
+                 frozenset(['app:1', 'platform:f29'])
              ])),
         ])
     def test_generate_expanded_mmds_buildrequires(
@@ -204,33 +211,36 @@ class TestUtilsModuleStreamExpansion:
         assert buildrequires_per_mmd_buildrequires == expected_buildrequires
 
     @pytest.mark.parametrize('requires,build_requires,expected', [
-        ({"gtk": ["1", "2"]}, {"gtk": ["1", "2"]},
+        ({"gtk": ["1", "2"]}, {"platform": [], "gtk": ["1", "2"]},
          set([
              frozenset(['gtk:1']),
              frozenset(['gtk:2']),
          ])),
 
-        ({"gtk": ["1", "2"]}, {"gtk": ["1"]},
+        ({"gtk": ["1", "2"]}, {"platform": [], "gtk": ["1"]},
          set([
              frozenset(['gtk:1', 'gtk:2']),
          ])),
 
-        ({"gtk": ["1"], "foo": ["1"]}, {"gtk": ["1"], "foo": ["1"]},
+        ({"gtk": ["1"], "foo": ["1"]},
+         {"platform": [], "gtk": ["1"], "foo": ["1"]},
          set([
              frozenset(['foo:1', 'gtk:1']),
          ])),
 
-        ({"gtk": ["-2"], "foo": ["-2"]}, {"gtk": ["-2"], "foo": ["-2"]},
+        ({"gtk": ["-2"], "foo": ["-2"]},
+         {"platform": [], "gtk": ["-2"], "foo": ["-2"]},
          set([
              frozenset(['foo:1', 'gtk:1']),
          ])),
 
-        ({"gtk": ["-1", "1"], "foo": ["-2", "1"]}, {"gtk": ["-1", "1"], "foo": ["-2", "1"]},
+        ({"gtk": ["-1", "1"], "foo": ["-2", "1"]},
+         {"platform": [], "gtk": ["-1", "1"], "foo": ["-2", "1"]},
          set([
              frozenset(['foo:1', 'gtk:1']),
          ])),
 
-        ({"gtk": [], "foo": []}, {"gtk": ["1"], "foo": ["1"]},
+        ({"gtk": [], "foo": []}, {"platform": [], "gtk": ["1"], "foo": ["1"]},
          set([
              frozenset([]),
          ])),
@@ -255,28 +265,29 @@ class TestUtilsModuleStreamExpansion:
         assert requires_per_mmd == expected
 
     @pytest.mark.parametrize('requires,build_requires,expected', [
-        ({}, {"gtk": ["1", "2"]},
+        ({}, {"platform": [], "gtk": ["1", "2"]},
          ['platform:f29:0:c11', 'gtk:2:0:c4', 'gtk:2:0:c5',
           'platform:f28:0:c10', 'gtk:1:0:c2', 'gtk:1:0:c3']),
 
-        ({}, {"gtk": ["1"], "foo": ["1"]},
+        ({}, {"platform": [], "gtk": ["1"], "foo": ["1"]},
          ['platform:f28:0:c10', 'gtk:1:0:c2', 'gtk:1:0:c3',
           'foo:1:0:c2', 'foo:1:0:c3', 'platform:f29:0:c11']),
 
         ({}, {"gtk": ["1"], "foo": ["1"], "platform": ["f28"]},
-         ['platform:f28:0:c10', 'gtk:1:0:c2', 'gtk:1:0:c3',
-          'foo:1:0:c2', 'foo:1:0:c3', 'platform:f29:0:c11']),
+         ['platform:f28:0:c10', 'gtk:1:0:c2',
+          'foo:1:0:c2']),
 
-        ([{}, {}], [{"gtk": ["1"], "foo": ["1"]}, {"gtk": ["2"], "foo": ["2"]}],
+        ([{}, {}], [{"platform": [], "gtk": ["1"], "foo": ["1"]},
+                    {"platform": [], "gtk": ["2"], "foo": ["2"]}],
          ['foo:1:0:c2', 'foo:1:0:c3', 'foo:2:0:c4', 'foo:2:0:c5',
           'platform:f28:0:c10', 'platform:f29:0:c11', 'gtk:1:0:c2',
           'gtk:1:0:c3', 'gtk:2:0:c4', 'gtk:2:0:c5']),
 
-        ({}, {"gtk": ["-2"], "foo": ["-2"]},
+        ({}, {"platform": [], "gtk": ["-2"], "foo": ["-2"]},
          ['foo:1:0:c2', 'foo:1:0:c3', 'platform:f29:0:c11',
           'platform:f28:0:c10', 'gtk:1:0:c2', 'gtk:1:0:c3']),
 
-        ({}, {"gtk": ["-1", "1"], "foo": ["-2", "1"]},
+        ({}, {"platform": [], "gtk": ["-1", "1"], "foo": ["-2", "1"]},
          ['foo:1:0:c2', 'foo:1:0:c3', 'platform:f29:0:c11',
           'platform:f28:0:c10', 'gtk:1:0:c2', 'gtk:1:0:c3']),
     ])
@@ -292,28 +303,52 @@ class TestUtilsModuleStreamExpansion:
         and lorem:1 modules which require base:f29 module requiring
         platform:f29 module :).
         """
-        make_module("gtk:1:0:c2", {"foo": ["unknown"]}, {})
-        make_module("gtk:1:1:c2", {"foo": ["1"]}, {})
-        make_module("foo:1:0:c2", {"bar": ["unknown"]}, {})
-        make_module("foo:1:1:c2", {"bar": ["1"], "lorem": ["1"]}, {})
-        make_module("bar:1:0:c2", {"base": ["unknown"]}, {})
-        make_module("bar:1:1:c2", {"base": ["f29"]}, {})
-        make_module("lorem:1:0:c2", {"base": ["unknown"]}, {})
-        make_module("lorem:1:1:c2", {"base": ["f29"]}, {})
-        make_module("base:f29:0:c3", {"platform": ["f29"]}, {})
-        make_module("platform:f29:0:c11", {}, {})
+        base_module = make_module("platform:f29:0:c11", {}, {})
+        make_module("gtk:1:0:c2", {"foo": ["unknown"]}, {}, base_module)
+        make_module("gtk:1:1:c2", {"foo": ["1"]}, {}, base_module)
+        make_module("foo:1:0:c2", {"bar": ["unknown"]}, {}, base_module)
+        make_module("foo:1:1:c2", {"bar": ["1"], "lorem": ["1"]}, {}, base_module)
+        make_module("bar:1:0:c2", {"base": ["unknown"]}, {}, base_module)
+        make_module("bar:1:1:c2", {"base": ["f29"]}, {}, base_module)
+        make_module("lorem:1:0:c2", {"base": ["unknown"]}, {}, base_module)
+        make_module("lorem:1:1:c2", {"base": ["f29"]}, {}, base_module)
+        make_module("base:f29:0:c3", {"platform": ["f29"]}, {}, base_module)
 
     @pytest.mark.parametrize('requires,build_requires,expected', [
-        ({}, {"gtk": ["1"]},
+        ({}, {"platform": [], "gtk": ["1"]},
          ['foo:1:1:c2', 'base:f29:0:c3', 'platform:f29:0:c11',
           'bar:1:1:c2', 'gtk:1:1:c2', 'lorem:1:1:c2']),
 
-        ({}, {"foo": ["1"]},
+        ({}, {"platform": [], "foo": ["1"]},
          ['foo:1:1:c2', 'base:f29:0:c3', 'platform:f29:0:c11',
           'bar:1:1:c2', 'lorem:1:1:c2']),
     ])
     def test_get_required_modules_recursion(self, requires, build_requires, expected):
         module_build = make_module("app:1:0:c1", requires, build_requires)
         self._generate_default_modules_recursion()
+        nsvcs = self._get_mmds_required_by_module_recursively(module_build)
+        assert set(nsvcs) == set(expected)
+
+    def _generate_default_modules_modules_multiple_stream_versions(self):
+        """
+        Generates the gtk:1 module requiring foo:1 module requiring bar:1
+        and lorem:1 modules which require base:f29 module requiring
+        platform:f29 module :).
+        """
+        f290000 = make_module("platform:f29.0.0:0:c11", {}, {})
+        f290100 = make_module("platform:f29.1.0:0:c11", {}, {})
+        f290200 = make_module("platform:f29.2.0:0:c11", {}, {})
+        make_module("gtk:1:0:c2", {"platform": ["f29"]}, {}, f290000)
+        make_module("gtk:1:1:c2", {"platform": ["f29"]}, {}, f290100)
+        make_module("gtk:1:2:c2", {"platform": ["f29"]}, {}, f290100)
+        make_module("gtk:1:3:c2", {"platform": ["f29"]}, {}, f290200)
+
+    @pytest.mark.parametrize('requires,build_requires,expected', [
+        ({}, {"platform": ["f29.1.0"], "gtk": ["1"]},
+         ['platform:f29.0.0:0:c11', 'gtk:1:0:c2', 'gtk:1:2:c2', 'platform:f29.1.0:0:c11']),
+    ])
+    def test_get_required_modules_stream_versions(self, requires, build_requires, expected):
+        module_build = make_module("app:1:0:c1", requires, build_requires)
+        self._generate_default_modules_modules_multiple_stream_versions()
         nsvcs = self._get_mmds_required_by_module_recursively(module_build)
         assert set(nsvcs) == set(expected)
