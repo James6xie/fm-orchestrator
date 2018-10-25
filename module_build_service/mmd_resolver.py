@@ -332,7 +332,14 @@ class MMDResolver(object):
             log.debug("Adding module %s with requires: %r", solvable.name, requires)
             solvable.add_deparray(solv.SOLVABLE_REQUIRES, requires)
 
-            # Add "Conflicts: module(name)", because TODO, ask ignatenko.
+            # Add "Conflicts: module(name)".
+            # This is needed to prevent installation of multiple streams of single module.
+            # For example:
+            #  - "app:1" requires "foo:1" and "gtk:1".
+            #  - "foo:1" requires "bar:1".
+            #  - "gtk:1" requires "bar:2".
+            # "bar:1" and "bar:2" cannot be installed in the same time and therefore
+            # there need to be conflict defined between them.
             solvable.add_deparray(solv.SOLVABLE_CONFLICTS, pool.Dep("module(%s)" % n))
             solvables.append(solvable)
 

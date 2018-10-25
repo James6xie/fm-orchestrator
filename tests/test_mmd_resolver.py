@@ -260,3 +260,23 @@ class TestMMDResolver:
                        for e in exp)
 
         assert expanded == expected
+
+    def test_solve_stream_conflicts(self):
+        # app requires both gtk:1 and foo:1.
+        # gtk:1 requires bar:1
+        # foo:1 requires bar:2.
+        # We cannot install both bar:1 and bar:2 in the same time.
+        # Therefore the solving should fail.
+        modules = (
+            ("platform:f29:0:c0", {}),
+            ('gtk:1:1:c2', {'bar': ['1']}),
+            ('foo:1:1:c2', {'bar': ['2']}),
+            ('bar:1:0:c2', {'platform': ['f29']}),
+            ('bar:2:0:c2', {'platform': ['f29']}),
+        )
+        for n, req in modules:
+            self.mmd_resolver.add_modules(self._make_mmd(n, req))
+
+        app = self._make_mmd("app:1:0", {'gtk': '1', 'foo': '1'})
+        with pytest.raises(RuntimeError):
+            self.mmd_resolver.solve(app)
