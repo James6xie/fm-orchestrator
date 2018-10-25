@@ -58,7 +58,7 @@ class DBResolver(GenericResolver):
                 builds = models.ModuleBuild.get_last_builds_in_stream(
                     session, name, stream)
             else:
-                raise NotImplemented(
+                raise NotImplementedError(
                     "This combination of name/stream/version/context is not implemented")
 
             if not builds and strict:
