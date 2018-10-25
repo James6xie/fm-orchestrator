@@ -468,8 +468,9 @@ class KojiContentGenerator(object):
             # Filter out RPMs which will never end up in final modulemd:
             # - the architecture of an RPM is not multilib architecture for `arch`.
             # - the architecture of an RPM is not the final mmd architecture.
-            # - the architecture of an RPM is not "noarch".
-            if rpm["arch"] not in multilib_arches and rpm["arch"] not in [arch, "noarch"]:
+            # - the architecture of an RPM is not "noarch" or "src".
+            if (rpm["arch"] not in multilib_arches and
+                    rpm["arch"] not in [arch, "noarch", "src"]):
                 continue
 
             srpm = rpm["srpm_name"]

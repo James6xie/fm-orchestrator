@@ -433,9 +433,11 @@ class TestBuild:
         self._add_test_rpm("dhcp-libs-12:4.3.5-5.module_2118aef6.x86_64", "dhcp")
         self._add_test_rpm("dhcp-libs-12:4.3.5-5.module_2118aef6.i686", "dhcp")
         self._add_test_rpm("dhcp-libs-12:4.3.5-5.module_2118aef6.s390x", "dhcp")
+        self._add_test_rpm("dhcp-libs-12:4.3.5-5.module_2118aef6.src", "dhcp")
         self._add_test_rpm("perl-Tangerine-12:4.3.5-5.module_2118aef6.x86_64", "perl-Tangerine")
         self._add_test_rpm("perl-Tangerine-12:4.3.5-5.module_2118aef6.i686", "perl-Tangerine")
         self._add_test_rpm("perl-Tangerine-12:4.3.5-5.module_2118aef6.s390x", "perl-Tangerine")
+        self._add_test_rpm("perl-Tangerine-12:4.3.5-5.module_2118aef6.src", "perl-Tangerine")
 
         mmd = self.cg.module.mmd()
         mmd = self.cg._fill_in_rpms_list(mmd, "x86_64")
@@ -443,7 +445,9 @@ class TestBuild:
         # Only x86_64 packages should be filled in, because we requested x86_64 arch.
         assert set(mmd.get_rpm_artifacts().get()) == set([
             "dhcp-libs-12:4.3.5-5.module_2118aef6.x86_64",
-            "perl-Tangerine-12:4.3.5-5.module_2118aef6.x86_64"])
+            "dhcp-libs-12:4.3.5-5.module_2118aef6.src",
+            "perl-Tangerine-12:4.3.5-5.module_2118aef6.x86_64",
+            "perl-Tangerine-12:4.3.5-5.module_2118aef6.src"])
 
     def test_fill_in_rpms_exclusivearch(self):
         self._add_test_rpm("dhcp-libs-12:4.3.5-5.module_2118aef6.noarch", "dhcp",
