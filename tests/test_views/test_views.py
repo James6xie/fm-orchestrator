@@ -802,6 +802,23 @@ class TestViews:
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
+    def test_submit_build_no_base_module(self, mocked_scm, mocked_get_user):
+        FakeSCM(mocked_scm, 'testmodule', 'testmodule-no-base-module.yaml',
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+
+        rv = self.client.post('/module-build-service/2/module-builds/', data=json.dumps(
+            {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+                'testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49'}))
+        data = json.loads(rv.data)
+        assert data == {
+            'status': 422,
+            'message': ('None of the base module (platform) streams in the buildrequires section '
+                        'could be found'),
+            'error': 'Unprocessable Entity'
+        }
+
+    @patch('module_build_service.auth.get_user', return_value=user)
+    @patch('module_build_service.scm.SCM')
     @patch('module_build_service.config.Config.rebuild_strategy_allow_override',
            new_callable=PropertyMock, return_value=True)
     def test_submit_build_rebuild_strategy(self, mocked_rmao, mocked_scm, mocked_get_user):

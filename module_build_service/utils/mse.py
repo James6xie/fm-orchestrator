@@ -251,8 +251,10 @@ def get_mmds_required_by_module_recursively(
     # Get the MMDs of all compatible base modules based on the buildrequires.
     base_module_mmds = _get_base_module_mmds(mmd)
     if not base_module_mmds:
-        raise ValueError("No base module found in buildrequires section of %s" % ":".join(
-            [mmd.get_name(), mmd.get_stream(), str(mmd.get_version())]))
+        base_module_choices = ' or '.join(conf.base_module_names)
+        raise UnprocessableEntity(
+            "None of the base module ({}) streams in the buildrequires section could be found"
+            .format(base_module_choices))
 
     # Add base modules to `mmds`.
     for base_module in base_module_mmds:
