@@ -18,12 +18,14 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import os
+
 import pytest
 
 import module_build_service.utils
 from module_build_service import glib
 from module_build_service.errors import StreamAmbigous
-from tests import (db, clean_database, make_module)
+from tests import db, clean_database, make_module, init_data, base_dir
 
 
 class TestUtilsModuleStreamExpansion:
@@ -352,3 +354,24 @@ class TestUtilsModuleStreamExpansion:
         self._generate_default_modules_modules_multiple_stream_versions()
         nsvcs = self._get_mmds_required_by_module_recursively(module_build)
         assert set(nsvcs) == set(expected)
+
+    def test__get_base_module_mmds(self):
+        """Ensure the correct results are returned without duplicates."""
+        init_data(data_size=1, multiple_stream_versions=True)
+        mmd = module_build_service.utils.load_mmd(
+            os.path.join(base_dir, 'staged_data', 'testmodule_v2.yaml'), True)
+        deps = mmd.get_dependencies()
+        brs = deps[0].get_buildrequires()
+        brs['platform'].set(['platform:f29.1.0', 'platform:f29.2.0'])
+        deps[0].set_buildrequires(brs)
+        mmd.set_dependencies(deps)
+
+        mmds = module_build_service.utils.mse._get_base_module_mmds(mmd)
+        expected = set(['platform:f29.0.0', 'platform:f29.1.0', 'platform:f29.2.0'])
+        # Verify no duplicates were returned before doing set operations
+        assert len(mmds) == len(expected)
+        # Verify the expected ones were returned
+        actual = set()
+        for mmd_ in mmds:
+            actual.add('{}:{}'.format(mmd_.get_name(), mmd_.get_stream()))
+        assert actual == expected
