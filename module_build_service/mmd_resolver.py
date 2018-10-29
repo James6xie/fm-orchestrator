@@ -526,8 +526,14 @@ class MMDResolver(object):
                 # Solve the deps and log the dependency issues.
                 problems = solver.solve(jobs)
                 if problems:
-                    raise RuntimeError("Problems were found during solve(): %s" % ", ".join(
-                                       str(p) for p in problems))
+                    problem_str = self._detect_transitive_stream_collision(problems)
+                    if problem_str:
+                        err_msg = problem_str
+                    else:
+                        err_msg = ', '.join(str(p) for p in problems)
+                    raise RuntimeError(
+                        'Problems were found during module dependency resolution: {}'
+                        .format(err_msg))
                 # Find out what was actually resolved by libsolv to be installed as a result
                 # of our jobs - those are the modules we are looking for.
                 newsolvables = solver.transaction().newsolvables()
@@ -596,3 +602,39 @@ class MMDResolver(object):
         return set(frozenset(s2nsvc(s) for s in transactions[0])
                    for src_alternatives in alternatives.values()
                    for transactions in src_alternatives.values())
+
+    @staticmethod
+    def _detect_transitive_stream_collision(problems):
+        """Return problem description if transitive stream collision happens
+
+        Transitive stream collision could happen if different buildrequired
+        modules requires same module but with different streams. For example,
+
+        app:1 --br--> gtk:1 --req--> baz:1* -------- req --------> platform:f29
+             |                                                     ^
+             +--br--> foo:1 --req--> bar:1 --req--> baz:2* --req---|
+
+        as a result, ``baz:1`` will conflicts with ``baz:2``.
+
+        :param problems: list of problems returned from ``solv.Solver.solve``.
+        :return: a string of problem description if transitive stream collision
+            is detected. The description is provided by libsolv without
+            changed. If no such collision, None is returned.
+        :rtype: str or None
+        """
+
+        def find_conflicts_pairs():
+            for problem in problems:
+                for rule in problem.findallproblemrules():
+                    info = rule.info()
+                    if info.type == solv.Solver.SOLVER_RULE_PKG_CONFLICTS:
+                        pair = [info.solvable.name, info.othersolvable.name]
+                        pair.sort()  # only for pretty print
+                        yield pair
+
+        formatted_conflicts_pairs = ', '.join(
+            '{} and {}'.format(*item) for item in find_conflicts_pairs()
+        )
+        if formatted_conflicts_pairs:
+            return 'The module has conflicting buildrequires of: {}'.format(
+                formatted_conflicts_pairs)

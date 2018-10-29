@@ -261,22 +261,68 @@ class TestMMDResolver:
 
         assert expanded == expected
 
-    def test_solve_stream_conflicts(self):
-        # app requires both gtk:1 and foo:1.
-        # gtk:1 requires bar:1
-        # foo:1 requires bar:2.
-        # We cannot install both bar:1 and bar:2 in the same time.
-        # Therefore the solving should fail.
-        modules = (
-            ("platform:f29:0:c0", {}),
-            ('gtk:1:1:c2', {'bar': ['1']}),
-            ('foo:1:1:c2', {'bar': ['2']}),
-            ('bar:1:0:c2', {'platform': ['f29']}),
-            ('bar:2:0:c2', {'platform': ['f29']}),
-        )
+    @pytest.mark.parametrize('app_buildrequires, modules, err_msg_regex', (
+        # app --br--> gtk:1 --req--> bar:1* ---req---> platform:f29
+        #    \--br--> foo:1 --req--> bar:2* ---req--/
+        (
+            {'gtk': '1', 'foo': '1'},
+            (
+                ('platform:f29:0:c0', {}),
+                ('gtk:1:1:c01', {'bar': ['1']}),
+                ('bar:1:0:c02', {'platform': ['f29']}),
+                ('foo:1:1:c03', {'bar': ['2']}),
+                ('bar:2:0:c04', {'platform': ['f29']}),
+            ),
+            'bar:1:0:c02 and bar:2:0:c04',
+        ),
+        # app --br--> gtk:1 --req--> bar:1* ----------req----------> platform:f29
+        #    \--br--> foo:1 --req--> baz:1 --req--> bar:2* --req--/
+        (
+            {'gtk': '1', 'foo': '1'},
+            (
+                ('platform:f29:0:c0', {}),
+
+                ('gtk:1:1:c01', {'bar': ['1']}),
+                ('bar:1:0:c02', {'platform': ['f29']}),
+
+                ('foo:1:1:c03', {'baz': ['1']}),
+                ('baz:1:1:c04', {'bar': ['2']}),
+                ('bar:2:0:c05', {'platform': ['f29']}),
+            ),
+            'bar:1:0:c02 and bar:2:0:c05',
+        ),
+        # Test multiple conflicts pairs are detected.
+        # app --br--> gtk:1 --req--> bar:1* ---------req-----------\
+        #    \--br--> foo:1 --req--> baz:1 --req--> bar:2* ---req---> platform:f29
+        #    \--br--> pkga:1 --req--> perl:5' -------req-----------/
+        #    \--br--> pkgb:1 --req--> perl:6' -------req-----------/
+        (
+            {'gtk': '1', 'foo': '1', 'pkga': '1', 'pkgb': '1'},
+            (
+                ('platform:f29:0:c0', {}),
+
+                ('gtk:1:1:c01', {'bar': ['1']}),
+                ('bar:1:0:c02', {'platform': ['f29']}),
+
+                ('foo:1:1:c03', {'baz': ['1']}),
+                ('baz:1:1:c04', {'bar': ['2']}),
+                ('bar:2:0:c05', {'platform': ['f29']}),
+
+                ('pkga:1:0:c06', {'perl': ['5']}),
+                ('perl:5:0:c07', {'platform': ['f29']}),
+
+                ('pkgb:1:0:c08', {'perl': ['6']}),
+                ('perl:6:0:c09', {'platform': ['f29']}),
+            ),
+            # MMD Resolver should still catch a conflict
+            'bar:1:0:c02 and bar:2:0:c05',
+        ),
+    ))
+    def test_solve_stream_conflicts(self, app_buildrequires, modules, err_msg_regex):
         for n, req in modules:
             self.mmd_resolver.add_modules(self._make_mmd(n, req))
 
-        app = self._make_mmd("app:1:0", {'gtk': '1', 'foo': '1'})
-        with pytest.raises(RuntimeError):
+        app = self._make_mmd("app:1:0", app_buildrequires)
+
+        with pytest.raises(RuntimeError, match=err_msg_regex):
             self.mmd_resolver.solve(app)
