@@ -30,7 +30,7 @@ import json
 import module_build_service.auth
 from flask import request, url_for
 from flask.views import MethodView
-from six import text_type
+from six import text_type, string_types
 
 from module_build_service import app, conf, log, models, db, version, api_version as max_api_version
 from module_build_service.utils import (
@@ -316,10 +316,33 @@ class BaseHandler(object):
     def optional_params(self):
         return {k: v for k, v in self.data.items() if k not in ["owner", "scmurl", "branch"]}
 
+    def _validate_dep_overrides_format(self, key):
+        """
+        Validate any dependency overrides provided to the API.
+
+        :param str key: the override key to validate
+        :raises ValidationError: when the overrides are an invalid format
+        """
+        if not self.data.get(key):
+            return
+        invalid_override_msg = ('The "{}" parameter must be an object with the keys as module '
+                                'names and the values as arrays of streams'.format(key))
+        if not isinstance(self.data[key], dict):
+            raise ValidationError(invalid_override_msg)
+        for streams in self.data[key].values():
+            if not isinstance(streams, list):
+                raise ValidationError(invalid_override_msg)
+            for stream in streams:
+                if not isinstance(stream, string_types):
+                    raise ValidationError(invalid_override_msg)
+
     def validate_optional_params(self):
-        forbidden_params = [k for k in self.data
-                            if k not in models.ModuleBuild.__table__.columns and
-                            k not in ["branch", "rebuild_strategy"]]
+        module_build_columns = set([col.key for col in models.ModuleBuild.__table__.columns])
+        other_params = set([
+            'branch', 'rebuild_strategy', 'buildrequire_overrides', 'require_overrides'])
+        valid_params = other_params | module_build_columns
+
+        forbidden_params = [k for k in self.data if k not in valid_params]
         if forbidden_params:
             raise ValidationError('The request contains unspecified parameters: {}'
                                   .format(", ".join(forbidden_params)))
@@ -338,6 +361,9 @@ class BaseHandler(object):
                     'The rebuild method of "{0}" is not allowed. Choose from: {1}.'
                     .format(self.data['rebuild_strategy'],
                             ', '.join(conf.rebuild_strategies_allowed)))
+
+        self._validate_dep_overrides_format('buildrequire_overrides')
+        self._validate_dep_overrides_format('require_overrides')
 
 
 class SCMHandler(BaseHandler):

@@ -1205,6 +1205,111 @@ class TestViews:
         res2 = submit('git://some.custom.url.org/modules/testmodule.git?#68931c9')
         assert res2.status_code == 201
 
+    @pytest.mark.parametrize('br_override_streams, req_override_streams', (
+        (['f28'], None),
+        (['f28'], ['f28']),
+    ))
+    @patch('module_build_service.auth.get_user', return_value=user)
+    @patch('module_build_service.scm.SCM')
+    def test_submit_build_dep_override(
+            self, mocked_scm, mocked_get_user, br_override_streams, req_override_streams):
+        init_data(data_size=1, multiple_stream_versions=True)
+        FakeSCM(mocked_scm, 'testmodule', 'testmodule_platform_f290000.yaml',
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+
+        post_url = '/module-build-service/2/module-builds/'
+        scm_url = ('git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#68931c90de214d9d13feef'
+                   'bd35246a81b6cb8d49')
+        json_input = {
+            'branch': 'master',
+            'scmurl': scm_url
+        }
+
+        if br_override_streams:
+            json_input['buildrequire_overrides'] = {'platform': br_override_streams}
+            expected_br = set(br_override_streams)
+        else:
+            expected_br = set(['f29.0.0'])
+
+        if req_override_streams:
+            json_input['require_overrides'] = {'platform': req_override_streams}
+            expected_req = set(req_override_streams)
+        else:
+            expected_req = set(['f29.0.0'])
+
+        rv = self.client.post(post_url, data=json.dumps(json_input))
+        data = json.loads(rv.data)
+
+        mmd = Modulemd.Module().new_from_string(data[0]['modulemd'])
+        assert len(mmd.get_dependencies()) == 1
+        dep = mmd.get_dependencies()[0]
+        assert set(dep.get_buildrequires()['platform'].get()) == expected_br
+        assert set(dep.get_requires()['platform'].get()) == expected_req
+
+    @pytest.mark.parametrize('dep_type', ('buildrequire', 'require'))
+    @patch('module_build_service.auth.get_user', return_value=user)
+    @patch('module_build_service.scm.SCM')
+    def test_submit_build_override_unused(self, mocked_scm, mocked_get_user, dep_type):
+        FakeSCM(mocked_scm, 'testmodule', 'testmodule_platform_f290000.yaml',
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+
+        post_url = '/module-build-service/2/module-builds/'
+        scm_url = ('git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#68931c90de214d9d13feef'
+                   'bd35246a81b6cb8d49')
+        json_input = {
+            'branch': 'master',
+            'scmurl': scm_url,
+        }
+        json_input[dep_type + '_overrides'] = {'nonexistent': ['23'], 'nonexistent2': ['2']}
+
+        rv = self.client.post(post_url, data=json.dumps(json_input))
+        data = json.loads(rv.data)
+
+        assert data == {
+            'error': 'Bad Request',
+            'message': ('The {} overrides for the following modules aren\'t applicable: '
+                        'nonexistent, nonexistent2').format(dep_type),
+            'status': 400
+        }
+
+    @pytest.mark.parametrize('optional_params', (
+        {'buildrequire_overrides': {'platform': 'f28'}},
+        {'buildrequire_overrides': {'platform': 28}},
+        {'buildrequire_overrides': 'platform:f28'},
+        {'require_overrides': {'platform': 'f28'}},
+        {'require_overrides': {'platform': 28}},
+        {'require_overrides': 'platform:f28'}
+    ))
+    @patch('module_build_service.auth.get_user', return_value=user)
+    @patch('module_build_service.scm.SCM')
+    def test_submit_build_invalid_override(self, mocked_scm, mocked_get_user, optional_params):
+        FakeSCM(mocked_scm, 'testmodule', 'testmodule_platform_f290000.yaml',
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+
+        post_url = '/module-build-service/2/module-builds/'
+        scm_url = ('git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#68931c90de214d9d13feef'
+                   'bd35246a81b6cb8d49')
+        json_input = {
+            'branch': 'master',
+            'scmurl': scm_url,
+        }
+        json_input.update(optional_params)
+
+        rv = self.client.post(post_url, data=json.dumps(json_input))
+        data = json.loads(rv.data)
+
+        msg = ('The "{}" parameter must be an object with the keys as module names and the values '
+               'as arrays of streams')
+        if 'buildrequire_overrides' in optional_params:
+            msg = msg.format('buildrequire_overrides')
+        elif 'require_overrides' in optional_params:
+            msg = msg.format('require_overrides')
+        assert data == {
+            'error': 'Bad Request',
+            'message': msg,
+            'status': 400
+        }
+
     def test_about(self):
         with patch.object(mbs_config.Config, 'auth_method', new_callable=PropertyMock) as auth:
             auth.return_value = 'kerberos'

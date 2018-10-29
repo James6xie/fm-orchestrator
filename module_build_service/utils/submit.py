@@ -407,6 +407,54 @@ def submit_module_build_from_scm(username, url, branch, allow_local_url=False,
     return submit_module_build(username, url, mmd, optional_params)
 
 
+def _apply_dep_overrides(mmd, optional_params):
+    """
+    Apply the dependency override parameters (if specified) on the input modulemd.
+
+    :param Modulemd.Module mmd: the modulemd to apply the overrides on
+    :param dict optional_params: the optional API parameters passed in by the user
+    :raises ValidationError: if one of the overrides doesn't apply
+    """
+    dep_overrides = {
+        'buildrequires': optional_params.get('buildrequire_overrides', {}),
+        'requires': optional_params.get('require_overrides', {})
+    }
+
+    unused_dep_overrides = {
+        'buildrequires': set(dep_overrides['buildrequires'].keys()),
+        'requires': set(dep_overrides['requires'].keys())
+    }
+
+    deps = mmd.get_dependencies()
+    for dep in deps:
+        for dep_type, overrides in dep_overrides.items():
+            overridden = False
+            # Get the existing streams (e.g. dep.get_buildrequires())
+            reqs = getattr(dep, 'get_' + dep_type)()
+            for name, streams in dep_overrides[dep_type].items():
+                if name in reqs:
+                    reqs[name].set(streams)
+                    unused_dep_overrides[dep_type].remove(name)
+                    overridden = True
+            if overridden:
+                # Set the overridden streams (e.g. dep.set_buildrequires(reqs))
+                getattr(dep, 'set_' + dep_type)(reqs)
+
+    for dep_type in unused_dep_overrides.keys():
+        if unused_dep_overrides[dep_type]:
+            raise ValidationError(
+                'The {} overrides for the following modules aren\'t applicable: {}'
+                .format(dep_type[:-1], ', '.join(sorted(unused_dep_overrides[dep_type]))))
+
+    # Delete the parameters or else they'll get past to ModuleBuild.create
+    if 'buildrequire_overrides' in optional_params:
+        del optional_params['buildrequire_overrides']
+    if 'require_overrides' in optional_params:
+        del optional_params['require_overrides']
+
+    mmd.set_dependencies(deps)
+
+
 def submit_module_build(username, url, mmd, optional_params=None):
     """
     Submits new module build.
@@ -425,20 +473,19 @@ def submit_module_build(username, url, mmd, optional_params=None):
     """
     import koji  # Placed here to avoid py2/py3 conflicts...
 
-    # For local builds, we want the user to choose the exact stream using the default_streams
-    # in case there are multiple streams to choose from and raise an exception otherwise.
-    if optional_params and "local_build" in optional_params:
-        raise_if_stream_ambigous = True
-        del optional_params["local_build"]
-    else:
-        raise_if_stream_ambigous = False
-
-    # Get the default_streams if set.
-    if optional_params and "default_streams" in optional_params:
-        default_streams = optional_params["default_streams"]
-        del optional_params["default_streams"]
-    else:
-        default_streams = {}
+    raise_if_stream_ambigous = False
+    default_streams = {}
+    if optional_params:
+        # For local builds, we want the user to choose the exact stream using the default_streams
+        # in case there are multiple streams to choose from and raise an exception otherwise.
+        if "local_build" in optional_params:
+            raise_if_stream_ambigous = True
+            del optional_params["local_build"]
+        # Get the default_streams if set.
+        if "default_streams" in optional_params:
+            default_streams = optional_params["default_streams"]
+            del optional_params["default_streams"]
+        _apply_dep_overrides(mmd, optional_params)
 
     validate_mmd(mmd)
     mmds = generate_expanded_mmds(db.session, mmd, raise_if_stream_ambigous, default_streams)

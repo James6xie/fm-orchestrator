@@ -97,6 +97,11 @@ The response, in case of a successful submission, would include the task ID.
 
 Options:
 
+- ``buildrequire_overrides`` - the buildrequires to override the modulemd with. The overrides must
+  be to existing buildrequires on the modulemd. The expected format is
+  ``{'platform': ['f28', 'f29']}``.
+- ``require_overrides`` - the requires to override the modulemd with. The overrides must be to
+  existing requires on the modulemd. The expected format is ``{'platform': ['f28', 'f29']}``.
 - ``yaml`` - a string of the input file when submitting a YAML file directly in a
   ``multipart/form-data`` request. The MBS setting ``YAML_SUBMIT_ALLOWED`` must be set to ``True``
   for this to be allowed.
