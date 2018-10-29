@@ -207,12 +207,31 @@ def _get_base_module_mmds(mmd):
             if name not in buildrequires.keys():
                 continue
 
-            for stream in buildrequires[name].get():
+            # Since the query below uses stream_version_lte, we can sort the streams by stream
+            # version in descending order to not perform unnecessary queries. Otherwise, if the
+            # streams are f29.1.0 and f29.2.0, then two queries will occur, causing f29.1.0 to be
+            # returned twice. Only one query for that scenario is necessary.
+            sorted_desc_streams = sorted(
+                buildrequires[name].get(), reverse=True, key=models.ModuleBuild.get_stream_version)
+            for stream in sorted_desc_streams:
                 ns = ":".join([name, stream])
                 if ns in seen:
                     continue
+
+                mmds = resolver.get_module_modulemds(name, stream, stream_version_lte=True)
+                ret_chunk = []
+                # Add the returned mmds to the `seen` set to avoid querying those individually if
+                # they are part of the buildrequire streams for this base module
+                for mmd_ in mmds:
+                    mmd_ns = ":".join([mmd_.get_name(), mmd_.get_stream()])
+                    # An extra precaution to ensure there are no duplicates in the event the sorting
+                    # above wasn't flawless
+                    if mmd_ns not in seen:
+                        ret_chunk.append(mmd_)
+                        seen.add(mmd_ns)
+                ret += ret_chunk
+                # Just in case it was queried for but MBS didn't find it
                 seen.add(ns)
-                ret += resolver.get_module_modulemds(name, stream, stream_version_lte=True)
             break
     return ret
 
