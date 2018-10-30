@@ -547,12 +547,12 @@ class KojiContentGenerator(object):
 
             should_include = self._should_include_rpm(rpm, mmd, arch, multilib_arches)
             if self.devel and should_include:
-                # In case this is -devel module, we want to skip any RPMs which would be normally
-                # include in a module and only keep those which wouldn't be included, because
-                # -devel is complement to normal module build.
+                # In case this is a -devel module, we want to skip any RPMs which would normally be
+                # included in a module, and only keep those which wouldn't be included, because
+                # -devel is complementary to the normal module build.
                 continue
             elif not self.devel and not should_include:
-                # In chase this is normal (non-devel) module, include only packages which we
+                # In case this is a normal (non-devel) module, include only packages which we
                 # really should include and skip the others.
                 continue
 

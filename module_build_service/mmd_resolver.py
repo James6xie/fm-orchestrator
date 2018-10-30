@@ -317,7 +317,7 @@ class MMDResolver(object):
             # "gtk: []"
             solvable.add_deparray(solv.SOLVABLE_PROVIDES,
                                   pool.Dep("module(%s)" % n))
-            # Add "Provides: module(name:stream) = version", so we can find builrequired
+            # Add "Provides: module(name:stream) = version", so we can find buildrequired
             # modules when "gtk:[1]" is used and also choose the latest version.
             solvable.add_deparray(solv.SOLVABLE_PROVIDES,
                                   pool.Dep("module(%s:%s)" % (n, s)).Rel(
