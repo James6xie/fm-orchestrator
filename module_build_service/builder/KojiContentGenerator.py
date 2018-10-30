@@ -74,6 +74,7 @@ class KojiContentGenerator(object):
         self.module_name = module.name
         self.mmd = module.modulemd
         self.config = config
+        self.devel = False
         # List of architectures the module is built for.
         self.arches = []
         # List of RPMs tagged in module.koji_tag as returned by Koji.
@@ -261,6 +262,8 @@ class KojiContentGenerator(object):
     def _get_build(self):
         ret = {}
         ret[u'name'] = self.module.name
+        if self.devel:
+            ret['name'] += "-devel"
         ret[u'version'] = self.module.stream.replace("-", "_")
         # Append the context to the version to make NVRs of modules unique in the event of
         # module stream expansion
@@ -276,7 +279,7 @@ class KojiContentGenerator(object):
                     u"module_build_service_id": self.module.id,
                     u"content_koji_tag": self.module.koji_tag,
                     u"modulemd_str": self.module.modulemd,
-                    u"name": self.module.name,
+                    u"name": ret['name'],
                     u"stream": self.module.stream,
                     u"version": self.module.version,
                     u"context": self.module.context
@@ -429,6 +432,68 @@ class KojiContentGenerator(object):
 
         return ret
 
+    def _should_include_rpm(self, rpm, mmd, arch, multilib_arches):
+        """
+        Helper method for `_fill_in_rpms_list` returning True if the RPM object
+        should be included in a final MMD file for given arch.
+        """
+        # Check the "whitelist" buildopts section of MMD.
+        # When "whitelist" is defined, it overrides component names in
+        # `mmd.get_rpm_components()`. The whitelist is used when module needs to build
+        # package with different SRPM name than the package name. This is case for example
+        # for software collections where SRPM name can be "httpd24-httpd", but package name
+        # is still "httpd". In this case, get_rpm_components() would contain "httpd", but the
+        # rpm["srpm_name"] would be "httpd24-httpd".
+        srpm = rpm["srpm_name"]
+        whitelist = None
+        buildopts = mmd.get_buildopts()
+        if buildopts:
+            whitelist = buildopts.get_rpm_whitelist()
+            if whitelist:
+                if srpm not in whitelist:
+                    # Package is not in the whitelist, skip it.
+                    return False
+
+        # If there is no whitelist, just check that the SRPM name we have here
+        # exists in the list of components.
+        # In theory, there should never be situation where modular tag contains
+        # some RPM built from SRPM not included in get_rpm_components() or in whitelist,
+        # but the original Pungi code checked for this case.
+        if not whitelist and srpm not in mmd.get_rpm_components().keys():
+            return False
+
+        # Do not include this RPM if it is filtered.
+        if rpm["name"] in mmd.get_rpm_filter().get():
+            return False
+
+        # Skip the rpm if it's built for multilib arch, but
+        # multilib is not enabled for this srpm in MMD.
+        try:
+            mmd_component = mmd.get_rpm_components()[srpm]
+            multilib = mmd_component.get_multilib()
+            multilib = multilib.get() if multilib else set()
+            # The `multilib` set defines the list of architectures for which
+            # the multilib is enabled.
+            #
+            # Filter out RPMs from multilib architectures if multilib is not
+            # enabled for current arch. Keep the RPMs from non-multilib compatible
+            # architectures.
+            if arch not in multilib and rpm["arch"] in multilib_arches:
+                return False
+        except KeyError:
+            # TODO: This exception is raised only when "whitelist" is used.
+            # Since components in whitelist have different names than ones in
+            # components list, we won't find them there.
+            # We would need to track the RPMs srpm_name from whitelist back to
+            # original package name used in MMD's components list. This is possible
+            # but original Pungi code is not doing that. This is TODO for future
+            # improvements.
+
+            # No such component, disable any multilib
+            if rpm["arch"] not in ("noarch", arch):
+                return False
+        return True
+
     def _fill_in_rpms_list(self, mmd, arch):
         """
         Fills in the list of built RPMs in architecture specific `mmd` for `arch`
@@ -473,8 +538,6 @@ class KojiContentGenerator(object):
                     rpm["arch"] not in [arch, "noarch", "src"]):
                 continue
 
-            srpm = rpm["srpm_name"]
-
             # Skip the RPM if it is excluded on this arch or exclusive
             # for different arch.
             if rpm["excludearch"] and set(rpm["excludearch"]) & set(exclusive_arches):
@@ -482,60 +545,16 @@ class KojiContentGenerator(object):
             if rpm["exclusivearch"] and not set(rpm["exclusivearch"]) & set(exclusive_arches):
                 continue
 
-            # Check the "whitelist" buildopts section of MMD.
-            # When "whitelist" is defined, it overrides component names in
-            # `mmd.get_rpm_components()`. The whitelist is used when module needs to build
-            # package with different SRPM name than the package name. This is case for example
-            # for software collections where SRPM name can be "httpd24-httpd", but package name
-            # is still "httpd". In this case, get_rpm_components() would contain "httpd", but the
-            # rpm["srpm_name"] would be "httpd24-httpd".
-            whitelist = None
-            buildopts = mmd.get_buildopts()
-            if buildopts:
-                whitelist = buildopts.get_rpm_whitelist()
-                if whitelist:
-                    if srpm not in whitelist:
-                        # Package is not in the whitelist, skip it.
-                        continue
-
-            # If there is no whitelist, just check that the SRPM name we have here
-            # exists in the list of components.
-            # In theory, there should never be situation where modular tag contains
-            # some RPM built from SRPM not included in get_rpm_components() or in whitelist,
-            # but the original Pungi code checked for this case.
-            if not whitelist and srpm not in mmd.get_rpm_components().keys():
+            should_include = self._should_include_rpm(rpm, mmd, arch, multilib_arches)
+            if self.devel and should_include:
+                # In case this is -devel module, we want to skip any RPMs which would be normally
+                # include in a module and only keep those which wouldn't be included, because
+                # -devel is complement to normal module build.
                 continue
-
-            # Do not include this RPM if it is filtered.
-            if rpm["name"] in mmd.get_rpm_filter().get():
+            elif not self.devel and not should_include:
+                # In chase this is normal (non-devel) module, include only packages which we
+                # really should include and skip the others.
                 continue
-
-            # Skip the rpm if it's built for multilib arch, but
-            # multilib is not enabled for this srpm in MMD.
-            try:
-                mmd_component = mmd.get_rpm_components()[srpm]
-                multilib = mmd_component.get_multilib()
-                multilib = multilib.get() if multilib else set()
-                # The `multilib` set defines the list of architectures for which
-                # the multilib is enabled.
-                #
-                # Filter out RPMs from multilib architectures if multilib is not
-                # enabled for current arch. Keep the RPMs from non-multilib compatible
-                # architectures.
-                if arch not in multilib and rpm["arch"] in multilib_arches:
-                    continue
-            except KeyError:
-                # TODO: This exception is raised only when "whitelist" is used.
-                # Since components in whitelist have different names than ones in
-                # components list, we won't find them there.
-                # We would need to track the RPMs srpm_name from whitelist back to
-                # original package name used in MMD's components list. This is possible
-                # but original Pungi code is not doing that. This is TODO for future
-                # improvements.
-
-                # No such component, disable any multilib
-                if rpm["arch"] not in ("noarch", arch):
-                    continue
 
             # Add RPM to packages.
             rpm_artifacts.add(nevra)
@@ -558,6 +577,9 @@ class KojiContentGenerator(object):
         :return: Finalized modulemd string.
         """
         mmd = self.module.mmd()
+        if self.devel:
+            mmd.set_name(mmd.get_name() + "-devel")
+
         # Set the "Arch" field in mmd.
         mmd.set_arch(pungi.arch.tree_arch_to_yum_arch(arch))
         # Fill in the list of built RPMs.
@@ -655,16 +677,29 @@ class KojiContentGenerator(object):
         session.tagBuild(tag_info["id"], nvr)
 
     def _load_koji_tag(self, koji_session):
+        # Do not load Koji tag data if this method is called again. This would
+        # waste resources, because the Koji tag content is always the same
+        # for already built module.
+        if self.arches and self.rpms and self.rpms_dict:
+            return
+
         tag = koji_session.getTag(self.module.koji_tag)
         self.arches = tag["arches"].split(" ") if tag["arches"] else []
         self.rpms = self._koji_rpms_in_tag(self.module.koji_tag)
         self.rpms_dict = {kobo.rpmlib.make_nvra(rpm, force_epoch=True): rpm for rpm in self.rpms}
 
-    def koji_import(self):
+    def koji_import(self, devel=False):
         """This method imports given module into the configured koji instance as
         a content generator based build
 
-        Raises an exception when error is encountered during import"""
+        Raises an exception when error is encountered during import
+
+        :param bool devel: True if the "-devel" module should be created and imported.
+            The "-devel" module build contains only the RPMs which are normally filtered
+            from the module build. If set to False, normal module build respecting the
+            filters is created and imported.
+        """
+        self.devel = devel
         session = get_session(self.config, self.owner)
         self._load_koji_tag(session)
 
