@@ -1,6 +1,14 @@
 Change Log
 ==========
 
+v2.8.0
+------
+* Import -devel Koji CG builds with RPMs which are filtered out of the traditional CG builds
+* Add the ability to override buildrequires and requires when submitting a module build
+* Use modules built against all compatible base module streams during buildrequire module resolution
+* Record the stream versions (e.g. `f29.0.0` => `290000`) of base modules (e.g. platform)
+* Fix wrong inclusion of non-multilib packages in final modulemd of Koji CG builds
+
 v2.7.0
 ------
 * Fix filtering noarch RPMs when generating the Koji CG build information
