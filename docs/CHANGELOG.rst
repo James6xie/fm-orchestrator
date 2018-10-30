@@ -1,6 +1,10 @@
 Change Log
 ==========
 
+v2.8.1
+------
+* Fix one of the database migration scripts
+
 v2.8.0
 ------
 * Import -devel Koji CG builds with RPMs which are filtered out of the traditional CG builds
