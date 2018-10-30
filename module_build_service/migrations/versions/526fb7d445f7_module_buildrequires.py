@@ -49,7 +49,7 @@ def upgrade():
         'module_builds_to_module_buildrequires',
         sa.Column('module_id', sa.Integer(), nullable=False),
         sa.Column('module_buildrequire_id', sa.Integer(), nullable=False),
-        sa.ForeignKeyConstraint(['module_buildrequire_id'], ['module_buildrequires.id']),
+        sa.ForeignKeyConstraint(['module_buildrequire_id'], ['module_builds.id']),
         sa.ForeignKeyConstraint(['module_id'], ['module_builds.id']),
         sa.UniqueConstraint('module_id', 'module_buildrequire_id')
     )
