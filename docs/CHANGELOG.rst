@@ -7,11 +7,11 @@ v2.8.1
 
 v2.8.0
 ------
-* The config option `KOJI_ARCHES` was renamed to `ARCHES`
+* The config option ``KOJI_ARCHES`` was renamed to ``ARCHES``
 * Import -devel Koji CG builds with RPMs which are filtered out of the traditional CG builds
 * Add the ability to override buildrequires and requires when submitting a module build
 * Use modules built against all compatible base module streams during buildrequire module resolution
-* Record the stream versions (e.g. `f29.0.0` => `290000`) of base modules (e.g. platform)
+* Record the stream versions (e.g. ``f29.0.0`` => ``290000``) of base modules (e.g. platform)
 * Fix wrong inclusion of non-multilib packages in final modulemd of Koji CG builds
 * Default arches are now applied to module components but they don't take any effect in the Koji builder yet
 
@@ -21,9 +21,9 @@ v2.7.0
 * Prefix the module version based on the first base module (e.g. platform) it buildrequires
 * Prefix the component disttag with the first base module stream the module buildrequires
 * Add consistency to the way dependencies were chosen when doing a local build
-* Don't run the final `createrepo` if the module build failed when doing a local build to help debug build errors
-* The config option `base_module_names` is now a list instead of a set, so that there is an order of preference for some operations
-* Set the default `base_module_names` config option to be `['platform']`
+* Don't run the final ``createrepo`` if the module build failed when doing a local build to help debug build errors
+* The config option ``base_module_names`` is now a list instead of a set, so that there is an order of preference for some operations
+* Set the default ``base_module_names`` config option to be ``['platform']``
 
 v2.6.2
 ------
@@ -73,7 +73,7 @@ v2.4.0
 ------
 * MBS local builds now use the production MBS API for dependency resolution instead of PDC
 * Remove COPR support (this hasn't been working for several months now)
-* Make `repo_include_all setting` configurable in xmd
+* Make ``repo_include_all setting`` configurable in xmd
 
 v2.3.2
 ------
@@ -154,7 +154,7 @@ v2.0.0
 
 * Add module stream expansion support
 * Remove deprecated mbs-build tool (fedpkg/rhpkg should be used instead)
-* Add the `mbs-manager import_module` command
+* Add the ``mbs-manager import_module`` command
 * Add a database resolver for resolving dependencies for increased performance
 * Support modulemd v2
 * Fix error that occurs when a batch hasn't started but a repo regen message is received
