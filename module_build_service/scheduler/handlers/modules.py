@@ -157,6 +157,7 @@ def init(config, session, msg):
         build.transition(conf, models.BUILD_STATES["wait"])
     # Catch custom exceptions that we can expose to the user
     except (UnprocessableEntity, Forbidden, ValidationError, RuntimeError) as e:
+        log.exception(str(e))
         # Rollback changes underway
         session.rollback()
         build.transition(conf, models.BUILD_STATES["failed"], state_reason=str(e))
