@@ -58,51 +58,56 @@ class TestFindUrsineRootTags:
 
     def setup_method(self):
         self.koji_session = Mock()
-        self.koji_session.opts = {'topurl': 'http://example.com/brewroot/'}
         self.koji_session.getTag.side_effect = lambda name: \
             None if name == 'X-build' else {'name': name}
 
     def test_find_build_tags(self):
-        tags = ursine.find_build_tags_from_external_repos(self.koji_session, [
-            {
-                'external_repo_name': 'tag-1-external-repo',
-                'url': 'http://example.com/brewroot/repos/tag-1-build/latest/$arch/'
-            },
-            {
-                'external_repo_name': 'tag-2-external-repo',
-                'url': 'http://example.com/brewroot/repos/tag-2-build/latest/$arch/'
-            },
-        ])
+        with patch.object(conf, 'koji_external_repo_url_prefix',
+                          new='http://example.com/brewroot/'):
+            tags = ursine.find_build_tags_from_external_repos(self.koji_session, [
+                {
+                    'external_repo_name': 'tag-1-external-repo',
+                    'url': 'http://example.com/brewroot/repos/tag-1-build/latest/$arch/'
+                },
+                {
+                    'external_repo_name': 'tag-2-external-repo',
+                    'url': 'http://example.com/brewroot/repos/tag-2-build/latest/$arch/'
+                },
+            ])
 
-        assert ['tag-1-build', 'tag-2-build'] == tags
+            assert ['tag-1-build', 'tag-2-build'] == tags
 
     def test_return_emtpy_if_no_match_external_repo_url(self):
-        tags = ursine.find_build_tags_from_external_repos(self.koji_session, [
-            {
-                'external_repo_name': 'tag-1-external-repo',
-                'url': 'https://another-site.org/repos/tag-1-build/latest/$arch/'
-            },
-            {
-                'external_repo_name': 'tag-2-external-repo',
-                'url': 'https://another-site.org/repos/tag-2-build/latest/$arch/'
-            },
-        ])
+        with patch.object(conf, 'koji_external_repo_url_prefix',
+                          new='http://example.com/brewroot/'):
+            tags = ursine.find_build_tags_from_external_repos(self.koji_session, [
+                {
+                    'external_repo_name': 'tag-1-external-repo',
+                    'url': 'https://another-site.org/repos/tag-1-build/latest/$arch/'
+                },
+                {
+                    'external_repo_name': 'tag-2-external-repo',
+                    'url': 'https://another-site.org/repos/tag-2-build/latest/$arch/'
+                },
+            ])
 
-        assert [] == tags
+            assert [] == tags
 
     def test_some_tag_is_not_koji_tag(self):
-        tags = ursine.find_build_tags_from_external_repos(self.koji_session, [
-            {
-                'external_repo_name': 'tag-1-external-repo',
-                'url': 'http://example.com/brewroot/repos/tag-1-build/latest/$arch/'
-            },
-            {
-                'external_repo_name': 'tag-2-external-repo',
-                'url': 'http://example.com/brewroot/repos/X-build/latest/$arch/'
-            },
-        ])
+        with patch.object(conf, 'koji_external_repo_url_prefix',
+                          new='http://example.com/brewroot/'):
+            tags = ursine.find_build_tags_from_external_repos(self.koji_session, [
+                {
+                    'external_repo_name': 'tag-1-external-repo',
+                    'url': 'http://example.com/brewroot/repos/tag-1-build/latest/$arch/'
+                },
+                {
+                    'external_repo_name': 'tag-2-external-repo',
+                    'url': 'http://example.com/brewroot/repos/X-build/latest/$arch/'
+                },
+            ])
 
-        assert ['tag-1-build'] == tags
+            assert ['tag-1-build'] == tags
 
 
 class TestGetModulemdsFromUrsineContent:
@@ -140,7 +145,6 @@ class TestGetModulemdsFromUrsineContent:
     @patch('koji.ClientSession')
     def test_get_modulemds(self, ClientSession):
         session = ClientSession.return_value
-        session.opts = {'topurl': 'http://example.com/'}
 
         # Ensure to to get build tag for further query of ursine content.
         # For this test, the build tag is tag-4-build
@@ -175,7 +179,8 @@ class TestGetModulemdsFromUrsineContent:
             xmd={'mbs': {'koji_tag': 'module-name2-s-2021-c'}})
 
         koji_tag = 'tag'  # It's ok to use arbitrary tag name.
-        modulemds = ursine.get_modulemds_from_ursine_content(koji_tag)
+        with patch.object(conf, 'koji_external_repo_url_prefix', new='http://example.com/'):
+            modulemds = ursine.get_modulemds_from_ursine_content(koji_tag)
 
         test_nsvcs = [item.dup_nsvc() for item in modulemds]
         test_nsvcs.sort()

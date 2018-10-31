@@ -477,6 +477,10 @@ class Config(object):
             'default': 'db',
             'desc': 'Where to look up for modules. Note that this can (and '
                     'probably will) be builder-specific.'},
+        'koji_external_repo_url_prefix': {
+            'type': str,
+            'default': 'https://kojipkgs.fedoraproject.org/',
+            'desc': 'URL prefix of base module\'s external repo.'},
     }
 
     def __init__(self, conf_section_obj):

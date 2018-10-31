@@ -64,7 +64,7 @@ def find_build_tags_from_external_repos(koji_session, repo_infos):
     :rtype: list[str]
     """
     re_external_repo_url = r'^{}/repos/(.+-build)/latest/\$arch/?$'.format(
-        koji_session.opts['topurl'].rstrip('/'))
+        conf.koji_external_repo_url_prefix.rstrip('/'))
     tag_names = []
     for info in repo_infos:
         om = re.match(re_external_repo_url, info['url'])
