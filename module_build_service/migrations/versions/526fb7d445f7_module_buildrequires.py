@@ -80,7 +80,7 @@ def upgrade():
                 .where(mb.c.name == base_module)\
                 .where(mb.c.stream == base_module_dict['stream'])\
                 .where(mb.c.version == base_module_dict['version'])\
-                .where(mb.c.context == base_module_dict['context'])
+                .where(mb.c.context == base_module_dict.get('context'))
             br = connection.execute(select).fetchone()
             if not br:
                 # If the buildrequire isn't in the datbase, then skip it
