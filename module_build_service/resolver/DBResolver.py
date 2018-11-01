@@ -40,6 +40,15 @@ class DBResolver(GenericResolver):
     def __init__(self, config):
         self.config = config
 
+    def _get_module(self, name, stream, version, context, strict=False):
+        with models.make_session(self.config) as session:
+            mb = models.ModuleBuild.get_build_from_nsvc(
+                session, name, stream, version, context)
+            if mb is None and strict:
+                raise UnprocessableEntity(
+                    'Cannot find any module builds for %s:%s' % (name, stream))
+            return mb.extended_json()
+
     def get_module_modulemds(self, name, stream, version=None, context=None, strict=False,
                              stream_version_lte=False):
         """
@@ -57,11 +66,12 @@ class DBResolver(GenericResolver):
             less than or equal the stream version computed from `stream`.
         :return: List of Modulemd metadata instances matching the query
         """
+        if version and context:
+            mmd = self._get_module(name, stream, version, context, strict=strict)
+            return [self.extract_modulemd(mmd['modulemd'])]
+
         with models.make_session(self.config) as session:
-            if version and context:
-                builds = [models.ModuleBuild.get_build_from_nsvc(
-                    session, name, stream, version, context)]
-            elif not version and not context:
+            if not version and not context:
                 if (stream_version_lte and len(str(models.ModuleBuild.get_stream_version(
                         stream, right_pad=False))) >= 5):
                     stream_version = models.ModuleBuild.get_stream_version(stream)

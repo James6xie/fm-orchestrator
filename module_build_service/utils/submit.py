@@ -136,21 +136,27 @@ def _record_ursine_rpms(req_data):
         with a list of RPMs N-E:V-R which are built for the found stream
         collision modules.
     """
-    from module_build_service.builder import GenericBuilder
+    from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
     resolver = module_build_service.resolver.GenericResolver.create(conf)
 
     # Key stream_collision_modules is not used after rpms are recorded, but
     # just keep it here in case it would be helpful in the future.
     modules_nsvc = req_data['stream_collision_modules']
-    get_built_rpms = GenericBuilder.backends[conf.system].get_built_rpms_in_module_build
     built_rpms = []
+
+    koji_session = KojiModuleBuilder.get_session(conf, None)
 
     for nsvc in modules_nsvc:
         name, stream, version, context = nsvc.split(':')
-        mmd = resolver.get_module_modulemds(
-            name, stream, version, context, True)[0]
-        built_rpms.extend(get_built_rpms(mmd))
+        module = resolver._get_module(name, stream, version, context, strict=True)
+        rpms = koji_session.listTaggedRPMS(module['koji_tag'], latest=True)[0]
+        built_rpms.extend(
+            kobo.rpmlib.make_nvr(rpm, force_epoch=True) for rpm in rpms
+        )
 
+    # In case there is duplicate NEVRs, ensure every NEVR is unique in the final list.
+    # And, sometimes, sorted list of RPMs would be easier to read.
+    built_rpms = sorted(set(built_rpms))
     req_data['ursine_rpms'] = built_rpms
 
 

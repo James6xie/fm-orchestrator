@@ -1156,11 +1156,8 @@ class TestRecordFilteredRPMs:
     def teardown_method(self):
         clean_database()
 
-    # For simplicity, test just queries database. So, no need to code more for
-    # mocking remote MBS service.
-    @patch.object(module_build_service.conf, 'resolver', new='db')
-    @patch('module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session')
-    def test_generate_and_store_filtered_rpms(self, get_session):
+    @patch('koji.ClientSession')
+    def test_generate_and_store_filtered_rpms(self, ClientSession):
 
         def mocklistTaggedRPMs(tag, latest):
             # Result returned from listTaggedRPMs should contain two lists.
@@ -1197,9 +1194,11 @@ class TestRecordFilteredRPMs:
             }
             return rpms[tag]
 
-        get_session.return_value.listTaggedRPMS.side_effect = mocklistTaggedRPMs
+        ClientSession.return_value.listTaggedRPMS.side_effect = mocklistTaggedRPMs
 
-        mmd = module_build_service.utils.submit.record_filtered_rpms(self.mmd)
+        with patch.object(conf, 'resolver', new='db'):
+            mmd = module_build_service.utils.submit.record_filtered_rpms(self.mmd)
+
         xmd_mbs = mmd.get_xmd()['mbs'].unpack()
 
         assert ['pkg-1.0-1.fc28'] == xmd_mbs['buildrequires']['modulea']['filtered_rpms']

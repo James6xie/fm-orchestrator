@@ -37,7 +37,14 @@ class GenericResolver(six.with_metaclass(ABCMeta)):
     """
 
     _resolvers = cfg.SUPPORTED_RESOLVERS
+
+    # Resolver name. Each subclass of GenericResolver must set its own name.
     backend = "generic"
+
+    # Supported resolver backends registry. Generally, resolver backend is
+    # registered by calling :meth:`GenericResolver.register_backend_class`.
+    # This is a mapping from resolver name to backend class object
+    # For example, {'mbs': MBSResolver}
     backends = {}
 
     @classmethod
@@ -46,13 +53,19 @@ class GenericResolver(six.with_metaclass(ABCMeta)):
 
     @classmethod
     def create(cls, config, backend=None, **extra):
-        """
-        :param backend: a string representing resolver e.g. 'db'
+        """Factory method to create a resolver object
 
-        Any additional arguments are optional extras which can be passed along
-        and are implementation-dependent.
+        :param config: MBS config object.
+        :type config: :class:`Config`
+        :kwarg str backend: resolver backend name, e.g. 'db'. If omitted,
+            system configuration ``resolver`` is used.
+        :kwarg extra: any additional arguments are optional extras which can
+            be passed along and are implementation-dependent.
+        :return: resolver backend object.
+        :rtype: corresponding registered resolver class.
+        :raises ValueError: if specified resolver backend name is not
+            registered.
         """
-
         # get the appropriate resolver backend via configuration
         if not backend:
             backend = conf.resolver
