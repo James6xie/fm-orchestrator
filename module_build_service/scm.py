@@ -196,31 +196,20 @@ class SCM(object):
             ref = 'master'
         if self.scheme == "git":
             log.debug("Getting/verifying commit hash for %s" % self.repository)
-            # get all the branches on the remote
-            output = SCM._run(["git", "ls-remote", "--exit-code", self.repository])[1]
-            # pair branch names and their latest refs into a dict. The output of the above command
-            # is multiple lines of "bf028e573e7c18533d89c7873a411de92d4d913e	refs/heads/master".
-            # So the dictionary ends up in the format of
-            # {"master": "bf028e573e7c18533d89c7873a411de92d4d913e"...}.
-            branches = {}
-            for branch_and_ref in output.decode('utf-8').strip().split("\n"):
-                # Only look at refs/heads/* and not refs/remotes/origin/*
-                if "refs/heads/" not in branch_and_ref:
-                    continue
-                # This grabs the last bit of text after the last "/", which is the branch name
-                cur_branch = branch_and_ref.split("\t")[-1].split("refs/heads/")[-1]
-                # This grabs the text before the first tab, which is the commit hash
-                cur_ref = branch_and_ref.split("\t")[0]
-                branches[cur_branch] = cur_ref
-            # first check if the branch name is in the repo
-            if ref in branches:
-                return branches[ref]
-            # if the branch is not in the repo it may be a ref.
-            else:
+            try:
+                _, output, _ = SCM._run([
+                    "git", "ls-remote", "--exit-code", self.repository, 'refs/heads/' + ref
+                ])
+            except UnprocessableEntity:
                 # The call below will either return the commit hash as is (if a full one was
                 # provided) or the full commit hash (if a short hash was provided). If ref is not
                 # a commit hash, then this will raise an exception.
                 return self.get_full_commit_hash(commit_hash=ref)
+            else:
+                # git-ls-remote prints output like this, where the first commit
+                # hash is what to return.
+                # bf028e573e7c18533d89c7873a411de92d4d913e	refs/heads/master
+                return output.split()[0].decode('utf-8')
         else:
             raise RuntimeError("get_latest: Unhandled SCM scheme.")
 
