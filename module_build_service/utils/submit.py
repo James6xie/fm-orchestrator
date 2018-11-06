@@ -112,7 +112,7 @@ def _scm_get_latest(pkg):
     }
 
 
-def format_mmd(mmd, scmurl, session=None):
+def format_mmd(mmd, scmurl):
     """
     Prepares the modulemd for the MBS. This does things such as replacing the
     branches of components with commit hashes and adding metadata in the xmd
@@ -124,9 +124,6 @@ def format_mmd(mmd, scmurl, session=None):
     # them because of dep-chain.
     from module_build_service.scm import SCM
 
-    if not session:
-        session = db.session
-
     xmd = glib.from_variant_dict(mmd.get_xmd())
     if 'mbs' not in xmd:
         xmd['mbs'] = {}
@@ -134,9 +131,6 @@ def format_mmd(mmd, scmurl, session=None):
         xmd['mbs']['scmurl'] = scmurl or ''
     if 'commit' not in xmd['mbs']:
         xmd['mbs']['commit'] = ''
-
-    local_modules = models.ModuleBuild.local_modules(session)
-    local_modules = {m.name + "-" + m.stream: m for m in local_modules}
 
     # If module build was submitted via yaml file, there is no scmurl
     if scmurl:
@@ -300,7 +294,7 @@ def record_component_builds(mmd, module, initial_batch=1,
 
     # Format the modulemd by putting in defaults and replacing streams that
     # are branches with commit hashes
-    format_mmd(mmd, module.scmurl, session=session)
+    format_mmd(mmd, module.scmurl)
 
     # When main_mmd is set, merge the metadata from this mmd to main_mmd,
     # otherwise our current mmd is main_mmd.
