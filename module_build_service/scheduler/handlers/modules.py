@@ -223,7 +223,7 @@ def wait(config, session, msg):
             # of the local module build based on Modulemd.Module, because the
             # local build is not stored in the external MBS and therefore we
             # cannot query it using the `query` as for Koji below.
-            dependencies = resolver.get_module_build_dependencies(
+            dep_koji_tags = resolver.get_module_build_dependencies(
                 mmd=build.mmd(), strict=True).keys()
 
             # We also don't want to get the tag name from the MBS, but just
@@ -236,7 +236,7 @@ def wait(config, session, msg):
             log.info("Getting deps for %s" % (nsvc))
             deps_dict = resolver.get_module_build_dependencies(
                 build.name, build.stream, build.version, build.context, strict=True)
-            dependencies = set(deps_dict.keys())
+            dep_koji_tags = set(deps_dict.keys())
 
             # Find out the name of Koji tag to which the module's Content
             # Generator build should be tagged once the build finishes.
@@ -251,10 +251,10 @@ def wait(config, session, msg):
             log.info('Getting tag for {0}'.format(nsvc))
             tag = generate_koji_tag(build.name, build.stream, build.version, build.context)
 
-        return dependencies, tag, cg_build_koji_tag
+        return dep_koji_tags, tag, cg_build_koji_tag
 
     try:
-        dependencies, tag, cg_build_koji_tag = _get_deps_and_tag()
+        dep_koji_tags, tag, cg_build_koji_tag = _get_deps_and_tag()
     except ValueError:
         reason = "Failed to get module info from MBS. Max retries reached."
         log.exception(reason)
@@ -277,9 +277,9 @@ def wait(config, session, msg):
     builder = module_build_service.builder.GenericBuilder.create_from_module(
         session, build, config)
 
-    log.debug("Adding dependencies %s into buildroot for module %s" % (dependencies, ':'.join(
+    log.debug("Adding dependencies %s into buildroot for module %s" % (dep_koji_tags, ':'.join(
         [build.name, build.stream, build.version])))
-    builder.buildroot_add_repos(dependencies)
+    builder.buildroot_add_repos(dep_koji_tags)
 
     if not build.component_builds:
         log.info("There are no components in module %r, skipping build" % build)
