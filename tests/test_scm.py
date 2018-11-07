@@ -25,7 +25,6 @@ import shutil
 import tempfile
 
 import pytest
-from mock import patch
 
 import module_build_service.scm
 from module_build_service.errors import ValidationError, UnprocessableEntity
@@ -138,15 +137,3 @@ class TestSCMModule:
         scm = module_build_service.scm.SCM(repo_url)
         with pytest.raises(UnprocessableEntity):
             scm.get_latest('15481faa232d66589e660cc301179867fb00842c9')
-
-    @patch.object(module_build_service.scm.SCM, '_run')
-    def test_get_latest_ignore_origin(self, mock_run):
-        output = b"""\
-58379ef7887cbc91b215bacd32430628c92bc869\tHEAD
-58379ef7887cbc91b215bacd32430628c92bc869\trefs/heads/master
-10a651f39911a07d85fe87fcfe91999545e44ae0\trefs/remotes/origin/master
-"""
-        mock_run.return_value = (0, output, '')
-        scm = module_build_service.scm.SCM(repo_url)
-        commit = scm.get_latest(None)
-        assert commit == '58379ef7887cbc91b215bacd32430628c92bc869'
