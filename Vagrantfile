@@ -98,7 +98,7 @@ Vagrant.configure("2") do |config|
   config.vm.network "forwarded_port", guest_ip: "0.0.0.0", guest: 5000, host: 5000
   config.vm.network "forwarded_port", guest_ip: "0.0.0.0", guest: 13747, host: 13747
   config.vm.provision "shell", inline: $script
-  config.vm.provision "shell", inline: "usermod -a -G mock Vagrant"
+  config.vm.provision "shell", inline: "usermod -a -G mock vagrant"
   config.vm.provision "shell", inline: $make_devenv, privileged: false
   config.vm.provision "shell", inline: $script_services, privileged: false, run: "always"
   config.vm.provider "libvirt" do |v, override|
