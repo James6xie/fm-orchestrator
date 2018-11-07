@@ -206,9 +206,6 @@ def wait(config, session, msg):
         # This is ok.. it's a race condition we can ignore.
         pass
 
-    tag = None
-    dependencies = []
-
     resolver = module_build_service.resolver.system_resolver
 
     @module_build_service.utils.retry(
