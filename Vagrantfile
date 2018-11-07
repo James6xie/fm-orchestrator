@@ -48,9 +48,9 @@ $script = <<SCRIPT
         wget \
         which
 
-    if [ ! -e /etc/module-build-service ]; then
-        ln -s /opt/module_build_service/conf /etc/module-build-service
-    fi
+    mbs_config_dir=/etc/module-build-service
+    [ -e "$mbs_config_dir" ] || mkdir "$mbs_config_dir"
+    cp -r /opt/module_build_service/conf/* "$mbs_config_dir"
 SCRIPT
 
 $make_devenv = <<DEVENV
