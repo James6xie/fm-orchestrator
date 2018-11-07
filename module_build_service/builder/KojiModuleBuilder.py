@@ -178,7 +178,8 @@ class KojiModuleBuilder(GenericBuilder):
 
         # These eventually get populated by calling _connect and __prep is set to True
         self.module_tag = None  # string
-        self.module_build_tag = None  # string
+        # A dict containing tag info returned from Koji API getTag.
+        self.module_build_tag = None
         self.module_target = None  # A koji target dict
 
         self.build_priority = config.koji_build_priority
