@@ -156,11 +156,9 @@ objects:
           # and be in the build state at a time. Set this to 0 for no restrictions
           NUM_CONCURRENT_BUILDS = 2
 
-          RPMS_DEFAULT_REPOSITORY = ''
+          RPMS_DEFAULT_REPOSITORY = 'git+https://src.fedoraproject.org/rpms/'
           RPMS_ALLOW_REPOSITORY = False
-          RPMS_DEFAULT_CACHE = ''
-          RPMS_ALLOW_CACHE = False
-          MODULES_DEFAULT_REPOSITORY = ''
+          MODULES_DEFAULT_REPOSITORY = 'git+https://src.fedoraproject.org/modules/'
           MODULES_ALLOW_REPOSITORY = False
 
           # Our per-build logs for the Koji content generator go here.
@@ -570,11 +568,9 @@ objects:
           # and be in the build state at a time. Set this to 0 for no restrictions
           NUM_CONCURRENT_BUILDS = 2
 
-          RPMS_DEFAULT_REPOSITORY = ''
+          RPMS_DEFAULT_REPOSITORY = 'git+https://src.fedoraproject.org/rpms/'
           RPMS_ALLOW_REPOSITORY = False
-          RPMS_DEFAULT_CACHE = ''
-          RPMS_ALLOW_CACHE = False
-          MODULES_DEFAULT_REPOSITORY = ''
+          MODULES_DEFAULT_REPOSITORY = 'git+https://src.fedoraproject.org/modules/'
           MODULES_ALLOW_REPOSITORY = False
 
           # Our per-build logs for the Koji content generator go here.
