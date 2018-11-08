@@ -138,8 +138,8 @@ objects:
           KOJI_CG_BUILD_TAG_TEMPLATE = ''
           KOJI_CG_DEFAULT_BUILD_TAG = ''
 
-          # yes, we want everyone to authenticate
-          NO_AUTH = False
+          # Disable authentication
+          NO_AUTH = True
 
           YAML_SUBMIT_ALLOWED = False
 
@@ -550,8 +550,8 @@ objects:
           KOJI_CG_BUILD_TAG_TEMPLATE = ''
           KOJI_CG_DEFAULT_BUILD_TAG = ''
 
-          # yes, we want everyone to authenticate
-          NO_AUTH = False
+          # Disable authentication
+          NO_AUTH = True
 
           YAML_SUBMIT_ALLOWED = False
 
