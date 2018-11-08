@@ -10,6 +10,7 @@ LABEL \
 # The caller can chose to provide an already built module-build-service RPM.
 ARG mbs_rpm=module-build-service
 ARG mbs_messaging_umb_rpm
+ARG umb_ca_crt
 
 RUN dnf -y install \
             python2-pungi \
@@ -19,6 +20,9 @@ RUN dnf -y install \
             $mbs_messaging_umb_rpm \
     && dnf -y clean all
 
+ADD $umb_ca_crt /etc/pki/ca-trust/source/anchors/umb_serverca.crt
+# Do this as a workaround instead of `update-ca-trust`
+RUN cat /etc/pki/ca-trust/source/anchors/umb_serverca.crt >> /etc/pki/tls/certs/ca-bundle.crt
 
 VOLUME ["/etc/module-build-service", "/etc/fedmsg.d", "/etc/mbs-certs"]
 ENTRYPOINT fedmsg-hub

@@ -492,6 +492,7 @@ objects:
           'stomp_heartbeat': 5000,
           'stomp_ssl_crt': '/etc/mbs-certs/messaging.crt',
           'stomp_ssl_key': '/etc/mbs-certs/messaging.key',
+          'stomp_ca_certs': None,
           'stomp_ack_mode': 'auto',
       }
     mbs-scheduler.py: |
