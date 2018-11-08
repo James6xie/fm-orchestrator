@@ -112,7 +112,7 @@ objects:
 
           SYSTEM = 'koji'
           MESSAGING = 'umb'
-          MESSAGING_TOPIC_PREFIX = ['']
+          MESSAGING_TOPIC_PREFIX = ['/queue/Consumer.mbs.queue.VirtualTopic.eng']
           KOJI_CONFIG = '/etc/module-build-service/koji.conf'
           KOJI_PROFILE = 'test'
           KOJI_ARCHES = ['x86_64']
@@ -525,7 +525,7 @@ objects:
 
           SYSTEM = 'koji'
           MESSAGING = 'umb'
-          MESSAGING_TOPIC_PREFIX = ['']
+          MESSAGING_TOPIC_PREFIX = ['/queue/Consumer.mbs.queue.VirtualTopic.eng']
           KOJI_CONFIG = '/etc/module-build-service/koji.conf'
           KOJI_PROFILE = 'test'
           KOJI_ARCHES = ['x86_64']
