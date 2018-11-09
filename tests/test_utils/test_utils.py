@@ -861,6 +861,18 @@ class TestBatches:
         # Make sure that both components in the batch were submitted
         assert len(mock_sbc.mock_calls) == 2
 
+    def test_start_build_component_failed_state(self, default_buildroot_groups):
+        """
+        Tests whether exception occured while building sets the state to failed
+        """
+        builder = mock.MagicMock()
+        builder.build.side_effect = Exception('Something have gone terribly wrong')
+        component = mock.MagicMock()
+
+        module_build_service.utils.batches.start_build_component(builder, component)
+
+        assert component.state == koji.BUILD_STATES['FAILED']
+
     @patch('module_build_service.utils.batches.start_build_component')
     @patch('module_build_service.config.Config.rebuild_strategy',
            new_callable=mock.PropertyMock, return_value='only-changed')

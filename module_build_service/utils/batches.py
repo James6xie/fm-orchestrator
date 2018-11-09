@@ -78,12 +78,14 @@ def start_build_component(builder, c):
         c.state = koji.BUILD_STATES['FAILED']
         c.state_reason = "Failed to build artifact %s: %s" % (c.package, str(e))
         log.exception(e)
+        c.module_build.transition(conf, models.BUILD_STATES['failed'])
         return
 
     if not c.task_id and c.state == koji.BUILD_STATES['BUILDING']:
         c.state = koji.BUILD_STATES['FAILED']
         c.state_reason = ("Failed to build artifact %s: "
                           "Builder did not return task ID" % (c.package))
+        c.module_build.transition(conf, models.BUILD_STATES['failed'])
         return
 
 
