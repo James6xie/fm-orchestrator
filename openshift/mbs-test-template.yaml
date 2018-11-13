@@ -115,7 +115,7 @@ objects:
           MESSAGING_TOPIC_PREFIX = ['/queue/Consumer.mbs.queue.VirtualTopic.eng']
           KOJI_CONFIG = '/etc/module-build-service/koji.conf'
           KOJI_PROFILE = 'test'
-          KOJI_ARCHES = ['x86_64']
+          ARCHES = ['x86_64']
           KOJI_PROXYUSER = False
           KOJI_REPOSITORY_URL = ''
           PDC_URL = ''
@@ -527,7 +527,7 @@ objects:
           MESSAGING_TOPIC_PREFIX = ['/queue/Consumer.mbs.queue.VirtualTopic.eng']
           KOJI_CONFIG = '/etc/module-build-service/koji.conf'
           KOJI_PROFILE = 'test'
-          KOJI_ARCHES = ['x86_64']
+          ARCHES = ['x86_64']
           KOJI_PROXYUSER = False
           KOJI_REPOSITORY_URL = ''
           PDC_URL = ''
