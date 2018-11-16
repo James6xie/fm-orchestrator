@@ -431,24 +431,16 @@ def record_component_builds(mmd, module, initial_batch=1,
     return batch
 
 
-def mmd_set_default_nsv(mmd, filename, stream=None):
-    # Mimic the way how default values are generated for modules that are stored in SCM
-    # We can take filename as the module name as opposed to repo name,
-    # and also we can take numeric representation of current datetime
-    # as opposed to datetime of the last commit
-    dt = datetime.utcfromtimestamp(int(time.time()))
-    def_name = str(os.path.splitext(os.path.basename(filename))[0])
-    def_version = int(dt.strftime("%Y%m%d%H%M%S"))
-    mmd.set_name(mmd.get_name() or def_name)
-    mmd.set_stream(stream or mmd.get_stream() or "master")
-    mmd.set_version(mmd.get_version() or def_version)
-
-
 def submit_module_build_from_yaml(username, handle, stream=None, skiptests=False,
                                   optional_params=None):
     yaml_file = handle.read()
     mmd = load_mmd(yaml_file)
-    mmd_set_default_nsv(mmd, handle.filename, stream=stream)
+    dt = datetime.utcfromtimestamp(int(time.time()))
+    def_name = str(os.path.splitext(os.path.basename(handle.filename))[0])
+    def_version = int(dt.strftime("%Y%m%d%H%M%S"))
+    mmd.set_name(mmd.get_name() or def_name)
+    mmd.set_stream(stream or mmd.get_stream() or "master")
+    mmd.set_version(mmd.get_version() or def_version)
     if skiptests:
         buildopts = mmd.get_rpm_buildopts()
         buildopts["macros"] = buildopts.get("macros", "") + "\n\n%__spec_check_pre exit 0\n"
@@ -557,13 +549,6 @@ def submit_module_build(username, url, mmd, optional_params=None):
     modules = []
 
     for mmd in mmds:
-        # Whatever this expanded modulemd exists, check and record possible
-        # stream collision modules. Corresponding modules could be updated
-        # before an existing module is resubmitted again, so MBS has to ensure
-        # stream collision modules list is up-to-date.
-        log.info('Start to handle potential module stream collision.')
-        record_stream_collision_modules(mmd)
-
         # Prefix the version of the modulemd based on the base module it buildrequires
         version = get_prefixed_version(mmd)
         mmd.set_version(version)
@@ -602,6 +587,9 @@ def submit_module_build(username, url, mmd, optional_params=None):
             module.transition(conf, transition_to, "Resubmitted by %s" % username)
             log.info("Resumed existing module build in previous state %s" % module.state)
         else:
+            log.info('Start to handle potential module stream collision.')
+            record_stream_collision_modules(mmd)
+
             log.debug('Creating new module build')
             module = models.ModuleBuild.create(
                 db.session,

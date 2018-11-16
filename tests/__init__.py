@@ -708,9 +708,10 @@ def make_module(nsvc, requires_list=None, build_requires_list=None, base_module=
         section in module metadata.
     :type filtered_rpms: list[str]
     :param dict xmd: a mapping representing XMD section in module metadata. A
-        custom xmd could be passed for particular test purpose and some default
-        key/value pairs are added if not present.
-    :param bool store_to_db: whether to store create module metadata to database.
+        custom xmd could be passed for testing a particular scenario and some
+        default key/value pairs are added if not present.
+    :param bool store_to_db: whether to store created module metadata to the
+        database.
     :return: New Module Build if set to store module metadata to database,
         otherwise the module metadata is returned.
     :rtype: ModuleBuild or Modulemd.Module

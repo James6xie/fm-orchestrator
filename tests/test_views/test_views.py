@@ -1216,10 +1216,11 @@ class TestViews:
         (['f28'], None),
         (['f28'], ['f28']),
     ))
+    @patch('module_build_service.utils.submit.record_stream_collision_modules')
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     def test_submit_build_dep_override(
-            self, mocked_scm, mocked_get_user, br_override_streams, req_override_streams):
+            self, mocked_scm, mocked_get_user, rscm, br_override_streams, req_override_streams):
         init_data(data_size=1, multiple_stream_versions=True)
         FakeSCM(mocked_scm, 'testmodule', 'testmodule_platform_f290000.yaml',
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')

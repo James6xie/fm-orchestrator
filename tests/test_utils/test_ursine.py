@@ -212,7 +212,7 @@ class TestRecordStreamCollisionModules:
 
         with patch.object(ursine, 'log') as log:
             ursine.record_stream_collision_modules(fake_mmd)
-            log.warning.assert_called_once()
+            log.info.assert_called_once()
             find_stream_collision_modules.assert_not_called()
 
         assert original_xmd == glib.from_variant_dict(fake_mmd.get_xmd())
