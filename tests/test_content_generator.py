@@ -29,7 +29,7 @@ from os import path
 
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.repos # noqa
-from module_build_service import models, conf, build_logs, Modulemd
+from module_build_service import models, conf, build_logs, Modulemd, glib
 
 from mock import patch, Mock, MagicMock, call, mock_open
 import kobo.rpmlib
@@ -613,3 +613,20 @@ class TestBuild:
                 "dhcp-libs-12:4.3.5-5.module_2118aef6.noarch"])
         else:
             assert set(mmd.get_rpm_artifacts().get()) == set([])
+
+    def test_sanitize_mmd(self):
+        mmd = self.cg.module.mmd()
+        component = Modulemd.ComponentRpm()
+        component.set_name("foo")
+        component.set_rationale("foo")
+        component.set_repository("http://private.tld/foo.git")
+        component.set_cache("http://private.tld/cache")
+        mmd.add_rpm_component(component)
+        mmd.set_xmd(glib.dict_values({"mbs": {"buildrequires": []}}))
+        mmd = self.cg._sanitize_mmd(mmd)
+
+        for pkg in mmd.get_rpm_components().values():
+            assert pkg.get_repository() is None
+            assert pkg.get_cache() is None
+
+        assert "mbs" not in mmd.get_xmd().keys()

@@ -41,7 +41,7 @@ from six import text_type
 import koji
 import pungi.arch
 
-from module_build_service import log, build_logs, Modulemd
+from module_build_service import log, build_logs, Modulemd, glib
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -567,6 +567,32 @@ class KojiContentGenerator(object):
         mmd.set_rpm_artifacts(rpm_artifacts)
         return mmd
 
+    def _sanitize_mmd(self, mmd):
+        """
+        Returns sanitized modulemd file.
+
+        This method mainly removes the internal only information from the
+        modulemd file which should not leak to final modulemd.
+
+        :param Modulemd mmd: Modulemd instance to sanitize.
+        :rtype: Modulemd.
+        :return: Sanitized Modulemd instance.
+        """
+        # Remove components.repository and components.cache.
+        for pkg in mmd.get_rpm_components().values():
+            if pkg.get_repository():
+                pkg.set_repository(None)
+            if pkg.get_cache():
+                pkg.set_cache(None)
+
+        # Remove 'mbs' XMD section.
+        xmd = glib.from_variant_dict(mmd.get_xmd())
+        if "mbs" in xmd:
+            del xmd["mbs"]
+            mmd.set_xmd(glib.dict_values(xmd))
+
+        return mmd
+
     def _finalize_mmd(self, arch):
         """
         Finalizes the modulemd:
@@ -576,7 +602,7 @@ class KojiContentGenerator(object):
         :rtype: str
         :return: Finalized modulemd string.
         """
-        mmd = self.module.mmd()
+        mmd = self._sanitize_mmd(self.module.mmd())
         if self.devel:
             mmd.set_name(mmd.get_name() + "-devel")
 
