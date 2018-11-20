@@ -35,6 +35,7 @@ import subprocess
 import tempfile
 import time
 from io import open
+from collections import defaultdict
 import kobo.rpmlib
 
 from six import text_type
@@ -50,6 +51,25 @@ logging.basicConfig(level=logging.DEBUG)
 def get_session(config, owner):
     from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
     return KojiModuleBuilder.get_session(config, owner)
+
+
+def strip_suffixes(s, suffixes):
+    """
+    Helper function to remove suffixes from given string.
+
+    At most, a single suffix is removed to avoid removing portions
+    of the string that were not originally at its end.
+
+    :param str s: String to operate on
+    :param iter<str> tokens: Iterable of suffix strings
+    :rtype: str
+    :return: String without any of the given suffixes
+    """
+    for suffix in suffixes:
+        if s.endswith(suffix):
+            s = s[:-len(suffix)]
+            break
+    return s
 
 
 def koji_retrying_multicall_map(*args, **kwargs):
@@ -541,9 +561,27 @@ class KojiContentGenerator(object):
         # Modulemd.SimpleSet into which we will add licenses of all RPMs.
         rpm_licenses = Modulemd.SimpleSet()
 
+        # RPM name suffixes that imply relationship to another RPM
+        group_suffixes = ("-debuginfo", "-debugsource")
+
+        # Grouping of "main" RPM with the corresponding debuginfo and debugsource RPMs
+        grouped_rpms = defaultdict(list)
+        source_rpms = {}
+        non_devel_source_rpms = {}
+        for nevra, rpm in self.rpms_dict.items():
+            name = strip_suffixes(rpm["name"], group_suffixes)
+            grouped_rpms[name].append((nevra, rpm))
+            if rpm["arch"] == "src":
+                source_rpms[name] = nevra
+
         # Check each RPM in `self.rpms_dict` to find out if it can be included in mmd
         # for this architecture.
         for nevra, rpm in self.rpms_dict.items():
+            # Filter out debug and source RPMs, these will later be included if
+            # the "main" RPM is included
+            if rpm["name"].endswith(group_suffixes) or rpm["arch"] == "src":
+                continue
+
             # Filter out RPMs which will never end up in final modulemd:
             # - the architecture of an RPM is not multilib architecture for `arch`.
             # - the architecture of an RPM is not the final mmd architecture.
@@ -560,6 +598,16 @@ class KojiContentGenerator(object):
                 continue
 
             should_include = self._should_include_rpm(rpm, mmd, arch, multilib_arches)
+
+            # A source RPM should only be included in -devel module, if the "main" RPM
+            # has been completed excluded from non-devel module. Track which source
+            # RPMs would've been included in non-devel module to create a complement
+            # list for -devel modules.
+            if should_include:
+                source_rpm = source_rpms.get(rpm["name"])
+                if source_rpm:
+                    non_devel_source_rpms[rpm["name"]] = source_rpm
+
             if self.devel and should_include:
                 # In case this is a -devel module, we want to skip any RPMs which would normally be
                 # included in a module, and only keep those which wouldn't be included, because
@@ -570,12 +618,23 @@ class KojiContentGenerator(object):
                 # really should include and skip the others.
                 continue
 
-            # Add RPM to packages.
-            rpm_artifacts.add(nevra)
+            # Add RPM and its related RPMs to packages.
+            for related_nevra, related_rpm in grouped_rpms[rpm["name"]]:
+                if related_rpm["arch"] != rpm["arch"]:
+                    continue
 
-            # Not all RPMs have licenses (for example debuginfo packages).
-            if "license" in rpm and rpm["license"]:
-                rpm_licenses.add(rpm["license"])
+                rpm_artifacts.add(related_nevra)
+                # Not all RPMs have licenses (for example debuginfo packages).
+                license = related_rpm.get("license")
+                if license:
+                    rpm_licenses.add(license)
+
+        if self.devel:
+            for source_nevra in set(source_rpms.values()) - set(non_devel_source_rpms.values()):
+                rpm_artifacts.add(source_nevra)
+        else:
+            for source_nevra in non_devel_source_rpms.values():
+                rpm_artifacts.add(source_nevra)
 
         mmd.set_content_licenses(rpm_licenses)
         mmd.set_rpm_artifacts(rpm_artifacts)

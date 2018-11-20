@@ -439,14 +439,14 @@ class TestBuild:
 
     @pytest.mark.parametrize("devel", (False, True))
     def test_fill_in_rpms_list(self, devel):
+        self._add_test_rpm("dhcp-libs-12:4.3.5-5.module_2118aef6.src", "dhcp")
         self._add_test_rpm("dhcp-libs-12:4.3.5-5.module_2118aef6.x86_64", "dhcp")
         self._add_test_rpm("dhcp-libs-12:4.3.5-5.module_2118aef6.i686", "dhcp")
         self._add_test_rpm("dhcp-libs-12:4.3.5-5.module_2118aef6.s390x", "dhcp")
-        self._add_test_rpm("dhcp-libs-12:4.3.5-5.module_2118aef6.src", "dhcp")
+        self._add_test_rpm("perl-Tangerine-12:4.3.5-5.module_2118aef6.src", "perl-Tangerine")
         self._add_test_rpm("perl-Tangerine-12:4.3.5-5.module_2118aef6.x86_64", "perl-Tangerine")
         self._add_test_rpm("perl-Tangerine-12:4.3.5-5.module_2118aef6.i686", "perl-Tangerine")
         self._add_test_rpm("perl-Tangerine-12:4.3.5-5.module_2118aef6.s390x", "perl-Tangerine")
-        self._add_test_rpm("perl-Tangerine-12:4.3.5-5.module_2118aef6.src", "perl-Tangerine")
 
         self.cg.devel = devel
         mmd = self.cg.module.mmd()
@@ -455,10 +455,11 @@ class TestBuild:
         if not devel:
             # Only x86_64 packages should be filled in, because we requested x86_64 arch.
             assert set(mmd.get_rpm_artifacts().get()) == set([
-                "dhcp-libs-12:4.3.5-5.module_2118aef6.x86_64",
                 "dhcp-libs-12:4.3.5-5.module_2118aef6.src",
+                "dhcp-libs-12:4.3.5-5.module_2118aef6.x86_64",
+                "perl-Tangerine-12:4.3.5-5.module_2118aef6.src",
                 "perl-Tangerine-12:4.3.5-5.module_2118aef6.x86_64",
-                "perl-Tangerine-12:4.3.5-5.module_2118aef6.src"])
+            ])
         else:
             # The i686 packages are filtered out in normal packages, because multilib
             # is not enabled for them - therefore we want to include them in -devel.
@@ -467,8 +468,10 @@ class TestBuild:
                 "perl-Tangerine-12:4.3.5-5.module_2118aef6.i686"])
 
     def test_fill_in_rpms_exclusivearch(self):
+        self._add_test_rpm("dhcp-libs-12:4.3.5-5.module_2118aef6.src", "dhcp")
         self._add_test_rpm("dhcp-libs-12:4.3.5-5.module_2118aef6.noarch", "dhcp",
                            exclusivearch=["x86_64"])
+        self._add_test_rpm("perl-Tangerine-12:4.3.5-5.module_2118aef6.src", "perl-Tangerine")
         self._add_test_rpm("perl-Tangerine-12:4.3.5-5.module_2118aef6.noarch", "perl-Tangerine",
                            exclusivearch=["ppc64le"])
 
@@ -478,11 +481,15 @@ class TestBuild:
         # Only dhcp-libs should be filled in, because perl-Tangerine has different
         # exclusivearch.
         assert set(mmd.get_rpm_artifacts().get()) == set([
-            "dhcp-libs-12:4.3.5-5.module_2118aef6.noarch"])
+            "dhcp-libs-12:4.3.5-5.module_2118aef6.src",
+            "dhcp-libs-12:4.3.5-5.module_2118aef6.noarch",
+        ])
 
     def test_fill_in_rpms_excludearch(self):
+        self._add_test_rpm("dhcp-libs-12:4.3.5-5.module_2118aef6.src", "dhcp")
         self._add_test_rpm("dhcp-libs-12:4.3.5-5.module_2118aef6.noarch", "dhcp",
                            excludearch=["x86_64"])
+        self._add_test_rpm("perl-Tangerine-12:4.3.5-5.module_2118aef6.src", "perl-Tangerine")
         self._add_test_rpm("perl-Tangerine-12:4.3.5-5.module_2118aef6.noarch", "perl-Tangerine",
                            excludearch=["ppc64le"])
 
@@ -491,14 +498,20 @@ class TestBuild:
 
         # Only perl-Tangerine should be filled in, because dhcp-libs is excluded from x86_64.
         assert set(mmd.get_rpm_artifacts().get()) == set([
-            "perl-Tangerine-12:4.3.5-5.module_2118aef6.noarch"])
+            "perl-Tangerine-12:4.3.5-5.module_2118aef6.src",
+            "perl-Tangerine-12:4.3.5-5.module_2118aef6.noarch",
+        ])
 
     @pytest.mark.parametrize("devel", (False, True))
     def test_fill_in_rpms_rpm_whitelist(self, devel):
+        self._add_test_rpm("dhcp-libs-12:4.3.5-5.module_2118aef6.src", "dhcp",
+                           koji_srpm_name="python27-dhcp")
         self._add_test_rpm("dhcp-libs-12:4.3.5-5.module_2118aef6.x86_64", "dhcp",
                            koji_srpm_name="python27-dhcp")
         self._add_test_rpm("dhcp-libs-12:4.3.5-5.module_2118aef6.i686", "dhcp",
                            koji_srpm_name="python27-dhcp")
+        self._add_test_rpm("perl-Tangerine-12:4.3.5-5.module_2118aef6.src", "perl-Tangerine",
+                           koji_srpm_name="foo-perl-Tangerine")
         self._add_test_rpm("perl-Tangerine-12:4.3.5-5.module_2118aef6.x86_64", "perl-Tangerine",
                            koji_srpm_name="foo-perl-Tangerine")
         self._add_test_rpm("perl-Tangerine-12:4.3.5-5.module_2118aef6.i686", "perl-Tangerine",
@@ -516,19 +529,37 @@ class TestBuild:
             # Only x86_64 dhcp-libs should be filled in, because only python27-dhcp is whitelisted
             # srpm name.
             assert set(mmd.get_rpm_artifacts().get()) == set([
-                "dhcp-libs-12:4.3.5-5.module_2118aef6.x86_64"])
+                "dhcp-libs-12:4.3.5-5.module_2118aef6.src",
+                "dhcp-libs-12:4.3.5-5.module_2118aef6.x86_64",
+            ])
         else:
             assert set(mmd.get_rpm_artifacts().get()) == set([
                 "dhcp-libs-12:4.3.5-5.module_2118aef6.i686",
+                "perl-Tangerine-12:4.3.5-5.module_2118aef6.src",
                 "perl-Tangerine-12:4.3.5-5.module_2118aef6.x86_64",
-                "perl-Tangerine-12:4.3.5-5.module_2118aef6.i686"])
+                "perl-Tangerine-12:4.3.5-5.module_2118aef6.i686",
+            ])
 
     @pytest.mark.parametrize("devel", (False, True))
     def test_fill_in_rpms_list_filters(self, devel):
+        self._add_test_rpm("dhcp-libs-12:4.3.5-5.module_2118aef6.src", "dhcp")
         self._add_test_rpm("dhcp-libs-12:4.3.5-5.module_2118aef6.x86_64", "dhcp")
+        self._add_test_rpm("dhcp-libs-debuginfo-12:4.3.5-5.module_2118aef6.x86_64", "dhcp")
+        self._add_test_rpm("dhcp-libs-debugsource-12:4.3.5-5.module_2118aef6.x86_64", "dhcp")
         self._add_test_rpm("dhcp-libs-12:4.3.5-5.module_2118aef6.i686", "dhcp")
+        self._add_test_rpm("dhcp-libs-debuginfo-12:4.3.5-5.module_2118aef6.i686", "dhcp")
+        self._add_test_rpm("dhcp-libs-debugsource-12:4.3.5-5.module_2118aef6.i686", "dhcp")
+        self._add_test_rpm("perl-Tangerine-12:4.3.5-5.module_2118aef6.src", "perl-Tangerine")
         self._add_test_rpm("perl-Tangerine-12:4.3.5-5.module_2118aef6.x86_64", "perl-Tangerine")
+        self._add_test_rpm("perl-Tangerine-debuginfo-12:4.3.5-5.module_2118aef6.x86_64",
+                           "perl-Tangerine")
+        self._add_test_rpm("perl-Tangerine-debugsource-12:4.3.5-5.module_2118aef6.x86_64",
+                           "perl-Tangerine")
         self._add_test_rpm("perl-Tangerine-12:4.3.5-5.module_2118aef6.i686", "perl-Tangerine")
+        self._add_test_rpm("perl-Tangerine-debuginfo-12:4.3.5-5.module_2118aef6.i686",
+                           "perl-Tangerine")
+        self._add_test_rpm("perl-Tangerine-debugsource-12:4.3.5-5.module_2118aef6.i686",
+                           "perl-Tangerine")
 
         self.cg.devel = devel
         mmd = self.cg.module.mmd()
@@ -541,19 +572,35 @@ class TestBuild:
         if not devel:
             # Only x86_64 perl-Tangerine should be filled in, because dhcp-libs is filtered out.
             assert set(mmd.get_rpm_artifacts().get()) == set([
-                "perl-Tangerine-12:4.3.5-5.module_2118aef6.x86_64"])
+                "perl-Tangerine-12:4.3.5-5.module_2118aef6.src",
+                "perl-Tangerine-12:4.3.5-5.module_2118aef6.x86_64",
+                "perl-Tangerine-debuginfo-12:4.3.5-5.module_2118aef6.x86_64",
+                "perl-Tangerine-debugsource-12:4.3.5-5.module_2118aef6.x86_64",
+            ])
         else:
             assert set(mmd.get_rpm_artifacts().get()) == set([
+                "dhcp-libs-12:4.3.5-5.module_2118aef6.src",
                 "dhcp-libs-12:4.3.5-5.module_2118aef6.x86_64",
+                "dhcp-libs-debuginfo-12:4.3.5-5.module_2118aef6.x86_64",
+                "dhcp-libs-debugsource-12:4.3.5-5.module_2118aef6.x86_64",
                 "dhcp-libs-12:4.3.5-5.module_2118aef6.i686",
-                "perl-Tangerine-12:4.3.5-5.module_2118aef6.i686"])
+                "dhcp-libs-debuginfo-12:4.3.5-5.module_2118aef6.i686",
+                "dhcp-libs-debugsource-12:4.3.5-5.module_2118aef6.i686",
+                "perl-Tangerine-12:4.3.5-5.module_2118aef6.i686",
+                "perl-Tangerine-debuginfo-12:4.3.5-5.module_2118aef6.i686",
+                "perl-Tangerine-debugsource-12:4.3.5-5.module_2118aef6.i686",
+            ])
 
     @pytest.mark.parametrize("devel", (False, True))
     def test_fill_in_rpms_list_multilib(self, devel):
+        self._add_test_rpm("dhcp-libs-12:4.3.5-5.module_2118aef6.src", "dhcp",
+                           multilib=["x86_64"])
         self._add_test_rpm("dhcp-libs-12:4.3.5-5.module_2118aef6.x86_64", "dhcp",
                            multilib=["x86_64"])
         self._add_test_rpm("dhcp-libs-12:4.3.5-5.module_2118aef6.i686", "dhcp",
                            multilib=["x86_64"])
+        self._add_test_rpm("perl-Tangerine-12:4.3.5-5.module_2118aef6.src", "perl-Tangerine",
+                           multilib=["ppc64le"])
         self._add_test_rpm("perl-Tangerine-12:4.3.5-5.module_2118aef6.x86_64", "perl-Tangerine",
                            multilib=["ppc64le"])
         self._add_test_rpm("perl-Tangerine-12:4.3.5-5.module_2118aef6.i686", "perl-Tangerine",
@@ -567,9 +614,12 @@ class TestBuild:
             # Only i686 package for dhcp-libs should be added, because perl-Tangerine does not have
             # multilib set.
             assert set(mmd.get_rpm_artifacts().get()) == set([
+                "dhcp-libs-12:4.3.5-5.module_2118aef6.src",
                 "dhcp-libs-12:4.3.5-5.module_2118aef6.x86_64",
                 "dhcp-libs-12:4.3.5-5.module_2118aef6.i686",
-                "perl-Tangerine-12:4.3.5-5.module_2118aef6.x86_64"])
+                "perl-Tangerine-12:4.3.5-5.module_2118aef6.src",
+                "perl-Tangerine-12:4.3.5-5.module_2118aef6.x86_64",
+            ])
         else:
             assert set(mmd.get_rpm_artifacts().get()) == set([
                 "perl-Tangerine-12:4.3.5-5.module_2118aef6.i686"])
