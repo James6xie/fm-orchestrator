@@ -171,6 +171,76 @@ def init(config, session, msg):
         session.commit()
 
 
+def generate_module_build_koji_tag(build):
+    """Used by wait handler to get module build koji tag
+
+    :param build: a module build.
+    :type build: :class:`ModuleBuild`
+    :return: generated koji tag.
+    :rtype: str
+    """
+    log.info('Getting tag for %s:%s:%s', build.name, build.stream, build.version)
+    if conf.system in ['koji', 'test']:
+        return generate_koji_tag(build.name, build.stream, build.version, build.context)
+    else:
+        return '-'.join(['module', build.name, build.stream, build.version])
+
+
+@module_build_service.utils.retry(
+    interval=10, timeout=120,
+    wait_on=(ValueError, RuntimeError, ConnectionError))
+def get_module_build_dependencies(build):
+    """Used by wait handler to get module's build dependencies
+
+    :param build: a module build.
+    :type build: :class:`ModuleBuild`
+    :return: the value returned from :meth:`get_module_build_dependencies`
+        according to the configured resolver.
+    :rtype: dict[str, Modulemd.Module]
+    """
+    resolver = module_build_service.resolver.system_resolver
+    if conf.system in ['koji', 'test']:
+        # For Koji backend, query for the module we are going to
+        # build to get the koji_tag and deps from it.
+        log.info('Getting tag for %s:%s:%s', build.name, build.stream, build.version)
+        return resolver.get_module_build_dependencies(
+            build.name, build.stream, build.version, build.context, strict=True)
+    else:
+        # In case of non-koji backend, we want to get the dependencies
+        # of the local module build based on Modulemd.Module, because the
+        # local build is not stored in the external MBS and therefore we
+        # cannot query it using the `query` as for Koji below.
+        return resolver.get_module_build_dependencies(mmd=build.mmd(), strict=True)
+
+
+def get_content_generator_build_koji_tag(module_deps):
+    """Used by wait handler to get koji tag for import by content generator
+
+    :param module_deps: a mapping from module's koji tag to its module
+        metadata.
+    :type: dict[str, Modulemd.Module]
+    :return: the koji tag.
+    :rtype: str
+    """
+    if conf.system in ['koji', 'test']:
+        # Find out the name of Koji tag to which the module's Content
+        # Generator build should be tagged once the build finishes.
+        module_names_streams = {
+            mmd.get_name(): mmd.get_stream() for mmd in module_deps.values()
+        }
+        for base_module_name in conf.base_module_names:
+            if base_module_name in module_names_streams:
+                return conf.koji_cg_build_tag_template.format(
+                    module_names_streams[base_module_name])
+
+        log.debug('No configured base module is a buildrequire. Hence use'
+                  ' default content generator build koji tag %s',
+                  conf.koji_cg_default_build_tag)
+        return conf.koji_cg_default_build_tag
+    else:
+        return conf.koji_cg_default_build_tag
+
+
 def wait(config, session, msg):
     """ Called whenever a module enters the 'wait' state.
 
@@ -206,55 +276,8 @@ def wait(config, session, msg):
         # This is ok.. it's a race condition we can ignore.
         pass
 
-    resolver = module_build_service.resolver.system_resolver
-
-    @module_build_service.utils.retry(
-        interval=10, timeout=120,
-        wait_on=(ValueError, RuntimeError, ConnectionError))
-    def _get_deps_and_tag():
-        """
-        Private method to get the dependencies and koji tag of a module we
-        are going to build. We use private method here to allow "retry"
-        on failure.
-        """
-        cg_build_koji_tag = conf.koji_cg_default_build_tag
-        if conf.system not in ['koji', 'test']:
-            # In case of non-koji backend, we want to get the dependencies
-            # of the local module build based on Modulemd.Module, because the
-            # local build is not stored in the external MBS and therefore we
-            # cannot query it using the `query` as for Koji below.
-            dep_koji_tags = resolver.get_module_build_dependencies(
-                mmd=build.mmd(), strict=True).keys()
-
-            # We also don't want to get the tag name from the MBS, but just
-            # generate it locally instead.
-            tag = '-'.join(['module', build.name, build.stream, build.version])
-        else:
-            # For Koji backend, query for the module we are going to
-            # build to get the koji_tag and deps from it.
-            nsvc = ':'.join([build.name, build.stream, build.version])
-            log.info("Getting deps for %s" % (nsvc))
-            deps_dict = resolver.get_module_build_dependencies(
-                build.name, build.stream, build.version, build.context, strict=True)
-            dep_koji_tags = set(deps_dict.keys())
-
-            # Find out the name of Koji tag to which the module's Content
-            # Generator build should be tagged once the build finishes.
-            module_names_streams = {mmd.get_name(): mmd.get_stream()
-                                    for mmd in deps_dict.values()}
-            for base_module_name in conf.base_module_names:
-                if base_module_name in module_names_streams:
-                    cg_build_koji_tag = conf.koji_cg_build_tag_template.format(
-                        module_names_streams[base_module_name])
-                    break
-
-            log.info('Getting tag for {0}'.format(nsvc))
-            tag = generate_koji_tag(build.name, build.stream, build.version, build.context)
-
-        return dep_koji_tags, tag, cg_build_koji_tag
-
     try:
-        dep_koji_tags, tag, cg_build_koji_tag = _get_deps_and_tag()
+        build_deps = get_module_build_dependencies(build)
     except ValueError:
         reason = "Failed to get module info from MBS. Max retries reached."
         log.exception(reason)
@@ -262,6 +285,7 @@ def wait(config, session, msg):
         session.commit()
         raise
 
+    tag = generate_module_build_koji_tag(build)
     log.debug("Found tag=%s for module %r" % (tag, build))
     # Hang on to this information for later.  We need to know which build is
     # associated with which koji tag, so that when their repos are regenerated
@@ -270,6 +294,7 @@ def wait(config, session, msg):
     log.debug("Assigning koji tag=%s to module build" % tag)
     build.koji_tag = tag
 
+    cg_build_koji_tag = get_content_generator_build_koji_tag(build_deps)
     log.debug("Assigning Content Generator build koji tag=%s to module "
               "build", cg_build_koji_tag)
     build.cg_build_koji_tag = cg_build_koji_tag
@@ -277,8 +302,9 @@ def wait(config, session, msg):
     builder = module_build_service.builder.GenericBuilder.create_from_module(
         session, build, config)
 
-    log.debug("Adding dependencies %s into buildroot for module %s" % (dep_koji_tags, ':'.join(
-        [build.name, build.stream, build.version])))
+    dep_koji_tags = build_deps.keys()
+    log.debug("Adding dependencies %s into buildroot for module %s:%s:%s",
+              dep_koji_tags, build.name, build.stream, build.version)
     builder.buildroot_add_repos(dep_koji_tags)
 
     if not build.component_builds:
