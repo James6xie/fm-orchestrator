@@ -644,3 +644,19 @@ class TestBuild:
         file_dir = self.cg._prepare_file_directory()
         with open(path.join(file_dir, "modulemd.src.txt")) as mmd:
             assert len(mmd.read()) == 1337
+
+    def test_finalize_mmd_devel(self):
+        self.cg.devel = True
+        mmd = self.cg.module.mmd()
+        new_mmd = Modulemd.Module.new_from_string(self.cg._finalize_mmd("x86_64"))
+
+        # Check that -devel suffix is set.
+        assert new_mmd.get_name().endswith("-devel")
+
+        # Check that -devel requires non-devel.
+        for dep in new_mmd.get_dependencies():
+            requires = []
+            for name, streams in dep.get_requires().items():
+                for stream in streams.get():
+                    requires.append("%s:%s" % (name, stream))
+            assert "%s:%s" % (mmd.get_name(), mmd.get_stream()) in requires

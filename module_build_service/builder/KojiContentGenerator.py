@@ -618,7 +618,16 @@ class KojiContentGenerator(object):
         """
         mmd = self._sanitize_mmd(self.module.mmd())
         if self.devel:
+            # Depend on the actual module
+            for dep in mmd.get_dependencies():
+                dep.add_requires_single(mmd.get_name(), mmd.get_stream())
+
+            # Set the new name
             mmd.set_name(mmd.get_name() + "-devel")
+
+            # Delete API and profiles
+            mmd.set_rpm_api(Modulemd.SimpleSet())
+            mmd.clear_profiles()
 
         # Set the "Arch" field in mmd.
         mmd.set_arch(pungi.arch.tree_arch_to_yum_arch(arch))
