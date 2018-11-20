@@ -42,6 +42,7 @@ import koji
 import pungi.arch
 
 from module_build_service import conf, log, build_logs, Modulemd, glib
+from module_build_service.scm import SCM
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -366,16 +367,27 @@ class KojiContentGenerator(object):
         # Read the modulemd file to get the filesize/checksum and also
         # parse it to get the Modulemd instance.
         mmd_path = os.path.join(output_path, mmd_filename)
-        with open(mmd_path) as mmd_f:
-            data = mmd_f.read()
-            mmd = Modulemd.Module().new_from_string(data)
-            ret['filename'] = mmd_filename
-            ret['filesize'] = len(data)
-            ret['checksum'] = hashlib.md5(data.encode('utf-8')).hexdigest()
+        try:
+            with open(mmd_path) as mmd_f:
+                data = mmd_f.read()
+                mmd = Modulemd.Module().new_from_string(data)
+                ret['filename'] = mmd_filename
+                ret['filesize'] = len(data)
+                ret['checksum'] = hashlib.md5(data.encode('utf-8')).hexdigest()
+        except IOError:
+            if arch == "src":
+                # This might happen in case the Module is submitted directly
+                # using the yaml without SCM URL. This should never happen
+                # when building production-ready modules using Koji, but in
+                # theory it is possible.
+                log.warn("No modulemd.src.txt found.")
+                return
+            else:
+                raise
 
         components = []
-        if arch == "noarch":
-            # For generic noarch modulemd, include all the RPMs.
+        if arch in ["noarch", "src"]:
+            # For generic noarch/src modulemd, include all the RPMs.
             for rpm in self.rpms:
                 components.append(
                     self._koji_rpm_to_component_record(rpm))
@@ -397,8 +409,10 @@ class KojiContentGenerator(object):
 
     def _get_output(self, output_path):
         ret = []
-        for arch in self.arches + ["noarch"]:
-            ret.append(self._get_arch_mmd_output(output_path, arch))
+        for arch in self.arches + ["noarch", "src"]:
+            mmd_dict = self._get_arch_mmd_output(output_path, arch)
+            if mmd_dict:
+                ret.append(mmd_dict)
 
         try:
             log_path = os.path.join(output_path, "build.log")
@@ -613,6 +627,43 @@ class KojiContentGenerator(object):
 
         return unicode(mmd.dumps())
 
+    def _download_source_modulemd(self, mmd, output_path):
+        """
+        Fetches the original source modulemd file from SCM URL stored in the
+        XMD section of `mmd` and stores it to filename referenced by `output_path`.
+
+        This method does nothing if SCM URL is not set in the `mmd`.
+
+        :param Modulemd mmd: Modulemd instance.
+        :param str output_path: Full path to file into which the original modulemd
+            file will be stored.
+        """
+        xmd = glib.from_variant_dict(mmd.get_xmd())
+        commit = xmd.get("mbs", {}).get("commit")
+        scmurl = xmd.get("mbs", {}).get("scmurl")
+        if not commit or not scmurl:
+            log.warn("%r: xmd['mbs'] does not contain 'commit' or 'scmurl'.", self.module)
+            return
+
+        td = None
+        try:
+            log.info("Fetching %s (%s) to get the source modulemd.yaml", scmurl, commit)
+            td = tempfile.mkdtemp()
+            scm = SCM(scmurl)
+            scm.commit = commit
+            scm.checkout(td)
+            fn = scm.get_module_yaml()
+            log.info("Writing source modulemd.yaml to %r" % output_path)
+            shutil.copy(fn, output_path)
+        finally:
+            try:
+                if td is not None:
+                    shutil.rmtree(td)
+            except Exception as e:
+                log.warn(
+                    "Failed to remove temporary directory {!r}: {}".format(
+                        td, str(e)))
+
     def _prepare_file_directory(self):
         """ Creates a temporary directory that will contain all the files
         mentioned in the outputs section
@@ -624,6 +675,9 @@ class KojiContentGenerator(object):
         log.info("Writing generic modulemd.yaml to %r" % mmd_path)
         with open(mmd_path, "w") as mmd_f:
             mmd_f.write(self.mmd)
+
+        mmd_path = os.path.join(prepdir, "modulemd.src.txt")
+        self._download_source_modulemd(self.module.mmd(), mmd_path)
 
         for arch in self.arches:
             mmd_path = os.path.join(prepdir, "modulemd.%s.txt" % arch)

@@ -35,6 +35,7 @@ from mock import patch, Mock, MagicMock, call, mock_open
 import kobo.rpmlib
 
 from tests import init_data
+from tests.test_views.test_views import FakeSCM
 
 from module_build_service.builder.KojiContentGenerator import KojiContentGenerator
 
@@ -630,3 +631,16 @@ class TestBuild:
             assert pkg.get_cache() is None
 
         assert "mbs" not in mmd.get_xmd().keys()
+
+    @patch('module_build_service.builder.KojiContentGenerator.SCM')
+    def test_prepare_file_directory_modulemd_src(self, mocked_scm):
+        FakeSCM(mocked_scm, 'testmodule', 'testmodule_init.yaml',
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+        mmd = self.cg.module.mmd()
+        mmd.set_xmd(glib.dict_values({"mbs": {
+            "commit": "foo",
+            "scmurl": "git://localhost/modules/foo.git#master"}}))
+        self.cg.module.modulemd = mmd.dumps()
+        file_dir = self.cg._prepare_file_directory()
+        with open(path.join(file_dir, "modulemd.src.txt")) as mmd:
+            assert len(mmd.read()) == 1337
