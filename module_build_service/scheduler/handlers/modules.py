@@ -294,10 +294,15 @@ def wait(config, session, msg):
     log.debug("Assigning koji tag=%s to module build" % tag)
     build.koji_tag = tag
 
-    cg_build_koji_tag = get_content_generator_build_koji_tag(build_deps)
-    log.debug("Assigning Content Generator build koji tag=%s to module "
-              "build", cg_build_koji_tag)
-    build.cg_build_koji_tag = cg_build_koji_tag
+    if conf.koji_cg_tag_build:
+        cg_build_koji_tag = get_content_generator_build_koji_tag(build_deps)
+        log.debug("Assigning Content Generator build koji tag=%s to module build",
+                  cg_build_koji_tag)
+        build.cg_build_koji_tag = cg_build_koji_tag
+    else:
+        log.debug('It is disabled to tag module build during importing into'
+                  ' Koji by Content Generator.')
+        log.debug('Skip to assign Content Generator build koji tag to module build.')
 
     builder = module_build_service.builder.GenericBuilder.create_from_module(
         session, build, config)

@@ -41,7 +41,7 @@ from six import text_type
 import koji
 import pungi.arch
 
-from module_build_service import log, build_logs, Modulemd, glib
+from module_build_service import conf, log, build_logs, Modulemd, glib
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -734,7 +734,8 @@ class KojiContentGenerator(object):
         try:
             serverdir = self._upload_outputs(session, metadata, file_dir)
             build_info = session.CGImport(metadata, serverdir)
-            self._tag_cg_build()
+            if conf.koji_cg_tag_build:
+                self._tag_cg_build()
             log.info("Content generator import done.")
             log.debug(json.dumps(build_info, sort_keys=True, indent=4))
 

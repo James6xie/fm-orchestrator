@@ -423,6 +423,11 @@ class Config(object):
             'type': dict,
             'default': {},
             'desc': 'Per base-module name:stream Koji arches list.'},
+        'koji_cg_tag_build': {
+            'type': bool,
+            'default': True,
+            'desc': 'Indicate whether tagging build is enabled during importing '
+                    'module to Koji.'},
         'koji_cg_build_tag_template': {
             'type': str,
             'default': "{}-modular-updates-candidate",

@@ -26,6 +26,7 @@ import module_build_service.messaging
 import module_build_service.scheduler.handlers.modules
 import os
 import koji
+import pytest
 from tests import conf, db, app, scheduler_init_data
 import module_build_service.resolver
 from module_build_service import build_logs, Modulemd
@@ -206,6 +207,10 @@ class TestModuleWait:
                 module_build = ModuleBuild.query.filter_by(id=2).one()
                 assert module_build.cg_build_koji_tag == "modular-updates-candidate"
 
+    @pytest.mark.parametrize('koji_cg_tag_build,expected_cg_koji_build_tag', [
+        [True, 'f27-modular-updates-candidate'],
+        [False, None],
+    ])
     @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
            return_value={'build': [], 'srpm-build': []})
     @patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
@@ -215,7 +220,8 @@ class TestModuleWait:
     @patch("module_build_service.config.Config.base_module_names",
            new_callable=mock.PropertyMock, return_value=set(["base-runtime", "platform"]))
     def test_set_cg_build_koji_tag(
-            self, cfg, generic_resolver, resolver, create_builder, koji_get_session, dbg):
+            self, cfg, generic_resolver, resolver, create_builder, koji_get_session, dbg,
+            koji_cg_tag_build, expected_cg_koji_build_tag):
         """
         Test that build.cg_build_koji_tag is set.
         """
@@ -243,10 +249,12 @@ class TestModuleWait:
             resolver.get_module_build_dependencies.return_value = {
                 "module-bootstrap-tag": base_mmd}
 
-            with patch.object(module_build_service.resolver, 'system_resolver', new=resolver):
-                msg = module_build_service.messaging.MBSModule(msg_id=None, module_build_id=2,
-                                                               module_build_state='some state')
-                module_build_service.scheduler.handlers.modules.wait(
-                    config=conf, session=db.session, msg=msg)
-                module_build = ModuleBuild.query.filter_by(id=2).one()
-                assert module_build.cg_build_koji_tag == "f27-modular-updates-candidate"
+            with patch.object(module_build_service.scheduler.handlers.modules.conf,
+                              'koji_cg_tag_build', new=koji_cg_tag_build):
+                with patch.object(module_build_service.resolver, 'system_resolver', new=resolver):
+                    msg = module_build_service.messaging.MBSModule(msg_id=None, module_build_id=2,
+                                                                   module_build_state='some state')
+                    module_build_service.scheduler.handlers.modules.wait(
+                        config=conf, session=db.session, msg=msg)
+                    module_build = ModuleBuild.query.filter_by(id=2).one()
+                    assert module_build.cg_build_koji_tag == expected_cg_koji_build_tag
