@@ -159,3 +159,19 @@ class TestMockModuleBuilder:
                 pkglist = fd.read().strip()
                 rpm_names = [kobo.rpmlib.parse_nvr(rpm)["name"] for rpm in pkglist.split('\n')]
                 assert "ed" in rpm_names
+
+    @mock.patch("module_build_service.conf.system", new="mock")
+    def test_createrepo_empty_rmp_list(self, *args):
+        with make_session(conf) as session:
+            module = self._create_module_with_filters(session, 3, koji.BUILD_STATES['COMPLETE'])
+
+            builder = MockModuleBuilder("mcurlej", module, conf, module.koji_tag,
+                                        module.component_builds)
+            builder.resultsdir = self.resultdir
+            rpms = []
+            with mock.patch("os.listdir", return_value=rpms):
+                builder._createrepo()
+
+            with open(os.path.join(self.resultdir, "pkglist"), "r") as fd:
+                pkglist = fd.read().strip()
+                assert not pkglist

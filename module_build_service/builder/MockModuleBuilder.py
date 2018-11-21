@@ -178,26 +178,27 @@ class MockModuleBuilder(GenericBuilder):
                      for f in os.listdir(self.resultsdir)
                      if f.endswith(".rpm")]
 
-        output = subprocess.check_output(['rpm',
-                                          '--queryformat',
-                                          '%{NAME} %{EPOCHNUM} %{VERSION} %{RELEASE} %{ARCH}\n',
-                                          '-qp'] + rpm_files,
-                                         cwd=self.resultsdir,
-                                         universal_newlines=True)
-        nevras = output.strip().split('\n')
-        if len(nevras) != len(rpm_files):
-            raise RuntimeError("rpm -qp returned an unexpected number of lines")
+        if rpm_files:
+            output = subprocess.check_output(['rpm',
+                                              '--queryformat',
+                                              '%{NAME} %{EPOCHNUM} %{VERSION} %{RELEASE} %{ARCH}\n',
+                                              '-qp'] + rpm_files,
+                                             cwd=self.resultsdir,
+                                             universal_newlines=True)
+            nevras = output.strip().split('\n')
+            if len(nevras) != len(rpm_files):
+                raise RuntimeError("rpm -qp returned an unexpected number of lines")
 
-        for rpm_file, nevra in zip(rpm_files, nevras):
-            name, epoch, version, release, arch = nevra.split()
+            for rpm_file, nevra in zip(rpm_files, nevras):
+                name, epoch, version, release, arch = nevra.split()
 
-            if m1.last_batch_id() == m1.batch:
-                # If RPM is filtered-out, do not add it to artifacts list.
-                if name in m1_mmd.get_rpm_filter().get():
-                    continue
+                if m1.last_batch_id() == m1.batch:
+                    # If RPM is filtered-out, do not add it to artifacts list.
+                    if name in m1_mmd.get_rpm_filter().get():
+                        continue
 
-            pkglist_f.write(rpm_file + '\n')
-            artifacts.add('{}-{}:{}-{}.{}'.format(name, epoch, version, release, arch))
+                pkglist_f.write(rpm_file + '\n')
+                artifacts.add('{}-{}:{}-{}.{}'.format(name, epoch, version, release, arch))
 
         pkglist_f.close()
         m1_mmd.set_rpm_artifacts(artifacts)
