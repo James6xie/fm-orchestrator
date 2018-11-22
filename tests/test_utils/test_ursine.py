@@ -115,8 +115,6 @@ class TestGetModulemdsFromUrsineContent:
 
     def setup_method(self):
         clean_database(False)
-        self.koji_session = Mock()
-        self.koji_session.opts = {'topurl': 'https://example.com/'}
 
     def teardown_method(self, test_method):
         clean_database()
@@ -124,7 +122,6 @@ class TestGetModulemdsFromUrsineContent:
     @patch('koji.ClientSession')
     def test_return_empty_if_no_ursine_build_tag_is_found(self, ClientSession):
         session = ClientSession.return_value
-        session.opts = {'topurl': 'http://example.com/'}
 
         # No module koji_tag in ursine content yet. This will result in empty
         # ursine modulemds is returned.
