@@ -41,6 +41,22 @@ app = module_build_service.app
 conf = init_config(app)
 
 
+def read_staged_data(yaml_name):
+    """Read module YAML content from staged_data directory
+
+    :param str yaml_name: name of YAML file without extension ``.yaml``.
+    :return: module YAML file's content.
+    :rtype: str
+    :raises ValueError: if specified module YAML file does not exist in
+        staged_data directory.
+    """
+    filename = os.path.join(base_dir, "staged_data", "{}.yaml".format(yaml_name))
+    if not os.path.exists(filename):
+        raise ValueError('Staged data {}.yaml does not exist.'.format(yaml_name))
+    with open(filename, 'r') as mmd:
+        return mmd.read()
+
+
 def patch_config():
     # add test builders for all resolvers
     with_test_builders = dict()
@@ -189,7 +205,7 @@ def _populate_data(session, data_size=10, contexts=False):
         build_two.stream = '1'
         build_two.version = 2 + index
         build_two.state = BUILD_STATES['done']
-        build_two.modulemd = ''  # Skipping since no tests rely on it
+        build_two.modulemd = read_staged_data('testmodule')
         build_two.koji_tag = 'module-postgressql-1.2'
         build_two.scmurl = ('git://pkgs.domain.local/modules/postgressql?'
                             '#aa95886c7a443b36a9ce31abda1f9bef22f2f8c9')
@@ -240,7 +256,7 @@ def _populate_data(session, data_size=10, contexts=False):
         build_three.stream = '4.3.43'
         build_three.version = 6 + index
         build_three.state = BUILD_STATES['wait']
-        build_three.modulemd = ''  # Skipping because no tests rely on it
+        build_three.modulemd = read_staged_data('testmodule')
         build_three.koji_tag = None
         build_three.scmurl = ('git://pkgs.domain.local/modules/testmodule?'
                               '#ca95886c7a443b36a9ce31abda1f9bef22f2f8c9')

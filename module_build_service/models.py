@@ -35,6 +35,7 @@ import sqlalchemy
 from sqlalchemy.orm import validates, scoped_session, sessionmaker, load_only
 from flask import has_app_context
 from module_build_service import db, log, get_url_for, app, conf, Modulemd
+from module_build_service.glib import from_variant_dict
 import module_build_service.messaging
 
 from sqlalchemy.orm import lazyload
@@ -620,6 +621,12 @@ class ModuleBuild(MBSBase):
         return rv
 
     def json(self, show_tasks=True):
+        mmd = self.mmd()
+        xmd = from_variant_dict(mmd.get_xmd())
+        try:
+            buildrequires = xmd['mbs']['buildrequires']
+        except KeyError:
+            buildrequires = {}
         json = self.short_json()
         json.update({
             'component_builds': [build.id for build in self.component_builds],
@@ -631,7 +638,8 @@ class ModuleBuild(MBSBase):
             'state_reason': self.state_reason,
             'time_completed': _utc_datetime_to_iso(self.time_completed),
             'time_modified': _utc_datetime_to_iso(self.time_modified),
-            'time_submitted': _utc_datetime_to_iso(self.time_submitted)
+            'time_submitted': _utc_datetime_to_iso(self.time_submitted),
+            'buildrequires': buildrequires,
         })
         if show_tasks:
             json['tasks'] = self.tasks()
