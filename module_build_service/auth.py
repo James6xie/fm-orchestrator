@@ -46,7 +46,7 @@ from module_build_service import app, log, conf
 try:
     import ldap3
 except ImportError:
-    log.warn("ldap3 import not found.  ldap/krb disabled.")
+    log.warning("ldap3 import not found.  ldap/krb disabled.")
 
 
 client_secrets = None

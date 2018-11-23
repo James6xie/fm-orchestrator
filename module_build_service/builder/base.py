@@ -415,8 +415,8 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
                 continue
 
             if average_time_to_build < 0:
-                log.warn("Negative average build duration for component %s: %s",
-                         component, str(average_time_to_build))
+                log.warning("Negative average build duration for component %s: %s",
+                            component, str(average_time_to_build))
                 weights[component] = weight
                 continue
 

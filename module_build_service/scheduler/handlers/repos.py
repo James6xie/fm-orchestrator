@@ -96,7 +96,7 @@ def done(config, session, msg):
         module_build.transition(config, models.BUILD_STATES['failed'],
                                 "Some components failed to build.")
         session.commit()
-        log.warn("Odd!  All components in batch failed for %r." % module_build)
+        log.warning("Odd!  All components in batch failed for %r." % module_build)
         return
 
     groups = module_build_service.builder.GenericBuilder.default_buildroot_groups(

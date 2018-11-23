@@ -1105,7 +1105,7 @@ chmod 644 %buildroot/etc/rpm/macros.zz-modules
         # Get our own userID, so we can limit the builds to only modular builds
         user_info = koji_session.getLoggedInUser()
         if not user_info or "id" not in user_info:
-            log.warn("Koji.getLoggedInUser() failed while getting build weight.")
+            log.warning("Koji.getLoggedInUser() failed while getting build weight.")
             return cls.compute_weights_from_build_time(components)
         mbs_user_id = user_info["id"]
 

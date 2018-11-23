@@ -400,7 +400,7 @@ class KojiContentGenerator(object):
                 # using the yaml without SCM URL. This should never happen
                 # when building production-ready modules using Koji, but in
                 # theory it is possible.
-                log.warn("No modulemd.src.txt found.")
+                log.warning("No modulemd.src.txt found.")
                 return
             else:
                 raise
@@ -710,7 +710,8 @@ class KojiContentGenerator(object):
         commit = xmd.get("mbs", {}).get("commit")
         scmurl = xmd.get("mbs", {}).get("scmurl")
         if not commit or not scmurl:
-            log.warn("%r: xmd['mbs'] does not contain 'commit' or 'scmurl'.", self.module)
+            log.warning("%r: xmd['mbs'] does not contain 'commit' or 'scmurl'.",
+                        self.module)
             return
 
         td = None
@@ -728,7 +729,7 @@ class KojiContentGenerator(object):
                 if td is not None:
                     shutil.rmtree(td)
             except Exception as e:
-                log.warn(
+                log.warning(
                     "Failed to remove temporary directory {!r}: {}".format(
                         td, str(e)))
 
@@ -812,9 +813,9 @@ class KojiContentGenerator(object):
                      self.module, tag)
 
         if not tag_info:
-            log.warn("%r:, Not tagging Content Generator build, no "
-                     "available tag found, tried %r", self.module,
-                     tag_names_to_try)
+            log.warning(
+                "%r:, Not tagging Content Generator build, no available tag"
+                " found, tried %r", self.module, tag_names_to_try)
             return
 
         build = self._get_build()

@@ -108,11 +108,11 @@ class MBSProducer(PollingProducer):
                 if task_info['state'] == koji.TASK_STATES['CLOSED']:
                     builds = koji_session.listBuilds(taskID=task_id)
                     if not builds:
-                        log.warn("Task ID %r is closed, but we found no "
-                                 "builds in koji." % task_id)
+                        log.warning("Task ID %r is closed, but we found no "
+                                    "builds in koji." % task_id)
                     elif len(builds) > 1:
-                        log.warn("Task ID %r is closed, but more than one "
-                                 "build is present!" % task_id)
+                        log.warning("Task ID %r is closed, but more than one "
+                                    "build is present!" % task_id)
                     else:
                         build_version = builds[0]['version']
                         build_release = builds[0]['release']

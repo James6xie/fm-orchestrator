@@ -38,6 +38,7 @@ except ImportError:
 import koji
 import fedmsg.consumers
 import moksha.hub
+import six
 
 from module_build_service.utils import module_build_state_from_msg
 import module_build_service.messaging
@@ -190,7 +191,10 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
                    list(self.on_module_change.items()))
         for key, callback in all_fns:
             expected = ['config', 'session', 'msg']
-            argspec = inspect.getargspec(callback)[0]
+            if six.PY2:
+                argspec = inspect.getargspec(callback)[0]
+            else:
+                argspec = inspect.getfullargspec(callback)[0]
             if argspec != expected:
                 raise ValueError("Callback %r, state %r has argspec %r!=%r" % (
                     callback, key, argspec, expected))

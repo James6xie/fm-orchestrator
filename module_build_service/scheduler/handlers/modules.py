@@ -63,9 +63,9 @@ def failed(config, session, msg):
 
     module_info = build.json()
     if module_info['state'] != msg.module_build_state:
-        log.warn("Note that retrieved module state %r "
-                 "doesn't match message module state %r" % (
-                     module_info['state'], msg.module_build_state))
+        log.warning(
+            "Note that retrieved module state %r doesn't match message module"
+            " state %r", module_info['state'], msg.module_build_state)
         # This is ok.. it's a race condition we can ignore.
         pass
 
@@ -120,9 +120,9 @@ def done(config, session, msg):
     build = models.ModuleBuild.from_module_event(session, msg)
     module_info = build.json()
     if module_info['state'] != msg.module_build_state:
-        log.warn("Note that retrieved module state %r "
-                 "doesn't match message module state %r" % (
-                     module_info['state'], msg.module_build_state))
+        log.warning(
+            "Note that retrieved module state %r doesn't match message module"
+            " state %r", module_info['state'], msg.module_build_state)
         # This is ok.. it's a race condition we can ignore.
         pass
 
@@ -271,9 +271,8 @@ def wait(config, session, msg):
     log.info("%r", build.modulemd)
 
     if build.state != msg.module_build_state:
-        log.warn("Note that retrieved module state %r "
-                 "doesn't match message module state %r" % (
-                     build.state, msg.module_build_state))
+        log.warning("Note that retrieved module state %r doesn't match message"
+                    " module state %r", build.state, msg.module_build_state)
         # This is ok.. it's a race condition we can ignore.
         pass
 

@@ -77,7 +77,7 @@ class TestLogger:
         # No log file should be created.
         log.debug("ignore this test msg")
         log.info("ignore this test msg")
-        log.warn("ignore this test msg")
+        log.warning("ignore this test msg")
         log.error("ignore this test msg")
         self.build_log.stop(build)
         assert not os.path.exists(path)
@@ -89,13 +89,13 @@ class TestLogger:
         MBSConsumer.current_module_build_id = 1
         log.debug("ignore this test msg1")
         log.info("ignore this test msg1")
-        log.warn("ignore this test msg1")
+        log.warning("ignore this test msg1")
         log.error("ignore this test msg1")
 
         MBSConsumer.current_module_build_id = 2
         log.debug("ignore this test msg2")
         log.info("ignore this test msg2")
-        log.warn("ignore this test msg2")
+        log.warning("ignore this test msg2")
         log.error("ignore this test msg2")
 
         self.build_log.stop(build)
@@ -111,7 +111,7 @@ class TestLogger:
         MBSConsumer.current_module_build_id = 2
         log.debug("ignore this test msg3")
         log.info("ignore this test msg3")
-        log.warn("ignore this test msg3")
+        log.warning("ignore this test msg3")
         log.error("ignore this test msg3")
         self.build_log.stop(build)
         with open(path, "r") as f:

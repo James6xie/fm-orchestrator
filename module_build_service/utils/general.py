@@ -76,7 +76,7 @@ def retry(timeout=conf.net_timeout, interval=conf.net_retry_interval, wait_on=Ex
                 try:
                     return function(*args, **kwargs)
                 except wait_on as e:
-                    log.warn("Exception %r raised from %r.  Retry in %rs" % (
+                    log.warning("Exception %r raised from %r.  Retry in %rs" % (
                         e, function, interval))
                     time.sleep(interval)
                     if (time.time() - start) >= timeout:
@@ -215,7 +215,8 @@ def get_rpm_release(module_build):
     try:
         buildrequires = module_build.mmd().get_xmd()['mbs']['buildrequires']
     except (ValueError, KeyError):
-        log.warn('Module build {0} does not have buildrequires in its xmd'.format(module_build.id))
+        log.warning('Module build {0} does not have buildrequires in its xmd'
+                    .format(module_build.id))
         buildrequires = None
 
     base_module_stream = ''
@@ -226,8 +227,8 @@ def get_rpm_release(module_build):
                 base_module_stream += '+'
                 break
         else:
-            log.warn('Module build {0} does not buildrequire a base module ({1})'
-                     .format(module_build.id, ' or '.join(conf.base_module_names)))
+            log.warning('Module build {0} does not buildrequire a base module ({1})'
+                        .format(module_build.id, ' or '.join(conf.base_module_names)))
 
     return '{prefix}{base_module_stream}{index}+{dist_hash}'.format(
         prefix=conf.default_dist_tag_prefix,
