@@ -308,9 +308,10 @@ class MBSProducer(PollingProducer):
             koji_tag = target["dest_tag_name"]
             module = session.query(models.ModuleBuild).filter_by(
                 koji_tag=koji_tag).first()
-            if not module or module.state in [models.BUILD_STATES["init"],
-                                              models.BUILD_STATES["wait"],
-                                              models.BUILD_STATES["build"]]:
+            if not module or module.name in conf.base_module_names or module.state in [
+                    models.BUILD_STATES["init"],
+                    models.BUILD_STATES["wait"],
+                    models.BUILD_STATES["build"]]:
                 continue
 
             # Double-check that the target we are going to remove is prefixed
