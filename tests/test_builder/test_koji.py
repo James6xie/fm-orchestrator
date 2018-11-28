@@ -639,6 +639,33 @@ class TestKojiBuilder:
         rv = KojiModuleBuilder._get_filtered_rpms_on_self_dep(current_module, br_filtered_rpms)
         assert set(rv) == set(expected)
 
+    @pytest.mark.parametrize('cg_enabled,cg_devel_enabled', [
+        (False, False),
+        (True, False),
+        (True, True),
+    ])
+    @mock.patch('module_build_service.builder.KojiModuleBuilder.KojiContentGenerator')
+    def test_finalize(self, mock_koji_cg_cls, cg_enabled, cg_devel_enabled):
+        self.module.state = 3
+        with patch('module_build_service.config.Config.koji_enable_content_generator',
+                   new_callable=mock.PropertyMock, return_value=cg_enabled):
+            with patch('module_build_service.config.Config.koji_cg_devel_module',
+                       new_callable=mock.PropertyMock, return_value=cg_devel_enabled):
+                builder = FakeKojiModuleBuilder(
+                    owner=self.module.owner, module=self.module, config=conf,
+                    tag_name='module-nginx-1.2', components=[])
+                builder.finalize()
+
+        mock_koji_cg = mock_koji_cg_cls.return_value
+        if cg_enabled:
+            if cg_devel_enabled:
+                assert mock_koji_cg.koji_import.call_count == 2
+                mock_koji_cg.koji_import.assert_has_calls([mock.call(), mock.call(devel=True)])
+            else:
+                mock_koji_cg.koji_import.assert_called_once_with()
+        else:
+            mock_koji_cg.koji_import.assert_not_called()
+
 
 class TestGetDistTagSRPM:
     """Test KojiModuleBuilder.get_disttag_srpm"""

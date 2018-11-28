@@ -428,6 +428,10 @@ class Config(object):
             'default': True,
             'desc': 'Indicate whether tagging build is enabled during importing '
                     'module to Koji.'},
+        'koji_cg_devel_module': {
+            'type': bool,
+            'default': True,
+            'desc': 'Indicate whether a devel module should be imported into Koji.'},
         'koji_cg_build_tag_template': {
             'type': str,
             'default': "{}-modular-updates-candidate",

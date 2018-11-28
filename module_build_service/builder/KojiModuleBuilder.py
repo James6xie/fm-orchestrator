@@ -1201,7 +1201,8 @@ chmod 644 %buildroot/etc/rpm/macros.zz-modules
         if self.config.koji_enable_content_generator and self.module.state == 3:
             cg = KojiContentGenerator(self.module, self.config)
             cg.koji_import()
-            cg.koji_import(devel=True)
+            if conf.koji_cg_devel_module:
+                cg.koji_import(devel=True)
 
     @staticmethod
     def get_rpm_module_tag(rpm):
