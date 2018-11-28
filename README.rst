@@ -153,14 +153,14 @@ As described in the API, the following rebuild strategies are supported in MBS:
 
 - ``all`` - all components will be rebuilt. This means that even if the components have not changed
   since the previous build of the module, all components will be rebuilt and not reused.
-- ``changed-after`` - all components that have changed and those in subsequent batches will be
+- ``changed-and-after`` - all components that have changed and those in subsequent batches will be
   rebuilt. Take for example a module with two batches, and each batch has two components. If one of
   the two components in the first batch is changed, the other component in the batch will be reused
   while all other components in the module will be rebuilt. By default, MBS only allows this
   rebuild strategy.
 - ``only-changed`` - all changed components will be rebuilt. This means that all components,
   regardless of what happened in previous batches, will be reused if they haven't been changed.
-  This strategy is a compromise between ``all`` and ``changed-after``.
+  This strategy is a compromise between ``all`` and ``changed-and-after``.
 
 To configure the rebuild strategies in MBS, you may configure the following options:
 
