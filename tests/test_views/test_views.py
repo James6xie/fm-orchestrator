@@ -34,6 +34,7 @@ import hashlib
 import pytest
 
 from tests import app, init_data, clean_database, reuse_component_init_data
+from tests import read_staged_data
 from tests.test_scm import base_dir as scm_base_dir
 from module_build_service.errors import UnprocessableEntity
 from module_build_service.models import ModuleBuild
@@ -295,7 +296,8 @@ class TestViews:
                 "time_completed": None,
                 "time_modified": "2016-09-03T12:38:40Z",
                 "time_submitted": "2016-09-03T12:38:33Z",
-                "version": "7"
+                "version": "7",
+                "buildrequires": {},
             },
             {
                 "component_builds": [9, 10],
@@ -331,7 +333,8 @@ class TestViews:
                 "time_completed": "2016-09-03T11:37:19Z",
                 "time_modified": "2016-09-03T12:37:19Z",
                 "time_submitted": "2016-09-03T12:35:33Z",
-                "version": "3"
+                "version": "3",
+                "buildrequires": {},
             }
         ]
 
@@ -377,7 +380,8 @@ class TestViews:
                 "time_completed": "2016-09-03T11:25:32Z",
                 "time_modified": "2016-09-03T11:25:32Z",
                 "time_submitted": "2016-09-03T11:23:20Z",
-                "version": "2"
+                "version": "2",
+                "buildrequires": {},
             }
         ]
         assert items == expected
@@ -701,7 +705,7 @@ class TestViews:
             time_submitted=datetime(2018, 11, 15, 16, 8, 18),
             time_modified=datetime(2018, 11, 15, 16, 19, 35),
             rebuild_strategy='changed-and-after',
-            modulemd='---'
+            modulemd=read_staged_data('testmodule'),
         )
         build.buildrequires.append(platform_f300103)
         db.session.add(build)
@@ -1594,3 +1598,30 @@ class TestViews:
 
         assert data['error'] == 'Unprocessable Entity'
         assert data['message'].startswith('\'koji_tag\' is not set in xmd[\'mbs\'] for module')
+
+    def test_buildrequires_is_included_in_json_output(self):
+        # Inject xmd/mbs/buildrequires into an existing module build for
+        # assertion later.
+        from module_build_service.glib import dict_values, from_variant_dict
+        from module_build_service.models import make_session
+        from module_build_service import conf
+        br_modulea = dict(stream='6', version='1', context='1234')
+        br_moduleb = dict(stream='10', version='1', context='5678')
+        with make_session(conf) as session:
+            build = ModuleBuild.query.first()
+            mmd = build.mmd()
+            xmd = from_variant_dict(mmd.get_xmd())
+            mbs = xmd.setdefault('mbs', {})
+            buildrequires = mbs.setdefault('buildrequires', {})
+            buildrequires['modulea'] = br_modulea
+            buildrequires['moduleb'] = br_moduleb
+            mmd.set_xmd(dict_values(xmd))
+            build.modulemd = mmd.dumps()
+            session.commit()
+
+        rv = self.client.get('/module-build-service/1/module-builds/{}'.format(build.id))
+        data = json.loads(rv.data)
+        buildrequires = data.get('buildrequires', {})
+
+        assert br_modulea == buildrequires.get('modulea')
+        assert br_moduleb == buildrequires.get('moduleb')
