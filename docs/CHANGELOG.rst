@@ -1,6 +1,19 @@
 Change Log
 ==========
 
+v2.9.0
+------
+* Show the expanded buildrequires in the API output
+* Make "-devel" modules optional through a configuration option
+* Set the "modularitylabel" RPM header on component builds
+* Workaround stream collisions that occur from modules included in a base module by Ursa-Major
+* Remove dangling "debug" RPMs from the modulemd that ends up in the Koji Content Generator build
+* Make "-devel" module builds require its "non-devel" counterpart
+* Remove infrastructure information in the modulemd that ends up in the Koji Content Generator build
+* Fail the module build immediately when a component build submission to Koji fails
+* Return a friendly error when a stream collision occurs
+* Fix database migrations when upgrading an old instance of MBS
+
 v2.8.1
 ------
 * Fix one of the database migration scripts
