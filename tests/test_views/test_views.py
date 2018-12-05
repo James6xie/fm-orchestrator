@@ -756,10 +756,9 @@ class TestViews:
         assert data['meta']['total'] == 0
 
     @pytest.mark.parametrize('api_version', [1, 2])
-    @patch('module_build_service.utils.submit.record_stream_collision_modules')
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build(self, mocked_scm, mocked_get_user, rscm, api_version):
+    def test_submit_build(self, mocked_scm, mocked_get_user, api_version):
         FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
@@ -805,10 +804,9 @@ class TestViews:
         assert module.buildrequires[0].context == '00000000'
         assert module.buildrequires[0].stream_version == 280000
 
-    @patch('module_build_service.utils.submit.record_stream_collision_modules')
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_build_no_base_module(self, mocked_scm, mocked_get_user, rscm):
+    def test_submit_build_no_base_module(self, mocked_scm, mocked_get_user):
         FakeSCM(mocked_scm, 'testmodule', 'testmodule-no-base-module.yaml',
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
@@ -823,12 +821,11 @@ class TestViews:
             'error': 'Unprocessable Entity'
         }
 
-    @patch('module_build_service.utils.submit.record_stream_collision_modules')
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     @patch('module_build_service.config.Config.rebuild_strategy_allow_override',
            new_callable=PropertyMock, return_value=True)
-    def test_submit_build_rebuild_strategy(self, mocked_rmao, mocked_scm, mocked_get_user, hmsc):
+    def test_submit_build_rebuild_strategy(self, mocked_rmao, mocked_scm, mocked_get_user):
         FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
@@ -902,10 +899,9 @@ class TestViews:
         }
         assert data == expected_error
 
-    @patch('module_build_service.utils.submit.record_stream_collision_modules')
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
-    def test_submit_componentless_build(self, mocked_scm, mocked_get_user, rscm):
+    def test_submit_componentless_build(self, mocked_scm, mocked_get_user):
         FakeSCM(mocked_scm, 'fakemodule', 'fakemodule.yaml',
                 '3da541559918a808c2402bba5012f6c60b27661c')
 
@@ -1127,12 +1123,11 @@ class TestViews:
         assert result['status'] == 400
         assert "The request contains 'owner' parameter" in result['message']
 
-    @patch('module_build_service.utils.submit.record_stream_collision_modules')
     @patch('module_build_service.auth.get_user', return_value=anonymous_user)
     @patch('module_build_service.scm.SCM')
     @patch("module_build_service.config.Config.no_auth", new_callable=PropertyMock,
            return_value=True)
-    def test_submit_build_no_auth_set_owner(self, mocked_conf, mocked_scm, mocked_get_user, hmsc):
+    def test_submit_build_no_auth_set_owner(self, mocked_conf, mocked_scm, mocked_get_user):
         FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
@@ -1148,11 +1143,10 @@ class TestViews:
         build = ModuleBuild.query.filter(ModuleBuild.id == result['id']).one()
         assert (build.owner == result['owner'] == 'foo') is True
 
-    @patch('module_build_service.utils.submit.record_stream_collision_modules')
     @patch('module_build_service.auth.get_user', return_value=anonymous_user)
     @patch('module_build_service.scm.SCM')
     @patch("module_build_service.config.Config.no_auth", new_callable=PropertyMock)
-    def test_patch_set_different_owner(self, mocked_no_auth, mocked_scm, mocked_get_user, hmsc):
+    def test_patch_set_different_owner(self, mocked_no_auth, mocked_scm, mocked_get_user):
         FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
@@ -1193,11 +1187,10 @@ class TestViews:
         assert data['status'] == 422
         assert data['error'] == 'Unprocessable Entity'
 
-    @patch('module_build_service.utils.submit.record_stream_collision_modules')
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     @patch("module_build_service.config.Config.allow_custom_scmurls", new_callable=PropertyMock)
-    def test_submit_custom_scmurl(self, allow_custom_scmurls, mocked_scm, mocked_get_user, hmsc):
+    def test_submit_custom_scmurl(self, allow_custom_scmurls, mocked_scm, mocked_get_user):
         FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
@@ -1220,11 +1213,10 @@ class TestViews:
         (['f28'], None),
         (['f28'], ['f28']),
     ))
-    @patch('module_build_service.utils.submit.record_stream_collision_modules')
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     def test_submit_build_dep_override(
-            self, mocked_scm, mocked_get_user, rscm, br_override_streams, req_override_streams):
+            self, mocked_scm, mocked_get_user, br_override_streams, req_override_streams):
         init_data(data_size=1, multiple_stream_versions=True)
         FakeSCM(mocked_scm, 'testmodule', 'testmodule_platform_f290000.yaml',
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')

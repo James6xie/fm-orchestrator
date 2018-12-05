@@ -58,7 +58,8 @@ class TestModuleInit:
     @patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder."
            "get_built_rpms_in_module_build")
     @patch('module_build_service.scm.SCM')
-    def test_init_basic(self, mocked_scm, built_rpms):
+    @patch('module_build_service.scheduler.handlers.modules.handle_stream_collision_modules')
+    def test_init_basic(self, rscm, mocked_scm, built_rpms):
         FakeSCM(mocked_scm, 'testmodule', 'testmodule_init.yaml',
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 

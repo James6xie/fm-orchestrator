@@ -292,7 +292,7 @@ def cleanup_moksha():
     import moksha.hub.reactor # noqa
 
 
-@patch('module_build_service.utils.submit.record_stream_collision_modules')
+@patch('module_build_service.scheduler.handlers.modules.handle_stream_collision_modules')
 @patch.object(module_build_service.config.Config, 'system', new_callable=PropertyMock,
               return_value='test')
 @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
@@ -1259,7 +1259,7 @@ class TestLocalBuild:
             except Exception:
                 pass
 
-    @patch('module_build_service.utils.submit.record_stream_collision_modules')
+    @patch('module_build_service.scheduler.handlers.modules.handle_stream_collision_modules')
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     @patch("module_build_service.config.Config.mock_resultsdir",

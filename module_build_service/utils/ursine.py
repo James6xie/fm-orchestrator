@@ -184,10 +184,11 @@ def find_stream_collision_modules(buildrequired_modules, koji_tag):
     return collision_modules
 
 
-def record_stream_collision_modules(mmd):
+def handle_stream_collision_modules(mmd):
     """
     Find out modules from ursine content and record those that are buildrequire
-    module but have different stream.
+    module but have different stream. And finally, record built RPMs of these
+    found modules for later use to exclude them from buildroot.
 
     Note that this depends on the result of module stream expansion.
 
@@ -205,6 +206,7 @@ def record_stream_collision_modules(mmd):
     :param mmd: a module's metadata which will be built.
     :type mmd: Modulemd.Module
     """
+    log.info('Start to find out stream collision modules.')
     unpacked_xmd = glib.from_variant_dict(mmd.get_xmd())
     buildrequires = unpacked_xmd['mbs']['buildrequires']
 
@@ -214,15 +216,65 @@ def record_stream_collision_modules(mmd):
             log.info(
                 'Base module %s is not a buildrequire of module %s. '
                 'Skip handling module stream collision for this base module.',
-                mmd.get_name())
+                module_name, mmd.get_name())
+            continue
+
+        # Module stream collision is handled only for newly created module
+        # build. However, if a build is resumed and restarted from init
+        # state, we have to ensure stream collision is not handled twice for a
+        # base module.
+        # Just check the existence, and following code ensures this key exists
+        # even if no stream collision module is found.
+        if ('stream_collision_modules' in base_module_info and
+                'ursine_rpms' in base_module_info):
+            log.debug('Base module %s has stream collision modules and ursine '
+                      'rpms. Skip to handle stream collision again for it.',
+                      module_name)
             continue
 
         modules_nsvc = find_stream_collision_modules(
             buildrequires, base_module_info['koji_tag'])
+
         if modules_nsvc:
+            # Save modules NSVC for later use in subsequent event handlers to
+            # log readable messages.
             base_module_info['stream_collision_modules'] = modules_nsvc
+            base_module_info['ursine_rpms'] = find_module_built_rpms(modules_nsvc)
         else:
             log.info('No stream collision module is found against base module %s.',
                      module_name)
+            # Always set in order to mark it as handled already.
+            base_module_info['stream_collision_modules'] = None
+            base_module_info['ursine_rpms'] = None
 
     mmd.set_xmd(glib.dict_values(unpacked_xmd))
+
+
+def find_module_built_rpms(modules_nsvc):
+    """Find out built RPMs of given modules
+
+    :param modules_nsvc: a list of modules' NSVC to find out built RPMs for
+        each of them.
+    :type modules_nsvc: list[str]
+    :return: a sorted list of RPMs, each of them is represented as NEVR.
+    :rtype: list[str]
+    """
+    import kobo.rpmlib
+    from module_build_service.resolver import GenericResolver
+    from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
+    resolver = GenericResolver.create(conf)
+
+    built_rpms = []
+    koji_session = KojiModuleBuilder.get_session(conf, None)
+
+    for nsvc in modules_nsvc:
+        name, stream, version, context = nsvc.split(':')
+        module = resolver._get_module(name, stream, version, context, strict=True)
+        rpms = koji_session.listTaggedRPMS(module['koji_tag'], latest=True)[0]
+        built_rpms.extend(
+            kobo.rpmlib.make_nvr(rpm, force_epoch=True) for rpm in rpms
+        )
+
+    # In case there is duplicate NEVRs, ensure every NEVR is unique in the final list.
+    # And, sometimes, sorted list of RPMs would be easier to read.
+    return sorted(set(built_rpms))

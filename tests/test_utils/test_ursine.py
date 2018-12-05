@@ -18,6 +18,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import copy
+
 from mock import patch, Mock
 
 from module_build_service import conf, glib
@@ -208,15 +210,15 @@ class TestRecordStreamCollisionModules:
         original_xmd = glib.from_variant_dict(fake_mmd.get_xmd())
 
         with patch.object(ursine, 'log') as log:
-            ursine.record_stream_collision_modules(fake_mmd)
-            log.info.assert_called_once()
+            ursine.handle_stream_collision_modules(fake_mmd)
+            assert 2 == log.info.call_count
             find_stream_collision_modules.assert_not_called()
 
         assert original_xmd == glib.from_variant_dict(fake_mmd.get_xmd())
 
     @patch.object(conf, 'base_module_names', new=['platform'])
     @patch('module_build_service.utils.ursine.get_modulemds_from_ursine_content')
-    def test_nothing_changed_if_no_modules_in_ursine_content(
+    def test_mark_handled_even_if_no_modules_in_ursine_content(
             self, get_modulemds_from_ursine_content):
         xmd = {
             'mbs': {
@@ -232,14 +234,21 @@ class TestRecordStreamCollisionModules:
         get_modulemds_from_ursine_content.return_value = []
 
         with patch.object(ursine, 'log') as log:
-            ursine.record_stream_collision_modules(fake_mmd)
-            log.info.assert_called()
+            ursine.handle_stream_collision_modules(fake_mmd)
+            assert 2 == log.info.call_count
 
-        assert original_xmd == glib.from_variant_dict(fake_mmd.get_xmd())
+        expected_xmd = copy.deepcopy(original_xmd)
+        # Ensure stream_collision_modules is set.
+        expected_xmd['mbs']['buildrequires']['platform']['stream_collision_modules'] = ''
+        expected_xmd['mbs']['buildrequires']['platform']['ursine_rpms'] = ''
+        assert expected_xmd == glib.from_variant_dict(fake_mmd.get_xmd())
 
     @patch.object(conf, 'base_module_names', new=['platform', 'project-platform'])
     @patch('module_build_service.utils.ursine.get_modulemds_from_ursine_content')
-    def test_add_collision_modules(self, get_modulemds_from_ursine_content):
+    @patch('module_build_service.resolver.GenericResolver.create')
+    @patch('koji.ClientSession')
+    def test_add_collision_modules(self, ClientSession, resolver_create,
+                                   get_modulemds_from_ursine_content):
         xmd = {
             'mbs': {
                 'buildrequires': {
@@ -253,34 +262,83 @@ class TestRecordStreamCollisionModules:
                 }
             }
         }
-        fake_mmd = make_module('name1:s:2020:c', xmd=xmd, store_to_db=False)
+        fake_mmd = make_module('name1:s:2020:c',
+                               xmd=xmd, store_to_db=False)
 
         def mock_get_ursine_modulemds(koji_tag):
             if koji_tag == 'module-rhel-8.0-build':
                 return [
-                    make_module('modulea:10:20180813041838:5ea3b708', store_to_db=False),
-                    make_module('moduleb:1.0:20180113042038:6ea3b105', store_to_db=False),
+                    # This is the one
+                    make_module('modulea:10:20180813041838:5ea3b708',
+                                store_to_db=False),
+                    make_module('moduleb:1.0:20180113042038:6ea3b105',
+                                store_to_db=False),
                 ]
             if koji_tag == 'module-project-1.0-build':
                 return [
-                    make_module('bar:6:20181013041838:817fa3a8', store_to_db=False),
-                    make_module('foo:2:20180113041838:95f078a1', store_to_db=False),
+                    # Both of them are the collided modules
+                    make_module('bar:6:20181013041838:817fa3a8',
+                                store_to_db=False),
+                    make_module('foo:2:20180113041838:95f078a1',
+                                store_to_db=False),
                 ]
 
         get_modulemds_from_ursine_content.side_effect = mock_get_ursine_modulemds
 
-        ursine.record_stream_collision_modules(fake_mmd)
+        # Mock for finding out built rpms
+        def mock_get_module(name, stream, version, context, strict=True):
+            return {
+                'modulea:10:20180813041838:5ea3b708': {
+                    'koji_tag': 'module-modulea-10-20180813041838-5ea3b708',
+                },
+                'bar:6:20181013041838:817fa3a8': {
+                    'koji_tag': 'module-bar-6-20181013041838-817fa3a8',
+                },
+                'foo:2:20180113041838:95f078a1': {
+                    'koji_tag': 'module-foo-2-20180113041838-95f078a1',
+                },
+            }['{}:{}:{}:{}'.format(name, stream, version, context)]
+
+        resolver = resolver_create.return_value
+        resolver._get_module.side_effect = mock_get_module
+
+        def mock_listTaggedRPMS(tag, latest):
+            return {
+                'module-modulea-10-20180813041838-5ea3b708': [[
+                    {'name': 'pkg1', 'version': '1.0', 'release': '1.fc28',
+                     'epoch': None},
+                ]],
+                'module-bar-6-20181013041838-817fa3a8': [[
+                    {'name': 'pkg2', 'version': '2.0', 'release': '1.fc28',
+                     'epoch': None},
+                ]],
+                'module-foo-2-20180113041838-95f078a1': [[
+                    {'name': 'pkg3', 'version': '3.0', 'release': '1.fc28',
+                     'epoch': None},
+                ]],
+            }[tag]
+
+        koji_session = ClientSession.return_value
+        koji_session.listTaggedRPMS.side_effect = mock_listTaggedRPMS
+
+        ursine.handle_stream_collision_modules(fake_mmd)
 
         xmd = glib.from_variant_dict(fake_mmd.get_xmd())
         buildrequires = xmd['mbs']['buildrequires']
 
         assert (['modulea:10:20180813041838:5ea3b708'] ==
                 buildrequires['platform']['stream_collision_modules'])
+        assert (['pkg1-0:1.0-1.fc28'] ==
+                buildrequires['platform']['ursine_rpms'])
 
-        modules = buildrequires['project-platform']['stream_collision_modules']
-        modules.sort()
-        expected_modules = ['bar:6:20181013041838:817fa3a8', 'foo:2:20180113041838:95f078a1']
+        modules = sorted(
+            buildrequires['project-platform']['stream_collision_modules'])
+        expected_modules = ['bar:6:20181013041838:817fa3a8',
+                            'foo:2:20180113041838:95f078a1']
         assert expected_modules == modules
+
+        assert (['pkg2-0:2.0-1.fc28', 'pkg3-0:3.0-1.fc28'] ==
+                sorted(buildrequires['project-platform']['ursine_rpms']))
 
 
 class TestFindStreamCollisionModules:

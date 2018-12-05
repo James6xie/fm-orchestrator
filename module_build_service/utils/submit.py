@@ -41,8 +41,8 @@ from module_build_service import conf, db, log, models, Modulemd
 from module_build_service.errors import (
     ValidationError, UnprocessableEntity, Forbidden, Conflict)
 from module_build_service import glib
+from module_build_service.resolver import GenericResolver
 from .mse import generate_expanded_mmds
-from module_build_service.utils.ursine import record_stream_collision_modules
 
 
 def record_filtered_rpms(mmd):
@@ -53,19 +53,41 @@ def record_filtered_rpms(mmd):
     * Reads the mmd["xmd"]["buildrequires"] and extends it with "filtered_rpms"
       list containing the NVRs of filtered RPMs in a buildrequired module.
 
-    * Every base module could have stream collision modules, whose built RPMs
-      should be filtered out to avoid collision. The filtered out RPMs will be
-      stored into the base module as well.
-
     :param Modulemd mmd: Modulemd that will be built next.
     :rtype: Modulemd.Module
     :return: Modulemd extended with the "filtered_rpms" in XMD section.
     """
+    # Imported here to allow import of utils in GenericBuilder.
+    from module_build_service.builder import GenericBuilder
+
+    resolver = GenericResolver.create(conf)
+    builder = GenericBuilder.backends[conf.system]
+
     new_buildrequires = {}
     for req_name, req_data in mmd.get_xmd()["mbs"]["buildrequires"].items():
-        _record_filtered_rpms(req_name, req_data)
-        if req_name in conf.base_module_names and 'stream_collision_modules' in req_data:
-            _record_ursine_rpms(req_data)
+        # In case this is module resubmit or local build, the filtered_rpms
+        # will already be there, so there is no point in generating them again.
+        if "filtered_rpms" in req_data:
+            continue
+
+        # We can just get the first modulemd data from result right here thanks to
+        # strict=True, so in case the module cannot be found, get_module_modulemds
+        # raises an exception.
+        req_mmd = resolver.get_module_modulemds(
+            req_name, req_data["stream"], req_data["version"], req_data["context"], True)[0]
+
+        # Find out the particular NVR of filtered packages
+        filtered_rpms = []
+        rpm_filter = req_mmd.get_rpm_filter()
+        if rpm_filter and rpm_filter.get():
+            rpm_filter = rpm_filter.get()
+            built_nvrs = builder.get_built_rpms_in_module_build(req_mmd)
+            for nvr in built_nvrs:
+                parsed_nvr = kobo.rpmlib.parse_nvr(nvr)
+                if parsed_nvr["name"] in rpm_filter:
+                    filtered_rpms.append(nvr)
+        req_data["filtered_rpms"] = filtered_rpms
+
         new_buildrequires[req_name] = req_data
 
     # Replace the old buildrequires with new ones.
@@ -73,91 +95,6 @@ def record_filtered_rpms(mmd):
     xmd["mbs"]["buildrequires"] = new_buildrequires
     mmd.set_xmd(glib.dict_values(xmd))
     return mmd
-
-
-def _record_filtered_rpms(req_name, req_data):
-    """Store filtered RPMs by a buildrequire module
-
-    This methods looks for key ``filtered_rpms`` in a buildrequired module's
-    metadata. If there is, nothing is done, just keep it unchanged, which case
-    could be a module is resubmitted or a local build.
-
-    Otherwise, ``_record_filtered_rpms`` will get module's RPMs listed in
-    filter section, then store them with the key into metadata in place.
-
-    :param str req_name: name of a buildrequired module.
-    :param dict req_data: a mapping containing metadata of the buildrequired
-        module. A pair of ``req_name`` and ``req_data`` is usually the one of
-        xmd.mbs.buildrequires, which are stored during the module stream
-        expansion process. At least, ``req_data`` must have keys stream,
-        version and context. Key ``filtered_rpms`` will be added as a list of
-        RPMs N-E:V-R.
-    """
-    # Imported here to allow import of utils in GenericBuilder.
-    from module_build_service.builder import GenericBuilder
-
-    # In case this is module resubmit or local build, the filtered_rpms
-    # will already be there, so there is no point in generating them again.
-    if "filtered_rpms" in req_data:
-        return
-
-    resolver = module_build_service.resolver.GenericResolver.create(conf)
-
-    # We can just get the first modulemd data from result right here thanks to
-    # strict=True, so in case the module cannot be found, get_module_modulemds
-    # raises an exception.
-    req_mmd = resolver.get_module_modulemds(
-        req_name, req_data["stream"], req_data["version"], req_data["context"], True)[0]
-
-    # Find out the particular NVR of filtered packages
-    filtered_rpms = []
-    rpm_filter = req_mmd.get_rpm_filter()
-    if rpm_filter and rpm_filter.get():
-        rpm_filter = rpm_filter.get()
-        built_nvrs = GenericBuilder.backends[conf.system].get_built_rpms_in_module_build(
-            req_mmd)
-        for nvr in built_nvrs:
-            parsed_nvr = kobo.rpmlib.parse_nvr(nvr)
-            if parsed_nvr["name"] in rpm_filter:
-                filtered_rpms.append(nvr)
-    req_data["filtered_rpms"] = filtered_rpms
-
-
-def _record_ursine_rpms(req_data):
-    """Store ursine RPMs
-
-    This method handles key ``stream_collision_modules`` from a buildrequired
-    module's metadata to find out all built RPMs and then store them with a new
-    key ``ursine_rpms`` into metadata in place.
-
-    :param dict req_data: a mapping containing metadata of the buildrequired
-        module. At least, ``req_data`` must have keys stream, version and
-        context. As a result, a new key ``filtered_ursine_rpms`` will be added
-        with a list of RPMs N-E:V-R which are built for the found stream
-        collision modules.
-    """
-    from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
-    resolver = module_build_service.resolver.GenericResolver.create(conf)
-
-    # Key stream_collision_modules is not used after rpms are recorded, but
-    # just keep it here in case it would be helpful in the future.
-    modules_nsvc = req_data['stream_collision_modules']
-    built_rpms = []
-
-    koji_session = KojiModuleBuilder.get_session(conf, None)
-
-    for nsvc in modules_nsvc:
-        name, stream, version, context = nsvc.split(':')
-        module = resolver._get_module(name, stream, version, context, strict=True)
-        rpms = koji_session.listTaggedRPMS(module['koji_tag'], latest=True)[0]
-        built_rpms.extend(
-            kobo.rpmlib.make_nvr(rpm, force_epoch=True) for rpm in rpms
-        )
-
-    # In case there is duplicate NEVRs, ensure every NEVR is unique in the final list.
-    # And, sometimes, sorted list of RPMs would be easier to read.
-    built_rpms = sorted(set(built_rpms))
-    req_data['ursine_rpms'] = built_rpms
 
 
 def _scm_get_latest(pkg):
@@ -587,9 +524,6 @@ def submit_module_build(username, url, mmd, optional_params=None):
             module.transition(conf, transition_to, "Resubmitted by %s" % username)
             log.info("Resumed existing module build in previous state %s" % module.state)
         else:
-            log.info('Start to handle potential module stream collision.')
-            record_stream_collision_modules(mmd)
-
             log.debug('Creating new module build')
             module = models.ModuleBuild.create(
                 db.session,

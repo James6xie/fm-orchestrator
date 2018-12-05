@@ -35,6 +35,7 @@ from module_build_service.utils import (
     generate_koji_tag,
     record_filtered_rpms)
 from module_build_service.errors import UnprocessableEntity, Forbidden, ValidationError
+from module_build_service.utils.ursine import handle_stream_collision_modules
 
 from requests.exceptions import ConnectionError
 
@@ -152,6 +153,7 @@ def init(config, session, msg):
     try:
         mmd = build.mmd()
         record_component_builds(mmd, build, session=session)
+        handle_stream_collision_modules(mmd)
         mmd = record_filtered_rpms(mmd)
         build.modulemd = mmd.dumps()
         build.transition(conf, models.BUILD_STATES["wait"])
