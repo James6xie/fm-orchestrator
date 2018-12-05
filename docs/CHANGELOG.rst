@@ -1,6 +1,10 @@
 Change Log
 ==========
 
+v2.9.1
+------
+* Look for stream collisions with buildrequired base modules on the backend instead of the API
+
 v2.9.0
 ------
 * Show the expanded buildrequires in the API output
