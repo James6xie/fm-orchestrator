@@ -588,7 +588,8 @@ class SCMBuilder(BaseBuilder):
         if not self.koji_session:
             # If Koji is not configured on the system, then just return 0.0 for components
             try:
-                self.koji_session = KojiModuleBuilder.get_session(self.config, self.owner)
+                self.koji_session = KojiModuleBuilder.get_session(
+                    self.config, self.owner, login=False)
                 # If the component has not been built before, then None is returned. Instead,
                 # let's return 0.0 so the type is consistent
                 return self.koji_session.getAverageBuildDuration(component.package) or 0.0

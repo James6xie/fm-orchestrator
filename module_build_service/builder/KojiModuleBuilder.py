@@ -237,7 +237,7 @@ class KojiModuleBuilder(GenericBuilder):
             reusable_module = get_reusable_module(db_session, module_build)
             if not reusable_module:
                 return filtered_rpms
-            koji_session = KojiModuleBuilder.get_session(conf, None)
+            koji_session = KojiModuleBuilder.get_session(conf, None, login=False)
             # Get all the RPMs and builds of the reusable module in Koji
             rpms, builds = koji_session.listTaggedRPMS(reusable_module.koji_tag, latest=True)
             # Convert the list to a dict where each key is the build_id
@@ -445,7 +445,7 @@ chmod 644 %buildroot/etc/rpm/macros.zz-modules
 
     @staticmethod
     @module_build_service.utils.retry(wait_on=(xmlrpclib.ProtocolError, koji.GenericError))
-    def get_session(config, owner):
+    def get_session(config, owner, login=True):
         koji_config = munch.Munch(koji.read_config(
             profile_name=config.koji_profile,
             user_config=config.koji_config,
@@ -454,31 +454,34 @@ chmod 644 %buildroot/etc/rpm/macros.zz-modules
         koji_config["timeout"] = 60 * 10
 
         address = koji_config.server
-        authtype = koji_config.authtype
-        log.info("Connecting to koji %r with %r." % (address, authtype))
+        log.info("Connecting to koji %r.", address)
         koji_session = koji.ClientSession(address, opts=koji_config)
-        if authtype == "kerberos":
-            ccache = getattr(config, "krb_ccache", None)
-            keytab = getattr(config, "krb_keytab", None)
-            principal = getattr(config, "krb_principal", None)
-            log.debug("  ccache: %r, keytab: %r, principal: %r" % (
-                ccache, keytab, principal))
-            if keytab and principal:
-                koji_session.krb_login(
-                    principal=principal,
-                    keytab=keytab,
-                    ccache=ccache
+
+        if login:
+            authtype = koji_config.authtype
+            log.info("Authenticate session with %r.", authtype)
+            if authtype == "kerberos":
+                ccache = getattr(config, "krb_ccache", None)
+                keytab = getattr(config, "krb_keytab", None)
+                principal = getattr(config, "krb_principal", None)
+                log.debug("  ccache: %r, keytab: %r, principal: %r" % (
+                    ccache, keytab, principal))
+                if keytab and principal:
+                    koji_session.krb_login(
+                        principal=principal,
+                        keytab=keytab,
+                        ccache=ccache
+                    )
+                else:
+                    koji_session.krb_login(ccache=ccache)
+            elif authtype == "ssl":
+                koji_session.ssl_login(
+                    os.path.expanduser(koji_config.cert),
+                    None,
+                    os.path.expanduser(koji_config.serverca)
                 )
             else:
-                koji_session.krb_login(ccache=ccache)
-        elif authtype == "ssl":
-            koji_session.ssl_login(
-                os.path.expanduser(koji_config.cert),
-                None,
-                os.path.expanduser(koji_config.serverca)
-            )
-        else:
-            raise ValueError("Unrecognized koji authtype %r" % authtype)
+                raise ValueError("Unrecognized koji authtype %r" % authtype)
 
         return koji_session
 
@@ -1084,7 +1087,7 @@ chmod 644 %buildroot/etc/rpm/macros.zz-modules
         """
         # If the component has not been built before, then None is returned. Instead, let's
         # return 0.0 so the type is consistent
-        koji_session = KojiModuleBuilder.get_session(conf, None)
+        koji_session = KojiModuleBuilder.get_session(conf, None, login=False)
         return koji_session.getAverageBuildDuration(component) or 0.0
 
     @classmethod
@@ -1191,7 +1194,7 @@ chmod 644 %buildroot/etc/rpm/macros.zz-modules
             build = models.ModuleBuild.get_build_from_nsvc(
                 db_session, mmd.get_name(), mmd.get_stream(), mmd.get_version(),
                 mmd.get_context())
-            koji_session = KojiModuleBuilder.get_session(conf, None)
+            koji_session = KojiModuleBuilder.get_session(conf, None, login=False)
             rpms = koji_session.listTaggedRPMS(build.koji_tag, latest=True)[0]
             nvrs = set(kobo.rpmlib.make_nvr(rpm, force_epoch=True) for rpm in rpms)
             return list(nvrs)
@@ -1214,7 +1217,7 @@ chmod 644 %buildroot/etc/rpm/macros.zz-modules
         :return: koji tag
         """
 
-        session = KojiModuleBuilder.get_session(conf, None)
+        session = KojiModuleBuilder.get_session(conf, None, login=False)
         rpm_md = session.getRPM(rpm)
         if not rpm_md:
             return None

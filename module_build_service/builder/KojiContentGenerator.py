@@ -48,9 +48,9 @@ from module_build_service.scm import SCM
 logging.basicConfig(level=logging.DEBUG)
 
 
-def get_session(config, owner):
+def get_session(config, owner, login=True):
     from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
-    return KojiModuleBuilder.get_session(config, owner)
+    return KojiModuleBuilder.get_session(config, owner, login=login)
 
 
 def strip_suffixes(s, suffixes):
@@ -228,7 +228,7 @@ class KojiContentGenerator(object):
     def _koji_rpms_in_tag(self, tag):
         """ Return the list of koji rpms in a tag. """
         log.debug("Listing rpms in koji tag %s", tag)
-        session = get_session(self.config, self.owner)
+        session = get_session(self.config, self.owner, login=False)
 
         try:
             rpms, builds = session.listTaggedRPMS(tag, latest=True)
@@ -307,7 +307,7 @@ class KojiContentGenerator(object):
                 }
             }
         }
-        session = get_session(self.config, None)
+        session = get_session(self.config, None, login=False)
         # Only add the CG build owner if the user exists in Koji
         if session.getUser(self.owner):
             ret[u'owner'] = self.owner
