@@ -31,7 +31,7 @@ import module_build_service.messaging
 import module_build_service.scheduler.handlers.repos # noqa
 from module_build_service import models, conf, build_logs, Modulemd, glib
 
-from mock import patch, Mock, MagicMock, call, mock_open
+from mock import patch, Mock, call, mock_open
 import kobo.rpmlib
 
 from tests import init_data
@@ -56,6 +56,13 @@ class TestBuild:
         module.cg_build_koji_tag = "f27-module-candidate"
         self.cg = KojiContentGenerator(module, conf)
 
+        self.p_read_config = patch('koji.read_config', return_value={
+            'authtype': 'kerberos',
+            'timeout': 60,
+            'server': 'http://koji.example.com/'
+        })
+        self.mock_read_config = self.p_read_config.start()
+
         # Ensure that there is no build log from other tests
         try:
             file_path = build_logs.path(self.cg.module)
@@ -64,6 +71,8 @@ class TestBuild:
             pass
 
     def teardown_method(self, test_method):
+        self.p_read_config.stop()
+
         # Necessary to restart the twisted reactor for the next test.
         import sys
         del sys.modules['twisted.internet.reactor']
@@ -76,7 +85,7 @@ class TestBuild:
         except OSError:
             pass
 
-    @patch("module_build_service.builder.KojiContentGenerator.get_session")
+    @patch("koji.ClientSession")
     @patch("subprocess.Popen")
     @patch("subprocess.check_output", return_value='1.4')
     @patch("pkg_resources.get_distribution")
@@ -86,12 +95,11 @@ class TestBuild:
            "_koji_rpms_in_tag"))
     @pytest.mark.parametrize("devel", (False, True))
     def test_get_generator_json(self, rpms_in_tag, machine, distro, pkg_res, coutput, popen,
-                                get_session, devel):
+                                ClientSession, devel):
         """ Test generation of content generator json """
-        koji_session = MagicMock()
+        koji_session = ClientSession.return_value
         koji_session.getUser.return_value = GET_USER_RV
         koji_session.getTag.return_value = {"arches": ""}
-        get_session.return_value = koji_session
         distro.return_value = ("Fedora", "25", "Twenty Five")
         machine.return_value = "i686"
         pkg_res.return_value = Mock()
@@ -131,7 +139,10 @@ class TestBuild:
             assert ret["build"]["name"] == "nginx-devel"
             assert ret["build"]["extra"]["typeinfo"]["module"]["name"] == "nginx-devel"
 
-    @patch("module_build_service.builder.KojiContentGenerator.get_session")
+        # Ensure an anonymous Koji session works
+        koji_session.krb_login.assert_not_called()
+
+    @patch("koji.ClientSession")
     @patch("subprocess.Popen")
     @patch("subprocess.check_output", return_value='1.4')
     @patch("pkg_resources.get_distribution")
@@ -140,12 +151,11 @@ class TestBuild:
     @patch(("module_build_service.builder.KojiContentGenerator.KojiContentGenerator."
            "_koji_rpms_in_tag"))
     def test_get_generator_json_no_log(self, rpms_in_tag, machine, distro, pkg_res, coutput, popen,
-                                       get_session):
+                                       ClientSession):
         """ Test generation of content generator json """
-        koji_session = MagicMock()
+        koji_session = ClientSession.return_value
         koji_session.getUser.return_value = GET_USER_RV
         koji_session.getTag.return_value = {"arches": ""}
-        get_session.return_value = koji_session
         distro.return_value = ("Fedora", "25", "Twenty Five")
         machine.return_value = "i686"
         pkg_res.return_value = Mock()
@@ -174,6 +184,9 @@ class TestBuild:
         rpms_in_tag.assert_called_once()
         assert expected_output == ret
 
+        # Anonymous koji session should work well.
+        koji_session.krb_login.assert_not_called()
+
     def test_prepare_file_directory(self):
         """ Test preparation of directory with output files """
         dir_path = self.cg._prepare_file_directory()
@@ -193,26 +206,27 @@ class TestBuild:
         with open(path.join(dir_path, "modulemd.i686.txt")) as mmd:
             assert len(mmd.read()) == 255
 
-    @patch("module_build_service.builder.KojiContentGenerator.get_session")
-    def test_tag_cg_build(self, get_session):
+    @patch("koji.ClientSession")
+    def test_tag_cg_build(self, ClientSession):
         """ Test that the CG build is tagged. """
-        koji_session = MagicMock()
+        koji_session = ClientSession.return_value
         koji_session.getUser.return_value = GET_USER_RV
         koji_session.getTag.return_value = {'id': 123}
-        get_session.return_value = koji_session
 
         self.cg._tag_cg_build()
 
         koji_session.getTag.assert_called_once_with(self.cg.module.cg_build_koji_tag)
         koji_session.tagBuild.assert_called_once_with(123, "nginx-0-2.10e50d06")
 
-    @patch("module_build_service.builder.KojiContentGenerator.get_session")
-    def test_tag_cg_build_fallback_to_default_tag(self, get_session):
+        # tagBuild requires logging into a session in advance.
+        koji_session.krb_login.assert_called_once()
+
+    @patch("koji.ClientSession")
+    def test_tag_cg_build_fallback_to_default_tag(self, ClientSession):
         """ Test that the CG build is tagged to default tag. """
-        koji_session = MagicMock()
+        koji_session = ClientSession.return_value
         koji_session.getUser.return_value = GET_USER_RV
         koji_session.getTag.side_effect = [{}, {'id': 123}]
-        get_session.return_value = koji_session
 
         self.cg._tag_cg_build()
 
@@ -221,30 +235,35 @@ class TestBuild:
             call(conf.koji_cg_default_build_tag)]
         koji_session.tagBuild.assert_called_once_with(123, "nginx-0-2.10e50d06")
 
-    @patch("module_build_service.builder.KojiContentGenerator.get_session")
-    def test_tag_cg_build_no_tag_set(self, get_session):
+        # tagBuild requires logging into a session in advance.
+        koji_session.krb_login.assert_called_once()
+
+    @patch("koji.ClientSession")
+    def test_tag_cg_build_no_tag_set(self, ClientSession):
         """ Test that the CG build is not tagged when no tag set. """
-        koji_session = MagicMock()
+        koji_session = ClientSession.return_value
         koji_session.getUser.return_value = GET_USER_RV
         koji_session.getTag.side_effect = [{}, {'id': 123}]
-        get_session.return_value = koji_session
 
         self.cg.module.cg_build_koji_tag = None
         self.cg._tag_cg_build()
 
         koji_session.tagBuild.assert_not_called()
+        # tagBuild requires logging into a session in advance.
+        koji_session.krb_login.assert_called_once()
 
-    @patch("module_build_service.builder.KojiContentGenerator.get_session")
-    def test_tag_cg_build_no_tag_available(self, get_session):
+    @patch("koji.ClientSession")
+    def test_tag_cg_build_no_tag_available(self, ClientSession):
         """ Test that the CG build is not tagged when no tag available. """
-        koji_session = MagicMock()
+        koji_session = ClientSession.return_value
         koji_session.getUser.return_value = GET_USER_RV
         koji_session.getTag.side_effect = [{}, {}]
-        get_session.return_value = koji_session
 
         self.cg._tag_cg_build()
 
         koji_session.tagBuild.assert_not_called()
+        # tagBuild requires logging into a session in advance.
+        koji_session.krb_login.assert_called_once()
 
     @patch("module_build_service.builder.KojiContentGenerator.open", create=True)
     def test_get_arch_mmd_output(self, patched_open):
@@ -313,9 +332,9 @@ class TestBuild:
             'type': 'file'
         }
 
-    @patch("module_build_service.builder.KojiContentGenerator.get_session")
-    def test_koji_rpms_in_tag(self, get_session):
-        koji_session = MagicMock()
+    @patch("koji.ClientSession")
+    def test_koji_rpms_in_tag(self, ClientSession):
+        koji_session = ClientSession.return_value
         koji_session.getUser.return_value = GET_USER_RV
         koji_session.getTag.return_value = {"arches": "x86_64"}
 
@@ -379,7 +398,6 @@ class TestBuild:
              [{'license': 'MIT'}],
              [{'license': 'GPL'}]]
         ]
-        get_session.return_value = koji_session
 
         rpms = self.cg._koji_rpms_in_tag("tag")
         for rpm in rpms:
@@ -390,6 +408,9 @@ class TestBuild:
             else:
                 assert rpm["exclusivearch"] == ["x86_64"]
                 assert rpm["license"] == "GPL"
+
+        # Listing tagged RPMs does not require to log into a session
+        koji_session.krb_login.assert_not_called()
 
     def _add_test_rpm(self, nevra, srpm_name=None, multilib=None,
                       koji_srpm_name=None, excludearch=None, exclusivearch=None,

@@ -25,7 +25,7 @@ from datetime import datetime
 
 import module_build_service.scm
 
-from mock import patch, PropertyMock, Mock
+from mock import patch, PropertyMock
 from shutil import copyfile
 from os import path, mkdir
 from os.path import dirname
@@ -417,8 +417,8 @@ class TestViews:
                 for key, part in zip(nsvc_keys, nsvc_parts):
                     assert item[key] == part
 
-    @patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
-    def test_query_builds_with_binary_rpm(self, mock_get_session):
+    @patch("koji.ClientSession")
+    def test_query_builds_with_binary_rpm(self, ClientSession):
         """
         Test for querying MBS with the binary rpm filename. MBS should return all the modules,
         which contain the rpm.
@@ -431,13 +431,17 @@ class TestViews:
                      {"name": "non-module-tag"},
                      {"name": "module-testmodule-master-20170109091357-78e4a6fd"}]
 
-        mock_session = Mock()
+        mock_session = ClientSession.return_value
         mock_session.getRPM.return_value = mock_rpm_md
         mock_session.listTags.return_value = mock_tags
-        mock_get_session.return_value = mock_session
 
         rpm = quote('module-build-macros-0.1-1.testmodule_master_20170303190726.src.rpm')
-        rv = self.client.get('/module-build-service/1/module-builds/?rpm=%s' % rpm)
+        with patch('koji.read_config', return_value={
+            'authtype': 'kerberos',
+            'timeout': 60,
+            'server': 'http://koji.example.com/'
+        }):
+            rv = self.client.get('/module-build-service/1/module-builds/?rpm=%s' % rpm)
         results = json.loads(rv.data)['items']
 
         assert len(results) == 2
@@ -447,6 +451,8 @@ class TestViews:
         mock_session.getRPM.assert_called_once_with(
             "module-build-macros-0.1-1.testmodule_master_20170303190726.src.rpm")
         mock_session.listTags.assert_called_once_with(mock_rpm_md["build_id"])
+
+        mock_session.krb_login.assert_not_called()
 
     @patch('module_build_service.config.Config.system',
            new_callable=PropertyMock, return_value="invalid_builder")

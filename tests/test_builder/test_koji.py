@@ -95,6 +95,16 @@ class TestKojiBuilder:
         self.config.koji_repository_url = conf.koji_repository_url
         self.module = module_build_service.models.ModuleBuild.query.filter_by(id=2).one()
 
+        self.p_read_config = patch('koji.read_config', return_value={
+            'authtype': 'kerberos',
+            'timeout': 60,
+            'server': 'http://koji.example.com/'
+        })
+        self.mock_read_config = self.p_read_config.start()
+
+    def teardown_method(self, test_method):
+        self.p_read_config.stop()
+
     def test_tag_to_repo(self):
         """ Test that when a repo msg hits us and we have no match,
         that we do nothing gracefully.
@@ -314,9 +324,9 @@ class TestKojiBuilder:
         expected_calls = [mock.call(1, 'foo'), mock.call(2, 'foo'), mock.call(1, 'bar')]
         assert mock_session.untagBuild.mock_calls == expected_calls
 
-    @patch('module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session')
-    def test_get_build_weights(self, get_session):
-        session = MagicMock()
+    @patch('koji.ClientSession')
+    def test_get_build_weights(self, ClientSession):
+        session = ClientSession.return_value
         session.getLoggedInUser.return_value = {"id": 123}
         session.multiCall.side_effect = [
             # getPackageID response
@@ -327,7 +337,6 @@ class TestKojiBuilder:
             [[{'1': [], '2': [], '3': [{'weight': 1.0}, {'weight': 1.0}]}],
              [{'1': [], '2': [], '3': [{'weight': 1.0}, {'weight': 1.0}]}]]
         ]
-        get_session.return_value = session
 
         weights = KojiModuleBuilder.get_build_weights(["httpd", "apr"])
         assert weights == {"httpd": 2, "apr": 2}
@@ -335,9 +344,12 @@ class TestKojiBuilder:
         expected_calls = [mock.call(456), mock.call(789)]
         assert session.getTaskDescendents.mock_calls == expected_calls
 
-    @patch('module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session')
-    def test_get_build_weights_no_task_id(self, get_session):
-        session = MagicMock()
+        # getLoggedInUser requires to a logged-in session
+        session.krb_login.assert_called_once()
+
+    @patch('koji.ClientSession')
+    def test_get_build_weights_no_task_id(self, ClientSession):
+        session = ClientSession.return_value
         session.getLoggedInUser.return_value = {"id": 123}
         session.multiCall.side_effect = [
             # getPackageID response
@@ -348,17 +360,17 @@ class TestKojiBuilder:
             [[{'1': [], '2': [], '3': [{'weight': 1.0}, {'weight': 1.0}]}]]
         ]
         session.getAverageBuildDuration.return_value = None
-        get_session.return_value = session
 
         weights = KojiModuleBuilder.get_build_weights(["httpd", "apr"])
         assert weights == {"httpd": 2, "apr": 1.5}
 
         expected_calls = [mock.call(456)]
         assert session.getTaskDescendents.mock_calls == expected_calls
+        session.krb_login.assert_called_once()
 
-    @patch('module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session')
-    def test_get_build_weights_no_build(self, get_session):
-        session = MagicMock()
+    @patch('koji.ClientSession')
+    def test_get_build_weights_no_build(self, ClientSession):
+        session = ClientSession.return_value
         session.getLoggedInUser.return_value = {"id": 123}
         session.multiCall.side_effect = [
             # getPackageID response
@@ -369,21 +381,20 @@ class TestKojiBuilder:
             [[{'1': [], '2': [], '3': [{'weight': 1.0}, {'weight': 1.0}]}]]
         ]
         session.getAverageBuildDuration.return_value = None
-        get_session.return_value = session
 
         weights = KojiModuleBuilder.get_build_weights(["httpd", "apr"])
         assert weights == {"httpd": 2, "apr": 1.5}
 
         expected_calls = [mock.call(456)]
         assert session.getTaskDescendents.mock_calls == expected_calls
+        session.krb_login.assert_called_once()
 
-    @patch('module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session')
-    def test_get_build_weights_listBuilds_failed(self, get_session):
-        session = MagicMock()
+    @patch('koji.ClientSession')
+    def test_get_build_weights_listBuilds_failed(self, ClientSession):
+        session = ClientSession.return_value
         session.getLoggedInUser.return_value = {"id": 123}
         session.multiCall.side_effect = [[[1], [2]], []]
         session.getAverageBuildDuration.return_value = None
-        get_session.return_value = session
 
         weights = KojiModuleBuilder.get_build_weights(["httpd", "apr"])
         assert weights == {"httpd": 1.5, "apr": 1.5}
@@ -393,14 +404,14 @@ class TestKojiBuilder:
                           mock.call(packageID=2, userID=123, state=1,
                                     queryOpts={'limit': 1, 'order': '-build_id'})]
         assert session.listBuilds.mock_calls == expected_calls
+        session.krb_login.assert_called_once()
 
-    @patch('module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session')
-    def test_get_build_weights_getPackageID_failed(self, get_session):
-        session = MagicMock()
+    @patch('koji.ClientSession')
+    def test_get_build_weights_getPackageID_failed(self, ClientSession):
+        session = ClientSession.return_value
         session.getLoggedInUser.return_value = {"id": 123}
         session.multiCall.side_effect = [[], []]
         session.getAverageBuildDuration.return_value = None
-        get_session.return_value = session
 
         weights = KojiModuleBuilder.get_build_weights(["httpd", "apr"])
         assert weights == {"httpd": 1.5, "apr": 1.5}
@@ -408,13 +419,15 @@ class TestKojiBuilder:
         expected_calls = [mock.call("httpd"), mock.call("apr")]
         assert session.getPackageID.mock_calls == expected_calls
 
-    @patch('module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session')
-    def test_get_build_weights_getLoggedInUser_failed(self, get_session):
-        session = MagicMock()
+        session.krb_login.assert_called_once()
+
+    @patch('koji.ClientSession')
+    def test_get_build_weights_getLoggedInUser_failed(self, ClientSession):
+        session = ClientSession.return_value
         session.getAverageBuildDuration.return_value = None
-        get_session.return_value = session
         weights = KojiModuleBuilder.get_build_weights(["httpd", "apr"])
         assert weights == {"httpd": 1.5, "apr": 1.5}
+        session.krb_login.assert_called_once()
 
     @patch.object(conf, 'base_module_arches',
                   new={"platform:xx": ["x86_64", "i686"]})
@@ -533,9 +546,9 @@ class TestKojiBuilder:
             expected_calls = []
         assert session.packageListBlock.mock_calls == expected_calls
 
-    @patch('module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session')
-    def test_get_built_rpms_in_module_build(self, get_session):
-        session = MagicMock()
+    @patch('koji.ClientSession')
+    def test_get_built_rpms_in_module_build(self, ClientSession):
+        session = ClientSession.return_value
         session.listTaggedRPMS.return_value = ([
             {'build_id': 735939, 'name': 'tar', 'extra': None, 'arch': 'ppc64le',
              'buildtime': 1533299221, 'id': 6021394, 'epoch': 2, 'version': '1.30',
@@ -547,7 +560,6 @@ class TestKojiBuilder:
              'metadata_only': False, 'release': '4.el8+1308+551bfa71',
              'buildroot_id': 4321122, 'payloadhash': '0621ab2091256d21c47dcac868e7fc2a',
              'size': 878684}], [])
-        get_session.return_value = session
 
         # Module builds generated by init_data uses generic modulemd file and
         # the module's name/stream/version/context does not have to match it.
@@ -562,6 +574,7 @@ class TestKojiBuilder:
         ret = KojiModuleBuilder.get_built_rpms_in_module_build(mmd)
         assert set(ret) == set(
             ['bar-2:1.30-4.el8+1308+551bfa71', 'tar-2:1.30-4.el8+1308+551bfa71'])
+        session.assert_not_called()
 
     @pytest.mark.parametrize('br_filtered_rpms,expected', (
         (
@@ -588,9 +601,9 @@ class TestKojiBuilder:
             []
         ),
     ))
-    @patch('module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session')
-    def test_get_filtered_rpms_on_self_dep(self, get_session, br_filtered_rpms, expected):
-        session = MagicMock()
+    @patch('koji.ClientSession')
+    def test_get_filtered_rpms_on_self_dep(self, ClientSession, br_filtered_rpms, expected):
+        session = ClientSession.return_value
         session.listTaggedRPMS.return_value = (
             [
                 {
@@ -633,11 +646,11 @@ class TestKojiBuilder:
                 }
             ]
         )
-        get_session.return_value = session
         reuse_component_init_data()
         current_module = module_build_service.models.ModuleBuild.query.get(3)
         rv = KojiModuleBuilder._get_filtered_rpms_on_self_dep(current_module, br_filtered_rpms)
         assert set(rv) == set(expected)
+        session.assert_not_called()
 
     @pytest.mark.parametrize('cg_enabled,cg_devel_enabled', [
         (False, False),
@@ -665,6 +678,18 @@ class TestKojiBuilder:
                 mock_koji_cg.koji_import.assert_called_once_with()
         else:
             mock_koji_cg.koji_import.assert_not_called()
+
+    @patch('koji.ClientSession')
+    def test_get_anonymous_session(self, ClientSession):
+        mbs_config = mock.Mock(koji_profile='koji', koji_config='conf/koji.conf')
+        session = KojiModuleBuilder.get_session(mbs_config, 'someone', login=False)
+        assert ClientSession.return_value == session
+        assert ClientSession.return_value.krb_login.assert_not_called
+
+    @patch('koji.ClientSession')
+    def test_ensure_builder_use_a_logged_in_koji_session(self, ClientSession):
+        builder = KojiModuleBuilder('owner', MagicMock(), conf, 'module-tag', [])
+        builder.koji_session.krb_login.assert_called_once()
 
 
 class TestGetDistTagSRPM:

@@ -67,7 +67,7 @@ class MBSProducer(PollingProducer):
 
         if conf.system == 'koji':
             # We don't do this on behalf of users
-            koji_session = KojiModuleBuilder.get_session(conf, None, login=True)
+            koji_session = KojiModuleBuilder.get_session(conf, None, login=False)
             log.info('Querying tasks for statuses:')
             res = models.ComponentBuild.query.filter_by(
                 state=koji.BUILD_STATES['BUILDING']).options(
@@ -302,7 +302,7 @@ class MBSProducer(PollingProducer):
 
         now = datetime.utcnow()
 
-        koji_session = KojiModuleBuilder.get_session(config, None, login=False)
+        koji_session = KojiModuleBuilder.get_session(config, None)
         for target in koji_session.getBuildTargets():
             koji_tag = target["dest_tag_name"]
             module = session.query(models.ModuleBuild).filter_by(
