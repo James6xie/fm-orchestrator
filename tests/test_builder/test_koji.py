@@ -49,7 +49,7 @@ from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
 class FakeKojiModuleBuilder(KojiModuleBuilder):
 
     @module_build_service.utils.retry(wait_on=(xmlrpclib.ProtocolError, koji.GenericError))
-    def get_session(self, config, owner):
+    def get_session(self, config, login=True):
         koji_session = MagicMock()
         koji_session.getRepo.return_value = {'create_event': 'fake event'}
 
@@ -682,7 +682,7 @@ class TestKojiBuilder:
     @patch('koji.ClientSession')
     def test_get_anonymous_session(self, ClientSession):
         mbs_config = mock.Mock(koji_profile='koji', koji_config='conf/koji.conf')
-        session = KojiModuleBuilder.get_session(mbs_config, 'someone', login=False)
+        session = KojiModuleBuilder.get_session(mbs_config, login=False)
         assert ClientSession.return_value == session
         assert ClientSession.return_value.krb_login.assert_not_called
 

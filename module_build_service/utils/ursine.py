@@ -126,7 +126,7 @@ def get_modulemds_from_ursine_content(tag):
     :rtype: list[Modulemd.Module]
     """
     from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
-    koji_session = KojiModuleBuilder.get_session(conf, None, login=False)
+    koji_session = KojiModuleBuilder.get_session(conf, login=False)
     repos = koji_session.getExternalRepoList(tag)
     build_tags = find_build_tags_from_external_repos(koji_session, repos)
     if not build_tags:
@@ -265,7 +265,7 @@ def find_module_built_rpms(modules_nsvc):
     resolver = GenericResolver.create(conf)
 
     built_rpms = []
-    koji_session = KojiModuleBuilder.get_session(conf, None, login=False)
+    koji_session = KojiModuleBuilder.get_session(conf, login=False)
 
     for nsvc in modules_nsvc:
         name, stream, version, context = nsvc.split(':')

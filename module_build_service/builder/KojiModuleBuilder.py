@@ -172,7 +172,7 @@ class KojiModuleBuilder(GenericBuilder):
         log.debug("Using koji profile %r" % config.koji_profile)
         log.debug("Using koji_config: %s" % config.koji_config)
 
-        self.koji_session = self.get_session(config, owner)
+        self.koji_session = self.get_session(config)
         self.arches = get_build_arches(self.mmd, self.config)
 
         if not self.arches:
@@ -237,7 +237,7 @@ class KojiModuleBuilder(GenericBuilder):
             reusable_module = get_reusable_module(db_session, module_build)
             if not reusable_module:
                 return filtered_rpms
-            koji_session = KojiModuleBuilder.get_session(conf, None, login=False)
+            koji_session = KojiModuleBuilder.get_session(conf, login=False)
             # Get all the RPMs and builds of the reusable module in Koji
             rpms, builds = koji_session.listTaggedRPMS(reusable_module.koji_tag, latest=True)
             # Convert the list to a dict where each key is the build_id
@@ -445,7 +445,7 @@ chmod 644 %buildroot/etc/rpm/macros.zz-modules
 
     @staticmethod
     @module_build_service.utils.retry(wait_on=(xmlrpclib.ProtocolError, koji.GenericError))
-    def get_session(config, owner, login=True):
+    def get_session(config, login=True):
         koji_config = munch.Munch(koji.read_config(
             profile_name=config.koji_profile,
             user_config=config.koji_config,
@@ -1088,7 +1088,7 @@ chmod 644 %buildroot/etc/rpm/macros.zz-modules
         """
         # If the component has not been built before, then None is returned. Instead, let's
         # return 0.0 so the type is consistent
-        koji_session = KojiModuleBuilder.get_session(conf, None, login=False)
+        koji_session = KojiModuleBuilder.get_session(conf, login=False)
         return koji_session.getAverageBuildDuration(component) or 0.0
 
     @classmethod
@@ -1104,7 +1104,7 @@ chmod 644 %buildroot/etc/rpm/macros.zz-modules
         :return: {component_name: weight_as_float, ...}
         """
 
-        koji_session = KojiModuleBuilder.get_session(conf, None)
+        koji_session = KojiModuleBuilder.get_session(conf)
 
         # Get our own userID, so we can limit the builds to only modular builds
         user_info = koji_session.getLoggedInUser()
@@ -1195,7 +1195,7 @@ chmod 644 %buildroot/etc/rpm/macros.zz-modules
             build = models.ModuleBuild.get_build_from_nsvc(
                 db_session, mmd.get_name(), mmd.get_stream(), mmd.get_version(),
                 mmd.get_context())
-            koji_session = KojiModuleBuilder.get_session(conf, None, login=False)
+            koji_session = KojiModuleBuilder.get_session(conf, login=False)
             rpms = koji_session.listTaggedRPMS(build.koji_tag, latest=True)[0]
             nvrs = set(kobo.rpmlib.make_nvr(rpm, force_epoch=True) for rpm in rpms)
             return list(nvrs)
@@ -1218,7 +1218,7 @@ chmod 644 %buildroot/etc/rpm/macros.zz-modules
         :return: koji tag
         """
 
-        session = KojiModuleBuilder.get_session(conf, None, login=False)
+        session = KojiModuleBuilder.get_session(conf, login=False)
         rpm_md = session.getRPM(rpm)
         if not rpm_md:
             return None

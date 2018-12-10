@@ -48,9 +48,9 @@ from module_build_service.scm import SCM
 logging.basicConfig(level=logging.DEBUG)
 
 
-def get_session(config, owner, login=True):
+def get_session(config, login=True):
     from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
-    return KojiModuleBuilder.get_session(config, owner, login=login)
+    return KojiModuleBuilder.get_session(config, login=login)
 
 
 def strip_suffixes(s, suffixes):
@@ -228,7 +228,7 @@ class KojiContentGenerator(object):
     def _koji_rpms_in_tag(self, tag):
         """ Return the list of koji rpms in a tag. """
         log.debug("Listing rpms in koji tag %s", tag)
-        session = get_session(self.config, self.owner, login=False)
+        session = get_session(self.config, login=False)
 
         try:
             rpms, builds = session.listTaggedRPMS(tag, latest=True)
@@ -307,7 +307,7 @@ class KojiContentGenerator(object):
                 }
             }
         }
-        session = get_session(self.config, None, login=False)
+        session = get_session(self.config, login=False)
         # Only add the CG build owner if the user exists in Koji
         if session.getUser(self.owner):
             ret[u'owner'] = self.owner
@@ -794,7 +794,7 @@ class KojiContentGenerator(object):
         """
         Tags the Content Generator build to module.cg_build_koji_tag.
         """
-        session = get_session(self.config, self.owner)
+        session = get_session(self.config)
 
         tag_name = self.module.cg_build_koji_tag
         if not tag_name:
@@ -849,7 +849,7 @@ class KojiContentGenerator(object):
             filters is created and imported.
         """
         self.devel = devel
-        session = get_session(self.config, self.owner)
+        session = get_session(self.config)
         self._load_koji_tag(session)
 
         file_dir = self._prepare_file_directory()
