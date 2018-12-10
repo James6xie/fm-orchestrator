@@ -24,7 +24,7 @@
 from flask.json import dumps
 from flask import request
 
-from module_build_service import app
+import module_build_service
 
 
 def jsonify(*args, **kwargs):
@@ -35,7 +35,7 @@ def jsonify(*args, **kwargs):
     indent = None
     separators = (',', ':')
 
-    if app.config['JSONIFY_PRETTYPRINT_REGULAR'] and not request.is_xhr:
+    if module_build_service.app.config['JSONIFY_PRETTYPRINT_REGULAR'] and not request.is_xhr:
         indent = 2
         separators = (', ', ': ')
 
@@ -50,7 +50,7 @@ def jsonify(*args, **kwargs):
 
     # Note that we add '\n' to end of response
     # (see https://github.com/mitsuhiko/flask/pull/1262)
-    rv = app.response_class(
+    rv = module_build_service.app.response_class(
         (dumps(data, indent=indent, separators=separators), '\n'),
         mimetype='application/json')
     return rv
