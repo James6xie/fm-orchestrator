@@ -88,12 +88,11 @@ class TestModuleWait:
 
     @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
            return_value={'build': [], 'srpm-build': []})
-    @patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
     @patch("module_build_service.builder.GenericBuilder.create_from_module")
     @patch('module_build_service.resolver.DBResolver')
     @patch('module_build_service.resolver.GenericResolver')
     def test_new_repo_called_when_macros_reused(
-            self, generic_resolver, resolver, create_builder, koji_get_session, dbg):
+            self, generic_resolver, resolver, create_builder, dbg):
         """
         Test that newRepo is called when module-build-macros build is reused.
         """
@@ -101,7 +100,6 @@ class TestModuleWait:
             scheduler_init_data()
             koji_session = mock.MagicMock()
             koji_session.newRepo.return_value = 123456
-            koji_get_session.return_value = koji_session
 
             builder = mock.MagicMock()
             builder.koji_session = koji_session
@@ -130,12 +128,11 @@ class TestModuleWait:
 
     @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
            return_value={'build': [], 'srpm-build': []})
-    @patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
     @patch("module_build_service.builder.GenericBuilder.create_from_module")
     @patch('module_build_service.resolver.DBResolver')
     @patch('module_build_service.resolver.GenericResolver')
     def test_new_repo_not_called_when_macros_not_reused(
-            self, generic_resolver, resolver, create_builder, koji_get_session, dbg):
+            self, generic_resolver, resolver, create_builder, dbg):
         """
         Test that newRepo is called everytime for module-build-macros
         """
@@ -143,7 +140,6 @@ class TestModuleWait:
             scheduler_init_data()
             koji_session = mock.MagicMock()
             koji_session.newRepo.return_value = 123456
-            koji_get_session.return_value = koji_session
 
             builder = mock.MagicMock()
             builder.koji_session = koji_session
@@ -166,12 +162,11 @@ class TestModuleWait:
 
     @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
            return_value={'build': [], 'srpm-build': []})
-    @patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
     @patch("module_build_service.builder.GenericBuilder.create_from_module")
     @patch('module_build_service.resolver.DBResolver')
     @patch('module_build_service.resolver.GenericResolver')
     def test_set_cg_build_koji_tag_fallback_to_default(
-            self, generic_resolver, resolver, create_builder, koji_get_session, dbg):
+            self, generic_resolver, resolver, create_builder, dbg):
         """
         Test that build.cg_build_koji_tag fallbacks to default tag.
         """
@@ -183,7 +178,6 @@ class TestModuleWait:
             scheduler_init_data()
             koji_session = mock.MagicMock()
             koji_session.newRepo.return_value = 123456
-            koji_get_session.return_value = koji_session
 
             builder = mock.MagicMock()
             builder.koji_session = koji_session
@@ -213,14 +207,13 @@ class TestModuleWait:
     ])
     @patch("module_build_service.builder.GenericBuilder.default_buildroot_groups",
            return_value={'build': [], 'srpm-build': []})
-    @patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
     @patch("module_build_service.builder.GenericBuilder.create_from_module")
     @patch('module_build_service.resolver.DBResolver')
     @patch('module_build_service.resolver.GenericResolver')
     @patch("module_build_service.config.Config.base_module_names",
            new_callable=mock.PropertyMock, return_value=set(["base-runtime", "platform"]))
     def test_set_cg_build_koji_tag(
-            self, cfg, generic_resolver, resolver, create_builder, koji_get_session, dbg,
+            self, cfg, generic_resolver, resolver, create_builder, dbg,
             koji_cg_tag_build, expected_cg_koji_build_tag):
         """
         Test that build.cg_build_koji_tag is set.
@@ -233,7 +226,6 @@ class TestModuleWait:
             scheduler_init_data()
             koji_session = mock.MagicMock()
             koji_session.newRepo.return_value = 123456
-            koji_get_session.return_value = koji_session
 
             builder = mock.MagicMock()
             builder.koji_session = koji_session
