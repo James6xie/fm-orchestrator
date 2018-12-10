@@ -150,7 +150,7 @@ def build_module_locally(local_build_nsvs=None, yaml_file=None, stream=None, ski
             handle = FileStorage(fd)
             handle.filename = filename
             try:
-                submit_module_build_from_yaml(
+                modules_list = submit_module_build_from_yaml(
                     username, handle, str(stream), skiptests, optional_params)
             except StreamAmbigous as e:
                 logging.error(str(e))
@@ -162,6 +162,9 @@ def build_module_locally(local_build_nsvs=None, yaml_file=None, stream=None, ski
 
         # Run the consumer until stop_condition returns True
         module_build_service.scheduler.main([], stop)
+
+        if any(module.state == models.BUILD_STATES['failed'] for module in modules_list):
+            raise RuntimeError('Module build failed')
 
 
 @console_script_help
