@@ -457,31 +457,32 @@ chmod 644 %buildroot/etc/rpm/macros.zz-modules
         log.info("Connecting to koji %r.", address)
         koji_session = koji.ClientSession(address, opts=koji_config)
 
-        if login:
-            authtype = koji_config.authtype
-            log.info("Authenticate session with %r.", authtype)
-            if authtype == "kerberos":
-                ccache = getattr(config, "krb_ccache", None)
-                keytab = getattr(config, "krb_keytab", None)
-                principal = getattr(config, "krb_principal", None)
-                log.debug("  ccache: %r, keytab: %r, principal: %r" % (
-                    ccache, keytab, principal))
-                if keytab and principal:
-                    koji_session.krb_login(
-                        principal=principal,
-                        keytab=keytab,
-                        ccache=ccache
-                    )
-                else:
-                    koji_session.krb_login(ccache=ccache)
-            elif authtype == "ssl":
-                koji_session.ssl_login(
-                    os.path.expanduser(koji_config.cert),
-                    None,
-                    os.path.expanduser(koji_config.serverca)
+        if not login:
+            return koji_session
+
+        authtype = koji_config.authtype
+        log.info("Authenticate session with %r.", authtype)
+        if authtype == "kerberos":
+            ccache = getattr(config, "krb_ccache", None)
+            keytab = getattr(config, "krb_keytab", None)
+            principal = getattr(config, "krb_principal", None)
+            log.debug("  ccache: %r, keytab: %r, principal: %r" % (ccache, keytab, principal))
+            if keytab and principal:
+                koji_session.krb_login(
+                    principal=principal,
+                    keytab=keytab,
+                    ccache=ccache
                 )
             else:
-                raise ValueError("Unrecognized koji authtype %r" % authtype)
+                koji_session.krb_login(ccache=ccache)
+        elif authtype == "ssl":
+            koji_session.ssl_login(
+                os.path.expanduser(koji_config.cert),
+                None,
+                os.path.expanduser(koji_config.serverca)
+            )
+        else:
+            raise ValueError("Unrecognized koji authtype %r" % authtype)
 
         return koji_session
 
