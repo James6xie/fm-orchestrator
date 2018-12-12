@@ -599,14 +599,13 @@ class KojiContentGenerator(object):
 
             should_include = self._should_include_rpm(rpm, mmd, arch, multilib_arches)
 
-            # A source RPM should only be included in -devel module, if the "main" RPM
-            # has been completed excluded from non-devel module. Track which source
-            # RPMs would've been included in non-devel module to create a complement
+            # A source RPM should be included in a -devel module only if all the
+            # RPMs built from this source RPM are included in a -devel module.
+            # The list of source RPMs in non-devel module is tracked in
+            # the `non_devel_source_rpms` dict and is later used to create complement
             # list for -devel modules.
             if should_include:
-                source_rpm = source_rpms.get(rpm["name"])
-                if source_rpm:
-                    non_devel_source_rpms[rpm["name"]] = source_rpm
+                non_devel_source_rpms[rpm["name"]] = rpm["srpm_nevra"]
 
             if self.devel and should_include:
                 # In case this is a -devel module, we want to skip any RPMs which would normally be
