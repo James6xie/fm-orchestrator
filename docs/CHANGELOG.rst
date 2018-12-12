@@ -1,6 +1,11 @@
 Change Log
 ==========
 
+v2.9.2
+------
+* Fix handling of SRPMs in Content Generator builds when SRPM name and main package name are different
+* Use anonymous Koji sessions when authentication isn't necessary to perform an action
+
 v2.9.1
 ------
 * Look for stream collisions with buildrequired base modules on the backend instead of the API
