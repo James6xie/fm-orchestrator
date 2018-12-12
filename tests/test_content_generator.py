@@ -342,6 +342,7 @@ class TestBuild:
             {
                 'id': 1,
                 'arch': 'src',
+                'epoch': None,
                 'build_id': 875991,
                 'name': 'module-build-macros',
                 'release': '1.module_92011fe6',
@@ -350,6 +351,7 @@ class TestBuild:
             {
                 'id': 2,
                 'arch': 'noarch',
+                'epoch': None,
                 'build_id': 875991,
                 'name': 'module-build-macros',
                 'release': '1.module_92011fe6',
@@ -358,6 +360,7 @@ class TestBuild:
             {
                 'id': 3,
                 'arch': 'src',
+                'epoch': 3,
                 'build_id': 875636,
                 'name': 'ed',
                 'release': '2.module_bd6e0eb1',
@@ -366,6 +369,7 @@ class TestBuild:
             {
                 'id': 4,
                 'arch': 'x86_64',
+                'epoch': 3,
                 'build_id': 875636,
                 'name': 'ed',
                 'release': '2.module_bd6e0eb1',
@@ -376,6 +380,7 @@ class TestBuild:
         builds = [
             {
                 'build_id': 875636,
+                'epoch': 3,
                 'name': 'ed',
                 'release': '2.module_bd6e0eb1',
                 'version': '1.14.1',
@@ -383,6 +388,7 @@ class TestBuild:
             },
             {
                 'build_id': 875991,
+                'epoch': None,
                 'name': 'module-build-macros',
                 'release': '1.module_92011fe6',
                 'version': '0.1',
@@ -403,9 +409,11 @@ class TestBuild:
         for rpm in rpms:
             # We want to mainly check the excludearch and exclusivearch code.
             if rpm["name"] == "module-build-macros":
+                assert rpm["srpm_nevra"] == "module-build-macros-0:0.1-1.module_92011fe6.src"
                 assert rpm["excludearch"] == ["x86_64"]
                 assert rpm["license"] == "MIT"
             else:
+                assert rpm["srpm_nevra"] == "ed-3:1.14.1-2.module_bd6e0eb1.src"
                 assert rpm["exclusivearch"] == ["x86_64"]
                 assert rpm["license"] == "GPL"
 
