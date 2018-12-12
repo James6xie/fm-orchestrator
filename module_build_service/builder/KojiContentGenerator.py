@@ -871,16 +871,23 @@ class KojiContentGenerator(object):
         metadata = self._get_content_generator_metadata(file_dir)
         try:
             serverdir = self._upload_outputs(session, metadata, file_dir)
-            build_info = session.CGImport(metadata, serverdir)
+            try:
+                build_info = session.CGImport(metadata, serverdir)
+            except koji.GenericError as e:
+                if "Build already exists" not in str(e):
+                    raise
+                log.warning('Failed to import content generator')
+                build_info = None
             if conf.koji_cg_tag_build:
                 self._tag_cg_build()
-            log.info("Content generator import done.")
-            log.debug(json.dumps(build_info, sort_keys=True, indent=4))
+            if build_info is not None:
+                log.info("Content generator import done.")
+                log.debug(json.dumps(build_info, sort_keys=True, indent=4))
 
-            # Only remove the logs if CG import was successful.  If it fails,
-            # then we want to keep them around for debugging.
-            log.info("Removing %r" % file_dir)
-            shutil.rmtree(file_dir)
+                # Only remove the logs if CG import was successful.  If it fails,
+                # then we want to keep them around for debugging.
+                log.info("Removing %r", file_dir)
+                shutil.rmtree(file_dir)
         except Exception as e:
             log.exception("Content generator import failed: %s", e)
             raise e
