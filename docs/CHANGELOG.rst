@@ -1,6 +1,13 @@
 Change Log
 ==========
 
+v2.10.0
+-------
+* Fix a bug where the SRPM NVR instead of the SRPM NEVRA was recorded in the modulemd files used in the Content Generator builds
+* Use a separate Kerberos cache per thread to avoid Kerberos cache corruption
+* Remove the ability to authenticate with Koji using only a Kerberos cache
+* Remove the configuration option ``KRB_CCACHE``
+
 v2.9.2
 ------
 * Fix handling of SRPMs in Content Generator builds when SRPM name and main package name are different
