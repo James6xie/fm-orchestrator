@@ -98,7 +98,7 @@ class TestPoller:
 
         assert len(start_build_component.mock_calls) == expected_build_calls
 
-    @patch("koji.ClientSession")
+    @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
     def test_trigger_new_repo_when_failed(
             self, ClientSession, create_builder, global_consumer, dbg):
         """
@@ -131,7 +131,7 @@ class TestPoller:
         koji_session.newRepo.assert_called_once_with(
             "module-testmodule-master-20170219191323-c40c156c-build")
 
-    @patch('koji.ClientSession')
+    @patch('module_build_service.builder.KojiModuleBuilder.KojiClientSession')
     def test_trigger_new_repo_when_succeeded(
             self, ClientSession, create_builder, global_consumer, dbg):
         """
@@ -203,7 +203,7 @@ class TestPoller:
         for component in components:
             assert component.state is None
 
-    @patch('koji.ClientSession')
+    @patch('module_build_service.builder.KojiModuleBuilder.KojiClientSession')
     def test_old_build_targets_are_not_associated_with_any_module_builds(
             self, ClientSession, create_builder, global_consumer, dbg):
         consumer = mock.MagicMock()
@@ -223,7 +223,7 @@ class TestPoller:
 
         koji_session.deleteBuildTarget.assert_not_called()
 
-    @patch('koji.ClientSession')
+    @patch('module_build_service.builder.KojiModuleBuilder.KojiClientSession')
     def test_dont_delete_base_module_build_target(
             self, ClientSession, create_builder, global_consumer, dbg):
         module_build = models.ModuleBuild.query.filter_by(id=3).one()
@@ -248,7 +248,7 @@ class TestPoller:
 
             koji_session.deleteBuildTarget.assert_not_called()
 
-    @patch('koji.ClientSession')
+    @patch('module_build_service.builder.KojiModuleBuilder.KojiClientSession')
     def test_dont_delete_build_target_for_unfinished_module_builds(
             self, ClientSession, create_builder, global_consumer, dbg):
         module_build = models.ModuleBuild.query.filter_by(id=3).one()
@@ -275,7 +275,7 @@ class TestPoller:
 
             koji_session.deleteBuildTarget.assert_not_called()
 
-    @patch('koji.ClientSession')
+    @patch('module_build_service.builder.KojiModuleBuilder.KojiClientSession')
     def test_only_delete_build_target_with_allowed_koji_tag_prefix(
             self, ClientSession, create_builder, global_consumer, dbg):
         module_build_2 = models.ModuleBuild.query.filter_by(id=2).one()
@@ -320,7 +320,7 @@ class TestPoller:
             koji_session.deleteBuildTarget.assert_called_once_with(1)
             koji_session.krb_login.assert_called_once()
 
-    @patch('koji.ClientSession')
+    @patch('module_build_service.builder.KojiModuleBuilder.KojiClientSession')
     def test_cant_delete_build_target_if_not_reach_delete_time(
             self, ClientSession, create_builder, global_consumer, dbg):
         module_build_2 = models.ModuleBuild.query.filter_by(id=2).one()

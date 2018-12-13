@@ -41,7 +41,6 @@ for a number of tasks:
 """
 
 import pkg_resources
-import os
 from flask import Flask, has_app_context, url_for
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.pool import StaticPool
@@ -69,9 +68,6 @@ app = Flask(__name__)
 app.wsgi_app = ReverseProxy(app.wsgi_app)
 
 conf = init_config(app)
-
-# We want to use a separate Kerberos cache per thread to avoid Kerberos cache corruption
-os.environ['KRB5CCNAME'] = 'KEYRING:thread:mbs'
 
 
 class MBSSQLAlchemy(SQLAlchemy):

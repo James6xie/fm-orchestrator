@@ -49,6 +49,7 @@ from module_build_service import log, conf, models
 import module_build_service.scm
 import module_build_service.utils
 from module_build_service.builder.utils import execute_cmd
+from module_build_service.builder.koji_backports import ClientSession as KojiClientSession
 from module_build_service.errors import ProgrammingError
 
 from module_build_service.builder.base import GenericBuilder
@@ -455,7 +456,7 @@ chmod 644 %buildroot/etc/rpm/macros.zz-modules
 
         address = koji_config.server
         log.info("Connecting to koji %r.", address)
-        koji_session = koji.ClientSession(address, opts=koji_config)
+        koji_session = KojiClientSession(address, opts=koji_config)
 
         if not login:
             return koji_session
@@ -463,13 +464,23 @@ chmod 644 %buildroot/etc/rpm/macros.zz-modules
         authtype = koji_config.authtype
         log.info("Authenticate session with %r.", authtype)
         if authtype == "kerberos":
+            try:
+                import krbV
+            except ImportError:
+                raise RuntimeError(
+                    "python-krbV must be installed to authenticate with Koji using Kerberos")
             keytab = getattr(config, "krb_keytab", None)
             principal = getattr(config, "krb_principal", None)
             if not keytab and principal:
                 raise ValueError(
                     "The Kerberos keytab and principal aren't set for Koji authentication")
             log.debug("  keytab: %r, principal: %r" % (keytab, principal))
-            koji_session.krb_login(principal=principal, keytab=keytab)
+            # We want to create a context per thread to avoid Kerberos cache corruption
+            ctx = krbV.Context()
+            # We want to use the thread keyring for the ccache to ensure we have one cache per
+            # thread to avoid Kerberos cache corruption
+            ccache = "KEYRING:thread:mbs"
+            koji_session.krb_login(principal=principal, keytab=keytab, ctx=ctx, ccache=ccache)
         elif authtype == "ssl":
             koji_session.ssl_login(
                 os.path.expanduser(koji_config.cert),

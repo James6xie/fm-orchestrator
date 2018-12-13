@@ -121,7 +121,7 @@ class TestGetModulemdsFromUrsineContent:
     def teardown_method(self, test_method):
         clean_database()
 
-    @patch('koji.ClientSession')
+    @patch('module_build_service.builder.KojiModuleBuilder.KojiClientSession')
     def test_return_empty_if_no_ursine_build_tag_is_found(self, ClientSession):
         session = ClientSession.return_value
 
@@ -141,7 +141,7 @@ class TestGetModulemdsFromUrsineContent:
         assert [] == modulemds
 
     @patch.object(conf, 'koji_tag_prefixes', new=['module'])
-    @patch('koji.ClientSession')
+    @patch('module_build_service.builder.KojiModuleBuilder.KojiClientSession')
     def test_get_modulemds(self, ClientSession):
         session = ClientSession.return_value
 
@@ -246,7 +246,7 @@ class TestRecordStreamCollisionModules:
     @patch.object(conf, 'base_module_names', new=['platform', 'project-platform'])
     @patch('module_build_service.utils.ursine.get_modulemds_from_ursine_content')
     @patch('module_build_service.resolver.GenericResolver.create')
-    @patch('koji.ClientSession')
+    @patch('module_build_service.builder.KojiModuleBuilder.KojiClientSession')
     def test_add_collision_modules(self, ClientSession, resolver_create,
                                    get_modulemds_from_ursine_content):
         xmd = {

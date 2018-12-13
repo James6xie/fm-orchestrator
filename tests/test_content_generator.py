@@ -85,7 +85,7 @@ class TestBuild:
         except OSError:
             pass
 
-    @patch("koji.ClientSession")
+    @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
     @patch("subprocess.Popen")
     @patch("subprocess.check_output", return_value='1.4')
     @patch("pkg_resources.get_distribution")
@@ -142,7 +142,7 @@ class TestBuild:
         # Ensure an anonymous Koji session works
         koji_session.krb_login.assert_not_called()
 
-    @patch("koji.ClientSession")
+    @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
     @patch("subprocess.Popen")
     @patch("subprocess.check_output", return_value='1.4')
     @patch("pkg_resources.get_distribution")
@@ -206,7 +206,7 @@ class TestBuild:
         with open(path.join(dir_path, "modulemd.i686.txt")) as mmd:
             assert len(mmd.read()) == 255
 
-    @patch("koji.ClientSession")
+    @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
     def test_tag_cg_build(self, ClientSession):
         """ Test that the CG build is tagged. """
         koji_session = ClientSession.return_value
@@ -221,7 +221,7 @@ class TestBuild:
         # tagBuild requires logging into a session in advance.
         koji_session.krb_login.assert_called_once()
 
-    @patch("koji.ClientSession")
+    @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
     def test_tag_cg_build_fallback_to_default_tag(self, ClientSession):
         """ Test that the CG build is tagged to default tag. """
         koji_session = ClientSession.return_value
@@ -238,7 +238,7 @@ class TestBuild:
         # tagBuild requires logging into a session in advance.
         koji_session.krb_login.assert_called_once()
 
-    @patch("koji.ClientSession")
+    @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
     def test_tag_cg_build_no_tag_set(self, ClientSession):
         """ Test that the CG build is not tagged when no tag set. """
         koji_session = ClientSession.return_value
@@ -252,7 +252,7 @@ class TestBuild:
         # tagBuild requires logging into a session in advance.
         koji_session.krb_login.assert_called_once()
 
-    @patch("koji.ClientSession")
+    @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
     def test_tag_cg_build_no_tag_available(self, ClientSession):
         """ Test that the CG build is not tagged when no tag available. """
         koji_session = ClientSession.return_value
@@ -332,7 +332,7 @@ class TestBuild:
             'type': 'file'
         }
 
-    @patch("koji.ClientSession")
+    @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
     def test_koji_rpms_in_tag(self, ClientSession):
         koji_session = ClientSession.return_value
         koji_session.getUser.return_value = GET_USER_RV
@@ -420,7 +420,7 @@ class TestBuild:
         # Listing tagged RPMs does not require to log into a session
         koji_session.krb_login.assert_not_called()
 
-    @patch("koji.ClientSession")
+    @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
     def test_koji_rpms_in_tag_empty_tag(self, ClientSession):
         koji_session = ClientSession.return_value
         koji_session.getUser.return_value = GET_USER_RV
@@ -432,7 +432,7 @@ class TestBuild:
         assert rpms == []
         koji_session.multiCall.assert_not_called()
 
-    @patch("koji.ClientSession")
+    @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
     def test_koji_rpms_in_tag_empty_headers(self, ClientSession):
         koji_session = ClientSession.return_value
         koji_session.getUser.return_value = GET_USER_RV
