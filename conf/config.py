@@ -77,7 +77,6 @@ class BaseConfiguration(object):
     # Settings for Kerberos
     KRB_KEYTAB = None
     KRB_PRINCIPAL = None
-    KRB_CCACHE = None
 
     # AMQ prefixed variables are required only while using 'amq' as messaging backend
     # Addresses to listen to

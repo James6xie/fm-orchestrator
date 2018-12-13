@@ -284,10 +284,6 @@ class Config(object):
             'type': None,
             'default': None,
             'desc': ''},
-        'krb_ccache': {
-            'type': None,
-            'default': '/tmp/krb5cc_module_build_service',
-            'desc': ''},
         'messaging': {
             'type': str,
             'default': 'fedmsg',

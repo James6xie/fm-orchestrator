@@ -463,18 +463,13 @@ chmod 644 %buildroot/etc/rpm/macros.zz-modules
         authtype = koji_config.authtype
         log.info("Authenticate session with %r.", authtype)
         if authtype == "kerberos":
-            ccache = getattr(config, "krb_ccache", None)
             keytab = getattr(config, "krb_keytab", None)
             principal = getattr(config, "krb_principal", None)
-            log.debug("  ccache: %r, keytab: %r, principal: %r" % (ccache, keytab, principal))
-            if keytab and principal:
-                koji_session.krb_login(
-                    principal=principal,
-                    keytab=keytab,
-                    ccache=ccache
-                )
-            else:
-                koji_session.krb_login(ccache=ccache)
+            if not keytab and principal:
+                raise ValueError(
+                    "The Kerberos keytab and principal aren't set for Koji authentication")
+            log.debug("  keytab: %r, principal: %r" % (keytab, principal))
+            koji_session.krb_login(principal=principal, keytab=keytab)
         elif authtype == "ssl":
             koji_session.ssl_login(
                 os.path.expanduser(koji_config.cert),
