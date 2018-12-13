@@ -263,6 +263,12 @@ class KojiContentGenerator(object):
         # Temporary dict with build_id as a key to find builds easily.
         builds = {build['build_id']: build for build in builds}
 
+        # Create a mapping of build IDs to SRPM NEVRAs so that the for loop below can directly
+        # access these values when adding the `srpm_nevra` key to the returned RPMs
+        build_id_to_srpm_nevra = {
+            srpm["build_id"]: kobo.rpmlib.make_nvra(srpm, force_epoch=True)
+            for srpm in src_rpms.values()
+        }
         # Handle the multicall result. For each build associated with the source RPM,
         # store the exclusivearch and excludearch lists. For each RPM, store the 'license' and
         # also other useful data from the Build associated with the RPM.
@@ -274,7 +280,7 @@ class KojiContentGenerator(object):
 
             rpm["license"] = headers["license"]
             rpm['srpm_name'] = build['name']
-            rpm['srpm_nevra'] = build['nvr']
+            rpm['srpm_nevra'] = build_id_to_srpm_nevra[rpm["build_id"]]
             rpm['exclusivearch'] = build['exclusivearch']
             rpm['excludearch'] = build['excludearch']
 
