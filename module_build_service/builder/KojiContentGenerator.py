@@ -277,6 +277,12 @@ class KojiContentGenerator(object):
         # store the exclusivearch and excludearch lists. For each RPM, store the 'license' and
         # also other useful data from the Build associated with the RPM.
         for rpm, headers in zip(src_rpms.values() + binary_rpms.values(), rpms_headers):
+            if not headers:
+                raise RuntimeError(
+                    "No RPM headers received from Koji for RPM %s" % rpm["name"])
+            if "license" not in headers:
+                raise RuntimeError(
+                    "No RPM 'license' header received from Koji for RPM %s" % rpm["name"])
             build = builds[rpm["build_id"]]
             if "exclusivearch" in headers and "excludearch" in headers:
                 build["exclusivearch"] = headers["exclusivearch"]

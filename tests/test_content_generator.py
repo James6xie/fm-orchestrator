@@ -432,6 +432,66 @@ class TestBuild:
         assert rpms == []
         koji_session.multiCall.assert_not_called()
 
+    @patch("koji.ClientSession")
+    def test_koji_rpms_in_tag_empty_headers(self, ClientSession):
+        koji_session = ClientSession.return_value
+        koji_session.getUser.return_value = GET_USER_RV
+        koji_session.getTag.return_value = {"arches": "x86_64"}
+
+        rpms = [
+            {
+                'id': 1,
+                'arch': 'src',
+                'epoch': None,
+                'build_id': 875991,
+                'name': 'module-build-macros',
+                'release': '1.module_92011fe6',
+                'version': '0.1'
+            },
+            {
+                'id': 2,
+                'arch': 'noarch',
+                'epoch': None,
+                'build_id': 875991,
+                'name': 'module-build-macros',
+                'release': '1.module_92011fe6',
+                'version': '0.1'
+            },
+        ]
+
+        builds = [
+            {
+                'build_id': 875991,
+                'epoch': None,
+                'name': 'module-build-macros',
+                'release': '1.module_92011fe6',
+                'version': '0.1',
+                'nvr': 'module-build-macros-0.1-1.module_92011fe6',
+            }
+        ]
+
+        koji_session.listTaggedRPMS.return_value = (rpms, builds)
+
+        koji_session.multiCall.side_effect = [
+            # getRPMHeaders response
+            [[{}], [{}]]
+        ]
+
+        with pytest.raises(RuntimeError) as cm:
+            self.cg._koji_rpms_in_tag("tag")
+        assert str(cm.value) == (
+            "No RPM headers received from Koji for RPM module-build-macros")
+
+        koji_session.multiCall.side_effect = [
+            # getRPMHeaders response
+            [[{"something": "x"}], [{}]]
+        ]
+
+        with pytest.raises(RuntimeError) as cm:
+            self.cg._koji_rpms_in_tag("tag")
+        assert str(cm.value) == (
+            "No RPM 'license' header received from Koji for RPM module-build-macros")
+
     def _add_test_rpm(self, nevra, srpm_nevra, multilib=None,
                       koji_srpm_nevra=None, excludearch=None, exclusivearch=None,
                       license=None):
