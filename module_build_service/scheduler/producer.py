@@ -52,6 +52,7 @@ class MBSProducer(PollingProducer):
                 self.trigger_new_repo_when_stalled(conf, session)
                 self.delete_old_koji_targets(conf, session)
                 self.cleanup_stale_failed_builds(conf, session)
+                self.sync_koji_build_tags(conf, session)
             except Exception:
                 msg = 'Error in poller execution:'
                 log.exception(msg)
@@ -371,3 +372,54 @@ class MBSProducer(PollingProducer):
             )
             build.transition(config, state=models.BUILD_STATES["failed"], state_reason=state_reason)
             session.commit()
+
+    def sync_koji_build_tags(self, config, session):
+        """
+        Method checking the "tagged" and "tagged_in_final" attributes of
+        "complete" ComponentBuilds in the current batch of module builds
+        in "building" state against the Koji.
+
+        In case the Koji shows the build as tagged/tagged_in_final,
+        fake "tagged" message is added to work queue.
+        """
+        if conf.system != 'koji':
+            return
+
+        koji_session = KojiModuleBuilder.get_session(conf, login=False)
+
+        module_builds = models.ModuleBuild.by_state(session, "build")
+        for module_build in module_builds:
+            complete_components = module_build.current_batch(
+                koji.BUILD_STATES['COMPLETE'])
+            for c in complete_components:
+                # In case the component is tagged in the build tag and
+                # also tagged in the final tag (or it is build_time_only
+                # and therefore should not be tagged in final tag), skip it.
+                if c.tagged and (c.tagged_in_final or c.build_time_only):
+                    continue
+
+                log.info("%r: Component %r is complete, but not tagged in the "
+                         "final and/or build tags.", module_build, c)
+
+                # Check in which tags the component is tagged.
+                tag_dicts = koji_session.listTags(c.nvr)
+                tags = [tag_dict["name"] for tag_dict in tag_dicts]
+
+                # If it is tagged in final tag, but MBS does not think so,
+                # schedule fake message.
+                if not c.tagged_in_final and module_build.koji_tag in tags:
+                    msg = module_build_service.messaging.KojiTagChange(
+                        'sync_koji_build_tags_fake_message',
+                        module_build.koji_tag, c.package, c.nvr)
+                    log.info("  Scheduling faked event %r" % msg)
+                    module_build_service.scheduler.consumer.work_queue_put(msg)
+
+                # If it is tagged in the build tag, but MBS does not think so,
+                # schedule fake message.
+                build_tag = module_build.koji_tag + "-build"
+                if not c.tagged and build_tag in tags:
+                    msg = module_build_service.messaging.KojiTagChange(
+                        'sync_koji_build_tags_fake_message',
+                        build_tag, c.package, c.nvr)
+                    log.info("  Scheduling faked event %r" % msg)
+                    module_build_service.scheduler.consumer.work_queue_put(msg)

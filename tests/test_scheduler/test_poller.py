@@ -25,6 +25,7 @@ from tests import reuse_component_init_data, db, clean_database
 import mock
 import koji
 from module_build_service.scheduler.producer import MBSProducer
+from module_build_service.messaging import KojiTagChange
 import six.moves.queue as queue
 from datetime import datetime, timedelta
 
@@ -567,3 +568,65 @@ class TestPoller:
         module = models.ModuleBuild.query.filter_by(state=4).all()
         assert len(module) == 1
         assert module[0].id == 2
+
+    @pytest.mark.parametrize('tagged, tagged_in_final', ([True, False], [True, False]))
+    @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
+    def test_sync_koji_build_tags(
+            self, ClientSession, create_builder, global_consumer, dbg,
+            tagged, tagged_in_final):
+        module_build_2 = models.ModuleBuild.query.filter_by(id=2).one()
+
+        # Only module build 1's build target should be deleted.
+        module_build_2.koji_tag = 'module-tag1'
+        module_build_2.state = models.BUILD_STATES['build']
+        c = module_build_2.current_batch()[0]
+        c.state = koji.BUILD_STATES["COMPLETE"]
+        c.tagged_in_final = False
+        c.tagged = False
+        db.session.commit()
+        db.session.refresh(module_build_2)
+
+        koji_session = ClientSession.return_value
+        # No created module build has any of these tags.
+        ret = []
+
+        if tagged:
+            ret.append(
+                {
+                    'id': 1,
+                    'name': module_build_2.koji_tag + "-build"
+                },
+            )
+        if tagged_in_final:
+            ret.append(
+                {
+                    'id': 2,
+                    'name': module_build_2.koji_tag
+                },
+            )
+        koji_session.listTags.return_value = ret
+
+        consumer = mock.MagicMock()
+        consumer.incoming = queue.Queue()
+        global_consumer.return_value = consumer
+        hub = mock.MagicMock()
+        poller = MBSProducer(hub)
+
+        assert consumer.incoming.qsize() == 0
+        poller.sync_koji_build_tags(conf, db.session)
+        assert consumer.incoming.qsize() == 2 - len(ret)
+
+        expected_msg_tags = []
+        if tagged:
+            expected_msg_tags.append(module_build_2.koji_tag + "-build")
+        if tagged_in_final:
+            expected_msg_tags.append(module_build_2.koji_tag)
+
+        assert len(expected_msg_tags) == consumer.incoming.qsize()
+
+        for i in range(consumer.incoming.qsize()):
+            msg = consumer.incoming.get()
+            assert isinstance(msg, KojiTagChange)
+            assert msg.artifact == c.package
+            assert msg.nvr == c.nvr
+            assert msg.tag in expected_msg_tags
