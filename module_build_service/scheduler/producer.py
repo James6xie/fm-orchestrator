@@ -202,8 +202,7 @@ class MBSProducer(PollingProducer):
         """
         log.info('Looking for module builds stuck in the %s state', state)
         builds = models.ModuleBuild.by_state(session, state)
-        log.info(' {0!r} module builds in the %s state...'
-                 .format(len(builds), state))
+        log.info(' %r module builds in the %s state...', len(builds), state)
         now = datetime.utcnow()
         time_modified_threshold = timedelta(minutes=older_than_minutes)
         for build in builds:
