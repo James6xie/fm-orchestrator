@@ -194,15 +194,15 @@ class MBSProducer(PollingProducer):
                         log.info('      * {0} components in batch {1}'
                                  .format(n, i))
 
-    def _nudge_module_builds_in_state(self, session, state, older_than_minutes):
+    def _nudge_module_builds_in_state(self, session, state_name, older_than_minutes):
         """
         Finds all the module builds in the `state` with `time_modified` older
         than `older_than_minutes` and adds fake MBSModule message to the
         work queue.
         """
-        log.info('Looking for module builds stuck in the %s state', state)
-        builds = models.ModuleBuild.by_state(session, state)
-        log.info(' %r module builds in the %s state...', len(builds), state)
+        log.info('Looking for module builds stuck in the %s state', state_name)
+        builds = models.ModuleBuild.by_state(session, state_name)
+        log.info(' %r module builds in the %s state...', len(builds), state_name)
         now = datetime.utcnow()
         time_modified_threshold = timedelta(minutes=older_than_minutes)
         for build in builds:
@@ -216,7 +216,7 @@ class MBSProducer(PollingProducer):
             session.commit()
 
             # Fake a message to kickstart the build anew in the consumer
-            state = module_build_service.models.BUILD_STATES[state]
+            state = module_build_service.models.BUILD_STATES[state_name]
             msg = module_build_service.messaging.MBSModule(
                 'nudge_module_builds_fake_message', build.id, state)
             log.info("  Scheduling faked event %r" % msg)
