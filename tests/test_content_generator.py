@@ -420,6 +420,18 @@ class TestBuild:
         # Listing tagged RPMs does not require to log into a session
         koji_session.krb_login.assert_not_called()
 
+    @patch("koji.ClientSession")
+    def test_koji_rpms_in_tag_empty_tag(self, ClientSession):
+        koji_session = ClientSession.return_value
+        koji_session.getUser.return_value = GET_USER_RV
+        koji_session.getTag.return_value = {"arches": "x86_64"}
+        koji_session.listTaggedRPMS.return_value = ([], [])
+        koji_session.multiCall.side_effect = [[], [], [], []]
+
+        rpms = self.cg._koji_rpms_in_tag("tag")
+        assert rpms == []
+        koji_session.multiCall.assert_not_called()
+
     def _add_test_rpm(self, nevra, srpm_nevra, multilib=None,
                       koji_srpm_nevra=None, excludearch=None, exclusivearch=None,
                       license=None):

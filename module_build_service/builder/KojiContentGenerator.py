@@ -237,6 +237,10 @@ class KojiContentGenerator(object):
             # If the tag doesn't exist.. then there are no rpms in that tag.
             return []
 
+        # Module does not contain any RPM, so return an empty list.
+        if not rpms:
+            return []
+
         # Get the exclusivearch, excludearch and license data for each RPM.
         # The exclusivearch and excludearch lists are set in source RPM from which the RPM
         # was built.
