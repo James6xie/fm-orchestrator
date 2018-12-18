@@ -1,6 +1,14 @@
 Change Log
 ==========
 
+v2.11.0
+-------
+* Fix the creation of Content Generator builds without any components
+* Add a poller handler to nudge module builds stuck in the ``init`` state
+* List the failed component names in the state reason of a failed module build
+* Fail the module build when Koji fails to return RPM headers (occurs during certain Koji outages)
+* Use a separate Kerberos context per thread so both threads can use the thread keyring to store the Kerberos cache
+
 v2.10.0
 -------
 * Fix a bug where the SRPM NVR instead of the SRPM NEVRA was recorded in the modulemd files used in the Content Generator builds
