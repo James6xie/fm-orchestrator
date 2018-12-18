@@ -356,8 +356,9 @@ class TestPoller:
 
             koji_session.deleteBuildTarget.assert_not_called()
 
+    @pytest.mark.parametrize('state', ['init', 'wait'])
     def test_process_waiting_module_build(
-            self, create_builder, global_consumer, dbg):
+            self, create_builder, global_consumer, dbg, state):
         """ Test that processing old waiting module builds works. """
 
         consumer = mock.MagicMock()
@@ -370,7 +371,7 @@ class TestPoller:
         # Change the batch to 2, so the module build is in state where
         # it is not building anything, but the state is "build".
         module_build = models.ModuleBuild.query.filter_by(id=3).one()
-        module_build.state = 1
+        module_build.state = models.BUILD_STATES[state]
         original = datetime.utcnow() - timedelta(minutes=11)
         module_build.time_modified = original
         db.session.commit()
@@ -387,8 +388,9 @@ class TestPoller:
         # ensure the time_modified was changed.
         assert module_build.time_modified > original
 
+    @pytest.mark.parametrize('state', ['init', 'wait'])
     def test_process_waiting_module_build_not_old_enough(
-            self, create_builder, global_consumer, dbg):
+            self, create_builder, global_consumer, dbg, state):
         """ Test that we do not process young waiting builds. """
 
         consumer = mock.MagicMock()
@@ -401,7 +403,7 @@ class TestPoller:
         # Change the batch to 2, so the module build is in state where
         # it is not building anything, but the state is "build".
         module_build = models.ModuleBuild.query.filter_by(id=3).one()
-        module_build.state = 1
+        module_build.state = models.BUILD_STATES[state]
         original = datetime.utcnow() - timedelta(minutes=9)
         module_build.time_modified = original
         db.session.commit()

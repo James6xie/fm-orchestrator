@@ -194,17 +194,22 @@ class MBSProducer(PollingProducer):
                         log.info('      * {0} components in batch {1}'
                                  .format(n, i))
 
-    def process_waiting_module_builds(self, session):
-        log.info('Looking for module builds stuck in the wait state')
-        builds = models.ModuleBuild.by_state(session, 'wait')
-        log.info(' {0!r} module builds in the wait state...'
-                 .format(len(builds)))
+    def _nudge_module_builds_in_state(self, session, state, older_than_minutes):
+        """
+        Finds all the module builds in the `state` with `time_modified` older
+        than `older_than_minutes` and adds fake MBSModule message to the
+        work queue.
+        """
+        log.info('Looking for module builds stuck in the %s state', state)
+        builds = models.ModuleBuild.by_state(session, state)
+        log.info(' {0!r} module builds in the %s state...'
+                 .format(len(builds), state))
         now = datetime.utcnow()
-        ten_minutes = timedelta(minutes=10)
+        time_modified_threshold = timedelta(minutes=older_than_minutes)
         for build in builds:
 
             # Only give builds a nudge if stuck for more than ten minutes
-            if (now - build.time_modified) < ten_minutes:
+            if (now - build.time_modified) < time_modified_threshold:
                 continue
 
             # Pretend the build is modified, so we don't tight spin.
@@ -212,11 +217,15 @@ class MBSProducer(PollingProducer):
             session.commit()
 
             # Fake a message to kickstart the build anew in the consumer
-            state = module_build_service.models.BUILD_STATES['wait']
+            state = module_build_service.models.BUILD_STATES[state]
             msg = module_build_service.messaging.MBSModule(
-                'fake message', build.id, state)
+                'nudge_module_builds_fake_message', build.id, state)
             log.info("  Scheduling faked event %r" % msg)
             module_build_service.scheduler.consumer.work_queue_put(msg)
+
+    def process_waiting_module_builds(self, session):
+        for state in ['init', 'wait']:
+            self._nudge_module_builds_in_state(session, state, 10)
 
     def process_open_component_builds(self, session):
         log.warning('process_open_component_builds is not yet implemented...')
