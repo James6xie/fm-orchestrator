@@ -87,14 +87,18 @@ def done(config, session, msg):
     # Assemble the list of all successful components in the batch.
     good = [c for c in current_batch if c.state == koji.BUILD_STATES['COMPLETE']]
 
+    failed_states = (koji.BUILD_STATES['FAILED'],
+                     koji.BUILD_STATES['CANCELED'])
+
     # If *none* of the components completed for this batch, then obviously the
     # module fails.  However!  We shouldn't reach this scenario.  There is
     # logic over in the component handler which should fail the module build
     # first before we ever get here.  This is here as a race condition safety
     # valve.
     if module_build.component_builds and not good:
-        module_build.transition(config, models.BUILD_STATES['failed'],
-                                "Some components failed to build.")
+        state_reason = 'Component(s) {} failed to build.'.format(
+            ', '.join(c.package for c in current_batch if c.state in failed_states))
+        module_build.transition(config, models.BUILD_STATES['failed'], state_reason)
         session.commit()
         log.warning("Odd!  All components in batch failed for %r." % module_build)
         return
@@ -121,8 +125,7 @@ def done(config, session, msg):
     for c in module_build.component_builds:
         if c.state in [None, koji.BUILD_STATES['BUILDING']]:
             has_unbuilt_components = True
-        elif (c.state in [koji.BUILD_STATES['FAILED'],
-                          koji.BUILD_STATES['CANCELED']]):
+        elif (c.state in failed_states):
             has_failed_components = True
 
     further_work = []
@@ -141,8 +144,13 @@ def done(config, session, msg):
 
     else:
         if has_failed_components:
-            module_build.transition(config, state=models.BUILD_STATES['failed'],
-                                    state_reason="Some components failed to build.")
+            state_reason = 'Component(s) {} failed to build.'.format(
+                ', '.join(c.package for c in module_build.component_builds
+                          if c.state in failed_states)
+            )
+            module_build.transition(config,
+                                    state=models.BUILD_STATES['failed'],
+                                    state_reason=state_reason)
         else:
             module_build.transition(config, state=models.BUILD_STATES['done'])
         session.commit()

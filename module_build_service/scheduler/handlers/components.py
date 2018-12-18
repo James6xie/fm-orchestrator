@@ -100,8 +100,11 @@ def _finalize(config, session, msg, state):
         if failed_components_in_batch:
             log.info("Batch done, but not tagging because of failed component builds. Will "
                      "transition the module to \"failed\"")
-            parent.transition(config, state=models.BUILD_STATES['failed'],
-                              state_reason="Some components failed to build.")
+            state_reason = 'Component(s) {} failed to build.'.format(
+                ', '.join(c.package for c in failed_components_in_batch))
+            parent.transition(config,
+                              state=models.BUILD_STATES['failed'],
+                              state_reason=state_reason)
             session.commit()
             return []
         elif not built_components_in_batch:

@@ -697,13 +697,13 @@ class TestBuild:
             # we had a failing component in batch 2.
             elif c.package == "tangerine":
                 assert c.state == koji.BUILD_STATES['FAILED']
-                assert c.state_reason == "Some components failed to build."
+                assert c.state_reason == "Component(s) perl-Tangerine failed to build."
             else:
                 assert c.state == koji.BUILD_STATES['COMPLETE']
 
             # Whole module should be failed.
             assert c.module_build.state == models.BUILD_STATES['failed']
-            assert c.module_build.state_reason == "Some components failed to build."
+            assert c.module_build.state_reason == "Component(s) perl-Tangerine failed to build."
 
             # We should end up with batch 2 and never start batch 3, because
             # there were failed components in batch 2.
@@ -750,7 +750,8 @@ class TestBuild:
 
             # Whole module should be failed.
             assert c.module_build.state == models.BUILD_STATES['failed']
-            assert c.module_build.state_reason == "Some components failed to build."
+            assert c.module_build.state_reason == \
+                "Component(s) perl-Tangerine, perl-List-Compare failed to build."
 
             # We should end up with batch 2 and never start batch 3, because
             # there were failed components in batch 2.
