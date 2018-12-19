@@ -1,6 +1,10 @@
 Change Log
 ==========
 
+v2.11.1
+-------
+* Fix a bug in the poller that caused it to not properly nudge module builds stuck in the ``init`` state
+
 v2.11.0
 -------
 * Fix the creation of Content Generator builds without any components
