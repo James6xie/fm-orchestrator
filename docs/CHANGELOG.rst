@@ -12,6 +12,7 @@ v2.11.0
 * List the failed component names in the state reason of a failed module build
 * Fail the module build when Koji fails to return RPM headers (occurs during certain Koji outages)
 * Use a separate Kerberos context per thread so both threads can use the thread keyring to store the Kerberos cache
+* Return a non-zero return code when a local build fails
 
 v2.10.0
 -------
