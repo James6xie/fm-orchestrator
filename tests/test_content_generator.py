@@ -37,6 +37,8 @@ import kobo.rpmlib
 from tests import init_data
 from tests.test_views.test_views import FakeSCM
 
+import koji
+
 from module_build_service.builder.KojiContentGenerator import KojiContentGenerator
 
 GET_USER_RV = {
@@ -869,3 +871,24 @@ class TestBuild:
                 for stream in streams.get():
                     requires.append("%s:%s" % (name, stream))
             assert "%s:%s" % (mmd.get_name(), mmd.get_stream()) in requires
+
+    @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
+    @patch("module_build_service.builder.KojiContentGenerator.KojiContentGenerator._check_upload",
+           return_value='mbs/123456789-1234')
+    def test_upload_outputs(self, upload_checker, cl_session):
+        ''' Tests whether _upload_outputs function return already existing directory
+         if there's one '''
+        rv = self.cg._upload_outputs(cl_session.return_value, dict(), '')
+        assert rv == upload_checker.return_value
+
+    @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
+    @patch("module_build_service.builder.KojiContentGenerator.KojiContentGenerator._check_upload",
+           return_value='mbs/123456789-1234')
+    @patch("module_build_service.builder.KojiContentGenerator.KojiContentGenerator._tag_cg_build")
+    @patch("module_build_service.builder.KojiContentGenerator.KojiContentGenerator._load_koji_tag")
+    def test_koji_cg_koji_import(self, tag_loader, tagger, upload_checker, cl_session):
+        ''' Tests whether build is still tagged even if there's an exception in CGImport '''
+        cl_session.return_value.CGImport = Mock(
+            side_effect=koji.GenericError('Build already exists asdv'))
+        self.cg.koji_import()
+        tagger.assert_called()
