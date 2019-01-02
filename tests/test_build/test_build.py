@@ -22,6 +22,7 @@
 
 import koji
 import os
+import re
 from os import path, mkdir
 from os.path import dirname
 from shutil import copyfile
@@ -750,8 +751,9 @@ class TestBuild:
 
             # Whole module should be failed.
             assert c.module_build.state == models.BUILD_STATES['failed']
-            assert c.module_build.state_reason == \
-                "Component(s) perl-Tangerine, perl-List-Compare failed to build."
+            assert re.match(r'Component\(s\) (perl-Tangerine|perl-List-Compare), '
+                            '(perl-Tangerine|perl-List-Compare) failed to build.',
+                            c.module_build.state_reason)
 
             # We should end up with batch 2 and never start batch 3, because
             # there were failed components in batch 2.
