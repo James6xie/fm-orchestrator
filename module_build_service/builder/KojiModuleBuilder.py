@@ -339,7 +339,6 @@ class KojiModuleBuilder(GenericBuilder):
 
         spec_content = """
 %global dist {disttag}
-%global disttag module({module_name}:{module_stream}:{module_version}:{module_context})
 %global modularitylabel {module_name}:{module_stream}:{module_version}:{module_context}
 %global _module_name {module_name}
 %global _module_stream {module_stream}
@@ -402,7 +401,6 @@ chmod 644 %buildroot/etc/rpm/macros.zz-modules
 # General macros set by MBS
 
 %dist {disttag}
-%disttag module({module_name}:{module_stream}:{module_version}:{module_context})
 %modularitylabel {module_name}:{module_stream}:{module_version}:{module_context}
 %_module_build 1
 %_module_name {module_name}
