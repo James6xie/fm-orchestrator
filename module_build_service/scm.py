@@ -158,6 +158,7 @@ class SCM(object):
 
             module_clone_cmd = ['git', 'clone', '-q']
             if self.commit:
+                module_clone_cmd.append('--no-checkout')
                 module_checkout_cmd = ['git', 'checkout', '-q', self.commit]
             else:
                 module_clone_cmd.extend(['--depth', '1'])
