@@ -22,16 +22,16 @@ Development
 ===========
 
 In most cases, you don't need to deploy your development instance. Please,
-refer to the `Running Tests` section first.
+refer to the `Running Tests`_ section first.
 
-The easiest way to setup a development environment is by using `vagrant`. You can see instructions
+The easiest way to setup a development environment is by using ``vagrant``. You can see instructions
 about it below.
 
 Vagrant
 -------
 
 If you are using VirtualBox, you will need to install the Vagrant plugin
-`vagrant-vbguest`. This plugin automatically installs guest additions to
+``vagrant-vbguest``. This plugin automatically installs guest additions to
 Vagrant guests that do not have them installed. The official Fedora Vagrant
 box unfortunately does not contain the guest additions, and they are needed
 for folder syncing::
@@ -70,7 +70,7 @@ To start the frontend manually, run the following inside the guest::
     $ mbs-frontend
 
 To start the scheduler manually, run the following at
-`/opt/module_build_service` inside the guest::
+``/opt/module_build_service`` inside the guest::
 
     $ fedmsg-hub
 
@@ -83,17 +83,17 @@ Logging
 -------
 
 If you're running module_build_service from scm, then the DevConfiguration
-from `conf/config.py` which contains `LOG_LEVEL=debug` should get applied. See
-more about it in `module_build_service/config.py`, `app.config.from_object()`.
+from ``conf/config.py`` which contains ``LOG_LEVEL=debug`` should get applied. See
+more about it in ``module_build_service/config.py``, ``app.config.from_object()``.
 
 Environment
 -----------
 
-The environment variable `MODULE_BUILD_SERVICE_DEVELOPER_ENV`, which if
+The environment variable ``MODULE_BUILD_SERVICE_DEVELOPER_ENV``, which if
 set to "1", indicates to the Module Build Service that the development
 configuration should be used. Vagrant already runs with this environment variable set.
 This overrides all configuration settings and forces usage of DevConfiguration section
-in `conf/config.py` from MBS's develop instance.
+in ``conf/config.py`` from MBS's develop instance.
 
 Prior to starting MBS, you can force development mode::
 
