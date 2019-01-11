@@ -404,8 +404,8 @@ class KojiContentGenerator(object):
         # parse it to get the Modulemd instance.
         mmd_path = os.path.join(output_path, mmd_filename)
         try:
-            with open(mmd_path) as mmd_f:
-                data = mmd_f.read()
+            with open(mmd_path, 'rb') as mmd_f:
+                data = mmd_f.read().decode('utf-8')
                 mmd = Modulemd.Module().new_from_string(data)
                 ret['filename'] = mmd_filename
                 ret['filesize'] = len(data)
@@ -452,8 +452,8 @@ class KojiContentGenerator(object):
 
         try:
             log_path = os.path.join(output_path, "build.log")
-            with open(log_path) as build_log:
-                checksum = hashlib.md5(build_log.read().encode('utf-8')).hexdigest()
+            with open(log_path, 'rb') as build_log:
+                checksum = hashlib.md5(build_log.read()).hexdigest()
             stat = os.stat(log_path)
             ret.append(
                 {
