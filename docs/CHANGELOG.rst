@@ -1,6 +1,13 @@
 Change Log
 ==========
 
+v2.12.0
+-------
+* Handle lost Koji messages informing MBS about a component being tagged
+* Stop defining the DistTag RPM label and just use ModularityLabel
+* Don't try to reupload a Koji content generator build if it already exists
+* Fix an issue that would cause the hash provided to a Koji content generator build to be incorrect
+
 v2.11.1
 -------
 * Fix a bug in the poller that caused it to not properly nudge module builds stuck in the ``init`` state
