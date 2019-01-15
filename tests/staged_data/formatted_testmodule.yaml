@@ -56,17 +56,17 @@ data:
     rpms:
       perl-List-Compare:
         rationale: A dependency of tangerine.
-        repository: git://pkgs.fedoraproject.org/rpms/perl-List-Compare
+        repository: https://src.fedoraproject.org/rpms/perl-List-Compare
         ref: master
         cache: http://pkgs.fedoraproject.org/repo/pkgs/perl-List-Compare
       tangerine:
         rationale: Provides API for this module.
         buildorder: 10
-        repository: git://pkgs.fedoraproject.org/rpms/tangerine
+        repository: https://src.fedoraproject.org/rpms/tangerine
         ref: master
         cache: http://pkgs.fedoraproject.org/repo/pkgs/tangerine
       perl-Tangerine:
         rationale: Provides API for this module and is a dependency of tangerine.
-        repository: git://pkgs.fedoraproject.org/rpms/perl-Tangerine
+        repository: https://src.fedoraproject.org/rpms/perl-Tangerine
         ref: master
         cache: http://pkgs.fedoraproject.org/repo/pkgs/perl-Tangerine

@@ -69,7 +69,7 @@ class FakeSCM(object):
         self.mocked_scm.return_value.get_latest = self.get_latest
         self.mocked_scm.return_value.commit = self.commit
         self.mocked_scm.return_value.version = self.version
-        self.mocked_scm.return_value.repository_root = "git://pkgs.stg.fedoraproject.org/modules/"
+        self.mocked_scm.return_value.repository_root = "https://src.stg.fedoraproject.org/modules/"
         self.mocked_scm.return_value.sourcedir = self.sourcedir
         self.mocked_scm.return_value.get_module_yaml = self.get_module_yaml
 
@@ -342,7 +342,7 @@ class TestBuild:
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
-            {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+            {'branch': 'master', 'scmurl': 'https://src.stg.fedoraproject.org/modules/'
                 'testmodule.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4'}))
 
         data = json.loads(rv.data)
@@ -401,7 +401,7 @@ class TestBuild:
         FakeSCM(mocked_scm, 'python3', 'python3-no-components.yaml',
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
-            {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+            {'branch': 'master', 'scmurl': 'https://src.stg.fedoraproject.org/modules/'
                 'testmodule.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4'}))
 
         data = json.loads(rv.data)
@@ -427,7 +427,7 @@ class TestBuild:
         FakeSCM(mocked_scm, 'python3', 'python3-no-components.yaml',
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
-            {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+            {'branch': 'master', 'scmurl': 'https://src.stg.fedoraproject.org/modules/'
                 'testmodule.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4'}))
 
         assert rv.status_code == 400
@@ -486,7 +486,7 @@ class TestBuild:
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
-            {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+            {'branch': 'master', 'scmurl': 'https://src.stg.fedoraproject.org/modules/'
                 'testmodule.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4'}))
 
         data = json.loads(rv.data)
@@ -539,7 +539,7 @@ class TestBuild:
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
-            {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+            {'branch': 'master', 'scmurl': 'https://src.stg.fedoraproject.org/modules/'
                 'testmodule.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4'}))
 
         data = json.loads(rv.data)
@@ -572,7 +572,7 @@ class TestBuild:
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
-            {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+            {'branch': 'master', 'scmurl': 'https://src.stg.fedoraproject.org/modules/'
                 'testmodule.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4'}))
 
         data = json.loads(rv.data)
@@ -616,7 +616,7 @@ class TestBuild:
         FakeSCM(mocked_scm, 'testmodule-more-components', 'testmodule-more-components.yaml',
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
         self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
-            {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+            {'branch': 'master', 'scmurl': 'https://src.stg.fedoraproject.org/modules/'
                 'testmodule.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4'}))
 
         # Holds the number of concurrent component builds during
@@ -665,7 +665,7 @@ class TestBuild:
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
-            {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+            {'branch': 'master', 'scmurl': 'https://src.stg.fedoraproject.org/modules/'
                 'testmodule.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4'}))
 
         data = json.loads(rv.data)
@@ -724,7 +724,7 @@ class TestBuild:
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
-            {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+            {'branch': 'master', 'scmurl': 'https://src.stg.fedoraproject.org/modules/'
                 'testmodule.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4'}))
 
         data = json.loads(rv.data)
@@ -887,7 +887,7 @@ class TestBuild:
         with open(formatted_testmodule_yml_path, 'r') as f:
             build_one.modulemd = f.read()
         build_one.koji_tag = 'module-testmodule-master-20180205135154-9c690d0e'
-        build_one.scmurl = 'git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#7fea453'
+        build_one.scmurl = 'https://src.stg.fedoraproject.org/modules/testmodule.git?#7fea453'
         build_one.batch = 2
         build_one.owner = 'Homer J. Simpson'
         build_one.time_submitted = submitted_time
@@ -909,7 +909,7 @@ class TestBuild:
         component_one = models.ComponentBuild()
         component_one.package = 'perl-Tangerine'
         component_one.format = 'rpms'
-        component_one.scmurl = 'git://pkgs.stg.fedoraproject.org/rpms/perl-Tangerine.git?#master'
+        component_one.scmurl = 'https://src.stg.fedoraproject.org/rpms/perl-Tangerine.git?#master'
         component_one.state = koji.BUILD_STATES['COMPLETE']
         component_one.nvr = 'perl-Tangerine-0:0.22-2.module+0+d027b723'
         component_one.batch = 2
@@ -922,7 +922,7 @@ class TestBuild:
         component_two.package = 'perl-List-Compare'
         component_two.format = 'rpms'
         component_two.scmurl = \
-            'git://pkgs.stg.fedoraproject.org/rpms/perl-List-Compare.git?#master'
+            'https://src.stg.fedoraproject.org/rpms/perl-List-Compare.git?#master'
         component_two.state = koji.BUILD_STATES['FAILED']
         component_two.batch = 2
         component_two.module_id = 2
@@ -930,7 +930,7 @@ class TestBuild:
         component_three = models.ComponentBuild()
         component_three.package = 'tangerine'
         component_three.format = 'rpms'
-        component_three.scmurl = 'git://pkgs.stg.fedoraproject.org/rpms/tangerine.git?#master'
+        component_three.scmurl = 'https://src.stg.fedoraproject.org/rpms/tangerine.git?#master'
         component_three.batch = 3
         component_three.module_id = 2
         # module-build-macros
@@ -958,7 +958,7 @@ class TestBuild:
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
         # Resubmit the failed module
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
-            {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+            {'branch': 'master', 'scmurl': 'https://src.stg.fedoraproject.org/modules/'
                 'testmodule.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4'}))
 
         data = json.loads(rv.data)
@@ -1014,7 +1014,7 @@ class TestBuild:
         with open(formatted_testmodule_yml_path, 'r') as f:
             build_one.modulemd = f.read()
         build_one.koji_tag = 'module-testmodule-master-20180205135154-6ef9a711'
-        build_one.scmurl = 'git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#7fea453'
+        build_one.scmurl = 'https://src.stg.fedoraproject.org/modules/testmodule.git?#7fea453'
         build_one.batch = 2
         build_one.owner = 'Homer J. Simpson'
         build_one.time_submitted = submitted_time
@@ -1036,20 +1036,20 @@ class TestBuild:
         component_one = models.ComponentBuild()
         component_one.package = 'perl-Tangerine'
         component_one.format = 'rpms'
-        component_one.scmurl = 'git://pkgs.stg.fedoraproject.org/rpms/perl-Tangerine.git?#master'
+        component_one.scmurl = 'https://src.stg.fedoraproject.org/rpms/perl-Tangerine.git?#master'
         component_one.batch = 2
         component_one.module_id = 2
         component_two = models.ComponentBuild()
         component_two.package = 'perl-List-Compare'
         component_two.format = 'rpms'
         component_two.scmurl = \
-            'git://pkgs.stg.fedoraproject.org/rpms/perl-List-Compare.git?#master'
+            'https://src.stg.fedoraproject.org/rpms/perl-List-Compare.git?#master'
         component_two.batch = 2
         component_two.module_id = 2
         component_three = models.ComponentBuild()
         component_three.package = 'tangerine'
         component_three.format = 'rpms'
-        component_three.scmurl = 'git://pkgs.stg.fedoraproject.org/rpms/tangerine.git?#master'
+        component_three.scmurl = 'https://src.stg.fedoraproject.org/rpms/tangerine.git?#master'
         component_three.batch = 3
         component_three.module_id = 2
         # Failed module-build-macros
@@ -1075,7 +1075,7 @@ class TestBuild:
         FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml', '7fea453')
         # Resubmit the failed module
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
-            {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+            {'branch': 'master', 'scmurl': 'https://src.stg.fedoraproject.org/modules/'
                 'testmodule.git?#7fea453'}))
 
         data = json.loads(rv.data)
@@ -1116,7 +1116,7 @@ class TestBuild:
             mock_format_mmd.side_effect = Forbidden(
                 'Custom component repositories aren\'t allowed.')
             rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
-                {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+                {'branch': 'master', 'scmurl': 'https://src.stg.fedoraproject.org/modules/'
                     'testmodule.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4'}))
             # Run the backend so that it fails in the "init" handler
             module_build_service.scheduler.main([], stop)
@@ -1133,7 +1133,7 @@ class TestBuild:
         # Resubmit the failed module
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
             {'branch': 'master',
-             'scmurl': ('git://pkgs.stg.fedoraproject.org/modules/testmodule.git?'
+             'scmurl': ('https://src.stg.fedoraproject.org/modules/testmodule.git?'
                         '#620ec77321b2ea7b0d67d82992dda3e1d67055b4')}))
 
         module_build = models.ModuleBuild.query.filter_by(id=module_build_id).one()
@@ -1167,7 +1167,7 @@ class TestBuild:
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
         # Post so a module is in the init phase
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
-            {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+            {'branch': 'master', 'scmurl': 'https://src.stg.fedoraproject.org/modules/'
                 'testmodule.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4'}))
         assert rv.status_code == 201
         # Run the backend
@@ -1175,7 +1175,7 @@ class TestBuild:
         module_build_service.scheduler.main([], stop)
         # Post again and make sure it fails
         rv2 = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
-            {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+            {'branch': 'master', 'scmurl': 'https://src.stg.fedoraproject.org/modules/'
                 'testmodule.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4'}))
         data = json.loads(rv2.data)
         expected = {
@@ -1200,7 +1200,7 @@ class TestBuild:
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(
-            {'branch': 'master', 'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+            {'branch': 'master', 'scmurl': 'https://src.stg.fedoraproject.org/modules/'
                 'testmodule.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4'}))
 
         data = json.loads(rv.data)
@@ -1281,7 +1281,7 @@ class TestLocalBuild:
             rv = self.client.post(
                 '/module-build-service/1/module-builds/', data=json.dumps(
                     {'branch': 'master',
-                     'scmurl': 'git://pkgs.stg.fedoraproject.org/modules/'
+                     'scmurl': 'https://src.stg.fedoraproject.org/modules/'
                      'testmodule.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4'}))
 
             data = json.loads(rv.data)

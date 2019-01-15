@@ -332,7 +332,7 @@ def scheduler_init_data(tangerine_state=None):
     build_one.runtime_context = 'ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0'
     build_one.context = '7c29193d'
     build_one.koji_tag = 'module-testmodule-master-20170109091357-7c29193d'
-    build_one.scmurl = 'git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#ff1ea79'
+    build_one.scmurl = 'https://src.stg.fedoraproject.org/modules/testmodule.git?#ff1ea79'
     if tangerine_state:
         build_one.batch = 3
     else:
@@ -349,7 +349,7 @@ def scheduler_init_data(tangerine_state=None):
     component_one_build_one = module_build_service.models.ComponentBuild()
     component_one_build_one.package = 'perl-Tangerine'
     component_one_build_one.scmurl = \
-        ('git://pkgs.fedoraproject.org/rpms/perl-Tangerine'
+        ('https://src.fedoraproject.org/rpms/perl-Tangerine'
          '?#4ceea43add2366d8b8c5a622a2fb563b625b9abf')
     component_one_build_one.format = 'rpms'
     component_one_build_one.task_id = 90276227
@@ -365,7 +365,7 @@ def scheduler_init_data(tangerine_state=None):
     component_two_build_one = module_build_service.models.ComponentBuild()
     component_two_build_one.package = 'perl-List-Compare'
     component_two_build_one.scmurl = \
-        ('git://pkgs.fedoraproject.org/rpms/perl-List-Compare'
+        ('https://src.fedoraproject.org/rpms/perl-List-Compare'
          '?#76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb')
     component_two_build_one.format = 'rpms'
     component_two_build_one.task_id = 90276228
@@ -381,7 +381,7 @@ def scheduler_init_data(tangerine_state=None):
     component_three_build_one = module_build_service.models.ComponentBuild()
     component_three_build_one.package = 'tangerine'
     component_three_build_one.scmurl = \
-        ('git://pkgs.fedoraproject.org/rpms/tangerine'
+        ('https://src.fedoraproject.org/rpms/tangerine'
          '?#fbed359411a1baa08d4a88e0d12d426fbf8f602c')
     component_three_build_one.format = 'rpms'
     component_three_build_one.batch = 3
@@ -442,7 +442,7 @@ def reuse_component_init_data():
     build_one.build_context = 'ac4de1c346dcf09ce77d38cd4e75094ec1c08eb1'
     build_one.context = '78e4a6fd'
     build_one.koji_tag = 'module-testmodule-master-20170109091357-78e4a6fd'
-    build_one.scmurl = 'git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#ff1ea79'
+    build_one.scmurl = 'https://src.stg.fedoraproject.org/modules/testmodule.git?#ff1ea79'
     build_one.batch = 3
     build_one.owner = 'Tom Brady'
     build_one.time_submitted = datetime(2017, 2, 15, 16, 8, 18)
@@ -461,7 +461,7 @@ def reuse_component_init_data():
     component_one_build_one = module_build_service.models.ComponentBuild()
     component_one_build_one.package = 'perl-Tangerine'
     component_one_build_one.scmurl = \
-        ('git://pkgs.fedoraproject.org/rpms/perl-Tangerine'
+        ('https://src.fedoraproject.org/rpms/perl-Tangerine'
          '?#4ceea43add2366d8b8c5a622a2fb563b625b9abf')
     component_one_build_one.format = 'rpms'
     component_one_build_one.task_id = 90276227
@@ -476,7 +476,7 @@ def reuse_component_init_data():
     component_two_build_one = module_build_service.models.ComponentBuild()
     component_two_build_one.package = 'perl-List-Compare'
     component_two_build_one.scmurl = \
-        ('git://pkgs.fedoraproject.org/rpms/perl-List-Compare'
+        ('https://src.fedoraproject.org/rpms/perl-List-Compare'
          '?#76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb')
     component_two_build_one.format = 'rpms'
     component_two_build_one.task_id = 90276228
@@ -491,7 +491,7 @@ def reuse_component_init_data():
     component_three_build_one = module_build_service.models.ComponentBuild()
     component_three_build_one.package = 'tangerine'
     component_three_build_one.scmurl = \
-        ('git://pkgs.fedoraproject.org/rpms/tangerine'
+        ('https://src.fedoraproject.org/rpms/tangerine'
          '?#fbed359411a1baa08d4a88e0d12d426fbf8f602c')
     component_three_build_one.format = 'rpms'
     component_three_build_one.task_id = 90276315
@@ -528,7 +528,7 @@ def reuse_component_init_data():
     build_two.build_context = 'ac4de1c346dcf09ce77d38cd4e75094ec1c08eb1'
     build_two.context = 'c40c156c'
     build_two.koji_tag = 'module-testmodule-master-20170219191323-c40c156c'
-    build_two.scmurl = 'git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#55f4a0a'
+    build_two.scmurl = 'https://src.stg.fedoraproject.org/modules/testmodule.git?#55f4a0a'
     build_two.batch = 1
     build_two.owner = 'Tom Brady'
     build_two.time_submitted = datetime(2017, 2, 19, 16, 8, 18)
@@ -546,7 +546,7 @@ def reuse_component_init_data():
     component_one_build_two = module_build_service.models.ComponentBuild()
     component_one_build_two.package = 'perl-Tangerine'
     component_one_build_two.scmurl = \
-        ('git://pkgs.fedoraproject.org/rpms/perl-Tangerine'
+        ('https://src.fedoraproject.org/rpms/perl-Tangerine'
          '?#4ceea43add2366d8b8c5a622a2fb563b625b9abf')
     component_one_build_two.format = 'rpms'
     component_one_build_two.batch = 2
@@ -555,7 +555,7 @@ def reuse_component_init_data():
     component_two_build_two = module_build_service.models.ComponentBuild()
     component_two_build_two.package = 'perl-List-Compare'
     component_two_build_two.scmurl = \
-        ('git://pkgs.fedoraproject.org/rpms/perl-List-Compare'
+        ('https://src.fedoraproject.org/rpms/perl-List-Compare'
          '?#76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb')
     component_two_build_two.format = 'rpms'
     component_two_build_two.batch = 2
@@ -564,7 +564,7 @@ def reuse_component_init_data():
     component_three_build_two = module_build_service.models.ComponentBuild()
     component_three_build_two.package = 'tangerine'
     component_three_build_two.scmurl = \
-        ('git://pkgs.fedoraproject.org/rpms/tangerine'
+        ('https://src.fedoraproject.org/rpms/tangerine'
          '?#fbed359411a1baa08d4a88e0d12d426fbf8f602c')
     component_three_build_two.format = 'rpms'
     component_three_build_two.batch = 3
@@ -621,7 +621,7 @@ def reuse_shared_userspace_init_data():
         build_one.state = BUILD_STATES['ready']
         build_one.modulemd = mmd.dumps()
         build_one.koji_tag = 'module-shared-userspace-f26-20170601141014-75f92abb'
-        build_one.scmurl = ('git://pkgs.stg.fedoraproject.org/modules/testmodule.'
+        build_one.scmurl = ('https://src.stg.fedoraproject.org/modules/testmodule.'
                             'git?#7fea453')
         build_one.batch = 16
         build_one.owner = 'Tom Brady'
@@ -672,7 +672,7 @@ def reuse_shared_userspace_init_data():
         build_one.state = BUILD_STATES['done']
         build_one.modulemd = mmd2.dumps()
         build_one.koji_tag = 'module-shared-userspace-f26-20170605091544-75f92abb'
-        build_one.scmurl = ('git://pkgs.stg.fedoraproject.org/modules/testmodule.'
+        build_one.scmurl = ('https://src.stg.fedoraproject.org/modules/testmodule.'
                             'git?#7fea453')
         build_one.batch = 0
         build_one.owner = 'Tom Brady'
@@ -792,7 +792,7 @@ def make_module(nsvc, requires_list=None, build_requires_list=None, base_module=
     module_build.version = version
     module_build.context = context
     module_build.state = BUILD_STATES['ready']
-    module_build.scmurl = 'git://pkgs.stg.fedoraproject.org/modules/unused.git?#ff1ea79'
+    module_build.scmurl = 'https://src.stg.fedoraproject.org/modules/unused.git?#ff1ea79'
     module_build.batch = 1
     module_build.owner = 'Tom Brady'
     module_build.time_submitted = datetime(2017, 2, 15, 16, 8, 18)

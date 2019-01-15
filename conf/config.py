@@ -37,7 +37,7 @@ class BaseConfiguration(object):
     PDC_URL = 'https://pdc.fedoraproject.org/rest_api/v1'
     PDC_INSECURE = False
     PDC_DEVELOP = True
-    SCMURLS = ["git://pkgs.fedoraproject.org/modules/"]
+    SCMURLS = ["https://src.fedoraproject.org/modules/"]
     YAML_SUBMIT_ALLOWED = False
 
     # How often should we resort to polling, in seconds
@@ -50,12 +50,12 @@ class BaseConfiguration(object):
 
     ALLOW_CUSTOM_SCMURLS = False
 
-    RPMS_DEFAULT_REPOSITORY = 'git://pkgs.fedoraproject.org/rpms/'
+    RPMS_DEFAULT_REPOSITORY = 'https://src.fedoraproject.org/rpms/'
     RPMS_ALLOW_REPOSITORY = False
     RPMS_DEFAULT_CACHE = 'http://pkgs.fedoraproject.org/repo/pkgs/'
     RPMS_ALLOW_CACHE = False
 
-    MODULES_DEFAULT_REPOSITORY = 'git://pkgs.fedoraproject.org/modules/'
+    MODULES_DEFAULT_REPOSITORY = 'https://src.fedoraproject.org/modules/'
     MODULES_ALLOW_REPOSITORY = False
 
     ALLOWED_GROUPS = set([
@@ -118,7 +118,7 @@ class TestConfiguration(BaseConfiguration):
     SERVER_NAME = 'localhost'
 
     KOJI_REPOSITORY_URL = 'https://kojipkgs.stg.fedoraproject.org/repos'
-    SCMURLS = ["git://pkgs.stg.fedoraproject.org/modules/"]
+    SCMURLS = ["https://src.stg.fedoraproject.org/modules/"]
     AUTH_METHOD = 'oidc'
     RESOLVER = 'db'
 

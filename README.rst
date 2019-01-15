@@ -77,7 +77,7 @@ Module submission is done via posting the modulemd SCM URL.
 ::
 
     {
-        "scmurl": "git://pkgs.fedoraproject.org/modules/foo.git/foo.yaml?#f1d2d2f924e986ac86fdf7b36c94bcdf32beec15",
+        "scmurl": "https://src.fedoraproject.org/modules/foo.git/foo.yaml?#f1d2d2f924e986ac86fdf7b36c94bcdf32beec15",
         "branch": "master"
     }
 
@@ -197,7 +197,7 @@ about the referenced build task.
       "koji_tag": "module-f8c7dcdcc884bf1d",
       "name": "cloud-init",
       "owner": "karsten",
-      "scmurl": "git://pkgs.fedoraproject.org/modules/cloud-init?#d5fc9ab58f359b618e67ebdd0c7b143962242546",
+      "scmurl": "https://src.fedoraproject.org/modules/cloud-init?#d5fc9ab58f359b618e67ebdd0c7b143962242546",
       "state": 5,
       "state_name": "ready",
       "state_reason": null,
@@ -289,7 +289,7 @@ parameters::
           "koji_tag": "module-de66baf89b40367c",
           "name": "testmodule",
           "owner": "mprahl",
-          "scmurl": "git://pkgs.fedoraproject.org/modules/testmodule?#86d9cfe53d20118d863ae051641fc3784d91d981",
+          "scmurl": "https://src.fedoraproject.org/modules/testmodule.git?#86d9cfe53d20118d863ae051641fc3784d91d981",
           "state": 5,
           "state_name": "ready",
           "state_reason": null,
@@ -320,7 +320,7 @@ parameters::
           "koji_tag": "module-4620ad476f3d2b5c",
           "name": "testmodule",
           "owner": "mprahl",
-          "scmurl": "git://pkgs.fedoraproject.org/modules/testmodule?#373bb6eccccbfebbcb222a2723e643e7095c7973",
+          "scmurl": "https://src.fedoraproject.org/modules/testmodule.git?#373bb6eccccbfebbcb222a2723e643e7095c7973",
           "state": 5,
           "state_name": "ready",
           "state_reason": null,
@@ -392,7 +392,7 @@ parameters::
           "modulemd": "...."
           "name": "testmodule",
           "owner": "mprahl",
-          "scmurl": "git://pkgs.fedoraproject.org/modules/testmodule?#86d9cfe53d20118d863ae051641fc3784d91d981",
+          "scmurl": "https://src.fedoraproject.org/modules/testmodule.git?#86d9cfe53d20118d863ae051641fc3784d91d981",
           "state": 5,
           "state_name": "ready",
           "state_reason": null,
@@ -438,7 +438,7 @@ parameters::
           "modulemd": "...."
           "name": "testmodule",
           "owner": "mprahl",
-          "scmurl": "git://pkgs.fedoraproject.org/modules/testmodule?#373bb6eccccbfebbcb222a2723e643e7095c7973",
+          "scmurl": "https://src.fedoraproject.org/modules/testmodule.git?#373bb6eccccbfebbcb222a2723e643e7095c7973",
           "state": 5,
           "state_name": "ready",
           "state_reason": null,
@@ -705,7 +705,7 @@ context and other important information must be present in the metadata.
 ::
 
     {
-      "scmurl": "git://pkgs.fedoraproject.org/modules/foo.git?#21f92fb05572d81d78fd9a27d313942d45055840"
+      "scmurl": "https://src.fedoraproject.org/modules/foo.git?#21f92fb05572d81d78fd9a27d313942d45055840"
     }
 
 
@@ -890,7 +890,7 @@ Name, version and release of the module.
 
 Specifies the exact repository state from which a module is built.
 
-E.g. ``"scmurl": "git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#020ea37251df5019fde9e7899d2f7d7a987dfbf5"``
+E.g. ``"scmurl": "https://src.stg.fedoraproject.org/modules/testmodule.git?#020ea37251df5019fde9e7899d2f7d7a987dfbf5"``
 
 ``topdir``
 ~~~~~~~~~~

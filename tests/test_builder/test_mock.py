@@ -30,7 +30,7 @@ class TestMockModuleBuilder:
                 "module_id": 2,
                 "package": "ed",
                 "format": "rpms",
-                "scmurl": ("git://pkgs.fedoraproject.org/rpms/ed"
+                "scmurl": ("https://src.fedoraproject.org/rpms/ed"
                            "?#01bf8330812fea798671925cc537f2f29b0bd216"),
                 "batch": 2,
                 "ref": "01bf8330812fea798671925cc537f2f29b0bd216"
@@ -39,7 +39,7 @@ class TestMockModuleBuilder:
                 "module_id": 2,
                 "package": "mksh",
                 "format": "rpms",
-                "scmurl": ("git://pkgs.fedoraproject.org/rpms/mksh"
+                "scmurl": ("https://src.fedoraproject.org/rpms/mksh"
                            "?#f70fd11ddf96bce0e2c64309706c29156b39141d"),
                 "batch": 3,
                 "ref": "f70fd11ddf96bce0e2c64309706c29156b39141d"

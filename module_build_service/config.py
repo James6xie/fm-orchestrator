@@ -225,7 +225,7 @@ class Config(object):
             'desc': 'Allow custom scmurls.'},
         'rpms_default_repository': {
             'type': str,
-            'default': 'git://pkgs.fedoraproject.org/rpms/',
+            'default': 'https://src.fedoraproject.org/rpms/',
             'desc': 'RPMs default repository URL.'},
         'rpms_allow_repository': {
             'type': bool,
@@ -241,7 +241,7 @@ class Config(object):
             'desc': 'Allow custom RPMs cache.'},
         'modules_default_repository': {
             'type': str,
-            'default': 'git://pkgs.fedoraproject.org/modules/',
+            'default': 'https://src.fedoraproject.org/modules/',
             'desc': 'Included modules default repository URL.'},
         'modules_allow_repository': {
             'type': bool,

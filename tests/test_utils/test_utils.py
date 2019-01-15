@@ -56,7 +56,7 @@ class FakeSCM(object):
         self.mocked_scm.return_value.branch = 'master'
         self.mocked_scm.return_value.get_latest = self.get_latest
         self.mocked_scm.return_value.commit = self.commit
-        self.mocked_scm.return_value.repository_root = "git://pkgs.stg.fedoraproject.org/modules/"
+        self.mocked_scm.return_value.repository_root = "https://src.stg.fedoraproject.org/modules/"
         self.mocked_scm.return_value.sourcedir = self.sourcedir
         self.mocked_scm.return_value.get_module_yaml = self.get_module_yaml
 
@@ -314,7 +314,7 @@ class TestUtils:
         assert release == 'module+f28+2+814cfa39'
 
     @pytest.mark.parametrize('scmurl', [
-        ('git://pkgs.stg.fedoraproject.org/modules/testmodule.git'
+        ('https://src.stg.fedoraproject.org/modules/testmodule.git'
          '?#620ec77321b2ea7b0d67d82992dda3e1d67055b4'),
         None
     ])
@@ -502,7 +502,8 @@ class TestUtils:
             module_build.stream = 'master'
             module_build.version = 20170109091357
             module_build.state = models.BUILD_STATES['init']
-            module_build.scmurl = 'git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#ff1ea79'
+            module_build.scmurl = \
+                'https://src.stg.fedoraproject.org/modules/testmodule.git?#ff1ea79'
             module_build.batch = 1
             module_build.owner = 'Tom Brady'
             module_build.time_submitted = datetime(2017, 2, 15, 16, 8, 18)
@@ -550,7 +551,7 @@ class TestUtils:
             module_build.version = 20170109091357
             module_build.state = models.BUILD_STATES['init']
             module_build.scmurl = \
-                'git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#ff1ea79'
+                'https://src.stg.fedoraproject.org/modules/testmodule.git?#ff1ea79'
             module_build.batch = 1
             module_build.owner = 'Tom Brady'
             module_build.time_submitted = datetime(2017, 2, 15, 16, 8, 18)

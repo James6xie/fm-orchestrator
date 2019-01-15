@@ -59,7 +59,7 @@ class TestDBModule:
             runtime_context='ec4de1c346dcf09ce77d38cd4e75094ec1c08ef7',
             context='7c29193d',
             koji_tag='module-testmodule-master-20170109091357-7c29193d',
-            scmurl='git://pkgs.stg.fedoraproject.org/modules/testmodule.git?#ff1ea79',
+            scmurl='https://src.stg.fedoraproject.org/modules/testmodule.git?#ff1ea79',
             batch=3,
             owner='Dr. Pepper',
             time_submitted=datetime(2018, 11, 15, 16, 8, 18),

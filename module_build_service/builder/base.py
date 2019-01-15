@@ -66,7 +66,7 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
         builder = Builder(module="testmodule-1.2-3", backend="koji", config)
         builder.buildroot_connect()
         builder.build(artifact_name="bash",
-                      source="git://pkgs.stg.fedoraproject.org/rpms/bash"
+                      source="https://src.stg.fedoraproject.org/rpms/bash"
                              "?#70fa7516b83768595a4f3280ae890a7ac957e0c7")
 
         ...
@@ -74,12 +74,12 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
         builder = Builder(module="testmodule-1.2-3", backend="koji", config)
         builder.buildroot_connect()
         builder.build(artifact_name="not-bash",
-                      source="git://pkgs.stg.fedoraproject.org/rpms/not-bash"
+                      source="https://src.stg.fedoraproject.org/rpms/not-bash"
                              "?#70fa7516b83768595a4f3280ae890a7ac957e0c7")
         # wait until this particular bash is available in the buildroot
         builder.buildroot_ready(artifacts=["bash-1.23-el6"])
         builder.build(artifact_name="not-not-bash",
-                      source="git://pkgs.stg.fedoraproject.org/rpms/not-not-bash"
+                      source="https://src.stg.fedoraproject.org/rpms/not-not-bash"
                              "?#70fa7516b83768595a4f3280ae890a7ac957e0c7")
 
     """

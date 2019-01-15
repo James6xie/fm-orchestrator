@@ -19,273 +19,273 @@ data:
   components:
     rpms:
       PyYAML: {buildorder: 10, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/PyYAML',
-        rationale: Component for shared userspace - PyYAML., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/PyYAML'}
+        rationale: Component for shared userspace - PyYAML., ref: f26, repository: 'https://src.fedoraproject.org/rpms/PyYAML'}
       SDL: {buildorder: 10, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/SDL',
-        rationale: Component for shared userspace - SDL., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/SDL'}
+        rationale: Component for shared userspace - SDL., ref: f26, repository: 'https://src.fedoraproject.org/rpms/SDL'}
       alsa-lib: {buildorder: 10, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/alsa-lib',
-        rationale: Component for shared userspace - alsa-lib., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/alsa-lib'}
+        rationale: Component for shared userspace - alsa-lib., ref: f26, repository: 'https://src.fedoraproject.org/rpms/alsa-lib'}
       atk: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/atk', rationale: Requirement
-          for gtk2., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/atk'}
+          for gtk2., ref: f26, repository: 'https://src.fedoraproject.org/rpms/atk'}
       augeas: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/augeas',
-        rationale: runtime req for libreport., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/augeas'}
+        rationale: runtime req for libreport., ref: f26, repository: 'https://src.fedoraproject.org/rpms/augeas'}
       avahi: {buildorder: 12, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/avahi',
-        rationale: Runtime req for cups and others., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/avahi'}
+        rationale: Runtime req for cups and others., ref: f26, repository: 'https://src.fedoraproject.org/rpms/avahi'}
       bluez: {buildorder: 11, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/bluez',
-        rationale: Requirement for gtk2., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/bluez'}
+        rationale: Requirement for gtk2., ref: f26, repository: 'https://src.fedoraproject.org/rpms/bluez'}
       boost: {buildorder: 10, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/boost',
-        rationale: Component for shared userspace - boost., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/boost'}
+        rationale: Component for shared userspace - boost., ref: f26, repository: 'https://src.fedoraproject.org/rpms/boost'}
       btrfs-progs: {buildorder: 10, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/btrfs-progs',
-        rationale: Build dependency of docker., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/btrfs-progs'}
+        rationale: Build dependency of docker., ref: f26, repository: 'https://src.fedoraproject.org/rpms/btrfs-progs'}
       cairo: {buildorder: 8, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/cairo',
-        rationale: Requirement for gtk2., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/cairo'}
+        rationale: Requirement for gtk2., ref: f26, repository: 'https://src.fedoraproject.org/rpms/cairo'}
       checkpolicy: {buildorder: 2, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/checkpolicy',
-        rationale: dependency of policycoreutils., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/checkpolicy'}
+        rationale: dependency of policycoreutils., ref: f26, repository: 'https://src.fedoraproject.org/rpms/checkpolicy'}
       chrpath: {buildorder: 1, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/chrpath',
-        rationale: dependency of dbus-glib., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/chrpath'}
+        rationale: dependency of dbus-glib., ref: f26, repository: 'https://src.fedoraproject.org/rpms/chrpath'}
       clang: {buildorder: 8, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/clang',
-        rationale: Requirement for mesa., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/clang'}
+        rationale: Requirement for mesa., ref: f26, repository: 'https://src.fedoraproject.org/rpms/clang'}
       compat-openssl10: {buildorder: 10, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/compat-openssl10',
-        rationale: Component for shared userspace - compat-openssl10., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/compat-openssl10'}
+        rationale: Component for shared userspace - compat-openssl10., ref: f26, repository: 'https://src.fedoraproject.org/rpms/compat-openssl10'}
       compiler-rt: {buildorder: 7, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/compiler-rt',
-        rationale: Requirement for clang., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/compiler-rt'}
+        rationale: Requirement for clang., ref: f26, repository: 'https://src.fedoraproject.org/rpms/compiler-rt'}
       cups: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/cups',
-        rationale: Requirement for gtk2., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/cups'}
+        rationale: Requirement for gtk2., ref: f26, repository: 'https://src.fedoraproject.org/rpms/cups'}
       cups-filters: {buildorder: 11, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/cups-filters',
-        rationale: Runtime requirement for cups., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/cups-filters'}
+        rationale: Runtime requirement for cups., ref: f26, repository: 'https://src.fedoraproject.org/rpms/cups-filters'}
       dbus-glib: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/dbus-glib',
-        rationale: dependency of policycoreutils., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/dbus-glib'}
+        rationale: dependency of policycoreutils., ref: f26, repository: 'https://src.fedoraproject.org/rpms/dbus-glib'}
       desktop-file-utils: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/desktop-file-utils',
         rationale: dependency of cups/python-cups/epydoc/policycoreutils, ref: f26,
-        repository: 'git://pkgs.fedoraproject.org/rpms/desktop-file-utils'}
+        repository: 'https://src.fedoraproject.org/rpms/desktop-file-utils'}
       ding-libs: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/ding-libs',
-        rationale: Runtime requirement for nfs-utils., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/ding-libs'}
+        rationale: Runtime requirement for nfs-utils., ref: f26, repository: 'https://src.fedoraproject.org/rpms/ding-libs'}
       docbook-dtds: {buildorder: 6, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/docbook-dtds',
-        rationale: runtime requirement for boost-doctools., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/docbook-dtds'}
+        rationale: runtime requirement for boost-doctools., ref: f26, repository: 'https://src.fedoraproject.org/rpms/docbook-dtds'}
       docbook-style-xsl: {buildorder: 6, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/docbook-style-xsl',
-        rationale: runtime requirement for boost-doctools., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/docbook-style-xsl'}
+        rationale: runtime requirement for boost-doctools., ref: f26, repository: 'https://src.fedoraproject.org/rpms/docbook-style-xsl'}
       epydoc: {buildorder: 7, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/epydoc',
-        rationale: dependency of cups/python-cups., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/epydoc'}
+        rationale: dependency of cups/python-cups., ref: f26, repository: 'https://src.fedoraproject.org/rpms/epydoc'}
       fontconfig: {buildorder: 8, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/fontconfig',
-        rationale: Runtime requirement for cairo-devel., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/fontconfig'}
+        rationale: Runtime requirement for cairo-devel., ref: f26, repository: 'https://src.fedoraproject.org/rpms/fontconfig'}
       fontpackages: {buildorder: 12, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/fontpackages',
-        rationale: Runtime req for fontconfig., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/fontpackages'}
+        rationale: Runtime req for fontconfig., ref: f26, repository: 'https://src.fedoraproject.org/rpms/fontpackages'}
       gdk-pixbuf2: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/gdk-pixbuf2',
-        rationale: Requirement for gtk2., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/gdk-pixbuf2'}
+        rationale: Requirement for gtk2., ref: f26, repository: 'https://src.fedoraproject.org/rpms/gdk-pixbuf2'}
       ghostscript: {buildorder: 14, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/ghostscript',
-        rationale: req for cups-filters., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/ghostscript'}
+        rationale: req for cups-filters., ref: f26, repository: 'https://src.fedoraproject.org/rpms/ghostscript'}
       ghostscript-fonts: {buildorder: 14, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/ghostscript-fonts',
-        rationale: req for ghostscript-core., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/ghostscript-fonts'}
+        rationale: req for ghostscript-core., ref: f26, repository: 'https://src.fedoraproject.org/rpms/ghostscript-fonts'}
       git: {buildorder: 10, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/git',
-        rationale: Build dependency of docker., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/git'}
+        rationale: Build dependency of docker., ref: f26, repository: 'https://src.fedoraproject.org/rpms/git'}
       glib2: {buildorder: 4, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/glib2',
-        rationale: Build dep for many packages., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/glib2'}
+        rationale: Build dep for many packages., ref: f26, repository: 'https://src.fedoraproject.org/rpms/glib2'}
       gnupg: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/gnupg',
-        rationale: build dep of golang., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/gnupg'}
+        rationale: build dep of golang., ref: f26, repository: 'https://src.fedoraproject.org/rpms/gnupg'}
       godep: {buildorder: 10, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/godep',
-        rationale: Build dependency of docker., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/godep'}
+        rationale: Build dependency of docker., ref: f26, repository: 'https://src.fedoraproject.org/rpms/godep'}
       golang-github-cpuguy83-go-md2man: {buildorder: 13, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/golang-github-cpuguy83-go-md2man',
-        rationale: Build dependency of docker., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/golang-github-cpuguy83-go-md2man'}
+        rationale: Build dependency of docker., ref: f26, repository: 'https://src.fedoraproject.org/rpms/golang-github-cpuguy83-go-md2man'}
       golang-github-russross-blackfriday: {buildorder: 12, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/golang-github-russross-blackfriday',
-        rationale: B-D of golang-github-cpuguy83-go-md2man., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/golang-github-russross-blackfriday'}
+        rationale: B-D of golang-github-cpuguy83-go-md2man., ref: f26, repository: 'https://src.fedoraproject.org/rpms/golang-github-russross-blackfriday'}
       golang-github-shurcooL-sanitized_anchor_name: {buildorder: 11, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/golang-github-shurcooL-sanitized_anchor_name',
-        rationale: B-D of golang-github-russross-blackfriday., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/golang-github-shurcooL-sanitized_anchor_name'}
+        rationale: B-D of golang-github-russross-blackfriday., ref: f26, repository: 'https://src.fedoraproject.org/rpms/golang-github-shurcooL-sanitized_anchor_name'}
       gperftools: {buildorder: 10, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/gperftools',
-        rationale: Component for shared userspace - gperftools., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/gperftools'}
+        rationale: Component for shared userspace - gperftools., ref: f26, repository: 'https://src.fedoraproject.org/rpms/gperftools'}
       graphite2: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/graphite2',
-        rationale: runtime req of git., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/graphite2'}
+        rationale: runtime req of git., ref: f26, repository: 'https://src.fedoraproject.org/rpms/graphite2'}
       gssproxy: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/gssproxy',
-        rationale: Runtime requirement for nfs-utils., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/gssproxy'}
+        rationale: Runtime requirement for nfs-utils., ref: f26, repository: 'https://src.fedoraproject.org/rpms/gssproxy'}
       gtk2: {buildorder: 10, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/gtk2',
-        rationale: Component for shared userspace - gtk2., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/gtk2'}
+        rationale: Component for shared userspace - gtk2., ref: f26, repository: 'https://src.fedoraproject.org/rpms/gtk2'}
       gtk3: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/gtk3',
-        rationale: 'runtime req for gtk2 ?.', ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/gtk3'}
+        rationale: 'runtime req for gtk2 ?.', ref: f26, repository: 'https://src.fedoraproject.org/rpms/gtk3'}
       harfbuzz: {buildorder: 12, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/harfbuzz',
-        rationale: Runtime req for pango., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/harfbuzz'}
+        rationale: Runtime req for pango., ref: f26, repository: 'https://src.fedoraproject.org/rpms/harfbuzz'}
       hesiod: {buildorder: 10, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/hesiod',
-        rationale: Component for shared userspace - hesiod., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/hesiod'}
+        rationale: Component for shared userspace - hesiod., ref: f26, repository: 'https://src.fedoraproject.org/rpms/hesiod'}
       icu: {buildorder: 10, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/icu',
-        rationale: Component for shared userspace - libicu., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/icu'}
+        rationale: Component for shared userspace - libicu., ref: f26, repository: 'https://src.fedoraproject.org/rpms/icu'}
       jbigkit: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/jbigkit',
-        rationale: Requirement for libtiff., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/jbigkit'}
+        rationale: Requirement for libtiff., ref: f26, repository: 'https://src.fedoraproject.org/rpms/jbigkit'}
       lcms2: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/lcms2',
-        rationale: runtime req for ghostscript-core., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/lcms2'}
+        rationale: runtime req for ghostscript-core., ref: f26, repository: 'https://src.fedoraproject.org/rpms/lcms2'}
       libICE: {buildorder: 10, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libICE',
-        rationale: requirement for libXt., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libICE'}
+        rationale: requirement for libXt., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libICE'}
       libSM: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libSM',
-        rationale: Requirement for libXt., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libSM'}
+        rationale: Requirement for libXt., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libSM'}
       libX11: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libX11',
-        rationale: Requirement for SDL., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libX11'}
+        rationale: Requirement for SDL., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libX11'}
       libXau: {buildorder: 11, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libXau',
-        rationale: Runtime requirement for libXp., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libXau'}
+        rationale: Runtime requirement for libXp., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libXau'}
       libXcomposite: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libXcomposite',
-        rationale: Requirement for gtk2., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libXcomposite'}
+        rationale: Requirement for gtk2., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libXcomposite'}
       libXcursor: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libXcursor',
-        rationale: Requirement for gtk2., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libXcursor'}
+        rationale: Requirement for gtk2., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libXcursor'}
       libXdamage: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libXdamage',
-        rationale: Requirement for gtk2., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libXdamage'}
+        rationale: Requirement for gtk2., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libXdamage'}
       libXext: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libXext',
-        rationale: Requirement for mesa-libGL., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libXext'}
+        rationale: Requirement for mesa-libGL., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libXext'}
       libXfixes: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libXfixes',
-        rationale: Requirement for gtk2., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libXfixes'}
+        rationale: Requirement for gtk2., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libXfixes'}
       libXft: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libXft',
-        rationale: Requirement for motif., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libXft'}
+        rationale: Requirement for motif., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libXft'}
       libXi: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libXi',
-        rationale: Requirement for gtk2., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libXi'}
+        rationale: Requirement for gtk2., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libXi'}
       libXinerama: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libXinerama',
-        rationale: Requirement for gtk2., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libXinerama'}
+        rationale: Requirement for gtk2., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libXinerama'}
       libXmu: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libXmu',
-        rationale: Requirement for mesa-libGL., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libXmu'}
+        rationale: Requirement for mesa-libGL., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libXmu'}
       libXp: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libXp',
-        rationale: Requirement for motif., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libXp'}
+        rationale: Requirement for motif., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libXp'}
       libXrandr: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libXrandr',
-        rationale: Requirement for gtk2., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libXrandr'}
+        rationale: Requirement for gtk2., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libXrandr'}
       libXrender: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libXrender',
-        rationale: Requirement for gtk2., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libXrender'}
+        rationale: Requirement for gtk2., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libXrender'}
       libXt: {buildorder: 11, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libXt',
-        rationale: Requirement for motif., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libXt'}
+        rationale: Requirement for motif., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libXt'}
       libXxf86vm: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libXxf86vm',
-        rationale: Requirement for mesa-libGL., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libXxf86vm'}
+        rationale: Requirement for mesa-libGL., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libXxf86vm'}
       libaio: {buildorder: 10, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libaio',
-        rationale: Component for shared userspace - libaio., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libaio'}
+        rationale: Component for shared userspace - libaio., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libaio'}
       libcgroup: {buildorder: 2, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libcgroup',
-        rationale: dependency of policycoreutils., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libcgroup'}
+        rationale: dependency of policycoreutils., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libcgroup'}
       libdaemon: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libdaemon',
-        rationale: runtime req for avahi., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libdaemon'}
+        rationale: runtime req for avahi., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libdaemon'}
       libdatrie: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libdatrie',
-        rationale: runtime req for libthai., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libdatrie'}
+        rationale: runtime req for libthai., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libdatrie'}
       libdrm: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libdrm',
-        rationale: Requirement for mesa-libGL., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libdrm'}
+        rationale: Requirement for mesa-libGL., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libdrm'}
       libedit: {buildorder: 10, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libedit',
-        rationale: Component for shared userspace - libedit., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libedit'}
+        rationale: Component for shared userspace - libedit., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libedit'}
       liberation-fonts: {buildorder: 12, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/liberation-fonts',
-        rationale: Runtime req for fontconfig., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/liberation-fonts'}
+        rationale: Runtime req for fontconfig., ref: f26, repository: 'https://src.fedoraproject.org/rpms/liberation-fonts'}
       libevent: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libevent',
-        rationale: Runtime requirement for nfs-utils., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libevent'}
+        rationale: Runtime requirement for nfs-utils., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libevent'}
       libglvnd: {buildorder: 8, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libglvnd',
-        rationale: runtime requirement for cairo., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libglvnd'}
+        rationale: runtime requirement for cairo., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libglvnd'}
       libical: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libical',
-        rationale: Requirement for gtk2., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libical'}
+        rationale: Requirement for gtk2., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libical'}
       libjpeg-turbo: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libjpeg-turbo',
-        rationale: Requirement for libtiff., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libjpeg-turbo'}
+        rationale: Requirement for libtiff., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libjpeg-turbo'}
       libnfsidmap: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libnfsidmap',
-        rationale: Runtime requirement for nfs-utils., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libnfsidmap'}
+        rationale: Runtime requirement for nfs-utils., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libnfsidmap'}
       libpciaccess: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libpciaccess',
-        rationale: Requirement for libdrm., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libpciaccess'}
+        rationale: Requirement for libdrm., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libpciaccess'}
       libreport: {buildorder: 16, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libreport',
-        rationale: runtime req for anaconda., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libreport'}
+        rationale: runtime req for anaconda., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libreport'}
       libsecret: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libsecret',
-        rationale: Runtime req for git., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libsecret'}
+        rationale: Runtime req for git., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libsecret'}
       libselinux: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libselinux',
-        rationale: dependency of policycoreutils., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libselinux'}
+        rationale: dependency of policycoreutils., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libselinux'}
       libssh: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libssh',
-        rationale: Requirement for libvirt-client., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libssh'}
+        rationale: Requirement for libvirt-client., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libssh'}
       libstemmer: {buildorder: 10, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libstemmer',
-        rationale: Component for shared userspace - libstemmer., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libstemmer'}
+        rationale: Component for shared userspace - libstemmer., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libstemmer'}
       libthai: {buildorder: 12, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libthai',
-        rationale: Runtime req for pango., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libthai'}
+        rationale: Runtime req for pango., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libthai'}
       libtiff: {buildorder: 6, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libtiff',
-        rationale: Runtime requirement for gtk2, ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libtiff'}
+        rationale: Runtime requirement for gtk2, ref: f26, repository: 'https://src.fedoraproject.org/rpms/libtiff'}
       libtirpc: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libtirpc',
-        rationale: Runtime requirement for nfs-utils., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libtirpc'}
+        rationale: Runtime requirement for nfs-utils., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libtirpc'}
       libtool: {buildorder: 6, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libtool',
-        rationale: Build dep for many packages., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libtool'}
+        rationale: Build dep for many packages., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libtool'}
       libunwind: {buildorder: 11, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libunwind',
-        rationale: Runtime requirement for gperftools., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libunwind'}
+        rationale: Runtime requirement for gperftools., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libunwind'}
       libusb: {buildorder: 10, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libusb',
-        rationale: Component for shared userspace - libusb., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libusb'}
+        rationale: Component for shared userspace - libusb., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libusb'}
       libusbx: {buildorder: 8, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libusbx',
-        rationale: requirement for libusb., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libusbx'}
+        rationale: requirement for libusb., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libusbx'}
       libuv: {buildorder: 10, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libuv',
-        rationale: Component for shared userspace - libuv., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libuv'}
+        rationale: Component for shared userspace - libuv., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libuv'}
       libxcb: {buildorder: 11, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libxcb',
-        rationale: Runtime requirement for libX11-devel., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libxcb'}
+        rationale: Runtime requirement for libX11-devel., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libxcb'}
       libxml2: {buildorder: 11, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libxml2',
-        rationale: Runtime requirement for shared-mime-info., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libxml2'}
+        rationale: Runtime requirement for shared-mime-info., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libxml2'}
       libxshmfence: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libxshmfence',
-        rationale: Requirement for mesa-libGL., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libxshmfence'}
+        rationale: Requirement for mesa-libGL., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libxshmfence'}
       libxslt: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libxslt',
-        rationale: Requirement for libvirt-client., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libxslt'}
+        rationale: Requirement for libvirt-client., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libxslt'}
       libyaml: {buildorder: 12, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/libyaml',
-        rationale: Runtime requirement for PyYAML., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/libyaml'}
+        rationale: Runtime requirement for PyYAML., ref: f26, repository: 'https://src.fedoraproject.org/rpms/libyaml'}
       lksctp-tools: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/lksctp-tools',
-        rationale: Requirement for compat-openssl10., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/lksctp-tools'}
+        rationale: Requirement for compat-openssl10., ref: f26, repository: 'https://src.fedoraproject.org/rpms/lksctp-tools'}
       llvm: {buildorder: 6, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/llvm',
-        rationale: Requirement for mesa., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/llvm'}
+        rationale: Requirement for mesa., ref: f26, repository: 'https://src.fedoraproject.org/rpms/llvm'}
       lynx: {buildorder: 14, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/lynx',
-        rationale: build req for libdaemon., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/lynx'}
+        rationale: build req for libdaemon., ref: f26, repository: 'https://src.fedoraproject.org/rpms/lynx'}
       mesa: {buildorder: 9, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/mesa',
-        rationale: Component for shared userspace - mesa-libGL., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/mesa'}
+        rationale: Component for shared userspace - mesa-libGL., ref: f26, repository: 'https://src.fedoraproject.org/rpms/mesa'}
       mesa-libGLU: {buildorder: 10, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/mesa-libGLU',
-        rationale: Component for shared userspace - mesa-libGLU., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/mesa-libGLU'}
+        rationale: Component for shared userspace - mesa-libGLU., ref: f26, repository: 'https://src.fedoraproject.org/rpms/mesa-libGLU'}
       nfs-utils: {buildorder: 16, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/nfs-utils',
-        rationale: Component of shared-userspace., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/nfs-utils'}
+        rationale: Component of shared-userspace., ref: f26, repository: 'https://src.fedoraproject.org/rpms/nfs-utils'}
       pango: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/pango',
-        rationale: Requirement for gtk2., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/pango'}
+        rationale: Requirement for gtk2., ref: f26, repository: 'https://src.fedoraproject.org/rpms/pango'}
       parted: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/parted',
-        rationale: build dep of golang., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/parted'}
+        rationale: build dep of golang., ref: f26, repository: 'https://src.fedoraproject.org/rpms/parted'}
       perl-Error: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/perl-Error',
-        rationale: Component for shared userspace - perl(Error)., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/perl-Error'}
+        rationale: Component for shared userspace - perl(Error)., ref: f26, repository: 'https://src.fedoraproject.org/rpms/perl-Error'}
       perl-TermReadKey: {buildorder: 14, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/perl-TermReadKey',
-        rationale: Requirement for git., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/perl-TermReadKey'}
+        rationale: Requirement for git., ref: f26, repository: 'https://src.fedoraproject.org/rpms/perl-TermReadKey'}
       perl-Test-Pod: {buildorder: 14, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/perl-Test-Pod',
-        rationale: Requirement for perl(Error)., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/perl-Test-Pod'}
+        rationale: Requirement for perl(Error)., ref: f26, repository: 'https://src.fedoraproject.org/rpms/perl-Test-Pod'}
       perl-Test-Pod-Coverage: {buildorder: 14, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/perl-Test-Pod-Coverage',
-        rationale: Requirement for perl(Error)., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/perl-Test-Pod-Coverage'}
+        rationale: Requirement for perl(Error)., ref: f26, repository: 'https://src.fedoraproject.org/rpms/perl-Test-Pod-Coverage'}
       pixman: {buildorder: 8, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/pixman',
-        rationale: Runtime requirement for cairo-devel., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/pixman'}
+        rationale: Runtime requirement for cairo-devel., ref: f26, repository: 'https://src.fedoraproject.org/rpms/pixman'}
       policycoreutils: {buildorder: 6, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/policycoreutils',
-        rationale: dependency of selinux-policy., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/policycoreutils'}
+        rationale: dependency of selinux-policy., ref: f26, repository: 'https://src.fedoraproject.org/rpms/policycoreutils'}
       polkit: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/polkit',
-        rationale: runtime req for ghostscript-core., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/polkit'}
+        rationale: runtime req for ghostscript-core., ref: f26, repository: 'https://src.fedoraproject.org/rpms/polkit'}
       poppler: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/poppler',
-        rationale: runtime req for cups-filters., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/poppler'}
+        rationale: runtime req for cups-filters., ref: f26, repository: 'https://src.fedoraproject.org/rpms/poppler'}
       poppler-data: {buildorder: 13, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/poppler-data',
-        rationale: runtime req for ghostscript-core., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/poppler-data'}
+        rationale: runtime req for ghostscript-core., ref: f26, repository: 'https://src.fedoraproject.org/rpms/poppler-data'}
       pulseaudio: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/pulseaudio',
-        rationale: Requirement for SDL., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/pulseaudio'}
+        rationale: Requirement for SDL., ref: f26, repository: 'https://src.fedoraproject.org/rpms/pulseaudio'}
       python-pymongo: {buildorder: 10, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/python-pymongo',
-        rationale: Component for shared userspace - python-pymongo., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/python-pymongo'}
+        rationale: Component for shared userspace - python-pymongo., ref: f26, repository: 'https://src.fedoraproject.org/rpms/python-pymongo'}
       python-rhsm: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/python-rhsm',
-        rationale: build dep of golang., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/python-rhsm'}
+        rationale: build dep of golang., ref: f26, repository: 'https://src.fedoraproject.org/rpms/python-rhsm'}
       python2: {buildorder: 6, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/python2',
         rationale: dependency of many packages., ref: 0268e323750ca7d4af3c78e13480cffc63b08f85,
-        repository: 'git://pkgs.fedoraproject.org/rpms/python2'}
+        repository: 'https://src.fedoraproject.org/rpms/python2'}
       qpdf: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/qpdf',
-        rationale: runtime req for cups-filters., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/qpdf'}
+        rationale: runtime req for cups-filters., ref: f26, repository: 'https://src.fedoraproject.org/rpms/qpdf'}
       quota: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/quota',
-        rationale: Runtime requirement for nfs-utils., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/quota'}
+        rationale: Runtime requirement for nfs-utils., ref: f26, repository: 'https://src.fedoraproject.org/rpms/quota'}
       rpcbind: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/rpcbind',
-        rationale: Runtime requirement for nfs-utils., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/rpcbind'}
+        rationale: Runtime requirement for nfs-utils., ref: f26, repository: 'https://src.fedoraproject.org/rpms/rpcbind'}
       satyr: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/satyr',
-        rationale: runtime req for libreport., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/satyr'}
+        rationale: runtime req for libreport., ref: f26, repository: 'https://src.fedoraproject.org/rpms/satyr'}
       selinux-policy: {buildorder: 10, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/selinux-policy',
-        rationale: Component for shared userspace - selinux-policy., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/selinux-policy'}
+        rationale: Component for shared userspace - selinux-policy., ref: f26, repository: 'https://src.fedoraproject.org/rpms/selinux-policy'}
       shared-mime-info: {buildorder: 12, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/shared-mime-info',
-        rationale: Runtime requirement for gdk-pixbuf2., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/shared-mime-info'}
+        rationale: Runtime requirement for gdk-pixbuf2., ref: f26, repository: 'https://src.fedoraproject.org/rpms/shared-mime-info'}
       skopeo: {buildorder: 14, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/skopeo',
-        rationale: Build dependency of docker., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/skopeo'}
+        rationale: Build dependency of docker., ref: f26, repository: 'https://src.fedoraproject.org/rpms/skopeo'}
       systemtap: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/systemtap',
-        rationale: build and runtime dep of many packages., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/systemtap'}
+        rationale: build and runtime dep of many packages., ref: f26, repository: 'https://src.fedoraproject.org/rpms/systemtap'}
       tcl: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/tcl', rationale: dependency
-          of python2., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/tcl'}
+          of python2., ref: f26, repository: 'https://src.fedoraproject.org/rpms/tcl'}
       tcp_wrappers: {buildorder: 8, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/tcp_wrappers',
-        rationale: requirement for audit and others., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/tcp_wrappers'}
+        rationale: requirement for audit and others., ref: f26, repository: 'https://src.fedoraproject.org/rpms/tcp_wrappers'}
       time: {buildorder: 10, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/time',
-        rationale: Component for shared userspace - time., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/time'}
+        rationale: Component for shared userspace - time., ref: f26, repository: 'https://src.fedoraproject.org/rpms/time'}
       vala: {buildorder: 8, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/vala',
-        rationale: libsecret dependency., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/vala'}
+        rationale: libsecret dependency., ref: f26, repository: 'https://src.fedoraproject.org/rpms/vala'}
       valgrind: {buildorder: 12, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/valgrind',
-        rationale: Requirement for git., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/valgrind'}
+        rationale: Requirement for git., ref: f26, repository: 'https://src.fedoraproject.org/rpms/valgrind'}
       xfsprogs: {buildorder: 15, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/xfsprogs',
-        rationale: build dep of golang., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/xfsprogs'}
+        rationale: build dep of golang., ref: f26, repository: 'https://src.fedoraproject.org/rpms/xfsprogs'}
       xmlto: {buildorder: 12, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/xmlto',
-        rationale: libsecret dependency., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/xmlto'}
+        rationale: libsecret dependency., ref: f26, repository: 'https://src.fedoraproject.org/rpms/xmlto'}
       xorg-x11-proto-devel: {buildorder: 8, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/xorg-x11-proto-devel',
-        rationale: requirement for libX11., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/xorg-x11-proto-devel'}
+        rationale: requirement for libX11., ref: f26, repository: 'https://src.fedoraproject.org/rpms/xorg-x11-proto-devel'}
       xorg-x11-xbitmaps: {buildorder: 5, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/xorg-x11-xbitmaps',
-        rationale: Requirement for motif., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/xorg-x11-xbitmaps'}
+        rationale: Requirement for motif., ref: f26, repository: 'https://src.fedoraproject.org/rpms/xorg-x11-xbitmaps'}
       xorg-x11-xtrans-devel: {buildorder: 9, cache: 'http://pkgs.fedoraproject.org/repo/pkgs/xorg-x11-xtrans-devel',
-        rationale: requirement for libICE., ref: f26, repository: 'git://pkgs.fedoraproject.org/rpms/xorg-x11-xtrans-devel'}
+        rationale: requirement for libICE., ref: f26, repository: 'https://src.fedoraproject.org/rpms/xorg-x11-xtrans-devel'}
   dependencies:
     buildrequires: {bootstrap: f26, common-build-dependencies: f26, perl: f26}
     requires: {base-runtime: f26, perl: f26}
@@ -485,6 +485,6 @@ data:
         xorg-x11-proto-devel: {ref: cc4dd71c59e72d5d0ecfb6cfe74ae2f55ad45b1f}
         xorg-x11-xbitmaps: {ref: 21c346af2393ae921896bb195043a31ef01f528e}
         xorg-x11-xtrans-devel: {ref: 49db949f08696926ee8fdc7fd0122dad08996181}
-      scmurl: git://pkgs.fedoraproject.org/modules/shared-userspace?#8efb24e89c26ca6d0c991a16dfbc28930bb3210f
+      scmurl: https://src.fedoraproject.org/modules/shared-userspace?#8efb24e89c26ca6d0c991a16dfbc28930bb3210f
 document: modulemd
 version: 1

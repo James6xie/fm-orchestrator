@@ -72,7 +72,7 @@ class TestRepoDone:
             config=conf, session=db.session, msg=msg)
         build_fn.assert_called_once_with(
             artifact_name='tangerine',
-            source=('git://pkgs.fedoraproject.org/rpms/tangerine?'
+            source=('https://src.fedoraproject.org/rpms/tangerine?'
                     '#fbed359411a1baa08d4a88e0d12d426fbf8f602c'))
 
     @mock.patch('module_build_service.builder.KojiModuleBuilder.'
@@ -106,7 +106,7 @@ class TestRepoDone:
             config=conf, session=db.session, msg=msg)
         build_fn.assert_called_once_with(
             artifact_name='tangerine',
-            source=('git://pkgs.fedoraproject.org/rpms/tangerine?'
+            source=('https://src.fedoraproject.org/rpms/tangerine?'
                     '#fbed359411a1baa08d4a88e0d12d426fbf8f602c'))
         component_build = module_build_service.models.ComponentBuild.query\
             .filter_by(package='tangerine').one()

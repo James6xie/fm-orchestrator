@@ -12,7 +12,7 @@ data:
   components:
     rpms:
       mksh: {cache: 'http://pkgs.fedoraproject.org/repo/pkgs/mksh', rationale: A build
-          dependency of mksh., ref: master, repository: 'git://pkgs.fedoraproject.org/rpms/mksh'}
+          dependency of mksh., ref: master, repository: 'https://src.fedoraproject.org/rpms/mksh'}
   dependencies:
     buildrequires: {platform: f28, testmodule: master}
     requires: {platform: f28}

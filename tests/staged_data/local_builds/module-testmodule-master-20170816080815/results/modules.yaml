@@ -5,7 +5,7 @@ data:
   components:
     rpms:
       ed: {cache: 'http://pkgs.fedoraproject.org/repo/pkgs/ed', rationale: A build
-          dependency of mksh., ref: master, repository: 'git://pkgs.fedoraproject.org/rpms/ed'}
+          dependency of mksh., ref: master, repository: 'https://src.fedoraproject.org/rpms/ed'}
   dependencies:
     buildrequires: {platform: f28}
     requires: {platform: f28}

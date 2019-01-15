@@ -6,13 +6,13 @@ data:
     rpms:
       ed:
         rationale: A build dependency of mksh, to test buildorder.
-        repository: git://pkgs.fedoraproject.org/rpms/ed
+        repository: https://src.fedoraproject.org/rpms/ed
         ref: master
         cache: http://pkgs.fedoraproject.org/repo/pkgs/ed
       mksh:
         rationale: The main component of this module.
         buildorder: 1
-        repository: git://pkgs.fedoraproject.org/rpms/mksh
+        repository: https://src.fedoraproject.org/rpms/mksh
         ref: master
         cache: http://pkgs.fedoraproject.org/repo/pkgs/mksh
   dependencies:
