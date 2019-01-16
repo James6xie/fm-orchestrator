@@ -68,6 +68,7 @@ def record_filtered_rpms(mmd):
         # In case this is module resubmit or local build, the filtered_rpms
         # will already be there, so there is no point in generating them again.
         if "filtered_rpms" in req_data:
+            new_buildrequires[req_name] = req_data
             continue
 
         # We can just get the first modulemd data from result right here thanks to
