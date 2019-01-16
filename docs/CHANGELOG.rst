@@ -1,6 +1,10 @@
 Change Log
 ==========
 
+v2.12.1
+-------
+* Don't discard buildrequires if filtered_rpms already is found. This applies to local builds and resumed builds.
+
 v2.12.0
 -------
 * Handle lost Koji messages informing MBS about a component being tagged
