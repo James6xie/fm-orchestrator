@@ -1,6 +1,10 @@
 Change Log
 ==========
 
+v2.12.2
+-------
+* Properly set the ``distgits`` config value to match the new dist-git URLs
+
 v2.12.1
 -------
 * Don't discard buildrequires if filtered_rpms already is found. This applies to local builds and resumed builds.
