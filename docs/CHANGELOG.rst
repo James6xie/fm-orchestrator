@@ -4,6 +4,7 @@ Change Log
 v2.12.1
 -------
 * Don't discard buildrequires if filtered_rpms already is found. This applies to local builds and resumed builds.
+* Use https as the default protocol when interacting with Fedora dist-git
 
 v2.12.0
 -------
