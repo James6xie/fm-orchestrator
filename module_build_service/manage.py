@@ -22,7 +22,7 @@
 # Written by Matt Prahl <mprahl@redhat.com> except for the test functions
 
 from __future__ import print_function
-from flask_script import Manager
+from flask_script import Manager, prompt_bool
 from functools import wraps
 import flask_migrate
 import logging
@@ -165,6 +165,55 @@ def build_module_locally(local_build_nsvs=None, yaml_file=None, stream=None, ski
 
         if any(module.state == models.BUILD_STATES['failed'] for module in modules_list):
             raise RuntimeError('Module build failed')
+
+
+@manager.option('identifier', metavar='NAME:STREAM[:VERSION[:CONTEXT]]',
+                help='Identifier for selecting module builds to retire')
+@manager.option('--confirm', action='store_true', default=False,
+                help='Perform retire operation without prompting')
+def retire(identifier, confirm=False):
+    """ Retire module build(s) by placing them into 'garbage' state.
+    """
+    # Parse identifier and build query
+    parts = identifier.split(':')
+    if len(parts) < 2:
+        raise ValueError('Identifier must contain at least NAME:STREAM')
+    if len(parts) >= 5:
+        raise ValueError('Too many parts in identifier')
+
+    filter_by_kwargs = {
+        'state': models.BUILD_STATES['ready'],
+        'name': parts[0],
+        'stream': parts[1],
+    }
+
+    if len(parts) >= 3:
+        filter_by_kwargs['version'] = parts[2]
+    if len(parts) >= 4:
+        filter_by_kwargs['context'] = parts[3]
+
+    # Find module builds to retire
+    module_builds = db.session.query(models.ModuleBuild).filter_by(**filter_by_kwargs).all()
+
+    if not module_builds:
+        logging.info('No module builds found.')
+        return
+
+    logging.info('Found %d module builds:', len(module_builds))
+    for build in module_builds:
+        logging.info('\t%s', ':'.join((build.name, build.stream, build.version, build.context)))
+
+    # Prompt for confirmation
+    is_confirmed = confirm or prompt_bool('Retire {} module builds?'.format(len(module_builds)))
+    if not is_confirmed:
+        logging.info('Module builds were NOT retired.')
+        return
+
+    # Retire module builds
+    for build in module_builds:
+        build.transition(conf, models.BUILD_STATES['garbage'], 'Module build retired')
+    db.session.commit()
+    logging.info('Module builds retired.')
 
 
 @console_script_help
