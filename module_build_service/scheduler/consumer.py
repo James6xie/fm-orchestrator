@@ -39,6 +39,7 @@ import koji
 import fedmsg.consumers
 import moksha.hub
 import six
+import sqlalchemy.exc
 
 from module_build_service.utils import module_build_state_from_msg
 import module_build_service.messaging
@@ -160,6 +161,13 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
         try:
             with models.make_session(conf) as session:
                 self.process_message(session, msg)
+        except sqlalchemy.exc.OperationalError as error:
+            if 'could not translate host name' in str(error):
+                log.exception(
+                    "SQLAlchemy can't resolve DNS records. Scheduling fedmsg-hub to shutdown.")
+                self.shutdown()
+            else:
+                raise
         except Exception:
             log.exception('Failed while handling {0!r}'.format(msg))
 
