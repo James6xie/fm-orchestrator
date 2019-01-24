@@ -1,6 +1,11 @@
 Change Log
 ==========
 
+v2.13.0
+-------
+* Add the retire command to mbs-manager
+* Stop fedmsg-hub process when DNS resolution starts failing so that systemd can restart the service
+
 v2.12.2
 -------
 * Properly set the ``distgits`` config value to match the new dist-git URLs
