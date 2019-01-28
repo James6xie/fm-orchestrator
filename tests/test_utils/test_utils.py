@@ -30,7 +30,7 @@ from module_build_service import models, conf
 from module_build_service.errors import ProgrammingError, ValidationError, UnprocessableEntity
 from tests import (
     reuse_component_init_data, db, reuse_shared_userspace_init_data, clean_database, init_data,
-    scheduler_init_data)
+    scheduler_init_data, make_module)
 import mock
 import koji
 import pytest
@@ -666,6 +666,31 @@ class TestUtils:
         mmd.set_xmd(glib.dict_values(xmd))
         v = module_build_service.utils.submit.get_prefixed_version(mmd)
         assert v == 7000120180205135154
+
+    @patch('module_build_service.utils.submit.generate_expanded_mmds')
+    def test_submit_build_new_mse_build(self, generate_expanded_mmds):
+        """
+        Tests that finished build can be resubmitted in case the resubmitted
+        build adds new MSE build (it means there are new expanded
+        buildrequires).
+        """
+        build = make_module("foo:stream:0:c1", {}, {})
+        assert build.state == models.BUILD_STATES['ready']
+
+        mmd1 = build.mmd()
+        mmd2 = build.mmd()
+        mmd2.set_context("c2")
+
+        generate_expanded_mmds.return_value = [mmd1, mmd2]
+
+        builds = module_build_service.utils.submit_module_build("foo", "bar", mmd1)
+        ret = {b.mmd().get_context(): b.state for b in builds}
+        assert ret == {
+            "c1": models.BUILD_STATES['ready'],
+            "c2": models.BUILD_STATES['init']}
+
+        assert builds[0].siblings == [builds[1].id]
+        assert builds[1].siblings == [builds[0].id]
 
 
 class DummyModuleBuilder(GenericBuilder):

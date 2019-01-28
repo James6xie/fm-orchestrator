@@ -486,22 +486,27 @@ def submit_module_build(username, url, mmd, optional_params=None):
     mmds = generate_expanded_mmds(db.session, mmd, raise_if_stream_ambigous, default_streams)
     modules = []
 
+    # True if all module builds are skipped so MBS will actually not rebuild
+    # anything. To keep the backward compatibility, we need to raise an exception
+    # later in the end of this method.
+    all_modules_skipped = True
+
     for mmd in mmds:
         # Prefix the version of the modulemd based on the base module it buildrequires
         version = get_prefixed_version(mmd)
         mmd.set_version(version)
         version_str = str(version)
+        nsvc = ":".join([mmd.get_name(), mmd.get_stream(), version_str, mmd.get_context()])
 
-        log.debug('Checking whether module build already exists: %s.',
-                  ":".join([mmd.get_name(), mmd.get_stream(), version_str, mmd.get_context()]))
+        log.debug('Checking whether module build already exists: %s.', nsvc)
         module = models.ModuleBuild.get_build_from_nsvc(
             db.session, mmd.get_name(), mmd.get_stream(), version_str, mmd.get_context())
         if module:
             if module.state != models.BUILD_STATES['failed']:
-                err_msg = ('Module (state=%s) already exists. Only a new build or resubmission of '
-                           'a failed build is allowed.' % module.state)
-                log.error(err_msg)
-                raise Conflict(err_msg)
+                log.info("Skipping rebuild of %s, only rebuild of modules in failed state "
+                         "is allowed.", nsvc)
+                modules.append(module)
+                continue
             if optional_params:
                 rebuild_strategy = optional_params.get('rebuild_strategy')
                 if rebuild_strategy and module.rebuild_strategy != rebuild_strategy:
@@ -540,11 +545,20 @@ def submit_module_build(username, url, mmd, optional_params=None):
             (module.ref_build_context, module.build_context, module.runtime_context,
              module.context) = module.contexts_from_mmd(module.modulemd)
 
+        all_modules_skipped = False
         db.session.add(module)
         db.session.commit()
         modules.append(module)
         log.info("%s submitted build of %s, stream=%s, version=%s, context=%s", username,
                  mmd.get_name(), mmd.get_stream(), version_str, mmd.get_context())
+
+    if all_modules_skipped:
+        err_msg = ('Module (state=%s) already exists. Only a new build, resubmission of '
+                   'a failed build or build against new buildrequirements is '
+                   'allowed.' % module.state)
+        log.error(err_msg)
+        raise Conflict(err_msg)
+
     return modules
 
 

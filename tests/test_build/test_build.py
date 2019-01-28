@@ -1180,8 +1180,8 @@ class TestBuild:
         data = json.loads(rv2.data)
         expected = {
             'error': 'Conflict',
-            'message': ('Module (state=5) already exists. Only a new build or resubmission of a '
-                        'failed build is allowed.'),
+            'message': ('Module (state=5) already exists. Only a new build, resubmission of a '
+                        'failed build or build against new buildrequirements is allowed.'),
             'status': 409
         }
         assert data == expected
