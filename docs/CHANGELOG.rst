@@ -1,6 +1,11 @@
 Change Log
 ==========
 
+v2.13.1
+-------
+* Allow resubmiting the same module build when it results in new MSE build(s)
+* Allow setting the context in an imported MMD file
+
 v2.13.0
 -------
 * Add the retire command to mbs-manager
