@@ -47,6 +47,7 @@ import module_build_service.scheduler.handlers.repos
 import module_build_service.scheduler.handlers.components
 import module_build_service.scheduler.handlers.modules
 import module_build_service.scheduler.handlers.tags
+import module_build_service.monitor as monitor
 from module_build_service import models, log, conf
 
 
@@ -147,6 +148,8 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
             super(MBSConsumer, self).validate(message)
 
     def consume(self, message):
+        monitor.messaging_rx_counter.inc()
+
         # Sometimes, the messages put into our queue are artificially put there
         # by other parts of our own codebase.  If they are already abstracted
         # messages, then just use them as-is.  If they are not already
@@ -161,7 +164,9 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
         try:
             with models.make_session(conf) as session:
                 self.process_message(session, msg)
+            monitor.messaging_rx_processed_ok_counter.inc()
         except sqlalchemy.exc.OperationalError as error:
+            monitor.messaging_rx_failed_counter.inc()
             if 'could not translate host name' in str(error):
                 log.exception(
                     "SQLAlchemy can't resolve DNS records. Scheduling fedmsg-hub to shutdown.")
@@ -169,6 +174,7 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
             else:
                 raise
         except Exception:
+            monitor.messaging_rx_failed_counter.inc()
             log.exception('Failed while handling {0!r}'.format(msg))
 
         if self.stop_condition and self.stop_condition(message):

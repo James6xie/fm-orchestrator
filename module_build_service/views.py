@@ -41,6 +41,7 @@ from module_build_service.utils import (
 from module_build_service.errors import (
     ValidationError, Forbidden, NotFound, ProgrammingError)
 from module_build_service.backports import jsonify
+from module_build_service.monitor import monitor_api
 
 
 api_routes = {
@@ -460,6 +461,8 @@ def register_api():
                              **val['options'])
         else:
             raise NotImplementedError("Unhandled api key.")
+
+    app.register_blueprint(monitor_api)
 
 
 register_api()

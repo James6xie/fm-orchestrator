@@ -118,6 +118,10 @@ def _setup_event_listeners(session):
         sqlalchemy.event.listen(session, 'before_commit',
                                 session_before_commit_handlers)
 
+    # initialize DB event listeners from the monitor module
+    from module_build_service.monitor import db_hook_event_listeners
+    db_hook_event_listeners(session.bind.engine)
+
 
 @contextlib.contextmanager
 def make_session(conf):

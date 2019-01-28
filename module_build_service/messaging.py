@@ -260,7 +260,18 @@ def publish(topic, msg, conf, service):
     except KeyError:
         raise KeyError("No messaging backend found for %r in %r" % (
             conf.messaging, _messaging_backends.keys()))
-    return handler(topic, msg, conf, service)
+
+    from module_build_service.monitor import (
+        messaging_tx_to_send_counter, messaging_tx_sent_ok_counter,
+        messaging_tx_failed_counter)
+    messaging_tx_to_send_counter.inc()
+    try:
+        rv = handler(topic, msg, conf, service)
+        messaging_tx_sent_ok_counter.inc()
+        return rv
+    except Exception:
+        messaging_tx_failed_counter.inc()
+        raise
 
 
 def _fedmsg_publish(topic, msg, conf, service):

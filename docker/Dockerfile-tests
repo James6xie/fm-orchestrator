@@ -32,6 +32,7 @@ RUN yum -y install \
     python-mock \
     python-munch \
     python-pip \
+    python-prometheus_client \
     python-requests \
     python-six \
     python-solv \
