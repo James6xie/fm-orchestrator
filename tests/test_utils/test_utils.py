@@ -298,6 +298,27 @@ class TestUtils:
     def teardown_method(self, test_method):
         clean_database()
 
+    @pytest.mark.parametrize('context', ["c1", None])
+    def test_import_mmd_contexts(self, context):
+        mmd = Modulemd.Module().new_from_file(
+            path.join(BASE_DIR, '..', 'staged_data', 'formatted_testmodule.yaml'))
+        mmd.upgrade()
+        mmd.set_context(context)
+
+        xmd = glib.from_variant_dict(mmd.get_xmd())
+        xmd['mbs']['koji_tag'] = 'foo'
+        mmd.set_xmd(glib.dict_values(xmd))
+
+        build, msgs = module_build_service.utils.import_mmd(db.session, mmd)
+
+        mmd_context = build.mmd().get_context()
+        if context:
+            assert mmd_context == context
+            assert build.context == context
+        else:
+            assert mmd_context == models.DEFAULT_MODULE_CONTEXT
+            assert build.context == models.DEFAULT_MODULE_CONTEXT
+
     def test_get_rpm_release_mse(self):
         init_data(contexts=True)
         build_one = models.ModuleBuild.query.get(2)

@@ -277,17 +277,12 @@ def import_mmd(session, mmd):
     The ModuleBuild.rebuild_strategy is set to "all".
     The ModuleBuild.owner is set to "mbs_import".
 
-    TODO: The "context" is not stored directly in database. We only store
-    build_context and runtime_context and compute context, but when importing
-    the module, we have no idea what build_context or runtime_context is - we only
-    know the resulting "context", but there is no way to store it into do DB.
-    By now, we just ignore mmd.get_context() and use default 00000000 context instead.
-
     :return: module build (ModuleBuild),
              log messages collected during import (list)
     :rtype: tuple
     """
-    mmd.set_context(models.DEFAULT_MODULE_CONTEXT)
+    if not mmd.get_context():
+        mmd.set_context(models.DEFAULT_MODULE_CONTEXT)
     name = mmd.get_name()
     stream = mmd.get_stream()
     version = str(mmd.get_version())
