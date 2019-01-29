@@ -666,7 +666,7 @@ class TestKojiBuilder:
     ])
     @mock.patch('module_build_service.builder.KojiModuleBuilder.KojiContentGenerator')
     def test_finalize(self, mock_koji_cg_cls, cg_enabled, cg_devel_enabled):
-        self.module.state = 3
+        self.module.state = 2
         with patch('module_build_service.config.Config.koji_enable_content_generator',
                    new_callable=mock.PropertyMock, return_value=cg_enabled):
             with patch('module_build_service.config.Config.koji_cg_devel_module',

@@ -1205,8 +1205,9 @@ chmod 644 %buildroot/etc/rpm/macros.zz-modules
             return list(nvrs)
 
     def finalize(self):
-        # Only import to koji CG if the module is "done".
-        if self.config.koji_enable_content_generator and self.module.state == 3:
+        # Only import to koji CG if the module is "build".
+        if self.config.koji_enable_content_generator and \
+                self.module.state == models.BUILD_STATES['build']:
             cg = KojiContentGenerator(self.module, self.config)
             cg.koji_import()
             if conf.koji_cg_devel_module:

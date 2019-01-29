@@ -76,6 +76,39 @@ class TestRepoDone:
                     '#fbed359411a1baa08d4a88e0d12d426fbf8f602c'))
 
     @mock.patch('module_build_service.builder.KojiModuleBuilder.'
+                'KojiModuleBuilder.finalize')
+    @mock.patch('module_build_service.builder.KojiModuleBuilder.'
+                'KojiModuleBuilder.recover_orphaned_artifact', return_value=[])
+    @mock.patch('module_build_service.builder.KojiModuleBuilder.'
+                'KojiModuleBuilder.get_average_build_time',
+                return_value=0.0)
+    @mock.patch('module_build_service.builder.KojiModuleBuilder.'
+                'KojiModuleBuilder.list_tasks_for_components',
+                return_value=[])
+    @mock.patch('module_build_service.builder.KojiModuleBuilder.'
+                'KojiModuleBuilder.buildroot_ready', return_value=True)
+    @mock.patch('module_build_service.builder.KojiModuleBuilder.'
+                'KojiModuleBuilder.get_session')
+    @mock.patch('module_build_service.builder.KojiModuleBuilder.'
+                'KojiModuleBuilder.build')
+    @mock.patch('module_build_service.builder.KojiModuleBuilder.'
+                'KojiModuleBuilder.buildroot_connect')
+    def test_a_single_match_finalize(self, connect, build_fn, get_session, ready, list_tasks_fn,
+                                     mock_gabt, mock_uea, finalizer):
+        """ Test that when a repo msg hits us and we have a single match.
+        """
+        scheduler_init_data(tangerine_state=1)
+        get_session.return_value = mock.Mock(), 'development'
+        build_fn.return_value = 1234, 1, '', None
+
+        msg = module_build_service.messaging.KojiRepoChange(
+            'some_msg_id', 'module-testmodule-master-20170109091357-7c29193d-build')
+        module_build_service.scheduler.handlers.repos.done(
+            config=conf, session=db.session, msg=msg)
+
+        finalizer.assert_called_once()
+
+    @mock.patch('module_build_service.builder.KojiModuleBuilder.'
                 'KojiModuleBuilder.recover_orphaned_artifact', return_value=[])
     @mock.patch('module_build_service.builder.KojiModuleBuilder.'
                 'KojiModuleBuilder.get_average_build_time',

@@ -128,12 +128,6 @@ def done(config, session, msg):
         # This is ok.. it's a race condition we can ignore.
         pass
 
-    builder = module_build_service.builder.GenericBuilder.create_from_module(
-        session, build, config)
-
-    # Tell the external buildsystem to wrap up (CG import, createrepo, etc.)
-    builder.finalize()
-
     build.transition(config, state="ready")
     session.commit()
 

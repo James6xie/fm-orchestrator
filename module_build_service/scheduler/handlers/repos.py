@@ -120,13 +120,9 @@ def done(config, session, msg):
     # So now we can either start a new batch if there are still some to build
     # or, if everything is built successfully, then we can bless the module as
     # complete.
-    has_unbuilt_components = False
-    has_failed_components = False
-    for c in module_build.component_builds:
-        if c.state in [None, koji.BUILD_STATES['BUILDING']]:
-            has_unbuilt_components = True
-        elif (c.state in failed_states):
-            has_failed_components = True
+    has_unbuilt_components = any(c.state in [None, koji.BUILD_STATES['BUILDING']]
+                                 for c in module_build.component_builds)
+    has_failed_components = any(c.state in failed_states for c in module_build.component_builds)
 
     further_work = []
     if has_unbuilt_components and not has_failed_components:
@@ -152,6 +148,9 @@ def done(config, session, msg):
                                     state=models.BUILD_STATES['failed'],
                                     state_reason=state_reason)
         else:
+            # Tell the external buildsystem to wrap up (CG import, createrepo, etc.)
+            builder.finalize()
+
             module_build.transition(config, state=models.BUILD_STATES['done'])
         session.commit()
 
