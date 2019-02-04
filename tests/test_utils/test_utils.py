@@ -368,8 +368,8 @@ class TestUtils:
         mmd_pkg_refs = [pkg.get_ref() for pkg in mmd.get_rpm_components().values()]
         assert set(mmd_pkg_refs) == set(hashes_returned.keys())
         br = mmd.get_dependencies()[0].get_buildrequires()
-        assert br.keys() == ['platform']
-        assert br.values()[0].get() == ['f28']
+        assert list(br.keys()) == ['platform']
+        assert list(br.values())[0].get() == ['f28']
         xmd = {
             'mbs': {
                 'commit': '',

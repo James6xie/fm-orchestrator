@@ -36,6 +36,8 @@ import tempfile
 import time
 from io import open
 from collections import defaultdict
+from itertools import chain
+
 import kobo.rpmlib
 
 from six import text_type
@@ -276,7 +278,7 @@ class KojiContentGenerator(object):
         # Handle the multicall result. For each build associated with the source RPM,
         # store the exclusivearch and excludearch lists. For each RPM, store the 'license' and
         # also other useful data from the Build associated with the RPM.
-        for rpm, headers in zip(src_rpms.values() + binary_rpms.values(), rpms_headers):
+        for rpm, headers in zip(chain(src_rpms.values(), binary_rpms.values()), rpms_headers):
             if not headers:
                 raise RuntimeError(
                     "No RPM headers received from Koji for RPM %s" % rpm["name"])

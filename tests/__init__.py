@@ -632,7 +632,7 @@ def reuse_shared_userspace_init_data():
 
         session.add(build_one)
 
-        components = mmd.get_rpm_components().values()
+        components = list(mmd.get_rpm_components().values())
         components.sort(key=lambda x: x.get_buildorder())
         previous_buildorder = None
         batch = 1
@@ -683,7 +683,7 @@ def reuse_shared_userspace_init_data():
 
         session.add(build_one)
 
-        components2 = mmd2.get_rpm_components().values()
+        components2 = list(mmd2.get_rpm_components().values())
         # Store components to database in different order than for 570 to
         # reproduce the reusing issue.
         components2.sort(key=lambda x: len(x.get_name()))
