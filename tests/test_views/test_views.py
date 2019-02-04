@@ -1447,7 +1447,7 @@ class TestViews:
         assert data['error'] == 'Forbidden'
         assert data['message'] == (
             'Homer J. Simpson is not in any of '
-            'set([\'mbs-import-module\']), only set([\'packager\'])')
+            '{0}, only {1}'.format(set(['mbs-import-module']), set(['packager'])))
 
     @pytest.mark.parametrize('api_version', [1, 2])
     @patch('module_build_service.auth.get_user', return_value=import_module_user)
