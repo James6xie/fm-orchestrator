@@ -324,6 +324,7 @@ class TestKojiBuilder:
         expected_calls = [mock.call(1, 'foo'), mock.call(2, 'foo'), mock.call(1, 'bar')]
         assert mock_session.untagBuild.mock_calls == expected_calls
 
+    @patch.dict('sys.modules', krbV=MagicMock())
     @patch('module_build_service.builder.KojiModuleBuilder.KojiClientSession')
     def test_get_build_weights(self, ClientSession):
         session = ClientSession.return_value
@@ -347,6 +348,7 @@ class TestKojiBuilder:
         # getLoggedInUser requires to a logged-in session
         session.krb_login.assert_called_once()
 
+    @patch.dict('sys.modules', krbV=MagicMock())
     @patch('module_build_service.builder.KojiModuleBuilder.KojiClientSession')
     def test_get_build_weights_no_task_id(self, ClientSession):
         session = ClientSession.return_value
@@ -368,6 +370,7 @@ class TestKojiBuilder:
         assert session.getTaskDescendents.mock_calls == expected_calls
         session.krb_login.assert_called_once()
 
+    @patch.dict('sys.modules', krbV=MagicMock())
     @patch('module_build_service.builder.KojiModuleBuilder.KojiClientSession')
     def test_get_build_weights_no_build(self, ClientSession):
         session = ClientSession.return_value
@@ -389,6 +392,7 @@ class TestKojiBuilder:
         assert session.getTaskDescendents.mock_calls == expected_calls
         session.krb_login.assert_called_once()
 
+    @patch.dict('sys.modules', krbV=MagicMock())
     @patch('module_build_service.builder.KojiModuleBuilder.KojiClientSession')
     def test_get_build_weights_listBuilds_failed(self, ClientSession):
         session = ClientSession.return_value
@@ -406,6 +410,7 @@ class TestKojiBuilder:
         assert session.listBuilds.mock_calls == expected_calls
         session.krb_login.assert_called_once()
 
+    @patch.dict('sys.modules', krbV=MagicMock())
     @patch('module_build_service.builder.KojiModuleBuilder.KojiClientSession')
     def test_get_build_weights_getPackageID_failed(self, ClientSession):
         session = ClientSession.return_value
@@ -421,6 +426,7 @@ class TestKojiBuilder:
 
         session.krb_login.assert_called_once()
 
+    @patch.dict('sys.modules', krbV=MagicMock())
     @patch('module_build_service.builder.KojiModuleBuilder.KojiClientSession')
     def test_get_build_weights_getLoggedInUser_failed(self, ClientSession):
         session = ClientSession.return_value
@@ -686,6 +692,7 @@ class TestKojiBuilder:
         assert ClientSession.return_value == session
         assert ClientSession.return_value.krb_login.assert_not_called
 
+    @patch.dict('sys.modules', krbV=MagicMock())
     @patch('module_build_service.builder.KojiModuleBuilder.KojiClientSession')
     def test_ensure_builder_use_a_logged_in_koji_session(self, ClientSession):
         builder = KojiModuleBuilder('owner', MagicMock(), conf, 'module-tag', [])

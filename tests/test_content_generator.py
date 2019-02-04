@@ -208,6 +208,7 @@ class TestBuild:
         with open(path.join(dir_path, "modulemd.i686.txt")) as mmd:
             assert len(mmd.read()) == 255
 
+    @patch.dict("sys.modules", krbV=Mock())
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
     def test_tag_cg_build(self, ClientSession):
         """ Test that the CG build is tagged. """
@@ -223,6 +224,7 @@ class TestBuild:
         # tagBuild requires logging into a session in advance.
         koji_session.krb_login.assert_called_once()
 
+    @patch.dict("sys.modules", krbV=Mock())
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
     def test_tag_cg_build_fallback_to_default_tag(self, ClientSession):
         """ Test that the CG build is tagged to default tag. """
@@ -240,6 +242,7 @@ class TestBuild:
         # tagBuild requires logging into a session in advance.
         koji_session.krb_login.assert_called_once()
 
+    @patch.dict("sys.modules", krbV=Mock())
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
     def test_tag_cg_build_no_tag_set(self, ClientSession):
         """ Test that the CG build is not tagged when no tag set. """
@@ -254,6 +257,7 @@ class TestBuild:
         # tagBuild requires logging into a session in advance.
         koji_session.krb_login.assert_called_once()
 
+    @patch.dict("sys.modules", krbV=Mock())
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
     def test_tag_cg_build_no_tag_available(self, ClientSession):
         """ Test that the CG build is not tagged when no tag available. """
@@ -872,6 +876,7 @@ class TestBuild:
                     requires.append("%s:%s" % (name, stream))
             assert "%s:%s" % (mmd.get_name(), mmd.get_stream()) in requires
 
+    @patch.dict("sys.modules", krbV=Mock())
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
     @patch("module_build_service.builder.KojiContentGenerator.KojiContentGenerator._tag_cg_build")
     @patch("module_build_service.builder.KojiContentGenerator.KojiContentGenerator._load_koji_tag")
