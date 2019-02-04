@@ -107,8 +107,8 @@ class TestBuild:
         pkg_res.return_value = Mock()
         pkg_res.return_value.version = "current-tested-version"
         rpm_mock = Mock()
-        rpm_out = "rpm-name;1.0;r1;x86_64;(none);sigmd5:1;sigpgp:p;siggpg:g\n" \
-                  "rpm-name-2;2.0;r2;i686;1;sigmd5:2;sigpgp:p2;siggpg:g2"
+        rpm_out = b"rpm-name;1.0;r1;x86_64;(none);sigmd5:1;sigpgp:p;siggpg:g\n" \
+                  b"rpm-name-2;2.0;r2;i686;1;sigmd5:2;sigpgp:p2;siggpg:g2"
         attrs = {'communicate.return_value': (rpm_out, 'error'),
                  'wait.return_value': 0}
         rpm_mock.configure_mock(**attrs)
@@ -163,8 +163,8 @@ class TestBuild:
         pkg_res.return_value = Mock()
         pkg_res.return_value.version = "current-tested-version"
         rpm_mock = Mock()
-        rpm_out = "rpm-name;1.0;r1;x86_64;(none);sigmd5:1;sigpgp:p;siggpg:g\n" \
-                  "rpm-name-2;2.0;r2;i686;1;sigmd5:2;sigpgp:p2;siggpg:g2"
+        rpm_out = b"rpm-name;1.0;r1;x86_64;(none);sigmd5:1;sigpgp:p;siggpg:g\n" \
+                  b"rpm-name-2;2.0;r2;i686;1;sigmd5:2;sigpgp:p2;siggpg:g2"
         attrs = {'communicate.return_value': (rpm_out, 'error'),
                  'wait.return_value': 0}
         rpm_mock.configure_mock(**attrs)
@@ -270,7 +270,7 @@ class TestBuild:
     @patch("module_build_service.builder.KojiContentGenerator.open", create=True)
     def test_get_arch_mmd_output(self, patched_open):
         patched_open.return_value = mock_open(
-            read_data=self.cg.mmd).return_value
+            read_data=self.cg.mmd.encode("utf-8")).return_value
         ret = self.cg._get_arch_mmd_output("./fake-dir", "x86_64")
         assert ret == {
             'arch': 'x86_64',
@@ -290,7 +290,7 @@ class TestBuild:
         rpm_artifacts = mmd.get_rpm_artifacts()
         rpm_artifacts.add("dhcp-libs-12:4.3.5-5.module_2118aef6.x86_64")
         mmd.set_rpm_artifacts(rpm_artifacts)
-        mmd_data = mmd.dumps()
+        mmd_data = mmd.dumps().encode("utf-8")
 
         patched_open.return_value = mock_open(
             read_data=mmd_data).return_value

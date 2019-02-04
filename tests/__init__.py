@@ -145,13 +145,14 @@ def _populate_data(session, data_size=10, contexts=False):
             build_one.state = BUILD_STATES['ready']
             if contexts:
                 build_one.stream = str(index)
-                unique_hash = hashlib.sha1("%s:%s:%d:%d" % (
-                    build_one.name, build_one.stream, build_one.version, context)).hexdigest()
+                unique_hash = hashlib.sha1(("%s:%s:%d:%d" % (
+                    build_one.name, build_one.stream, build_one.version,
+                    context)).encode("utf-8")).hexdigest()
                 build_one.build_context = unique_hash
                 build_one.runtime_context = unique_hash
                 build_one.ref_build_context = unique_hash
                 combined_hashes = '{0}:{1}'.format(unique_hash, unique_hash)
-                build_one.context = hashlib.sha1(combined_hashes).hexdigest()[:8]
+                build_one.context = hashlib.sha1(combined_hashes.encode("utf-8")).hexdigest()[:8]
             with open(os.path.join(base_dir, "staged_data", "nginx_mmd.yaml")) as mmd:
                 build_one.modulemd = mmd.read()
             build_one.koji_tag = 'module-nginx-1.2'

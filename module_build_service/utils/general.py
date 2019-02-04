@@ -115,7 +115,7 @@ def generate_koji_tag(name, stream, version, context, max_length=256):
     if len(nsvc_tag) + len('-build') > max_length:
         # Fallback to the old format of 'module-<hash>' if the generated koji tag
         # name is longer than max_length
-        nsvc_hash = hashlib.sha1('.'.join(nsvc_list)).hexdigest()[:16]
+        nsvc_hash = hashlib.sha1('.'.join(nsvc_list).encode('utf-8')).hexdigest()[:16]
         return 'module-' + nsvc_hash
     return nsvc_tag
 

@@ -277,7 +277,7 @@ class TestUtilsComponentReuse:
         with open(modulemd_file_path, "w") as fd:
             fd.write(modulemd_yaml)
 
-        with open(modulemd_file_path, "r") as fd:
+        with open(modulemd_file_path, "rb") as fd:
             handle = FileStorage(fd)
             module_build_service.utils.submit_module_build_from_yaml(username, handle,
                                                                      stream=stream, skiptests=True)

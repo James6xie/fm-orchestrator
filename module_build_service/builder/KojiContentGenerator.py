@@ -202,7 +202,7 @@ class KojiContentGenerator(object):
 
             (stdout, stderr) = p.communicate()
             status = p.wait()
-            output = stdout
+            output = stdout.decode("utf-8")
 
         if status != 0:
             log.debug("%s: stderr output: %s", cmd, stderr)
@@ -710,7 +710,7 @@ class KojiContentGenerator(object):
         # Fill in the list of built RPMs.
         mmd = self._fill_in_rpms_list(mmd, arch)
 
-        return unicode(mmd.dumps())
+        return text_type(mmd.dumps())
 
     def _download_source_modulemd(self, mmd, output_path):
         """
