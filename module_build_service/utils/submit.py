@@ -213,47 +213,47 @@ def format_mmd(mmd, scmurl):
 
 
 def get_prefixed_version(mmd):
-        """
-        Return the prefixed version of the module based on the buildrequired base module stream.
+    """
+    Return the prefixed version of the module based on the buildrequired base module stream.
 
-        :param mmd: the Modulemd.Module object to format
-        :return: the prefixed version
-        :rtype: int
-        """
-        xmd = mmd.get_xmd()
-        version = mmd.get_version()
+    :param mmd: the Modulemd.Module object to format
+    :return: the prefixed version
+    :rtype: int
+    """
+    xmd = mmd.get_xmd()
+    version = mmd.get_version()
 
-        base_module_stream = None
-        for base_module in conf.base_module_names:
-            # xmd is a GLib Variant and doesn't support .get() syntax
-            try:
-                base_module_stream = xmd['mbs']['buildrequires'].get(
-                    base_module, {}).get('stream')
-                if base_module_stream:
-                    # Break after finding the first base module that is buildrequired
-                    break
-            except KeyError:
-                log.warning('The module\'s mmd is missing information in the xmd section')
-                return version
-        else:
-            log.warning('This module does not buildrequire a base module ({0})'
-                        .format(' or '.join(conf.base_module_names)))
+    base_module_stream = None
+    for base_module in conf.base_module_names:
+        # xmd is a GLib Variant and doesn't support .get() syntax
+        try:
+            base_module_stream = xmd['mbs']['buildrequires'].get(
+                base_module, {}).get('stream')
+            if base_module_stream:
+                # Break after finding the first base module that is buildrequired
+                break
+        except KeyError:
+            log.warning('The module\'s mmd is missing information in the xmd section')
             return version
+    else:
+        log.warning('This module does not buildrequire a base module ({0})'
+                    .format(' or '.join(conf.base_module_names)))
+        return version
 
-        # The platform version (e.g. prefix1.2.0 => 010200)
-        version_prefix = models.ModuleBuild.get_stream_version(base_module_stream, right_pad=False)
+    # The platform version (e.g. prefix1.2.0 => 010200)
+    version_prefix = models.ModuleBuild.get_stream_version(base_module_stream, right_pad=False)
 
-        if not version_prefix:
-            log.warning('The "{0}" stream "{1}" couldn\'t be used to prefix the module\'s '
-                        'version'.format(base_module, base_module_stream))
-            return version
+    if not version_prefix:
+        log.warning('The "{0}" stream "{1}" couldn\'t be used to prefix the module\'s '
+                    'version'.format(base_module, base_module_stream))
+        return version
 
-        new_version = int(str(version_prefix) + str(version))
-        if new_version > GLib.MAXUINT64:
-            log.warning('The "{0}" stream "{1}" caused the module\'s version prefix to be '
-                        'too long'.format(base_module, base_module_stream))
-            return version
-        return new_version
+    new_version = int(str(version_prefix) + str(version))
+    if new_version > GLib.MAXUINT64:
+        log.warning('The "{0}" stream "{1}" caused the module\'s version prefix to be '
+                    'too long'.format(base_module, base_module_stream))
+        return version
+    return new_version
 
 
 def validate_mmd(mmd):
