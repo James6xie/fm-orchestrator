@@ -56,13 +56,15 @@ node('factory2'){
             onmyduffynode "cd fm-orchestrator && git log -2"
         }
 
-        stage('Build Docker Image') {
+        stage('Build Docker Images') {
             onmyduffynode 'cd fm-orchestrator && docker build -t mbs/test -f docker/Dockerfile-tests .'
+            onmyduffynode 'cd fm-orchestrator && docker build -t mbs/test-py3 -f docker/Dockerfile-tests-py3 .'
         }
 
-        stage('Run Test Suite') {
+        stage('Run Test Suites') {
             timeout(20) {
                 onmyduffynode 'docker run -v ~/fm-orchestrator:/src:Z mbs/test'
+                onmyduffynode 'docker run -v ~/fm-orchestrator:/src:Z mbs/test-py3'
             }
         }
 

@@ -44,7 +44,7 @@ RUN yum -y install \
     rpm-build \
     && yum clean all
 # We currently require a newer versions of these Python packages for the tests
-RUN pip install --upgrade flask-sqlalchemy pytest flake8 tox
+RUN pip install --upgrade flask-sqlalchemy pytest flake8 tox pip
 VOLUME /src
 WORKDIR /src
 CMD ["bash", "docker/test.sh"]
