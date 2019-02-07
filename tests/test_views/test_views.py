@@ -129,6 +129,8 @@ class TestViews:
         assert data['context'] == '00000000'
         assert data['name'] == 'nginx'
         assert data['owner'] == 'Moe Szyslak'
+        assert data['scratch'] is False
+        assert data['srpms'] == []
         assert data['stream'] == '1'
         assert data['siblings'] == []
         assert data['state'] == 5
@@ -190,6 +192,8 @@ class TestViews:
         assert data['owner'] == 'Moe Szyslak'
         assert data['scmurl'] == ('git://pkgs.domain.local/modules/nginx'
                                   '?#ba95886c7a443b36a9ce31abda1f9bef22f2f8c9')
+        assert data['scratch'] is False
+        assert data['srpms'] == []
         assert data['siblings'] == []
         assert data['state'] == 5
         assert data['state_name'] == 'ready'
@@ -274,7 +278,9 @@ class TestViews:
                 "rebuild_strategy": "changed-and-after",
                 "scmurl": ("git://pkgs.domain.local/modules/testmodule"
                            "?#ca95886c7a443b36a9ce31abda1f9bef22f2f8c9"),
+                "scratch": False,
                 "siblings": [],
+                "srpms": [],
                 "state": 1,
                 "state_name": "wait",
                 "state_reason": None,
@@ -311,7 +317,9 @@ class TestViews:
                 "rebuild_strategy": "changed-and-after",
                 "scmurl": ("git://pkgs.domain.local/modules/postgressql"
                            "?#aa95886c7a443b36a9ce31abda1f9bef22f2f8c9"),
+                "scratch": False,
                 "siblings": [],
+                "srpms": [],
                 "state": 3,
                 "state_name": "done",
                 "state_reason": None,
@@ -358,7 +366,9 @@ class TestViews:
                 "rebuild_strategy": "changed-and-after",
                 "scmurl": ("git://pkgs.domain.local/modules/nginx"
                            "?#ba95886c7a443b36a9ce31abda1f9bef22f2f8c9"),
+                "scratch": False,
                 "siblings": [2],
+                "srpms": [],
                 "state": 5,
                 "state_name": "ready",
                 "state_reason": None,

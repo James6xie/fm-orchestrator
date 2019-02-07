@@ -197,6 +197,8 @@ class ModuleBuild(MBSBase):
     # Koji tag to which tag the Content Generator Koji build.
     cg_build_koji_tag = db.Column(db.String)  # This gets set after wait
     scmurl = db.Column(db.String)
+    scratch = db.Column(db.Boolean, default=False)
+    srpms = db.Column(db.String)
     owner = db.Column(db.String, nullable=False)
     time_submitted = db.Column(db.DateTime, nullable=False)
     time_modified = db.Column(db.DateTime)
@@ -485,7 +487,7 @@ class ModuleBuild(MBSBase):
 
     @classmethod
     def create(cls, session, conf, name, stream, version, modulemd, scmurl, username,
-               context=None, rebuild_strategy=None, publish_msg=True):
+               context=None, rebuild_strategy=None, scratch=False, srpms=[], publish_msg=True):
         now = datetime.utcnow()
         module = cls(
             name=name,
@@ -499,7 +501,9 @@ class ModuleBuild(MBSBase):
             time_submitted=now,
             time_modified=now,
             # If the rebuild_strategy isn't specified, use the default
-            rebuild_strategy=rebuild_strategy or conf.rebuild_strategy
+            rebuild_strategy=rebuild_strategy or conf.rebuild_strategy,
+            scratch=scratch,
+            srpms=dumps(srpms) if srpms else '[]',
         )
         # Add a state transition to "init"
         mbt = ModuleBuildTrace(state_time=now, state=module.state)
@@ -643,6 +647,8 @@ class ModuleBuild(MBSBase):
             'owner': self.owner,
             'rebuild_strategy': self.rebuild_strategy,
             'scmurl': self.scmurl,
+            'scratch': self.scratch,
+            'srpms': loads(self.srpms) if self.srpms else [],
             'siblings': self.siblings,
             'state_reason': self.state_reason,
             'time_completed': _utc_datetime_to_iso(self.time_completed),
