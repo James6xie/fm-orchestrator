@@ -27,7 +27,7 @@
 """
 
 import contextlib
-import json
+from json import dumps, loads
 from collections import OrderedDict
 from datetime import datetime
 import hashlib
@@ -445,13 +445,13 @@ class ModuleBuild(MBSBase):
             raise ValueError('The module\'s modulemd hasn\'t been formatted by MBS')
         mmd_formatted_buildrequires = {
             dep: info['ref'] for dep, info in mbs_xmd["buildrequires"].items()}
-        property_json = json.dumps(OrderedDict(sorted(mmd_formatted_buildrequires.items())))
+        property_json = dumps(OrderedDict(sorted(mmd_formatted_buildrequires.items())))
         rv.append(hashlib.sha1(property_json.encode('utf-8')).hexdigest())
 
         # Get the streams of buildrequires and hash it.
         mmd_formatted_buildrequires = {
             dep: info['stream'] for dep, info in mbs_xmd["buildrequires"].items()}
-        property_json = json.dumps(OrderedDict(sorted(mmd_formatted_buildrequires.items())))
+        property_json = dumps(OrderedDict(sorted(mmd_formatted_buildrequires.items())))
         build_context = hashlib.sha1(property_json.encode('utf-8')).hexdigest()
         rv.append(build_context)
 
@@ -466,7 +466,7 @@ class ModuleBuild(MBSBase):
         # Sort the streams for each module name and also sort the module names.
         mmd_requires = {
             dep: sorted(list(streams)) for dep, streams in mmd_requires.items()}
-        property_json = json.dumps(OrderedDict(sorted(mmd_requires.items())))
+        property_json = dumps(OrderedDict(sorted(mmd_requires.items())))
         runtime_context = hashlib.sha1(property_json.encode('utf-8')).hexdigest()
         rv.append(runtime_context)
 
