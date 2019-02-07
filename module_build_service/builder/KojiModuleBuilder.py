@@ -758,7 +758,11 @@ chmod 644 %buildroot/etc/rpm/macros.zz-modules
                 raise RuntimeError("Buildroot is not prep-ed")
 
             self._koji_whitelist_packages([artifact_name])
-            if '://' not in source:
+
+            if source.startswith('cli-build/'):
+                # treat source as a custom srpm that has already been uploaded to koji
+                pass
+            elif '://' not in source:
                 # treat source as an srpm and upload it
                 serverdir = _unique_path('cli-build')
                 callback = None

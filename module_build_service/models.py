@@ -198,6 +198,7 @@ class ModuleBuild(MBSBase):
     cg_build_koji_tag = db.Column(db.String)  # This gets set after wait
     scmurl = db.Column(db.String)
     scratch = db.Column(db.Boolean, default=False)
+    # JSON encoded list of links of custom SRPMs uploaded to Koji
     srpms = db.Column(db.String)
     owner = db.Column(db.String, nullable=False)
     time_submitted = db.Column(db.DateTime, nullable=False)

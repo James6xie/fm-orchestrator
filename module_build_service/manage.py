@@ -102,11 +102,12 @@ def import_module(mmd_file):
 
 @manager.option('--stream', action='store', dest="stream")
 @manager.option('--file', action='store', dest="yaml_file")
+@manager.option('--srpms', '--srpm', nargs='*', action='store', default=[], dest="srpms")
 @manager.option('--skiptests', action='store_true', dest="skiptests")
 @manager.option('-l', '--add-local-build', action='append', default=None, dest='local_build_nsvs')
 @manager.option('-s', '--set-stream', action='append', default=[], dest='default_streams')
-def build_module_locally(local_build_nsvs=None, yaml_file=None, stream=None, skiptests=False,
-                         default_streams=None):
+def build_module_locally(local_build_nsvs=None, yaml_file=None, srpms=None,
+                         stream=None, skiptests=False, default_streams=None):
     """ Performs local module build using Mock
     """
     if 'SERVER_NAME' not in app.config or not app.config['SERVER_NAME']:
@@ -139,6 +140,8 @@ def build_module_locally(local_build_nsvs=None, yaml_file=None, stream=None, ski
         for ns in default_streams:
             name, stream = ns.split(":")
             optional_params["default_streams"][name] = stream
+        if srpms:
+            optional_params["srpms"] = srpms
 
         username = getpass.getuser()
         if not yaml_file or not yaml_file.endswith(".yaml"):

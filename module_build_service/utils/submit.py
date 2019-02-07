@@ -22,6 +22,7 @@
 # Written by Ralph Bean <rbean@redhat.com>
 #            Matt Prahl <mprahl@redhat.com>
 #            Jan Kaluza <jkaluza@redhat.com>
+import json
 import re
 import time
 import shutil
@@ -162,6 +163,10 @@ def format_mmd(mmd, scmurl, module=None, session=None):
         if 'rpms' not in xmd['mbs']:
             xmd['mbs']['rpms'] = {}
         # Add missing data in RPM components
+        # TODO scrmod: Does something need to be done here for RPMs that are
+        # overridden by custom SRPMs in addition to what is currently being
+        # done in record_component_builds()? Should repository and cache
+        # properties be set? If so, to what?
         for pkgname, pkg in mmd.get_rpm_components().items():
             # In case of resubmit of existing module which have been
             # cancelled/failed during the init state, the package
@@ -312,6 +317,54 @@ def merge_included_mmd(mmd, included_mmd):
     # Set the modified xmd back to the modulemd
     mmd.set_xmd(glib.dict_values(xmd))
 
+def get_module_srpm_overrides(module):
+    """
+    Make necessary preparations to use any provided custom SRPMs.
+
+    :param module: ModuleBuild object representing the module being submitted.
+    :type module: :class:`models.ModuleBuild`
+    :return: mapping of package names to SRPM links for all packages which
+             have custom SRPM overrides specified
+    :rtype: dict[str, str]
+
+    """
+    overrides = {}
+
+    if not module.srpms:
+        return overrides
+
+    try:
+        # Make sure we can decode the custom SRPM list
+        srpms = json.loads(module.srpms)
+        assert isinstance(srpms, list)
+    except Exception:
+        raise ValueError("Invalid srpms list encountered: {}".format(module.srpms))
+
+    for source in srpms:
+        if source.startswith('cli-build/') and source.endswith('.src.rpm'):
+            # This is a custom srpm that has been uploaded to koji by rpkg
+            # using the package name as the basename suffixed with .src.rpm
+            rpm_name = os.path.basename(source)[:-len('.src.rpm')]
+        else:
+            # This should be a local custom srpm path
+            if not os.path.exists(source):
+                raise IOError("Provided srpm is missing: {}".format(source))
+            # Get package name from rpm headers
+            try:
+                rpm_hdr = kobo.rpmlib.get_rpm_header(source)
+                rpm_name = kobo.rpmlib.get_header_field(rpm_hdr, 'name').decode('utf-8')
+            except Exception:
+                raise ValueError("Provided srpm is invalid: {}".format(source))
+
+        if rpm_name in overrides:
+            log.warning('Encountered duplicate custom SRPM "{0}"'
+                        ' for package {1}'.format(source, rpm_name))
+            continue
+
+        log.debug('Using custom SRPM "{0}" for package {1}'.format(source, rpm_name))
+        overrides[rpm_name] = source
+
+    return overrides
 
 def record_component_builds(mmd, module, initial_batch=1,
                             previous_buildorder=None, main_mmd=None, session=None):
@@ -349,6 +402,9 @@ def record_component_builds(mmd, module, initial_batch=1,
     if not all_components:
         return
 
+    # Get map of packages that have SRPM overrides
+    srpm_overrides = get_module_srpm_overrides(module)
+
     rpm_weights = module_build_service.builder.GenericBuilder.get_build_weights(
         [c.get_name() for c in rpm_components])
     all_components.sort(key=lambda x: x.get_buildorder())
@@ -376,13 +432,20 @@ def record_component_builds(mmd, module, initial_batch=1,
                                             previous_buildorder, main_mmd, session=session)
             continue
 
-        component_ref = mmd.get_xmd()['mbs']['rpms'][component.get_name()]['ref']
-        full_url = component.get_repository() + "?#" + component_ref
+        package = component.get_name()
+        if package in srpm_overrides:
+            component_ref = None
+            full_url = srpm_overrides[package]
+            log.info('Building custom SRPM "{0}"'
+                     ' for package {1}'.format(full_url, package))
+        else:
+            component_ref = mmd.get_xmd()['mbs']['rpms'][package]['ref']
+            full_url = component.get_repository() + "?#" + component_ref
 
         # Skip the ComponentBuild if it already exists in database. This can happen
         # in case of module build resubmition.
         existing_build = models.ComponentBuild.from_component_name(
-            db.session, component.get_name(), module.id)
+            db.session, package, module.id)
         if existing_build:
             # Check that the existing build has the same most important attributes.
             # This should never be a problem, but it's good to be defensive here so
@@ -396,12 +459,12 @@ def record_component_builds(mmd, module, initial_batch=1,
 
         build = models.ComponentBuild(
             module_id=module.id,
-            package=component.get_name(),
+            package=package,
             format="rpms",
             scmurl=full_url,
             batch=batch,
             ref=component_ref,
-            weight=rpm_weights[component.get_name()]
+            weight=rpm_weights[package]
         )
         session.add(build)
 
