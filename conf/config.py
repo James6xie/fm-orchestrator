@@ -31,7 +31,7 @@ class BaseConfiguration(object):
     ARCHES = ['i686', 'armv7hl', 'x86_64']
     ALLOW_ARCH_OVERRIDE = False
     KOJI_REPOSITORY_URL = 'https://kojipkgs.fedoraproject.org/repos'
-    KOJI_TAG_PREFIXES = ['module']
+    KOJI_TAG_PREFIXES = ['module', 'scrmod']
     KOJI_ENABLE_CONTENT_GENERATOR = True
     CHECK_FOR_EOL = False
     PDC_URL = 'https://pdc.fedoraproject.org/rest_api/v1'

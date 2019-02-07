@@ -105,7 +105,7 @@ def module_build_state_from_msg(msg):
     return state
 
 
-def generate_koji_tag(name, stream, version, context, max_length=256):
+def generate_koji_tag(name, stream, version, context, max_length=256, scratch=False):
     """Generate a koji tag for a module
 
     Generally, a module's koji tag is in format ``module-N-S-V-C``. However, if
@@ -115,19 +115,23 @@ def generate_koji_tag(name, stream, version, context, max_length=256):
     :param str stream: a module's stream
     :param str version: a module's version
     :param str context: a module's context
-    :kwarg int max_length: the maximum length the Koji tag can be before
+    :param int max_length: the maximum length the Koji tag can be before
         falling back to the old format of "module-<hash>". Default is 256
         characters, which is the maximum length of a tag Koji accepts.
+    :param bool scratch: a flag indicating if the generated tag will be for
+        a scratch module build
     :return: a Koji tag
     :rtype: str
     """
+    prefix = ('scrmod' if scratch else 'module')
+    # TODO scrmod: is a unique _suffix_ needed here, too?
     nsvc_list = [name, stream, str(version), context]
-    nsvc_tag = 'module-' + '-'.join(nsvc_list)
+    nsvc_tag = '-'.join([prefix] + nsvc_list)
     if len(nsvc_tag) + len('-build') > max_length:
         # Fallback to the old format of 'module-<hash>' if the generated koji tag
         # name is longer than max_length
         nsvc_hash = hashlib.sha1('.'.join(nsvc_list).encode('utf-8')).hexdigest()[:16]
-        return 'module-' + nsvc_hash
+        return prefix + '-' + nsvc_hash
     return nsvc_tag
 
 
@@ -207,6 +211,9 @@ def validate_koji_tag(tag_arg_names, pre='', post='-', dict_key='name'):
     return validation_decorator
 
 
+# TODO scrmod: scratch module build components need a unique dist tag prefix/suffix
+# to distinguish them and make it possible to build the same NSVC multiple times,
+# but what should it be? Is this the place to set that?
 def get_rpm_release(module_build):
     """
     Generates the dist tag for the specified module

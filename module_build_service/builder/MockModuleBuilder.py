@@ -318,6 +318,7 @@ class MockModuleBuilder(GenericBuilder):
             # module build repository.
             if tag.startswith(conf.mock_resultsdir):
                 repo_name = os.path.basename(tag)
+                # TODO scrmod: is a check also needed for scratch module tag prefix?
                 if repo_name.startswith("module-"):
                     repo_name = repo_name[7:]
                 repo_dir = tag

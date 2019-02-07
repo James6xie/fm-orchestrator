@@ -197,7 +197,7 @@ class Config(object):
             'desc': 'Target to build "module-build-macros" RPM in.'},
         'koji_tag_prefixes': {
             'type': list,
-            'default': ['module'],
+            'default': ['module', 'scrmod'],
             'desc': 'List of allowed koji tag prefixes.'},
         'koji_target_delete_time': {
             'type': int,

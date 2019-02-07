@@ -183,7 +183,8 @@ def generate_module_build_koji_tag(build):
     """
     log.info('Getting tag for %s:%s:%s', build.name, build.stream, build.version)
     if conf.system in ['koji', 'test']:
-        return generate_koji_tag(build.name, build.stream, build.version, build.context)
+        return generate_koji_tag(build.name, build.stream, build.version, build.context,
+                                 scratch=build.scratch)
     else:
         return '-'.join(['module', build.name, build.stream, build.version])
 
@@ -295,7 +296,10 @@ def wait(config, session, msg):
     log.debug("Assigning koji tag=%s to module build" % tag)
     build.koji_tag = tag
 
-    if conf.koji_cg_tag_build:
+    if build.scratch:
+        log.debug('Assigning Content Generator build koji tag is skipped for'
+                  ' scratch module build.')
+    elif conf.koji_cg_tag_build:
         cg_build_koji_tag = get_content_generator_build_koji_tag(build_deps)
         log.debug("Assigning Content Generator build koji tag=%s to module build",
                   cg_build_koji_tag)

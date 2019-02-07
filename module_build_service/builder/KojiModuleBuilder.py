@@ -1201,9 +1201,10 @@ chmod 644 %buildroot/etc/rpm/macros.zz-modules
             return list(nvrs)
 
     def finalize(self):
-        # Only import to koji CG if the module is "build".
-        if self.config.koji_enable_content_generator and \
-                self.module.state == models.BUILD_STATES['build']:
+        # Only import to koji CG if the module is "build" and not scratch.
+        if (not self.module.scratch and
+                self.config.koji_enable_content_generator and
+                self.module.state == models.BUILD_STATES['build']):
             cg = KojiContentGenerator(self.module, self.config)
             cg.koji_import()
             if conf.koji_cg_devel_module:
@@ -1227,7 +1228,7 @@ chmod 644 %buildroot/etc/rpm/macros.zz-modules
         tags = []
         koji_tags = session.listTags(rpm_md["build_id"])
         for t in koji_tags:
-            if not t["name"].endswith("-build") and t["name"].startswith("module-"):
+            if not t["name"].endswith("-build") and t["name"].startswith(("module-", "scrmod-")):
                 tags.append(t["name"])
 
         return tags

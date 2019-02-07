@@ -127,7 +127,7 @@ objects:
           RESOLVER = 'db'
 
           # This is a whitelist of prefixes of koji tags we're allowed to manipulate
-          KOJI_TAG_PREFIXES = ["module"]
+          KOJI_TAG_PREFIXES = ["module", "scrmod"]
 
           DEFAULT_DIST_TAG_PREFIX = 'module'
 
