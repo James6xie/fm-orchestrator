@@ -172,7 +172,7 @@ class ModuleBuildAPI(AbstractQueryableBuildAPI):
     # Additional POST and DELETE handlers for modules follow.
     @validate_api_version()
     def post(self, api_version):
-        if "multipart/form-data" in request.headers.get("Content-Type", ""):
+        if hasattr(request, 'files') and "yaml" in request.files:
             handler = YAMLFileHandler(request)
         else:
             handler = SCMHandler(request)
@@ -314,7 +314,14 @@ class ImportModuleAPI(MethodView):
 class BaseHandler(object):
     def __init__(self, request):
         self.username, self.groups = module_build_service.auth.get_user(request)
-        self.data = None
+        if "multipart/form-data" in request.headers.get("Content-Type", ""):
+            self.data = request.form.to_dict()
+        else:
+            try:
+                self.data = json.loads(request.get_data().decode("utf-8"))
+            except Exception:
+                log.error('Invalid JSON submitted')
+                raise ValidationError('Invalid JSON submitted')
 
     @property
     def optional_params(self):
@@ -373,11 +380,6 @@ class BaseHandler(object):
 class SCMHandler(BaseHandler):
     def __init__(self, request):
         super(SCMHandler, self).__init__(request)
-        try:
-            self.data = json.loads(request.get_data().decode("utf-8"))
-        except Exception:
-            log.error('Invalid JSON submitted')
-            raise ValidationError('Invalid JSON submitted')
 
     def validate(self, skip_branch=False, skip_optional_params=False):
         if "scmurl" not in self.data:
@@ -415,7 +417,6 @@ class YAMLFileHandler(BaseHandler):
         if not conf.yaml_submit_allowed:
             raise Forbidden("YAML submission is not enabled")
         super(YAMLFileHandler, self).__init__(request)
-        self.data = request.form.to_dict()
 
     def validate(self):
         if "yaml" not in request.files:
