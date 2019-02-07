@@ -18,7 +18,10 @@ tasks:
 Change Log
 ==========
 
-For a detailed change log, see ``docs/CHANGELOG.rst``.
+For a detailed change log, see |docs/CHANGELOG.rst|_.
+
+.. |docs/CHANGELOG.rst| replace:: ``docs/CHANGELOG.rst``
+.. _docs/CHANGELOG.rst: docs/CHANGELOG.rst
 
 Supported build systems
 =======================
@@ -102,9 +105,13 @@ Options:
   ``{'platform': ['f28', 'f29']}``.
 - ``require_overrides`` - the requires to override the modulemd with. The overrides must be to
   existing requires on the modulemd. The expected format is ``{'platform': ['f28', 'f29']}``.
+- ``scratch`` - a boolean indicating if a scratch module build should be performed.
+  Only allowed to be ``True`` if the MBS setting ``MODULE_ALLOW_SCRATCH`` is ``True``.
 - ``yaml`` - a string of the input file when submitting a YAML file directly in a
   ``multipart/form-data`` request. The MBS setting ``YAML_SUBMIT_ALLOWED`` must be set to ``True``
   for this to be allowed.
+- ``srpms`` - an optional list of Koji upload URLs of SRPMs to include in a module scratch build.
+  Only allowed if ``scratch`` is ``True``.
 - ``rebuild_strategy`` - a string of the desired rebuild strategy (affects what components get
   rebuilt). For the available options, please look at the "Rebuild Strategies" section below.
 
@@ -239,8 +246,8 @@ The response includes:
 - ``owner`` - the username of the owner or person who submitted the module build.
 - ``scmurl`` - the source control URL used to build the module.
 - ``state`` - the numerical state of the module build.
-- ``state_name`` - the named state of the module build. See the section called.
-  "Module Build States" for more information.
+- ``state_name`` - the named state of the module build. See the section called
+  `Module Build States`_ for more information.
 - ``state_reason`` - the reason why the module build is in this state. This is useful
   when the build fails.
 - ``stream`` - the module's stream.
@@ -925,7 +932,10 @@ the following rules (all of them are evaluated from top to bottom):
   TestConfiguration is used, otherwise...
 - if ``MODULE_BUILD_SERVICE_DEVELOPER_ENV`` is set to some reasonable
   value, DevConfiguration is forced and ``config.py`` is used directly from the
-  MBS's develop instance. For more information see ``docs/CONTRIBUTING.rst``.
+  MBS's develop instance. For more information see |docs/CONTRIBUTING.rst|_.
+
+.. |docs/CONTRIBUTING.rst| replace:: ``docs/CONTRIBUTING.rst``
+.. _docs/CONTRIBUTING.rst: docs/CONTRIBUTING.rst
 
 
 Setting Up Kerberos + LDAP Authentication
@@ -954,12 +964,15 @@ must be set in ``/etc/module-build-service/config.py``:
 Development
 ===========
 
-For help on setting up a development environment, see ``docs/CONTRIBUTING.rst``.
+For help on setting up a development environment, see |docs/CONTRIBUTING.rst|_.
 
 License
 =======
 
-MBS is licensed under MIT license. See LICENSE file for details.
+MBS is licensed under MIT license. See |LICENSE|_ file for details.
+
+.. |LICENSE| replace:: ``LICENSE``
+.. _LICENSE: LICENSE
 
 Parts of MBS are licensed under 3-clause BSD license from:
 https://github.com/projectatomic/atomic-reactor/blob/master/LICENSE

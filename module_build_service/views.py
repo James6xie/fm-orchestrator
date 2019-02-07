@@ -37,7 +37,7 @@ from module_build_service.utils import (
     pagination_metadata, filter_module_builds, filter_component_builds,
     submit_module_build_from_scm, submit_module_build_from_yaml,
     get_scm_url_re, cors_header, validate_api_version, import_mmd,
-    get_mmd_from_scm)
+    get_mmd_from_scm, str_to_bool)
 from module_build_service.errors import (
     ValidationError, Forbidden, NotFound, ProgrammingError)
 from module_build_service.backports import jsonify
@@ -322,6 +322,23 @@ class BaseHandler(object):
             except Exception:
                 log.error('Invalid JSON submitted')
                 raise ValidationError('Invalid JSON submitted')
+
+        # canonicalize and validate scratch option
+        if 'scratch' in self.data and str_to_bool(str(self.data['scratch'])):
+            self.data['scratch'] = True
+            if conf.modules_allow_scratch is not True:
+                raise Forbidden('Scratch builds are not enabled')
+        else:
+            self.data['scratch'] = False
+
+        # canonicalize and validate srpms list
+        if 'srpms' in self.data and self.data['srpms']:
+            if not self.data['scratch']:
+                raise Forbidden('srpms may only be specified for scratch builds')
+            if not isinstance(self.data['srpms'], list):
+                raise ValidationError('srpms must be specified as a list')
+        else:
+            self.data['srpms'] = []
 
     @property
     def optional_params(self):

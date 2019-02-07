@@ -57,6 +57,7 @@ class BaseConfiguration(object):
 
     MODULES_DEFAULT_REPOSITORY = 'https://src.fedoraproject.org/modules/'
     MODULES_ALLOW_REPOSITORY = False
+    MODULES_ALLOW_SCRATCH = False
 
     ALLOWED_GROUPS = set([
         'packager',
