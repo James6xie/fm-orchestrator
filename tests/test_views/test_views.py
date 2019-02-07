@@ -26,6 +26,7 @@ from datetime import datetime
 import module_build_service.scm
 
 from mock import patch, PropertyMock
+from werkzeug.datastructures import FileStorage
 from shutil import copyfile
 from os import path, mkdir
 from os.path import dirname
@@ -1676,3 +1677,180 @@ class TestViews:
 
         assert br_modulea == buildrequires.get('modulea')
         assert br_moduleb == buildrequires.get('moduleb')
+
+    @pytest.mark.parametrize('api_version', [1, 2])
+    @patch('module_build_service.auth.get_user', return_value=user)
+    @patch('module_build_service.scm.SCM')
+    @patch('module_build_service.config.Config.modules_allow_scratch',
+           new_callable=PropertyMock, return_value=True)
+    def test_submit_scratch_build(self, mocked_allow_scratch, mocked_scm, mocked_get_user,
+                                  api_version):
+        FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+
+        post_url = '/module-build-service/{0}/module-builds/'.format(api_version)
+        post_data = {
+            'branch': 'master',
+            'scmurl': 'https://src.stg.fedoraproject.org/modules/'
+                      'testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49',
+            'scratch': True,
+        }
+        rv = self.client.post(post_url, data=json.dumps(post_data))
+        data = json.loads(rv.data)
+
+        if api_version >= 2:
+            assert isinstance(data, list)
+            assert len(data) == 1
+            data = data[0]
+
+        assert 'component_builds' in data, data
+        assert data['component_builds'] == []
+        assert data['name'] == 'testmodule'
+        assert data['scmurl'] == ('https://src.stg.fedoraproject.org/modules/testmodule.git'
+                                  '?#68931c90de214d9d13feefbd35246a81b6cb8d49')
+        assert data['scratch'] is True
+        assert data['version'] == '281'
+        assert data['time_submitted'] is not None
+        assert data['time_modified'] is not None
+        assert data['time_completed'] is None
+        assert data['stream'] == 'master'
+        assert data['owner'] == 'Homer J. Simpson'
+        assert data['id'] == 8
+        assert data['rebuild_strategy'] == 'changed-and-after'
+        assert data['state_name'] == 'init'
+        assert data['state_url'] == '/module-build-service/{0}/module-builds/8'.format(api_version)
+        assert len(data['state_trace']) == 1
+        assert data['state_trace'][0]['state'] == 0
+        assert data['tasks'] == {}
+        assert data['siblings'] == []
+        mmd = Modulemd.Module().new_from_string(data['modulemd'])
+        mmd.upgrade()
+
+        # Make sure the buildrequires entry was created
+        module = ModuleBuild.query.get(8)
+        assert len(module.buildrequires) == 1
+        assert module.buildrequires[0].name == 'platform'
+        assert module.buildrequires[0].stream == 'f28'
+        assert module.buildrequires[0].version == '3'
+        assert module.buildrequires[0].context == '00000000'
+        assert module.buildrequires[0].stream_version == 280000
+
+    @pytest.mark.parametrize('api_version', [1, 2])
+    @patch('module_build_service.auth.get_user', return_value=user)
+    @patch('module_build_service.scm.SCM')
+    @patch('module_build_service.config.Config.modules_allow_scratch',
+           new_callable=PropertyMock, return_value=False)
+    def test_submit_scratch_build_not_allowed(self, mocked_allow_scratch,
+                                              mocked_scm, mocked_get_user,
+                                              api_version):
+        FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+
+        post_url = '/module-build-service/{0}/module-builds/'.format(api_version)
+        post_data = {
+            'branch': 'master',
+            'scmurl': 'https://src.stg.fedoraproject.org/modules/'
+                      'testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49',
+            'scratch': True,
+        }
+        rv = self.client.post(post_url, data=json.dumps(post_data))
+        data = json.loads(rv.data)
+        expected_error = {
+            'error': 'Forbidden',
+            'message': 'Scratch builds are not enabled',
+            'status': 403
+        }
+        assert data == expected_error
+        assert rv.status_code == expected_error['status']
+
+    @pytest.mark.parametrize('api_version', [1, 2])
+    @patch('module_build_service.auth.get_user', return_value=user)
+    @patch('module_build_service.config.Config.modules_allow_scratch',
+           new_callable=PropertyMock, return_value=True)
+    @patch('module_build_service.config.Config.yaml_submit_allowed',
+           new_callable=PropertyMock, return_value=True)
+    def test_submit_scratch_build_with_mmd(self, mocked_allow_yaml,
+                                           mocked_allow_scratch,
+                                           mocked_get_user,
+                                           api_version):
+        base_dir = path.abspath(path.dirname(__file__))
+        mmd_path = path.join(base_dir, '..', 'staged_data', 'testmodule.yaml')
+        post_url = '/module-build-service/{0}/module-builds/'.format(api_version)
+        with open(mmd_path, 'rb') as f:
+            yaml_file = FileStorage(f)
+            post_data = {
+                'branch': 'master',
+                'scratch': True,
+                'yaml': yaml_file,
+            }
+            rv = self.client.post(post_url, content_type='multipart/form-data', data=post_data)
+        data = json.loads(rv.data)
+
+        if api_version >= 2:
+            assert isinstance(data, list)
+            assert len(data) == 1
+            data = data[0]
+
+        assert 'component_builds' in data, data
+        assert data['component_builds'] == []
+        assert data['name'] == 'testmodule'
+        assert data['scmurl'] is None
+# TODO scrmod: assert data['modulemd'] == ???
+        assert data['modulemd'] is not None
+        assert data['scratch'] is True
+# TODO scrmod: assert data['version'] == ???
+        assert data['version'] is not None
+        assert data['time_submitted'] is not None
+        assert data['time_modified'] is not None
+        assert data['time_completed'] is None
+        assert data['stream'] == 'master'
+        assert data['owner'] == 'Homer J. Simpson'
+        assert data['id'] == 8
+        assert data['rebuild_strategy'] == 'changed-and-after'
+        assert data['state_name'] == 'init'
+        assert data['state_url'] == '/module-build-service/{0}/module-builds/8'.format(api_version)
+        assert len(data['state_trace']) == 1
+        assert data['state_trace'][0]['state'] == 0
+        assert data['tasks'] == {}
+        assert data['siblings'] == []
+        mmd = Modulemd.Module().new_from_string(data['modulemd'])
+        mmd.upgrade()
+
+        # Make sure the buildrequires entry was created
+        module = ModuleBuild.query.get(8)
+        assert len(module.buildrequires) == 1
+        assert module.buildrequires[0].name == 'platform'
+        assert module.buildrequires[0].stream == 'f28'
+        assert module.buildrequires[0].version == '3'
+        assert module.buildrequires[0].context == '00000000'
+        assert module.buildrequires[0].stream_version == 280000
+
+    @pytest.mark.parametrize('api_version', [1, 2])
+    @patch('module_build_service.auth.get_user', return_value=user)
+    @patch('module_build_service.config.Config.modules_allow_scratch',
+           new_callable=PropertyMock, return_value=True)
+    @patch('module_build_service.config.Config.yaml_submit_allowed',
+           new_callable=PropertyMock, return_value=False)
+    def test_submit_scratch_build_with_mmd_not_allowed(self, mocked_allow_yaml,
+                                                       mocked_allow_scratch,
+                                                       mocked_get_user,
+                                                       api_version):
+        base_dir = path.abspath(path.dirname(__file__))
+        mmd_path = path.join(base_dir, '..', 'staged_data', 'testmodule.yaml')
+        post_url = '/module-build-service/{0}/module-builds/'.format(api_version)
+        with open(mmd_path, 'rb') as f:
+            yaml_file = FileStorage(f)
+            post_data = {
+                'branch': 'master',
+                'scratch': True,
+                'yaml': yaml_file,
+            }
+            rv = self.client.post(post_url, content_type='multipart/form-data', data=post_data)
+        data = json.loads(rv.data)
+        expected_error = {
+            'error': 'Forbidden',
+            'message': 'YAML submission is not enabled',
+            'status': 403
+        }
+        assert data == expected_error
+        assert rv.status_code == expected_error['status']
