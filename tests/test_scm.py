@@ -57,6 +57,13 @@ class TestSCMModule:
         target = '5481faa232d66589e660cc301179867fb00842c9'
         assert latest == target, "%r != %r" % (latest, target)
 
+    def test_local_get_latest_commit_hash_is_sane(self):
+        """ See that a hash is returned by scm.get_latest. """
+        scm = module_build_service.scm.SCM(repo_url)
+        latest = scm.get_latest('5481f')
+        target = '5481faa232d66589e660cc301179867fb00842c9'
+        assert latest == target, "%r != %r" % (latest, target)
+
     def test_local_get_latest_unclean_input(self):
         """ Ensure that shell characters aren't handled poorly.
 

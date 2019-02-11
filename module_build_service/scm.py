@@ -129,11 +129,7 @@ class SCM(object):
         return None
 
     @staticmethod
-    @retry(
-        timeout=conf.scm_net_timeout,
-        interval=conf.scm_net_retry_interval,
-        wait_on=UnprocessableEntity)
-    def _run(cmd, chdir=None, log_stdout=False):
+    def _run_without_retry(cmd, chdir=None, log_stdout=False):
         proc = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE, cwd=chdir)
         stdout, stderr = proc.communicate()
         if log_stdout and stdout:
@@ -144,6 +140,14 @@ class SCM(object):
             raise UnprocessableEntity("Failed on %r, retcode %r, out %r, err %r" % (
                 cmd, proc.returncode, stdout, stderr))
         return proc.returncode, stdout, stderr
+
+    @staticmethod
+    @retry(
+        timeout=conf.scm_net_timeout,
+        interval=conf.scm_net_retry_interval,
+        wait_on=UnprocessableEntity)
+    def _run(cmd, chdir=None, log_stdout=False):
+        return SCM._run_without_retry(cmd, chdir, log_stdout)
 
     def checkout(self, scmdir):
         """Checkout the module from SCM.
@@ -198,7 +202,13 @@ class SCM(object):
         if self.scheme == "git":
             log.debug("Getting/verifying commit hash for %s" % self.repository)
             try:
-                _, output, _ = SCM._run([
+                # This will fail if `ref` is not a branch name, but for example commit hash.
+                # It is valid use-case to use commit hashes in modules instead of branch names
+                # and in this case, there is no other way to get the full commit hash then
+                # fallbac to `get_full_commit_hash`. We do not want to retry here, because
+                # in case module contains only commit hashes, it would block for very long
+                # time.
+                _, output, _ = SCM._run_without_retry([
                     "git", "ls-remote", "--exit-code", self.repository, 'refs/heads/' + ref
                 ])
             except UnprocessableEntity:
