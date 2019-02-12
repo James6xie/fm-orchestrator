@@ -710,7 +710,7 @@ class KojiContentGenerator(object):
         # Fill in the list of built RPMs.
         mmd = self._fill_in_rpms_list(mmd, arch)
 
-        return text_type(mmd.dumps())
+        return text_type(mmd.dumps(), "utf-8")
 
     def _download_source_modulemd(self, mmd, output_path):
         """
