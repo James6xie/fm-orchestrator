@@ -43,8 +43,9 @@ RUN yum -y install \
     python-tox \
     rpm-build \
     && yum clean all
-# We currently require a newer versions of these Python packages for the tests
-RUN pip install --upgrade flask-sqlalchemy pytest flake8 tox pip
+# We currently require newer versions of these Python packages for the tests.
+# more-itertools is required by pytest, but versions 6.0.0 and up aren't Python 2 compatible
+RUN pip install --upgrade flask-sqlalchemy pytest flake8 tox pip "more-itertools<6.0.0"
 VOLUME /src
 WORKDIR /src
 CMD ["bash", "docker/test.sh"]
