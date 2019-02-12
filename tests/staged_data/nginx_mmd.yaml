@@ -20,7 +20,7 @@ data:
     summary: An example nginx module
     # A verbose description of the module, required
     description: >
-        A module for the tests of module build service
+        A module for the tests of module build service ’
     # Module and content licenses in the Fedora license identifier
     # format, required
     license:

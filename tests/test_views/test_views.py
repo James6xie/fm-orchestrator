@@ -32,6 +32,7 @@ from os.path import dirname
 from requests.utils import quote
 import hashlib
 import pytest
+from module_build_service.utils import to_text_type
 
 from tests import app, init_data, clean_database, reuse_component_init_data
 from tests import read_staged_data
@@ -183,7 +184,7 @@ class TestViews:
         assert data['runtime_context'] is None
         assert data['id'] == 2
         with open(path.join(base_dir, "staged_data", "nginx_mmd.yaml")) as mmd:
-            assert data['modulemd'] == mmd.read()
+            assert data['modulemd'] == to_text_type(mmd.read())
         assert data['name'] == 'nginx'
         assert data['owner'] == 'Moe Szyslak'
         assert data['scmurl'] == ('git://pkgs.domain.local/modules/nginx'
@@ -1614,7 +1615,7 @@ class TestViews:
             buildrequires['modulea'] = br_modulea
             buildrequires['moduleb'] = br_moduleb
             mmd.set_xmd(dict_values(xmd))
-            build.modulemd = mmd.dumps()
+            build.modulemd = to_text_type(mmd.dumps())
             session.commit()
 
         rv = self.client.get('/module-build-service/1/module-builds/{}'.format(build.id))

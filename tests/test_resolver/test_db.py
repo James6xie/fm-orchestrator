@@ -25,6 +25,7 @@ import os
 from datetime import datetime
 from mock import patch, PropertyMock
 import pytest
+from module_build_service.utils import to_text_type
 
 import module_build_service.resolver as mbs_resolver
 from module_build_service import app, db, models, glib, utils, Modulemd
@@ -65,7 +66,7 @@ class TestDBModule:
             time_submitted=datetime(2018, 11, 15, 16, 8, 18),
             time_modified=datetime(2018, 11, 15, 16, 19, 35),
             rebuild_strategy='changed-and-after',
-            modulemd=mmd.dumps()
+            modulemd=to_text_type(mmd.dumps())
         )
         build.buildrequires.append(platform_f300103)
         db.session.add(build)
@@ -105,7 +106,7 @@ class TestDBModule:
             xmd = glib.from_variant_dict(mmd.get_xmd())
             xmd['mbs']['buildrequires'] = {}
             mmd.set_xmd(glib.dict_values(xmd))
-            module.modulemd = mmd.dumps()
+            module.modulemd = to_text_type(mmd.dumps())
             db.session.add(module)
             db.session.commit()
         resolver = mbs_resolver.GenericResolver.create(tests.conf, backend='db')
@@ -134,7 +135,7 @@ class TestDBModule:
             'version': '20180205135154'
         }
         mmd.set_xmd(glib.dict_values(xmd))
-        module.modulemd = mmd.dumps()
+        module.modulemd = to_text_type(mmd.dumps())
         module.name = 'testmodule2'
         module.version = str(mmd.get_version())
         module.koji_tag = 'module-ae2adf69caf0e1b6'

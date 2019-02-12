@@ -21,6 +21,7 @@
 # Written by Ralph Bean <rbean@redhat.com>
 
 import os
+from module_build_service.utils import to_text_type
 
 from tests.test_models import init_data, module_build_from_modulemd
 from tests import (init_data as init_data_contexts, clean_database)
@@ -66,7 +67,7 @@ class TestModels:
             os.path.dirname(__file__), '..', 'staged_data', 'testmodule_dependencies.yaml')
         mmd = Modulemd.Module.new_from_file(yaml_path)
         mmd.upgrade()
-        build.modulemd = mmd.dumps()
+        build.modulemd = to_text_type(mmd.dumps())
         (build.ref_build_context, build.build_context, build.runtime_context,
          build.context) = ModuleBuild.contexts_from_mmd(build.modulemd)
         assert build.ref_build_context == 'f6e2aeec7576196241b9afa0b6b22acf2b6873d7'
@@ -85,7 +86,7 @@ class TestModels:
         mmd.upgrade()
         with make_session(conf) as session:
             for i in range(3):
-                build = module_build_from_modulemd(mmd.dumps())
+                build = module_build_from_modulemd(to_text_type(mmd.dumps()))
                 build.build_context = 'f6e2aeec7576196241b9afa0b6b22acf2b6873d' + str(i)
                 build.runtime_context = 'bbc84c7b817ab3dd54916c0bcd6c6bdf512f7f9c' + str(i)
                 session.add(build)

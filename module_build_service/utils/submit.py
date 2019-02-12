@@ -29,6 +29,7 @@ import tempfile
 import os
 from multiprocessing.dummy import Pool as ThreadPool
 from datetime import datetime
+from module_build_service.utils import to_text_type
 
 import kobo.rpmlib
 import requests
@@ -562,7 +563,7 @@ def submit_module_build(username, url, mmd, optional_params=None):
                 name=mmd.get_name(),
                 stream=mmd.get_stream(),
                 version=version_str,
-                modulemd=mmd.dumps(),
+                modulemd=to_text_type(mmd.dumps()),
                 scmurl=url,
                 username=username,
                 **(optional_params or {})
@@ -767,7 +768,7 @@ def load_local_builds(local_build_nsvs, session=None):
             stream=mmd.get_stream(),
             version=str(mmd.get_version()),
             context=mmd.get_context(),
-            modulemd=mmd.dumps(),
+            modulemd=to_text_type(mmd.dumps()),
             scmurl="",
             username="mbs",
             publish_msg=False)

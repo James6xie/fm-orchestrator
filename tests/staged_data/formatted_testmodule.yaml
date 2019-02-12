@@ -7,7 +7,7 @@ data:
   context: 9c690d0e
   summary: A test module in all its beautiful beauty
   description: This module demonstrates how to write simple modulemd files And can
-    be used for testing the build and release pipeline.
+    be used for testing the build and release pipeline. ’
   license:
     module:
     - MIT

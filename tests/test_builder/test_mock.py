@@ -4,6 +4,7 @@ import koji
 import tempfile
 import shutil
 from textwrap import dedent
+from module_build_service.utils import to_text_type
 
 import kobo.rpmlib
 
@@ -92,7 +93,7 @@ class TestMockModuleBuilder:
             name="mbs-testmodule",
             stream="test",
             version="20171027111452",
-            modulemd=mmd.dumps(),
+            modulemd=to_text_type(mmd.dumps()),
             scmurl="file:///testdir",
             username="test",
         )

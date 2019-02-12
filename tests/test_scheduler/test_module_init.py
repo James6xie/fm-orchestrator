@@ -24,6 +24,7 @@ import yaml
 
 from mock import patch, PropertyMock
 from gi.repository import GLib
+from module_build_service.utils import to_text_type
 
 from tests import conf, clean_database
 from tests.test_views.test_views import FakeSCM
@@ -42,7 +43,7 @@ class TestModuleInit:
         testmodule_yml_path = os.path.join(
             self.staged_data_dir, 'testmodule_init.yaml')
         with open(testmodule_yml_path, 'r') as f:
-            yaml = f.read()
+            yaml = to_text_type(f.read())
         scmurl = 'git://pkgs.domain.local/modules/testmodule?#620ec77'
         clean_database()
         with make_session(conf) as session:
@@ -78,7 +79,7 @@ class TestModuleInit:
         filter_list.add("foo")
         filter_list.add("bar")
         mmd.set_rpm_filter(filter_list)
-        platform_build.modulemd = mmd.dumps()
+        platform_build.modulemd = to_text_type(mmd.dumps())
         db.session.commit()
 
         msg = module_build_service.messaging.MBSModule(
@@ -137,7 +138,7 @@ class TestModuleInit:
         includedmodules_yml_path = os.path.join(
             self.staged_data_dir, 'includedmodules.yaml')
         with open(includedmodules_yml_path, 'r') as f:
-            yaml = f.read()
+            yaml = to_text_type(f.read())
         scmurl = 'git://pkgs.domain.local/modules/includedmodule?#da95886'
         with make_session(conf) as session:
             ModuleBuild.create(

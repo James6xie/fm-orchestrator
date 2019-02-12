@@ -26,6 +26,7 @@ from mock import patch
 import time
 import hashlib
 from traceback import extract_stack
+from module_build_service.utils import to_text_type
 
 import koji
 import module_build_service
@@ -54,7 +55,7 @@ def read_staged_data(yaml_name):
     if not os.path.exists(filename):
         raise ValueError('Staged data {}.yaml does not exist.'.format(yaml_name))
     with open(filename, 'r') as mmd:
-        return mmd.read()
+        return to_text_type(mmd.read())
 
 
 def patch_config():
@@ -153,8 +154,7 @@ def _populate_data(session, data_size=10, contexts=False):
                 build_one.ref_build_context = unique_hash
                 combined_hashes = '{0}:{1}'.format(unique_hash, unique_hash)
                 build_one.context = hashlib.sha1(combined_hashes.encode("utf-8")).hexdigest()[:8]
-            with open(os.path.join(base_dir, "staged_data", "nginx_mmd.yaml")) as mmd:
-                build_one.modulemd = mmd.read()
+            build_one.modulemd = read_staged_data('nginx_mmd')
             build_one.koji_tag = 'module-nginx-1.2'
             build_one.scmurl = ('git://pkgs.domain.local/modules/nginx?'
                                 '#ba95886c7a443b36a9ce31abda1f9bef22f2f8c9')
@@ -343,7 +343,7 @@ def scheduler_init_data(tangerine_state=None):
     build_one.time_submitted = datetime(2017, 2, 15, 16, 8, 18)
     build_one.time_modified = datetime(2017, 2, 15, 16, 19, 35)
     build_one.rebuild_strategy = 'changed-and-after'
-    build_one.modulemd = mmd.dumps()
+    build_one.modulemd = to_text_type(mmd.dumps())
     build_one_component_release = get_rpm_release(build_one)
     build_one.buildrequires.append(platform_br)
 
@@ -456,7 +456,7 @@ def reuse_component_init_data():
     xmd['mbs']['scmurl'] = build_one.scmurl
     xmd['mbs']['commit'] = 'ff1ea79fc952143efeed1851aa0aa006559239ba'
     mmd.set_xmd(glib.dict_values(xmd))
-    build_one.modulemd = mmd.dumps()
+    build_one.modulemd = to_text_type(mmd.dumps())
     build_one.buildrequires.append(platform_br)
 
     component_one_build_one = module_build_service.models.ComponentBuild()
@@ -541,7 +541,7 @@ def reuse_component_init_data():
     xmd['mbs']['scmurl'] = build_one.scmurl
     xmd['mbs']['commit'] = '55f4a0a2e6cc255c88712a905157ab39315b8fd8'
     mmd.set_xmd(glib.dict_values(xmd))
-    build_two.modulemd = mmd.dumps()
+    build_two.modulemd = to_text_type(mmd.dumps())
     build_two.buildrequires.append(platform_br)
 
     component_one_build_two = module_build_service.models.ComponentBuild()
@@ -620,7 +620,7 @@ def reuse_shared_userspace_init_data():
         build_one.build_context = 'e046b867a400a06a3571f3c71142d497895fefbe'
         build_one.runtime_context = '50dd3eb5dde600d072e45d4120e1548ce66bc94a'
         build_one.state = BUILD_STATES['ready']
-        build_one.modulemd = mmd.dumps()
+        build_one.modulemd = to_text_type(mmd.dumps())
         build_one.koji_tag = 'module-shared-userspace-f26-20170601141014-75f92abb'
         build_one.scmurl = ('https://src.stg.fedoraproject.org/modules/testmodule.'
                             'git?#7fea453')
@@ -671,7 +671,7 @@ def reuse_shared_userspace_init_data():
         build_one.build_context = 'e046b867a400a06a3571f3c71142d497895fefbe'
         build_one.runtime_context = '50dd3eb5dde600d072e45d4120e1548ce66bc94a'
         build_one.state = BUILD_STATES['done']
-        build_one.modulemd = mmd2.dumps()
+        build_one.modulemd = to_text_type(mmd2.dumps())
         build_one.koji_tag = 'module-shared-userspace-f26-20170605091544-75f92abb'
         build_one.scmurl = ('https://src.stg.fedoraproject.org/modules/testmodule.'
                             'git?#7fea453')
@@ -741,7 +741,8 @@ def make_module(nsvc, requires_list=None, build_requires_list=None, base_module=
     mmd.set_version(int(version))
     mmd.set_context(context)
     mmd.set_summary("foo")
-    mmd.set_description("foo")
+    # Test unicode in mmd.
+    mmd.set_description(u"foo \u2019s")
     licenses = Modulemd.SimpleSet()
     licenses.add("GPL")
     mmd.set_module_licenses(licenses)
@@ -802,7 +803,7 @@ def make_module(nsvc, requires_list=None, build_requires_list=None, base_module=
     module_build.build_context = context
     module_build.stream_build_context = context
     module_build.runtime_context = context
-    module_build.modulemd = mmd.dumps()
+    module_build.modulemd = to_text_type(mmd.dumps())
     if base_module:
         module_build.buildrequires.append(base_module)
     if 'koji_tag' in xmd['mbs']:

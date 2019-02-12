@@ -625,8 +625,8 @@
                 }
             ],
             "arch": "noarch",
-            "filesize": 1134,
-            "checksum": "bf1615b15f6a0fee485abe94af6b56b6",
+            "filesize": 1136,
+            "checksum": "96b7739ffa3918e6ac3e3bd422b064ea",
             "checksum_type": "md5",
             "type": "file",
             "extra": {
@@ -652,7 +652,7 @@
                     "version": "2",
                     "module_build_service_id": 2,
                     "content_koji_tag": "module-nginx-1.2",
-                    "modulemd_str": "# Document type identifier\ndocument: modulemd\n# Module metadata format version\nversion: 1\ndata:\n    # Module name, optional\n    # Typically filled in by the buildsystem, using the VCS repository\n    # name as the name of the module.\n    name: nginx\n    # Module update stream, optional\n    # Typically filled in by the buildsystem, using the VCS branch name\n    # as the name of the stream.\n    stream: 1\n    # Module version, integer, optional, cannot be negative\n    # Typically filled in by the buildsystem, using the VCS commit\n    # timestamp.  Module version defines upgrade path for the particular\n    # update stream.\n    version: 2\n    # A short summary describing the module, required\n    summary: An example nginx module\n    # A verbose description of the module, required\n    description: >\n        A module for the tests of module build service\n    # Module and content licenses in the Fedora license identifier\n    # format, required\n    license:\n        # Module license, required\n        # This list covers licenses used for the module metadata, SPEC\n        # files or extra patches\n        module:\n            - MIT\n"
+                    "modulemd_str": "# Document type identifier\ndocument: modulemd\n# Module metadata format version\nversion: 1\ndata:\n    # Module name, optional\n    # Typically filled in by the buildsystem, using the VCS repository\n    # name as the name of the module.\n    name: nginx\n    # Module update stream, optional\n    # Typically filled in by the buildsystem, using the VCS branch name\n    # as the name of the stream.\n    stream: 1\n    # Module version, integer, optional, cannot be negative\n    # Typically filled in by the buildsystem, using the VCS commit\n    # timestamp.  Module version defines upgrade path for the particular\n    # update stream.\n    version: 2\n    # A short summary describing the module, required\n    summary: An example nginx module\n    # A verbose description of the module, required\n    description: >\n        A module for the tests of module build service ’\n    # Module and content licenses in the Fedora license identifier\n    # format, required\n    license:\n        # Module license, required\n        # This list covers licenses used for the module metadata, SPEC\n        # files or extra patches\n        module:\n            - MIT\n"
                 }
             }
         },

@@ -23,7 +23,7 @@ data:
       silly: puddy
       glass: water
   description: This module demonstrates how to write simple modulemd files And can
-    be used for testing the build and release pipeline.
+    be used for testing the build and release pipeline. 😄
   filter: {}
   license:
     module: [MIT]

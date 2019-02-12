@@ -21,11 +21,13 @@
 # Written by Stanislav Ochotnicky <sochotnicky@redhat.com>
 #            Jan Kaluza <jkaluza@redhat.com>
 
+import io
 import pytest
 import json
 
 import os
 from os import path
+from module_build_service.utils import to_text_type
 
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.repos # noqa
@@ -192,21 +194,21 @@ class TestBuild:
     def test_prepare_file_directory(self):
         """ Test preparation of directory with output files """
         dir_path = self.cg._prepare_file_directory()
-        with open(path.join(dir_path, "modulemd.txt")) as mmd:
-            assert len(mmd.read()) == 1134
+        with io.open(path.join(dir_path, "modulemd.txt"), encoding="utf-8") as mmd:
+            assert len(mmd.read()) == 1136
 
     def test_prepare_file_directory_per_arch_mmds(self):
         """ Test preparation of directory with output files """
         self.cg.arches = ["x86_64", "i686"]
         dir_path = self.cg._prepare_file_directory()
-        with open(path.join(dir_path, "modulemd.txt")) as mmd:
-            assert len(mmd.read()) == 1134
+        with io.open(path.join(dir_path, "modulemd.txt"), encoding="utf-8") as mmd:
+            assert len(mmd.read()) == 1136
 
-        with open(path.join(dir_path, "modulemd.x86_64.txt")) as mmd:
+        with io.open(path.join(dir_path, "modulemd.x86_64.txt"), encoding="utf-8") as mmd:
+            assert len(mmd.read()) == 259
+
+        with io.open(path.join(dir_path, "modulemd.i686.txt"), encoding="utf-8") as mmd:
             assert len(mmd.read()) == 257
-
-        with open(path.join(dir_path, "modulemd.i686.txt")) as mmd:
-            assert len(mmd.read()) == 255
 
     @patch.dict("sys.modules", krbV=Mock())
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
@@ -274,17 +276,17 @@ class TestBuild:
     @patch("module_build_service.builder.KojiContentGenerator.open", create=True)
     def test_get_arch_mmd_output(self, patched_open):
         patched_open.return_value = mock_open(
-            read_data=self.cg.mmd.encode("utf-8")).return_value
+            read_data=self.cg.mmd).return_value
         ret = self.cg._get_arch_mmd_output("./fake-dir", "x86_64")
         assert ret == {
             'arch': 'x86_64',
             'buildroot_id': 1,
-            'checksum': 'bf1615b15f6a0fee485abe94af6b56b6',
+            'checksum': '96b7739ffa3918e6ac3e3bd422b064ea',
             'checksum_type': 'md5',
             'components': [],
             'extra': {'typeinfo': {'module': {}}},
             'filename': 'modulemd.x86_64.txt',
-            'filesize': 1134,
+            'filesize': 1136,
             'type': 'file'
         }
 
@@ -294,7 +296,7 @@ class TestBuild:
         rpm_artifacts = mmd.get_rpm_artifacts()
         rpm_artifacts.add("dhcp-libs-12:4.3.5-5.module_2118aef6.x86_64")
         mmd.set_rpm_artifacts(rpm_artifacts)
-        mmd_data = mmd.dumps().encode("utf-8")
+        mmd_data = to_text_type(mmd.dumps())
 
         patched_open.return_value = mock_open(
             read_data=mmd_data).return_value
@@ -323,7 +325,7 @@ class TestBuild:
         assert ret == {
             'arch': 'x86_64',
             'buildroot_id': 1,
-            'checksum': '1bcc38b6f19285b3656b84a0443f46d2',
+            'checksum': '502e46889affec24d98a281289104d4d',
             'checksum_type': 'md5',
             'components': [{u'arch': 'x86_64',
                             u'epoch': '12',
@@ -334,7 +336,7 @@ class TestBuild:
                             u'version': '4.3.5'}],
             'extra': {'typeinfo': {'module': {}}},
             'filename': 'modulemd.x86_64.txt',
-            'filesize': 315,
+            'filesize': 317,
             'type': 'file'
         }
 
@@ -546,8 +548,8 @@ class TestBuild:
                 component.set_multilib(multilib_set)
 
             mmd.add_rpm_component(component)
-            self.cg.module.modulemd = mmd.dumps()
-            self.cg.modulemd = mmd.dumps()
+            self.cg.module.modulemd = to_text_type(mmd.dumps())
+            self.cg.modulemd = to_text_type(mmd.dumps())
 
     @pytest.mark.parametrize("devel", (False, True))
     def test_fill_in_rpms_list(self, devel):
@@ -855,10 +857,10 @@ class TestBuild:
         mmd.set_xmd(glib.dict_values({"mbs": {
             "commit": "foo",
             "scmurl": "git://localhost/modules/foo.git#master"}}))
-        self.cg.module.modulemd = mmd.dumps()
+        self.cg.module.modulemd = to_text_type(mmd.dumps())
         file_dir = self.cg._prepare_file_directory()
-        with open(path.join(file_dir, "modulemd.src.txt")) as mmd:
-            assert len(mmd.read()) == 1337
+        with io.open(path.join(file_dir, "modulemd.src.txt"), encoding="utf-8") as mmd:
+            assert len(mmd.read()) == 1339
 
     def test_finalize_mmd_devel(self):
         self.cg.devel = True

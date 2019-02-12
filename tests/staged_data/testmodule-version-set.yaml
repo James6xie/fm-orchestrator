@@ -2,7 +2,7 @@ document: modulemd
 version: 1
 data:
     summary: A test module in all its beauty
-    description: This module demonstrates how to write simple modulemd files And can be used for testing the build and release pipeline.
+    description: This module demonstrates how to write simple modulemd files And can be used for testing the build and release pipeline. ’
     version: 0123456789
     license:
         module: [ MIT ]

@@ -31,6 +31,7 @@ try:
 except ImportError:
     import xmlrpc.client as xmlrpclib
 from collections import OrderedDict
+from module_build_service.utils import to_text_type
 
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.repos
@@ -266,7 +267,7 @@ class TestKojiBuilder:
             xmd = glib.from_variant_dict(mmd.get_xmd())
             xmd["mbs_options"] = {"blocked_packages": ["foo", "bar", "new"]}
             mmd.set_xmd(glib.dict_values(xmd))
-            self.module.modulemd = mmd.dumps()
+            self.module.modulemd = to_text_type(mmd.dumps())
 
         builder = FakeKojiModuleBuilder(owner=self.module.owner,
                                         module=self.module,
@@ -448,14 +449,14 @@ class TestKojiBuilder:
             xmd = glib.from_variant_dict(mmd.get_xmd())
             xmd["mbs_options"] = {"blocked_packages": ["foo", "nginx"]}
             mmd.set_xmd(glib.dict_values(xmd))
-            self.module.modulemd = mmd.dumps()
+            self.module.modulemd = to_text_type(mmd.dumps())
 
         if custom_whitelist:
             mmd = self.module.mmd()
             opts = mmd.get_buildopts()
             opts.set_rpm_whitelist(['custom1', 'custom2'])
             mmd.set_buildopts(opts)
-            self.module.modulemd = mmd.dumps()
+            self.module.modulemd = to_text_type(mmd.dumps())
 
         if repo_include_all is False:
             mmd = self.module.mmd()
@@ -464,7 +465,7 @@ class TestKojiBuilder:
             mbs_options["repo_include_all"] = False
             xmd["mbs_options"] = mbs_options
             mmd.set_xmd(glib.dict_values(xmd))
-            self.module.modulemd = mmd.dumps()
+            self.module.modulemd = to_text_type(mmd.dumps())
 
         if override_arches:
             mmd = self.module.mmd()
@@ -473,7 +474,7 @@ class TestKojiBuilder:
             mbs_options["buildrequires"] = {"platform": {"stream": "xx"}}
             xmd["mbs"] = mbs_options
             mmd.set_xmd(glib.dict_values(xmd))
-            self.module.modulemd = mmd.dumps()
+            self.module.modulemd = to_text_type(mmd.dumps())
 
         builder = FakeKojiModuleBuilder(
             owner=self.module.owner, module=self.module, config=conf, tag_name='module-foo',
@@ -532,7 +533,7 @@ class TestKojiBuilder:
             xmd = glib.from_variant_dict(mmd.get_xmd())
             xmd["mbs_options"] = {"blocked_packages": ["foo", "nginx"]}
             mmd.set_xmd(glib.dict_values(xmd))
-            self.module.modulemd = mmd.dumps()
+            self.module.modulemd = to_text_type(mmd.dumps())
 
         builder = FakeKojiModuleBuilder(
             owner=self.module.owner, module=self.module, config=conf, tag_name='module-foo',

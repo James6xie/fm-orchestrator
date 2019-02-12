@@ -3,7 +3,7 @@ version: 1
 data:
     stream: wrong_stream
     summary: A test module in all its beauty
-    description: This module demonstrates how to write simple modulemd files And can be used for testing the build and release pipeline.
+    description: This module demonstrates how to write simple modulemd files And can be used for testing the build and release pipeline. ’
     license:
         module: [ MIT ]
     dependencies:

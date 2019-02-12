@@ -28,6 +28,7 @@ from os.path import dirname
 from shutil import copyfile
 from datetime import datetime, timedelta
 from random import randint
+from module_build_service.utils import to_text_type
 
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.repos
@@ -443,7 +444,7 @@ class TestBuild:
 
         testmodule = os.path.join(base_dir, 'staged_data', 'testmodule.yaml')
         with open(testmodule) as f:
-            yaml = f.read()
+            yaml = to_text_type(f.read())
 
         with patch.object(module_build_service.config.Config, 'yaml_submit_allowed',
                           new_callable=PropertyMock, return_value=False):
@@ -885,7 +886,7 @@ class TestBuild:
         formatted_testmodule_yml_path = os.path.join(
             current_dir, '..', 'staged_data', 'formatted_testmodule.yaml')
         with open(formatted_testmodule_yml_path, 'r') as f:
-            build_one.modulemd = f.read()
+            build_one.modulemd = to_text_type(f.read())
         build_one.koji_tag = 'module-testmodule-master-20180205135154-9c690d0e'
         build_one.scmurl = 'https://src.stg.fedoraproject.org/modules/testmodule.git?#7fea453'
         build_one.batch = 2
@@ -1012,7 +1013,7 @@ class TestBuild:
         formatted_testmodule_yml_path = os.path.join(
             current_dir, '..', 'staged_data', 'formatted_testmodule.yaml')
         with open(formatted_testmodule_yml_path, 'r') as f:
-            build_one.modulemd = f.read()
+            build_one.modulemd = to_text_type(f.read())
         build_one.koji_tag = 'module-testmodule-master-20180205135154-6ef9a711'
         build_one.scmurl = 'https://src.stg.fedoraproject.org/modules/testmodule.git?#7fea453'
         build_one.batch = 2

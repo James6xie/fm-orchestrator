@@ -27,10 +27,21 @@ import inspect
 import hashlib
 import time
 from datetime import datetime
+from six import text_type
 
 from module_build_service import conf, log, models
 from module_build_service.errors import (
     ValidationError, ProgrammingError, UnprocessableEntity)
+
+
+def to_text_type(s):
+    """
+    Converts `s` to `text_type`. In case it fails, returns `s`.
+    """
+    try:
+        return text_type(s, "utf-8")
+    except TypeError:
+        return s
 
 
 def scm_url_schemes(terse=False):
@@ -323,7 +334,7 @@ def import_mmd(session, mmd):
     build.version = version
     build.koji_tag = koji_tag
     build.state = models.BUILD_STATES['ready']
-    build.modulemd = mmd.dumps()
+    build.modulemd = to_text_type(mmd.dumps())
     build.context = context
     build.owner = "mbs_import"
     build.rebuild_strategy = 'all'

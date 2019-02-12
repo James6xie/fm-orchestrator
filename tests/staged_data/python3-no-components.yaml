@@ -19,7 +19,7 @@ data:
 
         Programmers can write new built-in modules for Python in C or C++.
         Python can be used as an extension language for applications that
-        need a programmable interface.
+        need a programmable interface. ’
     license:
         module:
             - MIT

@@ -18,12 +18,14 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import io
 import tempfile
 from os import path, mkdir
 from shutil import copyfile, rmtree
 from datetime import datetime
 from werkzeug.datastructures import FileStorage
 from mock import patch
+from module_build_service.utils import to_text_type
 import module_build_service.utils
 import module_build_service.scm
 from module_build_service import models, conf
@@ -93,7 +95,7 @@ class TestUtilsComponentReuse:
             mmd = second_module_build.mmd()
             mmd.get_rpm_components()['tangerine'].set_ref(
                 '00ea1da4192a2030f9ae023de3b3143ed647bbab')
-            second_module_build.modulemd = mmd.dumps()
+            second_module_build.modulemd = to_text_type(mmd.dumps())
             second_module_changed_component = models.ComponentBuild.query.filter_by(
                 package=changed_component, module_id=3).one()
             second_module_changed_component.ref = '00ea1da4192a2030f9ae023de3b3143ed647bbab'
@@ -133,7 +135,7 @@ class TestUtilsComponentReuse:
         second_module_build = models.ModuleBuild.query.filter_by(id=3).one()
         mmd = second_module_build.mmd()
         mmd.set_rpm_buildopts({'macros': '%my_macro 1'})
-        second_module_build.modulemd = mmd.dumps()
+        second_module_build.modulemd = to_text_type(mmd.dumps())
         db.session.commit()
 
         plc_rv = module_build_service.utils.get_reusable_component(
@@ -153,7 +155,7 @@ class TestUtilsComponentReuse:
             arches = Modulemd.SimpleSet()
             arches.set(['i686'])
             mmd.get_rpm_components()['tangerine'].set_arches(arches)
-            second_module_build.modulemd = mmd.dumps()
+            second_module_build.modulemd = to_text_type(mmd.dumps())
         if set_database_arch:       # set architecture for build in database
             second_module_changed_component = models.ComponentBuild.query.filter_by(
                 package='tangerine', module_id=2).one()
@@ -161,7 +163,7 @@ class TestUtilsComponentReuse:
             arches = Modulemd.SimpleSet()
             arches.set(['i686'])
             mmd.get_rpm_components()['tangerine'].set_arches(arches)
-            second_module_changed_component.module_build.modulemd = mmd.dumps()
+            second_module_changed_component.module_build.modulemd = to_text_type(mmd.dumps())
             db.session.add(second_module_changed_component)
             db.session.commit()
 
@@ -179,7 +181,7 @@ class TestUtilsComponentReuse:
         xmd['mbs']['buildrequires']['platform']['ref'] = \
             'da39a3ee5e6b4b0d3255bfef95601890afd80709'
         mmd.set_xmd(glib.dict_values(xmd))
-        second_module_build.modulemd = mmd.dumps()
+        second_module_build.modulemd = to_text_type(mmd.dumps())
         second_module_build.ref_build_context = '37c6c57bedf4305ef41249c1794760b5cb8fad17'
         second_module_build.rebuild_strategy = rebuild_strategy
         db.session.commit()
@@ -209,7 +211,7 @@ class TestUtilsComponentReuse:
         xmd = glib.from_variant_dict(mmd.get_xmd())
         xmd['mbs']['buildrequires']['platform']['stream'] = 'different'
         mmd.set_xmd(glib.dict_values(xmd))
-        second_module_build.modulemd = mmd.dumps()
+        second_module_build.modulemd = to_text_type(mmd.dumps())
         second_module_build.build_context = '37c6c57bedf4305ef41249c1794760b5cb8fad17'
         second_module_build.rebuild_strategy = rebuild_strategy
         db.session.commit()
@@ -240,7 +242,7 @@ class TestUtilsComponentReuse:
             }
         }
         mmd.set_xmd(glib.dict_values(xmd))
-        second_module_build.modulemd = mmd.dumps()
+        second_module_build.modulemd = to_text_type(mmd.dumps())
         second_module_build.ref_build_context = '37c6c57bedf4305ef41249c1794760b5cb8fad17'
         db.session.commit()
 
@@ -268,13 +270,13 @@ class TestUtilsComponentReuse:
         module_dir = tempfile.mkdtemp()
         module = models.ModuleBuild.query.filter_by(id=3).one()
         mmd = module.mmd()
-        modulemd_yaml = mmd.dumps()
+        modulemd_yaml = to_text_type(mmd.dumps())
         modulemd_file_path = path.join(module_dir, "testmodule.yaml")
 
         username = "test"
         stream = "dev"
 
-        with open(modulemd_file_path, "w") as fd:
+        with io.open(modulemd_file_path, "w", encoding='utf-8') as fd:
             fd.write(modulemd_yaml)
 
         with open(modulemd_file_path, "rb") as fd:
@@ -530,7 +532,7 @@ class TestUtils:
             module_build.time_submitted = datetime(2017, 2, 15, 16, 8, 18)
             module_build.time_modified = datetime(2017, 2, 15, 16, 19, 35)
             module_build.rebuild_strategy = 'changed-and-after'
-            module_build.modulemd = mmd.dumps()
+            module_build.modulemd = to_text_type(mmd.dumps())
             db.session.add(module_build)
             db.session.commit()
             # Rename the the modulemd to include
@@ -578,7 +580,7 @@ class TestUtils:
             module_build.time_submitted = datetime(2017, 2, 15, 16, 8, 18)
             module_build.time_modified = datetime(2017, 2, 15, 16, 19, 35)
             module_build.rebuild_strategy = 'changed-and-after'
-            module_build.modulemd = mmd.dumps()
+            module_build.modulemd = to_text_type(mmd.dumps())
             db.session.add(module_build)
             db.session.commit()
 

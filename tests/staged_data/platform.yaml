@@ -1,7 +1,7 @@
 document: modulemd
 version: 1
 data:
-  description: Fedora 28 traditional base
+  description: Fedora 28 traditional base ’
   name: platform
   license:
     module: [MIT]

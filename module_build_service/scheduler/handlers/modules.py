@@ -38,6 +38,7 @@ from module_build_service.errors import UnprocessableEntity, Forbidden, Validati
 from module_build_service.utils.ursine import handle_stream_collision_modules
 
 from requests.exceptions import ConnectionError
+from module_build_service.utils import to_text_type
 
 import koji
 
@@ -155,7 +156,7 @@ def init(config, session, msg):
         record_component_builds(mmd, build, session=session)
         handle_stream_collision_modules(mmd)
         mmd = record_filtered_rpms(mmd)
-        build.modulemd = mmd.dumps()
+        build.modulemd = to_text_type(mmd.dumps())
         build.transition(conf, models.BUILD_STATES["wait"])
     # Catch custom exceptions that we can expose to the user
     except (UnprocessableEntity, Forbidden, ValidationError, RuntimeError) as e:

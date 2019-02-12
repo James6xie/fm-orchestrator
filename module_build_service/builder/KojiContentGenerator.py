@@ -22,7 +22,6 @@
 # Written by Stanislav Ochotnicky <sochotnicky@redhat.com>
 #            Jan Kaluza <jkaluza@redhat.com>
 
-
 import calendar
 import hashlib
 import logging
@@ -46,6 +45,7 @@ import pungi.arch
 
 from module_build_service import conf, log, build_logs, Modulemd, glib
 from module_build_service.scm import SCM
+from module_build_service.utils import to_text_type
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -95,7 +95,7 @@ class KojiContentGenerator(object):
         self.owner = module.owner
         self.module = module
         self.module_name = module.name
-        self.mmd = module.modulemd
+        self.mmd = to_text_type(module.modulemd)
         self.config = config
         self.devel = False
         # List of architectures the module is built for.
@@ -407,7 +407,7 @@ class KojiContentGenerator(object):
         mmd_path = os.path.join(output_path, mmd_filename)
         try:
             with open(mmd_path, 'rb') as mmd_f:
-                data = mmd_f.read().decode('utf-8')
+                data = to_text_type(mmd_f.read())
                 mmd = Modulemd.Module().new_from_string(data)
                 ret['filename'] = mmd_filename
                 ret['filesize'] = len(data)
@@ -710,7 +710,7 @@ class KojiContentGenerator(object):
         # Fill in the list of built RPMs.
         mmd = self._fill_in_rpms_list(mmd, arch)
 
-        return text_type(mmd.dumps())
+        return to_text_type(mmd.dumps())
 
     def _download_source_modulemd(self, mmd, output_path):
         """
@@ -759,7 +759,7 @@ class KojiContentGenerator(object):
         prepdir = tempfile.mkdtemp(prefix="koji-cg-import")
         mmd_path = os.path.join(prepdir, "modulemd.txt")
         log.info("Writing generic modulemd.yaml to %r" % mmd_path)
-        with open(mmd_path, "w") as mmd_f:
+        with open(mmd_path, "w", encoding="utf-8") as mmd_f:
             mmd_f.write(self.mmd)
 
         mmd_path = os.path.join(prepdir, "modulemd.src.txt")
@@ -769,7 +769,7 @@ class KojiContentGenerator(object):
             mmd_path = os.path.join(prepdir, "modulemd.%s.txt" % arch)
             log.info("Writing %s modulemd.yaml to %r" % (arch, mmd_path))
             mmd = self._finalize_mmd(arch)
-            with open(mmd_path, "w") as mmd_f:
+            with open(mmd_path, "w", encoding="utf-8") as mmd_f:
                 mmd_f.write(mmd)
 
         log_path = os.path.join(prepdir, "build.log")
