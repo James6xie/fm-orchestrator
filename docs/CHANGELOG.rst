@@ -1,6 +1,15 @@
 Change Log
 ==========
 
+v2.14.0
+-------
+* Add the ``allowed_users`` configuration for service accounts to bypass the group membership check
+* Fix the handling of modulemd files with unicode characters
+* Fix issues that occur if a module build is cancelled in the ``init`` state and resumed
+* Add basic Prometheus monitoring
+* Fix a bug in the ``init`` state handler when commit hashes are provided instead of a branch name
+* Add Python 3 support except for Kerberos authentication with Koji
+
 v2.13.1
 -------
 * Allow resubmiting the same module build when it results in new MSE build(s)
