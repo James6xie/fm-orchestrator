@@ -481,6 +481,10 @@ class Config(object):
             'type': str,
             'default': 'https://kojipkgs.fedoraproject.org/',
             'desc': 'URL prefix of base module\'s external repo.'},
+        'allowed_users': {
+            'type': set,
+            'default': set(),
+            'desc': 'The users/service accounts that don\'t require to be part of a group'}
     }
 
     def __init__(self, conf_section_obj):

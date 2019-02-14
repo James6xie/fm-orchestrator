@@ -1150,6 +1150,22 @@ class TestViews:
         build = ModuleBuild.query.filter(ModuleBuild.id == result['id']).one()
         assert (build.owner == result['owner'] == 'foo') is True
 
+    @patch('module_build_service.auth.get_user', return_value=('svc_account', set()))
+    @patch('module_build_service.scm.SCM')
+    @patch('module_build_service.config.Config.allowed_users', new_callable=PropertyMock)
+    def test_submit_build_allowed_users(self, allowed_users, mocked_scm, mocked_get_user):
+        FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+
+        allowed_users.return_value = {'svc_account'}
+        data = {
+            'branch': 'master',
+            'scmurl': 'https://src.stg.fedoraproject.org/modules/'
+                      'testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49',
+        }
+        rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(data))
+        assert rv.status_code == 201
+
     @patch('module_build_service.auth.get_user', return_value=anonymous_user)
     @patch('module_build_service.scm.SCM')
     @patch("module_build_service.config.Config.no_auth", new_callable=PropertyMock)

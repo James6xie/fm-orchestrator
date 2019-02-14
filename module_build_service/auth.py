@@ -147,14 +147,19 @@ def get_user_oidc(request):
         log.exception(error)
         raise Exception(error)
 
-    try:
-        groups = set(extended_data['groups'])
-    except Exception as e:
-        error = "Could not find groups in UserInfo from OIDC %s" % str(e)
-        log.exception(extended_data)
-        raise Exception(error)
+    username = data["username"]
+    # If the user is part of the whitelist, then the group membership check is skipped
+    if username in conf.allowed_users:
+        groups = set()
+    else:
+        try:
+            groups = set(extended_data['groups'])
+        except Exception as e:
+            error = "Could not find groups in UserInfo from OIDC %s" % str(e)
+            log.exception(extended_data)
+            raise Exception(error)
 
-    return data["username"], groups
+    return username, groups
 
 
 # Insired by https://pagure.io/waiverdb/blob/master/f/waiverdb/auth.py which was
@@ -245,7 +250,11 @@ def get_user_kerberos(request):
     user, kerberos_token = KerberosAuthenticate().process_request(token)
     # Remove the realm
     user = user.split('@')[0]
-    groups = get_ldap_group_membership(user)
+    # If the user is part of the whitelist, then the group membership check is skipped
+    if user in conf.allowed_users:
+        groups = []
+    else:
+        groups = get_ldap_group_membership(user)
     return user, set(groups)
 
 

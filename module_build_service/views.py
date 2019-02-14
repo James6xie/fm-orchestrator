@@ -162,6 +162,9 @@ class ModuleBuildAPI(AbstractQueryableBuildAPI):
 
     @staticmethod
     def check_groups(username, groups, allowed_groups=conf.allowed_groups):
+        # If the user is part of the whitelist, then the group membership check is skipped
+        if username in conf.allowed_users:
+            return
         if allowed_groups and not (allowed_groups & groups):
             raise Forbidden("%s is not in any of %r, only %r" % (
                 username, allowed_groups, groups))

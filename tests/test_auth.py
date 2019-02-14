@@ -74,9 +74,12 @@ class TestAuthModule:
                 module_build_service.auth.get_user(request)
                 assert str(cm.value) == "OIDC token invalid or expired."
 
+    @pytest.mark.parametrize('allowed_users', (set(), set(['Joey Jo Jo Junior Shabadoo'])))
+    @patch.object(mbs_config.Config, 'allowed_users', new_callable=PropertyMock)
     @patch('module_build_service.auth._get_token_info')
     @patch('module_build_service.auth._get_user_info')
-    def test_get_user_good(self, get_user_info, get_token_info):
+    def test_get_user_good(self, get_user_info, get_token_info, m_allowed_users, allowed_users):
+        m_allowed_users.return_value = allowed_users
         base_dir = path.abspath(path.dirname(__file__))
         client_secrets = path.join(base_dir, "client_secrets.json")
         with patch.dict('module_build_service.app.config', {'OIDC_CLIENT_SECRETS': client_secrets,
@@ -99,7 +102,10 @@ class TestAuthModule:
 
             username, groups = module_build_service.auth.get_user(request)
             assert username == name
-            assert groups == set(get_user_info.return_value["groups"])
+            if allowed_users:
+                assert groups == set()
+            else:
+                assert groups == set(get_user_info.return_value["groups"])
 
     @patch.object(mbs_config.Config, 'no_auth', new_callable=PropertyMock, return_value=True)
     def test_disable_authentication(self, conf_no_auth):
@@ -219,6 +225,7 @@ class KerberosMockConfig(object):
 
 
 class TestAuthModuleKerberos:
+    @pytest.mark.parametrize('allowed_users', (set(), set(['mprahl'])))
     @patch('kerberos.authGSSServerInit', return_value=(kerberos.AUTH_GSS_COMPLETE, object()))
     @patch('kerberos.authGSSServerStep', return_value=kerberos.AUTH_GSS_COMPLETE)
     @patch('kerberos.authGSSServerResponse', return_value='STOKEN')
@@ -227,11 +234,13 @@ class TestAuthModuleKerberos:
     @patch('kerberos.getServerPrincipalDetails')
     @patch.dict('os.environ')
     @patch('module_build_service.auth.stack')
-    def test_get_user_kerberos(self, stack, principal, clean, name, response,
-                               step, init):
+    @patch.object(mbs_config.Config, 'allowed_users', new_callable=PropertyMock)
+    def test_get_user_kerberos(self, m_allowed_users, stack, principal, clean, name, response,
+                               step, init, allowed_users):
         """
         Test that authentication works with Kerberos and LDAP
         """
+        m_allowed_users.return_value = allowed_users
         mock_top = Mock()
         stack.return_value = mock_top
 
@@ -277,10 +286,17 @@ class TestAuthModuleKerberos:
         connection.strategy.add_entry('cn=devs,ou=groups,{0}'.format(base_dn), devs_group_attrs)
         connection.strategy.add_entry('cn=mprahl,ou=users,{0}'.format(base_dn), mprahl_attrs)
 
-        groups = {'devs', 'factory2-devs'}
+        # If the user is in allowed_users, then group membership is not checked, and an empty set
+        # is just returned for the groups
+        if allowed_users:
+            expected_groups = set()
+        else:
+            expected_groups = {'devs', 'factory2-devs'}
+
         with patch('ldap3.Connection') as mock_ldap_con, KerberosMockConfig():
             mock_ldap_con.return_value = connection
-            assert module_build_service.auth.get_user_kerberos(request) == ('mprahl', groups)
+            assert module_build_service.auth.get_user_kerberos(request) == \
+                ('mprahl', expected_groups)
 
     def test_auth_header_not_set(self):
         """
