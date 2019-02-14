@@ -159,6 +159,11 @@ def format_mmd(mmd, scmurl):
             xmd['mbs']['rpms'] = {}
         # Add missing data in RPM components
         for pkgname, pkg in mmd.get_rpm_components().items():
+            # In case of resubmit of existing module which have been
+            # cancelled/failed during the init state, the package
+            # was maybe already handled by MBS, so skip it in this case.
+            if pkgname in xmd['mbs']['rpms']:
+                continue
             if pkg.get_repository() and not conf.rpms_allow_repository:
                 raise Forbidden(
                     "Custom component repositories aren't allowed.  "
@@ -193,7 +198,11 @@ def format_mmd(mmd, scmurl):
         # by real SCM hash and store the result to our private xmd place in modulemd.
         pool = ThreadPool(20)
         try:
-            pkg_dicts = pool.map(_scm_get_latest, mmd.get_rpm_components().values())
+            # Filter out the packages which we have already resolved in possible
+            # previous runs of this method (can be caused by module build resubmition).
+            pkgs_to_resolve = [pkg for pkg in mmd.get_rpm_components().values()
+                               if pkg.get_name() not in xmd['mbs']['rpms']]
+            pkg_dicts = pool.map(_scm_get_latest, pkgs_to_resolve)
         finally:
             pool.close()
 
@@ -355,6 +364,22 @@ def record_component_builds(mmd, module, initial_batch=1,
 
         component_ref = mmd.get_xmd()['mbs']['rpms'][component.get_name()]['ref']
         full_url = component.get_repository() + "?#" + component_ref
+
+        # Skip the ComponentBuild if it already exists in database. This can happen
+        # in case of module build resubmition.
+        existing_build = models.ComponentBuild.from_component_name(
+            db.session, component.get_name(), module.id)
+        if existing_build:
+            # Check that the existing build has the same most important attributes.
+            # This should never be a problem, but it's good to be defensive here so
+            # we do not mess things during resubmition.
+            if (existing_build.batch != batch or existing_build.scmurl != full_url or
+                    existing_build.ref != component_ref):
+                raise ValidationError(
+                    "Module build %s already exists in database, but its attributes "
+                    " are different from resubmitted one." % component.get_name())
+            continue
+
         build = models.ComponentBuild(
             module_id=module.id,
             package=component.get_name(),

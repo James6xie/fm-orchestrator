@@ -20,6 +20,7 @@
 #
 
 import os
+import yaml
 
 from mock import patch, PropertyMock
 from gi.repository import GLib
@@ -93,6 +94,23 @@ class TestModuleInit:
         assert type(xmd_mbs) is GLib.Variant
         assert xmd_mbs["buildrequires"]["platform"]["filtered_rpms"] == [
             'foo-0:2.4.48-3.el8+1308+551bfa71', 'bar-0:2.5.48-3.el8+1308+551bfa71']
+        return build
+
+    def test_init_called_twice(self):
+        build = self.test_init_basic()
+        old_component_builds = len(build.component_builds)
+        old_mmd = yaml.load(build.modulemd)
+
+        build.state = 4
+        db.session.commit()
+        build = self.test_init_basic()
+        db.session.refresh(build)
+
+        assert build.state == 1
+        assert old_component_builds == len(build.component_builds)
+
+        new_mmd = yaml.load(build.modulemd)
+        assert old_mmd == new_mmd
 
     @patch('module_build_service.scm.SCM')
     def test_init_scm_not_available(self, mocked_scm):
