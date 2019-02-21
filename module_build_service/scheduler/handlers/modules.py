@@ -41,6 +41,10 @@ from requests.exceptions import ConnectionError
 from module_build_service.utils import to_text_type
 
 import koji
+try:
+    import xmlrpclib
+except ImportError:
+    import xmlrpc.client as xmlrpclib
 
 import logging
 import os
@@ -145,6 +149,7 @@ def init(config, session, msg):
             break
         time.sleep(1)
 
+    error_msg = ''
     try:
         mmd = build.mmd()
         record_component_builds(mmd, build, session=session)
@@ -155,18 +160,21 @@ def init(config, session, msg):
     # Catch custom exceptions that we can expose to the user
     except (UnprocessableEntity, Forbidden, ValidationError, RuntimeError) as e:
         log.exception(str(e))
-        # Rollback changes underway
-        session.rollback()
-        build.transition(conf, models.BUILD_STATES["failed"], state_reason=str(e))
+        error_msg = str(e)
+    except (xmlrpclib.ProtocolError, koji.GenericError) as e:
+        log.exception(str(e))
+        error_msg = 'Koji communication error: "{0}"'.format(str(e))
     except Exception as e:
         log.exception(str(e))
-        # Rollback changes underway
-        session.rollback()
-        msg = "An unknown error occurred while validating the modulemd"
-        build.transition(conf, models.BUILD_STATES["failed"], state_reason=msg)
-    finally:
+        error_msg = "An unknown error occurred while validating the modulemd"
+    else:
         session.add(build)
         session.commit()
+    finally:
+        if error_msg:
+            # Rollback changes underway
+            session.rollback()
+            build.transition(conf, models.BUILD_STATES["failed"], state_reason=error_msg)
 
 
 def generate_module_build_koji_tag(build):
