@@ -33,6 +33,7 @@ from requests.utils import quote
 import hashlib
 import pytest
 from module_build_service.utils import to_text_type
+import re
 
 from tests import app, init_data, clean_database, reuse_component_init_data
 from tests import read_staged_data
@@ -972,7 +973,8 @@ class TestViews:
             {'branch': 'master', 'scmurl': 'https://src.stg.fedoraproject.org/modules/'
                 'testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49'}))
         data = json.loads(rv.data)
-        assert data['message'].startswith('The following invalid modulemd was encountered') is True
+        assert re.match(r'The modulemd .* is invalid\. Please verify the syntax is correct',
+                        data['message'])
         assert data['status'] == 422
         assert data['error'] == 'Unprocessable Entity'
 
@@ -1596,7 +1598,8 @@ class TestViews:
         data = json.loads(rv.data)
 
         assert data['error'] == 'Unprocessable Entity'
-        assert data['message'].startswith('The following invalid modulemd was encountered')
+        assert re.match(r'The modulemd .* is invalid\. Please verify the syntax is correct',
+                        data['message'])
 
     @pytest.mark.parametrize('api_version', [1, 2])
     @patch('module_build_service.auth.get_user', return_value=import_module_user)

@@ -699,7 +699,19 @@ def load_mmd(yaml, is_file=False):
         # If the modulemd was v1, it will be upgraded to v2
         mmd.upgrade()
     except Exception:
-        error = 'The following invalid modulemd was encountered: {0}'.format(yaml)
+        if is_file:
+            error = 'The modulemd {} is invalid. Please verify the syntax is correct'.format(
+                os.path.basename(yaml)
+            )
+            if os.path.exists(yaml):
+                with open(yaml, 'rt') as yaml_hdl:
+                    log.debug('Modulemd content:\n%s', yaml_hdl.read())
+            else:
+                error = 'The modulemd file {} not found!'.format(os.path.basename(yaml))
+                log.error('The modulemd file %s not found!', yaml)
+        else:
+            error = 'The modulemd is invalid. Please verify the syntax is correct'
+            log.debug('Modulemd content:\n%s', yaml)
         log.exception(error)
         raise UnprocessableEntity(error)
 
