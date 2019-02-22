@@ -630,6 +630,31 @@ class TestUtils:
             for pkg in mmd2.get_rpm_components().values():
                 assert set(pkg.get_arches().get()) == set(test_archs)
 
+    @patch('module_build_service.scm.SCM')
+    @patch('module_build_service.utils.submit.ThreadPool')
+    def test_format_mmd_update_time_modified(self, tp, mocked_scm):
+        with app.app_context():
+            init_data()
+            build = models.ModuleBuild.query.get(2)
+
+            async_result = mock.MagicMock()
+            async_result.ready.side_effect = [False, False, False, True]
+            tp.return_value.map_async.return_value = async_result
+
+            test_datetime = datetime(2019, 2, 14, 11, 11, 45, 42968)
+
+            testmodule_mmd_path = path.join(
+                BASE_DIR, '..', 'staged_data', 'testmodule.yaml')
+
+            mmd1 = Modulemd.Module().new_from_file(testmodule_mmd_path)
+            mmd1.upgrade()
+
+            with patch('module_build_service.utils.submit.datetime') as dt:
+                dt.utcnow.return_value = test_datetime
+                module_build_service.utils.format_mmd(mmd1, None, build, db.session)
+
+            assert build.time_modified == test_datetime
+
     def test_generate_koji_tag_in_nsvc_format(self):
         name, stream, version, context = ('testmodule', 'master', '20170816080815', '37c6c57')
 

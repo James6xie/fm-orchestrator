@@ -119,13 +119,16 @@ def _scm_get_latest(pkg):
     }
 
 
-def format_mmd(mmd, scmurl):
+def format_mmd(mmd, scmurl, module=None, session=None):
     """
     Prepares the modulemd for the MBS. This does things such as replacing the
     branches of components with commit hashes and adding metadata in the xmd
     dictionary.
     :param mmd: the Modulemd.Module object to format
     :param scmurl: the url to the modulemd
+    :param module: When specified together with `session`, the time_modified
+        of a module is updated regularly in case this method takes lot of time.
+    :param session: Database session to update the `module`.
     """
     # Import it here, because SCM uses utils methods and fails to import
     # them because of dep-chain.
@@ -203,7 +206,17 @@ def format_mmd(mmd, scmurl):
             # previous runs of this method (can be caused by module build resubmition).
             pkgs_to_resolve = [pkg for pkg in mmd.get_rpm_components().values()
                                if pkg.get_name() not in xmd['mbs']['rpms']]
-            pkg_dicts = pool.map(_scm_get_latest, pkgs_to_resolve)
+            async_result = pool.map_async(_scm_get_latest, pkgs_to_resolve)
+
+            # For modules with lot of components, the _scm_get_latest can take a lot of time.
+            # We need to bump time_modified from time to time, otherwise poller could think
+            # that module is stuck in "init" state and it would send fake "init" message.
+            while not async_result.ready():
+                async_result.wait(60)
+                if module and session:
+                    module.time_modified = datetime.utcnow()
+                    session.commit()
+            pkg_dicts = async_result.get()
         finally:
             pool.close()
 
@@ -310,7 +323,7 @@ def record_component_builds(mmd, module, initial_batch=1,
 
     # Format the modulemd by putting in defaults and replacing streams that
     # are branches with commit hashes
-    format_mmd(mmd, module.scmurl)
+    format_mmd(mmd, module.scmurl, module, session)
 
     # When main_mmd is set, merge the metadata from this mmd to main_mmd,
     # otherwise our current mmd is main_mmd.
