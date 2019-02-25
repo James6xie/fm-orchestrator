@@ -35,11 +35,7 @@ import random
 import string
 import kobo.rpmlib
 import threading
-try:
-    import xmlrpclib
-except ImportError:
-    import xmlrpc.client as xmlrpclib
-
+import six.moves.xmlrpc_client as xmlrpclib
 import munch
 from itertools import chain
 from OpenSSL.SSL import SysCallError

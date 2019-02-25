@@ -26,10 +26,7 @@ import tempfile
 import mock
 import koji
 
-try:
-    import xmlrpclib
-except ImportError:
-    import xmlrpc.client as xmlrpclib
+import six.moves.xmlrpc_client as xmlrpclib
 from collections import OrderedDict
 from module_build_service.utils import to_text_type
 

@@ -41,11 +41,7 @@ from requests.exceptions import ConnectionError
 from module_build_service.utils import to_text_type
 
 import koji
-try:
-    import xmlrpclib
-except ImportError:
-    import xmlrpc.client as xmlrpclib
-
+import six.moves.xmlrpc_client as xmlrpclib
 import logging
 import os
 import time
