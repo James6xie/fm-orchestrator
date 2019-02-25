@@ -523,6 +523,9 @@ def submit_module_build(username, url, mmd, optional_params=None):
 
     validate_mmd(mmd)
     mmds = generate_expanded_mmds(db.session, mmd, raise_if_stream_ambigous, default_streams)
+    if not mmds:
+        raise ValidationError('No dependency combination was satisfied. Please verify the '
+                              'buildrequires in your modulemd have previously been built.')
     modules = []
 
     # True if all module builds are skipped so MBS will actually not rebuild
