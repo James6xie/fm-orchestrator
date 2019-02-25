@@ -102,7 +102,7 @@ def import_module(mmd_file):
 
 @manager.option('--stream', action='store', dest="stream")
 @manager.option('--file', action='store', dest="yaml_file")
-@manager.option('--srpms', '--srpm', nargs='*', action='store', default=[], dest="srpms")
+@manager.option('--srpm', action='append', default=[], dest="srpms", metavar='SRPM')
 @manager.option('--skiptests', action='store_true', dest="skiptests")
 @manager.option('-l', '--add-local-build', action='append', default=None, dest='local_build_nsvs')
 @manager.option('-s', '--set-stream', action='append', default=[], dest='default_streams')
