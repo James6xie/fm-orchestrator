@@ -231,6 +231,7 @@ class MBSProducer(PollingProducer):
         log.warning('process_open_component_builds is not yet implemented...')
 
     def process_paused_module_builds(self, config, session):
+        log.info('Looking for paused module builds in the build state')
         if module_build_service.utils.at_concurrent_component_threshold(
                 config, session):
             log.debug('Will not attempt to start paused module builds due to '
@@ -255,6 +256,7 @@ class MBSProducer(PollingProducer):
             # repo-regen.
             if (not module_build.current_batch(koji.BUILD_STATES['BUILDING']) and
                not module_build.new_repo_task_id):
+                log.info('  Processing the paused module build %r', module_build)
                 # Initialize the builder...
                 builder = GenericBuilder.create_from_module(
                     session, module_build, config)
