@@ -1795,10 +1795,10 @@ class TestViews:
         assert data['component_builds'] == []
         assert data['name'] == 'testmodule'
         assert data['scmurl'] is None
-# TODO scrmod: assert data['modulemd'] == ???
+        # generated modulemd is nondeterministic, so just make sure it is set
         assert data['modulemd'] is not None
         assert data['scratch'] is True
-# TODO scrmod: assert data['version'] == ???
+        # generated version is nondeterministic, so just make sure it is set
         assert data['version'] is not None
         assert data['time_submitted'] is not None
         assert data['time_modified'] is not None

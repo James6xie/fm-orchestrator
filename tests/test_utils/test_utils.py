@@ -336,6 +336,21 @@ class TestUtils:
         release = module_build_service.utils.get_rpm_release(build_one)
         assert release == 'module+f28+2+814cfa39'
 
+    def test_get_rpm_release_mse_scratch(self):
+        init_data(contexts=True, scratch=True)
+        build_one = models.ModuleBuild.query.get(2)
+        build_two = models.ModuleBuild.query.get(3)
+        release_one = module_build_service.utils.get_rpm_release(build_one)
+        release_two = module_build_service.utils.get_rpm_release(build_two)
+        assert release_one == "scrmod+2+b8645bbb"
+        assert release_two == "scrmod+2+17e35784"
+
+    def test_get_rpm_release_platform_stream_scratch(self):
+        scheduler_init_data(1, scratch=True)
+        build_one = models.ModuleBuild.query.get(2)
+        release = module_build_service.utils.get_rpm_release(build_one)
+        assert release == 'scrmod+f28+2+814cfa39'
+
     @pytest.mark.parametrize('scmurl', [
         ('https://src.stg.fedoraproject.org/modules/testmodule.git'
          '?#620ec77321b2ea7b0d67d82992dda3e1d67055b4'),

@@ -62,7 +62,6 @@ def make_simple_stop_condition(session):
         done = (
             module_build_service.models.BUILD_STATES["failed"],
             module_build_service.models.BUILD_STATES["ready"],
-            # XXX should this one be removed?
             module_build_service.models.BUILD_STATES["done"],
         )
         result = module.state in done

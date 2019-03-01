@@ -163,10 +163,6 @@ def format_mmd(mmd, scmurl, module=None, session=None):
         if 'rpms' not in xmd['mbs']:
             xmd['mbs']['rpms'] = {}
         # Add missing data in RPM components
-        # TODO scrmod: Does something need to be done here for RPMs that are
-        # overridden by custom SRPMs in addition to what is currently being
-        # done in record_component_builds()? Should repository and cache
-        # properties be set? If so, to what?
         for pkgname, pkg in mmd.get_rpm_components().items():
             # In case of resubmit of existing module which have been
             # cancelled/failed during the init state, the package
@@ -317,6 +313,7 @@ def merge_included_mmd(mmd, included_mmd):
     # Set the modified xmd back to the modulemd
     mmd.set_xmd(glib.dict_values(xmd))
 
+
 def get_module_srpm_overrides(module):
     """
     Make necessary preparations to use any provided custom SRPMs.
@@ -365,6 +362,7 @@ def get_module_srpm_overrides(module):
         overrides[rpm_name] = source
 
     return overrides
+
 
 def record_component_builds(mmd, module, initial_batch=1,
                             previous_buildorder=None, main_mmd=None, session=None):

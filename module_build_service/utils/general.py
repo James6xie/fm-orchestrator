@@ -105,7 +105,7 @@ def module_build_state_from_msg(msg):
     return state
 
 
-def generate_koji_tag(name, stream, version, context, max_length=256, scratch=False):
+def generate_koji_tag(name, stream, version, context, max_length=256, scratch=False, scratch_id=0):
     """Generate a koji tag for a module
 
     Generally, a module's koji tag is in format ``module-N-S-V-C``. However, if
@@ -120,18 +120,24 @@ def generate_koji_tag(name, stream, version, context, max_length=256, scratch=Fa
         characters, which is the maximum length of a tag Koji accepts.
     :param bool scratch: a flag indicating if the generated tag will be for
         a scratch module build
+    :param int scratch_id: for scratch module builds, a unique build identifier
     :return: a Koji tag
     :rtype: str
     """
-    prefix = ('scrmod' if scratch else 'module')
-    # TODO scrmod: is a unique _suffix_ needed here, too?
+    if scratch:
+        prefix = 'scrmod-'
+        # use unique suffix so same commit can be resubmitted
+        suffix = '+' + str(scratch_id)
+    else:
+        prefix = 'module-'
+        suffix = ''
     nsvc_list = [name, stream, str(version), context]
-    nsvc_tag = '-'.join([prefix] + nsvc_list)
+    nsvc_tag = prefix + '-'.join(nsvc_list) + suffix
     if len(nsvc_tag) + len('-build') > max_length:
         # Fallback to the old format of 'module-<hash>' if the generated koji tag
         # name is longer than max_length
         nsvc_hash = hashlib.sha1('.'.join(nsvc_list).encode('utf-8')).hexdigest()[:16]
-        return prefix + '-' + nsvc_hash
+        return prefix + nsvc_hash + suffix
     return nsvc_tag
 
 
@@ -211,9 +217,6 @@ def validate_koji_tag(tag_arg_names, pre='', post='-', dict_key='name'):
     return validation_decorator
 
 
-# TODO scrmod: scratch module build components need a unique dist tag prefix/suffix
-# to distinguish them and make it possible to build the same NSVC multiple times,
-# but what should it be? Is this the place to set that?
 def get_rpm_release(module_build):
     """
     Generates the dist tag for the specified module
@@ -248,8 +251,11 @@ def get_rpm_release(module_build):
             log.warning('Module build {0} does not buildrequire a base module ({1})'
                         .format(module_build.id, ' or '.join(conf.base_module_names)))
 
+    # use alternate prefix for scratch module build components so they can be identified
+    prefix = ('scrmod+' if module_build.scratch else conf.default_dist_tag_prefix)
+
     return '{prefix}{base_module_stream}{index}+{dist_hash}'.format(
-        prefix=conf.default_dist_tag_prefix,
+        prefix=prefix,
         base_module_stream=base_module_stream,
         index=index,
         dist_hash=dist_hash,

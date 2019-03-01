@@ -395,9 +395,6 @@ class BaseHandler(object):
 
 
 class SCMHandler(BaseHandler):
-    def __init__(self, request):
-        super(SCMHandler, self).__init__(request)
-
     def validate(self, skip_branch=False, skip_optional_params=False):
         if "scmurl" not in self.data:
             log.error('Missing scmurl')

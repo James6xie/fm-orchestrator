@@ -1232,7 +1232,8 @@ chmod 644 %buildroot/etc/rpm/macros.zz-modules
         tags = []
         koji_tags = session.listTags(rpm_md["build_id"])
         for t in koji_tags:
-            if not t["name"].endswith("-build") and t["name"].startswith(("module-", "scrmod-")):
+            if (not t["name"].endswith("-build") and
+                    t["name"].startswith(tuple(conf.koji_tag_prefixes))):
                 tags.append(t["name"])
 
         return tags

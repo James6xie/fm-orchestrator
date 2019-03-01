@@ -93,7 +93,7 @@ def get_reusable_module(session, module):
     previous_module_build = session.query(models.ModuleBuild)\
         .filter_by(name=mmd.get_name())\
         .filter_by(stream=mmd.get_stream())\
-        .filter(models.ModuleBuild.state.in_([3, 5]))\
+        .filter_by(state=models.BUILD_STATES["ready"])\
         .filter(models.ModuleBuild.scmurl.isnot(None))\
         .filter_by(build_context=module.build_context)\
         .order_by(models.ModuleBuild.time_completed.desc())

@@ -27,7 +27,7 @@
 """
 
 import contextlib
-from json import dumps, loads
+import json
 from collections import OrderedDict
 from datetime import datetime
 import hashlib
@@ -448,13 +448,13 @@ class ModuleBuild(MBSBase):
             raise ValueError('The module\'s modulemd hasn\'t been formatted by MBS')
         mmd_formatted_buildrequires = {
             dep: info['ref'] for dep, info in mbs_xmd["buildrequires"].items()}
-        property_json = dumps(OrderedDict(sorted(mmd_formatted_buildrequires.items())))
+        property_json = json.dumps(OrderedDict(sorted(mmd_formatted_buildrequires.items())))
         rv.append(hashlib.sha1(property_json.encode('utf-8')).hexdigest())
 
         # Get the streams of buildrequires and hash it.
         mmd_formatted_buildrequires = {
             dep: info['stream'] for dep, info in mbs_xmd["buildrequires"].items()}
-        property_json = dumps(OrderedDict(sorted(mmd_formatted_buildrequires.items())))
+        property_json = json.dumps(OrderedDict(sorted(mmd_formatted_buildrequires.items())))
         build_context = hashlib.sha1(property_json.encode('utf-8')).hexdigest()
         rv.append(build_context)
 
@@ -469,7 +469,7 @@ class ModuleBuild(MBSBase):
         # Sort the streams for each module name and also sort the module names.
         mmd_requires = {
             dep: sorted(list(streams)) for dep, streams in mmd_requires.items()}
-        property_json = dumps(OrderedDict(sorted(mmd_requires.items())))
+        property_json = json.dumps(OrderedDict(sorted(mmd_requires.items())))
         runtime_context = hashlib.sha1(property_json.encode('utf-8')).hexdigest()
         rv.append(runtime_context)
 
@@ -488,7 +488,8 @@ class ModuleBuild(MBSBase):
 
     @classmethod
     def create(cls, session, conf, name, stream, version, modulemd, scmurl, username,
-               context=None, rebuild_strategy=None, scratch=False, srpms=[], publish_msg=True):
+               context=None, rebuild_strategy=None, scratch=False, srpms=None,
+               publish_msg=True, **kwargs):
         now = datetime.utcnow()
         module = cls(
             name=name,
@@ -504,7 +505,8 @@ class ModuleBuild(MBSBase):
             # If the rebuild_strategy isn't specified, use the default
             rebuild_strategy=rebuild_strategy or conf.rebuild_strategy,
             scratch=scratch,
-            srpms=dumps(srpms) if srpms else '[]',
+            srpms=json.dumps(srpms or []),
+            **kwargs
         )
         # Add a state transition to "init"
         mbt = ModuleBuildTrace(state_time=now, state=module.state)
@@ -641,15 +643,15 @@ class ModuleBuild(MBSBase):
             buildrequires = xmd['mbs']['buildrequires']
         except KeyError:
             buildrequires = {}
-        json = self.short_json()
-        json.update({
+        rv = self.short_json()
+        rv.update({
             'component_builds': [build.id for build in self.component_builds],
             'koji_tag': self.koji_tag,
             'owner': self.owner,
             'rebuild_strategy': self.rebuild_strategy,
             'scmurl': self.scmurl,
             'scratch': self.scratch,
-            'srpms': loads(self.srpms) if self.srpms else [],
+            'srpms': json.loads(self.srpms or '[]'),
             'siblings': self.siblings,
             'state_reason': self.state_reason,
             'time_completed': _utc_datetime_to_iso(self.time_completed),
@@ -658,8 +660,8 @@ class ModuleBuild(MBSBase):
             'buildrequires': buildrequires,
         })
         if show_tasks:
-            json['tasks'] = self.tasks()
-        return json
+            rv['tasks'] = self.tasks()
+        return rv
 
     def extended_json(self, show_state_url=False, api_version=1):
         """
@@ -669,12 +671,12 @@ class ModuleBuild(MBSBase):
         SQLAlchemy sessions.
         :kwarg api_version: the API version to use when building the state URL
         """
-        json = self.json(show_tasks=True)
+        rv = self.json(show_tasks=True)
         state_url = None
         if show_state_url:
             state_url = get_url_for('module_build', api_version=api_version, id=self.id)
 
-        json.update({
+        rv.update({
             'base_module_buildrequires': [br.short_json(True) for br in self.buildrequires],
             'build_context': self.build_context,
             'modulemd': self.modulemd,
@@ -691,7 +693,7 @@ class ModuleBuild(MBSBase):
             'state_url': state_url,
         })
 
-        return json
+        return rv
 
     def tasks(self):
         """

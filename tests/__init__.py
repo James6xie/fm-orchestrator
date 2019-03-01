@@ -110,7 +110,7 @@ def clean_database(add_platform_module=True):
         import_mmd(db.session, mmd)
 
 
-def init_data(data_size=10, contexts=False, multiple_stream_versions=False):
+def init_data(data_size=10, contexts=False, multiple_stream_versions=False, scratch=False):
     """
     Creates data_size * 3 modules in database in different states and
     with different component builds. See _populate_data for more info.
@@ -132,10 +132,10 @@ def init_data(data_size=10, contexts=False, multiple_stream_versions=False):
             mmd.set_stream(stream)
             import_mmd(db.session, mmd)
     with make_session(conf) as session:
-        _populate_data(session, data_size, contexts=contexts)
+        _populate_data(session, data_size, contexts=contexts, scratch=scratch)
 
 
-def _populate_data(session, data_size=10, contexts=False):
+def _populate_data(session, data_size=10, contexts=False, scratch=False):
     num_contexts = 2 if contexts else 1
     for index in range(data_size):
         for context in range(num_contexts):
@@ -144,6 +144,7 @@ def _populate_data(session, data_size=10, contexts=False):
             build_one.stream = '1'
             build_one.version = 2 + index
             build_one.state = BUILD_STATES['ready']
+            build_one.scratch = scratch
             if contexts:
                 build_one.stream = str(index)
                 unique_hash = hashlib.sha1(("%s:%s:%d:%d" % (
@@ -155,7 +156,10 @@ def _populate_data(session, data_size=10, contexts=False):
                 combined_hashes = '{0}:{1}'.format(unique_hash, unique_hash)
                 build_one.context = hashlib.sha1(combined_hashes.encode("utf-8")).hexdigest()[:8]
             build_one.modulemd = read_staged_data('nginx_mmd')
-            build_one.koji_tag = 'module-nginx-1.2'
+            if scratch:
+                build_one.koji_tag = 'scrmod-nginx-1.2'
+            else:
+                build_one.koji_tag = 'module-nginx-1.2'
             build_one.scmurl = ('git://pkgs.domain.local/modules/nginx?'
                                 '#ba95886c7a443b36a9ce31abda1f9bef22f2f8c9')
             build_one.batch = 2
@@ -206,8 +210,12 @@ def _populate_data(session, data_size=10, contexts=False):
         build_two.stream = '1'
         build_two.version = 2 + index
         build_two.state = BUILD_STATES['done']
+        build_two.scratch = scratch
         build_two.modulemd = read_staged_data('testmodule')
-        build_two.koji_tag = 'module-postgressql-1.2'
+        if scratch:
+            build_two.koji_tag = 'scrmod-postgressql-1.2'
+        else:
+            build_two.koji_tag = 'module-postgressql-1.2'
         build_two.scmurl = ('git://pkgs.domain.local/modules/postgressql?'
                             '#aa95886c7a443b36a9ce31abda1f9bef22f2f8c9')
         build_two.batch = 2
@@ -257,6 +265,7 @@ def _populate_data(session, data_size=10, contexts=False):
         build_three.stream = '4.3.43'
         build_three.version = 6 + index
         build_three.state = BUILD_STATES['wait']
+        build_three.scratch = scratch
         build_three.modulemd = read_staged_data('testmodule')
         build_three.koji_tag = None
         build_three.scmurl = ('git://pkgs.domain.local/modules/testmodule?'
@@ -310,7 +319,7 @@ def _populate_data(session, data_size=10, contexts=False):
         session.commit()
 
 
-def scheduler_init_data(tangerine_state=None):
+def scheduler_init_data(tangerine_state=None, scratch=False):
     """ Creates a testmodule in the building state with all the components in the same batch
     """
     clean_database()
@@ -329,10 +338,14 @@ def scheduler_init_data(tangerine_state=None):
     build_one.stream = 'master'
     build_one.version = 20170109091357
     build_one.state = BUILD_STATES['build']
+    build_one.scratch = scratch
     build_one.build_context = 'ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0'
     build_one.runtime_context = 'ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0'
     build_one.context = '7c29193d'
-    build_one.koji_tag = 'module-testmodule-master-20170109091357-7c29193d'
+    if scratch:
+        build_one.koji_tag = 'scrmod-testmodule-master-20170109091357-7c29193d'
+    else:
+        build_one.koji_tag = 'module-testmodule-master-20170109091357-7c29193d'
     build_one.scmurl = 'https://src.stg.fedoraproject.org/modules/testmodule.git?#ff1ea79'
     if tangerine_state:
         build_one.batch = 3

@@ -116,6 +116,7 @@ def done(config, session, msg):
     """Called whenever a module enters the 'done' state.
 
     We currently don't do anything useful, so moving to ready.
+    Except for scratch module builds, which remain in the done state.
     Otherwise the done -> ready state should happen when all
     dependent modules were re-built, at least that's the current plan.
     """
@@ -128,8 +129,10 @@ def done(config, session, msg):
         # This is ok.. it's a race condition we can ignore.
         pass
 
-    build.transition(config, state="ready")
-    session.commit()
+    # Scratch builds stay in 'done' state, otherwise move to 'ready'
+    if not build.scratch:
+        build.transition(config, state="ready")
+        session.commit()
 
     build_logs.stop(build)
     module_build_service.builder.GenericBuilder.clear_cache(build)
@@ -184,7 +187,7 @@ def generate_module_build_koji_tag(build):
     log.info('Getting tag for %s:%s:%s', build.name, build.stream, build.version)
     if conf.system in ['koji', 'test']:
         return generate_koji_tag(build.name, build.stream, build.version, build.context,
-                                 scratch=build.scratch)
+                                 scratch=build.scratch, scratch_id=build.id)
     else:
         return '-'.join(['module', build.name, build.stream, build.version])
 
