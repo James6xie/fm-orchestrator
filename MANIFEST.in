@@ -9,3 +9,4 @@ recursive-include module_build_service *
 recursive-include fedmsg.d *
 recursive-include tests *.yaml *.json
 recursive-include tests/scm_data *
+recursive-include client *
