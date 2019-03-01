@@ -1,6 +1,15 @@
 Change Log
 ==========
 
+v2.15.0
+-------
+* Create Koji CG module build in the end of "build" phase. Previously, it was created in the end of "done" phase.
+* Fix the race-condition between MBS and its poller resulting in module build fail in case initial git clone took too long.
+* Add simple mbs-cli tool to execute administration tasks using the MBS REST API.
+* Return an exception to the user if no dependency combination is determined.
+* Send more user-friendly message back to user in case the modulemd is invalid.
+* Set proper state_reason when module build fails in early phase because of Koji relate issue.
+
 v2.14.0
 -------
 * Add the ``allowed_users`` configuration for service accounts to bypass the group membership check
