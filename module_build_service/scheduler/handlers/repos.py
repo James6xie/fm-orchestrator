@@ -26,6 +26,7 @@
 import module_build_service.builder
 import logging
 import koji
+from datetime import datetime
 from module_build_service import models, log
 from module_build_service.utils import start_next_batch_build
 
@@ -149,6 +150,7 @@ def done(config, session, msg):
                                     state_reason=state_reason)
         else:
             # Tell the external buildsystem to wrap up (CG import, createrepo, etc.)
+            module_build.time_completed = datetime.utcnow()
             builder.finalize()
 
             module_build.transition(config, state=models.BUILD_STATES['done'])

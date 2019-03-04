@@ -101,6 +101,20 @@ class TestRepoDone:
         get_session.return_value = mock.Mock(), 'development'
         build_fn.return_value = 1234, 1, '', None
 
+        # Ensure the time_completed is None, so we can test it is set to
+        # some date once the build is finalized.
+        module_build = module_build_service.models.ModuleBuild.query.get(2)
+        module_build.time_completed = None
+        db.session.commit()
+
+        def mocked_finalizer():
+            # Check that the time_completed is set in the time when
+            # finalizer is called.
+            module_build = module_build_service.models.ModuleBuild.query.get(2)
+            assert module_build.time_completed is not None
+
+        finalizer.side_effect = mocked_finalizer
+
         msg = module_build_service.messaging.KojiRepoChange(
             'some_msg_id', 'module-testmodule-master-20170109091357-7c29193d-build')
         module_build_service.scheduler.handlers.repos.done(
