@@ -1,6 +1,11 @@
 Change Log
 ==========
 
+v2.16.0
+-------
+* Add support for building scratch-builds of modules.
+* Fix traceback when creating CG build in Koji introduced in 2.15.0.
+
 v2.15.0
 -------
 * Create Koji CG module build in the end of "build" phase. Previously, it was created in the end of "done" phase.
