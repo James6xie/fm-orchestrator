@@ -26,7 +26,7 @@ POST request directly including the contents of a YAML modulemd file
 ``utils.submit.submit_module_build_from_yaml(...)`` method which also goes down
 to ``submit_module_build(...)``.
 
-If module scratch builds are allowed (MBS setting ``MODULE_ALLOW_SCRATCH`` is
+If module scratch builds are allowed (MBS setting ``MODULES_ALLOW_SCRATCH`` is
 ``True``), the user can also upload one or more source RPMs uploaded to Koji
 via calls to Koji's ``session.uploadWrapper(..)``, and supply the list of
 upload links to MBS (called ``srpms``). Such custom SRPMs will be used to
