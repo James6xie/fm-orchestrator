@@ -625,7 +625,7 @@
                 }
             ],
             "arch": "noarch",
-            "filesize": 1136,
+            "filesize": 1138,
             "checksum": "96b7739ffa3918e6ac3e3bd422b064ea",
             "checksum_type": "md5",
             "type": "file",
