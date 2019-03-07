@@ -407,11 +407,12 @@ class KojiContentGenerator(object):
         mmd_path = os.path.join(output_path, mmd_filename)
         try:
             with open(mmd_path, 'rb') as mmd_f:
-                data = to_text_type(mmd_f.read())
+                raw_data = mmd_f.read()
+                data = to_text_type(raw_data)
                 mmd = Modulemd.Module().new_from_string(data)
                 ret['filename'] = mmd_filename
-                ret['filesize'] = len(data)
-                ret['checksum'] = hashlib.md5(data.encode('utf-8')).hexdigest()
+                ret['filesize'] = len(raw_data)
+                ret['checksum'] = hashlib.md5(raw_data).hexdigest()
         except IOError:
             if arch == "src":
                 # This might happen in case the Module is submitted directly

@@ -276,7 +276,7 @@ class TestBuild:
     @patch("module_build_service.builder.KojiContentGenerator.open", create=True)
     def test_get_arch_mmd_output(self, patched_open):
         patched_open.return_value = mock_open(
-            read_data=self.cg.mmd).return_value
+            read_data=self.cg.mmd.encode("utf-8")).return_value
         ret = self.cg._get_arch_mmd_output("./fake-dir", "x86_64")
         assert ret == {
             'arch': 'x86_64',
@@ -286,7 +286,7 @@ class TestBuild:
             'components': [],
             'extra': {'typeinfo': {'module': {}}},
             'filename': 'modulemd.x86_64.txt',
-            'filesize': 1136,
+            'filesize': 1138,
             'type': 'file'
         }
 
@@ -296,7 +296,7 @@ class TestBuild:
         rpm_artifacts = mmd.get_rpm_artifacts()
         rpm_artifacts.add("dhcp-libs-12:4.3.5-5.module_2118aef6.x86_64")
         mmd.set_rpm_artifacts(rpm_artifacts)
-        mmd_data = to_text_type(mmd.dumps())
+        mmd_data = bytes(mmd.dumps())
 
         patched_open.return_value = mock_open(
             read_data=mmd_data).return_value
@@ -336,7 +336,7 @@ class TestBuild:
                             u'version': '4.3.5'}],
             'extra': {'typeinfo': {'module': {}}},
             'filename': 'modulemd.x86_64.txt',
-            'filesize': 317,
+            'filesize': 319,
             'type': 'file'
         }
 
