@@ -106,7 +106,7 @@ Options:
 - ``require_overrides`` - the requires to override the modulemd with. The overrides must be to
   existing requires on the modulemd. The expected format is ``{'platform': ['f28', 'f29']}``.
 - ``scratch`` - a boolean indicating if a scratch module build should be performed.
-  Only allowed to be ``True`` if the MBS setting ``MODULE_ALLOW_SCRATCH`` is ``True``.
+  Only allowed to be ``True`` if the MBS setting ``MODULES_ALLOW_SCRATCH`` is ``True``.
 - ``yaml`` - a string of the input file when submitting a YAML file directly in a
   ``multipart/form-data`` request. The MBS setting ``YAML_SUBMIT_ALLOWED`` must be set to ``True``
   for this to be allowed.
