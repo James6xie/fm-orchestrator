@@ -30,7 +30,7 @@ import ssl
 
 import requests
 import kerberos
-from flask import Response
+from flask import Response, g
 # Starting with Flask 0.9, the _app_ctx_stack is the correct one,
 # before that we need to use the _request_ctx_stack.
 try:
@@ -325,8 +325,10 @@ def get_user(request):
         log.debug('Authorization is disabled.')
         return 'anonymous', {'packager'}
 
-    get_user_func_name = 'get_user_{0}'.format(conf.auth_method)
-    get_user_func = globals().get(get_user_func_name)
-    if not get_user_func:
-        raise RuntimeError('The function "{0}" is not implemented'.format(get_user_func_name))
-    return get_user_func(request)
+    if "user" not in g and "groups" not in g:
+        get_user_func_name = 'get_user_{0}'.format(conf.auth_method)
+        get_user_func = globals().get(get_user_func_name)
+        if not get_user_func:
+            raise RuntimeError('The function "{0}" is not implemented'.format(get_user_func_name))
+        g.user, g.groups = get_user_func(request)
+    return g.user, g.groups

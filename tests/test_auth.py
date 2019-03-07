@@ -32,6 +32,7 @@ from werkzeug.exceptions import Unauthorized as FlaskUnauthorized
 import module_build_service.auth
 import module_build_service.errors
 import module_build_service.config as mbs_config
+from module_build_service import app
 
 
 class TestAuthModule:
@@ -44,7 +45,8 @@ class TestAuthModule:
             request.cookies.return_value = {}
 
             with pytest.raises(module_build_service.errors.Unauthorized) as cm:
-                module_build_service.auth.get_user(request)
+                with app.app_context():
+                    module_build_service.auth.get_user(request)
                 assert str(cm.value) == "No 'authorization' header found."
 
     @patch('module_build_service.auth._get_token_info')
@@ -71,7 +73,8 @@ class TestAuthModule:
             request.headers.__contains__.side_effect = headers.__contains__
 
             with pytest.raises(module_build_service.errors.Unauthorized) as cm:
-                module_build_service.auth.get_user(request)
+                with app.app_context():
+                    module_build_service.auth.get_user(request)
                 assert str(cm.value) == "OIDC token invalid or expired."
 
     @pytest.mark.parametrize('allowed_users', (set(), set(['Joey Jo Jo Junior Shabadoo'])))
@@ -100,12 +103,20 @@ class TestAuthModule:
             request.headers.__setitem__.side_effect = headers.__setitem__
             request.headers.__contains__.side_effect = headers.__contains__
 
-            username, groups = module_build_service.auth.get_user(request)
+            with app.app_context():
+                username, groups = module_build_service.auth.get_user(request)
+                username_second_call, groups_second_call = module_build_service.auth.get_user(
+                    request)
             assert username == name
             if allowed_users:
                 assert groups == set()
             else:
                 assert groups == set(get_user_info.return_value["groups"])
+
+            # Test the real auth method has been called just once.
+            get_user_info.assert_called_once()
+            assert username_second_call == username
+            assert groups_second_call == groups
 
     @patch.object(mbs_config.Config, 'no_auth', new_callable=PropertyMock, return_value=True)
     def test_disable_authentication(self, conf_no_auth):
@@ -118,7 +129,8 @@ class TestAuthModule:
     def test_misconfiguring_oidc_client_secrets_should_be_failed(self):
         request = mock.MagicMock()
         with pytest.raises(module_build_service.errors.Forbidden) as cm:
-            module_build_service.auth.get_user(request)
+            with app.app_context():
+                module_build_service.auth.get_user(request)
             assert str(cm.value) == "OIDC_CLIENT_SECRETS must be set in server config."
 
     @patch('module_build_service.auth._get_token_info')
@@ -145,7 +157,8 @@ class TestAuthModule:
             request.headers.__contains__.side_effect = headers.__contains__
 
             with pytest.raises(module_build_service.errors.Unauthorized) as cm:
-                module_build_service.auth.get_user(request)
+                with app.app_context():
+                    module_build_service.auth.get_user(request)
                 assert str(cm.value) == ("Required OIDC scope 'mbs-scope' not present: "
                                          "['openid', 'https://id.fedoraproject.org/scope/groups']")
 
@@ -172,7 +185,8 @@ class TestAuthModule:
             request.headers.__contains__.side_effect = headers.__contains__
 
             with pytest.raises(module_build_service.errors.Forbidden) as cm:
-                module_build_service.auth.get_user(request)
+                with app.app_context():
+                    module_build_service.auth.get_user(request)
                 assert str(cm.value) == "OIDC_REQUIRED_SCOPE must be set in server config."
 
 

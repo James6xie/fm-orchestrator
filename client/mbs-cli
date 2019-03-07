@@ -34,7 +34,7 @@ import sys
 import openidc_client
 import requests.exceptions
 from six.moves import urllib_parse
-from requests_kerberos import HTTPKerberosAuth
+import requests_kerberos
 
 
 env_config = {
@@ -160,7 +160,9 @@ class MBSCli(object):
         if self._auth_mech == AuthMech.OpenIDC:
             headers['Authorization'] = 'Bearer {0}'.format(self._openidc_token)
         elif self._auth_mech == AuthMech.Kerberos:
-            request_data['auth'] = HTTPKerberosAuth()
+            # MBS server does not support mutual auth, so make it optional.
+            request_data['auth'] = requests_kerberos.HTTPKerberosAuth(
+                mutual_authentication=requests_kerberos.OPTIONAL)
 
         if headers:
             request_data['headers'] = headers
