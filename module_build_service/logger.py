@@ -44,6 +44,7 @@ logging.warning("%s failed to build", task_id)
 
 import os
 import logging
+import inspect
 
 levels = {}
 levels["debug"] = logging.DEBUG
@@ -149,6 +150,59 @@ class ModuleBuildLogs(object):
         del self.handlers[build.id]
 
 
+class MBSLogger:
+    def __init__(self):
+        self._logger = logging.getLogger('MBS')
+        self._level = logging.NOTSET
+        self._current_path = os.path.dirname(os.path.realpath(__file__))
+
+    @property
+    def logger(self):
+        return self._logger
+
+    @property
+    def level(self):
+        return self._level
+
+    @level.setter
+    def level(self, level):
+        self._level = level
+        self.logger.setLevel(self._level)
+
+    def setLevel(self, level):
+        self.level = level
+
+    def debug(self, *args, **kwargs):
+        return self._log_call('debug', args, kwargs)
+
+    def info(self, *args, **kwargs):
+        return self._log_call('info', args, kwargs)
+
+    def warning(self, *args, **kwargs):
+        return self._log_call('warning', args, kwargs)
+
+    def error(self, *args, **kwargs):
+        return self._log_call('error', args, kwargs)
+
+    def critical(self, *args, **kwargs):
+        return self._log_call('critical', args, kwargs)
+
+    def exception(self, *args, **kwargs):
+        return self._log_call('exception', args, kwargs)
+
+    def log(self, *args, **kwargs):
+        return self._log_call('log', args, kwargs)
+
+    def _log_call(self, level_name, args, kwargs):
+        caller_filename = inspect.stack()[2][1]
+        caller_filename = os.path.normpath(caller_filename)
+        if not caller_filename.startswith(self._current_path):
+            log_name = 'MBS'
+        else:
+            log_name = 'MBS' + caller_filename[len(self._current_path):-3].replace('/', '.')
+        return getattr(logging.getLogger(log_name), level_name)(*args, **kwargs)
+
+
 def str_to_log_level(level):
     """
     Returns internal representation of logging level defined
@@ -174,9 +228,9 @@ def init_logging(conf):
 
     if not log_backend or len(log_backend) == 0 or log_backend == "console":
         logging.basicConfig(level=conf.log_level, format=log_format)
-        log = logging.getLogger()
-        log.setLevel(conf.log_level)
+        log = MBSLogger()
+        log.level = conf.log_level
     else:
         logging.basicConfig(filename=conf.log_file, level=conf.log_level,
                             format=log_format)
-        log = logging.getLogger()
+        log = MBSLogger()

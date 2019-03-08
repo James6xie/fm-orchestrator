@@ -50,7 +50,7 @@ gi.require_version('Modulemd', '1.0')  # noqa
 from gi.repository import Modulemd  # noqa
 
 from module_build_service.logger import (
-    init_logging, ModuleBuildLogs, level_flags)
+    init_logging, ModuleBuildLogs, level_flags, MBSLogger)
 
 from module_build_service.errors import (
     ValidationError, Unauthorized, UnprocessableEntity, Conflict, NotFound,
@@ -154,7 +154,7 @@ def notfound_error(e):
 
 
 init_logging(conf)
-log = getLogger(__name__)
+log = MBSLogger()
 build_logs = ModuleBuildLogs(
     conf.build_logs_dir,
     conf.build_logs_name_format,

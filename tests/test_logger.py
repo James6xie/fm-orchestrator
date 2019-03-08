@@ -104,7 +104,7 @@ class TestLogger:
             data = f.read()
             # Note that DEBUG is not present unless configured server-wide.
             for level in ["INFO", "WARNING", "ERROR"]:
-                assert data.find("%s - ignore this test msg2" % level) != -1
+                assert data.find("MBS - {0} - ignore this test msg2".format(level)) != -1
 
         # Try to log more messages when build_log for module 1 is stopped.
         # New messages should not appear in a log.
