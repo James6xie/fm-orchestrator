@@ -1831,10 +1831,8 @@ class TestViews:
            new_callable=PropertyMock, return_value=True)
     @patch('module_build_service.config.Config.yaml_submit_allowed',
            new_callable=PropertyMock, return_value=False)
-    def test_submit_scratch_build_with_mmd_not_allowed(self, mocked_allow_yaml,
-                                                       mocked_allow_scratch,
-                                                       mocked_get_user,
-                                                       api_version):
+    def test_submit_scratch_build_with_mmd_yaml_not_allowed(
+            self, mocked_allow_yaml, mocked_allow_scratch, mocked_get_user, api_version):
         base_dir = path.abspath(path.dirname(__file__))
         mmd_path = path.join(base_dir, '..', 'staged_data', 'testmodule.yaml')
         post_url = '/module-build-service/{0}/module-builds/'.format(api_version)
@@ -1846,11 +1844,6 @@ class TestViews:
                 'yaml': yaml_file,
             }
             rv = self.client.post(post_url, content_type='multipart/form-data', data=post_data)
-        data = json.loads(rv.data)
-        expected_error = {
-            'error': 'Forbidden',
-            'message': 'YAML submission is not enabled',
-            'status': 403
-        }
-        assert data == expected_error
-        assert rv.status_code == expected_error['status']
+        # this test is the same as the previous except YAML_SUBMIT_ALLOWED is False,
+        # but it should still succeed since yaml is always allowed for scratch builds
+        assert rv.status_code == 201

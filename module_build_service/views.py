@@ -428,9 +428,9 @@ class SCMHandler(BaseHandler):
 
 class YAMLFileHandler(BaseHandler):
     def __init__(self, request):
-        if not conf.yaml_submit_allowed:
-            raise Forbidden("YAML submission is not enabled")
         super(YAMLFileHandler, self).__init__(request)
+        if not self.data['scratch'] and not conf.yaml_submit_allowed:
+            raise Forbidden("YAML submission is not enabled")
 
     def validate(self):
         if "yaml" not in request.files:
