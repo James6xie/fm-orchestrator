@@ -296,7 +296,7 @@ class TestBuild:
         rpm_artifacts = mmd.get_rpm_artifacts()
         rpm_artifacts.add("dhcp-libs-12:4.3.5-5.module_2118aef6.x86_64")
         mmd.set_rpm_artifacts(rpm_artifacts)
-        mmd_data = bytes(mmd.dumps())
+        mmd_data = to_text_type(mmd.dumps()).encode("utf-8")
 
         patched_open.return_value = mock_open(
             read_data=mmd_data).return_value
