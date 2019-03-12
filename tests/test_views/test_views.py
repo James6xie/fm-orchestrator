@@ -26,10 +26,9 @@ from datetime import datetime
 import module_build_service.scm
 
 from mock import patch, PropertyMock
-from werkzeug.datastructures import FileStorage
 from shutil import copyfile
 from os import path, mkdir
-from os.path import dirname
+from os.path import basename, dirname, splitext
 from requests.utils import quote
 import hashlib
 import pytest
@@ -1703,8 +1702,8 @@ class TestViews:
     @patch('module_build_service.scm.SCM')
     @patch('module_build_service.config.Config.modules_allow_scratch',
            new_callable=PropertyMock, return_value=True)
-    def test_submit_scratch_build(self, mocked_allow_scratch, mocked_scm, mocked_get_user,
-                                  api_version):
+    def test_submit_scratch_build(
+            self, mocked_allow_scratch, mocked_scm, mocked_get_user, api_version):
         FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
@@ -1760,9 +1759,8 @@ class TestViews:
     @patch('module_build_service.scm.SCM')
     @patch('module_build_service.config.Config.modules_allow_scratch',
            new_callable=PropertyMock, return_value=False)
-    def test_submit_scratch_build_not_allowed(self, mocked_allow_scratch,
-                                              mocked_scm, mocked_get_user,
-                                              api_version):
+    def test_submit_scratch_build_not_allowed(
+            self, mocked_allow_scratch, mocked_scm, mocked_get_user, api_version):
         FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
@@ -1789,21 +1787,21 @@ class TestViews:
            new_callable=PropertyMock, return_value=True)
     @patch('module_build_service.config.Config.yaml_submit_allowed',
            new_callable=PropertyMock, return_value=True)
-    def test_submit_scratch_build_with_mmd(self, mocked_allow_yaml,
-                                           mocked_allow_scratch,
-                                           mocked_get_user,
-                                           api_version):
+    def test_submit_scratch_build_with_mmd(
+            self, mocked_allow_yaml, mocked_allow_scratch, mocked_get_user, api_version):
         base_dir = path.abspath(path.dirname(__file__))
         mmd_path = path.join(base_dir, '..', 'staged_data', 'testmodule.yaml')
         post_url = '/module-build-service/{0}/module-builds/'.format(api_version)
         with open(mmd_path, 'rb') as f:
-            yaml_file = FileStorage(f)
-            post_data = {
-                'branch': 'master',
-                'scratch': True,
-                'yaml': yaml_file,
-            }
-            rv = self.client.post(post_url, content_type='multipart/form-data', data=post_data)
+            modulemd = f.read().decode('utf-8')
+
+        post_data = {
+            'branch': 'master',
+            'scratch': True,
+            'modulemd': modulemd,
+            'module_name': str(splitext(basename(mmd_path))[0]),
+        }
+        rv = self.client.post(post_url, data=json.dumps(post_data))
         data = json.loads(rv.data)
 
         if api_version >= 2:
@@ -1857,13 +1855,22 @@ class TestViews:
         mmd_path = path.join(base_dir, '..', 'staged_data', 'testmodule.yaml')
         post_url = '/module-build-service/{0}/module-builds/'.format(api_version)
         with open(mmd_path, 'rb') as f:
-            yaml_file = FileStorage(f)
-            post_data = {
-                'branch': 'master',
-                'scratch': True,
-                'yaml': yaml_file,
-            }
-            rv = self.client.post(post_url, content_type='multipart/form-data', data=post_data)
+            modulemd = f.read().decode('utf-8')
+
+        post_data = {
+            'branch': 'master',
+            'scratch': True,
+            'modulemd': modulemd,
+            'module_name': str(splitext(basename(mmd_path))[0]),
+        }
+        rv = self.client.post(post_url, data=json.dumps(post_data))
+        data = json.loads(rv.data)
+
+        if api_version >= 2:
+            assert isinstance(data, list)
+            assert len(data) == 1
+            data = data[0]
+
         # this test is the same as the previous except YAML_SUBMIT_ALLOWED is False,
         # but it should still succeed since yaml is always allowed for scratch builds
         assert rv.status_code == 201

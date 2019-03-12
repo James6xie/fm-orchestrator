@@ -31,6 +31,7 @@ import module_build_service.auth
 from flask import request, url_for
 from flask.views import MethodView
 from six import string_types
+from io import BytesIO
 
 from module_build_service import app, conf, log, models, db, version, api_version as max_api_version
 from module_build_service.utils import (
@@ -172,10 +173,11 @@ class ModuleBuildAPI(AbstractQueryableBuildAPI):
     # Additional POST and DELETE handlers for modules follow.
     @validate_api_version()
     def post(self, api_version):
-        if hasattr(request, 'files') and "yaml" in request.files:
-            handler = YAMLFileHandler(request)
+        data = _dict_from_request(request)
+        if "modulemd" in data or (hasattr(request, "files") and "yaml" in request.files):
+            handler = YAMLFileHandler(request, data)
         else:
-            handler = SCMHandler(request)
+            handler = SCMHandler(request, data)
 
         if conf.no_auth is True and handler.username == "anonymous" and "owner" in handler.data:
             handler.username = handler.data["owner"]
@@ -312,16 +314,9 @@ class ImportModuleAPI(MethodView):
 
 
 class BaseHandler(object):
-    def __init__(self, request):
+    def __init__(self, request, data=None):
         self.username, self.groups = module_build_service.auth.get_user(request)
-        if "multipart/form-data" in request.headers.get("Content-Type", ""):
-            self.data = request.form.to_dict()
-        else:
-            try:
-                self.data = json.loads(request.get_data().decode("utf-8"))
-            except Exception:
-                log.error('Invalid JSON submitted')
-                raise ValidationError('Invalid JSON submitted')
+        self.data = data or _dict_from_request(request)
 
         # canonicalize and validate scratch option
         if 'scratch' in self.data and str_to_bool(str(self.data['scratch'])):
@@ -342,7 +337,8 @@ class BaseHandler(object):
 
     @property
     def optional_params(self):
-        return {k: v for k, v in self.data.items() if k not in ["owner", "scmurl", "branch"]}
+        return {k: v for k, v in self.data.items() if k not in
+                ["owner", "scmurl", "branch", "modulemd", "module_name"]}
 
     def _validate_dep_overrides_format(self, key):
         """
@@ -367,7 +363,13 @@ class BaseHandler(object):
     def validate_optional_params(self):
         module_build_columns = set([col.key for col in models.ModuleBuild.__table__.columns])
         other_params = set([
-            'branch', 'rebuild_strategy', 'buildrequire_overrides', 'require_overrides'])
+            'branch',
+            'buildrequire_overrides',
+            'modulemd',
+            'module_name',
+            'rebuild_strategy',
+            'require_overrides',
+        ])
         valid_params = other_params | module_build_columns
 
         forbidden_params = [k for k in self.data if k not in valid_params]
@@ -427,21 +429,41 @@ class SCMHandler(BaseHandler):
 
 
 class YAMLFileHandler(BaseHandler):
-    def __init__(self, request):
-        super(YAMLFileHandler, self).__init__(request)
+    def __init__(self, request, data=None):
+        super(YAMLFileHandler, self).__init__(request, data)
         if not self.data['scratch'] and not conf.yaml_submit_allowed:
             raise Forbidden("YAML submission is not enabled")
 
     def validate(self):
-        if "yaml" not in request.files:
+        if ("modulemd" not in self.data and
+                (not hasattr(request, "files") or "yaml" not in request.files)):
             log.error('Invalid file submitted')
             raise ValidationError('Invalid file submitted')
         self.validate_optional_params()
 
     def post(self):
-        handle = request.files["yaml"]
+        if "modulemd" in self.data:
+            handle = BytesIO(self.data["modulemd"].encode("utf-8"))
+            if "module_name" in self.data and self.data["module_name"]:
+                handle.filename = self.data["module_name"]
+            else:
+                handle.filename = "unnamed"
+        else:
+            handle = request.files["yaml"]
         return submit_module_build_from_yaml(self.username, handle,
                                              optional_params=self.optional_params)
+
+
+def _dict_from_request(request):
+    if "multipart/form-data" in request.headers.get("Content-Type", ""):
+        data = request.form.to_dict()
+    else:
+        try:
+            data = json.loads(request.get_data().decode("utf-8"))
+        except Exception:
+            log.error('Invalid JSON submitted')
+            raise ValidationError('Invalid JSON submitted')
+    return data
 
 
 def register_api():
