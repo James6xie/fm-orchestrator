@@ -1309,6 +1309,26 @@ class TestViews:
         }
         assert rv.status_code == 400
 
+    @patch('module_build_service.auth.get_user', return_value=user)
+    @patch('module_build_service.scm.SCM')
+    def test_submit_build_with_base_module_name(self, mocked_scm, mocked_get_user):
+        FakeSCM(mocked_scm, 'platform', 'testmodule.yaml',
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+
+        data = {
+            'branch': 'master',
+            'scmurl': 'https://src.stg.fedoraproject.org/modules/'
+                      'platform.git?#68931c90de214d9d13feefbd35246a81b6cb8d49',
+        }
+        rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(data))
+        result = json.loads(rv.data)
+        assert result == {
+            'error': 'Bad Request',
+            'status': 400,
+            'message': 'You cannot build a module named "platform" since it is a base module'
+        }
+        assert rv.status_code == 400
+
     @pytest.mark.parametrize('dep_type', ('buildrequire', 'require'))
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')

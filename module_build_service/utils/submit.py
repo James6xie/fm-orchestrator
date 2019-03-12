@@ -568,6 +568,10 @@ def submit_module_build(username, url, mmd, optional_params=None):
     """
     import koji  # Placed here to avoid py2/py3 conflicts...
 
+    if mmd.get_name() in conf.base_module_names:
+        raise ValidationError(
+            'You cannot build a module named "{}" since it is a base module'.format(mmd.get_name()))
+
     raise_if_stream_ambigous = False
     default_streams = {}
     if optional_params:
