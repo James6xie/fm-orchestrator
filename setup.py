@@ -23,7 +23,7 @@ tests_require, _ = read_requirements(path.join(setup_py_path, 'test-requirements
 
 setup(name='module-build-service',
       description='The Module Build Service for Modularity',
-      version='2.16.0',
+      version='2.17.0',
       classifiers=[
           "Programming Language :: Python",
           "Topic :: Software Development :: Build Tools"

@@ -1,6 +1,12 @@
 Change Log
 ==========
 
+v2.17.0
+-------
+* Fix the Kerberos auth for Import modulemd API.
+* Fix the way how KojiContentGenerator computes the size for modulemd files with unicode characters.
+* Always allow submitting YAML for scratch builds.
+
 v2.16.0
 -------
 * Add support for building scratch-builds of modules.
