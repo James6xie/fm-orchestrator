@@ -550,6 +550,31 @@ class TestKojiBuilder:
             expected_calls = []
         assert session.packageListBlock.mock_calls == expected_calls
 
+    @pytest.mark.parametrize('scratch', [False, True])
+    def test_buildroot_connect_create_target(self, scratch):
+        if scratch:
+            self.module.scratch = scratch
+
+        builder = FakeKojiModuleBuilder(
+            owner=self.module.owner, module=self.module, config=conf, tag_name='module-foo',
+            components=["nginx"])
+        session = builder.koji_session
+        session.getBuildTarget = MagicMock()
+        session.getBuildTarget.return_value = {}
+
+        groups = OrderedDict()
+        groups['build'] = set(["unzip"])
+        groups['srpm-build'] = set(["fedora-release"])
+        builder.buildroot_connect(groups)
+
+        if scratch:
+            expected_calls = [mock.call(
+                'scrmod-nginx-1-2-00000000+2', 'module-foo-build', 'module-foo')]
+        else:
+            expected_calls = [mock.call(
+                'module-nginx-1-2-00000000', 'module-foo-build', 'module-foo')]
+        assert session.createBuildTarget.mock_calls == expected_calls
+
     @patch('module_build_service.builder.KojiModuleBuilder.KojiClientSession')
     def test_get_built_rpms_in_module_build(self, ClientSession):
         session = ClientSession.return_value

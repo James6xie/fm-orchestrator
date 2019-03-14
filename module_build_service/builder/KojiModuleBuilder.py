@@ -525,7 +525,7 @@ chmod 644 %buildroot/etc/rpm/macros.zz-modules
         target_length = 50 + len('-build')
         target = module_build_service.utils.generate_koji_tag(
             self.module.name, self.module.stream, self.module.version, self.module.context,
-            target_length)
+            target_length, scratch=self.module.scratch, scratch_id=self.module.id)
         # Add main build target.
         self.module_target = self._koji_add_target(target, self.module_build_tag, self.module_tag)
 
