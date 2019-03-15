@@ -336,6 +336,23 @@ class TestUtils:
         release = module_build_service.utils.get_rpm_release(build_one)
         assert release == 'module+f28+2+814cfa39'
 
+    def test_get_rpm_release_platform_stream_override(self):
+        scheduler_init_data(1)
+
+        # Set the disttag_marking override on the platform
+        platform = models.ModuleBuild.query.filter_by(name='platform', stream='f28').first()
+        platform_mmd = platform.mmd()
+        platform_xmd = glib.from_variant_dict(platform_mmd.get_xmd())
+        platform_xmd['mbs']['disttag_marking'] = 'fedora28'
+        platform_mmd.set_xmd(glib.dict_values(platform_xmd))
+        platform.modulemd = to_text_type(platform_mmd.dumps())
+        db.session.add(platform)
+        db.session.commit()
+
+        build_one = models.ModuleBuild.query.get(2)
+        release = module_build_service.utils.get_rpm_release(build_one)
+        assert release == 'module+fedora28+2+814cfa39'
+
     def test_get_rpm_release_mse_scratch(self):
         init_data(contexts=True, scratch=True)
         build_one = models.ModuleBuild.query.get(2)

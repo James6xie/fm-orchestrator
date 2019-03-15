@@ -240,13 +240,36 @@ def get_rpm_release(module_build):
                     .format(module_build.id))
         buildrequires = None
 
-    base_module_stream = ''
+    # Determine which base module is buildrequired and its marking in the disttag
+    base_module_marking = ''
+    # If the buildrequires are recorded in the xmd then we can try to find the base module that
+    # is buildrequired
     if buildrequires:
+        # Looping through all the base modules in conf.base_module_names instead of looping through
+        # all the buildrequires guarantees the order in conf.base_module_names is preserved for
+        # which base module is used as the marking
         for base_module in conf.base_module_names:
-            base_module_stream = buildrequires.get(base_module, {}).get('stream', '')
-            if base_module_stream:
-                base_module_stream += '+'
-                break
+            bm_in_xmd = buildrequires.get(base_module)
+
+            if not bm_in_xmd:
+                continue
+
+            with models.make_session(conf) as session:
+                base_module_obj = models.ModuleBuild.get_build_from_nsvc(
+                    session, base_module, bm_in_xmd['stream'], bm_in_xmd['version'],
+                    bm_in_xmd['context'])
+            if not base_module_obj:
+                continue
+
+            # Default to using the base module's stream, but if the base module has disttag_marking
+            # set in the xmd, use that instead
+            try:
+                marking = base_module_obj.mmd().get_xmd()['mbs']['disttag_marking']
+            # We must check for a KeyError because a Variant object doesn't support the `get` method
+            except KeyError:
+                marking = base_module_obj.stream
+            base_module_marking = marking + '+'
+            break
         else:
             log.warning('Module build {0} does not buildrequire a base module ({1})'
                         .format(module_build.id, ' or '.join(conf.base_module_names)))
@@ -254,9 +277,9 @@ def get_rpm_release(module_build):
     # use alternate prefix for scratch module build components so they can be identified
     prefix = ('scrmod+' if module_build.scratch else conf.default_dist_tag_prefix)
 
-    return '{prefix}{base_module_stream}{index}+{dist_hash}'.format(
+    return '{prefix}{base_module_marking}{index}+{dist_hash}'.format(
         prefix=prefix,
-        base_module_stream=base_module_stream,
+        base_module_marking=base_module_marking,
         index=index,
         dist_hash=dist_hash,
     )
