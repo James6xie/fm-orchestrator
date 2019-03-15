@@ -314,6 +314,19 @@ class ImportModuleAPI(MethodView):
 
 
 class BaseHandler(object):
+    valid_params = set([
+        'branch',
+        'buildrequire_overrides',
+        'modulemd',
+        'module_name',
+        'owner',
+        'rebuild_strategy',
+        'require_overrides',
+        'scmurl',
+        'scratch',
+        'srpms'
+    ])
+
     def __init__(self, request, data=None):
         self.username, self.groups = module_build_service.auth.get_user(request)
         self.data = data or _dict_from_request(request)
@@ -361,18 +374,7 @@ class BaseHandler(object):
                     raise ValidationError(invalid_override_msg)
 
     def validate_optional_params(self):
-        module_build_columns = set([col.key for col in models.ModuleBuild.__table__.columns])
-        other_params = set([
-            'branch',
-            'buildrequire_overrides',
-            'modulemd',
-            'module_name',
-            'rebuild_strategy',
-            'require_overrides',
-        ])
-        valid_params = other_params | module_build_columns
-
-        forbidden_params = [k for k in self.data if k not in valid_params]
+        forbidden_params = [k for k in self.data if k not in self.valid_params]
         if forbidden_params:
             raise ValidationError('The request contains unspecified parameters: {}'
                                   .format(", ".join(forbidden_params)))
