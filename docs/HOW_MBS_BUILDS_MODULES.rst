@@ -19,7 +19,8 @@ This JSON data is handled by ``views.SCMHandler``, which validates the JSON and 
 ``submit_module_build(...)``.
 
 Alternatively, if submitting a YAML modulemd file is allowed (MBS setting
-``YAML_SUBMIT_ALLOWED`` is ``True``), the user can send a ``multipart/form-data``
+``YAML_SUBMIT_ALLOWED`` is ``True``), the user can include it in the JSON data
+(called ``modulemd`` and ``module_name``) or send a ``multipart/form-data``
 POST request directly including the contents of a YAML modulemd file
 (called ``yaml``). In this case, the JSON data and YAML file are handled by
 ``views.YAMLFileHandler``, which validates the data and calls the
@@ -27,7 +28,9 @@ POST request directly including the contents of a YAML modulemd file
 to ``submit_module_build(...)``.
 
 If module scratch builds are allowed (MBS setting ``MODULES_ALLOW_SCRATCH`` is
-``True``), the user can also upload one or more source RPMs uploaded to Koji
+``True``), the user can request a scratch module build (called ``scratch``).
+With a scratch build request, the user can include a YAML modulemd file
+(see above) and also upload one or more source RPMs to Koji
 via calls to Koji's ``session.uploadWrapper(..)``, and supply the list of
 upload links to MBS (called ``srpms``). Such custom SRPMs will be used to
 override the git repository source for corresponding components.
