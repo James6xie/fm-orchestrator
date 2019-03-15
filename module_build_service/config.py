@@ -199,6 +199,21 @@ class Config(object):
             'type': list,
             'default': ['module', 'scrmod'],
             'desc': 'List of allowed koji tag prefixes.'},
+        'koji_tag_extra_opts': {
+            'type': dict,
+            'default': {
+                'mock.package_manager': 'dnf',
+                # This is needed to include all the Koji builds (and therefore
+                # all the packages) from all inherited tags into this tag.
+                # See https://pagure.io/koji/issue/588 and
+                # https://pagure.io/fm-orchestrator/issue/660 for background.
+                'repo_include_all': True,
+                # Has been requested by Fedora infra in
+                # https://pagure.io/fedora-infrastructure/issue/7620.
+                # Disables systemd-nspawn for chroot.
+                'mock.new_chroot': 0,
+            },
+            'desc': 'Extra options set for newly created Koji tags.'},
         'koji_target_delete_time': {
             'type': int,
             'default': 24 * 3600,

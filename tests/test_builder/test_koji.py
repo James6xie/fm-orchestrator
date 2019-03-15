@@ -517,10 +517,12 @@ class TestKojiBuilder:
 
         expected_calls = [mock.call('module-foo', arches=expected_arches,
                                     extra={'mock.package_manager': 'dnf',
-                                           'repo_include_all': repo_include_all}),
+                                           'repo_include_all': repo_include_all,
+                                           'mock.new_chroot': 0}),
                           mock.call('module-foo-build', arches=expected_arches,
                                     extra={'mock.package_manager': 'dnf',
-                                           'repo_include_all': repo_include_all})]
+                                           'repo_include_all': repo_include_all,
+                                           'mock.new_chroot': 0})]
         assert session.editTag2.mock_calls == expected_calls
 
     @pytest.mark.parametrize('blocklist', [False, True])

@@ -23,6 +23,7 @@
 #            Luboš Kocman <lkocman@redhat.com>
 
 
+import copy
 import logging
 import os
 import koji
@@ -947,14 +948,8 @@ chmod 644 %buildroot/etc/rpm/macros.zz-modules
             if taginfo['perm'] not in (perm_id, perm):  # check either id or the string
                 opts['perm'] = perm_id
 
-        opts['extra'] = {
-            'mock.package_manager': 'dnf',
-            # This is needed to include all the Koji builds (and therefore
-            # all the packages) from all inherited tags into this tag.
-            # See https://pagure.io/koji/issue/588 and
-            # https://pagure.io/fm-orchestrator/issue/660 for background.
-            'repo_include_all': True,
-        }
+        # Create deepcopy of conf dict, because we are going to change it later.
+        opts['extra'] = copy.deepcopy(conf.koji_tag_extra_opts)
 
         xmd = self.mmd.get_xmd()
         if "mbs_options" in xmd.keys() and "repo_include_all" in xmd["mbs_options"].keys():
