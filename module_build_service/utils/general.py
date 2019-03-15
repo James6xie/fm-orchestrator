@@ -335,6 +335,23 @@ def import_mmd(session, mmd):
     version = str(mmd.get_version())
     context = mmd.get_context()
 
+    try:
+        disttag_marking = mmd.get_xmd()["mbs"]["disttag_marking"]
+    except (ValueError, KeyError):
+        disttag_marking = None
+
+    # If it is a base module, then make sure the value that will be used in the RPM disttags
+    # doesn't contain a dash since a dash isn't allowed in the release field of the NVR
+    if name in conf.base_module_names:
+        if disttag_marking and "-" in disttag_marking:
+            msg = "The disttag_marking cannot contain a dash"
+            log.error(msg)
+            raise UnprocessableEntity(msg)
+        elif not disttag_marking and "-" in stream:
+            msg = "The stream cannot contain a dash unless disttag_marking is set"
+            log.error(msg)
+            raise UnprocessableEntity(msg)
+
     # Log messages collected during import
     msgs = []
 

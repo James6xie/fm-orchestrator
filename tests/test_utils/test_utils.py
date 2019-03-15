@@ -321,6 +321,32 @@ class TestUtils:
             assert mmd_context == models.DEFAULT_MODULE_CONTEXT
             assert build.context == models.DEFAULT_MODULE_CONTEXT
 
+    @pytest.mark.parametrize('stream, disttag_marking, error_msg', (
+        ('f28', None, None),
+        ('f28', 'fedora28', None),
+        ('f-28', 'f28', None),
+        ('f-28', None, 'The stream cannot contain a dash unless disttag_marking is set'),
+        ('f28', 'f-28', 'The disttag_marking cannot contain a dash'),
+        ('f-28', 'fedora-28', 'The disttag_marking cannot contain a dash')
+    ))
+    def test_import_mmd_base_module(self, stream, disttag_marking, error_msg):
+        clean_database(add_platform_module=False)
+        mmd = Modulemd.Module().new_from_file(
+            path.join(BASE_DIR, '..', 'staged_data', 'platform.yaml'))
+        mmd.upgrade()
+        mmd.set_stream(stream)
+
+        if disttag_marking:
+            xmd = glib.from_variant_dict(mmd.get_xmd())
+            xmd['mbs']['disttag_marking'] = disttag_marking
+            mmd.set_xmd(glib.dict_values(xmd))
+
+        if error_msg:
+            with pytest.raises(UnprocessableEntity, match=error_msg):
+                module_build_service.utils.import_mmd(db.session, mmd)
+        else:
+            module_build_service.utils.import_mmd(db.session, mmd)
+
     def test_get_rpm_release_mse(self):
         init_data(contexts=True)
         build_one = models.ModuleBuild.query.get(2)
