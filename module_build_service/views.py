@@ -200,7 +200,7 @@ class ModuleBuildAPI(AbstractQueryableBuildAPI):
         try:
             r = json.loads(request.get_data().decode("utf-8"))
         except Exception:
-            log.error('Invalid JSON submitted')
+            log.exception('Invalid JSON submitted')
             raise ValidationError('Invalid JSON submitted')
 
         if "owner" in r:
@@ -461,7 +461,7 @@ def _dict_from_request(request):
         try:
             data = json.loads(request.get_data().decode("utf-8"))
         except Exception:
-            log.error('Invalid JSON submitted')
+            log.exception('Invalid JSON submitted')
             raise ValidationError('Invalid JSON submitted')
     return data
 
