@@ -348,11 +348,6 @@ class BaseHandler(object):
         else:
             self.data['srpms'] = []
 
-    @property
-    def optional_params(self):
-        return {k: v for k, v in self.data.items() if k not in
-                ["owner", "scmurl", "branch", "modulemd", "module_name"]}
-
     def _validate_dep_overrides_format(self, key):
         """
         Validate any dependency overrides provided to the API.
@@ -422,12 +417,7 @@ class SCMHandler(BaseHandler):
             self.validate_optional_params()
 
     def post(self):
-        url = self.data["scmurl"]
-        branch = self.data["branch"]
-
-        return submit_module_build_from_scm(self.username, url, branch,
-                                            allow_local_url=False,
-                                            optional_params=self.optional_params)
+        return submit_module_build_from_scm(self.username, self.data, allow_local_url=False)
 
 
 class YAMLFileHandler(BaseHandler):
@@ -452,8 +442,7 @@ class YAMLFileHandler(BaseHandler):
                 handle.filename = "unnamed"
         else:
             handle = request.files["yaml"]
-        return submit_module_build_from_yaml(self.username, handle,
-                                             optional_params=self.optional_params)
+        return submit_module_build_from_yaml(self.username, handle, self.data)
 
 
 def _dict_from_request(request):

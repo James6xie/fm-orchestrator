@@ -469,8 +469,7 @@ def record_component_builds(mmd, module, initial_batch=1,
     return batch
 
 
-def submit_module_build_from_yaml(username, handle, stream=None, skiptests=False,
-                                  optional_params=None):
+def submit_module_build_from_yaml(username, handle, params, stream=None, skiptests=False):
     yaml_file = to_text_type(handle.read())
     mmd = load_mmd(yaml_file)
     dt = datetime.utcfromtimestamp(int(time.time()))
@@ -483,14 +482,15 @@ def submit_module_build_from_yaml(username, handle, stream=None, skiptests=False
         buildopts = mmd.get_rpm_buildopts()
         buildopts["macros"] = buildopts.get("macros", "") + "\n\n%__spec_check_pre exit 0\n"
         mmd.set_rpm_buildopts(buildopts)
-    return submit_module_build(username, None, mmd, optional_params)
+    return submit_module_build(username, mmd, params)
 
 
 _url_check_re = re.compile(r"^[^:/]+:.*$")
 
 
-def submit_module_build_from_scm(username, url, branch, allow_local_url=False,
-                                 optional_params=None):
+def submit_module_build_from_scm(username, params, allow_local_url=False):
+    url = params['scmurl']
+    branch = params['branch']
     # Translate local paths into file:// URL
     if allow_local_url and not _url_check_re.match(url):
         log.info(
@@ -499,20 +499,20 @@ def submit_module_build_from_scm(username, url, branch, allow_local_url=False,
         url = "file://" + url
     mmd, scm = _fetch_mmd(url, branch, allow_local_url)
 
-    return submit_module_build(username, url, mmd, optional_params)
+    return submit_module_build(username, mmd, params)
 
 
-def _apply_dep_overrides(mmd, optional_params):
+def _apply_dep_overrides(mmd, params):
     """
     Apply the dependency override parameters (if specified) on the input modulemd.
 
     :param Modulemd.Module mmd: the modulemd to apply the overrides on
-    :param dict optional_params: the optional API parameters passed in by the user
+    :param dict params: the API parameters passed in by the user
     :raises ValidationError: if one of the overrides doesn't apply
     """
     dep_overrides = {
-        'buildrequires': optional_params.get('buildrequire_overrides', {}),
-        'requires': optional_params.get('require_overrides', {})
+        'buildrequires': params.get('buildrequire_overrides', {}),
+        'requires': params.get('require_overrides', {})
     }
 
     unused_dep_overrides = {
@@ -541,28 +541,16 @@ def _apply_dep_overrides(mmd, optional_params):
                 'The {} overrides for the following modules aren\'t applicable: {}'
                 .format(dep_type[:-1], ', '.join(sorted(unused_dep_overrides[dep_type]))))
 
-    # Delete the parameters or else they'll get past to ModuleBuild.create
-    if 'buildrequire_overrides' in optional_params:
-        del optional_params['buildrequire_overrides']
-    if 'require_overrides' in optional_params:
-        del optional_params['require_overrides']
-
     mmd.set_dependencies(deps)
 
 
-def submit_module_build(username, url, mmd, optional_params=None):
+def submit_module_build(username, mmd, params):
     """
     Submits new module build.
 
     :param str username: Username of the build's owner.
-    :param str url: SCM URL of submitted build.
     :param Modulemd.Module mmd: Modulemd defining the build.
-    :param dict optional_params: Dict with optional params for a build:
-        - "local_build" (bool): The module is being built locally (the MBS is
-          not running in infra, but on local developer's machine).
-        - "default_streams" (dict): Dict with name:stream mapping defining the stream
-          to choose for given module name if multiple streams are available to choose from.
-        - Any optional ModuleBuild class field (str).
+    :param dict params: the API parameters passed in by the user
     :rtype: list with ModuleBuild
     :return: List with submitted module builds.
     """
@@ -574,17 +562,14 @@ def submit_module_build(username, url, mmd, optional_params=None):
 
     raise_if_stream_ambigous = False
     default_streams = {}
-    if optional_params:
-        # For local builds, we want the user to choose the exact stream using the default_streams
-        # in case there are multiple streams to choose from and raise an exception otherwise.
-        if "local_build" in optional_params:
-            raise_if_stream_ambigous = True
-            del optional_params["local_build"]
-        # Get the default_streams if set.
-        if "default_streams" in optional_params:
-            default_streams = optional_params["default_streams"]
-            del optional_params["default_streams"]
-        _apply_dep_overrides(mmd, optional_params)
+    # For local builds, we want the user to choose the exact stream using the default_streams
+    # in case there are multiple streams to choose from and raise an exception otherwise.
+    if "local_build" in params:
+        raise_if_stream_ambigous = True
+    # Get the default_streams if set.
+    if "default_streams" in params:
+        default_streams = params["default_streams"]
+    _apply_dep_overrides(mmd, params)
 
     validate_mmd(mmd)
     mmds = generate_expanded_mmds(db.session, mmd, raise_if_stream_ambigous, default_streams)
@@ -614,12 +599,13 @@ def submit_module_build(username, url, mmd, optional_params=None):
                          "is allowed.", nsvc)
                 modules.append(module)
                 continue
-            if optional_params:
-                rebuild_strategy = optional_params.get('rebuild_strategy')
-                if rebuild_strategy and module.rebuild_strategy != rebuild_strategy:
-                    raise ValidationError(
-                        'You cannot change the module\'s "rebuild_strategy" when '
-                        'resuming a module build')
+
+            rebuild_strategy = params.get('rebuild_strategy')
+            if rebuild_strategy and module.rebuild_strategy != rebuild_strategy:
+                raise ValidationError(
+                    'You cannot change the module\'s "rebuild_strategy" when '
+                    'resuming a module build')
+
             log.debug('Resuming existing module build %r' % module)
             # Reset all component builds that didn't complete
             for component in module.component_builds:
@@ -645,9 +631,11 @@ def submit_module_build(username, url, mmd, optional_params=None):
                 stream=mmd.get_stream(),
                 version=version_str,
                 modulemd=to_text_type(mmd.dumps()),
-                scmurl=url,
+                scmurl=params.get('scmurl'),
                 username=username,
-                **(optional_params or {})
+                rebuild_strategy=params.get('rebuild_strategy'),
+                scratch=params.get('scratch'),
+                srpms=params.get('srpms')
             )
             (module.ref_build_context, module.build_context, module.runtime_context,
              module.context) = module.contexts_from_mmd(module.modulemd)

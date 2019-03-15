@@ -134,14 +134,14 @@ def build_module_locally(local_build_nsvs=None, yaml_file=None, srpms=None,
         db.create_all()
         load_local_builds(local_build_nsvs)
 
-        optional_params = {}
-        optional_params["local_build"] = True
-        optional_params["default_streams"] = {}
+        params = {}
+        params["local_build"] = True
+        params["default_streams"] = {}
         for ns in default_streams:
             name, stream = ns.split(":")
-            optional_params["default_streams"][name] = stream
+            params["default_streams"][name] = stream
         if srpms:
-            optional_params["srpms"] = srpms
+            params["srpms"] = srpms
 
         username = getpass.getuser()
         if not yaml_file or not yaml_file.endswith(".yaml"):
@@ -154,7 +154,7 @@ def build_module_locally(local_build_nsvs=None, yaml_file=None, srpms=None,
             handle.filename = filename
             try:
                 modules_list = submit_module_build_from_yaml(
-                    username, handle, str(stream), skiptests, optional_params)
+                    username, handle, params, stream=str(stream), skiptests=skiptests)
             except StreamAmbigous as e:
                 logging.error(str(e))
                 logging.error(

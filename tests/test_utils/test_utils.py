@@ -281,11 +281,11 @@ class TestUtilsComponentReuse:
 
         with open(modulemd_file_path, "rb") as fd:
             handle = FileStorage(fd)
-            module_build_service.utils.submit_module_build_from_yaml(username, handle,
-                                                                     stream=stream, skiptests=True)
+            module_build_service.utils.submit_module_build_from_yaml(
+                username, handle, {}, stream=stream, skiptests=True)
             mock_submit_args = mock_submit.call_args[0]
             username_arg = mock_submit_args[0]
-            mmd_arg = mock_submit_args[2]
+            mmd_arg = mock_submit_args[1]
             assert mmd_arg.get_stream() == stream
             assert "\n\n%__spec_check_pre exit 0\n" in mmd_arg.get_rpm_buildopts()['macros']
             assert username_arg == username
@@ -789,7 +789,7 @@ class TestUtils:
 
         generate_expanded_mmds.return_value = [mmd1, mmd2]
 
-        builds = module_build_service.utils.submit_module_build("foo", "bar", mmd1)
+        builds = module_build_service.utils.submit_module_build("foo", mmd1, {})
         ret = {b.mmd().get_context(): b.state for b in builds}
         assert ret == {
             "c1": models.BUILD_STATES['ready'],
