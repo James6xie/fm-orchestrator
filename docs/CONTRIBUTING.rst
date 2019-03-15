@@ -15,7 +15,7 @@ From the main git directory, build the Docker image with::
 
 Then run the tests with::
 
-    $ sudo docker run -t -v $PWD:/src:Z mbs/test
+    $ sudo docker run -t --rm -v $PWD:/src:Z mbs/test
 
 
 Development
