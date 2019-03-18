@@ -471,7 +471,7 @@ def record_component_builds(mmd, module, initial_batch=1,
 
 def submit_module_build_from_yaml(username, handle, stream=None, skiptests=False,
                                   optional_params=None):
-    yaml_file = handle.read().decode("utf-8")
+    yaml_file = to_text_type(handle.read())
     mmd = load_mmd(yaml_file)
     dt = datetime.utcfromtimestamp(int(time.time()))
     def_name = str(os.path.splitext(os.path.basename(handle.filename))[0])
