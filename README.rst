@@ -976,3 +976,12 @@ MBS is licensed under MIT license. See |LICENSE|_ file for details.
 
 Parts of MBS are licensed under 3-clause BSD license from:
 https://github.com/projectatomic/atomic-reactor/blob/master/LICENSE
+
+
+Virtual Modules
+===============
+
+For a detailed description of virtual modules, see |docs/VIRTUAL_MODULES.rst|_.
+
+.. |docs/VIRTUAL_MODULES.rst| replace:: ``docs/VIRTUAL_MODULES.rst``
+.. _docs/VIRTUAL_MODULES.rst: docs/VIRTUAL_MODULES.rst
