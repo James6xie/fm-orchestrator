@@ -473,7 +473,12 @@ def submit_module_build_from_yaml(username, handle, params, stream=None, skiptes
     yaml_file = to_text_type(handle.read())
     mmd = load_mmd(yaml_file)
     dt = datetime.utcfromtimestamp(int(time.time()))
-    def_name = str(os.path.splitext(os.path.basename(handle.filename))[0])
+    if hasattr(handle, 'filename'):
+        def_name = str(os.path.splitext(os.path.basename(handle.filename))[0])
+    elif not mmd.get_name():
+        raise ValidationError(
+            "The module's name was not present in the modulemd file. Please use the "
+            "\"module_name\" parameter")
     def_version = int(dt.strftime("%Y%m%d%H%M%S"))
     mmd.set_name(mmd.get_name() or def_name)
     mmd.set_stream(stream or mmd.get_stream() or "master")

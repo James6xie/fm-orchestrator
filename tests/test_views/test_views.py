@@ -1843,6 +1843,35 @@ class TestViews:
         assert module.buildrequires[0].context == '00000000'
         assert module.buildrequires[0].stream_version == 280000
 
+    @patch('module_build_service.auth.get_user', return_value=user)
+    @patch('module_build_service.config.Config.modules_allow_scratch',
+           new_callable=PropertyMock, return_value=True)
+    @patch('module_build_service.config.Config.yaml_submit_allowed',
+           new_callable=PropertyMock, return_value=True)
+    def test_submit_scratch_build_with_mmd_no_module_name(
+            self, mocked_allow_yaml, mocked_allow_scratch, mocked_get_user):
+        base_dir = path.abspath(path.dirname(__file__))
+        mmd_path = path.join(base_dir, '..', 'staged_data', 'testmodule.yaml')
+        post_url = '/module-build-service/1/module-builds/'
+        with open(mmd_path, 'rb') as f:
+            modulemd = f.read().decode('utf-8')
+
+        post_data = {
+            'branch': 'master',
+            'scratch': True,
+            'modulemd': modulemd,
+        }
+        rv = self.client.post(post_url, data=json.dumps(post_data))
+        assert rv.status_code == 400
+        data = json.loads(rv.data)
+        expected_error = {
+            'error': 'Bad Request',
+            'message': ('The module\'s name was not present in the modulemd file. Please use the '
+                        '"module_name" parameter'),
+            'status': 400
+        }
+        assert data == expected_error
+
     @pytest.mark.parametrize('api_version', [1, 2])
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.config.Config.modules_allow_scratch',

@@ -436,10 +436,8 @@ class YAMLFileHandler(BaseHandler):
     def post(self):
         if "modulemd" in self.data:
             handle = BytesIO(self.data["modulemd"].encode("utf-8"))
-            if "module_name" in self.data and self.data["module_name"]:
+            if self.data.get("module_name"):
                 handle.filename = self.data["module_name"]
-            else:
-                handle.filename = "unnamed"
         else:
             handle = request.files["yaml"]
         return submit_module_build_from_yaml(self.username, handle, self.data)
