@@ -499,7 +499,23 @@ class Config(object):
         'allowed_users': {
             'type': set,
             'default': set(),
-            'desc': 'The users/service accounts that don\'t require to be part of a group'}
+            'desc': 'The users/service accounts that don\'t require to be part of a group'},
+        'br_stream_override_module': {
+            'type': str,
+            'default': 'platform',
+            'desc': ('The module name to override in the buildrequires based on the branch name. '
+                     '"br_stream_override_regexes" must also be set for this to take '
+                     'effect.')
+        },
+        'br_stream_override_regexes': {
+            'type': list,
+            'default': [],
+            'desc': ('The list of regexes used to parse the stream override from the branch name. '
+                     '"br_stream_override_module" must also be set for this to take '
+                     'effect. The regexes can contain multiple capture groups that will be '
+                     'concatenated. Any null capture groups will be ignored. The first regex that '
+                     'matches the branch will be used.')
+        },
     }
 
     def __init__(self, conf_section_obj):

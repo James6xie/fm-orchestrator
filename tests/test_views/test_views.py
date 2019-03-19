@@ -44,6 +44,7 @@ from module_build_service import db, version, Modulemd
 import module_build_service.config as mbs_config
 import module_build_service.scheduler.handlers.modules
 from module_build_service.utils import import_mmd, load_mmd
+from module_build_service.glib import dict_values, from_variant_dict
 
 
 user = ('Homer J. Simpson', set(['packager']))
@@ -1673,7 +1674,6 @@ class TestViews:
     def test_buildrequires_is_included_in_json_output(self):
         # Inject xmd/mbs/buildrequires into an existing module build for
         # assertion later.
-        from module_build_service.glib import dict_values, from_variant_dict
         from module_build_service.models import make_session
         from module_build_service import conf
         br_modulea = dict(stream='6', version='1', context='1234')
@@ -1903,3 +1903,96 @@ class TestViews:
         # this test is the same as the previous except YAML_SUBMIT_ALLOWED is False,
         # but it should still succeed since yaml is always allowed for scratch builds
         assert rv.status_code == 201
+
+    @pytest.mark.parametrize('branch, platform_override', (
+        ('10', None),
+        ('10-rhel-8.0.0', 'el8.0.0'),
+        ('10-LP-product1.2', 'product1.2'),
+    ))
+    @patch('module_build_service.auth.get_user', return_value=user)
+    @patch('module_build_service.scm.SCM')
+    @patch.object(module_build_service.config.Config, 'br_stream_override_regexes',
+                  new_callable=PropertyMock)
+    def test_submit_build_dep_override_from_branch(
+            self, mocked_regexes, mocked_scm, mocked_get_user, branch, platform_override):
+        """
+        Test that MBS will parse the SCM branch to determine the platform stream to buildrequire.
+        """
+        mocked_regexes.return_value = [
+            r'(?:rh)(el)(?:\-)(\d+\.\d+\.\d+)$',
+            r'(?:\-LP\-)(.+)$'
+        ]
+        init_data(data_size=1, multiple_stream_versions=True)
+        # Create a platform for whatever the override is so the build submission succeeds
+        if platform_override:
+            platform_mmd = load_mmd(path.join(base_dir, 'staged_data', 'platform.yaml'), True)
+            platform_mmd.set_stream(platform_override)
+            if platform_override == 'el8.0.0':
+                xmd = from_variant_dict(platform_mmd.get_xmd())
+                xmd['mbs']['virtual_streams'] = 'el8'
+                platform_mmd.set_xmd(dict_values(xmd))
+            import_mmd(db.session, platform_mmd)
+
+        FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+
+        post_url = '/module-build-service/2/module-builds/'
+        scm_url = ('https://src.stg.fedoraproject.org/modules/testmodule.git?#68931c90de214d9d13fe'
+                   'efbd35246a81b6cb8d49')
+
+        rv = self.client.post(post_url, data=json.dumps({'branch': branch, 'scmurl': scm_url}))
+        data = json.loads(rv.data)
+        assert rv.status_code == 201
+
+        mmd = Modulemd.Module().new_from_string(data[0]['modulemd'])
+        assert len(mmd.get_dependencies()) == 1
+        dep = mmd.get_dependencies()[0]
+        if platform_override:
+            expected_br = {platform_override}
+        else:
+            expected_br = {'f28'}
+        assert set(dep.get_buildrequires()['platform'].get()) == expected_br
+        # The requires should not change
+        assert set(dep.get_requires()['platform'].get()) == {'f28'}
+
+    @patch('module_build_service.auth.get_user', return_value=user)
+    @patch('module_build_service.scm.SCM')
+    @patch.object(module_build_service.config.Config, 'br_stream_override_regexes',
+                  new_callable=PropertyMock)
+    def test_submit_build_dep_override_from_branch_br_override(
+            self, mocked_regexes, mocked_scm, mocked_get_user):
+        """
+        Test that when the branch includes a stream override for the platform module, that the
+        provided "buildrequire_override" for the platform module takes precedence.
+        """
+        mocked_regexes.return_value = [r'(?:\-LP\-)(.+)$']
+        init_data(data_size=1, multiple_stream_versions=True)
+        # Create a platform for the override so the build submission succeeds
+        platform_mmd = load_mmd(path.join(base_dir, 'staged_data', 'platform.yaml'), True)
+        platform_mmd.set_stream('product1.3')
+        import_mmd(db.session, platform_mmd)
+
+        FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+
+        post_url = '/module-build-service/2/module-builds/'
+        scm_url = ('https://src.stg.fedoraproject.org/modules/testmodule.git?#68931c90de214d9d13fe'
+                   'efbd35246a81b6cb8d49')
+        json_input = {
+            'branch': '10-LP-product1.2',
+            'scmurl': scm_url,
+            'buildrequire_overrides': {'platform': ['product1.3']}
+        }
+
+        rv = self.client.post(post_url, data=json.dumps(json_input))
+        data = json.loads(rv.data)
+        assert rv.status_code == 201
+
+        mmd = Modulemd.Module().new_from_string(data[0]['modulemd'])
+        assert len(mmd.get_dependencies()) == 1
+        dep = mmd.get_dependencies()[0]
+        # The buildrequire_override value should take precedence over the stream override from
+        # parsing the branch
+        assert set(dep.get_buildrequires()['platform'].get()) == {'product1.3'}
+        # The requires should not change
+        assert set(dep.get_requires()['platform'].get()) == {'f28'}

@@ -30,6 +30,7 @@ import tempfile
 import os
 from multiprocessing.dummy import Pool as ThreadPool
 from datetime import datetime
+import copy
 from module_build_service.utils import to_text_type
 
 import kobo.rpmlib
@@ -516,9 +517,45 @@ def _apply_dep_overrides(mmd, params):
     :raises ValidationError: if one of the overrides doesn't apply
     """
     dep_overrides = {
-        'buildrequires': params.get('buildrequire_overrides', {}),
-        'requires': params.get('require_overrides', {})
+        'buildrequires': copy.copy(params.get('buildrequire_overrides', {})),
+        'requires': copy.copy(params.get('require_overrides', {}))
     }
+
+    # Parse the module's branch to determine if it should override the stream of the buildrequired
+    # module defined in conf.br_stream_override_module
+    branch_search = None
+    if params.get('branch') and conf.br_stream_override_module and conf.br_stream_override_regexes:
+        # Only parse the branch for a buildrequire override if the user didn't manually specify an
+        # override for the module specified in conf.br_stream_override_module
+        if not dep_overrides['buildrequires'].get(conf.br_stream_override_module):
+            branch_search = None
+            for regex in conf.br_stream_override_regexes:
+                branch_search = re.search(regex, params['branch'])
+                if branch_search:
+                    log.debug(
+                        'The stream override regex `%s` matched the branch %s',
+                        regex, params['branch'])
+                    break
+            else:
+                log.debug('No stream override regexes matched the branch "%s"', params['branch'])
+
+    # If a stream was parsed from the branch, then add it as a stream override for the module
+    # specified in conf.br_stream_override_module
+    if branch_search:
+        # Concatenate all the groups that are not None together to get the desired stream.
+        # This approach is taken in case there are sections to ignore.
+        # For instance, if we need to parse `el8.0.0` from `rhel-8.0.0`.
+        parsed_stream = ''.join(group for group in branch_search.groups() if group)
+        if parsed_stream:
+            dep_overrides['buildrequires'][conf.br_stream_override_module] = [parsed_stream]
+            log.info(
+                'The buildrequired stream of "%s" was overriden with "%s" based on the branch "%s"',
+                conf.br_stream_override_module, parsed_stream, params['branch'])
+        else:
+            log.warning(
+                ('The regex `%s` only matched empty capture groups on the branch "%s". The regex '
+                 'is invalid and should be rewritten.'),
+                regex, params['branch'])
 
     unused_dep_overrides = {
         'buildrequires': set(dep_overrides['buildrequires'].keys()),
@@ -541,6 +578,10 @@ def _apply_dep_overrides(mmd, params):
                 getattr(dep, 'set_' + dep_type)(reqs)
 
     for dep_type in unused_dep_overrides.keys():
+        # If a stream override was applied from parsing the branch and it wasn't applicable,
+        # just ignore it
+        if branch_search and conf.br_stream_override_module in unused_dep_overrides[dep_type]:
+            unused_dep_overrides[dep_type].remove(conf.br_stream_override_module)
         if unused_dep_overrides[dep_type]:
             raise ValidationError(
                 'The {} overrides for the following modules aren\'t applicable: {}'
