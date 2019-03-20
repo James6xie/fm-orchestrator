@@ -1,6 +1,16 @@
 Change Log
 ==========
 
+v2.18.0
+-------
+* Do not allow building modules with the same name as a base module (e.g. platform).
+* Categorize log messages to make debug logs easier to read.
+* Use the "scrmod" prefix also for build targets for scratch builds.
+* Add the ability to override the base module marking used in the RPM disttags.
+* Accept modulemd for scratch module builds as a parameter in the submitted JSON. 
+* Do not default the module name to "unnamed" on a direct modulemd submission.
+* Add the ability to override a buildrequired module stream based on a module's branch.
+
 v2.17.0
 -------
 * Fix the Kerberos auth for Import modulemd API.
