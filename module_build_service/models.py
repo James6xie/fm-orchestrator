@@ -384,6 +384,7 @@ class ModuleBuild(MBSBase):
             mmd = Modulemd.Module().new_from_string(self.modulemd)
             mmd.upgrade()
         except Exception:
+            log.exception('An error occurred while trying to parse the modulemd')
             raise ValueError("Invalid modulemd")
         return mmd
 
