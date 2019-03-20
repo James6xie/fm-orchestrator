@@ -244,7 +244,11 @@ def get_user_kerberos(request):
     user = None
     if 'Authorization' not in request.headers:
         response = Response('Unauthorized', 401, {'WWW-Authenticate': 'Negotiate'})
-        raise FlaskUnauthorized(response=response)
+        exc = FlaskUnauthorized()
+        # For some reason, certain versions of werkzeug raise an exception when passing `response`
+        # in the constructor. This is a work-around.
+        exc.response = response
+        raise exc
     header = request.headers.get('Authorization')
     token = ''.join(header.strip().split()[1:])
     user, kerberos_token = KerberosAuthenticate().process_request(token)
