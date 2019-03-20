@@ -258,18 +258,19 @@ def get_rpm_release(module_build):
                 base_module_obj = models.ModuleBuild.get_build_from_nsvc(
                     session, base_module, bm_in_xmd['stream'], bm_in_xmd['version'],
                     bm_in_xmd['context'])
-            if not base_module_obj:
-                continue
+                if not base_module_obj:
+                    continue
 
-            # Default to using the base module's stream, but if the base module has disttag_marking
-            # set in the xmd, use that instead
-            try:
-                marking = base_module_obj.mmd().get_xmd()['mbs']['disttag_marking']
-            # We must check for a KeyError because a Variant object doesn't support the `get` method
-            except KeyError:
-                marking = base_module_obj.stream
-            base_module_marking = marking + '+'
-            break
+                # Default to using the base module's stream, but if the base module has
+                # disttag_marking set in the xmd, use that instead
+                try:
+                    marking = base_module_obj.mmd().get_xmd()['mbs']['disttag_marking']
+                # We must check for a KeyError because a Variant object doesn't support the `get`
+                # method
+                except KeyError:
+                    marking = base_module_obj.stream
+                base_module_marking = marking + '+'
+                break
         else:
             log.warning('Module build {0} does not buildrequire a base module ({1})'
                         .format(module_build.id, ' or '.join(conf.base_module_names)))
