@@ -1,6 +1,10 @@
 Change Log
 ==========
 
+v2.18.1
+-------
+* Fix an issue where certain module builds would fail with the "Invalid modulemd" error
+
 v2.18.0
 -------
 * Do not allow building modules with the same name as a base module (e.g. platform).
