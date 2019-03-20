@@ -44,32 +44,32 @@ Virtual Module Fields
 
 Required standard fields:
 
-- ``name`` - the module's name
-- ``stream`` - the module's stream
-- ``version`` - the module's version
-- ``context`` - the module's context; this can be simply ``00000000``, which is the default value
-    in MBS
+- ``name`` - the module's name.
+- ``stream`` - the module's stream.
+- ``version`` - the module's version.
+- ``context`` - the module's context. This can be simply ``00000000``, which is the default value
+    in MBS.
 
 Optional standard fields:
 
-- ``profiles.buildroot`` - defines the list of packages installed during the RPM build in Koji
-- ``profiles.srpm-buildroot`` - defines the list of packages installed during the SRPM build;
-    ``module-build-macros`` must be present if this is a base module like ``platform``
+- ``profiles.buildroot`` - defines the list of packages installed during the RPM build in Koji.
+- ``profiles.srpm-buildroot`` - defines the list of packages installed during the SRPM build.
+    ``module-build-macros`` must be present if this is a base module like ``platform``.
 
 Custom fields in xmd:
 
-- ``buildrequires`` - the buildrequires as resolved by MBS; it should always be an empty dictionary
-    for base modules
-- ``requires`` - the requires as resolved by MBS; it should always be an empty dictionary
-    for base modules
+- ``buildrequires`` - the buildrequires as resolved by MBS. It should always be an empty dictionary
+    for base modules.
+- ``requires`` - the requires as resolved by MBS. It should always be an empty dictionary
+    for base modules.
 - ``commit`` - this should be ``virtual`` or some other identifier that is meaningful since a commit
-    is not applicable when a module is directly imported
+    is not applicable when a module is directly imported.
 - ``mse`` - this is an internal identifier used by MBS to know if this is a legacy module build
-    prior to module stream expansion; this should always be ``TRUE``
-- ``koji_tag`` - this defines the Koji tag with the RPMs that are part of this module; for base
-    modules this will likely be a tag representing a buildroot
-- ``virtual_streams`` - the list of streams which groups multiple modules together; for more
-    information on this field, see the ``Virtual Streams`` section below
+    prior to module stream expansion. This should always be ``TRUE``.
+- ``koji_tag`` - this defines the Koji tag with the RPMs that are part of this module. For base
+    modules this will likely be a tag representing a buildroot.
+- ``virtual_streams`` - the list of streams which groups multiple modules together. For more
+    information on this field, see the ``Virtual Streams`` section below.
 - ``disttag_marking`` - if this module is a base module, then MBS will use the stream of the base
     module in the disttag of the RPMS being built. If the stream is not the appropriate value, then
     this can be overridden with a custom value using this property. This value can't contain a dash,
