@@ -1289,6 +1289,9 @@ class TestViews:
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
     def test_submit_build_invalid_basemodule_stream(self, mocked_scm, mocked_get_user):
+        # By default tests do not provide platform:f28.0.0, but just platform:f28.
+        # Therefore we want to enable multiple_stream_versions.
+        init_data(2, multiple_stream_versions=True)
         FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
 
@@ -1302,12 +1305,12 @@ class TestViews:
         rv = self.client.post('/module-build-service/1/module-builds/', data=json.dumps(data))
         result = json.loads(rv.data)
         assert result == {
-            'error': 'Bad Request',
-            'status': 400,
-            'message': ('No dependency combination was satisfied. Please verify the '
-                        'buildrequires in your modulemd have previously been built.')
+            'error': 'Unprocessable Entity',
+            'status': 422,
+            'message': ('None of the base module (platform) streams in the buildrequires '
+                        'section could be found')
         }
-        assert rv.status_code == 400
+        assert rv.status_code == 422
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')

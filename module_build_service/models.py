@@ -358,21 +358,33 @@ class ModuleBuild(MBSBase):
         # the minimal `stream_version` is 280000.
         min_stream_version = (stream_version // 10000) * 10000
 
-        # Prepare the subquery to find out all unique name:stream records.
-        subq = session.query(
-            func.max(sqlalchemy.cast(ModuleBuild.version, db.BigInteger)).label("maxversion")
-        ).filter_by(name=name, state=BUILD_STATES["ready"]).filter(
-            stream_version <= stream_version).filter(
-                stream_version >= min_stream_version).subquery('t2')
+        query = session.query(ModuleBuild)\
+            .filter(ModuleBuild.name == name)\
+            .filter(ModuleBuild.state == BUILD_STATES["ready"])\
+            .filter(ModuleBuild.stream_version <= stream_version)\
+            .filter(ModuleBuild.stream_version >= min_stream_version)\
+            .order_by(ModuleBuild.version.desc())
+        builds = query.all()
 
-        # Use the subquery to actually return all the columns for its results.
-        query = session.query(ModuleBuild).join(
-            subq, and_(
-                ModuleBuild.name == name,
-                ModuleBuild.stream_version <= stream_version,
-                ModuleBuild.stream_version >= min_stream_version,
-                sqlalchemy.cast(ModuleBuild.version, db.BigInteger) == subq.c.maxversion))
-        return query.all()
+        # In case there are multiple versions of single name:stream build, we want to return
+        # the latest version only. The `builds` are ordered by "version" desc, so we
+        # can just get the first (greatest) version of name:stream.
+        # TODO: Is there a way how to do that nicely in the SQL query itself?
+        seen = {}  # {"n:s": v, ...}
+        ret = []
+        for build in builds:
+            ns = "%s:%s" % (build.name, build.stream)
+            if ns in seen and seen[ns] != build.version:
+                # Skip the builds if we already handled this nsv before.
+                continue
+            elif ns in seen and seen[ns] == build.version:
+                # Different context of the NSV
+                ret.append(build)
+                continue
+
+            seen[ns] = build.version
+            ret.append(build)
+        return ret
 
     @staticmethod
     def get_build_by_koji_tag(session, tag):

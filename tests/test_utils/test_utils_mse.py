@@ -337,9 +337,9 @@ class TestUtilsModuleStreamExpansion:
         and lorem:1 modules which require base:f29 module requiring
         platform:f29 module :).
         """
-        f290000 = make_module("platform:f29.0.0:0:c11", {}, {})
-        f290100 = make_module("platform:f29.1.0:0:c11", {}, {})
-        f290200 = make_module("platform:f29.2.0:0:c11", {}, {})
+        f290000 = make_module("platform:f29.0.0:0:c11", {}, {}, virtual_streams=["f29"])
+        f290100 = make_module("platform:f29.1.0:0:c11", {}, {}, virtual_streams=["f29"])
+        f290200 = make_module("platform:f29.2.0:0:c11", {}, {}, virtual_streams=["f29"])
         make_module("gtk:1:0:c2", {"platform": ["f29"]}, {}, f290000)
         make_module("gtk:1:1:c2", {"platform": ["f29"]}, {}, f290100)
         make_module("gtk:1:2:c2", {"platform": ["f29"]}, {}, f290100)
@@ -362,12 +362,40 @@ class TestUtilsModuleStreamExpansion:
             os.path.join(base_dir, 'staged_data', 'testmodule_v2.yaml'), True)
         deps = mmd.get_dependencies()
         brs = deps[0].get_buildrequires()
-        brs['platform'].set(['platform:f29.1.0', 'platform:f29.2.0'])
+        brs['platform'].set(['f29.1.0', 'f29.2.0'])
         deps[0].set_buildrequires(brs)
         mmd.set_dependencies(deps)
 
         mmds = module_build_service.utils.mse._get_base_module_mmds(mmd)
         expected = set(['platform:f29.0.0', 'platform:f29.1.0', 'platform:f29.2.0'])
+        # Verify no duplicates were returned before doing set operations
+        assert len(mmds) == len(expected)
+        # Verify the expected ones were returned
+        actual = set()
+        for mmd_ in mmds:
+            actual.add('{}:{}'.format(mmd_.get_name(), mmd_.get_stream()))
+        assert actual == expected
+
+    @pytest.mark.parametrize('virtual_streams', (None, ["f29"], ["lp29"]))
+    def test__get_base_module_mmds_virtual_streams(self, virtual_streams):
+        """Ensure the correct results are returned without duplicates."""
+        init_data(data_size=1, multiple_stream_versions=True)
+        mmd = module_build_service.utils.load_mmd(
+            os.path.join(base_dir, 'staged_data', 'testmodule_v2.yaml'), True)
+        deps = mmd.get_dependencies()
+        brs = deps[0].get_buildrequires()
+        brs['platform'].set(['f29.2.0'])
+        deps[0].set_buildrequires(brs)
+        mmd.set_dependencies(deps)
+
+        make_module("platform:lp29.1.1:12:c11", {}, {}, virtual_streams=virtual_streams)
+
+        mmds = module_build_service.utils.mse._get_base_module_mmds(mmd)
+        if virtual_streams == ["f29"]:
+            expected = set(['platform:f29.0.0', 'platform:f29.1.0', 'platform:f29.2.0',
+                            'platform:lp29.1.1'])
+        else:
+            expected = set(['platform:f29.0.0', 'platform:f29.1.0', 'platform:f29.2.0'])
         # Verify no duplicates were returned before doing set operations
         assert len(mmds) == len(expected)
         # Verify the expected ones were returned

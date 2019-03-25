@@ -218,11 +218,52 @@ def _get_base_module_mmds(mmd):
                 if ns in seen:
                     continue
 
+                # Get the MMD for particular buildrequired name:stream to find out the virtual
+                # streams according to which we can find the compatible streams later.
+                # The returned MMDs are all the module builds for name:stream in the highest
+                # version. Given the base module does not depend on other modules, it can appear
+                # only in single context and therefore the `mmds` should always contain just
+                # zero or one module build.
+                mmds = resolver.get_module_modulemds(name, stream)
+                if not mmds:
+                    continue
+                stream_mmd = mmds[0]
+
+                # In case there are no virtual_streams in the buildrequired name:stream,
+                # it is clear that there are no compatible streams, so return just this
+                # `stream_mmd`.
+                xmd = stream_mmd.get_xmd()
+                if "mbs" not in xmd.keys() or "virtual_streams" not in xmd["mbs"].keys():
+                    seen.add(ns)
+                    ret.append(stream_mmd)
+                    continue
+
+                # Get the list of compatible virtual streams.
+                virtual_streams = xmd["mbs"]["virtual_streams"]
+
                 mmds = resolver.get_module_modulemds(name, stream, stream_version_lte=True)
                 ret_chunk = []
                 # Add the returned mmds to the `seen` set to avoid querying those individually if
                 # they are part of the buildrequire streams for this base module
                 for mmd_ in mmds:
+                    mmd_ns = ":".join([mmd_.get_name(), mmd_.get_stream()])
+                    xmd = mmd_.get_xmd()
+                    if "mbs" not in xmd.keys() or "virtual_streams" not in xmd["mbs"].keys():
+                        # This module does not contain any virtual stream, so it cannot
+                        # be compatible with our buildrequired module.
+                        continue
+
+                    # Check if some virtual stream from buildrequired module exists in
+                    # this module. That would mean the modules are compatible.
+                    mmd_virtual_streams = xmd["mbs"]["virtual_streams"]
+                    for virtual_stream in virtual_streams:
+                        if virtual_stream in mmd_virtual_streams:
+                            break
+                    else:
+                        # No stream from `virtual_streams` exist in `mmd_virtual_streams`, so this
+                        # module is not compatible with our buildrequired module.
+                        continue
+
                     mmd_ns = ":".join([mmd_.get_name(), mmd_.get_stream()])
                     # An extra precaution to ensure there are no duplicates in the event the sorting
                     # above wasn't flawless

@@ -126,7 +126,14 @@ def init_data(data_size=10, contexts=False, multiple_stream_versions=False, scra
         for stream in ["f28.0.0", "f29.0.0", "f29.1.0", "f29.2.0"]:
             mmd.set_name("platform")
             mmd.set_stream(stream)
+
+            # Set the virtual_streams based on "fXY" to mark the platform streams
+            # with the same major stream_version compatible.
+            xmd = glib.from_variant_dict(mmd.get_xmd())
+            xmd['mbs']['virtual_streams'] = [stream[:3]]
+            mmd.set_xmd(glib.dict_values(xmd))
             import_mmd(db.session, mmd)
+
             # Just to possibly confuse tests by adding another base module.
             mmd.set_name("bootstrap")
             mmd.set_stream(stream)
@@ -724,7 +731,7 @@ def reuse_shared_userspace_init_data():
 
 
 def make_module(nsvc, requires_list=None, build_requires_list=None, base_module=None,
-                filtered_rpms=None, xmd=None, store_to_db=True):
+                filtered_rpms=None, xmd=None, store_to_db=True, virtual_streams=None):
     """
     Creates new models.ModuleBuild defined by `nsvc` string with requires
     and buildrequires set according to ``requires_list`` and ``build_requires_list``.
@@ -742,6 +749,7 @@ def make_module(nsvc, requires_list=None, build_requires_list=None, base_module=
         default key/value pairs are added if not present.
     :param bool store_to_db: whether to store created module metadata to the
         database.
+    :param list virtual_streams: List of virtual streams provided by this module.
     :return: New Module Build if set to store module metadata to database,
         otherwise the module metadata is returned.
     :rtype: ModuleBuild or Modulemd.Module
@@ -794,6 +802,9 @@ def make_module(nsvc, requires_list=None, build_requires_list=None, base_module=
         xmd_mbs['commit'] = 'ref_%s' % context
     if 'mse' not in xmd_mbs:
         xmd_mbs['mse'] = 'true'
+
+    if virtual_streams:
+        xmd_mbs['virtual_streams'] = virtual_streams
 
     mmd.set_xmd(glib.dict_values(xmd))
 

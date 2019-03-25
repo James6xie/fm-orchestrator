@@ -24,7 +24,7 @@ import os
 from module_build_service.utils import to_text_type
 
 from tests.test_models import init_data, module_build_from_modulemd
-from tests import (init_data as init_data_contexts, clean_database)
+from tests import (init_data as init_data_contexts, clean_database, make_module)
 from module_build_service import conf, Modulemd
 from module_build_service.models import ComponentBuild, ModuleBuild, make_session
 
@@ -142,3 +142,25 @@ class TestModelsGetStreamsContexts:
             builds = set(["%s:%s:%s:%s" % (build.name, build.stream, str(build.version),
                                            build.context) for build in builds])
             assert builds == set(['platform:f29.0.0:3:00000000', 'platform:f29.1.0:3:00000000'])
+
+    def test_get_last_builds_in_stream_version_lte_different_versions(self):
+        """
+        Tests that get_last_builds_in_stream_version_lte works in case the
+        name:stream_ver modules have different versions.
+        """
+        clean_database(False)
+        make_module("platform:f29.1.0:10:old_version", {}, {}, virtual_streams=["f29"])
+        make_module("platform:f29.1.0:15:c11.another", {}, {}, virtual_streams=["f29"])
+        make_module("platform:f29.1.0:15:c11", {}, {}, virtual_streams=["f29"])
+        make_module("platform:f29.2.0:0:old_version", {}, {}, virtual_streams=["f29"])
+        make_module("platform:f29.2.0:1:c11", {}, {}, virtual_streams=["f29"])
+        make_module("platform:f29.3.0:15:old_version", {}, {}, virtual_streams=["f29"])
+        make_module("platform:f29.3.0:20:c11", {}, {}, virtual_streams=["f29"])
+
+        with make_session(conf) as session:
+            builds = ModuleBuild.get_last_builds_in_stream_version_lte(
+                session, "platform", 290200)
+            builds = set(["%s:%s:%s:%s" % (build.name, build.stream, str(build.version),
+                                           build.context) for build in builds])
+            assert builds == set(['platform:f29.1.0:15:c11', 'platform:f29.1.0:15:c11.another',
+                                  'platform:f29.2.0:1:c11'])
