@@ -1,6 +1,11 @@
 Change Log
 ==========
 
+v2.18.2
+-------
+* Find compatible base modules based on the virtual streams and stream versions, not just the stream versions
+* Support base modules with x.y.z versioning and no virtual streams
+
 v2.18.1
 -------
 * Fix an issue where certain module builds would fail with the "Invalid modulemd" error
