@@ -212,9 +212,9 @@ class MMDResolver(object):
 
         return reqs
 
-    def _add_virtual_provides(self, solvable, mmd):
+    def _add_base_module_provides(self, solvable, mmd):
         """
-        Adds "virtual_streams" from XMD section of `mmd` to `solvable`.
+        Adds the "stream version" and the "virtual_streams" from XMD section of `mmd` to `solvable`.
 
         Base modules like "platform" can contain virtual streams which need to be considered
         when resolving dependencies. For example module "platform:el8.1.0" can provide virtual
@@ -223,9 +223,7 @@ class MMDResolver(object):
         - module(platform:el8.1.0) = 80100 - Modules can require specific platform stream.
         - module(platform:el8) = 80100 - Module can also require just platform:el8.
         """
-        xmd = mmd.get_xmd()
-        # Return in case virtual_streams are not set for this mmd.
-        if "mbs" not in xmd.keys() or "virtual_streams" not in xmd["mbs"].keys():
+        if mmd.get_name() not in conf.base_module_names:
             return
 
         # When depsolving, we will need to follow specific rules to choose the right base
@@ -234,11 +232,16 @@ class MMDResolver(object):
         # and so on. We therefore need to convert the stream and version of base module to
         # integer representation and add "module($name:$stream) = $stream_based_version"
         # to Provides.
-        version = ModuleBuild.get_stream_version(
-            mmd.get_stream(), right_pad=False)
-        dep = self.pool.Dep("module(%s:%s)" % (mmd.get_name(), mmd.get_stream())).Rel(
-            solv.REL_EQ, self.pool.Dep(str(version)))
-        solvable.add_deparray(solv.SOLVABLE_PROVIDES, dep)
+        version = ModuleBuild.get_stream_version(mmd.get_stream(), right_pad=False)
+        if version:
+            dep = self.pool.Dep("module(%s:%s)" % (mmd.get_name(), mmd.get_stream())).Rel(
+                solv.REL_EQ, self.pool.Dep(str(version)))
+            solvable.add_deparray(solv.SOLVABLE_PROVIDES, dep)
+
+        xmd = mmd.get_xmd()
+        # Return in case virtual_streams are not set for this mmd.
+        if "mbs" not in xmd.keys() or "virtual_streams" not in xmd["mbs"].keys():
+            return
 
         # For each virtual stream, add
         # "module($name:$stream) = $virtual_stream_based_version" provide.
@@ -323,7 +326,7 @@ class MMDResolver(object):
                                   pool.Dep("module(%s:%s)" % (n, s)).Rel(
                                       solv.REL_EQ, pool.Dep(str(v))))
 
-            self._add_virtual_provides(solvable, mmd)
+            self._add_base_module_provides(solvable, mmd)
 
             # Fill in the "Requires" of this module, so we can track its dependencies
             # on other modules.

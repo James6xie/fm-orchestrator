@@ -1999,3 +1999,25 @@ class TestViews:
         assert set(dep.get_buildrequires()['platform'].get()) == {'product1.3'}
         # The requires should not change
         assert set(dep.get_requires()['platform'].get()) == {'f28'}
+
+    @patch('module_build_service.auth.get_user', return_value=user)
+    @patch('module_build_service.scm.SCM')
+    def test_submit_build_br_xyz_version_no_virtual_streams(self, mocked_scm, mocked_get_user):
+        """
+        Test that when a build is submitted with a buildrequire on a base module with x.y.z
+        versioning and no virtual streams, that the dependency resolution succeeds.
+        """
+        init_data(data_size=1, multiple_stream_versions=True)
+        platform_mmd = load_mmd(path.join(base_dir, 'staged_data', 'platform.yaml'), True)
+        platform_mmd.set_stream('el8.0.0')
+        import_mmd(db.session, platform_mmd)
+
+        FakeSCM(mocked_scm, 'testmodule', 'testmodule_el800.yaml',
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+
+        post_url = '/module-build-service/2/module-builds/'
+        scm_url = ('https://src.stg.fedoraproject.org/modules/testmodule.git?#68931c90de214d9d13fe'
+                   'efbd35246a81b6cb8d49')
+
+        rv = self.client.post(post_url, data=json.dumps({'branch': 'master', 'scmurl': scm_url}))
+        assert rv.status_code == 201
