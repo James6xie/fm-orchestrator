@@ -107,9 +107,11 @@ class FedmsgMessageParser(MessageParser):
         topic_categories = _messaging_backends['fedmsg']['services']
         categories_re = '|'.join(map(re.escape, topic_categories))
         regex_pattern = re.compile(
-            (r'(?P<category>' + categories_re + r')(?:(?:\.)'
-             r'(?P<object>build|repo|module))?(?:(?:\.)'
-             r'(?P<subobject>state|build))?(?:\.)(?P<event>change|done|end|tag)$'))
+            r'(?P<category>' + categories_re + r')'
+            r'(?:(?:\.)(?P<object>build|repo|module|decision))?'
+            r'(?:(?:\.)(?P<subobject>state|build))?'
+            r'(?:\.)(?P<event>change|done|end|tag|update)$'
+        )
         regex_results = re.search(regex_pattern, topic)
 
         if regex_results:
@@ -168,6 +170,14 @@ class FedmsgMessageParser(MessageParser):
                     subobject == 'state' and event == 'change':
                 msg_obj = MBSModule(
                     msg_id, msg_inner_msg.get('id'), msg_inner_msg.get('state'))
+
+            elif (category == 'greenwave' and object == 'decision' and
+                    subobject is None and event == 'update'):
+                msg_obj = GreenwaveDecisionUpdate(
+                    msg_id=msg_id,
+                    decision_context=msg_inner_msg.get('decision_context'),
+                    policies_satisfied=msg_inner_msg.get('policies_satisfied'),
+                    subject_identifier=msg_inner_msg.get('subject_identifier'))
 
             # If the message matched the regex and is important to the app,
             # it will be returned
@@ -246,6 +256,17 @@ class MBSModule(BaseMessage):
         self.module_build_state = module_build_state
 
 
+class GreenwaveDecisionUpdate(BaseMessage):
+    """A class representing message send to topic greenwave.decision.update"""
+
+    def __init__(self, msg_id, decision_context, policies_satisfied,
+                 subject_identifier):
+        super(GreenwaveDecisionUpdate, self).__init__(msg_id)
+        self.decision_context = decision_context
+        self.policies_satisfied = policies_satisfied
+        self.subject_identifier = subject_identifier
+
+
 def publish(topic, msg, conf, service):
     """
     Publish a single message to a given backend, and return
@@ -316,7 +337,7 @@ def _in_memory_publish(topic, msg, conf, service):
 
 _fedmsg_backend = {
     'publish': _fedmsg_publish,
-    'services': ['buildsys', 'mbs'],
+    'services': ['buildsys', 'mbs', 'greenwave'],
     'parser': FedmsgMessageParser(),
     'topic_suffix': '.',
 }

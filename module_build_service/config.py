@@ -535,6 +535,13 @@ class Config(object):
                         "redhat-rpm-config", "fedpkg-minimal", "rpm-build", "shadow-utils"],
             'desc': ('The list packages for offline module build RPM buildroot.')
         },
+        'greenwave_decision_context': {
+            'type': str,
+            'default': 'osci_compose_gate_modules',
+            'desc': 'The Greenwave decision context that whose messages should '
+                    'be handled by MBS. By default, MBS handles Greenwave '
+                    'messages for OSCI.',
+        }
     }
 
     def __init__(self, conf_section_obj):

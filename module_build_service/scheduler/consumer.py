@@ -41,14 +41,17 @@ import moksha.hub
 import six
 import sqlalchemy.exc
 
-from module_build_service.utils import module_build_state_from_msg
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.repos
 import module_build_service.scheduler.handlers.components
 import module_build_service.scheduler.handlers.modules
 import module_build_service.scheduler.handlers.tags
+import module_build_service.scheduler.handlers.greenwave
 import module_build_service.monitor as monitor
+
 from module_build_service import models, log, conf
+from module_build_service.scheduler.handlers import greenwave
+from module_build_service.utils import module_build_state_from_msg
 
 
 class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
@@ -129,6 +132,7 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
         # Only one kind of repo change event, though...
         self.on_repo_change = module_build_service.scheduler.handlers.repos.done
         self.on_tag_change = module_build_service.scheduler.handlers.tags.tagged
+        self.on_decision_update = module_build_service.scheduler.handlers.greenwave.decision_update
         self.sanity_check()
 
     def shutdown(self):
@@ -232,6 +236,9 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
         elif type(msg) == module_build_service.messaging.MBSModule:
             handler = self.on_module_change[module_build_state_from_msg(msg)]
             build = models.ModuleBuild.from_module_event(session, msg)
+        elif type(msg) == module_build_service.messaging.GreenwaveDecisionUpdate:
+            handler = self.on_decision_update
+            build = greenwave.get_corresponding_module_build(msg.subject_identifier)
         else:
             return
 

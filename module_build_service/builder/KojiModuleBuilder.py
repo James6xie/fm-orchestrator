@@ -442,6 +442,15 @@ chmod 644 %buildroot/etc/rpm/macros.zz-modules
     @staticmethod
     @module_build_service.utils.retry(wait_on=(xmlrpclib.ProtocolError, koji.GenericError))
     def get_session(config, login=True):
+        """Create and return a koji.ClientSession object
+
+        :param config: the config object returned from :meth:`init_config`.
+        :type config: :class:`Config`
+        :param bool login: whether to log into the session. To login if True
+            is passed, otherwise not to log into session.
+        :return: the Koji session object.
+        :rtype: :class:`koji.ClientSession`
+        """
         koji_config = munch.Munch(koji.read_config(
             profile_name=config.koji_profile,
             user_config=config.koji_config,

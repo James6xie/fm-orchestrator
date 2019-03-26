@@ -271,6 +271,18 @@ class ModuleBuild(MBSBase):
             ]
 
     @staticmethod
+    def get_by_id(session, module_build_id):
+        """Find out a module build by id and return
+
+        :param session: SQLAlchemy database session object.
+        :param int module_build_id: the module build id to find out.
+        :return: the found module build. None is returned if no module build
+            with specified id in database.
+        :rtype: :class:`ModuleBuild`
+        """
+        return session.query(ModuleBuild).filter(ModuleBuild.id == module_build_id).first()
+
+    @staticmethod
     def get_last_build_in_all_streams(session, name):
         """
         Returns list of all latest ModuleBuilds in "ready" state for all
@@ -541,7 +553,19 @@ class ModuleBuild(MBSBase):
         return module
 
     def transition(self, conf, state, state_reason=None):
-        """ Record that a build has transitioned state. """
+        """Record that a build has transitioned state.
+
+        The history of state transitions are recorded in model
+        ``ModuleBuildTrace``. If transform to a different state, for example
+        from ``build`` to ``done``, message will be sent to configured message
+        bus.
+
+        :param conf: MBS config object returned from function :func:`init_config`
+            which contains loaded configs.
+        :type conf: :class:`Config`
+        :param int state: the state value to transition to. Refer to ``BUILD_STATES``.
+        :param str state_reason: optional reason of why to transform to ``state``.
+        """
         now = datetime.utcnow()
         old_state = self.state
         self.state = state
