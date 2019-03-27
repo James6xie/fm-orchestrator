@@ -1200,6 +1200,105 @@ class TestBuild:
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
+    @patch('module_build_service.config.Config.modules_allow_scratch',
+           new_callable=PropertyMock, return_value=True)
+    def test_submit_scratch_vs_normal(
+            self, mocked_allow_scratch, mocked_scm, mocked_get_user, conf_system, dbg, hmsc):
+        """
+        Tests that submitting a scratch build with the same NSV as a completed
+        normal build succeeds
+        """
+        FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+        # Post so a module is in the init phase
+        post_url = '/module-build-service/1/module-builds/'
+        post_data = {
+            'branch': 'master',
+            'scmurl': 'https://src.stg.fedoraproject.org/modules/'
+                      'testmodule.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4',
+            'scratch': False,
+        }
+        rv = self.client.post(post_url, data=json.dumps(post_data))
+        assert rv.status_code == 201
+        data = json.loads(rv.data)
+        module_build_id = data['id']
+        module_build = models.ModuleBuild.query.filter_by(id=module_build_id).one()
+        # make sure normal build has expected context
+        assert module_build.context == '9c690d0e'
+        # Run the backend
+        stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
+        module_build_service.scheduler.main([], stop)
+        # Post again as a scratch build and make sure it succeeds
+        post_data['scratch'] = True
+        rv2 = self.client.post(post_url, data=json.dumps(post_data))
+        assert rv2.status_code == 201
+        data = json.loads(rv2.data)
+        module_build_id = data['id']
+        module_build = models.ModuleBuild.query.filter_by(id=module_build_id).one()
+        # make sure scratch build has context with unique suffix
+        assert module_build.context == '9c690d0e.1'
+
+    @patch('module_build_service.auth.get_user', return_value=user)
+    @patch('module_build_service.scm.SCM')
+    @patch('module_build_service.config.Config.modules_allow_scratch',
+           new_callable=PropertyMock, return_value=True)
+    def test_submit_normal_vs_scratch(
+            self, mocked_allow_scratch, mocked_scm, mocked_get_user, conf_system, dbg, hmsc):
+        """
+        Tests that submitting a normal build with the same NSV as a completed
+        scratch build succeeds
+        """
+        FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+        # Post so a scratch module build is in the init phase
+        post_url = '/module-build-service/1/module-builds/'
+        post_data = {
+            'branch': 'master',
+            'scmurl': 'https://src.stg.fedoraproject.org/modules/'
+                      'testmodule.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4',
+            'scratch': True,
+        }
+        rv = self.client.post(post_url, data=json.dumps(post_data))
+        assert rv.status_code == 201
+        # Run the backend
+        stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
+        module_build_service.scheduler.main([], stop)
+        # Post again as a non-scratch build and make sure it succeeds
+        post_data['scratch'] = False
+        rv2 = self.client.post(post_url, data=json.dumps(post_data))
+        assert rv2.status_code == 201
+
+    @patch('module_build_service.auth.get_user', return_value=user)
+    @patch('module_build_service.scm.SCM')
+    @patch('module_build_service.config.Config.modules_allow_scratch',
+           new_callable=PropertyMock, return_value=True)
+    def test_submit_scratch_vs_scratch(
+            self, mocked_allow_scratch, mocked_scm, mocked_get_user, conf_system, dbg, hmsc):
+        """
+        Tests that submitting a scratch build with the same NSV as a completed
+        scratch build succeeds
+        """
+        FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+        # Post so a scratch module build is in the init phase
+        post_url = '/module-build-service/1/module-builds/'
+        post_data = {
+            'branch': 'master',
+            'scmurl': 'https://src.stg.fedoraproject.org/modules/'
+                      'testmodule.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4',
+            'scratch': True,
+        }
+        rv = self.client.post(post_url, data=json.dumps(post_data))
+        assert rv.status_code == 201
+        # Run the backend
+        stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
+        module_build_service.scheduler.main([], stop)
+        # Post scratch build again and make sure it succeeds
+        rv2 = self.client.post(post_url, data=json.dumps(post_data))
+        assert rv2.status_code == 201
+
+    @patch('module_build_service.auth.get_user', return_value=user)
+    @patch('module_build_service.scm.SCM')
     def test_submit_build_repo_regen_not_started_batch(self, mocked_scm, mocked_get_user,
                                                        conf_system, dbg, hmsc):
         """

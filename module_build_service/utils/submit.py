@@ -602,6 +602,10 @@ def submit_module_build(username, mmd, params):
     """
     import koji  # Placed here to avoid py2/py3 conflicts...
 
+    log.debug('Submitted %s module build for %s:%s:%s',
+              ("scratch" if params.get('scratch', False) else "normal"),
+              mmd.get_name(), mmd.get_stream(), mmd.get_version())
+
     if mmd.get_name() in conf.base_module_names:
         raise ValidationError(
             'You cannot build a module named "{}" since it is a base module'.format(mmd.get_name()))
@@ -639,7 +643,7 @@ def submit_module_build(username, mmd, params):
         log.debug('Checking whether module build already exists: %s.', nsvc)
         module = models.ModuleBuild.get_build_from_nsvc(
             db.session, mmd.get_name(), mmd.get_stream(), version_str, mmd.get_context())
-        if module:
+        if module and not params.get('scratch', False):
             if module.state != models.BUILD_STATES['failed']:
                 log.info("Skipping rebuild of %s, only rebuild of modules in failed state "
                          "is allowed.", nsvc)
@@ -669,6 +673,18 @@ def submit_module_build(username, mmd, params):
             module.transition(conf, transition_to, "Resubmitted by %s" % username)
             log.info("Resumed existing module build in previous state %s" % module.state)
         else:
+            # make NSVC unique for every scratch build
+            context_suffix = ''
+            if params.get('scratch', False):
+                log.debug('Checking for existing scratch module builds by NSVC')
+                scrmods = models.ModuleBuild.get_scratch_builds_from_nsvc(
+                    db.session, mmd.get_name(), mmd.get_stream(), version_str, mmd.get_context())
+                scrmod_contexts = [scrmod.context for scrmod in scrmods]
+                log.debug('Found %d previous scratch module build context(s): %s',
+                          scrmods.count(), ",".join(scrmod_contexts))
+                # append incrementing counter to context
+                context_suffix = '.' + str(scrmods.count() + 1)
+                mmd.set_context(mmd.get_context() + context_suffix)
             log.debug('Creating new module build')
             module = models.ModuleBuild.create(
                 db.session,
@@ -685,6 +701,7 @@ def submit_module_build(username, mmd, params):
             )
             (module.ref_build_context, module.build_context, module.runtime_context,
              module.context) = module.contexts_from_mmd(module.modulemd)
+            module.context += context_suffix
 
         all_modules_skipped = False
         db.session.add(module)

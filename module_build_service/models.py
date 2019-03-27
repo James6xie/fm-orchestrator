@@ -354,6 +354,16 @@ class ModuleBuild(MBSBase):
             name=name, stream=stream, version=str(version), context=context, **kwargs).first()
 
     @staticmethod
+    def get_scratch_builds_from_nsvc(session, name, stream, version, context, **kwargs):
+        """
+        Returns all scratch builds defined by NSVC. This is done by using the supplied `context`
+        as a match prefix. Optional kwargs are passed to SQLAlchemy filter_by method.
+        """
+        return session.query(ModuleBuild).filter_by(
+            name=name, stream=stream, version=str(version), scratch=True, **kwargs)\
+            .filter(ModuleBuild.context.like(context + '%'))
+
+    @staticmethod
     def get_last_builds_in_stream_version_lte(session, name, stream_version):
         """
         Returns the latest builds in "ready" state for given name:stream limited by
@@ -831,10 +841,10 @@ class ModuleBuild(MBSBase):
         return rv
 
     def __repr__(self):
-        return (("<ModuleBuild %s, id=%d, stream=%s, version=%s, state %r,"
-                 " batch %r, state_reason %r>")
-                % (self.name, self.id, self.stream, self.version, INVERSE_BUILD_STATES[self.state],
-                   self.batch, self.state_reason))
+        return (("<ModuleBuild %s, id=%d, stream=%s, version=%s, scratch=%r,"
+                 " state %r, batch %r, state_reason %r>")
+                % (self.name, self.id, self.stream, self.version, self.scratch,
+                   INVERSE_BUILD_STATES[self.state], self.batch, self.state_reason))
 
 
 class ModuleBuildTrace(MBSBase):
