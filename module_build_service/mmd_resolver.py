@@ -510,9 +510,8 @@ class MMDResolver(object):
                     kfunc = s2nsvc
                 elif policy == MMDResolverPolicy.First:
                     kfunc = s2ns
+                # `key` contains tuple similar to "('gtk:1', 'foo:1')"
                 key = tuple(kfunc(s) for s in opt)
-                # `key` now contains tuple similar to "('gtk:1', 'foo:1')"
-                alternative = src_alternatives.setdefault(key, [])
 
                 # Create the solving jobs.
                 # We need to say to libsolv that we want it to prefer modules from the combination
@@ -559,6 +558,7 @@ class MMDResolver(object):
                 # Remember that src_alternatives are grouped by NS or NSVC depending on
                 # MMDResolverPolicy, so there might be more of them.
                 if all_solvables_found:
+                    alternative = src_alternatives.setdefault(key, [])
                     alternative.append(newsolvables)
                 else:
                     log.debug("  - ^ Not all favored solvables found in the result, skipping.")

@@ -326,3 +326,30 @@ class TestMMDResolver:
 
         with pytest.raises(RuntimeError, match=err_msg_regex):
             self.mmd_resolver.solve(app)
+
+    def test_solve_new_platform(self,):
+        """
+        Tests that MMDResolver works in case we add new platform and there is
+        modular dependency of input module which is built only against old
+        platforms and in the same time the input module wants to be built
+        with all available platforms.
+        """
+        modules = (
+            ("platform:f28:0:c0", {}),
+            ("platform:f29:0:c0", {}),
+            ("platform:f30:0:c0", {}),
+            ("gtk:3:0:c8", {"platform": ["f28"]}),
+            ("gtk:3:0:c9", {"platform": ["f29"]}),
+        )
+        for n, req in modules:
+            self.mmd_resolver.add_modules(self._make_mmd(n, req))
+
+        app = self._make_mmd("app:1:0", {"platform": [], "gtk": ["3"]})
+        expanded = self.mmd_resolver.solve(app)
+
+        # Build only against f28 and f29, because "gtk:3" is not built against f30.
+        expected = set([
+            frozenset(['gtk:3:0:c8:x86_64', 'app:1:0:0:src', 'platform:f28:0:c0:x86_64']),
+            frozenset(['gtk:3:0:c9:x86_64', 'app:1:0:0:src', 'platform:f29:0:c0:x86_64'])])
+
+        assert expanded == expected
