@@ -1236,7 +1236,7 @@ class TestBuild:
         module_build_id = data['id']
         module_build = models.ModuleBuild.query.filter_by(id=module_build_id).one()
         # make sure scratch build has context with unique suffix
-        assert module_build.context == '9c690d0e.1'
+        assert module_build.context == '9c690d0e_1'
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')

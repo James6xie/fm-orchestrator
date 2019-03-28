@@ -683,7 +683,7 @@ def submit_module_build(username, mmd, params):
                 log.debug('Found %d previous scratch module build context(s): %s',
                           scrmods.count(), ",".join(scrmod_contexts))
                 # append incrementing counter to context
-                context_suffix = '.' + str(scrmods.count() + 1)
+                context_suffix = '_' + str(scrmods.count() + 1)
                 mmd.set_context(mmd.get_context() + context_suffix)
             log.debug('Creating new module build')
             module = models.ModuleBuild.create(
