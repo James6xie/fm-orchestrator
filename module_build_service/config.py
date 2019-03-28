@@ -516,6 +516,20 @@ class Config(object):
                      'concatenated. Any null capture groups will be ignored. The first regex that '
                      'matches the branch will be used.')
         },
+        'default_buildroot_packages': {
+            'type': list,
+            'default': ["bash", "bzip2", "coreutils", "cpio", "diffutils", "findutils", "gawk",
+                        "gcc", "gcc-c++", "grep", "gzip", "info", "make", "module-build-macros",
+                        "patch", "fedora-release", "redhat-rpm-config", "rpm-build", "sed",
+                        "shadow-utils", "tar", "unzip", "util-linux", "which", "xz"],
+            'desc': ('The list packages for offline module build RPM buildroot.')
+        },
+        'default_srpm_buildroot_packages': {
+            'type': list,
+            'default': ["bash", "gnupg2", "module-build-macros", "fedora-release",
+                        "redhat-rpm-config", "fedpkg-minimal", "rpm-build", "shadow-utils"],
+            'desc': ('The list packages for offline module build RPM buildroot.')
+        },
     }
 
     def __init__(self, conf_section_obj):

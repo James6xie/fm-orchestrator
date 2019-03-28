@@ -34,7 +34,8 @@ from module_build_service import app, conf, db, create_app
 from module_build_service import models
 from module_build_service.utils import (
     submit_module_build_from_yaml,
-    load_local_builds, load_mmd, import_mmd
+    load_local_builds, load_mmd, import_mmd,
+    import_builds_from_local_dnf_repos
 )
 from module_build_service.errors import StreamAmbigous
 import module_build_service.messaging
@@ -104,10 +105,12 @@ def import_module(mmd_file):
 @manager.option('--file', action='store', dest="yaml_file")
 @manager.option('--srpm', action='append', default=[], dest="srpms", metavar='SRPM')
 @manager.option('--skiptests', action='store_true', dest="skiptests")
+@manager.option('--offline', action='store_true', dest="offline")
 @manager.option('-l', '--add-local-build', action='append', default=None, dest='local_build_nsvs')
 @manager.option('-s', '--set-stream', action='append', default=[], dest='default_streams')
 def build_module_locally(local_build_nsvs=None, yaml_file=None, srpms=None,
-                         stream=None, skiptests=False, default_streams=None):
+                         stream=None, skiptests=False, default_streams=None,
+                         offline=False):
     """ Performs local module build using Mock
     """
     if 'SERVER_NAME' not in app.config or not app.config['SERVER_NAME']:
@@ -132,6 +135,8 @@ def build_module_locally(local_build_nsvs=None, yaml_file=None, srpms=None,
             os.remove(dbpath)
 
         db.create_all()
+        if offline:
+            import_builds_from_local_dnf_repos()
         load_local_builds(local_build_nsvs)
 
         params = {}

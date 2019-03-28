@@ -1225,3 +1225,57 @@ class TestLocalBuilds:
             assert len(local_modules) == 1
             assert local_modules[0].koji_tag.endswith(
                 "/module-platform-f28-3/results")
+
+
+class TestOfflineLocalBuilds:
+
+    def setup_method(self):
+        clean_database()
+
+    def teardown_method(self):
+        clean_database()
+
+    def test_import_fake_base_module(self):
+        module_build_service.utils.import_fake_base_module("platform:foo:1:000000")
+        module_build = models.ModuleBuild.get_build_from_nsvc(
+            db.session, "platform", "foo", 1, "000000")
+        assert module_build
+
+        mmd = module_build.mmd()
+        xmd = glib.from_variant_dict(mmd.get_xmd())
+        assert xmd == {
+            'mbs': {
+                'buildrequires': {},
+                'commit': 'ref_000000',
+                'koji_tag': 'local_build',
+                'mse': 'true',
+                'requires': {}}}
+
+        profiles = mmd.get_profiles()
+        assert set(profiles.keys()) == set(["buildroot", "srpm-buildroot"])
+
+    @patch("module_build_service.utils.general.open", create=True)
+    def test_import_builds_from_local_dnf_repos(self, patched_open):
+        pytest.importorskip("dnf")
+
+        with patch("dnf.Base") as dnf_base:
+            repo = mock.MagicMock()
+            with open(path.join(BASE_DIR, '..', 'staged_data', 'formatted_testmodule.yaml')) as f:
+                repo.get_metadata_content.return_value = f.read()
+            base = dnf_base.return_value
+            base.repos = {"reponame": repo}
+
+            patched_open.return_value = mock.mock_open(
+                read_data="FOO=bar\nPLATFORM_ID=platform:x\n").return_value
+
+            module_build_service.utils.import_builds_from_local_dnf_repos()
+
+            base.read_all_repos.assert_called_once()
+            repo.load.assert_called_once()
+            repo.get_metadata_content.assert_called_once_with("modules")
+
+            module_build = models.ModuleBuild.get_build_from_nsvc(
+                db.session, "testmodule", "master", 20180205135154, "9c690d0e")
+            assert module_build
+            module_build = models.ModuleBuild.get_build_from_nsvc(
+                db.session, "platform", "x", 1, "000000")

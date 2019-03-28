@@ -29,7 +29,7 @@ import time
 from datetime import datetime
 from six import text_type
 
-from module_build_service import conf, log, models
+from module_build_service import conf, log, models, Modulemd, glib
 from module_build_service.errors import (
     ValidationError, ProgrammingError, UnprocessableEntity)
 
@@ -404,6 +404,98 @@ def import_mmd(session, mmd):
     msgs.append(msg)
 
     return build, msgs
+
+
+def import_fake_base_module(nsvc):
+    """
+    Creates and imports new fake base module to be used with offline local builds.
+
+    :param str nsvc: name:stream:version:context of a module.
+    """
+    name, stream, version, context = nsvc.split(":")
+    mmd = Modulemd.Module()
+    mmd.set_mdversion(2)
+    mmd.set_name(name)
+    mmd.set_stream(stream)
+    mmd.set_version(int(version))
+    mmd.set_context(context)
+    mmd.set_summary("fake base module")
+    mmd.set_description("fake base module")
+    licenses = Modulemd.SimpleSet()
+    licenses.add("GPL")
+    mmd.set_module_licenses(licenses)
+
+    buildroot = Modulemd.Profile()
+    buildroot.set_name("buildroot")
+    for rpm in conf.default_buildroot_packages:
+        buildroot.add_rpm(rpm)
+    mmd.add_profile(buildroot)
+
+    srpm_buildroot = Modulemd.Profile()
+    srpm_buildroot.set_name("srpm-buildroot")
+    for rpm in conf.default_srpm_buildroot_packages:
+        srpm_buildroot.add_rpm(rpm)
+    mmd.add_profile(srpm_buildroot)
+
+    xmd = {'mbs': {}}
+    xmd_mbs = xmd['mbs']
+    xmd_mbs['buildrequires'] = {}
+    xmd_mbs['requires'] = {}
+    xmd_mbs['commit'] = 'ref_%s' % context
+    xmd_mbs['mse'] = 'true'
+    xmd_mbs['koji_tag'] = 'local_build'
+    mmd.set_xmd(glib.dict_values(xmd))
+
+    with models.make_session(conf) as session:
+        import_mmd(session, mmd)
+
+
+def import_builds_from_local_dnf_repos():
+    """
+    Imports the module builds from all available local repositories to MBS DB.
+
+    This is used when building modules locally without any access to MBS infra.
+    This method also generates and imports the base module according to /etc/os-release.
+    """
+    # Import DNF here to not force it as a hard MBS dependency.
+    import dnf
+
+    log.info("Loading available RPM repositories.")
+    dnf_base = dnf.Base()
+    dnf_base.read_all_repos()
+
+    log.info("Importing available modules to MBS local database.")
+    with models.make_session(conf) as session:
+        for repo in dnf_base.repos.values():
+            try:
+                repo.load()
+            except Exception as e:
+                log.warning(str(e))
+                continue
+            mmd_data = repo.get_metadata_content("modules")
+            mmds = Modulemd.Module.new_all_from_string(mmd_data)
+            for mmd in mmds:
+                xmd = glib.from_variant_dict(mmd.get_xmd())
+                xmd["mbs"]["koji_tag"] = "local_module"
+                xmd["mbs"]["mse"] = True
+                mmd.set_xmd(glib.dict_values(xmd))
+
+                import_mmd(session, mmd)
+
+    # Parse the /etc/os-release to find out the local platform:stream.
+    platform_id = None
+    with open("/etc/os-release", "r") as fd:
+        for l in fd.readlines():
+            if not l.startswith("PLATFORM_ID"):
+                continue
+            platform_id = l.split("=")[1].strip("\"' \n")
+    if not platform_id:
+        raise ValueError("Cannot get PLATFORM_ID from /etc/os-release.")
+
+    # Create the fake platform:stream:1:000000 module to fulfill the
+    # dependencies for local offline build and also to define the
+    # srpm-buildroot and buildroot.
+    import_fake_base_module("%s:1:000000" % platform_id)
 
 
 def get_mmd_from_scm(url):
