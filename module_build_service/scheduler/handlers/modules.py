@@ -152,7 +152,9 @@ def init(config, session, msg):
     try:
         mmd = build.mmd()
         record_component_builds(mmd, build, session=session)
-        handle_stream_collision_modules(mmd)
+        # The ursine.handle_stream_collision_modules is Koji specific.
+        if conf.system in ['koji', 'test']:
+            handle_stream_collision_modules(mmd)
         mmd = record_filtered_rpms(mmd)
         build.modulemd = to_text_type(mmd.dumps())
         build.transition(conf, models.BUILD_STATES["wait"])
@@ -232,7 +234,7 @@ def get_content_generator_build_koji_tag(module_deps):
         # Find out the name of Koji tag to which the module's Content
         # Generator build should be tagged once the build finishes.
         module_names_streams = {
-            mmd.get_name(): mmd.get_stream() for mmd in module_deps.values()
+            mmd.get_name(): mmd.get_stream() for mmds in module_deps.values() for mmd in mmds
         }
         for base_module_name in conf.base_module_names:
             if base_module_name in module_names_streams:
@@ -315,10 +317,9 @@ def wait(config, session, msg):
     builder = module_build_service.builder.GenericBuilder.create_from_module(
         session, build, config)
 
-    dep_koji_tags = build_deps.keys()
     log.debug("Adding dependencies %s into buildroot for module %s:%s:%s",
-              dep_koji_tags, build.name, build.stream, build.version)
-    builder.buildroot_add_repos(dep_koji_tags)
+              build_deps.keys(), build.name, build.stream, build.version)
+    builder.buildroot_add_repos(build_deps)
 
     if not build.component_builds:
         log.info("There are no components in module %r, skipping build" % build)

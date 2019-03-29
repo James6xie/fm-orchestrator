@@ -1247,7 +1247,7 @@ class TestOfflineLocalBuilds:
             'mbs': {
                 'buildrequires': {},
                 'commit': 'ref_000000',
-                'koji_tag': 'local_build',
+                'koji_tag': 'repofile://',
                 'mse': 'true',
                 'requires': {}}}
 
@@ -1260,6 +1260,7 @@ class TestOfflineLocalBuilds:
 
         with patch("dnf.Base") as dnf_base:
             repo = mock.MagicMock()
+            repo.repofile = "/etc/yum.repos.d/foo.repo"
             with open(path.join(BASE_DIR, '..', 'staged_data', 'formatted_testmodule.yaml')) as f:
                 repo.get_metadata_content.return_value = f.read()
             base = dnf_base.return_value
@@ -1277,5 +1278,8 @@ class TestOfflineLocalBuilds:
             module_build = models.ModuleBuild.get_build_from_nsvc(
                 db.session, "testmodule", "master", 20180205135154, "9c690d0e")
             assert module_build
+            assert module_build.koji_tag == "repofile:///etc/yum.repos.d/foo.repo"
+
             module_build = models.ModuleBuild.get_build_from_nsvc(
                 db.session, "platform", "x", 1, "000000")
+            assert module_build

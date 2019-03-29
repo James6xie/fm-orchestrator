@@ -443,7 +443,9 @@ def import_fake_base_module(nsvc):
     xmd_mbs['requires'] = {}
     xmd_mbs['commit'] = 'ref_%s' % context
     xmd_mbs['mse'] = 'true'
-    xmd_mbs['koji_tag'] = 'local_build'
+    # Use empty "repofile://" URI for base module. The base module will use the
+    # `conf.base_module_names` list as list of default repositories.
+    xmd_mbs['koji_tag'] = 'repofile://'
     mmd.set_xmd(glib.dict_values(xmd))
 
     with models.make_session(conf) as session:
@@ -476,7 +478,7 @@ def import_builds_from_local_dnf_repos():
             mmds = Modulemd.Module.new_all_from_string(mmd_data)
             for mmd in mmds:
                 xmd = glib.from_variant_dict(mmd.get_xmd())
-                xmd["mbs"]["koji_tag"] = "local_module"
+                xmd["mbs"]["koji_tag"] = "repofile://" + repo.repofile
                 xmd["mbs"]["mse"] = True
                 mmd.set_xmd(glib.dict_values(xmd))
 

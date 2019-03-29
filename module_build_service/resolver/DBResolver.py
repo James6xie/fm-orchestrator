@@ -190,7 +190,12 @@ class DBResolver(GenericResolver):
     def get_module_build_dependencies(self, name=None, stream=None, version=None, context=None,
                                       mmd=None, strict=False):
         """
-        Returns a dictionary of koji_tag:mmd of all the dependencies
+        Returns a dictionary of koji_tag:[mmd, ...] of all the dependencies of input module.
+
+        Although it is expected that single Koji tag always contain just single module build,
+        it does not have to be a true for Offline local builds which use the local repository
+        identifier as `koji_tag`.
+
         :kwarg name: a string of a module's name (required if mmd is not set)
         :kwarg stream: a string of a module's stream (required if mmd is not set)
         :kwarg version: a string of a module's version (required if mmd is not set)
@@ -240,7 +245,8 @@ class DBResolver(GenericResolver):
                 if not build:
                     raise RuntimeError(
                         'Buildrequired module %s %r does not exist in MBS db' % (br_name, details))
-                module_tags[build.koji_tag] = build.mmd()
+                module_tags.setdefault(build.koji_tag, [])
+                module_tags[build.koji_tag].append(build.mmd())
 
         return module_tags
 

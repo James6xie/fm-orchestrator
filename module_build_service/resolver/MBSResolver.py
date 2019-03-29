@@ -242,7 +242,12 @@ class MBSResolver(GenericResolver):
 
     def get_module_build_dependencies(self, name=None, stream=None, version=None, context=None,
                                       mmd=None, strict=False):
-        """Get module's build dependencies defined in xmd/mbs section
+        """
+        Returns a dictionary of koji_tag:[mmd, ...] of all the dependencies of input module.
+
+        Although it is expected that single Koji tag always contain just single module build,
+        it does not have to be a true for Offline local builds which use the local repository
+        identifier as `koji_tag`.
 
         :param name: a module's name (required if mmd is not set)
         :param stream: a module's stream (required if mmd is not set)
@@ -252,7 +257,7 @@ class MBSResolver(GenericResolver):
         :param strict: Normally this function returns None if no module can be
             found.  If strict=True, then an UnprocessableEntity is raised.
         :return: a mapping containing buildrequire modules info in key/value pairs,
-            where key is koji_tag and value is the Modulemd.Module object.
+            where key is koji_tag and value is list of Modulemd.Module objects.
         :rtype: dict(str, :class:`Modulemd.Module`)
         """
 
@@ -300,7 +305,8 @@ class MBSResolver(GenericResolver):
             for m in modules:
                 if m["koji_tag"] in module_tags:
                     continue
-                module_tags[m["koji_tag"]] = self.extract_modulemd(m["modulemd"])
+                module_tags.setdefault(m["koji_tag"], [])
+                module_tags[m["koji_tag"]].append(self.extract_modulemd(m["modulemd"]))
 
         return module_tags
 

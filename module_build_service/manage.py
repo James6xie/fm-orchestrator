@@ -108,9 +108,11 @@ def import_module(mmd_file):
 @manager.option('--offline', action='store_true', dest="offline")
 @manager.option('-l', '--add-local-build', action='append', default=None, dest='local_build_nsvs')
 @manager.option('-s', '--set-stream', action='append', default=[], dest='default_streams')
+@manager.option('-r', '--platform-repo-file', action='append', default=[],
+                dest='platform_repofiles')
 def build_module_locally(local_build_nsvs=None, yaml_file=None, srpms=None,
                          stream=None, skiptests=False, default_streams=None,
-                         offline=False):
+                         offline=False, platform_repofiles=None):
     """ Performs local module build using Mock
     """
     if 'SERVER_NAME' not in app.config or not app.config['SERVER_NAME']:
@@ -122,6 +124,11 @@ def build_module_locally(local_build_nsvs=None, yaml_file=None, srpms=None,
 
     with app.app_context():
         conf.set_item("system", "mock")
+        conf.set_item("base_module_repofiles", platform_repofiles)
+
+        # Use the "local" resolver for offline module builds.
+        if offline:
+            conf.set_item("resolver", "local")
 
         # Use our own local SQLite3 database.
         confdir = os.path.abspath(os.getcwd())

@@ -57,6 +57,7 @@ setup(name='module-build-service',
           'mbs.resolver_backends': [
               'mbs = module_build_service.resolver.MBSResolver:MBSResolver',
               'db = module_build_service.resolver.DBResolver:DBResolver',
+              'local = module_build_service.resolver.LocalResolver:LocalResolver',
           ],
       },
       scripts=['client/mbs-cli'],

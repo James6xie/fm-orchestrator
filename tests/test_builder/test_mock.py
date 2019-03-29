@@ -8,11 +8,12 @@ from module_build_service.utils import to_text_type
 
 import kobo.rpmlib
 
-from module_build_service import conf
+from module_build_service import conf, db
 from module_build_service.models import ModuleBuild, ComponentBuild, make_session
 from module_build_service.builder.MockModuleBuilder import MockModuleBuilder
 from module_build_service import glib, Modulemd
-from tests import clean_database
+from module_build_service.utils import import_fake_base_module
+from tests import clean_database, make_module
 
 
 class TestMockModuleBuilder:
@@ -176,3 +177,46 @@ class TestMockModuleBuilder:
             with open(os.path.join(self.resultdir, "pkglist"), "r") as fd:
                 pkglist = fd.read().strip()
                 assert not pkglist
+
+
+class TestMockModuleBuilderAddRepos:
+
+    def setup_method(self, test_method):
+        clean_database(add_platform_module=False)
+        import_fake_base_module("platform:f29:1:000000")
+        self.platform = ModuleBuild.get_last_build_in_stream(db.session, "platform", "f29")
+        self.foo = make_module("foo:1:1:1", {"platform": ["f29"]}, {"platform": ["f29"]})
+        self.app = make_module("app:1:1:1", {"platform": ["f29"]}, {"platform": ["f29"]})
+
+    @mock.patch("module_build_service.conf.system", new="mock")
+    @mock.patch(
+        'module_build_service.config.Config.base_module_repofiles',
+        new_callable=mock.PropertyMock,
+        return_value=["/etc/yum.repos.d/bar.repo", "/etc/yum.repos.d/bar-updates.repo"],
+        create=True)
+    @mock.patch("module_build_service.builder.MockModuleBuilder.open", create=True)
+    @mock.patch(
+        "module_build_service.builder.MockModuleBuilder.MockModuleBuilder._load_mock_config")
+    @mock.patch(
+        "module_build_service.builder.MockModuleBuilder.MockModuleBuilder._write_mock_config")
+    def test_buildroot_add_repos(self, write_config, load_config, patched_open,
+                                 base_module_repofiles):
+        patched_open.side_effect = [
+            mock.mock_open(read_data="[fake]\nrepofile 1\n").return_value,
+            mock.mock_open(read_data="[fake]\nrepofile 2\n").return_value,
+            mock.mock_open(read_data="[fake]\nrepofile 3\n").return_value]
+
+        builder = MockModuleBuilder("user", self.app, conf, "module-app", [])
+
+        dependencies = {
+            "repofile://": [self.platform.mmd()],
+            "repofile:///etc/yum.repos.d/foo.repo": [self.foo.mmd(), self.app.mmd()]
+        }
+
+        builder.buildroot_add_repos(dependencies)
+
+        assert "repofile 1" in builder.yum_conf
+        assert "repofile 2" in builder.yum_conf
+        assert "repofile 3" in builder.yum_conf
+
+        assert set(builder.enabled_modules) == set(["foo:1", "app:1"])

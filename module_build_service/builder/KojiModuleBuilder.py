@@ -534,8 +534,9 @@ chmod 644 %buildroot/etc/rpm/macros.zz-modules
         log.info("%r buildroot sucessfully connected." % self)
 
     def buildroot_add_repos(self, dependencies):
-        log.info("%r adding deps on %r" % (self, dependencies))
-        self._koji_add_many_tag_inheritance(self.module_build_tag, dependencies)
+        koji_tags = dependencies.keys()
+        log.info("%r adding deps on %r" % (self, koji_tags))
+        self._koji_add_many_tag_inheritance(self.module_build_tag, koji_tags)
 
     def _get_tagged_nvrs(self, tag):
         """

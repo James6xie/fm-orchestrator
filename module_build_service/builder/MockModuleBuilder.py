@@ -90,6 +90,7 @@ class MockModuleBuilder(GenericBuilder):
         self.tag_name = tag_name
         self.config = config
         self.groups = []
+        self.enabled_modules = []
         self.yum_conf = MockModuleBuilder.yum_config_template
         self.koji_session = None
 
@@ -170,8 +171,7 @@ class MockModuleBuilder(GenericBuilder):
         pkglist_f = open(pkglist, "w")
 
         # Generate the mmd the same way as pungi does.
-        m1 = models.ModuleBuild.query.filter(models.ModuleBuild.name == self.module_str).one()
-        m1_mmd = m1.mmd()
+        m1_mmd = self.module.mmd()
         artifacts = Modulemd.SimpleSet()
 
         rpm_files = [f
@@ -192,7 +192,7 @@ class MockModuleBuilder(GenericBuilder):
             for rpm_file, nevra in zip(rpm_files, nevras):
                 name, epoch, version, release, arch = nevra.split()
 
-                if m1.last_batch_id() == m1.batch:
+                if self.module.last_batch_id() == self.module.batch:
                     # If RPM is filtered-out, do not add it to artifacts list.
                     if name in m1_mmd.get_rpm_filter().get():
                         continue
@@ -223,6 +223,14 @@ class MockModuleBuilder(GenericBuilder):
         self.yum_conf += extra
         self.yum_conf += "enabled=1\n\n"
 
+    def _add_repo_from_path(self, path):
+        """
+        Adds repository stored in `path` to Mock config file. Call _write_mock_config() to
+        actually write the config file to filesystem.
+        """
+        with open(path) as fd:
+            self.yum_conf += fd.read()
+
     def _load_mock_config(self):
         """
         Loads the variables which are generated only during the first
@@ -248,6 +256,7 @@ class MockModuleBuilder(GenericBuilder):
 
                 self.groups = config_opts["chroot_setup_cmd"].split(" ")[1:]
                 self.yum_conf = config_opts['yum.conf']
+                self.enabled_modules = config_opts['module_enable']
 
     def _write_mock_config(self):
         """
@@ -261,6 +270,7 @@ class MockModuleBuilder(GenericBuilder):
             config = config.replace("$arch", self.arch)
             config = config.replace("$group", " ".join(self.groups))
             config = config.replace("$yum_conf", self.yum_conf)
+            config = config.replace("$enabled_modules", str(self.enabled_modules))
 
             # We write the most recent config to "mock.cfg", so thread-related
             # configs can be later (re-)generated from it using _load_mock_config.
@@ -313,17 +323,32 @@ class MockModuleBuilder(GenericBuilder):
 
     def buildroot_add_repos(self, dependencies):
         self._load_mock_config()
-        for tag in dependencies:
-            # If tag starts with mock_resultdir, it means it is path to local
+        for source, mmds in dependencies.items():
+            # If source starts with mock_resultdir, it means it is path to local
             # module build repository.
-            if tag.startswith(conf.mock_resultsdir):
-                repo_name = os.path.basename(tag)
+            if source.startswith(conf.mock_resultsdir):
+                repo_name = os.path.basename(source)
                 if repo_name.startswith("module-"):
                     repo_name = repo_name[7:]
-                repo_dir = tag
+                repo_dir = source
                 baseurl = "file://" + repo_dir
+            # If source starts with "repofile://", it is path to local /etc/yum.repos.d
+            # repo file.
+            elif source.startswith("repofile://"):
+                # For the base module, we want to include all the `conf.base_module_repofiles`.
+                if len(mmds) == 1 and mmds[0].get_name() in conf.base_module_names:
+                    for repofile in conf.base_module_repofiles:
+                        self._add_repo_from_path(repofile)
+                else:
+                    # Add repositories defined in repofile to mock config.
+                    repofile = source[len("repofile://"):]
+                    self._add_repo_from_path(repofile)
+                    # Enabled all the modular dependencies by default in Mock.
+                    for mmd in mmds:
+                        self.enabled_modules.append("%s:%s" % (mmd.get_name(), mmd.get_stream()))
+                continue
             else:
-                repo_name = tag
+                repo_name = tag = source
                 koji_config = get_koji_config(self.config)
                 koji_session = koji.ClientSession(koji_config.server, opts=koji_config)
                 repo = koji_session.getRepo(repo_name)

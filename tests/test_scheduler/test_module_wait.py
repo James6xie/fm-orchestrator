@@ -191,7 +191,7 @@ class TestModuleWait:
             resolver.backend = 'db'
             resolver.get_module_tag.return_value = "module-testmodule-master-20170109091357"
             resolver.get_module_build_dependencies.return_value = {
-                "module-bootstrap-tag": base_mmd}
+                "module-bootstrap-tag": [base_mmd]}
 
             with patch.object(module_build_service.resolver, 'system_resolver', new=resolver):
                 msg = module_build_service.messaging.MBSModule(msg_id=None, module_build_id=2,
@@ -239,7 +239,7 @@ class TestModuleWait:
             resolver.backend = 'db'
             resolver.get_module_tag.return_value = "module-testmodule-master-20170109091357"
             resolver.get_module_build_dependencies.return_value = {
-                "module-bootstrap-tag": base_mmd}
+                "module-bootstrap-tag": [base_mmd]}
 
             with patch.object(module_build_service.scheduler.handlers.modules.conf,
                               'koji_cg_tag_build', new=koji_cg_tag_build):

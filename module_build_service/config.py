@@ -39,7 +39,8 @@ SUPPORTED_STRATEGIES = ['changed-and-after', 'only-changed', 'all']
 
 SUPPORTED_RESOLVERS = {
     'mbs': {'builders': ['mock']},
-    'db': {'builders': ['koji', 'mock', 'copr']}
+    'db': {'builders': ['koji', 'mock', 'copr']},
+    'local': {'builders': ['mock']},
 }
 
 
@@ -519,14 +520,14 @@ class Config(object):
         'default_buildroot_packages': {
             'type': list,
             'default': ["bash", "bzip2", "coreutils", "cpio", "diffutils", "findutils", "gawk",
-                        "gcc", "gcc-c++", "grep", "gzip", "info", "make", "module-build-macros",
+                        "gcc", "gcc-c++", "grep", "gzip", "info", "make",
                         "patch", "fedora-release", "redhat-rpm-config", "rpm-build", "sed",
                         "shadow-utils", "tar", "unzip", "util-linux", "which", "xz"],
             'desc': ('The list packages for offline module build RPM buildroot.')
         },
         'default_srpm_buildroot_packages': {
             'type': list,
-            'default': ["bash", "gnupg2", "module-build-macros", "fedora-release",
+            'default': ["bash", "gnupg2", "fedora-release",
                         "redhat-rpm-config", "fedpkg-minimal", "rpm-build", "shadow-utils"],
             'desc': ('The list packages for offline module build RPM buildroot.')
         },
