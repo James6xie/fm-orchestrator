@@ -4,7 +4,7 @@ WORKDIR /build
 RUN yum -y update
 RUN yum -y install epel-release yum-utils
 RUN yum-config-manager --add-repo https://kojipkgs.fedoraproject.org/repos-dist/epel7Server-infra/latest/x86_64/
-# TODO: Unpin the version of python-ldap3 after 2.5.2+ is released
+# TODO: Unpin the version of python-ldap3 after 2.6.1 is released
 RUN yum -y install \
     --nogpgcheck \
     --setopt=deltarpm=0 \
@@ -28,7 +28,7 @@ RUN yum -y install \
     python-funcsigs \
     python-futures \
     python-koji \
-    https://kojipkgs.fedoraproject.org//packages/python-ldap3/2.4/1.el7/noarch/python2-ldap3-2.4-1.el7.noarch.rpm \
+    https://kojipkgs.fedoraproject.org//packages/python-ldap3/2.6/1.el7/noarch/python2-ldap3-2.6-1.el7.noarch.rpm \
     python-mock \
     python-munch \
     python-pip \
