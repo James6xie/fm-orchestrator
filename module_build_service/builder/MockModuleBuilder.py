@@ -339,6 +339,10 @@ class MockModuleBuilder(GenericBuilder):
                 if len(mmds) == 1 and mmds[0].get_name() in conf.base_module_names:
                     for repofile in conf.base_module_repofiles:
                         self._add_repo_from_path(repofile)
+                    # Also set the platform_id.
+                    mmd = mmds[0]
+                    self.yum_conf = self.yum_conf.replace(
+                        "$module_platform_id", "%s:%s" % (mmd.get_name(), mmd.get_stream()))
                 else:
                     # Add repositories defined in repofile to mock config.
                     repofile = source[len("repofile://"):]
