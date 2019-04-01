@@ -67,7 +67,10 @@ def init_config(app):
     # Load LocalBuildConfiguration section in case we are building modules
     # locally.
     if "build_module_locally" in sys.argv:
-        config_section = "LocalBuildConfiguration"
+        if "--offline"in sys.argv:
+            config_section = "OfflineLocalBuildConfiguration"
+        else:
+            config_section = "LocalBuildConfiguration"
 
     # try getting config_file from os.environ
     if 'MBS_CONFIG_FILE' in os.environ:
@@ -333,6 +336,7 @@ class Config(object):
             'default': {
                 'https://src.fedoraproject.org': ('fedpkg clone --anonymous {}',
                                                   'fedpkg --release module sources'),
+                'file://': ('git clone {}', None),
             },
             'desc': 'Mapping between dist-git and command to '},
         'mock_config': {

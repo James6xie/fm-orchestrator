@@ -126,10 +126,6 @@ def build_module_locally(local_build_nsvs=None, yaml_file=None, srpms=None,
         conf.set_item("system", "mock")
         conf.set_item("base_module_repofiles", platform_repofiles)
 
-        # Use the "local" resolver for offline module builds.
-        if offline:
-            conf.set_item("resolver", "local")
-
         # Use our own local SQLite3 database.
         confdir = os.path.abspath(os.getcwd())
         dbdir = os.path.abspath(os.path.join(confdir, '..')) if confdir.endswith('conf') \

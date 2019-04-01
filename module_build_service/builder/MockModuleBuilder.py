@@ -542,6 +542,25 @@ class MockModuleBuilder(GenericBuilder):
         if self.module.state == models.BUILD_STATES["done"]:
             self._createrepo(include_module_yaml=True)
 
+    @classmethod
+    def get_built_rpms_in_module_build(cls, mmd):
+        """
+        :param Modulemd mmd: Modulemd to get the built RPMs from.
+        :return: list of NVRs
+        """
+        with models.make_session(conf) as db_session:
+            build = models.ModuleBuild.get_build_from_nsvc(
+                db_session, mmd.get_name(), mmd.get_stream(), mmd.get_version(),
+                mmd.get_context())
+            if build.koji_tag.startswith("repofile://"):
+                # Modules from local repository have already the RPMs filled in mmd.
+                return list(mmd.get_rpm_artifacts().get())
+            else:
+                koji_session = KojiModuleBuilder.get_session(conf, login=False)
+                rpms = koji_session.listTaggedRPMS(build.koji_tag, latest=True)[0]
+                nvrs = set(kobo.rpmlib.make_nvr(rpm, force_epoch=True) for rpm in rpms)
+                return list(nvrs)
+
 
 class BaseBuilder(object):
     def __init__(self, config, resultsdir):
@@ -565,9 +584,14 @@ class SCMBuilder(BaseBuilder):
     def __init__(self, config, resultsdir, source, artifact_name):
         super(SCMBuilder, self).__init__(config, resultsdir)
         with open(config, "a") as f:
-            branch = source.split("?#")[1]
+            git_repo, branch = source.split("?#")
             distgit_cmds = self._get_distgit_commands(source)
-            distgit_get = distgit_cmds[0].format(artifact_name)
+
+            if source.startswith("file://"):
+                # For local git repositories, pass the full path to repository to git command.
+                distgit_get = distgit_cmds[0].format(git_repo)
+            else:
+                distgit_get = distgit_cmds[0].format(artifact_name)
 
             # mock-scm cannot checkout particular commit hash, but only branch.
             # We therefore use a command that combines the distgit-command with
@@ -587,9 +611,22 @@ class SCMBuilder(BaseBuilder):
                     artifact_name),
                 "config_opts['scm_opts']['distgit_get'] = {!r}\n".format(
                     distgit_get_branch),
-                "config_opts['scm_opts']['distgit_src_get'] = '{}'\n".format(
-                    distgit_cmds[1]),
             ])
+
+            # Set distgit_src_get only if it's defined.
+            if distgit_cmds[1]:
+                f.write("config_opts['scm_opts']['distgit_src_get'] = '{}'\n".format(
+                    distgit_cmds[1]))
+
+            # The local git repositories cloned by `fedpkg clone` typically do not have
+            # the tarballs with sources committed in a git repo. They normally live in lookaside
+            # cache on remote server, but we should not try getting them from there for true
+            # local builds.
+            # Instead, get them from local path with git repository by passing that path to Mock
+            # using the `ext_src_dir`.
+            if git_repo.startswith("file://"):
+                src_dir = git_repo[len("file://"):]
+                f.write("config_opts['scm_opts']['ext_src_dir'] = '{}'\n".format(src_dir))
 
     def _make_executable(self, path):
         mode = os.stat(path).st_mode

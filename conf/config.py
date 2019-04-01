@@ -139,6 +139,12 @@ class LocalBuildConfiguration(BaseConfiguration):
 
     ALLOW_CUSTOM_SCMURLS = True
     RESOLVER = 'mbs'
+    RPMS_ALLOW_REPOSITORY = True
+    MODULES_ALLOW_REPOSITORY = True
+
+
+class OfflineLocalBuildConfiguration(LocalBuildConfiguration):
+    RESOLVER = 'local'
 
 
 class DevConfiguration(LocalBuildConfiguration):
