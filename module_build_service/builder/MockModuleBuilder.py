@@ -91,6 +91,7 @@ class MockModuleBuilder(GenericBuilder):
         self.config = config
         self.groups = []
         self.enabled_modules = []
+        self.releasever = module_build_service.utils.get_local_releasever()
         self.yum_conf = MockModuleBuilder.yum_config_template
         self.koji_session = None
 
@@ -257,6 +258,7 @@ class MockModuleBuilder(GenericBuilder):
                 self.groups = config_opts["chroot_setup_cmd"].split(" ")[1:]
                 self.yum_conf = config_opts['yum.conf']
                 self.enabled_modules = config_opts['module_enable']
+                self.releasever = config_opts['releasever']
 
     def _write_mock_config(self):
         """
@@ -271,6 +273,7 @@ class MockModuleBuilder(GenericBuilder):
             config = config.replace("$group", " ".join(self.groups))
             config = config.replace("$yum_conf", self.yum_conf)
             config = config.replace("$enabled_modules", str(self.enabled_modules))
+            config = config.replace("$releasever", str(self.releasever))
 
             # We write the most recent config to "mock.cfg", so thread-related
             # configs can be later (re-)generated from it using _load_mock_config.

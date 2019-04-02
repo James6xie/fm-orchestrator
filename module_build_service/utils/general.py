@@ -452,6 +452,16 @@ def import_fake_base_module(nsvc):
         import_mmd(session, mmd)
 
 
+def get_local_releasever():
+    """
+    Returns the $releasever variable used in the system when expanding .repo files.
+    """
+    # Import DNF here to not force it as a hard MBS dependency.
+    import dnf
+    dnf_base = dnf.Base()
+    return dnf_base.conf.releasever
+
+
 def import_builds_from_local_dnf_repos():
     """
     Imports the module builds from all available local repositories to MBS DB.
