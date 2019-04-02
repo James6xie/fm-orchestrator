@@ -28,13 +28,13 @@ $script = <<SCRIPT
         python-qpid \
         python-solv \
         python-sqlalchemy \
-        python-virtualenv \
         python-futures \
         python2-pungi \
         python3 \
         python3-devel \
         python3-docutils \
         python3-pungi \
+        python3-virtualenv \
         redhat-rpm-config \
         redhat-rpm-config \
         rpm-build \
@@ -61,10 +61,10 @@ $make_devenv = <<DEVENV
 
   test -e $env_dir && rm -rf $env_dir
 
-  # solv is not availabe from pypi.org. libsolve has to be installed by dnf.
-  (cd; virtualenv --system-site-packages devenv)
+  # solv is not availabe from pypi.org. libsolv has to be installed by dnf.
+  (cd; virtualenv -p python2 --system-site-packages devenv)
 
-  $pip install --upgrade pip
+  $pip install --upgrade pip kobo
   $pip install -r $code_dir/test-requirements.txt
   $pip install ipython
 
@@ -91,7 +91,7 @@ $script_services = <<SCRIPT_SERVICES
 SCRIPT_SERVICES
 
 Vagrant.configure("2") do |config|
-  config.vm.box = "fedora/27-cloud-base"
+  config.vm.box = "fedora/29-cloud-base"
   config.vm.synced_folder "./", "/opt/module_build_service"
   # Disable the default share
   config.vm.synced_folder ".", "/vagrant", disabled: true
@@ -102,12 +102,10 @@ Vagrant.configure("2") do |config|
   config.vm.provision "shell", inline: $make_devenv, privileged: false
   config.vm.provision "shell", inline: $script_services, privileged: false, run: "always"
   config.vm.provider "libvirt" do |v, override|
-    override.vm.synced_folder "./", "/opt/module_build_service", type: "sshfs", sshfs_opts_append: "-o nonempty"
+    override.vm.synced_folder "./", "/opt/module_build_service", type: "sshfs"
     v.memory = 1024
-    #v.cpus = 2
   end
   config.vm.provider "virtualbox" do |v|
     v.memory = 1024
-    #v.cpus = 2
   end
 end
