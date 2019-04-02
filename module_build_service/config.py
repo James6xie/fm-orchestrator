@@ -67,7 +67,7 @@ def init_config(app):
     # Load LocalBuildConfiguration section in case we are building modules
     # locally.
     if "build_module_locally" in sys.argv:
-        if "--offline"in sys.argv:
+        if "--offline" in sys.argv:
             config_section = "OfflineLocalBuildConfiguration"
         else:
             config_section = "LocalBuildConfiguration"
