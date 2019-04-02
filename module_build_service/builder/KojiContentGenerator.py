@@ -295,14 +295,9 @@ class KojiContentGenerator(object):
         return rpms
 
     def _get_build(self):
-        ret = {}
-        ret[u"name"] = self.module.name
+        ret = self.module.nvr
         if self.devel:
             ret["name"] += "-devel"
-        ret[u"version"] = self.module.stream.replace("-", "_")
-        # Append the context to the version to make NVRs of modules unique in the event of
-        # module stream expansion
-        ret[u"release"] = "{0}.{1}".format(self.module.version, self.module.context)
         ret[u"source"] = self.module.scmurl
         ret[u"start_time"] = calendar.timegm(self.module.time_submitted.utctimetuple())
         ret[u"end_time"] = calendar.timegm(self.module.time_completed.utctimetuple())

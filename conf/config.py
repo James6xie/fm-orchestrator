@@ -120,7 +120,11 @@ class TestConfiguration(BaseConfiguration):
     RESOLVER = "db"
 
     ALLOWED_GROUPS_TO_IMPORT_MODULE = set(["mbs-import-module"])
-    GREENWAVE_DECISION_CONTEXT = "osci_compose_gate_modules"
+
+    # Greenwave configuration
+    GREENWAVE_URL = "https://greenwave.example.local/api/v1.0/"
+    GREENWAVE_DECISION_CONTEXT = "test_dec_context"
+    GREENWAVE_SUBJECT_TYPE = "some-module"
 
     STREAM_SUFFIXES = {r"^el\d+\.\d+\.\d+\.z$": 0.1}
 

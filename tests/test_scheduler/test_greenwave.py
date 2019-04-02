@@ -98,14 +98,14 @@ class TestDecisionUpdateHandler:
         log.debug.assert_called_once_with(
             'Skip Greenwave message %s as MBS only handles messages with the decision context "%s"',
             "msg-id-1",
-            "osci_compose_gate_modules",
+            "test_dec_context"
         )
 
     @patch("module_build_service.scheduler.handlers.greenwave.log")
     def test_not_satisfy_policies(self, log):
         msg = Mock(
             msg_id="msg-id-1",
-            decision_context="osci_compose_gate_modules",
+            decision_context="test_dec_context",
             policies_satisfied=False,
             subject_identifier="pkg-0.1-1.c1",
         )
@@ -144,7 +144,7 @@ class TestDecisionUpdateHandler:
             "msg_id": "msg-id-1",
             "topic": "org.fedoraproject.prod.greenwave.decision.update",
             "msg": {
-                "decision_context": "osci_compose_gate_modules",
+                "decision_context": "test_dec_context",
                 "policies_satisfied": True,
                 "subject_identifier": "pkg-0.1-1.c1",
             },

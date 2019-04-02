@@ -34,6 +34,7 @@ from collections import OrderedDict
 from datetime import datetime
 
 import sqlalchemy
+import kobo.rpmlib
 from flask import has_app_context
 from sqlalchemy import func, and_
 from sqlalchemy.orm import lazyload
@@ -600,6 +601,18 @@ class ModuleBuild(MBSBase):
             .filter(ModuleBuild.id != self.id)
         )
         return [build.id for build in query.all()]
+
+    @property
+    def nvr(self):
+        return {
+            u"name": self.name,
+            u"version": self.stream.replace("-", "_"),
+            u"release": "{0}.{1}".format(self.version, self.context)
+        }
+
+    @property
+    def nvr_string(self):
+        return kobo.rpmlib.make_nvr(self.nvr)
 
     @classmethod
     def create(

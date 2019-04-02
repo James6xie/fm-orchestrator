@@ -603,6 +603,22 @@ class Config(object):
             "corresponding suffix added to formatted stream version. "
             'For example, {r"regexp": 0.1, ...}',
         },
+        "greenwave_url": {
+            "type": str,
+            "default": "",
+            "desc": "The URL of the server where Greenwave is running (should include "
+                    "the root of the API)"
+        },
+        "greenwave_subject_type": {
+            "type": str,
+            "default": "",
+            "desc": "Subject type for Greenwave requests"
+        },
+        "greenwave_timeout": {
+            "type": int,
+            "default": 60,
+            "desc": "Greenwave response timeout"
+        }
     }
 
     def __init__(self, conf_section_obj):

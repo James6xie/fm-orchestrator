@@ -55,6 +55,10 @@ class StreamAmbigous(ValueError):
     pass
 
 
+class GreenwaveError(RuntimeError):
+    pass
+
+
 def json_error(status, error, message):
     response = jsonify({"status": status, "error": error, "message": message})
     response.status_code = status
