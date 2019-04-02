@@ -866,7 +866,7 @@ class DummyModuleBuilder(GenericBuilder):
     def repo_from_tag(self, config, tag_name, arch):
         pass
 
-    def finalize(self):
+    def finalize(self, succeeded=True):
         pass
 
 

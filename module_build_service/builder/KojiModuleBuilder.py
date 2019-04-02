@@ -1209,7 +1209,7 @@ chmod 644 %buildroot/etc/rpm/macros.zz-modules
             nvrs = set(kobo.rpmlib.make_nvr(rpm, force_epoch=True) for rpm in rpms)
             return list(nvrs)
 
-    def finalize(self):
+    def finalize(self, succeeded=True):
         # Only import to koji CG if the module is "build" and not scratch.
         if (not self.module.scratch and
                 self.config.koji_enable_content_generator and

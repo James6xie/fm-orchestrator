@@ -542,11 +542,11 @@ class MockModuleBuilder(GenericBuilder):
     def repo_from_tag(cls, config, tag_name, arch):
         pass
 
-    def finalize(self):
-        # If the state is "done", run one last createrepo, to include
+    def finalize(self, succeeded=True):
+        # For successful builds, do one last createrepo, to include
         # the module metadata. We don't want to do this for failed builds,
         # since that makes it impossible to retry a build manually.
-        if self.module.state == models.BUILD_STATES["done"]:
+        if succeeded:
             self._createrepo(include_module_yaml=True)
 
     @classmethod

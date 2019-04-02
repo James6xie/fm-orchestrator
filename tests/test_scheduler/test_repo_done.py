@@ -107,9 +107,10 @@ class TestRepoDone:
         module_build.time_completed = None
         db.session.commit()
 
-        def mocked_finalizer():
+        def mocked_finalizer(succeeded=None):
             # Check that the time_completed is set in the time when
             # finalizer is called.
+            assert succeeded is True
             module_build = module_build_service.models.ModuleBuild.query.get(2)
             assert module_build.time_completed is not None
 

@@ -262,12 +262,13 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
         raise NotImplementedError()
 
     @abstractmethod
-    def finalize(self):
+    def finalize(self, succeeded=True):
         """
+        :param succeeded: True if all module builds were successful
         :return: None
 
         This method is supposed to be called after all module builds are
-        successfully finished.
+        finished.
 
         It could be utilized for various purposes such as cleaning or
         running additional build-system based operations on top of

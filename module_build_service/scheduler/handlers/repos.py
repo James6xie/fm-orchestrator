@@ -151,7 +151,7 @@ def done(config, session, msg):
         else:
             # Tell the external buildsystem to wrap up (CG import, createrepo, etc.)
             module_build.time_completed = datetime.utcnow()
-            builder.finalize()
+            builder.finalize(succeeded=True)
 
             module_build.transition(config, state=models.BUILD_STATES['done'])
         session.commit()

@@ -103,6 +103,7 @@ class FakeModuleBuilder(GenericBuilder):
 
     on_build_cb = None
     on_cancel_cb = None
+    on_finalize_cb = None
     on_buildroot_add_artifacts_cb = None
     on_tag_artifacts_cb = None
 
@@ -118,6 +119,7 @@ class FakeModuleBuilder(GenericBuilder):
         FakeModuleBuilder.INSTANT_COMPLETE = False
         FakeModuleBuilder.on_build_cb = None
         FakeModuleBuilder.on_cancel_cb = None
+        FakeModuleBuilder.on_finalize_cb = None
         FakeModuleBuilder.on_buildroot_add_artifacts_cb = None
         FakeModuleBuilder.on_tag_artifacts_cb = None
         FakeModuleBuilder.DEFAULT_GROUPS = None
@@ -281,8 +283,9 @@ class FakeModuleBuilder(GenericBuilder):
                 component_build.nvr))
         return msgs
 
-    def finalize(self):
-        pass
+    def finalize(self, succeeded=None):
+        if FakeModuleBuilder.on_finalize_cb:
+            FakeModuleBuilder.on_finalize_cb(self, succeeded)
 
 
 def cleanup_moksha():
@@ -354,9 +357,13 @@ class TestBuild:
         tag_groups.append(set(['perl-Tangerine-1-1', 'perl-List-Compare-1-1']))
         tag_groups.append(set(['tangerine-1-1']))
 
+        def on_finalize_cb(cls, succeeded):
+            assert succeeded is True
+
         def on_tag_artifacts_cb(cls, artifacts, dest_tag=True):
             assert tag_groups.pop(0) == set(artifacts)
 
+        FakeModuleBuilder.on_finalize_cb = on_finalize_cb
         FakeModuleBuilder.on_tag_artifacts_cb = on_tag_artifacts_cb
 
         # Check that the components are added to buildroot after the batch
@@ -505,11 +512,15 @@ class TestBuild:
         def on_cancel_cb(cls, task_id):
             cancelled_tasks.append(task_id)
 
+        def on_finalize_cb(cls, succeeded):
+            assert succeeded is False
+
         # We do not want the builds to COMPLETE, but instead we want them
         # to be in the BULDING state after the FakeModuleBuilder.build().
         FakeModuleBuilder.BUILD_STATE = "BUILDING"
         FakeModuleBuilder.on_build_cb = on_build_cb
         FakeModuleBuilder.on_cancel_cb = on_cancel_cb
+        FakeModuleBuilder.on_finalize_cb = on_finalize_cb
 
         msgs = []
         stop = module_build_service.scheduler.make_simple_stop_condition(db.session)

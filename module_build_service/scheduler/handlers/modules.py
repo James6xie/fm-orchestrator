@@ -92,7 +92,7 @@ def failed(config, session, msg):
             session.add(component)
 
         # Tell the external buildsystem to wrap up
-        builder.finalize()
+        builder.finalize(succeeded=False)
     else:
         # Do not overwrite state_reason set by Frontend if any.
         if not build.state_reason:
