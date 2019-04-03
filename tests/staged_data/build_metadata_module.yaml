@@ -1,0 +1,28 @@
+document: modulemd
+version: 1
+data:
+  description: A metadata-only module build for product X
+  name: build
+  license:
+    module: [MIT]
+  stream: product1.2
+  summary: A metadata-only module build for a product X
+  version: 1
+  context: 00000000
+  dependencies:
+    buildrequires:
+      platform: f28
+    requires:
+      platform: f28
+  xmd:
+    mbs:
+      buildrequires:
+        platform:
+          filtered_rpms: []
+          ref: virtual
+          stream: f28
+          version: '3'
+          context: '00000000'
+      commit: virtual
+      requires: {}
+      mse: true

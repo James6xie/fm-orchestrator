@@ -321,6 +321,32 @@ class TestUtils:
             assert mmd_context == models.DEFAULT_MODULE_CONTEXT
             assert build.context == models.DEFAULT_MODULE_CONTEXT
 
+    def test_import_mmd_multiple_dependencies(self):
+        mmd = Modulemd.Module().new_from_file(
+            path.join(BASE_DIR, '..', 'staged_data', 'formatted_testmodule.yaml'))
+        mmd.upgrade()
+        mmd.add_dependencies(mmd.get_dependencies()[0])
+
+        expected_error = 'The imported module\'s dependencies list should contain just one element'
+        with pytest.raises(UnprocessableEntity) as e:
+            module_build_service.utils.import_mmd(db.session, mmd)
+            assert str(e.value) == expected_error
+
+    def test_import_mmd_no_xmd_buildrequires(self):
+        mmd = Modulemd.Module().new_from_file(
+            path.join(BASE_DIR, '..', 'staged_data', 'formatted_testmodule.yaml'))
+        mmd.upgrade()
+        xmd = glib.from_variant_dict(mmd.get_xmd())
+        del xmd['mbs']['buildrequires']
+        mmd.set_xmd(glib.dict_values(xmd))
+
+        expected_error = (
+            'The imported module buildrequires other modules, but the metadata in the '
+            'xmd["mbs"]["buildrequires"] dictionary is missing entries')
+        with pytest.raises(UnprocessableEntity) as e:
+            module_build_service.utils.import_mmd(db.session, mmd)
+            assert str(e.value) == expected_error
+
     @pytest.mark.parametrize('stream, disttag_marking, error_msg', (
         ('f28', None, None),
         ('f28', 'fedora28', None),

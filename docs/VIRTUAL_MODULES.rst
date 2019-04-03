@@ -67,7 +67,8 @@ Custom fields in xmd:
 - ``mse`` - this is an internal identifier used by MBS to know if this is a legacy module build
   prior to module stream expansion. This should always be ``TRUE``.
 - ``koji_tag`` - this defines the Koji tag with the RPMs that are part of this module. For base
-  modules this will likely be a tag representing a buildroot.
+  modules this will likely be a tag representing a buildroot. If this is a metadata-only module,
+  then this can be left unset.
 - ``virtual_streams`` - the list of streams which groups multiple modules together. For more
   information on this field, see the ``Virtual Streams`` section below.
 - ``disttag_marking`` - if this module is a base module, then MBS will use the stream of the base

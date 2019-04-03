@@ -294,6 +294,10 @@ class MBSResolver(GenericResolver):
                 db.session, name, details['stream'])
             if local_modules:
                 for m in local_modules:
+                    # If the buildrequire is a meta-data only module with no Koji tag set, then just
+                    # skip it
+                    if m.koji_tag is None:
+                        continue
                     module_tags[m.koji_tag] = m.mmd()
                 continue
 
@@ -304,6 +308,10 @@ class MBSResolver(GenericResolver):
                 details['context'], strict=True)
             for m in modules:
                 if m["koji_tag"] in module_tags:
+                    continue
+                # If the buildrequire is a meta-data only module with no Koji tag set, then just
+                # skip it
+                if m["koji_tag"] is None:
                     continue
                 module_tags.setdefault(m["koji_tag"], [])
                 module_tags[m["koji_tag"]].append(self.extract_modulemd(m["modulemd"]))

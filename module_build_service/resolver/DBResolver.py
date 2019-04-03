@@ -245,6 +245,11 @@ class DBResolver(GenericResolver):
                 if not build:
                     raise RuntimeError(
                         'Buildrequired module %s %r does not exist in MBS db' % (br_name, details))
+
+                # If the buildrequire is a meta-data only module with no Koji tag set, then just
+                # skip it
+                if build.koji_tag is None:
+                    continue
                 module_tags.setdefault(build.koji_tag, [])
                 module_tags[build.koji_tag].append(build.mmd())
 

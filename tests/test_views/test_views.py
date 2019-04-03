@@ -1575,7 +1575,7 @@ class TestViews:
         rv = self.client.post(
             post_url,
             data=json.dumps({'scmurl': 'file://' + scm_base_dir + (
-                '/mariadb?#7cf8fb26db8dbfea075eb5f898cc053139960250')}))
+                '/mariadb?#e9742ed681f82e3ef5281fc652b4e68a3826cea6')}))
         data = json.loads(rv.data)
 
         assert 'Module mariadb:10.2:20180724000000:00000000 imported' in data['messages']
@@ -1605,7 +1605,7 @@ class TestViews:
         rv = self.client.post(
             post_url,
             data=json.dumps({'scmurl': 'file://' + scm_base_dir + (
-                '/mariadb?#1a43ea22cd32f235c2f119de1727a37902a49f20')}))
+                '/mariadb?#8b43f38cdafdd773e7d0308e758105bf9f0f67a8')}))
         data = json.loads(rv.data)
 
         assert 'Module mariadb:10.2:20180724065109:00000000 imported' in data['messages']
@@ -1651,28 +1651,12 @@ class TestViews:
         rv = self.client.post(
             post_url,
             data=json.dumps({'scmurl': 'file://' + scm_base_dir + (
-                '/mariadb?#cb7cf7069059141e0797ad2cf5a559fb673ef43d')}))
+                '/mariadb?#f7c5c7218c9a197d7fd245eeb4eee3d7abffd75d')}))
         data = json.loads(rv.data)
 
         assert data['error'] == 'Unprocessable Entity'
         assert re.match(r'The modulemd .* is invalid\. Please verify the syntax is correct',
                         data['message'])
-
-    @pytest.mark.parametrize('api_version', [1, 2])
-    @patch('module_build_service.auth.get_user', return_value=import_module_user)
-    @patch.object(module_build_service.config.Config, 'scmurls',
-                  new_callable=PropertyMock, return_value=['file://'])
-    def test_import_build_scm_missing_koji_tag(self, mocked_scmurls, mocked_get_user,
-                                               api_version):
-        post_url = '/module-build-service/{0}/import-module/'.format(api_version)
-        rv = self.client.post(
-            post_url,
-            data=json.dumps({'scmurl': 'file://' + scm_base_dir + (
-                '/mariadb?#9ab5fdeba83eb3382413ee8bc06299344ef4477d')}))
-        data = json.loads(rv.data)
-
-        assert data['error'] == 'Unprocessable Entity'
-        assert data['message'].startswith('\'koji_tag\' is not set in xmd[\'mbs\'] for module')
 
     def test_buildrequires_is_included_in_json_output(self):
         # Inject xmd/mbs/buildrequires into an existing module build for

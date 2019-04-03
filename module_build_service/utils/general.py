@@ -364,14 +364,29 @@ def import_mmd(session, mmd):
         log.error(msg)
         raise UnprocessableEntity(msg)
 
-    # Get the koji_tag.
-    try:
-        xmd = mmd.get_xmd()
-        koji_tag = xmd["mbs"]["koji_tag"]
-    except KeyError:
-        msg = "'koji_tag' is not set in xmd['mbs'] for module {}".format(nsvc)
-        log.error(msg)
-        raise UnprocessableEntity(msg)
+    if len(mmd.get_dependencies()) > 1:
+        raise UnprocessableEntity(
+            "The imported module's dependencies list should contain just one element")
+
+    xmd = glib.from_variant_dict(mmd.get_xmd())
+    # Set some defaults in xmd["mbs"] if they're not provided by the user
+    if "mbs" not in xmd:
+        xmd["mbs"] = {"mse": True}
+
+    if mmd.get_dependencies():
+        brs = set(mmd.get_dependencies()[0].get_buildrequires().keys())
+        xmd_brs = set(xmd["mbs"].get("buildrequires", {}).keys())
+        if brs - xmd_brs:
+            raise UnprocessableEntity(
+                'The imported module buildrequires other modules, but the metadata in the '
+                'xmd["mbs"]["buildrequires"] dictionary is missing entries')
+    elif "buildrequires" not in xmd["mbs"]:
+        xmd["mbs"]["buildrequires"] = {}
+        mmd.set_xmd(glib.dict_values(xmd))
+
+    koji_tag = xmd['mbs'].get('koji_tag')
+    if koji_tag is None:
+        log.warning("'koji_tag' is not set in xmd['mbs'] for module {}".format(nsvc))
 
     # Get the ModuleBuild from DB.
     build = models.ModuleBuild.get_build_from_nsvc(
@@ -397,6 +412,11 @@ def import_mmd(session, mmd):
     build.time_completed = datetime.utcnow()
     if build.name in conf.base_module_names:
         build.stream_version = models.ModuleBuild.get_stream_version(stream)
+
+    # Record the base modules this module buildrequires
+    for base_module in build.get_buildrequired_base_modules():
+        build.buildrequires.append(base_module)
+
     session.add(build)
     session.commit()
     msg = "Module {} imported".format(nsvc)

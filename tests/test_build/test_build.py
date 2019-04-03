@@ -106,6 +106,7 @@ class FakeModuleBuilder(GenericBuilder):
     on_finalize_cb = None
     on_buildroot_add_artifacts_cb = None
     on_tag_artifacts_cb = None
+    on_buildroot_add_repos_cb = None
 
     @module_build_service.utils.validate_koji_tag('tag_name')
     def __init__(self, owner, module, config, tag_name, components):
@@ -122,6 +123,7 @@ class FakeModuleBuilder(GenericBuilder):
         FakeModuleBuilder.on_finalize_cb = None
         FakeModuleBuilder.on_buildroot_add_artifacts_cb = None
         FakeModuleBuilder.on_tag_artifacts_cb = None
+        FakeModuleBuilder.on_buildroot_add_repos_cb = None
         FakeModuleBuilder.DEFAULT_GROUPS = None
         FakeModuleBuilder.backend = 'test'
 
@@ -172,7 +174,8 @@ class FakeModuleBuilder(GenericBuilder):
             self._send_repo_done()
 
     def buildroot_add_repos(self, dependencies):
-        pass
+        if FakeModuleBuilder.on_buildroot_add_repos_cb:
+            FakeModuleBuilder.on_buildroot_add_repos_cb(self, dependencies)
 
     def tag_artifacts(self, artifacts, dest_tag=True):
         if FakeModuleBuilder.on_tag_artifacts_cb:
@@ -1371,6 +1374,43 @@ class TestBuild:
         # Make sure the module build didn't fail so that the poller can resume it later
         module = db.session.query(models.ModuleBuild).get(module_build_id)
         assert module.state == models.BUILD_STATES['build']
+
+    @patch('module_build_service.auth.get_user', return_value=user)
+    @patch('module_build_service.scm.SCM')
+    def test_submit_br_metadata_only_module(
+            self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc):
+        """
+        Test that when a build is submitted with a buildrequire without a Koji tag,
+        MBS doesn't supply it as a dependency to the builder.
+        """
+        metadata_mmd = module_build_service.utils.load_mmd(
+            path.join(base_dir, 'staged_data', 'build_metadata_module.yaml'), True)
+        module_build_service.utils.import_mmd(db.session, metadata_mmd)
+
+        FakeSCM(mocked_scm, 'testmodule', 'testmodule_br_metadata_module.yaml',
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+        post_url = '/module-build-service/1/module-builds/'
+        post_data = {
+            'branch': 'master',
+            'scmurl': 'https://src.stg.fedoraproject.org/modules/'
+                      'testmodule.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4',
+        }
+        rv = self.client.post(post_url, data=json.dumps(post_data))
+        assert rv.status_code == 201
+
+        data = json.loads(rv.data)
+        module_build_id = data['id']
+
+        def on_buildroot_add_repos_cb(cls, dependencies):
+            # Make sure that the metadata module is not present since it doesn't have a Koji tag
+            assert dependencies.keys() == ['module-f28-build']
+
+        FakeModuleBuilder.on_buildroot_add_repos_cb = on_buildroot_add_repos_cb
+        stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
+        module_build_service.scheduler.main([], stop)
+
+        module = db.session.query(models.ModuleBuild).get(module_build_id)
+        assert module.state == models.BUILD_STATES['ready']
 
 
 @patch("module_build_service.config.Config.system",
