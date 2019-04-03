@@ -302,6 +302,10 @@ def validate_mmd(mmd):
     if 'mbs' in mmd.get_xmd():
         raise ValidationError('The "mbs" xmd field is reserved for MBS')
 
+    if mmd.get_name() in conf.base_module_names:
+        raise ValidationError(
+            'You cannot build a module named "{}" since it is a base module'.format(mmd.get_name()))
+
 
 def merge_included_mmd(mmd, included_mmd):
     """
@@ -609,11 +613,6 @@ def submit_module_build(username, mmd, params):
     log.debug('Submitted %s module build for %s:%s:%s',
               ("scratch" if params.get('scratch', False) else "normal"),
               mmd.get_name(), mmd.get_stream(), mmd.get_version())
-
-    if mmd.get_name() in conf.base_module_names:
-        raise ValidationError(
-            'You cannot build a module named "{}" since it is a base module'.format(mmd.get_name()))
-
     validate_mmd(mmd)
 
     raise_if_stream_ambigous = False
