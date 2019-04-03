@@ -1,6 +1,8 @@
 FROM fedora:29
 
 WORKDIR /build
+# Pin the version of libsolv until the following is in stable:
+# https://bodhi.fedoraproject.org/updates/FEDORA-2019-c381c7bf54
 RUN dnf -y install \
     --nogpgcheck \
     --setopt=deltarpm=0 \
@@ -25,7 +27,8 @@ RUN dnf -y install \
     python3-prometheus_client \
     python3-requests \
     python3-six \
-    python3-solv \
+    https://kojipkgs.fedoraproject.org//packages/libsolv/0.7.4/2.fc29/x86_64/libsolv-0.7.4-2.fc29.x86_64.rpm \
+    https://kojipkgs.fedoraproject.org//packages/libsolv/0.7.4/2.fc29/x86_64/python3-solv-0.7.4-2.fc29.x86_64.rpm \
     python3-sqlalchemy \
     python3-pungi \
     # Test-only dependencies
