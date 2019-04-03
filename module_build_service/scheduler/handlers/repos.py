@@ -99,7 +99,8 @@ def done(config, session, msg):
     if module_build.component_builds and not good:
         state_reason = 'Component(s) {} failed to build.'.format(
             ', '.join(c.package for c in current_batch if c.state in failed_states))
-        module_build.transition(config, models.BUILD_STATES['failed'], state_reason)
+        module_build.transition(config, models.BUILD_STATES['failed'], state_reason,
+                                failure_type='infra')
         session.commit()
         log.warning("Odd!  All components in batch failed for %r." % module_build)
         return
@@ -147,7 +148,8 @@ def done(config, session, msg):
             )
             module_build.transition(config,
                                     state=models.BUILD_STATES['failed'],
-                                    state_reason=state_reason)
+                                    state_reason=state_reason,
+                                    failure_type='user')
         else:
             # Tell the external buildsystem to wrap up (CG import, createrepo, etc.)
             module_build.time_completed = datetime.utcnow()

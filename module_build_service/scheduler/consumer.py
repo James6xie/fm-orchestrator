@@ -264,7 +264,7 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
                 if build:
                     session.refresh(build)
                     build.transition(conf, state=models.BUILD_STATES['failed'],
-                                     state_reason=str(e))
+                                     state_reason=str(e), failure_type='infra')
                     session.commit()
 
             log.debug("Done with %s" % idx)

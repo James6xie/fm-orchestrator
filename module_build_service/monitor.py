@@ -27,8 +27,8 @@ import tempfile
 
 from flask import Blueprint, Response
 from prometheus_client import (  # noqa: F401
-    ProcessCollector, CollectorRegistry, Counter, multiprocess,
-    Histogram, generate_latest, start_http_server, CONTENT_TYPE_LATEST)
+    ProcessCollector, CollectorRegistry, Counter, multiprocess, Histogram, generate_latest,
+    start_http_server, CONTENT_TYPE_LATEST)
 from sqlalchemy import event
 
 # Service-specific imports
@@ -70,6 +70,16 @@ messaging_tx_sent_ok_counter = Counter(
 messaging_tx_failed_counter = Counter(
     'messaging_tx_failed',
     'Number of messages, for which the sender failed',
+    registry=registry)
+
+builder_success_counter = Counter(
+    'builds_success',
+    'Number of successful builds',
+    registry=registry)
+builder_failed_counter = Counter(
+    'builds_failed_total',
+    'Number of failed builds',
+    labelnames=['reason'],      # reason could be: 'user', 'infra', 'unspec'
     registry=registry)
 
 db_dbapi_error_counter = Counter(

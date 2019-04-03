@@ -562,7 +562,7 @@ class ModuleBuild(MBSBase):
             )
         return module
 
-    def transition(self, conf, state, state_reason=None):
+    def transition(self, conf, state, state_reason=None, failure_type='unspec'):
         """Record that a build has transitioned state.
 
         The history of state transitions are recorded in model
@@ -575,14 +575,21 @@ class ModuleBuild(MBSBase):
         :type conf: :class:`Config`
         :param int state: the state value to transition to. Refer to ``BUILD_STATES``.
         :param str state_reason: optional reason of why to transform to ``state``.
+        :param str failure_reason: optional failure type: 'unspec', 'user', 'infra'
         """
         now = datetime.utcnow()
         old_state = self.state
         self.state = state
         self.time_modified = now
 
+        from module_build_service.monitor import builder_success_counter, builder_failed_counter
+
         if INVERSE_BUILD_STATES[self.state] in ['done', 'failed']:
             self.time_completed = now
+            if INVERSE_BUILD_STATES[self.state] == 'done':
+                builder_success_counter.inc()
+            else:
+                builder_failed_counter.labels(reason=failure_type).inc()
 
         if state_reason:
             self.state_reason = state_reason

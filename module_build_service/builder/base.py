@@ -320,7 +320,7 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
         except ValueError:
             reason = "Failed to gather buildroot groups from SCM."
             log.exception(reason)
-            module.transition(conf, state="failed", state_reason=reason)
+            module.transition(conf, state="failed", state_reason=reason, failure_type='user')
             session.commit()
             raise
         return groups

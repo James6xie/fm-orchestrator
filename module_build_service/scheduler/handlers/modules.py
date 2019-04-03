@@ -98,13 +98,13 @@ def failed(config, session, msg):
         if not build.state_reason:
             reason = "Missing koji tag. Assuming previously failed module lookup."
             log.error(reason)
-            build.transition(config, state="failed", state_reason=reason)
+            build.transition(config, state="failed", state_reason=reason, failure_type='infra')
             session.commit()
             return
 
     # Don't transition it again if it's already been transitioned
     if build.state != models.BUILD_STATES["failed"]:
-        build.transition(config, state="failed")
+        build.transition(config, state="failed", failure_type='user')
 
     session.commit()
 
@@ -149,6 +149,7 @@ def init(config, session, msg):
         time.sleep(1)
 
     error_msg = ''
+    failure_reason = 'unspec'
     try:
         mmd = build.mmd()
         record_component_builds(mmd, build, session=session)
@@ -162,12 +163,15 @@ def init(config, session, msg):
     except (UnprocessableEntity, Forbidden, ValidationError, RuntimeError) as e:
         log.exception(str(e))
         error_msg = str(e)
+        failure_reason = 'user'
     except (xmlrpclib.ProtocolError, koji.GenericError) as e:
         log.exception(str(e))
         error_msg = 'Koji communication error: "{0}"'.format(str(e))
+        failure_reason = 'infra'
     except Exception as e:
         log.exception(str(e))
         error_msg = "An unknown error occurred while validating the modulemd"
+        failure_reason = 'user'
     else:
         session.add(build)
         session.commit()
@@ -175,7 +179,8 @@ def init(config, session, msg):
         if error_msg:
             # Rollback changes underway
             session.rollback()
-            build.transition(conf, models.BUILD_STATES["failed"], state_reason=error_msg)
+            build.transition(conf, models.BUILD_STATES["failed"], state_reason=error_msg,
+                             failure_type=failure_reason)
 
 
 def generate_module_build_koji_tag(build):
@@ -288,7 +293,7 @@ def wait(config, session, msg):
     except ValueError:
         reason = "Failed to get module info from MBS. Max retries reached."
         log.exception(reason)
-        build.transition(config, state="failed", state_reason=reason)
+        build.transition(config, state="failed", state_reason=reason, failure_type='infra')
         session.commit()
         raise
 

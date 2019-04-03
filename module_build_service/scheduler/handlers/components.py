@@ -70,7 +70,7 @@ def _finalize(config, session, msg, state):
     if (component_build.package == 'module-build-macros' and
        state != koji.BUILD_STATES['COMPLETE']):
         parent.transition(config, state=models.BUILD_STATES['failed'],
-                          state_reason=state_reason)
+                          state_reason=state_reason, failure_type='user')
         session.commit()
         return
 
@@ -104,7 +104,7 @@ def _finalize(config, session, msg, state):
                 ', '.join(c.package for c in failed_components_in_batch))
             parent.transition(config,
                               state=models.BUILD_STATES['failed'],
-                              state_reason=state_reason)
+                              state_reason=state_reason, failure_type='user')
             session.commit()
             return []
         elif not built_components_in_batch:

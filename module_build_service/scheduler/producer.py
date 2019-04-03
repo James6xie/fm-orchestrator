@@ -169,7 +169,8 @@ class MBSProducer(PollingProducer):
                 state_reason = ('The module was garbage collected since it has failed over {0}'
                                 ' day(s) ago'.format(conf.cleanup_failed_builds_time))
                 module.transition(
-                    conf, models.BUILD_STATES['garbage'], state_reason=state_reason)
+                    conf, models.BUILD_STATES['garbage'], state_reason=state_reason,
+                    failure_type='user')
                 session.add(module)
                 session.commit()
 
@@ -372,7 +373,8 @@ class MBSProducer(PollingProducer):
                 state=build.state,
                 days=config.cleanup_stuck_builds_time
             )
-            build.transition(config, state=models.BUILD_STATES["failed"], state_reason=state_reason)
+            build.transition(config, state=models.BUILD_STATES["failed"],
+                             state_reason=state_reason, failure_type='user')
             session.commit()
 
     def sync_koji_build_tags(self, config, session):
