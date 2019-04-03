@@ -262,13 +262,14 @@ class MMDResolver(object):
         :return: Dict with module name as a key and new stream as a value.
         """
         overrides = {}
-        if "mbs" in mmd.get_xmd().keys():
+        xmd = mmd.get_xmd()
+        if "mbs" in xmd.keys() and "buildrequires" in xmd["mbs"].keys():
             for base_module_name in conf.base_module_names:
-                if base_module_name not in mmd.get_xmd()["mbs"]["buildrequires"].keys():
+                if base_module_name not in xmd["mbs"]["buildrequires"].keys():
                     continue
-                if "stream" not in mmd.get_xmd()["mbs"]["buildrequires"][base_module_name].keys():
+                if "stream" not in xmd["mbs"]["buildrequires"][base_module_name].keys():
                     continue
-                stream = mmd.get_xmd()["mbs"]["buildrequires"][base_module_name]["stream"]
+                stream = xmd["mbs"]["buildrequires"][base_module_name]["stream"]
 
                 overrides[base_module_name] = stream
         return overrides

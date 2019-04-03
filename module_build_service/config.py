@@ -541,7 +541,14 @@ class Config(object):
             'desc': 'The Greenwave decision context that whose messages should '
                     'be handled by MBS. By default, MBS handles Greenwave '
                     'messages for OSCI.',
-        }
+        },
+        'allowed_disttag_marking_module_names': {
+            'type': list,
+            'default': [],
+            'desc': ('List of modules that are allowed to influence the RPM disttag when '
+                     'buildrequired. These modules can set xmd.mbs.disttag_marking to do so. MBS '
+                     'will use this list order to determine which modules take precedence.')
+        },
     }
 
     def __init__(self, conf_section_obj):

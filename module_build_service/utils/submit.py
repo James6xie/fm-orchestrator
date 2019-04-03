@@ -299,12 +299,16 @@ def validate_mmd(mmd):
                 "Custom module repositories aren't allowed.  "
                 "%r bears repository %r" % (modname, mod.get_repository()))
 
-    if 'mbs' in mmd.get_xmd():
-        raise ValidationError('The "mbs" xmd field is reserved for MBS')
+    name = mmd.get_name()
+    xmd = mmd.get_xmd()
+    if 'mbs' in xmd:
+        allowed_to_mark_disttag = name in conf.allowed_disttag_marking_module_names
+        if not (xmd['mbs'].keys() == ['disttag_marking'] and allowed_to_mark_disttag):
+            raise ValidationError('The "mbs" xmd field is reserved for MBS')
 
-    if mmd.get_name() in conf.base_module_names:
+    if name in conf.base_module_names:
         raise ValidationError(
-            'You cannot build a module named "{}" since it is a base module'.format(mmd.get_name()))
+            'You cannot build a module named "{}" since it is a base module'.format(name))
 
 
 def merge_included_mmd(mmd, included_mmd):

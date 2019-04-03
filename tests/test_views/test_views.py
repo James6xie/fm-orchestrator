@@ -56,7 +56,7 @@ base_dir = dirname(dirname(__file__))
 
 class FakeSCM(object):
     def __init__(self, mocked_scm, name, mmd_filenames, commit=None, checkout_raise=False,
-                 get_latest_raise=False):
+                 get_latest_raise=False, branch='master'):
         """
         Adds default testing checkout, get_latest and name methods
         to mocked_scm SCM class.
@@ -91,7 +91,7 @@ class FakeSCM(object):
         else:
             self.mocked_scm.return_value.get_latest = self.get_latest
         self.mocked_scm.return_value.repository_root = "https://src.stg.fedoraproject.org/modules/"
-        self.mocked_scm.return_value.branch = 'master'
+        self.mocked_scm.return_value.branch = branch
         self.mocked_scm.return_value.sourcedir = self.sourcedir
         self.mocked_scm.return_value.get_module_yaml = self.get_module_yaml
 
@@ -2025,3 +2025,26 @@ class TestViews:
 
         rv = self.client.post(post_url, data=json.dumps({'branch': 'master', 'scmurl': scm_url}))
         assert rv.status_code == 201
+
+    @patch('module_build_service.auth.get_user', return_value=user)
+    @patch('module_build_service.scm.SCM')
+    @patch('module_build_service.config.Config.allowed_disttag_marking_module_names',
+           new_callable=PropertyMock, return_value=['build'])
+    def test_submit_build_with_disttag_marking_in_xmd(
+            self, mocked_admmn, mocked_scm, mocked_get_user):
+        """
+        Test that white-listed modules may set the disttag_marking in xmd.mbs.
+        """
+        FakeSCM(mocked_scm, 'build', 'build_metadata_module_not_processed.yaml',
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4', branch='product1.2')
+
+        post_url = '/module-build-service/2/module-builds/'
+        scm_url = ('https://src.stg.fedoraproject.org/modules/testmodule.git?#68931c90de214d9d13fe'
+                   'efbd35246a81b6cb8d49')
+
+        rv = self.client.post(
+            post_url, data=json.dumps({'branch': 'product1.2', 'scmurl': scm_url}))
+        assert rv.status_code == 201
+        data = json.loads(rv.data)[0]
+        mmd = Modulemd.Module().new_from_string(data['modulemd'])
+        assert mmd.get_xmd()['mbs']['disttag_marking'] == 'product12'

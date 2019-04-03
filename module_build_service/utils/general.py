@@ -240,36 +240,39 @@ def get_rpm_release(module_build):
                     .format(module_build.id))
         buildrequires = None
 
-    # Determine which base module is buildrequired and its marking in the disttag
-    base_module_marking = ''
+    # Determine which buildrequired module will influence the disttag
+    br_module_marking = ''
     # If the buildrequires are recorded in the xmd then we can try to find the base module that
     # is buildrequired
     if buildrequires:
-        # Looping through all the base modules in conf.base_module_names instead of looping through
-        # all the buildrequires guarantees the order in conf.base_module_names is preserved for
-        # which base module is used as the marking
-        for base_module in conf.base_module_names:
-            bm_in_xmd = buildrequires.get(base_module)
+        # Looping through all the non-base modules that are allowed to set the disttag_marking
+        # and the base modules to see what the disttag marking should be. Doing it this way
+        # preserves the order in the configurations.
+        for module in conf.allowed_disttag_marking_module_names + conf.base_module_names:
+            module_in_xmd = buildrequires.get(module)
 
-            if not bm_in_xmd:
+            if not module_in_xmd:
                 continue
 
             with models.make_session(conf) as session:
-                base_module_obj = models.ModuleBuild.get_build_from_nsvc(
-                    session, base_module, bm_in_xmd['stream'], bm_in_xmd['version'],
-                    bm_in_xmd['context'])
-                if not base_module_obj:
+                module_obj = models.ModuleBuild.get_build_from_nsvc(
+                    session, module, module_in_xmd['stream'], module_in_xmd['version'],
+                    module_in_xmd['context'])
+                if not module_obj:
                     continue
 
-                # Default to using the base module's stream, but if the base module has
-                # disttag_marking set in the xmd, use that instead
                 try:
-                    marking = base_module_obj.mmd().get_xmd()['mbs']['disttag_marking']
+                    marking = module_obj.mmd().get_xmd()['mbs']['disttag_marking']
                 # We must check for a KeyError because a Variant object doesn't support the `get`
                 # method
                 except KeyError:
-                    marking = base_module_obj.stream
-                base_module_marking = marking + '+'
+                    if module not in conf.base_module_names:
+                        continue
+                    # If we've made it past all the modules in
+                    # conf.allowed_disttag_marking_module_names, and the base module doesn't have
+                    # the disttag_marking set, then default to the stream of the first base module
+                    marking = module_obj.stream
+                br_module_marking = marking + '+'
                 break
         else:
             log.warning('Module build {0} does not buildrequire a base module ({1})'
@@ -280,7 +283,7 @@ def get_rpm_release(module_build):
 
     return '{prefix}{base_module_marking}{index}+{dist_hash}'.format(
         prefix=prefix,
-        base_module_marking=base_module_marking,
+        base_module_marking=br_module_marking,
         index=index,
         dist_hash=dist_hash,
     )

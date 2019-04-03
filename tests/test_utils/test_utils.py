@@ -405,6 +405,40 @@ class TestUtils:
         release = module_build_service.utils.get_rpm_release(build_one)
         assert release == 'module+fedora28+2+814cfa39'
 
+    @patch('module_build_service.config.Config.allowed_disttag_marking_module_names',
+           new_callable=mock.PropertyMock, return_value=['build'])
+    def test_get_rpm_release_metadata_br_stream_override(self, mock_admmn):
+        """
+        Test that when a module buildrequires a module in conf.allowed_disttag_marking_module_names,
+        and that module has the xmd.mbs.disttag_marking field set, it should influence the disttag.
+        """
+        scheduler_init_data(1)
+        mmd_path = path.abspath(path.join(
+            __file__, path.pardir, path.pardir, 'staged_data', 'build_metadata_module.yaml'))
+        metadata_mmd = module_build_service.utils.load_mmd(mmd_path, True)
+        module_build_service.utils.import_mmd(db.session, metadata_mmd)
+
+        build_one = models.ModuleBuild.query.get(2)
+        mmd = build_one.mmd()
+        dep = mmd.get_dependencies()[0]
+        dep.add_buildrequires('build', ['product1.2'])
+        mmd.set_dependencies((dep, ))
+        xmd = glib.from_variant_dict(mmd.get_xmd())
+        xmd['mbs']['buildrequires']['build'] = {
+            'filtered_rpms': [],
+            'ref': 'virtual',
+            'stream': 'product1.2',
+            'version': '1',
+            'context': '00000000',
+        }
+        mmd.set_xmd(glib.dict_values(xmd))
+        build_one.modulemd = to_text_type(mmd.dumps())
+        db.session.add(build_one)
+        db.session.commit()
+
+        release = module_build_service.utils.get_rpm_release(build_one)
+        assert release == 'module+product12+2+814cfa39'
+
     def test_get_rpm_release_mse_scratch(self):
         init_data(contexts=True, scratch=True)
         build_one = models.ModuleBuild.query.get(2)
