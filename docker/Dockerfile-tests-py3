@@ -13,6 +13,7 @@ RUN dnf -y install \
     python3-rpm \
     libmodulemd \
     python3-gobject \
+    python3-dnf \
     python3-dogpile-cache \
     python3-flask \
     python3-flask-migrate \

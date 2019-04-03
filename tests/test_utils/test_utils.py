@@ -1254,10 +1254,8 @@ class TestOfflineLocalBuilds:
         profiles = mmd.get_profiles()
         assert set(profiles.keys()) == set(["buildroot", "srpm-buildroot"])
 
-    @patch("module_build_service.utils.general.open", create=True)
+    @patch("module_build_service.utils.general.open", create=True, new_callable=mock.mock_open)
     def test_import_builds_from_local_dnf_repos(self, patched_open):
-        pytest.importorskip("dnf")
-
         with patch("dnf.Base") as dnf_base:
             repo = mock.MagicMock()
             repo.repofile = "/etc/yum.repos.d/foo.repo"
@@ -1265,9 +1263,7 @@ class TestOfflineLocalBuilds:
                 repo.get_metadata_content.return_value = f.read()
             base = dnf_base.return_value
             base.repos = {"reponame": repo}
-
-            patched_open.return_value = mock.mock_open(
-                read_data="FOO=bar\nPLATFORM_ID=platform:x\n").return_value
+            patched_open.return_value.readlines.return_value = ('FOO=bar', 'PLATFORM_ID=platform:x')
 
             module_build_service.utils.import_builds_from_local_dnf_repos()
 
