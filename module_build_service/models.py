@@ -361,7 +361,7 @@ class ModuleBuild(MBSBase):
         """
         return session.query(ModuleBuild).filter_by(
             name=name, stream=stream, version=str(version), scratch=True, **kwargs)\
-            .filter(ModuleBuild.context.like(context + '%'))
+            .filter(ModuleBuild.context.like(context + '%')).all()
 
     @staticmethod
     def get_last_builds_in_stream_version_lte(session, name, stream_version):
@@ -517,7 +517,7 @@ class ModuleBuild(MBSBase):
     @property
     def siblings(self):
         query = self.query.filter_by(
-            name=self.name, stream=self.stream, version=self.version).options(
+            name=self.name, stream=self.stream, version=self.version, scratch=self.scratch).options(
             load_only('id')).filter(ModuleBuild.id != self.id)
         return [build.id for build in query.all()]
 

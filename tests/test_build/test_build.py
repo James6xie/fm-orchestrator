@@ -1205,8 +1205,8 @@ class TestBuild:
     def test_submit_scratch_vs_normal(
             self, mocked_allow_scratch, mocked_scm, mocked_get_user, conf_system, dbg, hmsc):
         """
-        Tests that submitting a scratch build with the same NSV as a completed
-        normal build succeeds
+        Tests that submitting a scratch build with the same NSV as a previously
+        completed normal build succeeds and both have expected contexts
         """
         FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
@@ -1223,7 +1223,7 @@ class TestBuild:
         data = json.loads(rv.data)
         module_build_id = data['id']
         module_build = models.ModuleBuild.query.filter_by(id=module_build_id).one()
-        # make sure normal build has expected context
+        # make sure normal build has expected context without a suffix
         assert module_build.context == '9c690d0e'
         # Run the backend
         stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
@@ -1235,7 +1235,7 @@ class TestBuild:
         data = json.loads(rv2.data)
         module_build_id = data['id']
         module_build = models.ModuleBuild.query.filter_by(id=module_build_id).one()
-        # make sure scratch build has context with unique suffix
+        # make sure scratch build has expected context with unique suffix
         assert module_build.context == '9c690d0e_1'
 
     @patch('module_build_service.auth.get_user', return_value=user)
@@ -1245,8 +1245,8 @@ class TestBuild:
     def test_submit_normal_vs_scratch(
             self, mocked_allow_scratch, mocked_scm, mocked_get_user, conf_system, dbg, hmsc):
         """
-        Tests that submitting a normal build with the same NSV as a completed
-        scratch build succeeds
+        Tests that submitting a normal build with the same NSV as a previously
+        completed scratch build succeeds and both have expected contexts
         """
         FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
@@ -1260,6 +1260,11 @@ class TestBuild:
         }
         rv = self.client.post(post_url, data=json.dumps(post_data))
         assert rv.status_code == 201
+        data = json.loads(rv.data)
+        module_build_id = data['id']
+        module_build = models.ModuleBuild.query.filter_by(id=module_build_id).one()
+        # make sure scratch build has expected context with unique suffix
+        assert module_build.context == '9c690d0e_1'
         # Run the backend
         stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
         module_build_service.scheduler.main([], stop)
@@ -1267,6 +1272,11 @@ class TestBuild:
         post_data['scratch'] = False
         rv2 = self.client.post(post_url, data=json.dumps(post_data))
         assert rv2.status_code == 201
+        data = json.loads(rv2.data)
+        module_build_id = data['id']
+        module_build = models.ModuleBuild.query.filter_by(id=module_build_id).one()
+        # make sure normal build has expected context without suffix
+        assert module_build.context == '9c690d0e'
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
@@ -1275,8 +1285,8 @@ class TestBuild:
     def test_submit_scratch_vs_scratch(
             self, mocked_allow_scratch, mocked_scm, mocked_get_user, conf_system, dbg, hmsc):
         """
-        Tests that submitting a scratch build with the same NSV as a completed
-        scratch build succeeds
+        Tests that submitting a scratch build with the same NSV as a previously
+        completed scratch build succeeds and both have expected contexts
         """
         FakeSCM(mocked_scm, 'testmodule', 'testmodule.yaml',
                 '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
@@ -1290,12 +1300,22 @@ class TestBuild:
         }
         rv = self.client.post(post_url, data=json.dumps(post_data))
         assert rv.status_code == 201
+        data = json.loads(rv.data)
+        module_build_id = data['id']
+        module_build = models.ModuleBuild.query.filter_by(id=module_build_id).one()
+        # make sure first scratch build has expected context with unique suffix
+        assert module_build.context == '9c690d0e_1'
         # Run the backend
         stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
         module_build_service.scheduler.main([], stop)
         # Post scratch build again and make sure it succeeds
         rv2 = self.client.post(post_url, data=json.dumps(post_data))
         assert rv2.status_code == 201
+        data = json.loads(rv2.data)
+        module_build_id = data['id']
+        module_build = models.ModuleBuild.query.filter_by(id=module_build_id).one()
+        # make sure second scratch build has expected context with unique suffix
+        assert module_build.context == '9c690d0e_2'
 
     @patch('module_build_service.auth.get_user', return_value=user)
     @patch('module_build_service.scm.SCM')
