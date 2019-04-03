@@ -815,7 +815,10 @@ class TestUtils:
 
         generate_expanded_mmds.return_value = [mmd1, mmd2]
 
-        builds = module_build_service.utils.submit_module_build("foo", mmd1, {})
+        # Create a copy of mmd1 without xmd.mbs, since that will cause validate_mmd to fail
+        mmd1_copy = Modulemd.Module.new_from_string(mmd1.dumps())
+        mmd1_copy.set_xmd({})
+        builds = module_build_service.utils.submit_module_build("foo", mmd1_copy, {})
         ret = {b.mmd().get_context(): b.state for b in builds}
         assert ret == {
             "c1": models.BUILD_STATES['ready'],

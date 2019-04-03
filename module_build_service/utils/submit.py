@@ -291,12 +291,16 @@ def validate_mmd(mmd):
     :type mmd: Modulemd.Module
     :raises Forbidden: if metadata contains module repository but it is not
         allowed.
+    :raise ValidationError: if the xmd has the "mbs" key set.
     """
     for modname, mod in mmd.get_module_components().items():
         if mod.get_repository() and not conf.modules_allow_repository:
             raise Forbidden(
                 "Custom module repositories aren't allowed.  "
                 "%r bears repository %r" % (modname, mod.get_repository()))
+
+    if 'mbs' in mmd.get_xmd():
+        raise ValidationError('The "mbs" xmd field is reserved for MBS')
 
 
 def merge_included_mmd(mmd, included_mmd):
@@ -610,6 +614,8 @@ def submit_module_build(username, mmd, params):
         raise ValidationError(
             'You cannot build a module named "{}" since it is a base module'.format(mmd.get_name()))
 
+    validate_mmd(mmd)
+
     raise_if_stream_ambigous = False
     default_streams = {}
     # For local builds, we want the user to choose the exact stream using the default_streams
@@ -621,7 +627,6 @@ def submit_module_build(username, mmd, params):
         default_streams = params["default_streams"]
     _apply_dep_overrides(mmd, params)
 
-    validate_mmd(mmd)
     mmds = generate_expanded_mmds(db.session, mmd, raise_if_stream_ambigous, default_streams)
     if not mmds:
         raise ValidationError('No dependency combination was satisfied. Please verify the '
