@@ -20,6 +20,7 @@ $script = <<SCRIPT
         openssl-devel \
         python \
         python-devel \
+        python2-dnf \
         python-docutils \
         python-flask \
         python-gobject-base \

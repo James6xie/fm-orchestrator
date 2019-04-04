@@ -20,6 +20,7 @@ RUN yum -y install \
     kobo-rpmlib \
     libmodulemd \
     python-backports-ssl_match_hostname \
+    python-dnf \
     python-dogpile-cache \
     python-enum34 \
     python-flask \
