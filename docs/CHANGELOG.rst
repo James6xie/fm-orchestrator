@@ -1,6 +1,18 @@
 Change Log
 ==========
 
+v2.19.0
+-------
+* Fix an issue in MMDResolver when a transitive dependency cannot be satisfied
+* Add support for offline local builds that use local repositories for dependency resolution
+* Add initial support for gating of modules using Greenwave
+* Fix a bug that caused successful local builds to not regenerate the repo with module metadata
+* Allow resubmitting the same NSV for scratch module builds
+* Allow importing modules without a Koji tag
+* Add extra user input validation
+* Allow whitelisted buildrequires with xmd.mbs.disttag_marking set to influnece the disttag
+* Allow buildrequiring virtual streams to always get the latest
+
 v2.18.2
 -------
 * Find compatible base modules based on the virtual streams and stream versions, not just the stream versions
