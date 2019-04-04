@@ -457,11 +457,7 @@ def get_local_releasever():
     Returns the $releasever variable used in the system when expanding .repo files.
     """
     # Import DNF here to not force it as a hard MBS dependency.
-    try:
-        import dnf
-    except:
-        log.warning("Cannot import DNF module, releasever not set in Mock config.")
-        return ""
+    import dnf
     dnf_base = dnf.Base()
     return dnf_base.conf.releasever
 
