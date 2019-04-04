@@ -103,9 +103,8 @@ class TestDecisionUpdateHandler:
                    decision_context='bodhi_update_push_testing')
         decision_update(conf, db.session, msg)
         log.debug.assert_called_once_with(
-            'Skip Greenwave message %s as MBS only handles message in decision'
-            ' context %s',
-            'msg-id-1', 'bodhi_update_push_testing'
+            'Skip Greenwave message %s as MBS only handles messages with the decision context "%s"',
+            'msg-id-1', 'osci_compose_gate_modules'
         )
 
     @patch('module_build_service.scheduler.handlers.greenwave.log')

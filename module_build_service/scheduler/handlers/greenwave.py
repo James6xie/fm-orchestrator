@@ -69,9 +69,9 @@ def decision_update(config, session, msg):
         return
 
     if msg.decision_context != config.greenwave_decision_context:
-        log.debug('Skip Greenwave message %s as MBS only handles message in '
-                  'decision context %s',
-                  msg.msg_id, msg.decision_context)
+        log.debug('Skip Greenwave message %s as MBS only handles messages with the '
+                  'decision context "%s"',
+                  msg.msg_id, config.greenwave_decision_context)
         return
 
     module_build_nvr = msg.subject_identifier
