@@ -63,6 +63,11 @@ def decision_update(config, session, msg):
         ``greenwave.decision.update``.
     :type msg: :class:`GreenwaveDecisionUpdate`
     """
+    if not config.greenwave_decision_context:
+        log.debug('Skip Greenwave message %s as MBS does not have GREENWAVE_DECISION_CONTEXT '
+                  'configured', msg.msg_id)
+        return
+
     if msg.decision_context != config.greenwave_decision_context:
         log.debug('Skip Greenwave message %s as MBS only handles message in '
                   'decision context %s',

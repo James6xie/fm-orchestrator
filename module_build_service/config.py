@@ -537,10 +537,8 @@ class Config(object):
         },
         'greenwave_decision_context': {
             'type': str,
-            'default': 'osci_compose_gate_modules',
-            'desc': 'The Greenwave decision context that whose messages should '
-                    'be handled by MBS. By default, MBS handles Greenwave '
-                    'messages for OSCI.',
+            'default': '',
+            'desc': 'The Greenwave decision context that determines a module\'s gating status.',
         },
         'allowed_disttag_marking_module_names': {
             'type': list,

@@ -124,6 +124,7 @@ class TestConfiguration(BaseConfiguration):
     RESOLVER = 'db'
 
     ALLOWED_GROUPS_TO_IMPORT_MODULE = set(['mbs-import-module'])
+    GREENWAVE_DECISION_CONTEXT = 'osci_compose_gate_modules'
 
 
 class ProdConfiguration(BaseConfiguration):
