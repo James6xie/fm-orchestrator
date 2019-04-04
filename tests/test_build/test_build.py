@@ -1403,7 +1403,7 @@ class TestBuild:
 
         def on_buildroot_add_repos_cb(cls, dependencies):
             # Make sure that the metadata module is not present since it doesn't have a Koji tag
-            assert dependencies.keys() == ['module-f28-build']
+            assert set(dependencies.keys()) == set(['module-f28-build'])
 
         FakeModuleBuilder.on_buildroot_add_repos_cb = on_buildroot_add_repos_cb
         stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
