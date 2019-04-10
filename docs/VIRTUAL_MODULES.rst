@@ -34,7 +34,6 @@ Here is an example of the Fedora 31 platform module, which is also virtual modul
         mbs:
         buildrequires: {}
         commit: f31
-        requires: {}
         koji_tag: module-f31-build
         mse: TRUE
 
@@ -59,8 +58,6 @@ Optional standard fields:
 Custom fields in xmd:
 
 - ``buildrequires`` - the buildrequires as resolved by MBS. It should always be an empty dictionary
-  for base modules.
-- ``requires`` - the requires as resolved by MBS. It should always be an empty dictionary
   for base modules.
 - ``commit`` - this should be ``virtual`` or some other identifier that is meaningful since a commit
   is not applicable when a module is directly imported.
