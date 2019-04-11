@@ -110,9 +110,11 @@ def import_module(mmd_file):
 @manager.option('-s', '--set-stream', action='append', default=[], dest='default_streams')
 @manager.option('-r', '--platform-repo-file', action='append', default=[],
                 dest='platform_repofiles')
+@manager.option('-p', '--platform-id', action='store', default=None,
+                dest='platform_id')
 def build_module_locally(local_build_nsvs=None, yaml_file=None, srpms=None,
                          stream=None, skiptests=False, default_streams=None,
-                         offline=False, platform_repofiles=None):
+                         offline=False, platform_repofiles=None, platform_id=None):
     """ Performs local module build using Mock
     """
     if 'SERVER_NAME' not in app.config or not app.config['SERVER_NAME']:
@@ -139,7 +141,7 @@ def build_module_locally(local_build_nsvs=None, yaml_file=None, srpms=None,
 
         db.create_all()
         if offline:
-            import_builds_from_local_dnf_repos()
+            import_builds_from_local_dnf_repos(platform_id)
         load_local_builds(local_build_nsvs)
 
         params = {}
