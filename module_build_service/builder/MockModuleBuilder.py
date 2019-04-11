@@ -591,14 +591,10 @@ class SCMBuilder(BaseBuilder):
     def __init__(self, config, resultsdir, source, artifact_name):
         super(SCMBuilder, self).__init__(config, resultsdir)
         with open(config, "a") as f:
-            git_repo, branch = source.split("?#")
+            repo_path, branch = source.split("?#")
             distgit_cmds = self._get_distgit_commands(source)
-
-            if source.startswith("file://"):
-                # For local git repositories, pass the full path to repository to git command.
-                distgit_get = distgit_cmds[0].format(git_repo)
-            else:
-                distgit_get = distgit_cmds[0].format(artifact_name)
+            # Supply the artifact name for "{0}" and the full path to the repo for "{repo_path}"
+            distgit_get = distgit_cmds[0].format(artifact_name, repo_path=repo_path)
 
             # mock-scm cannot checkout particular commit hash, but only branch.
             # We therefore use a command that combines the distgit-command with
@@ -631,8 +627,8 @@ class SCMBuilder(BaseBuilder):
             # local builds.
             # Instead, get them from local path with git repository by passing that path to Mock
             # using the `ext_src_dir`.
-            if git_repo.startswith("file://"):
-                src_dir = git_repo[len("file://"):]
+            if repo_path.startswith("file://"):
+                src_dir = repo_path[len("file://"):]
                 f.write("config_opts['scm_opts']['ext_src_dir'] = '{}'\n".format(src_dir))
 
     def _make_executable(self, path):

@@ -336,7 +336,7 @@ class Config(object):
             'default': {
                 'https://src.fedoraproject.org': ('fedpkg clone --anonymous {}',
                                                   'fedpkg --release module sources'),
-                'file://': ('git clone {}', None),
+                'file://': ('git clone {repo_path}', None),
             },
             'desc': 'Mapping between dist-git and command to '},
         'mock_config': {
