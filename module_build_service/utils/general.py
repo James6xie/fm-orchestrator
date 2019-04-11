@@ -485,12 +485,15 @@ def get_local_releasever():
     return dnf_base.conf.releasever
 
 
-def import_builds_from_local_dnf_repos():
+def import_builds_from_local_dnf_repos(platform_id=None):
     """
     Imports the module builds from all available local repositories to MBS DB.
 
     This is used when building modules locally without any access to MBS infra.
     This method also generates and imports the base module according to /etc/os-release.
+
+    :param str platform_id: The `name:stream` of a fake platform module to generate in this
+        method. When not set, the /etc/os-release is parsed to get the PLATFORM_ID.
     """
     # Import DNF here to not force it as a hard MBS dependency.
     import dnf
@@ -517,13 +520,13 @@ def import_builds_from_local_dnf_repos():
 
                 import_mmd(session, mmd)
 
-    # Parse the /etc/os-release to find out the local platform:stream.
-    platform_id = None
-    with open("/etc/os-release", "r") as fd:
-        for l in fd.readlines():
-            if not l.startswith("PLATFORM_ID"):
-                continue
-            platform_id = l.split("=")[1].strip("\"' \n")
+    if not platform_id:
+        # Parse the /etc/os-release to find out the local platform:stream.
+        with open("/etc/os-release", "r") as fd:
+            for l in fd.readlines():
+                if not l.startswith("PLATFORM_ID"):
+                    continue
+                platform_id = l.split("=")[1].strip("\"' \n")
     if not platform_id:
         raise ValueError("Cannot get PLATFORM_ID from /etc/os-release.")
 

@@ -1342,3 +1342,11 @@ class TestOfflineLocalBuilds:
             module_build = models.ModuleBuild.get_build_from_nsvc(
                 db.session, "platform", "x", 1, "000000")
             assert module_build
+
+    def test_import_builds_from_local_dnf_repos_platform_id(self):
+        with patch("dnf.Base"):
+            module_build_service.utils.import_builds_from_local_dnf_repos(platform_id="platform:y")
+
+            module_build = models.ModuleBuild.get_build_from_nsvc(
+                db.session, "platform", "y", 1, "000000")
+            assert module_build
