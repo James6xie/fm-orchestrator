@@ -318,7 +318,7 @@ def create_dogpile_key_generator_func(skip_first_n_args=0):
     return key_generator
 
 
-def import_mmd(session, mmd):
+def import_mmd(session, mmd, check_buildrequires=True):
     """
     Imports new module build defined by `mmd` to MBS database using `session`.
     If it already exists, it is updated.
@@ -328,6 +328,9 @@ def import_mmd(session, mmd):
     The ModuleBuild.rebuild_strategy is set to "all".
     The ModuleBuild.owner is set to "mbs_import".
 
+    :param bool check_buildrequires: When True, checks that the buildrequires defined in the MMD
+        have matching records in the `mmd["xmd"]["mbs"]["buildrequires"]` and also fills in
+        the `ModuleBuild.buildrequires` according to this data.
     :return: module build (ModuleBuild),
              log messages collected during import (list)
     :rtype: tuple
@@ -376,7 +379,7 @@ def import_mmd(session, mmd):
     if "mbs" not in xmd:
         xmd["mbs"] = {"mse": True}
 
-    if mmd.get_dependencies():
+    if check_buildrequires and mmd.get_dependencies():
         brs = set(mmd.get_dependencies()[0].get_buildrequires().keys())
         xmd_brs = set(xmd["mbs"].get("buildrequires", {}).keys())
         if brs - xmd_brs:
@@ -417,8 +420,9 @@ def import_mmd(session, mmd):
         build.stream_version = models.ModuleBuild.get_stream_version(stream)
 
     # Record the base modules this module buildrequires
-    for base_module in build.get_buildrequired_base_modules():
-        build.buildrequires.append(base_module)
+    if check_buildrequires:
+        for base_module in build.get_buildrequired_base_modules():
+            build.buildrequires.append(base_module)
 
     session.add(build)
     session.commit()
@@ -472,7 +476,7 @@ def import_fake_base_module(nsvc):
     mmd.set_xmd(glib.dict_values(xmd))
 
     with models.make_session(conf) as session:
-        import_mmd(session, mmd)
+        import_mmd(session, mmd, False)
 
 
 def get_local_releasever():
@@ -511,11 +515,13 @@ def import_builds_from_local_dnf_repos():
             mmds = Modulemd.Module.new_all_from_string(mmd_data)
             for mmd in mmds:
                 xmd = glib.from_variant_dict(mmd.get_xmd())
+                xmd["mbs"] = {}
                 xmd["mbs"]["koji_tag"] = "repofile://" + repo.repofile
                 xmd["mbs"]["mse"] = True
+                xmd["mbs"]["commit"] = "unknown"
                 mmd.set_xmd(glib.dict_values(xmd))
 
-                import_mmd(session, mmd)
+                import_mmd(session, mmd, False)
 
     # Parse the /etc/os-release to find out the local platform:stream.
     platform_id = None

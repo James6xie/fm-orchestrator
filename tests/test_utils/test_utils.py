@@ -347,6 +347,20 @@ class TestUtils:
             module_build_service.utils.import_mmd(db.session, mmd)
             assert str(e.value) == expected_error
 
+    def test_import_mmd_minimal_xmd_from_local_repository(self):
+        mmd = Modulemd.Module().new_from_file(
+            path.join(BASE_DIR, '..', 'staged_data', 'formatted_testmodule.yaml'))
+        mmd.upgrade()
+        xmd = glib.from_variant_dict(mmd.get_xmd())
+        xmd["mbs"] = {}
+        xmd["mbs"]["koji_tag"] = "repofile:///etc/yum.repos.d/fedora-modular.repo"
+        xmd["mbs"]["mse"] = True
+        xmd["mbs"]["commit"] = "unknown"
+        mmd.set_xmd(glib.dict_values(xmd))
+
+        build, msgs = module_build_service.utils.import_mmd(db.session, mmd, False)
+        assert build.name == mmd.get_name()
+
     @pytest.mark.parametrize('stream, disttag_marking, error_msg', (
         ('f28', None, None),
         ('f28', 'fedora28', None),
