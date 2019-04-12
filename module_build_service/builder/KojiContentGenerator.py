@@ -34,7 +34,6 @@ import subprocess
 import tempfile
 import time
 from io import open
-from collections import defaultdict
 from itertools import chain
 
 import kobo.rpmlib
@@ -564,25 +563,46 @@ class KojiContentGenerator(object):
         # Modulemd.SimpleSet into which we will add licenses of all RPMs.
         rpm_licenses = Modulemd.SimpleSet()
 
-        # RPM name suffixes that imply relationship to another RPM
-        group_suffixes = ("-debuginfo", "-debugsource")
+        # RPM name suffixes for debug RPMs.
+        debug_suffixes = ("-debuginfo", "-debugsource")
 
-        # Grouping of "main" RPM with the corresponding debuginfo and debugsource RPMs
-        grouped_rpms = defaultdict(list)
-        source_rpms = {}
+        # The Name:NEVRA of source RPMs which are included in final MMD.
         non_devel_source_rpms = {}
-        for nevra, rpm in self.rpms_dict.items():
-            name = strip_suffixes(rpm["name"], group_suffixes)
-            grouped_rpms[name].append((nevra, rpm))
-            if rpm["arch"] == "src":
-                source_rpms[name] = nevra
 
-        # Check each RPM in `self.rpms_dict` to find out if it can be included in mmd
-        # for this architecture.
+        # Map source RPM name to NEVRA.
+        source_rpms = {}
+
+        # Names of binary RPMs in the Koji tag.
+        binary_rpm_names = set()
+
+        # Names of binary RPMs for which the `self._should_include()` method returned True.
+        included_rpm_names = set()
+
+        # Names source RPMs which have some RPM built from this SRPM included in a final MMD.
+        included_srpm_names = set()
+
+        # We need to evaluate the non-debug RPMs at first to find out which are included
+        # in the final MMD and then decide whether to include the debug RPMs based on that.
+        # In order to do that, we need to group debug RPMs and non-debug RPMs.
+        # We also fill in the `binary_rpm_names` and `source_rpms` here.
+        debug_rpms = {}
+        non_debug_rpms = {}
         for nevra, rpm in self.rpms_dict.items():
-            # Filter out debug and source RPMs, these will later be included if
-            # the "main" RPM is included
-            if rpm["name"].endswith(group_suffixes) or rpm["arch"] == "src":
+            if rpm["arch"] == "src":
+                source_rpms[rpm["name"]] = nevra
+            else:
+                binary_rpm_names.add(rpm["name"])
+            if rpm["name"].endswith(debug_suffixes):
+                debug_rpms[nevra] = rpm
+            else:
+                non_debug_rpms[nevra] = rpm
+
+        # Check each RPM in Koji tag to find out if it can be included in mmd
+        # for this architecture.
+        for nevra, rpm in chain(non_debug_rpms.items(), debug_rpms.items()):
+            # Filter out source RPMs, these will later be included if
+            # the "main" RPM is included.
+            if rpm["arch"] == "src":
                 continue
 
             # Filter out RPMs which will never end up in final modulemd:
@@ -599,7 +619,27 @@ class KojiContentGenerator(object):
             if rpm["exclusivearch"] and not set(rpm["exclusivearch"]) & set(exclusive_arches):
                 continue
 
-            should_include = self._should_include_rpm(rpm, mmd, arch, multilib_arches)
+            # The debug RPMs are handled differently ...
+            if rpm["name"].endswith(debug_suffixes):
+                # We include foo-debuginfo/foo-debugsource RPMs only in one of these cases:
+                # - The "foo" is included in a MMD file (it means it is not filtered out).
+                # - The "foo" package does not exist at all (it means only foo-debuginfo exists
+                #   and we need to include this package unless filtered out) and in the same time
+                #   the SRPM from which this -debuginfo/-debugsource RPM has been built is included
+                #   in a final MMD (it means that there is at least some package from this build
+                #   included - this handles case when only foo.src.rpm and foo-debugsource.rpm
+                #   would be included in the final MMD, which would be wrong.)
+                # We also respect filters here, so it is possible to explicitely filter out also
+                # -debuginfo/-debugsource packages.
+                main_rpm_name = strip_suffixes(rpm["name"], debug_suffixes)
+                if (main_rpm_name in included_rpm_names or (
+                        main_rpm_name not in binary_rpm_names
+                        and rpm["srpm_name"] in included_srpm_names)):
+                    should_include = self._should_include_rpm(rpm, mmd, arch, multilib_arches)
+                else:
+                    should_include = False
+            else:
+                should_include = self._should_include_rpm(rpm, mmd, arch, multilib_arches)
 
             # A source RPM should be included in a -devel module only if all the
             # RPMs built from this source RPM are included in a -devel module.
@@ -608,6 +648,8 @@ class KojiContentGenerator(object):
             # list for -devel modules.
             if should_include:
                 non_devel_source_rpms[rpm["name"]] = rpm["srpm_nevra"]
+                included_rpm_names.add(rpm["name"])
+                included_srpm_names.add(rpm["srpm_name"])
 
             if self.devel and should_include:
                 # In case this is a -devel module, we want to skip any RPMs which would normally be
@@ -619,16 +661,11 @@ class KojiContentGenerator(object):
                 # really should include and skip the others.
                 continue
 
-            # Add RPM and its related RPMs to packages.
-            for related_nevra, related_rpm in grouped_rpms[rpm["name"]]:
-                if related_rpm["arch"] != rpm["arch"]:
-                    continue
-
-                rpm_artifacts.add(related_nevra)
-                # Not all RPMs have licenses (for example debuginfo packages).
-                license = related_rpm.get("license")
-                if license:
-                    rpm_licenses.add(license)
+            rpm_artifacts.add(nevra)
+            # Not all RPMs have licenses (for example debuginfo packages).
+            license = rpm.get("license")
+            if license:
+                rpm_licenses.add(license)
 
         if self.devel:
             for source_nevra in set(source_rpms.values()) - set(non_devel_source_rpms.values()):

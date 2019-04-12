@@ -991,3 +991,185 @@ class TestBuild:
             side_effect=koji.GenericError("Build already exists asdv"))
         self.cg.koji_import()
         tagger.assert_called()
+
+    def test_fill_in_rpms_list_debuginfo_deps(self):
+        """
+        Tests that -debuginfo RPM required by other -debuginfo RPM is included in a RPM list.
+
+        The python3-pymongo has matching python3-pymongo-debuginfo RPM which requires
+        python-pymongo-debuginfo RPM. All of them should appear in RPM list
+        """
+        self._add_test_rpm(
+            "python-pymongo-debuginfo-3.6.1-9.module+f29.1.0+2993+d789589b.x86_64",
+            "python-pymongo-3.6.1-9.module+f29.1.0+2993+d789589b.src")
+
+        self._add_test_rpm(
+            "python3-pymongo-debuginfo-3.6.1-9.module+f29.1.0+2993+d789589b.x86_64",
+            "python-pymongo-3.6.1-9.module+f29.1.0+2993+d789589b.src")
+
+        self._add_test_rpm(
+            "python3-pymongo-3.6.1-9.module+f29.1.0+2993+d789589b.x86_64",
+            "python-pymongo-3.6.1-9.module+f29.1.0+2993+d789589b.src")
+
+        self._add_test_rpm(
+            "python-pymongo-3.6.1-9.module+f29.1.0+2993+d789589b.src",
+            "python-pymongo-3.6.1-9.module+f29.1.0+2993+d789589b.src")
+
+        mmd = self.cg.module.mmd()
+        mmd = self.cg._fill_in_rpms_list(mmd, "x86_64")
+
+        assert set(mmd.get_rpm_artifacts().get()) == set([
+            'python-pymongo-debuginfo-3.6.1-9.module+f29.1.0+2993+d789589b.x86_64',
+            'python3-pymongo-debuginfo-3.6.1-9.module+f29.1.0+2993+d789589b.x86_64',
+            'python-pymongo-3.6.1-9.module+f29.1.0+2993+d789589b.src',
+            'python3-pymongo-3.6.1-9.module+f29.1.0+2993+d789589b.x86_64'])
+
+    def test_fill_in_rpms_list_debuginfo_deps_psycopg2(self):
+        """
+        Tests that -debuginfo RPM required by other -debuginfo RPM is included in a RPM list
+        with the psycopg2 RPM test-case, because psycopg2 RPMs are built in kind of special
+        way...
+        """
+        self._add_test_rpm(
+            "python2-psycopg2-debuginfo-2.7.5-7.module+f29.0.0+2961+596d0223.x86_64",
+            "python-psycopg2-2.7.5-7.module+f29.0.0+2961+596d0223.src")
+
+        self._add_test_rpm(
+            "python2-psycopg2-debug-debuginfo-2.7.5-7.module+f29.0.0+2961+596d0223.x86_64",
+            "python-psycopg2-2.7.5-7.module+f29.0.0+2961+596d0223.src")
+
+        self._add_test_rpm(
+            "python-psycopg2-debugsource-2.7.5-7.module+f29.0.0+2961+596d0223.x86_64",
+            "python-psycopg2-2.7.5-7.module+f29.0.0+2961+596d0223.src")
+
+        self._add_test_rpm(
+            "python-psycopg2-debuginfo-2.7.5-7.module+f29.0.0+2961+596d0223.x86_64",
+            "python-psycopg2-2.7.5-7.module+f29.0.0+2961+596d0223.src")
+
+        self._add_test_rpm(
+            "python2-psycopg2-tests-2.7.5-7.module+f29.0.0+2961+596d0223.x86_64",
+            "python-psycopg2-2.7.5-7.module+f29.0.0+2961+596d0223.src")
+
+        self._add_test_rpm(
+            "python2-psycopg2-debug-2.7.5-7.module+f29.0.0+2961+596d0223.x86_64",
+            "python-psycopg2-2.7.5-7.module+f29.0.0+2961+596d0223.src")
+
+        self._add_test_rpm(
+            "python2-psycopg2-2.7.5-7.module+f29.0.0+2961+596d0223.x86_64",
+            "python-psycopg2-2.7.5-7.module+f29.0.0+2961+596d0223.src")
+
+        self._add_test_rpm(
+            "python-psycopg2-2.7.5-7.module+f29.0.0+2961+596d0223.src",
+            "python-psycopg2-2.7.5-7.module+f29.0.0+2961+596d0223.src")
+
+        mmd = self.cg.module.mmd()
+        mmd = self.cg._fill_in_rpms_list(mmd, "x86_64")
+
+        assert set(mmd.get_rpm_artifacts().get()) == set([
+            "python2-psycopg2-debuginfo-2.7.5-7.module+f29.0.0+2961+596d0223.x86_64",
+            "python2-psycopg2-debug-debuginfo-2.7.5-7.module+f29.0.0+2961+596d0223.x86_64",
+            "python-psycopg2-debugsource-2.7.5-7.module+f29.0.0+2961+596d0223.x86_64",
+            "python-psycopg2-debuginfo-2.7.5-7.module+f29.0.0+2961+596d0223.x86_64",
+            "python2-psycopg2-tests-2.7.5-7.module+f29.0.0+2961+596d0223.x86_64",
+            "python2-psycopg2-debug-2.7.5-7.module+f29.0.0+2961+596d0223.x86_64",
+            "python2-psycopg2-2.7.5-7.module+f29.0.0+2961+596d0223.x86_64",
+            "python-psycopg2-2.7.5-7.module+f29.0.0+2961+596d0223.src"])
+
+    def test_fill_in_rpms_list_debugsource_for_non_srpm(self):
+        self._add_test_rpm(
+            "python2-psycopg2-debugsource-2.7.5-7.module+f29.0.0+2961+596d0223.x86_64",
+            "python-psycopg2-2.7.5-7.module+f29.0.0+2961+596d0223.src")
+
+        self._add_test_rpm(
+            "python2-psycopg2-2.7.5-7.module+f29.0.0+2961+596d0223.x86_64",
+            "python-psycopg2-2.7.5-7.module+f29.0.0+2961+596d0223.src")
+
+        self._add_test_rpm(
+            "python-psycopg2-2.7.5-7.module+f29.0.0+2961+596d0223.src",
+            "python-psycopg2-2.7.5-7.module+f29.0.0+2961+596d0223.src")
+
+        mmd = self.cg.module.mmd()
+        mmd = self.cg._fill_in_rpms_list(mmd, "x86_64")
+
+        assert set(mmd.get_rpm_artifacts().get()) == set([
+            "python2-psycopg2-debugsource-2.7.5-7.module+f29.0.0+2961+596d0223.x86_64",
+            "python2-psycopg2-2.7.5-7.module+f29.0.0+2961+596d0223.x86_64",
+            "python-psycopg2-2.7.5-7.module+f29.0.0+2961+596d0223.src"])
+
+    def test_fill_in_rpms_list_debuginfo_deps_glibc(self):
+        self._add_test_rpm(
+            "glibc-common-2.29.9000-16.fc31.x86_64",
+            "glibc-2.29.9000-16.fc31.src")
+
+        self._add_test_rpm(
+            "glibc-2.29.9000-16.fc31.x86_64",
+            "glibc-2.29.9000-16.fc31.src")
+
+        self._add_test_rpm(
+            "glibc-debuginfo-common-2.29.9000-16.fc31.x86_64",
+            "glibc-2.29.9000-16.fc31.src")
+
+        self._add_test_rpm(
+            "glibc-debuginfo-2.29.9000-16.fc31.x86_64",
+            "glibc-2.29.9000-16.fc31.src")
+
+        self._add_test_rpm(
+            "glibc-2.29.9000-16.fc31.src",
+            "glibc-2.29.9000-16.fc31.src")
+
+        mmd = self.cg.module.mmd()
+        mmd = self.cg._fill_in_rpms_list(mmd, "x86_64")
+
+        assert set(mmd.get_rpm_artifacts().get()) == set([
+            "glibc-common-2.29.9000-16.fc31.x86_64",
+            "glibc-2.29.9000-16.fc31.src",
+            "glibc-2.29.9000-16.fc31.x86_64",
+            "glibc-debuginfo-common-2.29.9000-16.fc31.x86_64",
+            "glibc-debuginfo-2.29.9000-16.fc31.x86_64"])
+
+    def test_fill_in_rpms_list_debuginfo_deps_kernel(self):
+        self._add_test_rpm(
+            "kernel-debuginfo-common-aarch64-5.0.9-301.fc30.aarch64",
+            "kernel-5.0.9-301.fc30.src")
+
+        self._add_test_rpm(
+            "kernel-debuginfo-5.0.9-301.fc30.aarch64",
+            "kernel-5.0.9-301.fc30.src")
+
+        self._add_test_rpm(
+            "kernel-5.0.9-301.fc30.aarch64",
+            "kernel-5.0.9-301.fc30.src")
+
+        self._add_test_rpm(
+            "kernel-5.0.9-301.fc30.src",
+            "kernel-5.0.9-301.fc30.src")
+
+        mmd = self.cg.module.mmd()
+        mmd = self.cg._fill_in_rpms_list(mmd, "aarch64")
+
+        assert set(mmd.get_rpm_artifacts().get()) == set([
+            "kernel-debuginfo-common-aarch64-5.0.9-301.fc30.aarch64",
+            "kernel-5.0.9-301.fc30.src",
+            "kernel-debuginfo-5.0.9-301.fc30.aarch64",
+            "kernel-5.0.9-301.fc30.aarch64"])
+
+    def test_fill_in_rpms_list_debugsource_not_included(self):
+        self._add_test_rpm(
+            "python-psycopg2-debugsource-2.7.5-7.module+f29.0.0+2961+596d0223.x86_64",
+            "python-psycopg2-2.7.5-7.module+f29.0.0+2961+596d0223.src")
+
+        self._add_test_rpm(
+            "python2-psycopg2-2.7.5-7.module+f29.0.0+2961+596d0223.x86_64",
+            "python-psycopg2-2.7.5-7.module+f29.0.0+2961+596d0223.src")
+
+        self._add_test_rpm(
+            "python-psycopg2-2.7.5-7.module+f29.0.0+2961+596d0223.src",
+            "python-psycopg2-2.7.5-7.module+f29.0.0+2961+596d0223.src")
+
+        mmd = self.cg.module.mmd()
+        filter_list = Modulemd.SimpleSet()
+        filter_list.add("python2-psycopg2")
+        mmd.set_rpm_filter(filter_list)
+        mmd = self.cg._fill_in_rpms_list(mmd, "x86_64")
+
+        assert set(mmd.get_rpm_artifacts().get()) == set([])
