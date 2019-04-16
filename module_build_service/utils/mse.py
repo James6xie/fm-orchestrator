@@ -189,39 +189,6 @@ def _get_mmds_from_requires(requires, mmds, recursive=False,
     return mmds
 
 
-def _get_latest_base_module_mmd_with_virtual_stream(name, virtual_stream):
-    """
-    Returns the Modulemd instance of Module build with highest stream_version,
-    with name `name`, and containing the virtual stream `virtual_stream` in its
-    xmd["mbs"]["virtual_streams"] section
-
-    :param str name: Name of a module to return.
-    :param str virtual_stream: Name of virtual stream which must be included in
-        the virtual_streams xmd section.
-    :return Modulemd: Modulemd instance of such module with highest stream_version.
-    """
-    with models.make_session(conf) as session:
-        builds = models.ModuleBuild.get_last_build_in_all_streams(session, name)
-        if not builds:
-            return None
-
-        build_to_return = None
-        for build in builds:
-            mmd = build.mmd()
-            xmd = mmd.get_xmd()
-            if "mbs" not in xmd.keys() or "virtual_streams" not in xmd["mbs"].keys():
-                continue
-
-            virtual_streams = xmd["mbs"]["virtual_streams"]
-            if virtual_stream not in virtual_streams:
-                continue
-
-            if not build_to_return or build_to_return.stream_version < build.stream_version:
-                build_to_return = build
-
-        return build_to_return.mmd() if build_to_return else None
-
-
 def _get_base_module_mmds(mmd):
     """
     Returns list of MMDs of base modules buildrequired by `mmd` including the compatible
@@ -260,18 +227,8 @@ def _get_base_module_mmds(mmd):
                 # zero or one module build.
                 mmds = resolver.get_module_modulemds(name, stream)
                 if not mmds:
-                    # The given name:stream base module does not exist. It might be the case
-                    # when user requests name:virtual_stream (like platform:f29). In this case,
-                    # we need to find the latest (the one with highest stream_version) base
-                    # module.
-                    stream_mmd = _get_latest_base_module_mmd_with_virtual_stream(name, stream)
-                    if not stream_mmd:
-                        continue
-                    # The `stream` does not exist and we are going to use the stream name of
-                    # the latest base module with given virtual stream, so override it here.
-                    stream = stream_mmd.get_stream()
-                else:
-                    stream_mmd = mmds[0]
+                    continue
+                stream_mmd = mmds[0]
 
                 # In case there are no virtual_streams in the buildrequired name:stream,
                 # it is clear that there are no compatible streams, so return just this

@@ -403,28 +403,3 @@ class TestUtilsModuleStreamExpansion:
         for mmd_ in mmds:
             actual.add('{}:{}'.format(mmd_.get_name(), mmd_.get_stream()))
         assert actual == expected
-
-    def test__get_base_module_mmds_virtual_streams_latest_stream_version(self):
-        init_data(data_size=1, multiple_stream_versions=True)
-        mmd = module_build_service.utils.load_mmd_file(
-            os.path.join(base_dir, 'staged_data', 'testmodule_v2.yaml'))
-        deps = mmd.get_dependencies()
-        brs = deps[0].get_buildrequires()
-        brs['platform'].set(['f35'])
-        deps[0].set_buildrequires(brs)
-        mmd.set_dependencies(deps)
-
-        make_module("platform:f35.1.0:1:1", {}, {}, virtual_streams=["f35"])
-        make_module("platform:f35.2.0:1:1", {}, {}, virtual_streams=["f35"])
-        make_module("platform:f35.0.0:1:1", {}, {}, virtual_streams=["f35"])
-
-        mmds = module_build_service.utils.mse._get_base_module_mmds(mmd)
-        expected = set(['platform:f35.0.0', 'platform:f35.1.0', 'platform:f35.2.0'])
-
-        # Verify no duplicates were returned before doing set operations
-        assert len(mmds) == len(expected)
-        # Verify the expected ones were returned
-        actual = set()
-        for mmd_ in mmds:
-            actual.add('{}:{}'.format(mmd_.get_name(), mmd_.get_stream()))
-        assert actual == expected
