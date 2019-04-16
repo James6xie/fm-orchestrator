@@ -1,6 +1,12 @@
 Change Log
 ==========
 
+v2.19.1
+-------
+* Expose metrics about the number of completed builds and their status
+* Improvements to offline local builds such as being able to provide the platform ID
+* Add backwards-compatibility for cloning local repos with the artifact name and not the full path
+
 v2.19.0
 -------
 * Fix an issue in MMDResolver when a transitive dependency cannot be satisfied
