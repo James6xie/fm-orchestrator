@@ -663,6 +663,20 @@ class TestViews:
         assert items[0]['name'] == 'candy'
         assert items[1]['name'] == 'nginx'
 
+    def test_query_builds_order_by_multiple(self):
+        init_data(data_size=1, multiple_stream_versions=True)
+        platform_f28 = db.session.query(module_build_service.models.ModuleBuild).get(1)
+        platform_f28.version = '150'
+        db.session.add(platform_f28)
+        db.session.commit()
+        rv = self.client.get(
+            '/module-build-service/1/module-builds/?order_desc_by=stream_version'
+            '&order_desc_by=version')
+        items = json.loads(rv.data)['items']
+        expected_ids = [8, 6, 4, 1, 2, 12, 3, 5, 7, 9]
+        actual_ids = [item['id'] for item in items]
+        assert actual_ids == expected_ids
+
     def test_query_builds_order_desc_by(self):
         rv = self.client.get('/module-build-service/1/module-builds/?'
                              'per_page=10&order_desc_by=id')
@@ -685,23 +699,28 @@ class TestViews:
 
     def test_query_builds_order_by_order_desc_by(self):
         """
-        Test that when both order_by and order_desc_by is set,
-        we prefer order_desc_by.
+        Test that when both order_by and order_desc_by are set, an error is returned.
         """
         rv = self.client.get('/module-build-service/1/module-builds/?'
                              'per_page=10&order_desc_by=id&order_by=name')
-        items = json.loads(rv.data)['items']
-        # Check that the id is items[0]["id"], items[0]["id"] - 1, ...
-        for idx, item in enumerate(items):
-            assert item["id"] == items[0]["id"] - idx
+        error = json.loads(rv.data)
+        expected = {
+            'error': 'Bad Request',
+            'message': 'You may not specify both order_by and order_desc_by',
+            'status': 400
+        }
+        assert error == expected
 
     def test_query_builds_order_by_wrong_key(self):
         rv = self.client.get('/module-build-service/1/module-builds/?'
                              'per_page=10&order_by=unknown')
-        data = json.loads(rv.data)
-        assert data['status'] == 400
-        assert data['error'] == 'Bad Request'
-        assert data['message'] == 'An invalid order_by or order_desc_by key was supplied'
+        error = json.loads(rv.data)
+        expected = {
+            'error': 'Bad Request',
+            'message': 'An invalid ordering key of "unknown" was supplied',
+            'status': 400,
+        }
+        assert error == expected
 
     def test_query_base_module_br_filters(self):
         reuse_component_init_data()

@@ -280,9 +280,9 @@ module builds are displayed. These parameters are:
   value defaults to 1.
 - ``per_page`` - Specifies how many items per page should be displayed
   (e.g. ``per_page=20``). This value defaults to 10.
-- ``order_by`` - a database column to order the API by in ascending order.
-- ``order_desc_by`` - a database column to order the API by in descending order. This defaults to
-  ``id``.
+- ``order_by`` - a database column to order the API by in ascending order. Multiple can be provided.
+- ``order_desc_by`` - a database column to order the API by in descending order. Multiple can be
+  provided. This defaults to ``id``.
 
 An example of querying the "module-builds" resource with the "per_page" and the "page"
 parameters::

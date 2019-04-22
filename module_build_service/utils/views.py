@@ -30,6 +30,7 @@ from datetime import datetime
 from flask import request, url_for, Response
 from sqlalchemy.sql.sqltypes import Boolean as sqlalchemy_boolean
 from sqlalchemy.orm import aliased
+import sqlalchemy
 
 from module_build_service import models, api_version, conf
 from module_build_service.errors import ValidationError, NotFound
@@ -96,30 +97,44 @@ def pagination_metadata(p_query, api_version, request_args):
 
 def _add_order_by_clause(flask_request, query, column_source):
     """
-    Orders the given SQLAlchemy query based on the GET arguments provided
+    Orders the given SQLAlchemy query based on the GET arguments provided.
+
     :param flask_request: a Flask request object
     :param query: a SQLAlchemy query object
     :param column_source: a SQLAlchemy database model
     :return: a SQLAlchemy query object
     """
-    colname = "id"
+    order_by = flask_request.args.getlist('order_by')
+    order_desc_by = flask_request.args.getlist('order_desc_by')
+    # Default to ordering by ID in descending order
     descending = True
-    order_desc_by = flask_request.args.get("order_desc_by", None)
-    if order_desc_by:
-        colname = order_desc_by
-    else:
-        order_by = flask_request.args.get("order_by", None)
-        if order_by:
-            colname = order_by
-            descending = False
+    requested_order = ['id']
 
-    column = getattr(column_source, colname, None)
-    if not column:
-        raise ValidationError('An invalid order_by or order_desc_by key '
-                              'was supplied')
-    if descending:
-        column = column.desc()
-    return query.order_by(column)
+    if order_by and order_desc_by:
+        raise ValidationError('You may not specify both order_by and order_desc_by')
+    elif order_by:
+        descending = False
+        requested_order = order_by
+    elif order_desc_by:
+        descending = True
+        requested_order = order_desc_by
+
+    column_dict = dict(column_source.__table__.columns)
+    order_args = []
+    for column_name in requested_order:
+        if column_name not in column_dict:
+            raise ValidationError(
+                'An invalid ordering key of "{}" was supplied'.format(column_name))
+        column = column_dict[column_name]
+        # If the version column is provided, cast it as an integer so the sorting is correct
+        if column_name == 'version':
+            column = sqlalchemy.cast(column, sqlalchemy.BigInteger)
+        if descending:
+            column = column.desc()
+
+        order_args.append(column)
+
+    return query.order_by(*order_args)
 
 
 def str_to_bool(value):
