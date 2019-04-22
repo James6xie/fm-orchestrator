@@ -547,6 +547,13 @@ class Config(object):
                      'buildrequired. These modules can set xmd.mbs.disttag_marking to do so. MBS '
                      'will use this list order to determine which modules take precedence.')
         },
+        'stream_suffixes': {
+            'type': dict,
+            'default': {},
+            'desc': 'A mapping of platform stream regular expressions and the '
+                    'corresponding suffix added to formatted stream version. '
+                    'For example, {r"regexp": 0.1, ...}'
+        }
     }
 
     def __init__(self, conf_section_obj):

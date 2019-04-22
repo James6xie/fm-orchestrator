@@ -126,6 +126,8 @@ class TestConfiguration(BaseConfiguration):
     ALLOWED_GROUPS_TO_IMPORT_MODULE = set(['mbs-import-module'])
     GREENWAVE_DECISION_CONTEXT = 'osci_compose_gate_modules'
 
+    STREAM_SUFFIXES = {r'^el\d+\.\d+\.\d+\.z$': 0.1}
+
 
 class ProdConfiguration(BaseConfiguration):
     pass

@@ -23,6 +23,7 @@
 #            Matt Prahl <mprahl@redhat.com>
 #            Jan Kaluza <jkaluza@redhat.com>
 import json
+import math
 import re
 import time
 import shutil
@@ -268,12 +269,13 @@ def get_prefixed_version(mmd):
     # The platform version (e.g. prefix1.2.0 => 010200)
     version_prefix = models.ModuleBuild.get_stream_version(base_module_stream, right_pad=False)
 
-    if not version_prefix:
+    if version_prefix is None:
         log.warning('The "{0}" stream "{1}" couldn\'t be used to prefix the module\'s '
                     'version'.format(base_module, base_module_stream))
         return version
 
-    new_version = int(str(version_prefix) + str(version))
+    # Strip the stream suffix because Modulemd requires version to be an integer
+    new_version = int(str(int(math.floor(version_prefix))) + str(version))
     if new_version > GLib.MAXUINT64:
         log.warning('The "{0}" stream "{1}" caused the module\'s version prefix to be '
                     'too long'.format(base_module, base_module_stream))

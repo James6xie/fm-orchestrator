@@ -21,12 +21,14 @@
 # Written by Ralph Bean <rbean@redhat.com>
 
 import os
-from module_build_service.utils import to_text_type
+import pytest
 
-from tests.test_models import init_data, module_build_from_modulemd
-from tests import (init_data as init_data_contexts, clean_database, make_module)
+from mock import patch
 from module_build_service import conf, Modulemd
 from module_build_service.models import ComponentBuild, ModuleBuild, make_session
+from module_build_service.utils import to_text_type
+from tests import (init_data as init_data_contexts, clean_database, make_module)
+from tests.test_models import init_data, module_build_from_modulemd
 
 
 class TestModels:
@@ -94,15 +96,21 @@ class TestModels:
         build_one = ModuleBuild.query.get(2)
         assert build_one.siblings == [3, 4]
 
-    def test_get_stream_version(self):
-        """Test the ModuleBuild.get_stream_version method when right_pad is True."""
-        assert ModuleBuild.get_stream_version('f27') == 270000
-        assert ModuleBuild.get_stream_version('f27.02.30') == 270230
-
-    def test_get_stream_version_no_right_pad(self):
-        """Test the ModuleBuild.get_stream_version method when right_pad is False."""
-        assert ModuleBuild.get_stream_version('f27', False) == 27
-        assert ModuleBuild.get_stream_version('f27.02.30', False) == 270230
+    @pytest.mark.parametrize('stream,right_pad,expected', [
+        ['f27', True, 270000.0],
+        ['f27.02.30', True, 270230.0],
+        ['f27', False, 27.0],
+        ['f27.02.30', False, 270230.0],
+        ['el8', True, 080000.0],
+        ['el8.1.0', True, 080100.0],
+        ['el8.z', True, 080000.2],
+        ['el8.1.0.z', True, 080100.3],
+    ])
+    @patch.object(conf, 'stream_suffixes', new={
+        r'el\d+\.z': 0.2, r'el\d+\.\d+\.\d+\.z': 0.3
+    })
+    def test_get_stream_version(self, stream, right_pad, expected):
+        assert expected == ModuleBuild.get_stream_version(stream, right_pad)
 
 
 class TestModelsGetStreamsContexts:
