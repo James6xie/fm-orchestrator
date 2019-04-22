@@ -207,7 +207,8 @@ def filter_module_builds(flask_request):
     """
     search_query = dict()
     special_columns = set((
-        'time_submitted', 'time_modified', 'time_completed', 'state', 'stream_version_lte',))
+        'time_submitted', 'time_modified', 'time_completed', 'state', 'stream_version_lte',
+        'virtual_stream',))
     columns = models.ModuleBuild.__table__.columns.keys()
     for key in set(request.args.keys()) - special_columns:
         # Only filter on valid database columns but skip columns that are treated specially or
@@ -282,6 +283,10 @@ def filter_module_builds(flask_request):
                     query = query.filter(column >= item_datetime)
                 elif context == 'before':
                     query = query.filter(column <= item_datetime)
+
+    # Multiple virtual_streams can be supplied for "or" logic filtering
+    virtual_streams = flask_request.args.getlist('virtual_stream')
+    query = models.ModuleBuild._add_virtual_streams_filter(db.session, query, virtual_streams)
 
     stream_version_lte = flask_request.args.get('stream_version_lte')
     if stream_version_lte is not None:

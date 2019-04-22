@@ -33,7 +33,9 @@ import module_build_service
 from module_build_service import db
 from module_build_service.utils import get_rpm_release, import_mmd
 from module_build_service.config import init_config
-from module_build_service.models import ModuleBuild, ComponentBuild, make_session, BUILD_STATES
+from module_build_service.models import (
+    ModuleBuild, ComponentBuild, VirtualStream, make_session, BUILD_STATES,
+)
 from module_build_service import glib, Modulemd
 
 
@@ -790,5 +792,17 @@ def make_module(nsvc, requires_list=None, build_requires_list=None, base_module=
         module_build.buildrequires.append(base_module)
     db.session.add(module_build)
     db.session.commit()
+
+    if virtual_streams:
+        for virtual_stream in virtual_streams:
+            vs_obj = db.session.query(VirtualStream).filter_by(name=virtual_stream).first()
+            if not vs_obj:
+                vs_obj = VirtualStream(name=virtual_stream)
+                db.session.add(vs_obj)
+                db.session.commit()
+
+            if vs_obj not in module_build.virtual_streams:
+                module_build.virtual_streams.append(vs_obj)
+                db.session.commit()
 
     return module_build

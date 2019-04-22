@@ -191,6 +191,7 @@ class TestViews:
             assert data['modulemd'] == to_text_type(mmd.read())
         assert data['name'] == 'nginx'
         assert data['owner'] == 'Moe Szyslak'
+        assert data['rebuild_strategy'] == 'changed-and-after'
         assert data['scmurl'] == ('git://pkgs.domain.local/modules/nginx'
                                   '?#ba95886c7a443b36a9ce31abda1f9bef22f2f8c9')
         assert data['scratch'] is False
@@ -224,8 +225,7 @@ class TestViews:
         assert data['time_modified'] == u'2016-09-03T11:25:32Z'
         assert data['time_submitted'] == u'2016-09-03T11:23:20Z'
         assert data['version'] == '2'
-        assert data['rebuild_strategy'] == 'changed-and-after'
-        assert data['siblings'] == []
+        assert data['virtual_streams'] == []
 
     def test_query_build_with_br_verbose_mode(self):
         reuse_component_init_data()
@@ -673,6 +673,31 @@ class TestViews:
             assert total == 1
         elif stream_version_lte == '293000':
             assert total == 3
+
+    @pytest.mark.parametrize('virtual_streams', ([], ('f28',), ('f29',), ('f28', 'f29')))
+    def test_query_builds_filter_virtual_streams(self, virtual_streams):
+        # Populate some platform modules with virtual streams
+        init_data(data_size=1, multiple_stream_versions=True)
+        url = '/module-build-service/1/module-builds/?name=platform&verbose=true'
+        for virtual_stream in virtual_streams:
+            url += '&virtual_stream={}'.format(virtual_stream)
+        rv = self.client.get(url)
+        data = json.loads(rv.data)
+        total = data['meta']['total']
+        if virtual_streams == ('f28',):
+            assert total == 1
+            for module in data['items']:
+                assert module['virtual_streams'] == ['f28']
+        elif virtual_streams == ('f29',):
+            assert total == 3
+            for module in data['items']:
+                assert module['virtual_streams'] == ['f29']
+        elif virtual_streams == ('f28', 'f29'):
+            assert total == 4
+            for module in data['items']:
+                assert len(set(module['virtual_streams']) - set(['f28', 'f29'])) == 0
+        elif len(virtual_streams) == 0:
+            assert total == 5
 
     def test_query_builds_order_by(self):
         build = db.session.query(module_build_service.models.ModuleBuild).filter_by(id=2).one()
@@ -1974,7 +1999,7 @@ class TestViews:
             platform_mmd.set_stream(platform_override)
             if platform_override == 'el8.0.0':
                 xmd = from_variant_dict(platform_mmd.get_xmd())
-                xmd['mbs']['virtual_streams'] = 'el8'
+                xmd['mbs']['virtual_streams'] = ['el8']
                 platform_mmd.set_xmd(dict_values(xmd))
             import_mmd(db.session, platform_mmd)
 

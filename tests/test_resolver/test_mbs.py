@@ -55,8 +55,8 @@ class TestMBSModule:
         mock_session().get.return_value = mock_res
 
         resolver = mbs_resolver.GenericResolver.create(tests.conf, backend='mbs')
-        module_mmds = resolver.get_module_modulemds('testmodule', 'master', '20180205135154',
-                                                    '9c690d0e')
+        module_mmds = resolver.get_module_modulemds(
+            'testmodule', 'master', '20180205135154', '9c690d0e', virtual_streams=["f28"])
         nsvcs = set(
             '{}:{}:{}:{}'.format(m.peek_name(), m.peek_stream(),
                                  m.peek_version(), m.peek_context())
@@ -73,7 +73,8 @@ class TestMBSModule:
             "order_desc_by": "version",
             "page": 1,
             "per_page": 10,
-            "state": "ready"
+            "state": "ready",
+            "virtual_stream": ["f28"],
         }
         mock_session().get.assert_called_once_with(mbs_url, params=expected_query)
         assert nsvcs == expected

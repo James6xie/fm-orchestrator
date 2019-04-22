@@ -128,7 +128,7 @@ class MBSResolver(GenericResolver):
             return rv[0]
 
     def get_module_modulemds(self, name, stream, version=None, context=None, strict=False,
-                             stream_version_lte=False):
+                             stream_version_lte=False, virtual_streams=None):
         """
         Gets the module modulemds from the resolver.
         :param name: a string of the module's name
@@ -139,6 +139,11 @@ class MBSResolver(GenericResolver):
             be returned.
         :kwarg strict: Normally this function returns [] if no module can be
             found.  If strict=True, then a UnprocessableEntity is raised.
+        :kwarg stream_version_lte: If True and if the `stream` can be transformed to
+            "stream version", the returned list will include all the modules with stream version
+            less than or equal the stream version computed from `stream`.
+        :kwarg virtual_streams: a list of the virtual streams to filter on. The filtering uses "or"
+            logic. When falsy, no filtering occurs.
         :return: List of Modulemd metadata instances matching the query
         """
         yaml = None
@@ -152,6 +157,9 @@ class MBSResolver(GenericResolver):
                 stream, right_pad=False))) >= 5):
             stream_version = models.ModuleBuild.get_stream_version(stream)
             extra_args["stream_version_lte"] = stream_version
+
+        if virtual_streams:
+            extra_args["virtual_stream"] = virtual_streams
 
         modules = self._get_modules(name, stream, version, context, strict=strict, **extra_args)
         if not modules:

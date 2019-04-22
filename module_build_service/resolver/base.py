@@ -107,7 +107,7 @@ class GenericResolver(six.with_metaclass(ABCMeta)):
 
     @abstractmethod
     def get_module_modulemds(self, name, stream, version=None, context=None, strict=False,
-                             stream_version_lte=None):
+                             stream_version_lte=None, virtual_streams=None):
         raise NotImplementedError()
 
     @abstractmethod

@@ -54,7 +54,7 @@ class DBResolver(GenericResolver):
                     'Cannot find any module builds for %s:%s' % (name, stream))
 
     def get_module_modulemds(self, name, stream, version=None, context=None, strict=False,
-                             stream_version_lte=False):
+                             stream_version_lte=False, virtual_streams=None):
         """
         Gets the module modulemds from the resolver.
         :param name: a string of the module's name
@@ -68,6 +68,8 @@ class DBResolver(GenericResolver):
         :kwarg stream_version_lte: If True and if the `stream` can be transformed to
             "stream version", the returned list will include all the modules with stream version
             less than or equal the stream version computed from `stream`.
+        :kwarg virtual_streams: a list of the virtual streams to filter on. The filtering uses "or"
+            logic. When falsy, no filtering occurs.
         :return: List of Modulemd metadata instances matching the query
         """
         from module_build_service.utils import load_mmd
@@ -83,7 +85,7 @@ class DBResolver(GenericResolver):
                         stream, right_pad=False))) >= 5):
                     stream_version = models.ModuleBuild.get_stream_version(stream)
                     builds = models.ModuleBuild.get_last_builds_in_stream_version_lte(
-                        session, name, stream_version)
+                        session, name, stream_version, virtual_streams)
                 else:
                     builds = models.ModuleBuild.get_last_builds_in_stream(
                         session, name, stream)

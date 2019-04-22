@@ -172,3 +172,16 @@ class TestModelsGetStreamsContexts:
                                            build.context) for build in builds])
             assert builds == set(['platform:f29.1.0:15:c11', 'platform:f29.1.0:15:c11.another',
                                   'platform:f29.2.0:1:c11'])
+
+    def test_add_virtual_streams_filter(self):
+        clean_database(False)
+        make_module("platform:f29.1.0:10:c1", {}, {}, virtual_streams=["f29"])
+        make_module("platform:f29.1.0:15:c1", {}, {}, virtual_streams=["f29"])
+        make_module("platform:f29.3.0:15:old_version", {}, {}, virtual_streams=["f28", "f29"])
+        make_module("platform:f29.3.0:20:c11", {}, {}, virtual_streams=["f30"])
+
+        with make_session(conf) as session:
+            query = session.query(ModuleBuild).filter_by(name="platform")
+            query = ModuleBuild._add_virtual_streams_filter(session, query, ["f28", "f29"])
+            count = query.count()
+            assert count == 3

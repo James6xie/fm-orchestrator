@@ -27,7 +27,7 @@ import inspect
 import hashlib
 import time
 from datetime import datetime
-from six import text_type
+from six import text_type, string_types
 
 from module_build_service import conf, log, models, Modulemd, glib
 from module_build_service.errors import (
@@ -347,6 +347,20 @@ def import_mmd(session, mmd, check_buildrequires=True):
     except (ValueError, KeyError):
         disttag_marking = None
 
+    try:
+        virtual_streams = mmd.get_xmd()["mbs"]["virtual_streams"]
+    except (ValueError, KeyError):
+        virtual_streams = []
+
+    # Verify that the virtual streams are the correct type
+    if virtual_streams and (
+        not isinstance(virtual_streams, list) or
+        any(not isinstance(vs, string_types) for vs in virtual_streams)
+    ):
+        msg = "The virtual streams must be a list of strings"
+        log.error(msg)
+        raise UnprocessableEntity(msg)
+
     # If it is a base module, then make sure the value that will be used in the RPM disttags
     # doesn't contain a dash since a dash isn't allowed in the release field of the NVR
     if name in conf.base_module_names:
@@ -426,6 +440,20 @@ def import_mmd(session, mmd, check_buildrequires=True):
 
     session.add(build)
     session.commit()
+
+    for virtual_stream in virtual_streams:
+        vs_obj = session.query(models.VirtualStream).filter_by(name=virtual_stream).first()
+        if not vs_obj:
+            vs_obj = models.VirtualStream(name=virtual_stream)
+            session.add(vs_obj)
+            session.commit()
+
+        if vs_obj not in build.virtual_streams:
+            build.virtual_streams.append(vs_obj)
+            session.add(build)
+
+    session.commit()
+
     msg = "Module {} imported".format(nsvc)
     log.info(msg)
     msgs.append(msg)
