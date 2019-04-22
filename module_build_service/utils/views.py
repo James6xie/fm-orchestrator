@@ -32,7 +32,7 @@ from sqlalchemy.sql.sqltypes import Boolean as sqlalchemy_boolean
 from sqlalchemy.orm import aliased
 import sqlalchemy
 
-from module_build_service import models, api_version, conf
+from module_build_service import models, api_version, conf, db
 from module_build_service.errors import ValidationError, NotFound
 from .general import scm_url_schemes
 
@@ -206,11 +206,13 @@ def filter_module_builds(flask_request):
     :return: flask_sqlalchemy.Pagination
     """
     search_query = dict()
-    special_columns = ['time_submitted', 'time_modified', 'time_completed', 'state']
-    for key in request.args.keys():
+    special_columns = set((
+        'time_submitted', 'time_modified', 'time_completed', 'state', 'stream_version_lte',))
+    columns = models.ModuleBuild.__table__.columns.keys()
+    for key in set(request.args.keys()) - special_columns:
         # Only filter on valid database columns but skip columns that are treated specially or
         # ignored
-        if key not in special_columns and key in models.ModuleBuild.__table__.columns.keys():
+        if key in columns:
             search_query[key] = flask_request.args[key]
 
     # Multiple states can be supplied => or-ing will take place
@@ -280,6 +282,21 @@ def filter_module_builds(flask_request):
                     query = query.filter(column >= item_datetime)
                 elif context == 'before':
                     query = query.filter(column <= item_datetime)
+
+    stream_version_lte = flask_request.args.get('stream_version_lte')
+    if stream_version_lte is not None:
+        invalid_error = ('An invalid value of stream_version_lte was provided. It must be an '
+                         'integer greater than or equal to 10000.')
+        try:
+            stream_version_lte = int(stream_version_lte)
+        except (TypeError, ValueError):
+            raise ValidationError(invalid_error)
+
+        if stream_version_lte < 10000:
+            raise ValidationError(invalid_error)
+
+        query = models.ModuleBuild._add_stream_version_lte_filter(
+            db.session, query, stream_version_lte)
 
     br_joined = False
     module_br_alias = None

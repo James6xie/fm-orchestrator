@@ -366,6 +366,25 @@ class ModuleBuild(MBSBase):
             .filter(ModuleBuild.context.like(context + '%')).all()
 
     @staticmethod
+    def _add_stream_version_lte_filter(session, query, stream_version):
+        """
+        Adds a less than or equal to filter for stream versions based on x.y.z versioning.
+
+        In essence, the filter does `XX0000 <= stream_version <= XXYYZZ`
+
+        :param session: a SQLAlchemy session
+        :param query: a SQLAlchemy query to add the filtering to
+        :param int stream_version: the stream version to filter on
+        :return: the query with the added stream version filter
+        """
+        # Compute the minimal stream_version. For example, for `stream_version` 281234,
+        # the minimal `stream_version` is 280000.
+        min_stream_version = (stream_version // 10000) * 10000
+        return query\
+            .filter(ModuleBuild.stream_version <= stream_version)\
+            .filter(ModuleBuild.stream_version >= min_stream_version)
+
+    @staticmethod
     def get_last_builds_in_stream_version_lte(session, name, stream_version):
         """
         Returns the latest builds in "ready" state for given name:stream limited by
@@ -378,16 +397,13 @@ class ModuleBuild(MBSBase):
         :param str name: Name of the module to search builds for.
         :param int stream_version: Maximum stream_version to search builds for.
         """
-        # Compute the minimal stream_version - for example for `stream_version` 281234,
-        # the minimal `stream_version` is 280000.
-        min_stream_version = (stream_version // 10000) * 10000
-
         query = session.query(ModuleBuild)\
             .filter(ModuleBuild.name == name)\
             .filter(ModuleBuild.state == BUILD_STATES["ready"])\
-            .filter(ModuleBuild.stream_version <= stream_version)\
-            .filter(ModuleBuild.stream_version >= min_stream_version)\
             .order_by(ModuleBuild.version.desc())
+
+        query = ModuleBuild._add_stream_version_lte_filter(session, query, stream_version)
+
         builds = query.all()
 
         # In case there are multiple versions of single name:stream build, we want to return

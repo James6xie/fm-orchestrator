@@ -532,6 +532,8 @@ parameters include:
   parameter can be given multiple times, in which case or-ing will be used.
 - ``state_reason``
 - ``stream``
+- ``stream_version_lte`` - less than or equal to the stream version. This is limited to
+  the major version. This value only applies to base modules.
 - ``submitted_after`` - Zulu ISO 8601 format e.g. ``submitted_after=2016-08-22T09:40:07Z``
 - ``submitted_before`` - Zulu ISO 8601 format e.g. ``submitted_before=2016-08-23T09:40:07Z``
 - ``version``
