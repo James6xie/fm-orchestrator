@@ -37,7 +37,8 @@ def _expand_mse_streams(session, name, streams, default_streams, raise_if_stream
 
     :param session: SQLAlchemy DB session.
     :param str name: Name of the module which will be expanded.
-    :param list streams: List of streams to expand.
+    :param streams: List of streams to expand.
+    :type streams: list[str]
     :param dict default_streams: Dict in {module_name: module_stream, ...} format defining
         the default stream to choose for module in case when there are multiple streams to
         choose from.
@@ -54,8 +55,8 @@ def _expand_mse_streams(session, name, streams, default_streams, raise_if_stream
     # b) there is at least one stream without '-' prefix. In this case, we can
     #    ignore all the streams with '-' prefix and just add those without
     #    '-' prefix to the list of valid streams.
-    streams_is_blacklist = all(stream.startswith("-") for stream in streams.get())
-    if streams_is_blacklist or len(streams.get()) == 0:
+    streams_is_blacklist = all(stream.startswith("-") for stream in streams)
+    if streams_is_blacklist or len(streams) == 0:
         if name in default_streams:
             expanded_streams = [default_streams[name]]
         elif raise_if_stream_ambigous:
@@ -67,7 +68,7 @@ def _expand_mse_streams(session, name, streams, default_streams, raise_if_stream
             expanded_streams = [build.stream for build in builds]
     else:
         expanded_streams = []
-    for stream in streams.get():
+    for stream in streams:
         if stream.startswith("-"):
             if streams_is_blacklist and stream[1:] in expanded_streams:
                 expanded_streams.remove(stream[1:])
@@ -102,7 +103,7 @@ def expand_mse_streams(session, mmd, default_streams=None, raise_if_stream_ambig
         for name, streams in deps.get_requires().items():
             streams_set = Modulemd.SimpleSet()
             streams_set.set(_expand_mse_streams(
-                session, name, streams, default_streams, raise_if_stream_ambigous))
+                session, name, streams.get(), default_streams, raise_if_stream_ambigous))
             expanded[name] = streams_set
         deps.set_requires(expanded)
 
@@ -110,7 +111,7 @@ def expand_mse_streams(session, mmd, default_streams=None, raise_if_stream_ambig
         for name, streams in deps.get_buildrequires().items():
             streams_set = Modulemd.SimpleSet()
             streams_set.set(_expand_mse_streams(
-                session, name, streams, default_streams, raise_if_stream_ambigous))
+                session, name, streams.get(), default_streams, raise_if_stream_ambigous))
             expanded[name] = streams_set
         deps.set_buildrequires(expanded)
 
