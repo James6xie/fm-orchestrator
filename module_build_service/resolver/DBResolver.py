@@ -40,14 +40,18 @@ class DBResolver(GenericResolver):
     def __init__(self, config):
         self.config = config
 
-    def _get_module(self, name, stream, version, context, strict=False):
+    def _get_module(
+        self, name, stream, version, context, state=models.BUILD_STATES['ready'], strict=False,
+    ):
         with models.make_session(self.config) as session:
             mb = models.ModuleBuild.get_build_from_nsvc(
-                session, name, stream, version, context)
-            if mb is None and strict:
+                session, name, stream, version, context, state=state)
+            if mb:
+                return mb.extended_json()
+
+            if strict:
                 raise UnprocessableEntity(
                     'Cannot find any module builds for %s:%s' % (name, stream))
-            return mb.extended_json()
 
     def get_module_modulemds(self, name, stream, version=None, context=None, strict=False,
                              stream_version_lte=False):
@@ -68,6 +72,8 @@ class DBResolver(GenericResolver):
         """
         if version and context:
             mmd = self._get_module(name, stream, version, context, strict=strict)
+            if mmd is None:
+                return
             return [self.extract_modulemd(mmd['modulemd'])]
 
         with models.make_session(self.config) as session:

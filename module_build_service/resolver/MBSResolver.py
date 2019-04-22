@@ -122,7 +122,9 @@ class MBSResolver(GenericResolver):
             return modules
 
     def _get_module(self, name, stream, version, context, state="ready", strict=False):
-        return self._get_modules(name, stream, version, context, state, strict)[0]
+        rv = self._get_modules(name, stream, version, context, state, strict)
+        if rv:
+            return rv[0]
 
     def get_module_modulemds(self, name, stream, version=None, context=None, strict=False,
                              stream_version_lte=False):
