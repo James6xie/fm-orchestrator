@@ -48,6 +48,7 @@ class MBSResolver(GenericResolver):
         self.session = requests.Session()
         adapter = requests.adapters.HTTPAdapter(max_retries=3)
         self.session.mount(self.mbs_prod_url, adapter)
+        self._generic_error = "Failed to query MBS with query %r returned HTTP status %s"
 
     def _query_from_nsvc(self, name, stream, version=None, context=None, state="ready"):
         """
@@ -96,9 +97,7 @@ class MBSResolver(GenericResolver):
         while True:
             res = self.session.get(self.mbs_prod_url, params=query)
             if not res.ok:
-                raise RuntimeError("Failed to query MBS with query %r returned HTTP status %s" %
-                                   (query, res.status_code))
-                break
+                raise RuntimeError(self._generic_error % (query, res.status_code))
 
             data = res.json()
             modules_per_page = data["items"]
