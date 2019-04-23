@@ -62,12 +62,12 @@ class MMDResolver(object):
 
         Base modules are handled in a special way in case when the stream of base module
         contains version in the "x.y.z" format. For example "el8.0.0" or "el7.6.0".
-        In this case, the resulting solv.Dep expression for such base module will contain verison
+        In this case, the resulting solv.Dep expression for such base module will contain version
         string computed using ModuleBuild.get_stream_version() method:
         For example:
             module(platform) with module(platform:el8) = 080200
 
-        The stream used to compute the version can be also overriden using the
+        The stream used to compute the version can be also overridden using the
         `base_module_stream_overrides` dict which has base module name as a key and
         the stream which will be used to compute the version as a value.
         This is needed for cases when module requires just "platform:el8", but was
