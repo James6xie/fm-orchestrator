@@ -814,6 +814,7 @@ class ModuleBuild(MBSBase):
                 } for record in self.state_trace(self.id)
             ],
             'state_url': state_url,
+            'stream_version': self.stream_version,
             'virtual_streams': [virtual_stream.name for virtual_stream in self.virtual_streams],
         })
 

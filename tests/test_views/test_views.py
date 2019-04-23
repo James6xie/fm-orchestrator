@@ -205,6 +205,7 @@ class TestViews:
         assert data['state_trace'] == []
         assert data['state_url'] == '/module-build-service/1/module-builds/2'
         assert data['stream'] == '1'
+        assert data['stream_version'] is None
         assert data['tasks'] == {
             'rpms': {
                 'module-build-macros': {
