@@ -227,3 +227,20 @@ class TestDBModule:
                     set(['bar'])
             }
             assert result == expected
+
+    def test_get_latest_with_virtual_stream(self):
+        tests.init_data(1, multiple_stream_versions=True)
+        resolver = mbs_resolver.GenericResolver.create(tests.conf, backend='db')
+        mmd = resolver.get_latest_with_virtual_stream('platform', 'f29')
+        assert mmd
+        assert mmd.get_stream() == 'f29.2.0'
+
+    def test_get_latest_with_virtual_stream_none(self):
+        resolver = mbs_resolver.GenericResolver.create(tests.conf, backend='db')
+        mmd = resolver.get_latest_with_virtual_stream('platform', 'doesnotexist')
+        assert not mmd
+
+    def test_get_module_count(self):
+        resolver = mbs_resolver.GenericResolver.create(tests.conf, backend='db')
+        count = resolver.get_module_count(name='platform', stream='f28')
+        assert count == 1

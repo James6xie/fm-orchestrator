@@ -33,18 +33,17 @@ from functools import partial
 from multiprocessing.dummy import Pool as ThreadPool
 from datetime import datetime
 import copy
-from module_build_service.utils import to_text_type
 
 import kobo.rpmlib
 import requests
 from gi.repository import GLib
 
 import module_build_service.scm
-
 from module_build_service import conf, db, log, models, Modulemd
 from module_build_service.errors import (
     ValidationError, UnprocessableEntity, Forbidden, Conflict)
 from module_build_service import glib
+from module_build_service.utils import to_text_type
 
 
 def record_filtered_rpms(mmd):
@@ -603,6 +602,78 @@ def _apply_dep_overrides(mmd, params):
     mmd.set_dependencies(deps)
 
 
+def _handle_base_module_virtual_stream_br(mmd):
+    """
+    Translate a base module virtual stream buildrequire to an actual stream on the input modulemd.
+
+    :param Modulemd.Module mmd: the modulemd to apply the overrides on
+    """
+    from module_build_service.resolver import system_resolver
+
+    overridden = False
+    deps = mmd.get_dependencies()
+    for dep in deps:
+        brs = dep.get_buildrequires()
+
+        for base_module in conf.base_module_names:
+            if base_module not in brs:
+                continue
+
+            streams = list(brs[base_module].get())
+            new_streams = copy.copy(streams)
+            for i, stream in enumerate(streams):
+                # Ignore streams that start with a minus sign, since those are handled in the
+                # MSE code
+                if stream.startswith('-'):
+                    continue
+
+                # Check if the base module stream is available
+                log.debug(
+                    'Checking to see if the base module "%s:%s" is available', base_module, stream)
+                if system_resolver.get_module_count(name=base_module, stream=stream) > 0:
+                    continue
+
+                # If the base module stream is not available, check if there's a virtual stream
+                log.debug(
+                    'Checking to see if there is a base module "%s" with the virtual stream "%s"',
+                    base_module,
+                    stream
+                )
+                base_module_mmd = system_resolver.get_latest_with_virtual_stream(
+                    name=base_module, virtual_stream=stream)
+                if not base_module_mmd:
+                    # If there isn't this base module stream or virtual stream available, skip it,
+                    # and let the dep solving code deal with it like it normally would
+                    log.warning(
+                        'There is no base module "%s" with stream/virtual stream "%s"',
+                        base_module,
+                        stream
+                    )
+                    continue
+
+                latest_stream = base_module_mmd.get_stream()
+                log.info(
+                    ('Replacing the buildrequire "%s:%s" with "%s:%s", since "%s" is a virtual '
+                     'stream'),
+                    base_module,
+                    stream,
+                    base_module,
+                    latest_stream,
+                    stream
+                )
+                new_streams[i] = latest_stream
+                overridden = True
+
+            if streams != new_streams:
+                brs[base_module].set(new_streams)
+
+        if overridden:
+            dep.set_buildrequires(brs)
+
+    if overridden:
+        mmd.set_dependencies(deps)
+
+
 def submit_module_build(username, mmd, params):
     """
     Submits new module build.
@@ -631,6 +702,7 @@ def submit_module_build(username, mmd, params):
     if "default_streams" in params:
         default_streams = params["default_streams"]
     _apply_dep_overrides(mmd, params)
+    _handle_base_module_virtual_stream_br(mmd)
 
     mmds = generate_expanded_mmds(db.session, mmd, raise_if_stream_ambigous, default_streams)
     if not mmds:

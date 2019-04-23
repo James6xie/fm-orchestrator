@@ -173,6 +173,14 @@ class TestModelsGetStreamsContexts:
             assert builds == set(['platform:f29.1.0:15:c11', 'platform:f29.1.0:15:c11.another',
                                   'platform:f29.2.0:1:c11'])
 
+    def test_get_module_count(self):
+        clean_database(False)
+        make_module("platform:f29.1.0:10:c11", {}, {})
+        make_module("platform:f29.1.0:10:c12", {}, {})
+        with make_session(conf) as session:
+            count = ModuleBuild.get_module_count(session, name="platform")
+            assert count == 2
+
     def test_add_virtual_streams_filter(self):
         clean_database(False)
         make_module("platform:f29.1.0:10:c1", {}, {}, virtual_streams=["f29"])

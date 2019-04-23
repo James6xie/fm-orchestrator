@@ -367,3 +367,73 @@ class TestMBSModule:
             assert '10' == mmd.get_stream()
             assert 1 == mmd.get_version()
             assert 'c1' == mmd.get_context()
+
+    @patch("requests.Session")
+    def test_get_module_count(self, mock_session):
+        mock_res = Mock()
+        mock_res.ok.return_value = True
+        mock_res.json.return_value = {
+            "items": [
+                {
+                    "name": "platform",
+                    "stream": "f28",
+                    "version": "3",
+                    "context": "00000000",
+                }
+            ],
+            "meta": {
+                "total": 5
+            }
+        }
+        mock_session.return_value.get.return_value = mock_res
+
+        resolver = mbs_resolver.GenericResolver.create(tests.conf, backend="mbs")
+        count = resolver.get_module_count(name="platform", stream="f28")
+
+        assert count == 5
+        mock_session.return_value.get.assert_called_once_with(
+            "https://mbs.fedoraproject.org/module-build-service/1/module-builds/",
+            params={
+                "name": "platform",
+                "page": 1,
+                "per_page": 1,
+                "short": True,
+                "stream": "f28",
+            }
+        )
+
+    @patch("requests.Session")
+    def test_get_latest_with_virtual_stream(self, mock_session, platform_mmd):
+        mock_res = Mock()
+        mock_res.ok.return_value = True
+        mock_res.json.return_value = {
+            "items": [
+                {
+                    "context": "00000000",
+                    "modulemd": platform_mmd,
+                    "name": "platform",
+                    "stream": "f28",
+                    "version": "3",
+                }
+            ],
+            "meta": {
+                "total": 5
+            }
+        }
+        mock_session.return_value.get.return_value = mock_res
+
+        resolver = mbs_resolver.GenericResolver.create(tests.conf, backend="mbs")
+        mmd = resolver.get_latest_with_virtual_stream("platform", "virtualf28")
+
+        assert mmd.get_name() == "platform"
+        mock_session.return_value.get.assert_called_once_with(
+            "https://mbs.fedoraproject.org/module-build-service/1/module-builds/",
+            params={
+                "name": "platform",
+                "order_desc_by": ["stream_version", "version"],
+                "page": 1,
+                "per_page": 1,
+                "verbose": True,
+                "virtual_stream": "virtualf28",
+            }
+        )

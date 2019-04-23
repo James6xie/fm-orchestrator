@@ -126,6 +126,51 @@ class MBSResolver(GenericResolver):
         if rv:
             return rv[0]
 
+    def get_module_count(self, **kwargs):
+        """
+        Determine the number of modules that match the provided filter.
+
+        :return: the number of modules that match the provided filter
+        :rtype: int
+        """
+        query = {
+            "page": 1,
+            "per_page": 1,
+            "short": True,
+        }
+        query.update(kwargs)
+        res = self.session.get(self.mbs_prod_url, params=query)
+        if not res.ok:
+            raise RuntimeError(self._generic_error % (query, res.status_code))
+
+        data = res.json()
+        return data["meta"]["total"]
+
+    def get_latest_with_virtual_stream(self, name, virtual_stream):
+        """
+        Get the latest module with the input virtual stream based on the stream version and version.
+
+        :param str name: the module name to search for
+        :param str virtual_stream: the module virtual stream to search for
+        :return: the module's modulemd or None
+        :rtype: Modulemd.Module or None
+        """
+        query = {
+            "name": name,
+            "order_desc_by": ["stream_version", "version"],
+            "page": 1,
+            "per_page": 1,
+            "verbose": True,
+            "virtual_stream": virtual_stream,
+        }
+        res = self.session.get(self.mbs_prod_url, params=query)
+        if not res.ok:
+            raise RuntimeError(self._generic_error % (query, res.status_code))
+
+        data = res.json()
+        if data["items"]:
+            return load_mmd(data["items"][0]["modulemd"])
+
     def get_module_modulemds(self, name, stream, version=None, context=None, strict=False,
                              stream_version_lte=False, virtual_streams=None):
         """

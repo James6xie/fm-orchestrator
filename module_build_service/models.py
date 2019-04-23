@@ -468,6 +468,17 @@ class ModuleBuild(MBSBase):
         return ret
 
     @staticmethod
+    def get_module_count(session, **kwargs):
+        """
+        Determine the number of modules that match the provided filter.
+
+        :param session: SQLAlchemy session
+        :return: the number of modules that match the provided filter
+        :rtype: int
+        """
+        return session.query(func.count(ModuleBuild.id)).filter_by(**kwargs).scalar()
+
+    @staticmethod
     def get_build_by_koji_tag(session, tag):
         """Get build by its koji_tag"""
         return session.query(ModuleBuild).filter_by(koji_tag=tag).first()

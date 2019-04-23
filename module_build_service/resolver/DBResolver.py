@@ -28,6 +28,7 @@ from module_build_service import log, db
 from module_build_service.resolver.base import GenericResolver
 from module_build_service import models
 from module_build_service.errors import UnprocessableEntity
+from module_build_service.utils.submit import load_mmd
 import sqlalchemy
 
 
@@ -53,6 +54,37 @@ class DBResolver(GenericResolver):
                 raise UnprocessableEntity(
                     'Cannot find any module builds for %s:%s' % (name, stream))
 
+    def get_module_count(self, **kwargs):
+        """
+        Determine the number of modules that match the provided filter.
+
+        :return: the number of modules that match the provided filter
+        :rtype: int
+        """
+        with models.make_session(self.config) as session:
+            return models.ModuleBuild.get_module_count(session, **kwargs)
+
+    def get_latest_with_virtual_stream(self, name, virtual_stream):
+        """
+        Get the latest module with the input virtual stream based on the stream version and version.
+
+        :param str name: the module name to search for
+        :param str virtual_stream: the module virtual stream to search for
+        :return: the module's modulemd or None
+        :rtype: Modulemd.Module or None
+        """
+        with models.make_session(self.config) as session:
+            query = session.query(models.ModuleBuild).filter_by(name=name)
+            query = models.ModuleBuild._add_virtual_streams_filter(session, query, [virtual_stream])
+            # Cast the version as an integer so that we get proper ordering
+            module = query.order_by(
+                models.ModuleBuild.stream_version.desc(),
+                sqlalchemy.cast(models.ModuleBuild.version, db.BigInteger).desc()
+            ).first()
+
+            if module:
+                return load_mmd(module.modulemd)
+
     def get_module_modulemds(self, name, stream, version=None, context=None, strict=False,
                              stream_version_lte=False, virtual_streams=None):
         """
@@ -72,7 +104,6 @@ class DBResolver(GenericResolver):
             logic. When falsy, no filtering occurs.
         :return: List of Modulemd metadata instances matching the query
         """
-        from module_build_service.utils import load_mmd
         if version and context:
             mmd = self._get_module(name, stream, version, context, strict=strict)
             if mmd is None:

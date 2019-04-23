@@ -106,6 +106,14 @@ class GenericResolver(six.with_metaclass(ABCMeta)):
         return load_mmd(yaml)
 
     @abstractmethod
+    def get_module_count(self, **kwargs):
+        raise NotImplementedError()
+
+    @abstractmethod
+    def get_latest_with_virtual_stream(self, name, virtual_stream):
+        raise NotImplementedError()
+
+    @abstractmethod
     def get_module_modulemds(self, name, stream, version=None, context=None, strict=False,
                              stream_version_lte=None, virtual_streams=None):
         raise NotImplementedError()

@@ -32,7 +32,7 @@ from os.path import basename, dirname, splitext
 from requests.utils import quote
 import hashlib
 import pytest
-from module_build_service.utils import to_text_type, load_mmd_file
+from module_build_service.utils import to_text_type, load_mmd_file, load_mmd
 import re
 
 from tests import app, init_data, clean_database, reuse_component_init_data
@@ -2111,3 +2111,31 @@ class TestViews:
         data = json.loads(rv.data)[0]
         mmd = module_build_service.utils.load_mmd(data['modulemd'])
         assert mmd.get_xmd()['mbs']['disttag_marking'] == 'product12'
+
+    @patch('module_build_service.auth.get_user', return_value=user)
+    @patch('module_build_service.scm.SCM')
+    def test_submit_build_request_platform_virtual_stream(self, mocked_scm, mocked_get_user):
+        # Create a platform with el8.25.0 but with the virtual stream el8
+        mmd = load_mmd_file(path.join(base_dir, 'staged_data', 'platform.yaml'))
+        mmd.set_stream('el8.25.0')
+        xmd = from_variant_dict(mmd.get_xmd())
+        xmd['mbs']['virtual_streams'] = ['el8']
+        mmd.set_xmd(dict_values(xmd))
+        import_mmd(db.session, mmd)
+
+        # Use a testmodule that buildrequires platform:el8
+        FakeSCM(mocked_scm, 'testmodule', 'testmodule_el8.yaml',
+                '620ec77321b2ea7b0d67d82992dda3e1d67055b4')
+
+        post_url = '/module-build-service/2/module-builds/'
+        scm_url = ('https://src.stg.fedoraproject.org/modules/testmodule.git?#68931c90de214d9d13fe'
+                   'efbd35246a81b6cb8d49')
+        rv = self.client.post(post_url, data=json.dumps({'branch': 'master', 'scmurl': scm_url}))
+        data = json.loads(rv.data)
+        print(data)
+
+        mmd = load_mmd(data[0]['modulemd'])
+        assert len(mmd.get_dependencies()) == 1
+        dep = mmd.get_dependencies()[0]
+        assert set(dep.get_buildrequires()['platform'].get()) == set(['el8.25.0'])
+        assert set(dep.get_requires()['platform'].get()) == set(['el8'])
