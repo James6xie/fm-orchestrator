@@ -179,14 +179,14 @@ class TestMMDResolver:
         "buildrequires, xmd_buildrequires, expected", (
             # BR all platform streams -> build for all platform streams.
             ({"platform": []}, {}, [
-                [["platform:el8.2.0:0:c0:x86_64"],
+                [["platform:el8.2.0.z:0:c0:x86_64"],
                  ["platform:el8.1.0:0:c0:x86_64"],
                  ["platform:el8.0.0:0:c0:x86_64"],
                  ["platform:el7.6.0:0:c0:x86_64"]],
             ]),
             # BR "el8" platform stream -> build for all el8 platform streams.
             ({"platform": ["el8"]}, {}, [
-                [["platform:el8.2.0:0:c0:x86_64"],
+                [["platform:el8.2.0.z:0:c0:x86_64"],
                  ["platform:el8.1.0:0:c0:x86_64"],
                  ["platform:el8.0.0:0:c0:x86_64"]],
             ]),
@@ -202,16 +202,16 @@ class TestMMDResolver:
             ]),
             # BR platform:el8.2.0 and gtk:3, this time gtk:3 build against el8.2.0 exists
             # -> use both platform and gtk from el8.2.0 and build once.
-            ({"platform": ["el8"], "gtk": ["3"]}, ["platform:el8.2.0"], [
-                [["platform:el8.2.0:0:c0:x86_64", "gtk:3:1:c8:x86_64", ]],
+            ({"platform": ["el8"], "gtk": ["3"]}, ["platform:el8.2.0.z"], [
+                [["platform:el8.2.0.z:0:c0:x86_64", "gtk:3:1:c8:x86_64", ]],
             ]),
             # BR platform:el8.2.0 and mess:1 which is built against platform:el8.1.0 and
             # requires gtk:3 which is built against platform:el8.2.0 and platform:el8.0.0
             # -> Use platform:el8.2.0 and
             # -> cherry-pick mess:1 from el8.1.0 and
             # -> use gtk:3:1 from el8.2.0.
-            ({"platform": ["el8"], "mess": ["1"]}, ["platform:el8.2.0"], [
-                [["platform:el8.2.0:0:c0:x86_64", "mess:1:0:c0:x86_64", "gtk:3:1:c8:x86_64", ]],
+            ({"platform": ["el8"], "mess": ["1"]}, ["platform:el8.2.0.z"], [
+                [["platform:el8.2.0.z:0:c0:x86_64", "mess:1:0:c0:x86_64", "gtk:3:1:c8:x86_64", ]],
             ]),
             # BR platform:el8.1.0 and mess:1 which is built against platform:el8.1.0 and
             # requires gtk:3 which is built against platform:el8.2.0 and platform:el8.0.0
@@ -237,10 +237,10 @@ class TestMMDResolver:
             # (nsvc, buildrequires, expanded_buildrequires, virtual_streams)
             ("platform:el8.0.0:0:c0", {}, {}, ["el8"]),
             ("platform:el8.1.0:0:c0", {}, {}, ["el8"]),
-            ("platform:el8.2.0:0:c0", {}, {}, ["el8"]),
+            ("platform:el8.2.0.z:0:c0", {}, {}, ["el8"]),
             ("platform:el7.6.0:0:c0", {}, {}, ["el7"]),
             ("gtk:3:0:c8", {"platform": ["el8"]}, {"platform:el8.0.0"}, None),
-            ("gtk:3:1:c8", {"platform": ["el8"]}, {"platform:el8.2.0"}, None),
+            ("gtk:3:1:c8", {"platform": ["el8"]}, {"platform:el8.2.0.z"}, None),
             ("mess:1:0:c0", [{"gtk": ["3"], "platform": ["el8"]}], {"platform:el8.1.0"}, None),
         )
         for n, req, xmd_br, virtual_streams in modules:

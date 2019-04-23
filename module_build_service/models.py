@@ -27,19 +27,21 @@
 """
 
 import contextlib
+import hashlib
 import json
+import re
 from collections import OrderedDict
 from datetime import datetime
-import hashlib
-import sqlalchemy
-from sqlalchemy.orm import validates, scoped_session, sessionmaker, load_only
-from flask import has_app_context
-from module_build_service import db, log, get_url_for, app, conf, Modulemd
-from module_build_service.glib import from_variant_dict
-import module_build_service.messaging
 
-from sqlalchemy.orm import lazyload
+import sqlalchemy
+from flask import has_app_context
 from sqlalchemy import func, and_
+from sqlalchemy.orm import lazyload
+from sqlalchemy.orm import validates, scoped_session, sessionmaker, load_only
+
+import module_build_service.messaging
+from module_build_service.glib import from_variant_dict
+from module_build_service import db, log, get_url_for, app, conf, Modulemd
 
 DEFAULT_MODULE_CONTEXT = '00000000'
 
@@ -213,7 +215,7 @@ class ModuleBuild(MBSBase):
     batch = db.Column(db.Integer, default=0)
 
     # This is only used for base modules for ordering purposes (f27.0.1 => 270001)
-    stream_version = db.Column(db.Integer)
+    stream_version = db.Column(db.Float)
     buildrequires = db.relationship(
         'ModuleBuild',
         secondary=module_builds_to_module_buildrequires,
@@ -785,8 +787,9 @@ class ModuleBuild(MBSBase):
         :param str stream: the module stream
         :kwarg bool right_pad: determines if the right side of the stream version should be padded
             with zeroes (e.g. `f27` => `27` vs `270000`)
-        :return: a stream version represented as an integer
-        :rtype: int or None if the stream doesn't have a valid version
+        :return: a stream version represented as a float. Stream suffix could
+            be added according to config ``stream_suffixes``.
+        :rtype: float or None if the stream doesn't have a valid version
         """
         # The platform version (e.g. prefix1.2.0 => 010200)
         version = ''
@@ -806,14 +809,20 @@ class ModuleBuild(MBSBase):
                     break
 
         # Remove the periods and pad the numbers if necessary
-        version = ''.join([section.zfill(2) for section in version.split('.')])
+        version = ''.join([section.zfill(2) for section in version.rstrip('.').split('.')])
 
         if version:
             if right_pad:
                 version += (6 - len(version)) * '0'
-            # Since the version must be stored as a number, we convert the string back to
-            # an integer which consequently drops the leading zero if there is one
-            return int(version)
+
+            result = float(version)
+
+            for regexp, suffix in conf.stream_suffixes.items():
+                if re.match(regexp, stream):
+                    result += suffix
+                    break
+
+            return result
 
     def get_buildrequired_base_modules(self):
         """
