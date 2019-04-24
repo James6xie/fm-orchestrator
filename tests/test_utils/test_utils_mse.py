@@ -358,8 +358,8 @@ class TestUtilsModuleStreamExpansion:
     def test__get_base_module_mmds(self):
         """Ensure the correct results are returned without duplicates."""
         init_data(data_size=1, multiple_stream_versions=True)
-        mmd = module_build_service.utils.load_mmd(
-            os.path.join(base_dir, 'staged_data', 'testmodule_v2.yaml'), True)
+        mmd = module_build_service.utils.load_mmd_file(
+            os.path.join(base_dir, 'staged_data', 'testmodule_v2.yaml'))
         deps = mmd.get_dependencies()
         brs = deps[0].get_buildrequires()
         brs['platform'].set(['f29.1.0', 'f29.2.0'])
@@ -380,8 +380,8 @@ class TestUtilsModuleStreamExpansion:
     def test__get_base_module_mmds_virtual_streams(self, virtual_streams):
         """Ensure the correct results are returned without duplicates."""
         init_data(data_size=1, multiple_stream_versions=True)
-        mmd = module_build_service.utils.load_mmd(
-            os.path.join(base_dir, 'staged_data', 'testmodule_v2.yaml'), True)
+        mmd = module_build_service.utils.load_mmd_file(
+            os.path.join(base_dir, 'staged_data', 'testmodule_v2.yaml'))
         deps = mmd.get_dependencies()
         brs = deps[0].get_buildrequires()
         brs['platform'].set(['f29.2.0'])
@@ -406,8 +406,8 @@ class TestUtilsModuleStreamExpansion:
 
     def test__get_base_module_mmds_virtual_streams_latest_stream_version(self):
         init_data(data_size=1, multiple_stream_versions=True)
-        mmd = module_build_service.utils.load_mmd(
-            os.path.join(base_dir, 'staged_data', 'testmodule_v2.yaml'), True)
+        mmd = module_build_service.utils.load_mmd_file(
+            os.path.join(base_dir, 'staged_data', 'testmodule_v2.yaml'))
         deps = mmd.get_dependencies()
         brs = deps[0].get_buildrequires()
         brs['platform'].set(['f35'])

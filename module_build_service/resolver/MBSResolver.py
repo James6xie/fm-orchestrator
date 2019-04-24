@@ -33,6 +33,7 @@ from module_build_service import db, conf
 from module_build_service import models
 from module_build_service.errors import UnprocessableEntity
 from module_build_service.resolver.base import GenericResolver
+from module_build_service.utils.submit import load_mmd
 from module_build_service.utils.general import import_mmd
 
 log = logging.getLogger()
@@ -113,7 +114,7 @@ class MBSResolver(GenericResolver):
             if strict:
                 raise UnprocessableEntity("Failed to find module in MBS %r" % query)
             else:
-                return None
+                return modules
 
         if version is None and "stream_version_lte" not in kwargs:
             # Only return the latest version
@@ -168,7 +169,7 @@ class MBSResolver(GenericResolver):
                 else:
                     return None
 
-            mmds.append(self.extract_modulemd(yaml, strict=strict))
+            mmds.append(load_mmd(yaml))
         return mmds
 
     def get_buildrequired_modulemds(self, name, stream, base_module_nsvc):
@@ -183,17 +184,9 @@ class MBSResolver(GenericResolver):
         :rtype: list
         :return: List of modulemd metadata.
         """
-        yaml = None
         modules = self._get_modules(name, stream, strict=False,
                                     base_module_br=base_module_nsvc)
-        if not modules:
-            return []
-
-        mmds = []
-        for module in modules:
-            yaml = module['modulemd']
-            mmds.append(self.extract_modulemd(yaml))
-        return mmds
+        return [load_mmd(module['modulemd']) for module in modules]
 
     def resolve_profiles(self, mmd, keys):
         """
@@ -233,7 +226,7 @@ class MBSResolver(GenericResolver):
 
             for module in modules:
                 yaml = module['modulemd']
-                dep_mmd = self.extract_modulemd(yaml)
+                dep_mmd = load_mmd(yaml)
                 # Take note of what rpms are in this dep's profile.
                 for key in keys:
                     if key in dep_mmd.get_profiles().keys():
@@ -281,7 +274,7 @@ class MBSResolver(GenericResolver):
             queried_module = self._get_module(
                 name, stream, version, context, strict=strict)
             yaml = queried_module['modulemd']
-            queried_mmd = self.extract_modulemd(yaml, strict=strict)
+            queried_mmd = load_mmd(yaml)
 
         if (not queried_mmd or not queried_mmd.get_xmd().get('mbs') or
                 'buildrequires' not in queried_mmd.get_xmd()['mbs'].keys()):
@@ -316,7 +309,7 @@ class MBSResolver(GenericResolver):
                 if m["koji_tag"] is None:
                     continue
                 module_tags.setdefault(m["koji_tag"], [])
-                module_tags[m["koji_tag"]].append(self.extract_modulemd(m["modulemd"]))
+                module_tags[m["koji_tag"]].append(load_mmd(m["modulemd"]))
 
         return module_tags
 
@@ -370,7 +363,7 @@ class MBSResolver(GenericResolver):
                 module_name, module_stream, module_version,
                 module_context, strict=True)
             if module.get('modulemd'):
-                mmd = self.extract_modulemd(module['modulemd'])
+                mmd = load_mmd(module['modulemd'])
                 if mmd.get_xmd().get('mbs') and 'commit' in mmd.get_xmd()['mbs'].keys():
                     commit_hash = mmd.get_xmd()['mbs']['commit']
 
@@ -416,6 +409,6 @@ class MBSResolver(GenericResolver):
         data = resp.json()
         if data['items']:
             modulemd = data['items'][0]['modulemd']
-            return self.extract_modulemd(modulemd)
+            return load_mmd(modulemd)
         else:
             return None

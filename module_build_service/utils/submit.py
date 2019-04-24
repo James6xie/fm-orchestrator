@@ -29,6 +29,7 @@ import time
 import shutil
 import tempfile
 import os
+from functools import partial
 from multiprocessing.dummy import Pool as ThreadPool
 from datetime import datetime
 import copy
@@ -39,14 +40,11 @@ import requests
 from gi.repository import GLib
 
 import module_build_service.scm
-import module_build_service.resolver
 
 from module_build_service import conf, db, log, models, Modulemd
 from module_build_service.errors import (
     ValidationError, UnprocessableEntity, Forbidden, Conflict)
 from module_build_service import glib
-from module_build_service.resolver import GenericResolver
-from .mse import generate_expanded_mmds
 
 
 def record_filtered_rpms(mmd):
@@ -63,6 +61,7 @@ def record_filtered_rpms(mmd):
     """
     # Imported here to allow import of utils in GenericBuilder.
     from module_build_service.builder import GenericBuilder
+    from module_build_service.resolver import GenericResolver
 
     resolver = GenericResolver.create(conf)
     builder = GenericBuilder.backends[conf.system]
@@ -615,6 +614,7 @@ def submit_module_build(username, mmd, params):
     :return: List with submitted module builds.
     """
     import koji  # Placed here to avoid py2/py3 conflicts...
+    from .mse import generate_expanded_mmds
 
     log.debug('Submitted %s module build for %s:%s:%s',
               ("scratch" if params.get('scratch', False) else "normal"),
@@ -839,12 +839,15 @@ def load_mmd(yaml, is_file=False):
                 error = 'The modulemd file {} not found!'.format(os.path.basename(yaml))
                 log.error('The modulemd file %s not found!', yaml)
         else:
-            error = 'The modulemd is invalid. Please verify the syntax is correct'
+            error = 'The modulemd is invalid. Please verify the syntax is correct.'
             log.debug('Modulemd content:\n%s', yaml)
         log.exception(error)
         raise UnprocessableEntity(error)
 
     return mmd
+
+
+load_mmd_file = partial(load_mmd, is_file=True)
 
 
 def load_local_builds(local_build_nsvs, session=None):

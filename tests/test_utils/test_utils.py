@@ -25,7 +25,7 @@ from shutil import copyfile, rmtree
 from datetime import datetime
 from werkzeug.datastructures import FileStorage
 from mock import patch
-from module_build_service.utils import to_text_type
+from module_build_service.utils import to_text_type, load_mmd_file
 import module_build_service.utils
 import module_build_service.scm
 from module_build_service import models, conf
@@ -302,9 +302,8 @@ class TestUtils:
 
     @pytest.mark.parametrize('context', ["c1", None])
     def test_import_mmd_contexts(self, context):
-        mmd = Modulemd.Module().new_from_file(
-            path.join(BASE_DIR, '..', 'staged_data', 'formatted_testmodule.yaml'))
-        mmd.upgrade()
+        mmd = load_mmd_file(path.join(
+            BASE_DIR, '..', 'staged_data', 'formatted_testmodule.yaml'))
         mmd.set_context(context)
 
         xmd = glib.from_variant_dict(mmd.get_xmd())
@@ -429,7 +428,7 @@ class TestUtils:
         scheduler_init_data(1)
         mmd_path = path.abspath(path.join(
             __file__, path.pardir, path.pardir, 'staged_data', 'build_metadata_module.yaml'))
-        metadata_mmd = module_build_service.utils.load_mmd(mmd_path, True)
+        metadata_mmd = module_build_service.utils.load_mmd_file(mmd_path)
         module_build_service.utils.import_mmd(db.session, metadata_mmd)
 
         build_one = models.ModuleBuild.query.get(2)
@@ -847,7 +846,7 @@ class TestUtils:
         v = module_build_service.utils.submit.get_prefixed_version(mmd)
         assert v == 7000120180205135154
 
-    @patch('module_build_service.utils.submit.generate_expanded_mmds')
+    @patch('module_build_service.utils.mse.generate_expanded_mmds')
     def test_submit_build_new_mse_build(self, generate_expanded_mmds):
         """
         Tests that finished build can be resubmitted in case the resubmitted
@@ -864,7 +863,7 @@ class TestUtils:
         generate_expanded_mmds.return_value = [mmd1, mmd2]
 
         # Create a copy of mmd1 without xmd.mbs, since that will cause validate_mmd to fail
-        mmd1_copy = Modulemd.Module.new_from_string(mmd1.dumps())
+        mmd1_copy = module_build_service.utils.load_mmd(mmd1.dumps())
         mmd1_copy.set_xmd({})
         builds = module_build_service.utils.submit_module_build("foo", mmd1_copy, {})
         ret = {b.mmd().get_context(): b.state for b in builds}

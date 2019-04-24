@@ -70,11 +70,12 @@ class DBResolver(GenericResolver):
             less than or equal the stream version computed from `stream`.
         :return: List of Modulemd metadata instances matching the query
         """
+        from module_build_service.utils import load_mmd
         if version and context:
             mmd = self._get_module(name, stream, version, context, strict=strict)
             if mmd is None:
                 return
-            return [self.extract_modulemd(mmd['modulemd'])]
+            return [load_mmd(mmd['modulemd'])]
 
         with models.make_session(self.config) as session:
             if not version and not context:

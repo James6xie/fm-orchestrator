@@ -28,7 +28,7 @@ import six
 from abc import ABCMeta, abstractmethod
 
 import module_build_service.config as cfg
-from module_build_service import conf, Modulemd
+from module_build_service import conf, log
 
 
 class GenericResolver(six.with_metaclass(ABCMeta)):
@@ -100,12 +100,10 @@ class GenericResolver(six.with_metaclass(ABCMeta)):
 
     @staticmethod
     def extract_modulemd(yaml, strict=False):
-        try:
-            mmd = Modulemd.Module().new_from_string(yaml)
-            mmd.upgrade()
-        except Exception:
-            raise ValueError('Invalid modulemd')
-        return mmd
+        log.warning('GenericResolver.extract_modulemd is deprecated. Please call '
+                    'module_build_service.utils.load_mmd in new code.')
+        from module_build_service.utils import load_mmd
+        return load_mmd(yaml)
 
     @abstractmethod
     def get_module_modulemds(self, name, stream, version=None, context=None, strict=False,

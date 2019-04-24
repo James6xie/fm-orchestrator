@@ -26,7 +26,7 @@ from datetime import datetime
 from module_build_service.utils import to_text_type
 import module_build_service.resolver as mbs_resolver
 from module_build_service import db
-from module_build_service.utils import import_mmd, load_mmd
+from module_build_service.utils import import_mmd, load_mmd_file
 from module_build_service.models import ModuleBuild
 import tests
 
@@ -40,7 +40,7 @@ class TestLocalResolverModule:
         tests.reuse_component_init_data()
 
     def test_get_buildrequired_modulemds(self):
-        mmd = load_mmd(os.path.join(base_dir, 'staged_data', 'platform.yaml'), True)
+        mmd = load_mmd_file(os.path.join(base_dir, 'staged_data', 'platform.yaml'))
         mmd.set_stream('f8')
         import_mmd(db.session, mmd)
         platform_f8 = ModuleBuild.query.filter_by(stream='f8').one()

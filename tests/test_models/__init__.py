@@ -24,11 +24,11 @@ import os
 from datetime import datetime
 
 import module_build_service
+from module_build_service.utils import load_mmd
 
 from tests import db, clean_database
 from module_build_service.config import init_config
 from module_build_service.models import ModuleBuild, BUILD_STATES
-from module_build_service import Modulemd
 
 app = module_build_service.app
 
@@ -38,8 +38,7 @@ datadir = os.path.dirname(__file__) + '/data/'
 
 
 def module_build_from_modulemd(yaml):
-    mmd = Modulemd.Module().new_from_string(yaml)
-    mmd.upgrade()
+    mmd = load_mmd(yaml)
     build = ModuleBuild()
     build.name = mmd.get_name()
     build.stream = mmd.get_stream()

@@ -26,12 +26,12 @@ from mock import patch
 import time
 import hashlib
 from traceback import extract_stack
-from module_build_service.utils import to_text_type
+from module_build_service.utils import to_text_type, load_mmd_file
 
 import koji
 import module_build_service
 from module_build_service import db
-from module_build_service.utils import get_rpm_release, import_mmd, load_mmd
+from module_build_service.utils import get_rpm_release, import_mmd
 from module_build_service.config import init_config
 from module_build_service.models import ModuleBuild, ComponentBuild, make_session, BUILD_STATES
 from module_build_service import glib, Modulemd
@@ -106,7 +106,7 @@ def clean_database(add_platform_module=True):
     db.drop_all()
     db.create_all()
     if add_platform_module:
-        mmd = load_mmd(os.path.join(base_dir, 'staged_data', 'platform.yaml'), True)
+        mmd = load_mmd_file(os.path.join(base_dir, 'staged_data', 'platform.yaml'))
         import_mmd(db.session, mmd)
 
 
@@ -122,7 +122,7 @@ def init_data(data_size=10, contexts=False, multiple_stream_versions=False, scra
     """
     clean_database()
     if multiple_stream_versions:
-        mmd = load_mmd(os.path.join(base_dir, 'staged_data', 'platform.yaml'), True)
+        mmd = load_mmd_file(os.path.join(base_dir, 'staged_data', 'platform.yaml'))
         for stream in ["f28.0.0", "f29.0.0", "f29.1.0", "f29.2.0"]:
             mmd.set_name("platform")
             mmd.set_stream(stream)
@@ -320,8 +320,7 @@ def scheduler_init_data(tangerine_state=None, scratch=False):
     current_dir = os.path.dirname(__file__)
     formatted_testmodule_yml_path = os.path.join(
         current_dir, 'staged_data', 'formatted_testmodule.yaml')
-    mmd = Modulemd.Module().new_from_file(formatted_testmodule_yml_path)
-    mmd.upgrade()
+    mmd = load_mmd_file(formatted_testmodule_yml_path)
     mmd.get_rpm_components()['tangerine'].set_buildorder(0)
 
     platform_br = module_build_service.models.ModuleBuild.query.get(1)
@@ -418,8 +417,7 @@ def reuse_component_init_data():
     current_dir = os.path.dirname(__file__)
     formatted_testmodule_yml_path = os.path.join(
         current_dir, 'staged_data', 'formatted_testmodule.yaml')
-    mmd = Modulemd.Module().new_from_file(formatted_testmodule_yml_path)
-    mmd.upgrade()
+    mmd = load_mmd_file(formatted_testmodule_yml_path)
 
     platform_br = module_build_service.models.ModuleBuild.query.get(1)
 
@@ -589,8 +587,7 @@ def reuse_shared_userspace_init_data():
         current_dir = os.path.dirname(__file__)
         formatted_testmodule_yml_path = os.path.join(
             current_dir, 'staged_data', 'shared-userspace-570.yaml')
-        mmd = Modulemd.Module().new_from_file(formatted_testmodule_yml_path)
-        mmd.upgrade()
+        mmd = load_mmd_file(formatted_testmodule_yml_path)
 
         module_build = module_build_service.models.ModuleBuild(
             name=mmd.get_name(),
@@ -641,8 +638,7 @@ def reuse_shared_userspace_init_data():
         # Create shared-userspace-577, state is WAIT, no component built
         formatted_testmodule_yml_path = os.path.join(
             current_dir, 'staged_data', 'shared-userspace-577.yaml')
-        mmd2 = Modulemd.Module().new_from_file(formatted_testmodule_yml_path)
-        mmd2.upgrade()
+        mmd2 = load_mmd_file(formatted_testmodule_yml_path)
 
         module_build = module_build_service.models.ModuleBuild(
             name=mmd2.get_name(),

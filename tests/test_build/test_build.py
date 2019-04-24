@@ -1383,8 +1383,8 @@ class TestBuild:
         Test that when a build is submitted with a buildrequire without a Koji tag,
         MBS doesn't supply it as a dependency to the builder.
         """
-        metadata_mmd = module_build_service.utils.load_mmd(
-            path.join(base_dir, 'staged_data', 'build_metadata_module.yaml'), True)
+        metadata_mmd = module_build_service.utils.load_mmd_file(
+            path.join(base_dir, 'staged_data', 'build_metadata_module.yaml'))
         module_build_service.utils.import_mmd(db.session, metadata_mmd)
 
         FakeSCM(mocked_scm, 'testmodule', 'testmodule_br_metadata_module.yaml',

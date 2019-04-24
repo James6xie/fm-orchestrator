@@ -45,7 +45,7 @@ import pungi.arch
 
 from module_build_service import conf, log, build_logs, Modulemd, glib
 from module_build_service.scm import SCM
-from module_build_service.utils import to_text_type
+from module_build_service.utils import to_text_type, load_mmd
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -409,7 +409,7 @@ class KojiContentGenerator(object):
             with open(mmd_path, 'rb') as mmd_f:
                 raw_data = mmd_f.read()
                 data = to_text_type(raw_data)
-                mmd = Modulemd.Module().new_from_string(data)
+                mmd = load_mmd(data)
                 ret['filename'] = mmd_filename
                 ret['filesize'] = len(raw_data)
                 ret['checksum'] = hashlib.md5(raw_data).hexdigest()

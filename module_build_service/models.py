@@ -41,7 +41,7 @@ from sqlalchemy.orm import validates, scoped_session, sessionmaker, load_only
 
 import module_build_service.messaging
 from module_build_service.glib import from_variant_dict
-from module_build_service import db, log, get_url_for, app, conf, Modulemd
+from module_build_service import db, log, get_url_for, app, conf
 
 DEFAULT_MODULE_CONTEXT = '00000000'
 
@@ -416,13 +416,12 @@ class ModuleBuild(MBSBase):
         return session.query(ModuleBuild).filter_by(koji_tag=tag).first()
 
     def mmd(self):
+        from module_build_service.utils import load_mmd
         try:
-            mmd = Modulemd.Module().new_from_string(self.modulemd)
-            mmd.upgrade()
+            return load_mmd(self.modulemd)
         except Exception:
             log.exception('An error occurred while trying to parse the modulemd')
             raise ValueError("Invalid modulemd")
-        return mmd
 
     @property
     def previous_non_failed_state(self):
@@ -470,9 +469,9 @@ class ModuleBuild(MBSBase):
         :return: Tuple with build_context, strem_build_context, runtime_context and
                  context hashes.
         """
+        from module_build_service.utils import load_mmd
         try:
-            mmd = Modulemd.Module().new_from_string(mmd_str)
-            mmd.upgrade()
+            mmd = load_mmd(mmd_str)
         except Exception:
             raise ValueError("Invalid modulemd")
         mbs_xmd = mmd.get_xmd().get('mbs', {})

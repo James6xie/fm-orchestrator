@@ -32,7 +32,7 @@ from os.path import basename, dirname, splitext
 from requests.utils import quote
 import hashlib
 import pytest
-from module_build_service.utils import to_text_type
+from module_build_service.utils import to_text_type, load_mmd_file
 import re
 
 from tests import app, init_data, clean_database, reuse_component_init_data
@@ -40,10 +40,10 @@ from tests import read_staged_data
 from tests.test_scm import base_dir as scm_base_dir
 from module_build_service.errors import UnprocessableEntity
 from module_build_service.models import ModuleBuild
-from module_build_service import db, version, Modulemd
+from module_build_service import db, version
 import module_build_service.config as mbs_config
 import module_build_service.scheduler.handlers.modules
-from module_build_service.utils import import_mmd, load_mmd
+from module_build_service.utils import import_mmd
 from module_build_service.glib import dict_values, from_variant_dict
 
 
@@ -724,7 +724,7 @@ class TestViews:
 
     def test_query_base_module_br_filters(self):
         reuse_component_init_data()
-        mmd = load_mmd(path.join(base_dir, 'staged_data', 'platform.yaml'), True)
+        mmd = load_mmd_file(path.join(base_dir, 'staged_data', 'platform.yaml'))
         mmd.set_stream('f30.1.3')
         import_mmd(db.session, mmd)
         platform_f300103 = ModuleBuild.query.filter_by(stream='f30.1.3').one()
@@ -830,8 +830,7 @@ class TestViews:
         assert data['state_trace'][0]['state'] == 0
         assert data['tasks'] == {}
         assert data['siblings'] == []
-        mmd = Modulemd.Module().new_from_string(data['modulemd'])
-        mmd.upgrade()
+        module_build_service.utils.load_mmd(data['modulemd'])
 
         # Make sure the buildrequires entry was created
         module = ModuleBuild.query.get(8)
@@ -1299,7 +1298,7 @@ class TestViews:
         rv = self.client.post(post_url, data=json.dumps(json_input))
         data = json.loads(rv.data)
 
-        mmd = Modulemd.Module().new_from_string(data[0]['modulemd'])
+        mmd = module_build_service.utils.load_mmd(data[0]['modulemd'])
         assert len(mmd.get_dependencies()) == 1
         dep = mmd.get_dependencies()[0]
         assert set(dep.get_buildrequires()['platform'].get()) == expected_br
@@ -1768,8 +1767,7 @@ class TestViews:
         assert data['state_trace'][0]['state'] == 0
         assert data['tasks'] == {}
         assert data['siblings'] == []
-        mmd = Modulemd.Module().new_from_string(data['modulemd'])
-        mmd.upgrade()
+        module_build_service.utils.load_mmd(data['modulemd'])
 
         # Make sure the buildrequires entry was created
         module = ModuleBuild.query.get(8)
@@ -1857,8 +1855,7 @@ class TestViews:
         assert data['state_trace'][0]['state'] == 0
         assert data['tasks'] == {}
         assert data['siblings'] == []
-        mmd = Modulemd.Module().new_from_string(data['modulemd'])
-        mmd.upgrade()
+        module_build_service.utils.load_mmd(data['modulemd'])
 
         # Make sure the buildrequires entry was created
         module = ModuleBuild.query.get(8)
@@ -1951,7 +1948,7 @@ class TestViews:
         init_data(data_size=1, multiple_stream_versions=True)
         # Create a platform for whatever the override is so the build submission succeeds
         if platform_override:
-            platform_mmd = load_mmd(path.join(base_dir, 'staged_data', 'platform.yaml'), True)
+            platform_mmd = load_mmd_file(path.join(base_dir, 'staged_data', 'platform.yaml'))
             platform_mmd.set_stream(platform_override)
             if platform_override == 'el8.0.0':
                 xmd = from_variant_dict(platform_mmd.get_xmd())
@@ -1970,7 +1967,7 @@ class TestViews:
         data = json.loads(rv.data)
         assert rv.status_code == 201
 
-        mmd = Modulemd.Module().new_from_string(data[0]['modulemd'])
+        mmd = module_build_service.utils.load_mmd(data[0]['modulemd'])
         assert len(mmd.get_dependencies()) == 1
         dep = mmd.get_dependencies()[0]
         if platform_override:
@@ -1994,7 +1991,7 @@ class TestViews:
         mocked_regexes.return_value = [r'(?:\-LP\-)(.+)$']
         init_data(data_size=1, multiple_stream_versions=True)
         # Create a platform for the override so the build submission succeeds
-        platform_mmd = load_mmd(path.join(base_dir, 'staged_data', 'platform.yaml'), True)
+        platform_mmd = load_mmd_file(path.join(base_dir, 'staged_data', 'platform.yaml'))
         platform_mmd.set_stream('product1.3')
         import_mmd(db.session, platform_mmd)
 
@@ -2014,7 +2011,7 @@ class TestViews:
         data = json.loads(rv.data)
         assert rv.status_code == 201
 
-        mmd = Modulemd.Module().new_from_string(data[0]['modulemd'])
+        mmd = module_build_service.utils.load_mmd(data[0]['modulemd'])
         assert len(mmd.get_dependencies()) == 1
         dep = mmd.get_dependencies()[0]
         # The buildrequire_override value should take precedence over the stream override from
@@ -2031,7 +2028,7 @@ class TestViews:
         versioning and no virtual streams, that the dependency resolution succeeds.
         """
         init_data(data_size=1, multiple_stream_versions=True)
-        platform_mmd = load_mmd(path.join(base_dir, 'staged_data', 'platform.yaml'), True)
+        platform_mmd = load_mmd_file(path.join(base_dir, 'staged_data', 'platform.yaml'))
         platform_mmd.set_stream('el8.0.0')
         import_mmd(db.session, platform_mmd)
 
@@ -2065,5 +2062,5 @@ class TestViews:
             post_url, data=json.dumps({'branch': 'product1.2', 'scmurl': scm_url}))
         assert rv.status_code == 201
         data = json.loads(rv.data)[0]
-        mmd = Modulemd.Module().new_from_string(data['modulemd'])
+        mmd = module_build_service.utils.load_mmd(data['modulemd'])
         assert mmd.get_xmd()['mbs']['disttag_marking'] == 'product12'

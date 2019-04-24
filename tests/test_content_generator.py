@@ -865,7 +865,7 @@ class TestBuild:
     def test_finalize_mmd_devel(self):
         self.cg.devel = True
         mmd = self.cg.module.mmd()
-        new_mmd = Modulemd.Module.new_from_string(self.cg._finalize_mmd("x86_64"))
+        new_mmd = module_build_service.utils.load_mmd(self.cg._finalize_mmd("x86_64"))
 
         # Check that -devel suffix is set.
         assert new_mmd.get_name().endswith("-devel")

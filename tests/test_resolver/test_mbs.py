@@ -25,7 +25,7 @@ from mock import patch, PropertyMock, Mock, call
 import module_build_service.resolver as mbs_resolver
 import module_build_service.utils
 import module_build_service.models
-from module_build_service import glib, Modulemd, app
+from module_build_service import glib, app
 import tests
 
 
@@ -205,7 +205,7 @@ class TestMBSModule:
     def test_get_module_build_dependencies_empty_buildrequires(self, mock_session,
                                                                testmodule_mmd_9c690d0e):
 
-        mmd = Modulemd.Module().new_from_string(testmodule_mmd_9c690d0e)
+        mmd = module_build_service.utils.load_mmd(testmodule_mmd_9c690d0e)
         # Wipe out the dependencies
         mmd.set_dependencies()
         xmd = glib.from_variant_dict(mmd.get_xmd())
@@ -324,3 +324,45 @@ class TestMBSModule:
                     set(['bar'])
             }
             assert result == expected
+
+    def test_get_empty_buildrequired_modulemds(self):
+        resolver = mbs_resolver.GenericResolver.create(tests.conf, backend='mbs')
+
+        with patch.object(resolver, 'session') as session:
+            session.get.return_value = Mock(ok=True)
+            session.get.return_value.json.return_value = {
+                'items': [], 'meta': {'next': None}
+            }
+
+            result = resolver.get_buildrequired_modulemds(
+                'nodejs', '10', 'platform:el8:1:00000000')
+            assert [] == result
+
+    def test_get_buildrequired_modulemds(self):
+        resolver = mbs_resolver.GenericResolver.create(tests.conf, backend='mbs')
+
+        with patch.object(resolver, 'session') as session:
+            session.get.return_value = Mock(ok=True)
+            session.get.return_value.json.return_value = {
+                'items': [{
+                    'name': 'nodejs', 'stream': '10',
+                    'version': 1, 'context': 'c1',
+                    'modulemd': tests.make_module(
+                        'nodejs:10:1:c1', store_to_db=False).dumps(),
+                }, {
+                    'name': 'nodejs', 'stream': '10',
+                    'version': 2, 'context': 'c1',
+                    'modulemd': tests.make_module(
+                        'nodejs:10:2:c1', store_to_db=False).dumps(),
+                }], 'meta': {'next': None}
+            }
+
+            result = resolver.get_buildrequired_modulemds(
+                'nodejs', '10', 'platform:el8:1:00000000')
+
+            assert 1 == len(result)
+            mmd = result[0]
+            assert 'nodejs' == mmd.get_name()
+            assert '10' == mmd.get_stream()
+            assert 1 == mmd.get_version()
+            assert 'c1' == mmd.get_context()
