@@ -42,6 +42,7 @@ from sqlalchemy.orm import validates, scoped_session, sessionmaker, load_only
 import module_build_service.messaging
 from module_build_service.glib import from_variant_dict
 from module_build_service import db, log, get_url_for, app, conf
+from module_build_service.errors import UnprocessableEntity
 
 DEFAULT_MODULE_CONTEXT = "00000000"
 
@@ -492,7 +493,7 @@ class ModuleBuild(MBSBase):
 
         try:
             return load_mmd(self.modulemd)
-        except Exception:
+        except UnprocessableEntity:
             log.exception("An error occurred while trying to parse the modulemd")
             raise ValueError("Invalid modulemd")
 
@@ -546,7 +547,7 @@ class ModuleBuild(MBSBase):
 
         try:
             mmd = load_mmd(mmd_str)
-        except Exception:
+        except UnprocessableEntity:
             raise ValueError("Invalid modulemd")
         mbs_xmd = mmd.get_xmd().get("mbs", {})
         rv = []
