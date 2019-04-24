@@ -875,7 +875,7 @@ def _fetch_mmd(url, branch=None, allow_local_url=False, whitelist_url=False, man
         if not whitelist_url and mandatory_checks:
             scm.verify()
         cofn = scm.get_module_yaml()
-        mmd = load_mmd(cofn, is_file=True)
+        mmd = load_mmd_file(cofn)
     finally:
         try:
             if td is not None:
@@ -1021,7 +1021,7 @@ def load_local_builds(local_build_nsvs, session=None):
 
         # Load the modulemd metadata.
         path = os.path.join(conf.mock_resultsdir, found_build[3], "results")
-        mmd = load_mmd(os.path.join(path, "modules.yaml"), is_file=True)
+        mmd = load_mmd_file(os.path.join(path, "modules.yaml"))
 
         # Create ModuleBuild in database.
         module = models.ModuleBuild.create(

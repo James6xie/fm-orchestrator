@@ -36,7 +36,7 @@ from module_build_service import models
 from module_build_service.utils import (
     submit_module_build_from_yaml,
     load_local_builds,
-    load_mmd,
+    load_mmd_file,
     import_mmd,
     import_builds_from_local_dnf_repos,
 )
@@ -104,7 +104,7 @@ def cleardb():
 def import_module(mmd_file):
     """ Imports the module from mmd_file
     """
-    mmd = load_mmd(mmd_file, is_file=True)
+    mmd = load_mmd_file(mmd_file)
     import_mmd(db.session, mmd)
 
 
