@@ -24,12 +24,13 @@
 #            Jan Kaluza <jkaluza@redhat.com>
 
 from __future__ import print_function
-import sys
-import enum
-from pprint import pprint
-import json
-import requests
 import argparse
+import enum
+import json
+from pprint import pprint
+import sys
+
+import requests
 import requests.exceptions
 from six.moves import urllib_parse
 
