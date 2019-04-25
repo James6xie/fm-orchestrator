@@ -100,7 +100,7 @@ class TestModuleInit:
     def test_init_called_twice(self):
         build = self.test_init_basic()
         old_component_builds = len(build.component_builds)
-        old_mmd = yaml.load(build.modulemd)
+        old_mmd = yaml.safe_load(build.modulemd)
 
         build.state = 4
         db.session.commit()
@@ -110,7 +110,7 @@ class TestModuleInit:
         assert build.state == 1
         assert old_component_builds == len(build.component_builds)
 
-        new_mmd = yaml.load(build.modulemd)
+        new_mmd = yaml.safe_load(build.modulemd)
         assert old_mmd == new_mmd
 
     @patch('module_build_service.scm.SCM')
