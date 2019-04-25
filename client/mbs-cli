@@ -31,10 +31,8 @@ import json
 import requests
 import argparse
 import sys
-import openidc_client
 import requests.exceptions
 from six.moves import urllib_parse
-import requests_kerberos
 
 
 env_config = {
@@ -160,6 +158,7 @@ class MBSCli(object):
         if self._auth_mech == AuthMech.OpenIDC:
             headers['Authorization'] = 'Bearer {0}'.format(self._openidc_token)
         elif self._auth_mech == AuthMech.Kerberos:
+            import requests_kerberos
             # MBS server does not support mutual auth, so make it optional.
             request_data['auth'] = requests_kerberos.HTTPKerberosAuth(
                 mutual_authentication=requests_kerberos.OPTIONAL)
@@ -268,6 +267,11 @@ def create_mbs_client(args):
     openidc_token=None
 
     if auth_mech == AuthMech.OpenIDC:
+        try:
+            import openidc_client
+        except ImportError:
+            print('The python-openidc-client package must be installed', file=sys.stderr)
+            sys.exit(1)
         id_provider = id_provider_config[args.env]
 
         # Get the auth token using the OpenID client.
@@ -292,6 +296,12 @@ def create_mbs_client(args):
             raise
 
         return MBSCli(mbs_url, auth_mech=auth_mech, openidc_token=token)
+    elif auth_mech == AuthMech.Kerberos:
+        try:
+            import requests_kerberos  # noqa
+        except ImportError:
+            print('The python-requests-kerberos package must be installed', file=sys.stderr)
+            sys.exit(1)
 
     return MBSCli(mbs_url, auth_mech=auth_mech, openidc_token=openidc_token)
 
