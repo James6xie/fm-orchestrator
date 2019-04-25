@@ -30,7 +30,6 @@ from pprint import pprint
 import json
 import requests
 import argparse
-import sys
 import requests.exceptions
 from six.moves import urllib_parse
 
@@ -264,7 +263,7 @@ def create_mbs_client(args):
         mbs_url = args.server
 
     auth_mech = MBSCli.get_auth_mech(mbs_url)
-    openidc_token=None
+    openidc_token = None
 
     if auth_mech == AuthMech.OpenIDC:
         try:
