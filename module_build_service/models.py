@@ -43,7 +43,7 @@ import module_build_service.messaging
 from module_build_service.glib import from_variant_dict
 from module_build_service import db, log, get_url_for, app, conf
 
-DEFAULT_MODULE_CONTEXT = '00000000'
+DEFAULT_MODULE_CONTEXT = "00000000"
 
 
 # Just like koji.BUILD_STATES, except our own codes for modules.
@@ -58,32 +58,26 @@ BUILD_STATES = {
     # fetch them. If this is all good, then we set the build to the 'wait'
     # state. If anything goes wrong, we jump immediately to the 'failed' state.
     "init": 0,
-
     # Here, the scheduler picks up tasks in wait and switches to build
     # immediately. Eventually, we'll add throttling logic here so we don't
     # submit too many builds for the build system to handle
     "wait": 1,
-
     # The scheduler works on builds in this state. We prepare the buildroot,
     # submit builds for all the components, and wait for the results to come
     # back.
     "build": 2,
-
     # Once all components have succeeded, we set the top-level module build
     # to 'done'.
     "done": 3,
-
     # If any of the component builds fail, then we set the top-level module
     # build to 'failed' also.
     "failed": 4,
-
     # This is a state to be set when a module is ready to be part of a
     # larger compose. perhaps it is set by an external service that knows
     # about the Grand Plan.
     "ready": 5,
-
     # If the module has failed and was garbage collected by MBS
-    "garbage": 6
+    "garbage": 6,
 }
 
 INVERSE_BUILD_STATES = {v: k for k, v in BUILD_STATES.items()}
@@ -115,13 +109,12 @@ def _setup_event_listeners(session):
     """
     Starts listening for events related to database session.
     """
-    if not sqlalchemy.event.contains(
-            session, 'before_commit', session_before_commit_handlers):
-        sqlalchemy.event.listen(session, 'before_commit',
-                                session_before_commit_handlers)
+    if not sqlalchemy.event.contains(session, "before_commit", session_before_commit_handlers):
+        sqlalchemy.event.listen(session, "before_commit", session_before_commit_handlers)
 
     # initialize DB event listeners from the monitor module
     from module_build_service.monitor import db_hook_event_listeners
+
     db_hook_event_listeners(session.bind.engine)
 
 
@@ -134,16 +127,15 @@ def make_session(conf):
     # Do not use scoped_session in case we are using in-memory database,
     # because we want to use the same session across all threads to be able
     # to use the same in-memory database in tests.
-    if conf.sqlalchemy_database_uri == 'sqlite://':
+    if conf.sqlalchemy_database_uri == "sqlite://":
         _setup_event_listeners(db.session)
         yield db.session
         db.session.commit()
         return
 
     # Needs to be set to create app_context.
-    if (not has_app_context() and
-            ('SERVER_NAME' not in app.config or not app.config['SERVER_NAME'])):
-        app.config['SERVER_NAME'] = 'localhost'
+    if not has_app_context() and ("SERVER_NAME" not in app.config or not app.config["SERVER_NAME"]):
+        app.config["SERVER_NAME"] = "localhost"
 
     # If there is no app_context, we have to create one before creating
     # the session. If we would create app_context after the session (this
@@ -152,9 +144,7 @@ def make_session(conf):
     with app.app_context() if not has_app_context() else _dummy_context_mgr():
         # TODO - we could use ZopeTransactionExtension() here some day for
         # improved safety on the backend.
-        engine = sqlalchemy.engine_from_config({
-            'sqlalchemy.url': conf.sqlalchemy_database_uri,
-        })
+        engine = sqlalchemy.engine_from_config({"sqlalchemy.url": conf.sqlalchemy_database_uri})
         session = scoped_session(sessionmaker(bind=engine))()
         _setup_event_listeners(session)
         try:
@@ -174,20 +164,20 @@ class MBSBase(db.Model):
 
 
 module_builds_to_module_buildrequires = db.Table(
-    'module_builds_to_module_buildrequires',
-    db.Column('module_id', db.Integer, db.ForeignKey('module_builds.id'), nullable=False),
-    db.Column('module_buildrequire_id', db.Integer, db.ForeignKey('module_builds.id'),
-              nullable=False),
-    db.UniqueConstraint('module_id', 'module_buildrequire_id', name='unique_buildrequires')
+    "module_builds_to_module_buildrequires",
+    db.Column("module_id", db.Integer, db.ForeignKey("module_builds.id"), nullable=False),
+    db.Column(
+        "module_buildrequire_id", db.Integer, db.ForeignKey("module_builds.id"), nullable=False),
+    db.UniqueConstraint("module_id", "module_buildrequire_id", name="unique_buildrequires"),
 )
 
 
 module_builds_to_virtual_streams = db.Table(
-    'module_builds_to_virtual_streams',
-    db.Column('module_build_id', db.Integer, db.ForeignKey('module_builds.id'), nullable=False),
-    db.Column('virtual_stream_id', db.Integer, db.ForeignKey('virtual_streams.id'), nullable=False),
+    "module_builds_to_virtual_streams",
+    db.Column("module_build_id", db.Integer, db.ForeignKey("module_builds.id"), nullable=False),
+    db.Column("virtual_stream_id", db.Integer, db.ForeignKey("virtual_streams.id"), nullable=False),
     db.UniqueConstraint(
-        'module_build_id', 'virtual_stream_id', name='unique_module_to_virtual_stream')
+        "module_build_id", "virtual_stream_id", name="unique_module_to_virtual_stream"),
 )
 
 
@@ -218,10 +208,7 @@ class ModuleBuild(MBSBase):
     new_repo_task_id = db.Column(db.Integer)
     rebuild_strategy = db.Column(db.String, nullable=False)
     virtual_streams = db.relationship(
-        'VirtualStream',
-        secondary=module_builds_to_virtual_streams,
-        back_populates='module_builds',
-    )
+        "VirtualStream", secondary=module_builds_to_virtual_streams, back_populates="module_builds")
 
     # A monotonically increasing integer that represents which batch or
     # iteration this module is currently on for successive rebuilds of its
@@ -231,18 +218,19 @@ class ModuleBuild(MBSBase):
     # This is only used for base modules for ordering purposes (f27.0.1 => 270001)
     stream_version = db.Column(db.Float)
     buildrequires = db.relationship(
-        'ModuleBuild',
+        "ModuleBuild",
         secondary=module_builds_to_module_buildrequires,
         primaryjoin=module_builds_to_module_buildrequires.c.module_id == id,
         secondaryjoin=module_builds_to_module_buildrequires.c.module_buildrequire_id == id,
-        backref='buildrequire_for'
+        backref="buildrequire_for",
     )
 
     rebuild_strategies = {
-        'all': 'All components will be rebuilt',
-        'changed-and-after': ('All components that have changed and those in subsequent batches '
-                              'will be rebuilt'),
-        'only-changed': 'All changed components will be rebuilt'
+        "all": "All components will be rebuilt",
+        "changed-and-after": (
+            "All components that have changed and those in subsequent batches will be rebuilt"
+        ),
+        "only-changed": "All changed components will be rebuilt",
     }
 
     def current_batch(self, state=None):
@@ -282,8 +270,7 @@ class ModuleBuild(MBSBase):
             ]
         else:
             return [
-                component for component in self.component_builds
-                if component.batch <= self.batch
+                component for component in self.component_builds if component.batch <= self.batch
             ]
 
     @staticmethod
@@ -305,30 +292,40 @@ class ModuleBuild(MBSBase):
         streams for given module `name`.
         """
         # Prepare the subquery to find out all unique name:stream records.
-        subq = session.query(
-            func.max(ModuleBuild.id).label("maxid"),
-            func.max(sqlalchemy.cast(ModuleBuild.version, db.BigInteger))
-        ).group_by(ModuleBuild.stream).filter_by(
-            name=name, state=BUILD_STATES["ready"]).subquery('t2')
+        subq = (
+            session.query(
+                func.max(ModuleBuild.id).label("maxid"),
+                func.max(sqlalchemy.cast(ModuleBuild.version, db.BigInteger)),
+            )
+            .group_by(ModuleBuild.stream)
+            .filter_by(name=name, state=BUILD_STATES["ready"])
+            .subquery("t2")
+        )
 
         # Use the subquery to actually return all the columns for its results.
-        query = session.query(ModuleBuild).join(
-            subq, and_(ModuleBuild.id == subq.c.maxid))
+        query = session.query(ModuleBuild).join(subq, and_(ModuleBuild.id == subq.c.maxid))
         return query.all()
 
     @staticmethod
     def _get_last_builds_in_stream_query(session, name, stream, **kwargs):
         # Prepare the subquery to find out all unique name:stream records.
-        subq = session.query(
-            func.max(sqlalchemy.cast(ModuleBuild.version, db.BigInteger)).label("maxversion")
-        ).filter_by(name=name, state=BUILD_STATES["ready"], stream=stream, **kwargs).subquery('t2')
+        subq = (
+            session.query(
+                func.max(sqlalchemy.cast(ModuleBuild.version, db.BigInteger)).label("maxversion")
+            )
+            .filter_by(name=name, state=BUILD_STATES["ready"], stream=stream, **kwargs)
+            .subquery("t2")
+        )
 
         # Use the subquery to actually return all the columns for its results.
         query = session.query(ModuleBuild).join(
-            subq, and_(
+            subq,
+            and_(
                 ModuleBuild.name == name,
                 ModuleBuild.stream == stream,
-                sqlalchemy.cast(ModuleBuild.version, db.BigInteger) == subq.c.maxversion))
+                sqlalchemy.cast(ModuleBuild.version, db.BigInteger) == subq.c.maxversion,
+            ),
+        )
         return query
 
     @staticmethod
@@ -370,8 +367,11 @@ class ModuleBuild(MBSBase):
         Returns build defined by NSVC. Optional kwargs are passed to SQLAlchemy
         filter_by method.
         """
-        return session.query(ModuleBuild).filter_by(
-            name=name, stream=stream, version=str(version), context=context, **kwargs).first()
+        return (
+            session.query(ModuleBuild)
+            .filter_by(name=name, stream=stream, version=str(version), context=context, **kwargs)
+            .first()
+        )
 
     @staticmethod
     def get_scratch_builds_from_nsvc(session, name, stream, version, context, **kwargs):
@@ -379,9 +379,12 @@ class ModuleBuild(MBSBase):
         Returns all scratch builds defined by NSVC. This is done by using the supplied `context`
         as a match prefix. Optional kwargs are passed to SQLAlchemy filter_by method.
         """
-        return session.query(ModuleBuild).filter_by(
-            name=name, stream=stream, version=str(version), scratch=True, **kwargs)\
-            .filter(ModuleBuild.context.like(context + '%')).all()
+        return (
+            session.query(ModuleBuild)
+            .filter_by(name=name, stream=stream, version=str(version), scratch=True, **kwargs)
+            .filter(ModuleBuild.context.like(context + "%"))
+            .all()
+        )
 
     @staticmethod
     def _add_stream_version_lte_filter(session, query, stream_version):
@@ -398,9 +401,8 @@ class ModuleBuild(MBSBase):
         # Compute the minimal stream_version. For example, for `stream_version` 281234,
         # the minimal `stream_version` is 280000.
         min_stream_version = (stream_version // 10000) * 10000
-        return query\
-            .filter(ModuleBuild.stream_version <= stream_version)\
-            .filter(ModuleBuild.stream_version >= min_stream_version)
+        return query.filter(ModuleBuild.stream_version <= stream_version).filter(
+            ModuleBuild.stream_version >= min_stream_version)
 
     @staticmethod
     def _add_virtual_streams_filter(session, query, virtual_streams):
@@ -416,11 +418,11 @@ class ModuleBuild(MBSBase):
         if not virtual_streams:
             return query
 
-        return query.join(
-            VirtualStream, ModuleBuild.virtual_streams
-        ).filter(
-            VirtualStream.name.in_(virtual_streams)
-        ).distinct(ModuleBuild.id)
+        return (
+            query.join(VirtualStream, ModuleBuild.virtual_streams)
+            .filter(VirtualStream.name.in_(virtual_streams))
+            .distinct(ModuleBuild.id)
+        )
 
     @staticmethod
     def get_last_builds_in_stream_version_lte(session, name, stream_version, virtual_streams=None):
@@ -437,10 +439,12 @@ class ModuleBuild(MBSBase):
         :param list virtual_streams: A list of the virtual streams to filter on. The filtering uses
             "or" logic. When falsy, no filtering occurs.
         """
-        query = session.query(ModuleBuild)\
-            .filter(ModuleBuild.name == name)\
-            .filter(ModuleBuild.state == BUILD_STATES["ready"])\
+        query = (
+            session.query(ModuleBuild)
+            .filter(ModuleBuild.name == name)
+            .filter(ModuleBuild.state == BUILD_STATES["ready"])
             .order_by(ModuleBuild.version.desc())
+        )
 
         query = ModuleBuild._add_stream_version_lte_filter(session, query, stream_version)
         query = ModuleBuild._add_virtual_streams_filter(session, query, virtual_streams)
@@ -485,19 +489,20 @@ class ModuleBuild(MBSBase):
 
     def mmd(self):
         from module_build_service.utils import load_mmd
+
         try:
             return load_mmd(self.modulemd)
         except Exception:
-            log.exception('An error occurred while trying to parse the modulemd')
+            log.exception("An error occurred while trying to parse the modulemd")
             raise ValueError("Invalid modulemd")
 
     @property
     def previous_non_failed_state(self):
         for trace in reversed(self.module_builds_trace):
-            if trace.state != BUILD_STATES['failed']:
+            if trace.state != BUILD_STATES["failed"]:
                 return trace.state
 
-    @validates('state')
+    @validates("state")
     def validate_state(self, key, field):
         if field in BUILD_STATES.values():
             return field
@@ -505,22 +510,22 @@ class ModuleBuild(MBSBase):
             return BUILD_STATES[field]
         raise ValueError("%s: %s, not in %r" % (key, field, BUILD_STATES))
 
-    @validates('rebuild_strategy')
+    @validates("rebuild_strategy")
     def validate_rebuild_stategy(self, key, rebuild_strategy):
         if rebuild_strategy not in self.rebuild_strategies.keys():
-            choices = ', '.join(self.rebuild_strategies.keys())
-            raise ValueError('The rebuild_strategy of "{0}" is invalid. Choose from: {1}'
-                             .format(rebuild_strategy, choices))
+            choices = ", ".join(self.rebuild_strategies.keys())
+            raise ValueError(
+                'The rebuild_strategy of "{0}" is invalid. Choose from: {1}'.format(
+                    rebuild_strategy, choices)
+            )
         return rebuild_strategy
 
     @classmethod
     def from_module_event(cls, session, event):
         if type(event) == module_build_service.messaging.MBSModule:
-            return session.query(cls).filter(
-                cls.id == event.module_build_id).first()
+            return session.query(cls).filter(cls.id == event.module_build_id).first()
         else:
-            raise ValueError("%r is not a module message."
-                             % type(event).__name__)
+            raise ValueError("%r is not a module message." % type(event).__name__)
 
     @staticmethod
     def contexts_from_mmd(mmd_str):
@@ -538,28 +543,31 @@ class ModuleBuild(MBSBase):
                  context hashes.
         """
         from module_build_service.utils import load_mmd
+
         try:
             mmd = load_mmd(mmd_str)
         except Exception:
             raise ValueError("Invalid modulemd")
-        mbs_xmd = mmd.get_xmd().get('mbs', {})
+        mbs_xmd = mmd.get_xmd().get("mbs", {})
         rv = []
 
         # Get the buildrequires from the XMD section, because it contains
         # all the buildrequires as we resolved them using dependency resolver.
         # We have to use keys because GLib.Variant doesn't support `in` directly.
         if "buildrequires" not in mbs_xmd.keys():
-            raise ValueError('The module\'s modulemd hasn\'t been formatted by MBS')
+            raise ValueError("The module's modulemd hasn't been formatted by MBS")
         mmd_formatted_buildrequires = {
-            dep: info['ref'] for dep, info in mbs_xmd["buildrequires"].items()}
+            dep: info["ref"] for dep, info in mbs_xmd["buildrequires"].items()
+        }
         property_json = json.dumps(OrderedDict(sorted(mmd_formatted_buildrequires.items())))
-        rv.append(hashlib.sha1(property_json.encode('utf-8')).hexdigest())
+        rv.append(hashlib.sha1(property_json.encode("utf-8")).hexdigest())
 
         # Get the streams of buildrequires and hash it.
         mmd_formatted_buildrequires = {
-            dep: info['stream'] for dep, info in mbs_xmd["buildrequires"].items()}
+            dep: info["stream"] for dep, info in mbs_xmd["buildrequires"].items()
+        }
         property_json = json.dumps(OrderedDict(sorted(mmd_formatted_buildrequires.items())))
-        build_context = hashlib.sha1(property_json.encode('utf-8')).hexdigest()
+        build_context = hashlib.sha1(property_json.encode("utf-8")).hexdigest()
         rv.append(build_context)
 
         # Get the requires from the real "dependencies" section in MMD.
@@ -571,29 +579,45 @@ class ModuleBuild(MBSBase):
                 mmd_requires[name] = mmd_requires[name].union(streams.get())
 
         # Sort the streams for each module name and also sort the module names.
-        mmd_requires = {
-            dep: sorted(list(streams)) for dep, streams in mmd_requires.items()}
+        mmd_requires = {dep: sorted(list(streams)) for dep, streams in mmd_requires.items()}
         property_json = json.dumps(OrderedDict(sorted(mmd_requires.items())))
-        runtime_context = hashlib.sha1(property_json.encode('utf-8')).hexdigest()
+        runtime_context = hashlib.sha1(property_json.encode("utf-8")).hexdigest()
         rv.append(runtime_context)
 
-        combined_hashes = '{0}:{1}'.format(build_context, runtime_context)
-        context = hashlib.sha1(combined_hashes.encode('utf-8')).hexdigest()[:8]
+        combined_hashes = "{0}:{1}".format(build_context, runtime_context)
+        context = hashlib.sha1(combined_hashes.encode("utf-8")).hexdigest()[:8]
         rv.append(context)
 
         return tuple(rv)
 
     @property
     def siblings(self):
-        query = self.query.filter_by(
-            name=self.name, stream=self.stream, version=self.version, scratch=self.scratch).options(
-            load_only('id')).filter(ModuleBuild.id != self.id)
+        query = (
+            self.query.filter_by(
+                name=self.name, stream=self.stream, version=self.version, scratch=self.scratch)
+            .options(load_only("id"))
+            .filter(ModuleBuild.id != self.id)
+        )
         return [build.id for build in query.all()]
 
     @classmethod
-    def create(cls, session, conf, name, stream, version, modulemd, scmurl, username,
-               context=None, rebuild_strategy=None, scratch=False, srpms=None,
-               publish_msg=True, **kwargs):
+    def create(
+        cls,
+        session,
+        conf,
+        name,
+        stream,
+        version,
+        modulemd,
+        scmurl,
+        username,
+        context=None,
+        rebuild_strategy=None,
+        scratch=False,
+        srpms=None,
+        publish_msg=True,
+        **kwargs
+    ):
         now = datetime.utcnow()
         module = cls(
             name=name,
@@ -624,14 +648,14 @@ class ModuleBuild(MBSBase):
         session.commit()
         if publish_msg:
             module_build_service.messaging.publish(
-                service='mbs',
-                topic='module.state.change',
+                service="mbs",
+                topic="module.state.change",
                 msg=module.json(show_tasks=False),  # Note the state is "init" here...
                 conf=conf,
             )
         return module
 
-    def transition(self, conf, state, state_reason=None, failure_type='unspec'):
+    def transition(self, conf, state, state_reason=None, failure_type="unspec"):
         """Record that a build has transitioned state.
 
         The history of state transitions are recorded in model
@@ -653,9 +677,9 @@ class ModuleBuild(MBSBase):
 
         from module_build_service.monitor import builder_success_counter, builder_failed_counter
 
-        if INVERSE_BUILD_STATES[self.state] in ['done', 'failed']:
+        if INVERSE_BUILD_STATES[self.state] in ["done", "failed"]:
             self.time_completed = now
-            if INVERSE_BUILD_STATES[self.state] == 'done':
+            if INVERSE_BUILD_STATES[self.state] == "done":
                 builder_success_counter.inc()
             else:
                 builder_failed_counter.labels(reason=failure_type).inc()
@@ -664,16 +688,14 @@ class ModuleBuild(MBSBase):
             self.state_reason = state_reason
 
         # record module's state change
-        mbt = ModuleBuildTrace(state_time=now,
-                               state=self.state,
-                               state_reason=state_reason)
+        mbt = ModuleBuildTrace(state_time=now, state=self.state, state_reason=state_reason)
         self.module_builds_trace.append(mbt)
 
         log.info("%r, state %r->%r" % (self, old_state, self.state))
         if old_state != self.state:
             module_build_service.messaging.publish(
-                service='mbs',
-                topic='module.state.change',
+                service="mbs",
+                topic="module.state.change",
                 msg=self.json(show_tasks=False),
                 conf=conf,
             )
@@ -697,14 +719,13 @@ class ModuleBuild(MBSBase):
             filters["name"] = name
         if stream:
             filters["stream"] = stream
-        local_modules = session.query(ModuleBuild).filter_by(
-            **filters).all()
+        local_modules = session.query(ModuleBuild).filter_by(**filters).all()
         if not local_modules:
             return []
 
-        local_modules = [m for m in local_modules
-                         if m.koji_tag and
-                         m.koji_tag.startswith(conf.mock_resultsdir)]
+        local_modules = [
+            m for m in local_modules if m.koji_tag and m.koji_tag.startswith(conf.mock_resultsdir)
+        ]
         return local_modules
 
     @classmethod
@@ -718,13 +739,15 @@ class ModuleBuild(MBSBase):
 
         There should be at most one.
         """
-        if event.repo_tag.endswith('-build'):
+        if event.repo_tag.endswith("-build"):
             tag = event.repo_tag[:-6]
         else:
             tag = event.repo_tag
-        query = session.query(cls)\
-            .filter(cls.koji_tag == tag)\
+        query = (
+            session.query(cls)
+            .filter(cls.koji_tag == tag)
             .filter(cls.state == BUILD_STATES["build"])
+        )
 
         count = query.count()
         if count > 1:
@@ -734,10 +757,12 @@ class ModuleBuild(MBSBase):
 
     @classmethod
     def from_tag_change_event(cls, session, event):
-        tag = event.tag[:-6] if event.tag.endswith('-build') else event.tag
-        query = session.query(cls)\
-            .filter(cls.koji_tag == tag)\
+        tag = event.tag[:-6] if event.tag.endswith("-build") else event.tag
+        query = (
+            session.query(cls)
+            .filter(cls.koji_tag == tag)
             .filter(cls.state == BUILD_STATES["build"])
+        )
 
         count = query.count()
         if count > 1:
@@ -747,43 +772,43 @@ class ModuleBuild(MBSBase):
 
     def short_json(self, show_stream_version=False):
         rv = {
-            'id': self.id,
-            'state': self.state,
-            'state_name': INVERSE_BUILD_STATES[self.state],
-            'stream': self.stream,
-            'version': self.version,
-            'name': self.name,
-            'context': self.context,
+            "id": self.id,
+            "state": self.state,
+            "state_name": INVERSE_BUILD_STATES[self.state],
+            "stream": self.stream,
+            "version": self.version,
+            "name": self.name,
+            "context": self.context,
         }
         if show_stream_version:
-            rv['stream_version'] = self.stream_version
+            rv["stream_version"] = self.stream_version
         return rv
 
     def json(self, show_tasks=True):
         mmd = self.mmd()
         xmd = from_variant_dict(mmd.get_xmd())
         try:
-            buildrequires = xmd['mbs']['buildrequires']
+            buildrequires = xmd["mbs"]["buildrequires"]
         except KeyError:
             buildrequires = {}
         rv = self.short_json()
         rv.update({
-            'component_builds': [build.id for build in self.component_builds],
-            'koji_tag': self.koji_tag,
-            'owner': self.owner,
-            'rebuild_strategy': self.rebuild_strategy,
-            'scmurl': self.scmurl,
-            'scratch': self.scratch,
-            'srpms': json.loads(self.srpms or '[]'),
-            'siblings': self.siblings,
-            'state_reason': self.state_reason,
-            'time_completed': _utc_datetime_to_iso(self.time_completed),
-            'time_modified': _utc_datetime_to_iso(self.time_modified),
-            'time_submitted': _utc_datetime_to_iso(self.time_submitted),
-            'buildrequires': buildrequires,
+            "component_builds": [build.id for build in self.component_builds],
+            "koji_tag": self.koji_tag,
+            "owner": self.owner,
+            "rebuild_strategy": self.rebuild_strategy,
+            "scmurl": self.scmurl,
+            "scratch": self.scratch,
+            "srpms": json.loads(self.srpms or "[]"),
+            "siblings": self.siblings,
+            "state_reason": self.state_reason,
+            "time_completed": _utc_datetime_to_iso(self.time_completed),
+            "time_modified": _utc_datetime_to_iso(self.time_modified),
+            "time_submitted": _utc_datetime_to_iso(self.time_submitted),
+            "buildrequires": buildrequires,
         })
         if show_tasks:
-            rv['tasks'] = self.tasks()
+            rv["tasks"] = self.tasks()
         return rv
 
     def extended_json(self, show_state_url=False, api_version=1):
@@ -797,25 +822,26 @@ class ModuleBuild(MBSBase):
         rv = self.json(show_tasks=True)
         state_url = None
         if show_state_url:
-            state_url = get_url_for('module_build', api_version=api_version, id=self.id)
+            state_url = get_url_for("module_build", api_version=api_version, id=self.id)
 
         rv.update({
-            'base_module_buildrequires': [br.short_json(True) for br in self.buildrequires],
-            'build_context': self.build_context,
-            'modulemd': self.modulemd,
-            'ref_build_context': self.ref_build_context,
-            'runtime_context': self.runtime_context,
-            'state_trace': [
+            "base_module_buildrequires": [br.short_json(True) for br in self.buildrequires],
+            "build_context": self.build_context,
+            "modulemd": self.modulemd,
+            "ref_build_context": self.ref_build_context,
+            "runtime_context": self.runtime_context,
+            "state_trace": [
                 {
-                    'time': _utc_datetime_to_iso(record.state_time),
-                    'state': record.state,
-                    'state_name': INVERSE_BUILD_STATES[record.state],
-                    'reason': record.state_reason
-                } for record in self.state_trace(self.id)
+                    "time": _utc_datetime_to_iso(record.state_time),
+                    "state": record.state,
+                    "state_name": INVERSE_BUILD_STATES[record.state],
+                    "reason": record.state_reason,
+                }
+                for record in self.state_trace(self.id)
             ],
-            'state_url': state_url,
-            'stream_version': self.stream_version,
-            'virtual_streams': [virtual_stream.name for virtual_stream in self.virtual_streams],
+            "state_url": state_url,
+            "stream_version": self.stream_version,
+            "virtual_streams": [virtual_stream.name for virtual_stream in self.virtual_streams],
         })
 
         return rv
@@ -825,11 +851,12 @@ class ModuleBuild(MBSBase):
         :return: dictionary containing the tasks associated with the build
         """
         tasks = dict()
-        if self.id and self.state != 'init':
-            for build in ComponentBuild.query\
-                    .filter_by(module_id=self.id)\
-                    .options(lazyload('module_build'))\
-                    .all():
+        if self.id and self.state != "init":
+            for build in (
+                ComponentBuild.query.filter_by(module_id=self.id)
+                .options(lazyload("module_build"))
+                .all()
+            ):
                 tasks[build.format] = tasks.get(build.format, {})
                 tasks[build.format][build.package] = dict(
                     task_id=build.task_id,
@@ -843,8 +870,11 @@ class ModuleBuild(MBSBase):
         return tasks
 
     def state_trace(self, module_id):
-        return ModuleBuildTrace.query.filter_by(
-            module_id=module_id).order_by(ModuleBuildTrace.state_time).all()
+        return (
+            ModuleBuildTrace.query.filter_by(module_id=module_id)
+            .order_by(ModuleBuildTrace.state_time)
+            .all()
+        )
 
     @staticmethod
     def get_stream_version(stream, right_pad=True):
@@ -861,7 +891,7 @@ class ModuleBuild(MBSBase):
         :rtype: float or None if the stream doesn't have a valid version
         """
         # The platform version (e.g. prefix1.2.0 => 010200)
-        version = ''
+        version = ""
         for char in stream:
             # See if the current character is an integer, signifying the version has started
             if char.isdigit():
@@ -870,19 +900,19 @@ class ModuleBuild(MBSBase):
             elif version:
                 # If the character is a period and the version is set, then
                 # the loop is still processing the version part of the stream
-                if char == '.':
-                    version += '.'
+                if char == ".":
+                    version += "."
                 # If the version is set and the character is not a period or
                 # digit, then the remainder of the stream is a suffix like "-beta"
                 else:
                     break
 
         # Remove the periods and pad the numbers if necessary
-        version = ''.join([section.zfill(2) for section in version.rstrip('.').split('.')])
+        version = "".join([section.zfill(2) for section in version.rstrip(".").split(".")])
 
         if version:
             if right_pad:
-                version += (6 - len(version)) * '0'
+                version += (6 - len(version)) * "0"
 
             result = float(version)
 
@@ -908,68 +938,79 @@ class ModuleBuild(MBSBase):
             for bm in conf.base_module_names:
                 # xmd is a GLib Variant and doesn't support .get() syntax
                 try:
-                    bm_dict = xmd['mbs']['buildrequires'].get(bm)
+                    bm_dict = xmd["mbs"]["buildrequires"].get(bm)
                 except KeyError:
-                    raise RuntimeError(
-                        'The module\'s mmd is missing information in the xmd section')
+                    raise RuntimeError("The module's mmd is missing information in the xmd section")
 
                 if not bm_dict:
                     continue
                 base_module = self.get_build_from_nsvc(
-                    db_session, bm, bm_dict['stream'], bm_dict['version'], bm_dict['context'])
+                    db_session, bm, bm_dict["stream"], bm_dict["version"], bm_dict["context"]
+                )
                 if not base_module:
-                    log.error('Module #{} buildrequires "{}" but it wasn\'t found in the database'
-                              .format(self.id, repr(bm_dict)))
+                    log.error(
+                        'Module #{} buildrequires "{}" but it wasn\'t found in the database'.format(
+                            self.id, repr(bm_dict))
+                    )
                     continue
                 rv.append(base_module)
 
         return rv
 
     def __repr__(self):
-        return (("<ModuleBuild %s, id=%d, stream=%s, version=%s, scratch=%r,"
-                 " state %r, batch %r, state_reason %r>")
-                % (self.name, self.id, self.stream, self.version, self.scratch,
-                   INVERSE_BUILD_STATES[self.state], self.batch, self.state_reason))
+        return (
+            "<ModuleBuild %s, id=%d, stream=%s, version=%s, scratch=%r,"
+            " state %r, batch %r, state_reason %r>"
+        ) % (
+            self.name,
+            self.id,
+            self.stream,
+            self.version,
+            self.scratch,
+            INVERSE_BUILD_STATES[self.state],
+            self.batch,
+            self.state_reason,
+        )
 
 
 class VirtualStream(MBSBase):
-    __tablename__ = 'virtual_streams'
+    __tablename__ = "virtual_streams"
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String, nullable=False, unique=True)
     module_builds = db.relationship(
-        'ModuleBuild',
-        secondary=module_builds_to_virtual_streams,
-        back_populates='virtual_streams',
+        "ModuleBuild", secondary=module_builds_to_virtual_streams, back_populates="virtual_streams"
     )
 
     def __repr__(self):
-        return '<VirtualStream id={} name={}>'.format(self.id, self.name)
+        return "<VirtualStream id={} name={}>".format(self.id, self.name)
 
 
 class ModuleBuildTrace(MBSBase):
     __tablename__ = "module_builds_trace"
     id = db.Column(db.Integer, primary_key=True)
-    module_id = db.Column(db.Integer, db.ForeignKey('module_builds.id'), nullable=False)
+    module_id = db.Column(db.Integer, db.ForeignKey("module_builds.id"), nullable=False)
     state_time = db.Column(db.DateTime, nullable=False)
     state = db.Column(db.Integer, nullable=True)
     state_reason = db.Column(db.String, nullable=True)
 
-    module_build = db.relationship('ModuleBuild', backref='module_builds_trace', lazy=False)
+    module_build = db.relationship("ModuleBuild", backref="module_builds_trace", lazy=False)
 
     def json(self):
         retval = {
-            'id': self.id,
-            'module_id': self.module_id,
-            'state_time': _utc_datetime_to_iso(self.state_time),
-            'state': self.state,
-            'state_reason': self.state_reason,
+            "id": self.id,
+            "module_id": self.module_id,
+            "state_time": _utc_datetime_to_iso(self.state_time),
+            "state": self.state,
+            "state_reason": self.state_reason,
         }
 
         return retval
 
     def __repr__(self):
-        return ("<ModuleBuildTrace %s, module_id: %s, state_time: %r, state: %s, state_reason: %s>"
-                % (self.id, self.module_id, self.state_time, self.state, self.state_reason))
+        return (
+            "<ModuleBuildTrace %s, module_id: %s, state_time: %r, state: %s, state_reason: %s>"
+            % (self.id, self.module_id, self.state_time, self.state, self.state_reason)
+        )
 
 
 class ComponentBuild(MBSBase):
@@ -1002,10 +1043,9 @@ class ComponentBuild(MBSBase):
     # component is not currently part of a batch.
     batch = db.Column(db.Integer, default=0)
 
-    module_id = db.Column(db.Integer, db.ForeignKey('module_builds.id'), nullable=False)
-    module_build = db.relationship('ModuleBuild', backref='component_builds', lazy=False)
-    reused_component_id = db.Column(
-        db.Integer, db.ForeignKey('component_builds.id'))
+    module_id = db.Column(db.Integer, db.ForeignKey("module_builds.id"), nullable=False)
+    module_build = db.relationship("ModuleBuild", backref="component_builds", lazy=False)
+    reused_component_id = db.Column(db.Integer, db.ForeignKey("component_builds.id"))
 
     # Weight defines the complexity of the component build as calculated by the builder's
     # get_build_weights function
@@ -1015,45 +1055,49 @@ class ComponentBuild(MBSBase):
     def from_component_event(cls, session, event):
         if isinstance(event, module_build_service.messaging.KojiBuildChange):
             if event.module_build_id:
-                return session.query(cls).filter_by(
-                    task_id=event.task_id, module_id=event.module_build_id)\
+                return (
+                    session.query(cls)
+                    .filter_by(task_id=event.task_id, module_id=event.module_build_id)
                     .one()
+                )
             else:
-                return session.query(cls).filter(
-                    cls.task_id == event.task_id).first()
+                return session.query(cls).filter(cls.task_id == event.task_id).first()
         else:
-            raise ValueError("%r is not a koji message." % event['topic'])
+            raise ValueError("%r is not a koji message." % event["topic"])
 
     @classmethod
     def from_component_name(cls, session, component_name, module_id):
-        return session.query(cls).filter_by(
-            package=component_name, module_id=module_id).first()
+        return session.query(cls).filter_by(package=component_name, module_id=module_id).first()
 
     @classmethod
     def from_component_nvr(cls, session, nvr, module_id):
         return session.query(cls).filter_by(nvr=nvr, module_id=module_id).first()
 
     def state_trace(self, component_id):
-        return ComponentBuildTrace.query.filter_by(
-            component_id=component_id).order_by(ComponentBuildTrace.state_time).all()
+        return (
+            ComponentBuildTrace.query.filter_by(component_id=component_id)
+            .order_by(ComponentBuildTrace.state_time)
+            .all()
+        )
 
     def json(self):
         retval = {
-            'id': self.id,
-            'package': self.package,
-            'format': self.format,
-            'task_id': self.task_id,
-            'state': self.state,
-            'state_reason': self.state_reason,
-            'module_build': self.module_id,
-            'nvr': self.nvr
+            "id": self.id,
+            "package": self.package,
+            "format": self.format,
+            "task_id": self.task_id,
+            "state": self.state,
+            "state_reason": self.state_reason,
+            "module_build": self.module_id,
+            "nvr": self.nvr,
         }
 
         try:
             # Koji is py2 only, so this fails if the main web process is
             # running on py3.
             import koji
-            retval['state_name'] = koji.BUILD_STATES.get(self.state)
+
+            retval["state_name"] = koji.BUILD_STATES.get(self.state)
         except ImportError:
             pass
 
@@ -1070,72 +1114,91 @@ class ComponentBuild(MBSBase):
         json = self.json()
         state_url = None
         if show_state_url:
-            state_url = get_url_for('component_build', api_version=api_version, id=self.id)
+            state_url = get_url_for("component_build", api_version=api_version, id=self.id)
         json.update({
-            'batch': self.batch,
-            'state_trace': [{'time': _utc_datetime_to_iso(record.state_time),
-                             'state': record.state,
-                             'state_name': INVERSE_BUILD_STATES[record.state],
-                             'reason': record.state_reason}
-                            for record
-                            in self.state_trace(self.id)],
-            'state_url': state_url
+            "batch": self.batch,
+            "state_trace": [
+                {
+                    "time": _utc_datetime_to_iso(record.state_time),
+                    "state": record.state,
+                    "state_name": INVERSE_BUILD_STATES[record.state],
+                    "reason": record.state_reason,
+                }
+                for record in self.state_trace(self.id)
+            ],
+            "state_url": state_url,
         })
 
         return json
 
     def __repr__(self):
         return "<ComponentBuild %s, %r, state: %r, task_id: %r, batch: %r, state_reason: %s>" % (
-            self.package, self.module_id, self.state, self.task_id, self.batch, self.state_reason)
+            self.package,
+            self.module_id,
+            self.state,
+            self.task_id,
+            self.batch,
+            self.state_reason,
+        )
 
 
 class ComponentBuildTrace(MBSBase):
     __tablename__ = "component_builds_trace"
     id = db.Column(db.Integer, primary_key=True)
-    component_id = db.Column(db.Integer, db.ForeignKey('component_builds.id'), nullable=False)
+    component_id = db.Column(db.Integer, db.ForeignKey("component_builds.id"), nullable=False)
     state_time = db.Column(db.DateTime, nullable=False)
     state = db.Column(db.Integer, nullable=True)
     state_reason = db.Column(db.String, nullable=True)
     task_id = db.Column(db.Integer, nullable=True)
 
-    component_build = db.relationship('ComponentBuild', backref='component_builds_trace',
-                                      lazy=False)
+    component_build = db.relationship(
+        "ComponentBuild", backref="component_builds_trace", lazy=False
+    )
 
     def json(self):
         retval = {
-            'id': self.id,
-            'component_id': self.component_id,
-            'state_time': _utc_datetime_to_iso(self.state_time),
-            'state': self.state,
-            'state_reason': self.state_reason,
-            'task_id': self.task_id,
+            "id": self.id,
+            "component_id": self.component_id,
+            "state_time": _utc_datetime_to_iso(self.state_time),
+            "state": self.state,
+            "state_reason": self.state_reason,
+            "task_id": self.task_id,
         }
 
         return retval
 
     def __repr__(self):
-        return ("<ComponentBuildTrace %s, component_id: %s, state_time: %r, state: %s,"
-                " state_reason: %s, task_id: %s>") % (self.id, self.component_id, self.state_time,
-                                                      self.state, self.state_reason, self.task_id)
+        return (
+            "<ComponentBuildTrace %s, component_id: %s, state_time: %r, state: %s,"
+            " state_reason: %s, task_id: %s>"
+        ) % (
+            self.id,
+            self.component_id,
+            self.state_time,
+            self.state,
+            self.state_reason,
+            self.task_id,
+        )
 
 
 def session_before_commit_handlers(session):
     # new and updated items
-    for item in (set(session.new) | set(session.dirty)):
+    for item in set(session.new) | set(session.dirty):
         # handlers for component builds
         if isinstance(item, ComponentBuild):
             cbt = ComponentBuildTrace(
                 state_time=datetime.utcnow(),
                 state=item.state,
                 state_reason=item.state_reason,
-                task_id=item.task_id)
+                task_id=item.task_id,
+            )
             # To fully support append, the hook must be tied to the session
             item.component_builds_trace.append(cbt)
 
 
-@sqlalchemy.event.listens_for(ModuleBuild, 'before_insert')
-@sqlalchemy.event.listens_for(ModuleBuild, 'before_update')
+@sqlalchemy.event.listens_for(ModuleBuild, "before_insert")
+@sqlalchemy.event.listens_for(ModuleBuild, "before_update")
 def new_and_update_module_handler(mapper, session, target):
     # Only modify time_modified if it wasn't explicitly set
-    if not db.inspect(target).get_history('time_modified', True).has_changes():
+    if not db.inspect(target).get_history("time_modified", True).has_changes():
         target.time_modified = datetime.utcnow()

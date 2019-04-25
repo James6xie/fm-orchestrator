@@ -60,11 +60,9 @@ def _expand_mse_streams(session, name, streams, default_streams, raise_if_stream
         if name in default_streams:
             expanded_streams = [default_streams[name]]
         elif raise_if_stream_ambigous:
-            raise StreamAmbigous(
-                "There are multiple streams to choose from for module %s." % name)
+            raise StreamAmbigous("There are multiple streams to choose from for module %s." % name)
         else:
-            builds = models.ModuleBuild.get_last_build_in_all_streams(
-                session, name)
+            builds = models.ModuleBuild.get_last_build_in_all_streams(session, name)
             expanded_streams = [build.stream for build in builds]
     else:
         expanded_streams = []
@@ -79,8 +77,10 @@ def _expand_mse_streams(session, name, streams, default_streams, raise_if_stream
         if name in default_streams:
             expanded_streams = [default_streams[name]]
         elif raise_if_stream_ambigous:
-            raise StreamAmbigous("There are multiple streams %r to choose from for module %s."
-                                 % (expanded_streams, name))
+            raise StreamAmbigous(
+                "There are multiple streams %r to choose from for module %s."
+                % (expanded_streams, name)
+            )
 
     return expanded_streams
 
@@ -102,23 +102,32 @@ def expand_mse_streams(session, mmd, default_streams=None, raise_if_stream_ambig
         expanded = {}
         for name, streams in deps.get_requires().items():
             streams_set = Modulemd.SimpleSet()
-            streams_set.set(_expand_mse_streams(
-                session, name, streams.get(), default_streams, raise_if_stream_ambigous))
+            streams_set.set(
+                _expand_mse_streams(
+                    session, name, streams.get(), default_streams, raise_if_stream_ambigous)
+            )
             expanded[name] = streams_set
         deps.set_requires(expanded)
 
         expanded = {}
         for name, streams in deps.get_buildrequires().items():
             streams_set = Modulemd.SimpleSet()
-            streams_set.set(_expand_mse_streams(
-                session, name, streams.get(), default_streams, raise_if_stream_ambigous))
+            streams_set.set(
+                _expand_mse_streams(
+                    session, name, streams.get(), default_streams, raise_if_stream_ambigous)
+            )
             expanded[name] = streams_set
         deps.set_buildrequires(expanded)
 
 
-def _get_mmds_from_requires(requires, mmds, recursive=False,
-                            default_streams=None, raise_if_stream_ambigous=False,
-                            base_module_mmds=None):
+def _get_mmds_from_requires(
+    requires,
+    mmds,
+    recursive=False,
+    default_streams=None,
+    raise_if_stream_ambigous=False,
+    base_module_mmds=None,
+):
     """
     Helper method for get_mmds_required_by_module_recursively returning
     the list of module metadata objects defined by `requires` dict.
@@ -153,8 +162,10 @@ def _get_mmds_from_requires(requires, mmds, recursive=False,
         if name in default_streams:
             streams_to_try = [default_streams[name]]
         elif len(streams_to_try) > 1 and raise_if_stream_ambigous:
-            raise StreamAmbigous("There are multiple streams %r to choose from for module %s."
-                                 % (streams_to_try, name))
+            raise StreamAmbigous(
+                "There are multiple streams %r to choose from for module %s."
+                % (streams_to_try, name)
+            )
 
         # For each valid stream, find the last build in a stream and also all
         # its contexts and add mmds of these builds to `mmds` and `added_mmds`.
@@ -170,10 +181,12 @@ def _get_mmds_from_requires(requires, mmds, recursive=False,
             if base_module_mmds:
                 for base_module_mmd in base_module_mmds:
                     base_module_nsvc = ":".join([
-                        base_module_mmd.get_name(), base_module_mmd.get_stream(),
-                        str(base_module_mmd.get_version()), base_module_mmd.get_context()])
-                    mmds[ns] += resolver.get_buildrequired_modulemds(
-                        name, stream, base_module_nsvc)
+                        base_module_mmd.get_name(),
+                        base_module_mmd.get_stream(),
+                        str(base_module_mmd.get_version()),
+                        base_module_mmd.get_context(),
+                    ])
+                    mmds[ns] += resolver.get_buildrequired_modulemds(name, stream, base_module_nsvc)
             else:
                 mmds[ns] = resolver.get_module_modulemds(name, stream, strict=True)
             added_mmds[ns] += mmds[ns]
@@ -262,7 +275,8 @@ def _get_base_module_mmds(mmd):
 
 
 def get_mmds_required_by_module_recursively(
-        mmd, default_streams=None, raise_if_stream_ambigous=False):
+    mmd, default_streams=None, raise_if_stream_ambigous=False
+):
     """
     Returns the list of Module metadata objects of all modules required while
     building the module defined by `mmd` module metadata. This presumes the
@@ -295,10 +309,11 @@ def get_mmds_required_by_module_recursively(
     # Get the MMDs of all compatible base modules based on the buildrequires.
     base_module_mmds = _get_base_module_mmds(mmd)
     if not base_module_mmds:
-        base_module_choices = ' or '.join(conf.base_module_names)
+        base_module_choices = " or ".join(conf.base_module_names)
         raise UnprocessableEntity(
             "None of the base module ({}) streams in the buildrequires section could be found"
-            .format(base_module_choices))
+            .format(base_module_choices)
+        )
 
     # Add base modules to `mmds`.
     for base_module in base_module_mmds:
@@ -309,23 +324,32 @@ def get_mmds_required_by_module_recursively(
     # Get all the buildrequires of the module of interest.
     for deps in mmd.get_dependencies():
         mmds = _get_mmds_from_requires(
-            deps.get_buildrequires(), mmds, False, default_streams,
-            raise_if_stream_ambigous, base_module_mmds)
+            deps.get_buildrequires(),
+            mmds,
+            False,
+            default_streams,
+            raise_if_stream_ambigous,
+            base_module_mmds,
+        )
 
     # Now get the requires of buildrequires recursively.
     for mmd_key in list(mmds.keys()):
         for mmd in mmds[mmd_key]:
             for deps in mmd.get_dependencies():
                 mmds = _get_mmds_from_requires(
-                    deps.get_requires(), mmds, True, default_streams,
-                    raise_if_stream_ambigous, base_module_mmds)
+                    deps.get_requires(),
+                    mmds,
+                    True,
+                    default_streams,
+                    raise_if_stream_ambigous,
+                    base_module_mmds,
+                )
 
     # Make single list from dict of lists.
     res = []
     for ns, mmds_list in mmds.items():
         if len(mmds_list) == 0:
-            raise UnprocessableEntity(
-                "Cannot find any module builds for %s" % (ns))
+            raise UnprocessableEntity("Cannot find any module builds for %s" % (ns))
         res += mmds_list
     return res
 
@@ -374,7 +398,8 @@ def generate_expanded_mmds(session, mmd, raise_if_stream_ambigous=False, default
     # Show log.info message with the NSVCs we have added to mmd_resolver.
     nsvcs_to_solve = [
         ":".join([m.get_name(), m.get_stream(), str(m.get_version()), str(m.get_context())])
-        for m in mmds_for_resolving]
+        for m in mmds_for_resolving
+    ]
     log.info("Starting resolving with following input modules: %r", nsvcs_to_solve)
 
     # Resolve the dependencies between modules and get the list of all valid
@@ -407,7 +432,7 @@ def generate_expanded_mmds(session, mmd, raise_if_stream_ambigous=False, default
         # Get the values for dependencies_id, self_nsvca and req_name_stream variables.
         for nsvca in requires:
             req_name, req_stream, _, req_context, req_arch = nsvca.split(":")
-            if req_arch == 'src':
+            if req_arch == "src":
                 assert req_name == current_mmd.get_name()
                 assert req_stream == current_mmd.get_stream()
                 assert dependencies_id is None
@@ -418,8 +443,9 @@ def generate_expanded_mmds(session, mmd, raise_if_stream_ambigous=False, default
             req_name_stream[req_name] = req_stream
         if dependencies_id is None or self_nsvca is None:
             raise RuntimeError(
-                "%s:%s not found in requires %r" % (
-                    current_mmd.get_name(), current_mmd.get_stream(), requires))
+                "%s:%s not found in requires %r"
+                % (current_mmd.get_name(), current_mmd.get_stream(), requires)
+            )
 
         # The name:[streams, ...] pairs do not have to be the same in both
         # buildrequires/requires. In case they are the same, we replace the streams
@@ -455,7 +481,7 @@ def generate_expanded_mmds(session, mmd, raise_if_stream_ambigous=False, default
                 new_dep.add_buildrequires(req_name, [req_name_stream[req_name]])
 
         # Set the new dependencies.
-        mmd_copy.set_dependencies((new_dep, ))
+        mmd_copy.set_dependencies((new_dep,))
 
         # The Modulemd.Dependencies() stores only streams, but to really build this
         # module, we need NSVC of buildrequires, so we have to store this data in XMD.
@@ -471,11 +497,11 @@ def generate_expanded_mmds(session, mmd, raise_if_stream_ambigous=False, default
             br_list.append(nsvc)
 
         # Resolve the buildrequires and store the result in XMD.
-        if 'mbs' not in xmd:
-            xmd['mbs'] = {}
+        if "mbs" not in xmd:
+            xmd["mbs"] = {}
         resolver = module_build_service.resolver.system_resolver
-        xmd['mbs']['buildrequires'] = resolver.resolve_requires(br_list)
-        xmd['mbs']['mse'] = True
+        xmd["mbs"]["buildrequires"] = resolver.resolve_requires(br_list)
+        xmd["mbs"]["mse"] = True
 
         mmd_copy.set_xmd(glib.dict_values(xmd))
 

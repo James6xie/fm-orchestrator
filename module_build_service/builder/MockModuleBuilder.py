@@ -43,7 +43,7 @@ from module_build_service.builder.utils import (
     create_local_repo_from_koji_tag,
     execute_cmd,
     find_srpm,
-    get_koji_config
+    get_koji_config,
 )
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
 
@@ -68,8 +68,7 @@ class MockModuleBuilder(GenericBuilder):
         except IOError:
             pass
     else:
-        raise IOError("None of {} mock config files found."
-                      .format(conf.mock_config_file))
+        raise IOError("None of {} mock config files found.".format(conf.mock_config_file))
 
     # Load yum config file template
     for cf in conf.yum_config_file:
@@ -80,10 +79,9 @@ class MockModuleBuilder(GenericBuilder):
         except IOError:
             pass
     else:
-        raise IOError("None of {} yum config files found."
-                      .format(conf.yum_config_file))
+        raise IOError("None of {} yum config files found.".format(conf.yum_config_file))
 
-    @module_build_service.utils.validate_koji_tag('tag_name')
+    @module_build_service.utils.validate_koji_tag("tag_name")
     def __init__(self, owner, module, config, tag_name, components):
         self.module_str = module.name
         self.module = module
@@ -101,8 +99,7 @@ class MockModuleBuilder(GenericBuilder):
             if arch_detected:
                 self.arch = arch_detected
             else:
-                log.warning("Couldn't determine machine arch. Falling back "
-                            "to configured arch.")
+                log.warning("Couldn't determine machine arch. Falling back to configured arch.")
                 self.arch = conf.arch_fallback
         else:
             self.arch = conf.arch_fallback
@@ -144,8 +141,8 @@ class MockModuleBuilder(GenericBuilder):
             for name in os.listdir(self.configdir):
                 os.remove(os.path.join(self.configdir, name))
 
-        log.info("MockModuleBuilder initialized, tag_name=%s, tag_dir=%s" %
-                 (tag_name, self.tag_dir))
+        log.info(
+            "MockModuleBuilder initialized, tag_name=%s, tag_dir=%s" % (tag_name, self.tag_dir))
 
     @property
     def module_build_tag(self):
@@ -175,18 +172,21 @@ class MockModuleBuilder(GenericBuilder):
         m1_mmd = self.module.mmd()
         artifacts = Modulemd.SimpleSet()
 
-        rpm_files = [f
-                     for f in os.listdir(self.resultsdir)
-                     if f.endswith(".rpm")]
+        rpm_files = [f for f in os.listdir(self.resultsdir) if f.endswith(".rpm")]
 
         if rpm_files:
-            output = subprocess.check_output(['rpm',
-                                              '--queryformat',
-                                              '%{NAME} %{EPOCHNUM} %{VERSION} %{RELEASE} %{ARCH}\n',
-                                              '-qp'] + rpm_files,
-                                             cwd=self.resultsdir,
-                                             universal_newlines=True)
-            nevras = output.strip().split('\n')
+            output = subprocess.check_output(
+                [
+                    "rpm",
+                    "--queryformat",
+                    "%{NAME} %{EPOCHNUM} %{VERSION} %{RELEASE} %{ARCH}\n",
+                    "-qp",
+                ]
+                + rpm_files,
+                cwd=self.resultsdir,
+                universal_newlines=True,
+            )
+            nevras = output.strip().split("\n")
             if len(nevras) != len(rpm_files):
                 raise RuntimeError("rpm -qp returned an unexpected number of lines")
 
@@ -198,20 +198,20 @@ class MockModuleBuilder(GenericBuilder):
                     if name in m1_mmd.get_rpm_filter().get():
                         continue
 
-                pkglist_f.write(rpm_file + '\n')
-                artifacts.add('{}-{}:{}-{}.{}'.format(name, epoch, version, release, arch))
+                pkglist_f.write(rpm_file + "\n")
+                artifacts.add("{}-{}:{}-{}.{}".format(name, epoch, version, release, arch))
 
         pkglist_f.close()
         m1_mmd.set_rpm_artifacts(artifacts)
 
         # Generate repo.
-        execute_cmd(['/usr/bin/createrepo_c', '--pkglist', pkglist, path])
+        execute_cmd(["/usr/bin/createrepo_c", "--pkglist", pkglist, path])
 
         # ...and inject modules.yaml there if asked.
         if include_module_yaml:
             mmd_path = os.path.join(path, "modules.yaml")
             m1_mmd.dump(mmd_path)
-            execute_cmd(['/usr/bin/modifyrepo_c', '--mdtype=modules', mmd_path, repodata_path])
+            execute_cmd(["/usr/bin/modifyrepo_c", "--mdtype=modules", mmd_path, repodata_path])
 
     def _add_repo(self, name, baseurl, extra=""):
         """
@@ -247,18 +247,18 @@ class MockModuleBuilder(GenericBuilder):
 
         with MockModuleBuilder._config_lock:
             infile = os.path.join(self.configdir, "mock.cfg")
-            with open(infile, 'r') as f:
+            with open(infile, "r") as f:
                 # This looks scary, but it is the way how mock itself loads the
                 # config file ...
                 config_opts = {}
-                code = compile(f.read(), infile, 'exec')
+                code = compile(f.read(), infile, "exec")
                 # pylint: disable=exec-used
                 exec(code)
 
                 self.groups = config_opts["chroot_setup_cmd"].split(" ")[1:]
-                self.yum_conf = config_opts['yum.conf']
-                self.enabled_modules = config_opts['module_enable']
-                self.releasever = config_opts['releasever']
+                self.yum_conf = config_opts["yum.conf"]
+                self.enabled_modules = config_opts["module_enable"]
+                self.releasever = config_opts["releasever"]
 
     def _write_mock_config(self):
         """
@@ -267,8 +267,8 @@ class MockModuleBuilder(GenericBuilder):
 
         with MockModuleBuilder._config_lock:
             config = str(MockModuleBuilder.mock_config_template)
-            config = config.replace("$root", "%s-%s" % (self.tag_name,
-                                                        str(threading.current_thread().name)))
+            config = config.replace(
+                "$root", "%s-%s" % (self.tag_name, str(threading.current_thread().name)))
             config = config.replace("$arch", self.arch)
             config = config.replace("$group", " ".join(self.groups))
             config = config.replace("$yum_conf", self.yum_conf)
@@ -278,13 +278,13 @@ class MockModuleBuilder(GenericBuilder):
             # We write the most recent config to "mock.cfg", so thread-related
             # configs can be later (re-)generated from it using _load_mock_config.
             outfile = os.path.join(self.configdir, "mock.cfg")
-            with open(outfile, 'w') as f:
+            with open(outfile, "w") as f:
                 f.write(config)
 
             # Write the config to thread-related configuration file.
-            outfile = os.path.join(self.configdir, "mock-%s.cfg" %
-                                   str(threading.current_thread().name))
-            with open(outfile, 'w') as f:
+            outfile = os.path.join(
+                self.configdir, "mock-%s.cfg" % str(threading.current_thread().name))
+            with open(outfile, "w") as f:
                 f.write(config)
 
     def buildroot_connect(self, groups):
@@ -319,6 +319,7 @@ class MockModuleBuilder(GenericBuilder):
                 self._write_mock_config()
 
         from module_build_service.scheduler.consumer import fake_repo_done_message
+
         fake_repo_done_message(self.tag_name)
 
     def tag_artifacts(self, artifacts):
@@ -361,11 +362,11 @@ class MockModuleBuilder(GenericBuilder):
                 repo = koji_session.getRepo(repo_name)
                 if repo:
                     baseurl = koji.PathInfo(topdir=koji_config.topurl).repo(repo["id"], repo_name)
-                    baseurl = '{0}/{1}/'.format(baseurl, self.arch)
+                    baseurl = "{0}/{1}/".format(baseurl, self.arch)
                 else:
                     repo_dir = os.path.join(self.config.cache_dir, "koji_tags", tag)
-                    create_local_repo_from_koji_tag(self.config, tag, repo_dir,
-                                                    [self.arch, "noarch"])
+                    create_local_repo_from_koji_tag(
+                        self.config, tag, repo_dir, [self.arch, "noarch"])
                     baseurl = "file://" + repo_dir
                 # Check to see if there are any external repos tied to the tag
                 for ext_repo in koji_session.getTagExternalRepos(repo_name):
@@ -382,13 +383,13 @@ class MockModuleBuilder(GenericBuilder):
         # build_id=1 and task_id=1 are OK here, because we are building just
         # one RPM at the time.
         msg = module_build_service.messaging.KojiBuildChange(
-            msg_id='a faked internal message',
+            msg_id="a faked internal message",
             build_id=build_id,
             task_id=build_id,
             build_name=nvr["name"],
             build_new_state=state,
             build_release=nvr["release"],
-            build_version=nvr["version"]
+            build_version=nvr["version"],
         )
         module_build_service.scheduler.consumer.work_queue_put(msg)
 
@@ -411,7 +412,7 @@ class MockModuleBuilder(GenericBuilder):
                 os.remove(log_path)
 
             # Remove other files containing useless information
-            elif logf.endswith('-srpm-stdout.log'):
+            elif logf.endswith("-srpm-stdout.log"):
                 with open(log_path) as f:
                     data = f.read(4096)
                     if re.match("Downloading [^\n]*\n\n\nWrote: [^\n]", data):
@@ -421,24 +422,27 @@ class MockModuleBuilder(GenericBuilder):
         """
         Builds the artifact from the SRPM.
         """
-        state = koji.BUILD_STATES['BUILDING']
+        state = koji.BUILD_STATES["BUILDING"]
 
         # Use the mock config associated with this thread.
-        mock_config = os.path.join(self.configdir,
-                                   "mock-%s.cfg" % str(threading.current_thread().name))
+        mock_config = os.path.join(
+            self.configdir, "mock-%s.cfg" % str(threading.current_thread().name))
 
         # Open the logs to which we will forward mock stdout/stderr.
-        mock_stdout_log = open(os.path.join(self.resultsdir,
-                                            artifact_name + "-mock-stdout.log"), "w")
-        mock_stderr_log = open(os.path.join(self.resultsdir,
-                                            artifact_name + "-mock-stderr.log"), "w")
+        mock_stdout_log = open(
+            os.path.join(self.resultsdir, artifact_name + "-mock-stdout.log"), "w")
+        mock_stderr_log = open(
+            os.path.join(self.resultsdir, artifact_name + "-mock-stderr.log"), "w")
 
         srpm = artifact_name
         resultsdir = builder.resultsdir
         try:
             # Initialize mock.
-            execute_cmd(["mock", "-v", "-r", mock_config, "--init"],
-                        stdout=mock_stdout_log, stderr=mock_stderr_log)
+            execute_cmd(
+                ["mock", "-v", "-r", mock_config, "--init"],
+                stdout=mock_stdout_log,
+                stderr=mock_stderr_log,
+            )
 
             # Start the build and store results to resultsdir
             builder.build(mock_stdout_log, mock_stderr_log)
@@ -448,23 +452,21 @@ class MockModuleBuilder(GenericBuilder):
             # are put in the scheduler's work queue and are handled
             # by MBS after the build_srpm() method returns and scope gets
             # back to scheduler.main.main() method.
-            state = koji.BUILD_STATES['COMPLETE']
+            state = koji.BUILD_STATES["COMPLETE"]
             self._send_build_change(state, srpm, build_id)
 
-            with open(os.path.join(resultsdir, "status.log"), 'w') as f:
+            with open(os.path.join(resultsdir, "status.log"), "w") as f:
                 f.write("complete\n")
         except Exception as e:
-            log.error("Error while building artifact %s: %s" % (artifact_name,
-                                                                str(e)))
+            log.error("Error while building artifact %s: %s" % (artifact_name, str(e)))
 
             # Emit messages simulating complete build. These messages
             # are put in the scheduler's work queue and are handled
             # by MBS after the build_srpm() method returns and scope gets
             # back to scheduler.main.main() method.
-            state = koji.BUILD_STATES['FAILED']
-            self._send_build_change(state, srpm,
-                                    build_id)
-            with open(os.path.join(resultsdir, "status.log"), 'w') as f:
+            state = koji.BUILD_STATES["FAILED"]
+            self._send_build_change(state, srpm, build_id)
+            with open(os.path.join(resultsdir, "status.log"), "w") as f:
                 f.write("failed\n")
 
         mock_stdout_log.close()
@@ -493,7 +495,7 @@ class MockModuleBuilder(GenericBuilder):
         # already in repository ready to be used. This is not a case for Mock
         # backend in the time we return here.
         reason = "Building %s in Mock" % (artifact_name)
-        return build_id, koji.BUILD_STATES['BUILDING'], reason, None
+        return build_id, koji.BUILD_STATES["BUILDING"], reason, None
 
     def build(self, artifact_name, source):
         log.info("Starting building artifact %s: %s" % (artifact_name, source))
@@ -502,8 +504,8 @@ class MockModuleBuilder(GenericBuilder):
         # generate the thread-specific mock config by writing it to fs again.
         self._load_mock_config()
         self._write_mock_config()
-        mock_config = os.path.join(self.configdir, "mock-%s.cfg"
-                                   % str(threading.current_thread().name))
+        mock_config = os.path.join(
+            self.configdir, "mock-%s.cfg" % str(threading.current_thread().name))
 
         # Get the build-id in thread-safe manner.
         build_id = None
@@ -513,15 +515,14 @@ class MockModuleBuilder(GenericBuilder):
 
         # Clear resultsdir associated with this thread or in case it does not
         # exist, create it.
-        resultsdir = os.path.join(self.resultsdir,
-                                  str(threading.current_thread().name))
+        resultsdir = os.path.join(self.resultsdir, str(threading.current_thread().name))
         if os.path.exists(resultsdir):
             for name in os.listdir(resultsdir):
                 os.remove(os.path.join(resultsdir, name))
         else:
             os.makedirs(resultsdir)
 
-        if source.endswith('.src.rpm'):
+        if source.endswith(".src.rpm"):
             builder = SRPMBuilder(mock_config, resultsdir, source)
         else:
             # Otherwise, assume we're building from some scm repo
@@ -536,7 +537,7 @@ class MockModuleBuilder(GenericBuilder):
     def cancel_build(self, task_id):
         pass
 
-    def list_tasks_for_components(self, component_builds=None, state='active'):
+    def list_tasks_for_components(self, component_builds=None, state="active"):
         pass
 
     def repo_from_tag(cls, config, tag_name, arch):
@@ -557,8 +558,7 @@ class MockModuleBuilder(GenericBuilder):
         """
         with models.make_session(conf) as db_session:
             build = models.ModuleBuild.get_build_from_nsvc(
-                db_session, mmd.get_name(), mmd.get_stream(), mmd.get_version(),
-                mmd.get_context())
+                db_session, mmd.get_name(), mmd.get_stream(), mmd.get_version(), mmd.get_context())
             if build.koji_tag.startswith("repofile://"):
                 # Modules from local repository have already the RPMs filled in mmd.
                 return list(mmd.get_rpm_artifacts().get())
@@ -573,9 +573,7 @@ class BaseBuilder(object):
     def __init__(self, config, resultsdir):
         self.config = config
         self.resultsdir = resultsdir
-        self.cmd = ["mock", "-v", "-r", config,
-                    "--no-clean",
-                    "--resultdir=%s" % resultsdir]
+        self.cmd = ["mock", "-v", "-r", config, "--no-clean", "--resultdir=%s" % resultsdir]
 
     def build(self, stdout, stderr):
         execute_cmd(self.cmd, stdout=stdout, stderr=stderr)
@@ -602,24 +600,20 @@ class SCMBuilder(BaseBuilder):
             # See https://bugzilla.redhat.com/show_bug.cgi?id=1459437 for
             # more info. Once mock-scm supports this feature, we can remove
             # this code.
-            distgit_get_branch = \
-                "sh -c {}'; git -C {} checkout {}'".format(pipes.quote(distgit_get),
-                                                           artifact_name,
-                                                           branch)
+            distgit_get_branch = "sh -c {}'; git -C {} checkout {}'".format(
+                pipes.quote(distgit_get), artifact_name, branch)
 
             f.writelines([
                 "config_opts['scm'] = True\n",
                 "config_opts['scm_opts']['method'] = 'distgit'\n",
-                "config_opts['scm_opts']['package'] = '{}'\n".format(
-                    artifact_name),
-                "config_opts['scm_opts']['distgit_get'] = {!r}\n".format(
-                    distgit_get_branch),
+                "config_opts['scm_opts']['package'] = '{}'\n".format(artifact_name),
+                "config_opts['scm_opts']['distgit_get'] = {!r}\n".format(distgit_get_branch),
             ])
 
             # Set distgit_src_get only if it's defined.
             if distgit_cmds[1]:
-                f.write("config_opts['scm_opts']['distgit_src_get'] = '{}'\n".format(
-                    distgit_cmds[1]))
+                f.write(
+                    "config_opts['scm_opts']['distgit_src_get'] = '{}'\n".format(distgit_cmds[1]))
 
             # The local git repositories cloned by `fedpkg clone` typically do not have
             # the tarballs with sources committed in a git repo. They normally live in lookaside
@@ -633,7 +627,7 @@ class SCMBuilder(BaseBuilder):
 
     def _make_executable(self, path):
         mode = os.stat(path).st_mode
-        mode |= (mode & 0o444) >> 2    # copy R bits to X
+        mode |= (mode & 0o444) >> 2  # copy R bits to X
         os.chmod(path, mode)
 
     def _get_distgit_commands(self, source):
@@ -658,6 +652,6 @@ class SCMBuilder(BaseBuilder):
                 # let's return 0.0 so the type is consistent
                 return self.koji_session.getAverageBuildDuration(component.package) or 0.0
             except Exception:
-                log.debug('The Koji call to getAverageBuildDuration failed. Is Koji properly '
-                          'configured?')
+                log.debug(
+                    "The Koji call to getAverageBuildDuration failed. Is Koji properly configured?")
                 return 0.0

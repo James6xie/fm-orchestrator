@@ -55,8 +55,8 @@ def read_staged_data(yaml_name):
     """
     filename = os.path.join(base_dir, "staged_data", "{}.yaml".format(yaml_name))
     if not os.path.exists(filename):
-        raise ValueError('Staged data {}.yaml does not exist.'.format(yaml_name))
-    with open(filename, 'r') as mmd:
+        raise ValueError("Staged data {}.yaml does not exist.".format(yaml_name))
+    with open(filename, "r") as mmd:
         return to_text_type(mmd.read())
 
 
@@ -64,7 +64,7 @@ def patch_config():
     # add test builders for all resolvers
     with_test_builders = dict()
     for k, v in module_build_service.config.SUPPORTED_RESOLVERS.items():
-        v['builders'].extend(['test', 'testlocal'])
+        v["builders"].extend(["test", "testlocal"])
         with_test_builders[k] = v
     patch("module_build_service.config.SUPPORTED_RESOLVERS", with_test_builders)
 
@@ -108,7 +108,7 @@ def clean_database(add_platform_module=True):
     db.drop_all()
     db.create_all()
     if add_platform_module:
-        mmd = load_mmd_file(os.path.join(base_dir, 'staged_data', 'platform.yaml'))
+        mmd = load_mmd_file(os.path.join(base_dir, "staged_data", "platform.yaml"))
         import_mmd(db.session, mmd)
 
 
@@ -124,7 +124,7 @@ def init_data(data_size=10, contexts=False, multiple_stream_versions=False, scra
     """
     clean_database()
     if multiple_stream_versions:
-        mmd = load_mmd_file(os.path.join(base_dir, 'staged_data', 'platform.yaml'))
+        mmd = load_mmd_file(os.path.join(base_dir, "staged_data", "platform.yaml"))
         for stream in ["f28.0.0", "f29.0.0", "f29.1.0", "f29.2.0"]:
             mmd.set_name("platform")
             mmd.set_stream(stream)
@@ -132,7 +132,7 @@ def init_data(data_size=10, contexts=False, multiple_stream_versions=False, scra
             # Set the virtual_streams based on "fXY" to mark the platform streams
             # with the same major stream_version compatible.
             xmd = glib.from_variant_dict(mmd.get_xmd())
-            xmd['mbs']['virtual_streams'] = [stream[:3]]
+            xmd["mbs"]["virtual_streams"] = [stream[:3]]
             mmd.set_xmd(glib.dict_values(xmd))
             import_mmd(db.session, mmd)
 
@@ -149,33 +149,37 @@ def _populate_data(session, data_size=10, contexts=False, scratch=False):
     for index in range(data_size):
         for context in range(num_contexts):
             build_one = ModuleBuild(
-                name='nginx',
-                stream='1',
+                name="nginx",
+                stream="1",
                 version=2 + index,
-                state=BUILD_STATES['ready'],
+                state=BUILD_STATES["ready"],
                 scratch=scratch,
-                modulemd=read_staged_data('nginx_mmd'),
-                koji_tag='scrmod-nginx-1.2' if scratch else 'module-nginx-1.2',
-                scmurl='git://pkgs.domain.local/modules/nginx'
-                       '?#ba95886c7a443b36a9ce31abda1f9bef22f2f8c9',
+                modulemd=read_staged_data("nginx_mmd"),
+                koji_tag="scrmod-nginx-1.2" if scratch else "module-nginx-1.2",
+                scmurl="git://pkgs.domain.local/modules/nginx"
+                       "?#ba95886c7a443b36a9ce31abda1f9bef22f2f8c9",
                 batch=2,
                 # https://www.youtube.com/watch?v=iQGwrK_yDEg,
-                owner='Moe Szyslak',
+                owner="Moe Szyslak",
                 time_submitted=datetime(2016, 9, 3, 11, 23, 20) + timedelta(minutes=(index * 10)),
                 time_modified=datetime(2016, 9, 3, 11, 25, 32) + timedelta(minutes=(index * 10)),
                 time_completed=datetime(2016, 9, 3, 11, 25, 32) + timedelta(minutes=(index * 10)),
-                rebuild_strategy='changed-and-after',
+                rebuild_strategy="changed-and-after",
             )
 
             if contexts:
                 build_one.stream = str(index)
-                unique_hash = hashlib.sha1(("%s:%s:%d:%d" % (
-                    build_one.name, build_one.stream, build_one.version,
-                    context)).encode("utf-8")).hexdigest()
+                nsvc = "{}:{}:{}:{}".format(
+                    build_one.name,
+                    build_one.stream,
+                    build_one.version,
+                    context
+                )
+                unique_hash = hashlib.sha1(nsvc.encode('utf-8')).hexdigest()
                 build_one.build_context = unique_hash
                 build_one.runtime_context = unique_hash
                 build_one.ref_build_context = unique_hash
-                combined_hashes = '{0}:{1}'.format(unique_hash, unique_hash)
+                combined_hashes = "{0}:{1}".format(unique_hash, unique_hash)
                 build_one.context = hashlib.sha1(combined_hashes.encode("utf-8")).hexdigest()[:8]
 
             session.add(build_one)
@@ -183,13 +187,13 @@ def _populate_data(session, data_size=10, contexts=False, scratch=False):
             build_one_component_release = get_rpm_release(build_one)
 
             component_one_build_one = ComponentBuild(
-                package='nginx',
-                scmurl='git://pkgs.domain.local/rpms/nginx?'
-                       '#ga95886c8a443b36a9ce31abda1f9bed22f2f8c3',
-                format='rpms',
+                package="nginx",
+                scmurl="git://pkgs.domain.local/rpms/nginx?"
+                       "#ga95886c8a443b36a9ce31abda1f9bed22f2f8c3",
+                format="rpms",
                 task_id=12312345 + index,
-                state=koji.BUILD_STATES['COMPLETE'],
-                nvr='nginx-1.10.1-2.{0}'.format(build_one_component_release),
+                state=koji.BUILD_STATES["COMPLETE"],
+                nvr="nginx-1.10.1-2.{0}".format(build_one_component_release),
                 batch=1,
                 module_id=2 + index * 3,
                 tagged=True,
@@ -197,13 +201,13 @@ def _populate_data(session, data_size=10, contexts=False, scratch=False):
             )
 
             component_two_build_one = ComponentBuild(
-                package='module-build-macros',
-                scmurl='/tmp/module_build_service-build-macrosWZUPeK/SRPMS/'
-                       'module-build-macros-0.1-1.module_nginx_1_2.src.rpm',
-                format='rpms',
+                package="module-build-macros",
+                scmurl="/tmp/module_build_service-build-macrosWZUPeK/SRPMS/"
+                       "module-build-macros-0.1-1.module_nginx_1_2.src.rpm",
+                format="rpms",
                 task_id=12312321 + index,
-                state=koji.BUILD_STATES['COMPLETE'],
-                nvr='module-build-macros-01-1.{0}'.format(build_one_component_release),
+                state=koji.BUILD_STATES["COMPLETE"],
+                nvr="module-build-macros-01-1.{0}".format(build_one_component_release),
                 batch=2,
                 module_id=2 + index * 3,
                 tagged=True,
@@ -211,21 +215,21 @@ def _populate_data(session, data_size=10, contexts=False, scratch=False):
             )
 
         build_two = ModuleBuild(
-            name='postgressql',
-            stream='1',
+            name="postgressql",
+            stream="1",
             version=2 + index,
-            state=BUILD_STATES['done'],
+            state=BUILD_STATES["done"],
             scratch=scratch,
-            modulemd=read_staged_data('testmodule'),
-            koji_tag='scrmod-postgressql-1.2' if scratch else 'module-postgressql-1.2',
-            scmurl='git://pkgs.domain.local/modules/postgressql'
-                   '?#aa95886c7a443b36a9ce31abda1f9bef22f2f8c9',
+            modulemd=read_staged_data("testmodule"),
+            koji_tag="scrmod-postgressql-1.2" if scratch else "module-postgressql-1.2",
+            scmurl="git://pkgs.domain.local/modules/postgressql"
+                   "?#aa95886c7a443b36a9ce31abda1f9bef22f2f8c9",
             batch=2,
-            owner='some_user',
+            owner="some_user",
             time_submitted=datetime(2016, 9, 3, 12, 25, 33) + timedelta(minutes=(index * 10)),
             time_modified=datetime(2016, 9, 3, 12, 27, 19) + timedelta(minutes=(index * 10)),
             time_completed=datetime(2016, 9, 3, 11, 27, 19) + timedelta(minutes=(index * 10)),
-            rebuild_strategy='changed-and-after',
+            rebuild_strategy="changed-and-after",
         )
 
         session.add(build_two)
@@ -233,13 +237,13 @@ def _populate_data(session, data_size=10, contexts=False, scratch=False):
         build_two_component_release = get_rpm_release(build_two)
 
         component_one_build_two = ComponentBuild(
-            package='postgresql',
-            scmurl='git://pkgs.domain.local/rpms/postgresql'
-                   '?#dc95586c4a443b26a9ce38abda1f9bed22f2f8c3',
-            format='rpms',
+            package="postgresql",
+            scmurl="git://pkgs.domain.local/rpms/postgresql"
+                   "?#dc95586c4a443b26a9ce38abda1f9bed22f2f8c3",
+            format="rpms",
             task_id=2433433 + index,
-            state=koji.BUILD_STATES['COMPLETE'],
-            nvr='postgresql-9.5.3-4.{0}'.format(build_two_component_release),
+            state=koji.BUILD_STATES["COMPLETE"],
+            nvr="postgresql-9.5.3-4.{0}".format(build_two_component_release),
             batch=2,
             module_id=3 + index * 3,
             tagged=True,
@@ -247,58 +251,58 @@ def _populate_data(session, data_size=10, contexts=False, scratch=False):
         )
 
         component_two_build_two = ComponentBuild(
-            package='module-build-macros',
-            scmurl='/tmp/module_build_service-build-macrosWZUPeK/SRPMS/'
-                   'module-build-macros-0.1-1.module_postgresql_1_2.src.rpm',
-            format='rpms',
+            package="module-build-macros",
+            scmurl="/tmp/module_build_service-build-macrosWZUPeK/SRPMS/"
+                   "module-build-macros-0.1-1.module_postgresql_1_2.src.rpm",
+            format="rpms",
             task_id=47383993 + index,
-            state=koji.BUILD_STATES['COMPLETE'],
-            nvr='module-build-macros-01-1.{0}'.format(build_two_component_release),
+            state=koji.BUILD_STATES["COMPLETE"],
+            nvr="module-build-macros-01-1.{0}".format(build_two_component_release),
             batch=1,
             module_id=3 + index * 3,
         )
 
         build_three = ModuleBuild(
-            name='testmodule',
-            stream='4.3.43',
+            name="testmodule",
+            stream="4.3.43",
             version=6 + index,
-            state=BUILD_STATES['wait'],
+            state=BUILD_STATES["wait"],
             scratch=scratch,
-            modulemd=read_staged_data('testmodule'),
+            modulemd=read_staged_data("testmodule"),
             koji_tag=None,
-            scmurl='git://pkgs.domain.local/modules/testmodule'
-                   '?#ca95886c7a443b36a9ce31abda1f9bef22f2f8c9',
+            scmurl="git://pkgs.domain.local/modules/testmodule"
+                   "?#ca95886c7a443b36a9ce31abda1f9bef22f2f8c9",
             batch=0,
-            owner='some_other_user',
+            owner="some_other_user",
             time_submitted=datetime(2016, 9, 3, 12, 28, 33) + timedelta(minutes=(index * 10)),
             time_modified=datetime(2016, 9, 3, 12, 28, 40) + timedelta(minutes=(index * 10)),
             time_completed=None,
-            rebuild_strategy='changed-and-after',
+            rebuild_strategy="changed-and-after",
         )
         session.add(build_three)
         session.commit()
         build_three_component_release = get_rpm_release(build_three)
 
         component_one_build_three = ComponentBuild(
-            package='rubygem-rails',
-            scmurl='git://pkgs.domain.local/rpms/rubygem-rails'
-                   '?#dd55886c4a443b26a9ce38abda1f9bed22f2f8c3',
-            format='rpms',
+            package="rubygem-rails",
+            scmurl="git://pkgs.domain.local/rpms/rubygem-rails"
+                   "?#dd55886c4a443b26a9ce38abda1f9bed22f2f8c3",
+            format="rpms",
             task_id=2433433 + index,
-            state=koji.BUILD_STATES['FAILED'],
-            nvr='postgresql-9.5.3-4.{0}'.format(build_three_component_release),
+            state=koji.BUILD_STATES["FAILED"],
+            nvr="postgresql-9.5.3-4.{0}".format(build_three_component_release),
             batch=2,
             module_id=4 + index * 3,
         )
 
         component_two_build_three = ComponentBuild(
-            package='module-build-macros',
-            scmurl='/tmp/module_build_service-build-macrosWZUPeK/SRPMS/'
-                   'module-build-macros-0.1-1.module_testmodule_1_2.src.rpm',
-            format='rpms',
+            package="module-build-macros",
+            scmurl="/tmp/module_build_service-build-macrosWZUPeK/SRPMS/"
+                   "module-build-macros-0.1-1.module_testmodule_1_2.src.rpm",
+            format="rpms",
             task_id=47383993 + index,
-            state=koji.BUILD_STATES['COMPLETE'],
-            nvr='module-build-macros-01-1.{0}'.format(build_three_component_release),
+            state=koji.BUILD_STATES["COMPLETE"],
+            nvr="module-build-macros-01-1.{0}".format(build_three_component_release),
             batch=1,
             module_id=4 + index * 3,
             tagged=True,
@@ -321,31 +325,31 @@ def scheduler_init_data(tangerine_state=None, scratch=False):
 
     current_dir = os.path.dirname(__file__)
     formatted_testmodule_yml_path = os.path.join(
-        current_dir, 'staged_data', 'formatted_testmodule.yaml')
+        current_dir, "staged_data", "formatted_testmodule.yaml")
     mmd = load_mmd_file(formatted_testmodule_yml_path)
-    mmd.get_rpm_components()['tangerine'].set_buildorder(0)
+    mmd.get_rpm_components()["tangerine"].set_buildorder(0)
 
     platform_br = module_build_service.models.ModuleBuild.query.get(1)
 
     module_build = module_build_service.models.ModuleBuild(
-        name='testmodule',
-        stream='master',
+        name="testmodule",
+        stream="master",
         version=20170109091357,
-        state=BUILD_STATES['build'],
+        state=BUILD_STATES["build"],
         scratch=scratch,
-        build_context='ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0',
-        runtime_context='ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0',
-        context='7c29193d',
-        koji_tag='scrmod-testmodule-master-20170109091357-7c29193d'
-                 if scratch else
-                 'module-testmodule-master-20170109091357-7c29193d',
-        scmurl='https://src.stg.fedoraproject.org/modules/testmodule.git?#ff1ea79',
+        build_context="ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0",
+        runtime_context="ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0",
+        context="7c29193d",
+        koji_tag="scrmod-testmodule-master-20170109091357-7c29193d"
+                 if scratch
+                 else "module-testmodule-master-20170109091357-7c29193d",
+        scmurl="https://src.stg.fedoraproject.org/modules/testmodule.git?#ff1ea79",
         batch=3 if tangerine_state else 2,
         # https://www.youtube.com/watch?v=iOKymYVSaJE
-        owner='Buzz Lightyear',
+        owner="Buzz Lightyear",
         time_submitted=datetime(2017, 2, 15, 16, 8, 18),
         time_modified=datetime(2017, 2, 15, 16, 19, 35),
-        rebuild_strategy='changed-and-after',
+        rebuild_strategy="changed-and-after",
         modulemd=to_text_type(mmd.dumps()),
     )
 
@@ -354,53 +358,54 @@ def scheduler_init_data(tangerine_state=None, scratch=False):
 
     module_build.component_builds.extend([
         module_build_service.models.ComponentBuild(
-            package='perl-Tangerine',
-            scmurl='https://src.fedoraproject.org/rpms/perl-Tangerine'
-                   '?#4ceea43add2366d8b8c5a622a2fb563b625b9abf',
-            format='rpms',
+            package="perl-Tangerine",
+            scmurl="https://src.fedoraproject.org/rpms/perl-Tangerine"
+                   "?#4ceea43add2366d8b8c5a622a2fb563b625b9abf",
+            format="rpms",
             task_id=90276227,
-            state=koji.BUILD_STATES['COMPLETE'],
-            nvr='perl-Tangerine-0.23-1.{0}'.format(build_one_component_release),
+            state=koji.BUILD_STATES["COMPLETE"],
+            nvr="perl-Tangerine-0.23-1.{0}".format(build_one_component_release),
             batch=2,
-            ref='4ceea43add2366d8b8c5a622a2fb563b625b9abf',
+            ref="4ceea43add2366d8b8c5a622a2fb563b625b9abf",
             tagged=True,
             tagged_in_final=True,
         ),
         module_build_service.models.ComponentBuild(
-            package='perl-List-Compare',
-            scmurl='https://src.fedoraproject.org/rpms/perl-List-Compare'
-                   '?#76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb',
-            format='rpms',
+            package="perl-List-Compare",
+            scmurl="https://src.fedoraproject.org/rpms/perl-List-Compare"
+                   "?#76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb",
+            format="rpms",
             task_id=90276228,
-            state=koji.BUILD_STATES['COMPLETE'],
-            nvr='perl-List-Compare-0.53-5.{0}'.format(build_one_component_release),
+            state=koji.BUILD_STATES["COMPLETE"],
+            nvr="perl-List-Compare-0.53-5.{0}".format(build_one_component_release),
             batch=2,
-            ref='76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb',
+            ref="76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb",
             tagged=True,
             tagged_in_final=True,
         ),
         module_build_service.models.ComponentBuild(
-            package='tangerine',
-            scmurl='https://src.fedoraproject.org/rpms/tangerine'
-                   '?#fbed359411a1baa08d4a88e0d12d426fbf8f602c',
-            format='rpms',
+            package="tangerine",
+            scmurl="https://src.fedoraproject.org/rpms/tangerine"
+                   "?#fbed359411a1baa08d4a88e0d12d426fbf8f602c",
+            format="rpms",
             batch=3,
-            ref='fbed359411a1baa08d4a88e0d12d426fbf8f602c',
+            ref="fbed359411a1baa08d4a88e0d12d426fbf8f602c",
             state=tangerine_state,
             task_id=90276315 if tangerine_state else None,
-            nvr='tangerine-0.22-3.{}'.format(build_one_component_release)
-                if tangerine_state else None,
-            tagged=tangerine_state == koji.BUILD_STATES['COMPLETE'],
-            tagged_in_final=tangerine_state == koji.BUILD_STATES['COMPLETE'],
+            nvr="tangerine-0.22-3.{}".format(build_one_component_release)
+            if tangerine_state
+            else None,
+            tagged=tangerine_state == koji.BUILD_STATES["COMPLETE"],
+            tagged_in_final=tangerine_state == koji.BUILD_STATES["COMPLETE"],
         ),
         module_build_service.models.ComponentBuild(
-            package='module-build-macros',
-            scmurl='/tmp/module_build_service-build-macrosqr4AWH/SRPMS/module-build-'
-                   'macros-0.1-1.module_testmodule_master_20170109091357.src.rpm',
-            format='rpms',
+            package="module-build-macros",
+            scmurl="/tmp/module_build_service-build-macrosqr4AWH/SRPMS/module-build-"
+                   "macros-0.1-1.module_testmodule_master_20170109091357.src.rpm",
+            format="rpms",
             task_id=90276181,
-            state=koji.BUILD_STATES['COMPLETE'],
-            nvr='module-build-macros-0.1-1.{}'.format(build_one_component_release),
+            state=koji.BUILD_STATES["COMPLETE"],
+            nvr="module-build-macros-0.1-1.{}".format(build_one_component_release),
             batch=1,
             tagged=True,
             build_time_only=True,
@@ -418,88 +423,88 @@ def reuse_component_init_data():
 
     current_dir = os.path.dirname(__file__)
     formatted_testmodule_yml_path = os.path.join(
-        current_dir, 'staged_data', 'formatted_testmodule.yaml')
+        current_dir, "staged_data", "formatted_testmodule.yaml")
     mmd = load_mmd_file(formatted_testmodule_yml_path)
 
     platform_br = module_build_service.models.ModuleBuild.query.get(1)
 
     build_one = module_build_service.models.ModuleBuild(
-        name='testmodule',
-        stream='master',
+        name="testmodule",
+        stream="master",
         version=20170109091357,
-        state=BUILD_STATES['ready'],
-        ref_build_context='ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0',
-        runtime_context='ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0',
-        build_context='ac4de1c346dcf09ce77d38cd4e75094ec1c08eb1',
-        context='78e4a6fd',
-        koji_tag='module-testmodule-master-20170109091357-78e4a6fd',
-        scmurl='https://src.stg.fedoraproject.org/modules/testmodule.git?#ff1ea79',
+        state=BUILD_STATES["ready"],
+        ref_build_context="ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0",
+        runtime_context="ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0",
+        build_context="ac4de1c346dcf09ce77d38cd4e75094ec1c08eb1",
+        context="78e4a6fd",
+        koji_tag="module-testmodule-master-20170109091357-78e4a6fd",
+        scmurl="https://src.stg.fedoraproject.org/modules/testmodule.git?#ff1ea79",
         batch=3,
-        owner='Tom Brady',
+        owner="Tom Brady",
         time_submitted=datetime(2017, 2, 15, 16, 8, 18),
         time_modified=datetime(2017, 2, 15, 16, 19, 35),
         time_completed=datetime(2017, 2, 15, 16, 19, 35),
-        rebuild_strategy='changed-and-after',
+        rebuild_strategy="changed-and-after",
     )
 
     build_one_component_release = get_rpm_release(build_one)
 
     mmd.set_version(int(build_one.version))
     xmd = glib.from_variant_dict(mmd.get_xmd())
-    xmd['mbs']['scmurl'] = build_one.scmurl
-    xmd['mbs']['commit'] = 'ff1ea79fc952143efeed1851aa0aa006559239ba'
+    xmd["mbs"]["scmurl"] = build_one.scmurl
+    xmd["mbs"]["commit"] = "ff1ea79fc952143efeed1851aa0aa006559239ba"
     mmd.set_xmd(glib.dict_values(xmd))
     build_one.modulemd = to_text_type(mmd.dumps())
     build_one.buildrequires.append(platform_br)
 
     build_one.component_builds.extend([
         module_build_service.models.ComponentBuild(
-            package='perl-Tangerine',
-            scmurl='https://src.fedoraproject.org/rpms/perl-Tangerine'
-                   '?#4ceea43add2366d8b8c5a622a2fb563b625b9abf',
-            format='rpms',
+            package="perl-Tangerine",
+            scmurl="https://src.fedoraproject.org/rpms/perl-Tangerine"
+                   "?#4ceea43add2366d8b8c5a622a2fb563b625b9abf",
+            format="rpms",
             task_id=90276227,
-            state=koji.BUILD_STATES['COMPLETE'],
-            nvr='perl-Tangerine-0.23-1.{0}'.format(build_one_component_release),
+            state=koji.BUILD_STATES["COMPLETE"],
+            nvr="perl-Tangerine-0.23-1.{0}".format(build_one_component_release),
             batch=2,
-            ref='4ceea43add2366d8b8c5a622a2fb563b625b9abf',
+            ref="4ceea43add2366d8b8c5a622a2fb563b625b9abf",
             tagged=True,
             tagged_in_final=True,
         ),
         module_build_service.models.ComponentBuild(
-            package='perl-List-Compare',
-            scmurl='https://src.fedoraproject.org/rpms/perl-List-Compare'
-                   '?#76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb',
-            format='rpms',
+            package="perl-List-Compare",
+            scmurl="https://src.fedoraproject.org/rpms/perl-List-Compare"
+                   "?#76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb",
+            format="rpms",
             task_id=90276228,
-            state=koji.BUILD_STATES['COMPLETE'],
-            nvr='perl-List-Compare-0.53-5.{0}'.format(build_one_component_release),
+            state=koji.BUILD_STATES["COMPLETE"],
+            nvr="perl-List-Compare-0.53-5.{0}".format(build_one_component_release),
             batch=2,
-            ref='76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb',
+            ref="76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb",
             tagged=True,
             tagged_in_final=True,
         ),
         module_build_service.models.ComponentBuild(
-            package='tangerine',
-            scmurl='https://src.fedoraproject.org/rpms/tangerine'
-                   '?#fbed359411a1baa08d4a88e0d12d426fbf8f602c',
-            format='rpms',
+            package="tangerine",
+            scmurl="https://src.fedoraproject.org/rpms/tangerine"
+                   "?#fbed359411a1baa08d4a88e0d12d426fbf8f602c",
+            format="rpms",
             task_id=90276315,
-            state=koji.BUILD_STATES['COMPLETE'],
-            nvr='tangerine-0.22-3.{0}'.format(build_one_component_release),
+            state=koji.BUILD_STATES["COMPLETE"],
+            nvr="tangerine-0.22-3.{0}".format(build_one_component_release),
             batch=3,
-            ref='fbed359411a1baa08d4a88e0d12d426fbf8f602c',
+            ref="fbed359411a1baa08d4a88e0d12d426fbf8f602c",
             tagged=True,
             tagged_in_final=True,
         ),
         module_build_service.models.ComponentBuild(
-            package='module-build-macros',
-            scmurl='/tmp/module_build_service-build-macrosqr4AWH/SRPMS/module-build-'
-                   'macros-0.1-1.module_testmodule_master_20170109091357.src.rpm',
-            format='rpms',
+            package="module-build-macros",
+            scmurl="/tmp/module_build_service-build-macrosqr4AWH/SRPMS/module-build-"
+                   "macros-0.1-1.module_testmodule_master_20170109091357.src.rpm",
+            format="rpms",
             task_id=90276181,
-            state=koji.BUILD_STATES['COMPLETE'],
-            nvr='module-build-macros-0.1-1.{0}'.format(build_one_component_release),
+            state=koji.BUILD_STATES["COMPLETE"],
+            nvr="module-build-macros-0.1-1.{0}".format(build_one_component_release),
             batch=1,
             tagged=True,
             build_time_only=True,
@@ -507,70 +512,70 @@ def reuse_component_init_data():
     ])
 
     build_two = module_build_service.models.ModuleBuild(
-        name='testmodule',
-        stream='master',
+        name="testmodule",
+        stream="master",
         version=20170219191323,
-        state=BUILD_STATES['build'],
-        ref_build_context='ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0',
-        runtime_context='ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0',
-        build_context='ac4de1c346dcf09ce77d38cd4e75094ec1c08eb1',
-        context='c40c156c',
-        koji_tag='module-testmodule-master-20170219191323-c40c156c',
-        scmurl='https://src.stg.fedoraproject.org/modules/testmodule.git?#55f4a0a',
+        state=BUILD_STATES["build"],
+        ref_build_context="ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0",
+        runtime_context="ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0",
+        build_context="ac4de1c346dcf09ce77d38cd4e75094ec1c08eb1",
+        context="c40c156c",
+        koji_tag="module-testmodule-master-20170219191323-c40c156c",
+        scmurl="https://src.stg.fedoraproject.org/modules/testmodule.git?#55f4a0a",
         batch=1,
-        owner='Tom Brady',
+        owner="Tom Brady",
         time_submitted=datetime(2017, 2, 19, 16, 8, 18),
         time_modified=datetime(2017, 2, 19, 16, 8, 18),
-        rebuild_strategy='changed-and-after',
+        rebuild_strategy="changed-and-after",
     )
 
     build_two_component_release = get_rpm_release(build_two)
 
     mmd.set_version(int(build_one.version))
     xmd = glib.from_variant_dict(mmd.get_xmd())
-    xmd['mbs']['scmurl'] = build_one.scmurl
-    xmd['mbs']['commit'] = '55f4a0a2e6cc255c88712a905157ab39315b8fd8'
+    xmd["mbs"]["scmurl"] = build_one.scmurl
+    xmd["mbs"]["commit"] = "55f4a0a2e6cc255c88712a905157ab39315b8fd8"
     mmd.set_xmd(glib.dict_values(xmd))
     build_two.modulemd = to_text_type(mmd.dumps())
     build_two.buildrequires.append(platform_br)
 
     build_two.component_builds.extend([
         module_build_service.models.ComponentBuild(
-            package='perl-Tangerine',
-            scmurl='https://src.fedoraproject.org/rpms/perl-Tangerine'
-                   '?#4ceea43add2366d8b8c5a622a2fb563b625b9abf',
-            format='rpms',
+            package="perl-Tangerine",
+            scmurl="https://src.fedoraproject.org/rpms/perl-Tangerine"
+                   "?#4ceea43add2366d8b8c5a622a2fb563b625b9abf",
+            format="rpms",
             batch=2,
-            ref='4ceea43add2366d8b8c5a622a2fb563b625b9abf',
+            ref="4ceea43add2366d8b8c5a622a2fb563b625b9abf",
         ),
         module_build_service.models.ComponentBuild(
-            package='perl-List-Compare',
-            scmurl='https://src.fedoraproject.org/rpms/perl-List-Compare'
-                   '?#76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb',
-            format='rpms',
+            package="perl-List-Compare",
+            scmurl="https://src.fedoraproject.org/rpms/perl-List-Compare"
+                   "?#76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb",
+            format="rpms",
             batch=2,
-            ref='76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb',
+            ref="76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb",
         ),
         module_build_service.models.ComponentBuild(
-            package='tangerine',
-            scmurl='https://src.fedoraproject.org/rpms/tangerine'
-                   '?#fbed359411a1baa08d4a88e0d12d426fbf8f602c',
-            format='rpms',
+            package="tangerine",
+            scmurl="https://src.fedoraproject.org/rpms/tangerine"
+                   "?#fbed359411a1baa08d4a88e0d12d426fbf8f602c",
+            format="rpms",
             batch=3,
-            ref='fbed359411a1baa08d4a88e0d12d426fbf8f602c',
+            ref="fbed359411a1baa08d4a88e0d12d426fbf8f602c",
         ),
         module_build_service.models.ComponentBuild(
-            package='module-build-macros',
-            scmurl='/tmp/module_build_service-build-macrosqr4AWH/SRPMS/module-build-'
-                   'macros-0.1-1.module_testmodule_master_20170219191323.src.rpm',
-            format='rpms',
+            package="module-build-macros",
+            scmurl="/tmp/module_build_service-build-macrosqr4AWH/SRPMS/module-build-"
+                   "macros-0.1-1.module_testmodule_master_20170219191323.src.rpm",
+            format="rpms",
             task_id=90276186,
-            state=koji.BUILD_STATES['COMPLETE'],
-            nvr='module-build-macros-0.1-1.{0}'.format(build_two_component_release),
+            state=koji.BUILD_STATES["COMPLETE"],
+            nvr="module-build-macros-0.1-1.{0}".format(build_two_component_release),
             batch=1,
             tagged=True,
             build_time_only=True,
-        )
+        ),
     ])
 
     with make_session(conf) as session:
@@ -588,25 +593,25 @@ def reuse_shared_userspace_init_data():
         # are properly built.
         current_dir = os.path.dirname(__file__)
         formatted_testmodule_yml_path = os.path.join(
-            current_dir, 'staged_data', 'shared-userspace-570.yaml')
+            current_dir, "staged_data", "shared-userspace-570.yaml")
         mmd = load_mmd_file(formatted_testmodule_yml_path)
 
         module_build = module_build_service.models.ModuleBuild(
             name=mmd.get_name(),
             stream=mmd.get_stream(),
             version=mmd.get_version(),
-            build_context='e046b867a400a06a3571f3c71142d497895fefbe',
-            runtime_context='50dd3eb5dde600d072e45d4120e1548ce66bc94a',
-            state=BUILD_STATES['ready'],
+            build_context="e046b867a400a06a3571f3c71142d497895fefbe",
+            runtime_context="50dd3eb5dde600d072e45d4120e1548ce66bc94a",
+            state=BUILD_STATES["ready"],
             modulemd=to_text_type(mmd.dumps()),
-            koji_tag='module-shared-userspace-f26-20170601141014-75f92abb',
-            scmurl='https://src.stg.fedoraproject.org/modules/testmodule.git?#7fea453',
+            koji_tag="module-shared-userspace-f26-20170601141014-75f92abb",
+            scmurl="https://src.stg.fedoraproject.org/modules/testmodule.git?#7fea453",
             batch=16,
-            owner='Tom Brady',
+            owner="Tom Brady",
             time_submitted=datetime(2017, 2, 15, 16, 8, 18),
             time_modified=datetime(2017, 2, 15, 16, 19, 35),
             time_completed=datetime(2017, 2, 15, 16, 19, 35),
-            rebuild_strategy='changed-and-after',
+            rebuild_strategy="changed-and-after",
         )
 
         components = list(mmd.get_rpm_components().values())
@@ -619,7 +624,7 @@ def reuse_shared_userspace_init_data():
                 previous_buildorder = pkg.get_buildorder()
                 batch += 1
 
-            pkgref = mmd.get_xmd()['mbs']['rpms'][pkg.get_name()]['ref']
+            pkgref = mmd.get_xmd()["mbs"]["rpms"][pkg.get_name()]["ref"]
             full_url = pkg.get_repository() + "?#" + pkgref
 
             module_build.component_builds.append(
@@ -631,33 +636,35 @@ def reuse_shared_userspace_init_data():
                     ref=pkgref,
                     state=1,
                     tagged=True,
-                    tagged_in_final=True
-                ))
+                    tagged_in_final=True,
+                )
+            )
 
         session.add(module_build)
         session.commit()
 
         # Create shared-userspace-577, state is WAIT, no component built
         formatted_testmodule_yml_path = os.path.join(
-            current_dir, 'staged_data', 'shared-userspace-577.yaml')
+            current_dir, "staged_data", "shared-userspace-577.yaml"
+        )
         mmd2 = load_mmd_file(formatted_testmodule_yml_path)
 
         module_build = module_build_service.models.ModuleBuild(
             name=mmd2.get_name(),
             stream=mmd2.get_stream(),
             version=mmd2.get_version(),
-            build_context='e046b867a400a06a3571f3c71142d497895fefbe',
-            runtime_context='50dd3eb5dde600d072e45d4120e1548ce66bc94a',
-            state=BUILD_STATES['done'],
+            build_context="e046b867a400a06a3571f3c71142d497895fefbe",
+            runtime_context="50dd3eb5dde600d072e45d4120e1548ce66bc94a",
+            state=BUILD_STATES["done"],
             modulemd=to_text_type(mmd2.dumps()),
-            koji_tag='module-shared-userspace-f26-20170605091544-75f92abb',
-            scmurl='https://src.stg.fedoraproject.org/modules/testmodule.git?#7fea453',
+            koji_tag="module-shared-userspace-f26-20170605091544-75f92abb",
+            scmurl="https://src.stg.fedoraproject.org/modules/testmodule.git?#7fea453",
             batch=0,
-            owner='Tom Brady',
+            owner="Tom Brady",
             time_submitted=datetime(2017, 2, 15, 16, 8, 18),
             time_modified=datetime(2017, 2, 15, 16, 19, 35),
             time_completed=datetime(2017, 2, 15, 16, 19, 35),
-            rebuild_strategy='changed-and-after',
+            rebuild_strategy="changed-and-after",
         )
 
         components2 = list(mmd2.get_rpm_components().values())
@@ -673,24 +680,28 @@ def reuse_shared_userspace_init_data():
                 previous_buildorder = pkg.get_buildorder()
                 batch += 1
 
-            pkgref = mmd2.get_xmd()['mbs']['rpms'][pkg.get_name()]['ref']
+            pkgref = mmd2.get_xmd()["mbs"]["rpms"][pkg.get_name()]["ref"]
             full_url = pkg.get_repository() + "?#" + pkgref
 
             module_build.component_builds.append(
                 module_build_service.models.ComponentBuild(
-                    package=pkg.get_name(),
-                    format="rpms",
-                    scmurl=full_url,
-                    batch=batch,
-                    ref=pkgref
-                ))
+                    package=pkg.get_name(), format="rpms", scmurl=full_url, batch=batch, ref=pkgref)
+            )
 
         session.add(module_build)
         session.commit()
 
 
-def make_module(nsvc, requires_list=None, build_requires_list=None, base_module=None,
-                filtered_rpms=None, xmd=None, store_to_db=True, virtual_streams=None):
+def make_module(
+    nsvc,
+    requires_list=None,
+    build_requires_list=None,
+    base_module=None,
+    filtered_rpms=None,
+    xmd=None,
+    store_to_db=True,
+    virtual_streams=None,
+):
     """
     Creates new models.ModuleBuild defined by `nsvc` string with requires
     and buildrequires set according to ``requires_list`` and ``build_requires_list``.
@@ -739,8 +750,7 @@ def make_module(nsvc, requires_list=None, build_requires_list=None, base_module=
             build_requires_list = [build_requires_list]
 
         deps_list = []
-        for requires, build_requires in zip(requires_list,
-                                            build_requires_list):
+        for requires, build_requires in zip(requires_list, build_requires_list):
             deps = Modulemd.Dependencies()
             for req_name, req_streams in requires.items():
                 deps.add_requires(req_name, req_streams)
@@ -751,19 +761,19 @@ def make_module(nsvc, requires_list=None, build_requires_list=None, base_module=
 
     # Caller could pass whole xmd including mbs, but if something is missing,
     # default values are given here.
-    xmd = xmd or {'mbs': {}}
-    xmd_mbs = xmd['mbs']
-    if 'buildrequires' not in xmd_mbs:
-        xmd_mbs['buildrequires'] = {}
-    if 'requires' not in xmd_mbs:
-        xmd_mbs['requires'] = {}
-    if 'commit' not in xmd_mbs:
-        xmd_mbs['commit'] = 'ref_%s' % context
-    if 'mse' not in xmd_mbs:
-        xmd_mbs['mse'] = 'true'
+    xmd = xmd or {"mbs": {}}
+    xmd_mbs = xmd["mbs"]
+    if "buildrequires" not in xmd_mbs:
+        xmd_mbs["buildrequires"] = {}
+    if "requires" not in xmd_mbs:
+        xmd_mbs["requires"] = {}
+    if "commit" not in xmd_mbs:
+        xmd_mbs["commit"] = "ref_%s" % context
+    if "mse" not in xmd_mbs:
+        xmd_mbs["mse"] = "true"
 
     if virtual_streams:
-        xmd_mbs['virtual_streams'] = virtual_streams
+        xmd_mbs["virtual_streams"] = virtual_streams
 
     mmd.set_xmd(glib.dict_values(xmd))
 
@@ -776,17 +786,17 @@ def make_module(nsvc, requires_list=None, build_requires_list=None, base_module=
         stream_version=ModuleBuild.get_stream_version(stream),
         version=version,
         context=context,
-        state=BUILD_STATES['ready'],
-        scmurl='https://src.stg.fedoraproject.org/modules/unused.git?#ff1ea79',
+        state=BUILD_STATES["ready"],
+        scmurl="https://src.stg.fedoraproject.org/modules/unused.git?#ff1ea79",
         batch=1,
-        owner='Tom Brady',
+        owner="Tom Brady",
         time_submitted=datetime(2017, 2, 15, 16, 8, 18),
         time_modified=datetime(2017, 2, 15, 16, 19, 35),
-        rebuild_strategy='changed-and-after',
+        rebuild_strategy="changed-and-after",
         build_context=context,
         runtime_context=context,
         modulemd=to_text_type(mmd.dumps()),
-        koji_tag=xmd['mbs']['koji_tag'] if 'koji_tag' in xmd['mbs'] else None
+        koji_tag=xmd["mbs"]["koji_tag"] if "koji_tag" in xmd["mbs"] else None,
     )
     if base_module:
         module_build.buildrequires.append(base_module)

@@ -36,13 +36,14 @@ class DBResolver(GenericResolver):
     """
     Resolver using the MBS database
     """
-    backend = 'db'
+
+    backend = "db"
 
     def __init__(self, config):
         self.config = config
 
     def _get_module(
-        self, name, stream, version, context, state=models.BUILD_STATES['ready'], strict=False,
+        self, name, stream, version, context, state=models.BUILD_STATES["ready"], strict=False
     ):
         with models.make_session(self.config) as session:
             mb = models.ModuleBuild.get_build_from_nsvc(
@@ -52,7 +53,7 @@ class DBResolver(GenericResolver):
 
             if strict:
                 raise UnprocessableEntity(
-                    'Cannot find any module builds for %s:%s' % (name, stream))
+                    "Cannot find any module builds for %s:%s" % (name, stream))
 
     def get_module_count(self, **kwargs):
         """
@@ -79,14 +80,22 @@ class DBResolver(GenericResolver):
             # Cast the version as an integer so that we get proper ordering
             module = query.order_by(
                 models.ModuleBuild.stream_version.desc(),
-                sqlalchemy.cast(models.ModuleBuild.version, db.BigInteger).desc()
+                sqlalchemy.cast(models.ModuleBuild.version, db.BigInteger).desc(),
             ).first()
 
             if module:
                 return load_mmd(module.modulemd)
 
-    def get_module_modulemds(self, name, stream, version=None, context=None, strict=False,
-                             stream_version_lte=False, virtual_streams=None):
+    def get_module_modulemds(
+        self,
+        name,
+        stream,
+        version=None,
+        context=None,
+        strict=False,
+        stream_version_lte=False,
+        virtual_streams=None,
+    ):
         """
         Gets the module modulemds from the resolver.
         :param name: a string of the module's name
@@ -108,18 +117,18 @@ class DBResolver(GenericResolver):
             mmd = self._get_module(name, stream, version, context, strict=strict)
             if mmd is None:
                 return
-            return [load_mmd(mmd['modulemd'])]
+            return [load_mmd(mmd["modulemd"])]
 
         with models.make_session(self.config) as session:
             if not version and not context:
-                if (stream_version_lte and len(str(models.ModuleBuild.get_stream_version(
-                        stream, right_pad=False))) >= 5):
+                if stream_version_lte and (
+                    len(str(models.ModuleBuild.get_stream_version(stream, right_pad=False))) >= 5
+                ):
                     stream_version = models.ModuleBuild.get_stream_version(stream)
                     builds = models.ModuleBuild.get_last_builds_in_stream_version_lte(
                         session, name, stream_version, virtual_streams)
                 else:
-                    builds = models.ModuleBuild.get_last_builds_in_stream(
-                        session, name, stream)
+                    builds = models.ModuleBuild.get_last_builds_in_stream(session, name, stream)
             else:
                 raise NotImplementedError(
                     "This combination of name/stream/version/context is not implemented")
@@ -146,7 +155,7 @@ class DBResolver(GenericResolver):
             query = session.query(models.ModuleBuild)
             query = query.filter_by(name=name, stream=stream, state=models.BUILD_STATES["ready"])
 
-            module_br_alias = aliased(models.ModuleBuild, name='module_br')
+            module_br_alias = aliased(models.ModuleBuild, name="module_br")
             # Shorten this table name for clarity in the query below
             mb_to_br = models.module_builds_to_module_buildrequires
             # The following joins get added:
@@ -154,14 +163,17 @@ class DBResolver(GenericResolver):
             #     ON module_builds_to_module_buildrequires.module_id = module_builds.id
             # JOIN module_builds AS module_br
             #     ON module_builds_to_module_buildrequires.module_buildrequire_id = module_br.id
-            query = query.join(mb_to_br, mb_to_br.c.module_id == models.ModuleBuild.id)\
-                .join(module_br_alias, mb_to_br.c.module_buildrequire_id == module_br_alias.id)
+            query = query.join(mb_to_br, mb_to_br.c.module_id == models.ModuleBuild.id).join(
+                module_br_alias, mb_to_br.c.module_buildrequire_id == module_br_alias.id)
 
             # Get only modules buildrequiring particular base_module_nsvc
             n, s, v, c = base_module_nsvc.split(":")
             query = query.filter(
-                module_br_alias.name == n, module_br_alias.stream == s,
-                module_br_alias.version == v, module_br_alias.context == c)
+                module_br_alias.name == n,
+                module_br_alias.stream == s,
+                module_br_alias.version == v,
+                module_br_alias.context == c,
+            )
             query = query.order_by(
                 sqlalchemy.cast(models.ModuleBuild.version, db.BigInteger).desc())
             all_builds = query.all()
@@ -178,8 +190,12 @@ class DBResolver(GenericResolver):
                 builds.append(build)
 
             mmds = [build.mmd() for build in builds]
-            nsvcs = [":".join([mmd.get_name(), mmd.get_stream(),
-                               str(mmd.get_version()), mmd.get_context()]) for mmd in mmds]
+            nsvcs = [
+                ":".join(
+                    [mmd.get_name(), mmd.get_stream(), str(mmd.get_version()), mmd.get_context()]
+                )
+                for mmd in mmds
+            ]
             log.debug("Found: %r", nsvcs)
             return mmds
 
@@ -198,12 +214,12 @@ class DBResolver(GenericResolver):
         for key in keys:
             results[key] = set()
         with models.make_session(self.config) as session:
-            for module_name, module_info in mmd.get_xmd()['mbs']['buildrequires'].items():
+            for module_name, module_info in mmd.get_xmd()["mbs"]["buildrequires"].items():
                 local_modules = models.ModuleBuild.local_modules(
-                    session, module_name, module_info['stream'])
+                    session, module_name, module_info["stream"])
                 if local_modules:
                     local_module = local_modules[0]
-                    log.info('Using local module {0!r} to resolve profiles.'.format(local_module))
+                    log.info("Using local module {0!r} to resolve profiles.".format(local_module))
                     dep_mmd = local_module.mmd()
                     for key in keys:
                         if key in dep_mmd.get_profiles().keys():
@@ -211,12 +227,22 @@ class DBResolver(GenericResolver):
                     continue
 
                 build = models.ModuleBuild.get_build_from_nsvc(
-                    session, module_name, module_info['stream'], module_info['version'],
-                    module_info['context'], state=models.BUILD_STATES['ready'])
+                    session,
+                    module_name,
+                    module_info["stream"],
+                    module_info["version"],
+                    module_info["context"],
+                    state=models.BUILD_STATES["ready"],
+                )
                 if not build:
-                    raise UnprocessableEntity('The module {}:{}:{}:{} was not found'.format(
-                        module_name, module_info['stream'], module_info['version'],
-                        module_info['context']))
+                    raise UnprocessableEntity(
+                        "The module {}:{}:{}:{} was not found".format(
+                            module_name,
+                            module_info["stream"],
+                            module_info["version"],
+                            module_info["context"],
+                        )
+                    )
                 dep_mmd = build.mmd()
 
                 # Take note of what rpms are in this dep's profile
@@ -227,8 +253,9 @@ class DBResolver(GenericResolver):
         # Return the union of all rpms in all profiles of the given keys
         return results
 
-    def get_module_build_dependencies(self, name=None, stream=None, version=None, context=None,
-                                      mmd=None, strict=False):
+    def get_module_build_dependencies(
+        self, name=None, stream=None, version=None, context=None, mmd=None, strict=False
+    ):
         """
         Returns a dictionary of koji_tag:[mmd, ...] of all the dependencies of input module.
 
@@ -247,44 +274,57 @@ class DBResolver(GenericResolver):
         :return: a dictionary
         """
         if mmd:
-            log.debug('get_module_build_dependencies(mmd={0!r} strict={1!r})'.format(mmd, strict))
+            log.debug("get_module_build_dependencies(mmd={0!r} strict={1!r})".format(mmd, strict))
         elif any(x is None for x in [name, stream, version, context]):
-            raise RuntimeError('The name, stream, version, and/or context weren\'t specified')
+            raise RuntimeError("The name, stream, version, and/or context weren't specified")
         else:
             version = str(version)
-            log.debug('get_module_build_dependencies({0}, strict={1!r})'.format(
-                ', '.join([name, stream, str(version), context]), strict))
+            log.debug(
+                "get_module_build_dependencies({0}, strict={1!r})".format(
+                    ", ".join([name, stream, str(version), context]), strict)
+            )
 
         module_tags = {}
         with models.make_session(self.config) as session:
             if mmd:
                 queried_mmd = mmd
-                nsvc = ':'.join([
-                    mmd.get_name(), mmd.get_stream(), str(mmd.get_version()),
-                    mmd.get_context() or models.DEFAULT_MODULE_CONTEXT])
+                nsvc = ":".join([
+                    mmd.get_name(),
+                    mmd.get_stream(),
+                    str(mmd.get_version()),
+                    mmd.get_context() or models.DEFAULT_MODULE_CONTEXT,
+                ])
             else:
                 build = models.ModuleBuild.get_build_from_nsvc(
                     session, name, stream, version, context)
                 if not build:
-                    raise UnprocessableEntity('The module {} was not found'.format(
-                        ':'.join([name, stream, version, context])))
+                    raise UnprocessableEntity(
+                        "The module {} was not found".format(
+                            ":".join([name, stream, version, context]))
+                    )
                 queried_mmd = build.mmd()
-                nsvc = ':'.join([name, stream, version, context])
+                nsvc = ":".join([name, stream, version, context])
 
-            xmd_mbs = queried_mmd.get_xmd().get('mbs')
-            if not xmd_mbs or 'buildrequires' not in xmd_mbs.keys():
+            xmd_mbs = queried_mmd.get_xmd().get("mbs")
+            if not xmd_mbs or "buildrequires" not in xmd_mbs.keys():
                 raise RuntimeError(
-                    'The module {} did not contain its modulemd or did not have '
-                    'its xmd attribute filled out in MBS'.format(nsvc))
+                    "The module {} did not contain its modulemd or did not have "
+                    "its xmd attribute filled out in MBS".format(nsvc)
+                )
 
-            buildrequires = xmd_mbs['buildrequires']
+            buildrequires = xmd_mbs["buildrequires"]
             for br_name, details in buildrequires.items():
                 build = models.ModuleBuild.get_build_from_nsvc(
-                    session, br_name, details['stream'], details['version'], details['context'],
-                    state=models.BUILD_STATES['ready'])
+                    session,
+                    br_name,
+                    details["stream"],
+                    details["version"],
+                    details["context"],
+                    state=models.BUILD_STATES["ready"],
+                )
                 if not build:
                     raise RuntimeError(
-                        'Buildrequired module %s %r does not exist in MBS db' % (br_name, details))
+                        "Buildrequired module %s %r does not exist in MBS db" % (br_name, details))
 
                 # If the buildrequire is a meta-data only module with no Koji tag set, then just
                 # skip it
@@ -325,11 +365,11 @@ class DBResolver(GenericResolver):
                 if local_modules:
                     local_build = local_modules[0]
                     new_requires[module_name] = {
-                        'ref': None,
-                        'stream': local_build.stream,
-                        'version': local_build.version,
-                        'context': local_build.context,
-                        'koji_tag': local_build.koji_tag,
+                        "ref": None,
+                        "stream": local_build.stream,
+                        "version": local_build.version,
+                        "context": local_build.context,
+                        "koji_tag": local_build.koji_tag,
                     }
                     continue
 
@@ -341,29 +381,31 @@ class DBResolver(GenericResolver):
                         session, module_name, module_stream, module_version, module_context)
 
                 if not build:
-                    raise UnprocessableEntity('The module {} was not found'.format(nsvc))
+                    raise UnprocessableEntity("The module {} was not found".format(nsvc))
 
                 commit_hash = None
                 mmd = build.mmd()
-                mbs_xmd = mmd.get_xmd().get('mbs')
-                if mbs_xmd and 'commit' in mbs_xmd.keys():
-                    commit_hash = mbs_xmd['commit']
+                mbs_xmd = mmd.get_xmd().get("mbs")
+                if mbs_xmd and "commit" in mbs_xmd.keys():
+                    commit_hash = mbs_xmd["commit"]
                 else:
                     raise RuntimeError(
-                        'The module "{0}" didn\'t contain a commit hash in its xmd'
-                        .format(module_name))
+                        'The module "{0}" didn\'t contain a commit hash in its xmd'.format(
+                            module_name)
+                    )
 
                 if "mse" not in mbs_xmd.keys() or not mbs_xmd["mse"]:
                     raise RuntimeError(
                         'The module "{}" is not built using Module Stream Expansion. '
-                        'Please rebuild this module first'.format(nsvc))
+                        "Please rebuild this module first".format(nsvc)
+                    )
 
                 new_requires[module_name] = {
-                    'ref': commit_hash,
-                    'stream': module_stream,
-                    'version': build.version,
-                    'context': build.context,
-                    'koji_tag': build.koji_tag,
+                    "ref": commit_hash,
+                    "stream": module_stream,
+                    "version": build.version,
+                    "context": build.context,
+                    "koji_tag": build.koji_tag,
                 }
 
         return new_requires

@@ -31,7 +31,8 @@ class LocalResolver(DBResolver):
     It is subclass of DBResolver with small changes to DBResolver logic to fit
     the offline local module builds. See particular methods for more information.
     """
-    backend = 'local'
+
+    backend = "local"
 
     def get_buildrequired_modulemds(self, name, stream, base_module_nsvc):
         """

@@ -33,24 +33,25 @@ from tests import init_data
 
 
 class TestLogger:
-
     def setup_method(self, test_method):
         init_data(1)
         log.debug(test_method.__module__)
         try:
             # py2
-            test_id = '.'.join([
+            test_id = ".".join([
                 path.splitext(path.basename(__file__))[0],
                 test_method.im_class.__name__,
-                test_method.im_func.__name__])
+                test_method.im_func.__name__,
+            ])
         except AttributeError:
             # py3
-            test_id = '.'.join([
+            test_id = ".".join([
                 path.splitext(path.basename(__file__))[0],
                 test_method.__self__.__class__.__name__,
-                test_method.__self__.__class__.__name__])
+                test_method.__self__.__class__.__name__,
+            ])
 
-        self.base = tempfile.mkdtemp(prefix='mbs-', suffix='-%s' % test_id)
+        self.base = tempfile.mkdtemp(prefix="mbs-", suffix="-%s" % test_id)
         self.name_format = "build-{id}.log"
         print("Storing build logs in %r" % self.base)
         self.build_log = ModuleBuildLogs(self.base, self.name_format)

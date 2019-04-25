@@ -44,17 +44,15 @@ def tagged(config, session, msg):
         return
 
     # Find tagged component.
-    component = models.ComponentBuild.from_component_nvr(
-        session, msg.nvr, module_build.id)
+    component = models.ComponentBuild.from_component_nvr(session, msg.nvr, module_build.id)
     if not component:
         log.error("No component %s in module %r", msg.nvr, module_build)
         return
 
-    log.info("Saw relevant component tag of %r from %r." % (component.nvr,
-                                                            msg.msg_id))
+    log.info("Saw relevant component tag of %r from %r." % (component.nvr, msg.msg_id))
 
     # Mark the component as tagged
-    if tag.endswith('-build'):
+    if tag.endswith("-build"):
         component.tagged = True
     else:
         component.tagged_in_final = True
@@ -62,19 +60,21 @@ def tagged(config, session, msg):
 
     unbuilt_components_in_batch = [
         c for c in module_build.current_batch()
-        if c.state == koji.BUILD_STATES['BUILDING'] or not c.state
+        if c.state == koji.BUILD_STATES["BUILDING"] or not c.state
     ]
     if unbuilt_components_in_batch:
-        log.info("Not regenerating repo for tag %s, there are still "
-                 "building components in a batch", tag)
+        log.info(
+            "Not regenerating repo for tag %s, there are still building components in a batch",
+            tag,
+        )
         return []
 
     # Get the list of untagged components in current/previous batches which
     # have been built successfully.
     untagged_components = [
         c for c in module_build.up_to_current_batch()
-        if (not c.tagged or (not c.tagged_in_final and not c.build_time_only)) and
-        c.state == koji.BUILD_STATES['COMPLETE']
+        if (not c.tagged or (not c.tagged_in_final and not c.build_time_only))
+        and c.state == koji.BUILD_STATES["COMPLETE"]
     ]
 
     further_work = []
@@ -86,10 +86,10 @@ def tagged(config, session, msg):
 
         unbuilt_components = [
             c for c in module_build.component_builds
-            if c.state == koji.BUILD_STATES['BUILDING'] or not c.state
+            if c.state == koji.BUILD_STATES["BUILDING"] or not c.state
         ]
         if unbuilt_components:
-            repo_tag = builder.module_build_tag['name']
+            repo_tag = builder.module_build_tag["name"]
             log.info("All components in batch tagged, regenerating repo for tag %s", repo_tag)
             task_id = builder.koji_session.newRepo(repo_tag)
             module_build.new_repo_task_id = task_id
@@ -97,11 +97,12 @@ def tagged(config, session, msg):
             # In case this is the last batch, we do not need to regenerate the
             # buildroot, because we will not build anything else in it. It
             # would be useless to wait for a repository we will not use anyway.
-            log.info("All components in module tagged and built, skipping the "
-                     "last repo regeneration")
-            further_work += [messaging.KojiRepoChange(
-                'components::_finalize: fake msg',
-                builder.module_build_tag['name'])]
+            log.info(
+                "All components in module tagged and built, skipping the last repo regeneration")
+            further_work += [
+                messaging.KojiRepoChange(
+                    "components::_finalize: fake msg", builder.module_build_tag["name"])
+            ]
         session.commit()
 
     return further_work

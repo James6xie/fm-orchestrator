@@ -7,6 +7,7 @@ import module_build_service.models
 import module_build_service.scheduler.consumer
 
 import logging
+
 log = logging.getLogger(__name__)
 
 
@@ -17,15 +18,15 @@ def main(initial_messages, stop_condition):
     """
 
     config = fedmsg.config.load_config()
-    config['mbsconsumer'] = True
-    config['mbsconsumer.stop_condition'] = stop_condition
-    config['mbsconsumer.initial_messages'] = initial_messages
+    config["mbsconsumer"] = True
+    config["mbsconsumer.stop_condition"] = stop_condition
+    config["mbsconsumer.initial_messages"] = initial_messages
 
     # Moksha requires that we subscribe to *something*, so tell it /dev/null
     # since we'll just be doing in-memory queue-based messaging for this single
     # build.
-    config['zmq_enabled'] = True
-    config['zmq_subscribe_endpoints'] = 'ipc:///dev/null'
+    config["zmq_enabled"] = True
+    config["zmq_subscribe_endpoints"] = "ipc:///dev/null"
 
     consumers = [module_build_service.scheduler.consumer.MBSConsumer]
 
@@ -56,9 +57,11 @@ def make_simple_stop_condition(session):
         # XXX - We ignore the message here and instead just query the DB.
 
         # Grab the latest module build.
-        module = session.query(module_build_service.models.ModuleBuild)\
-            .order_by(module_build_service.models.ModuleBuild.id.desc())\
+        module = (
+            session.query(module_build_service.models.ModuleBuild)
+            .order_by(module_build_service.models.ModuleBuild.id.desc())
             .first()
+        )
         done = (
             module_build_service.models.BUILD_STATES["failed"],
             module_build_service.models.BUILD_STATES["ready"],

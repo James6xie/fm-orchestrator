@@ -34,7 +34,7 @@ app = module_build_service.app
 
 conf = init_config(app)
 
-datadir = os.path.dirname(__file__) + '/data/'
+datadir = os.path.dirname(__file__) + "/data/"
 
 
 def module_build_from_modulemd(yaml):
@@ -43,22 +43,22 @@ def module_build_from_modulemd(yaml):
     build.name = mmd.get_name()
     build.stream = mmd.get_stream()
     build.version = mmd.get_version()
-    build.state = BUILD_STATES['ready']
+    build.state = BUILD_STATES["ready"]
     build.modulemd = yaml
     build.koji_tag = None
     build.batch = 0
-    build.owner = 'some_other_user'
+    build.owner = "some_other_user"
     build.time_submitted = datetime(2016, 9, 3, 12, 28, 33)
     build.time_modified = datetime(2016, 9, 3, 12, 28, 40)
     build.time_completed = None
-    build.rebuild_strategy = 'changed-and-after'
+    build.rebuild_strategy = "changed-and-after"
     return build
 
 
 def init_data():
     clean_database()
     for filename in os.listdir(datadir):
-        with open(datadir + filename, 'r') as f:
+        with open(datadir + filename, "r") as f:
             yaml = f.read()
         build = module_build_from_modulemd(yaml)
         db.session.add(build)

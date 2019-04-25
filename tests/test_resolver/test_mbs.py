@@ -33,7 +33,6 @@ base_dir = os.path.join(os.path.dirname(__file__), "..")
 
 
 class TestMBSModule:
-
     @patch("requests.Session")
     def test_get_module_modulemds_nsvc(self, mock_session, testmodule_mmd_9c690d0e):
         """ Tests for querying a module from mbs """
@@ -46,20 +45,20 @@ class TestMBSModule:
                     "stream": "master",
                     "version": "20180205135154",
                     "context": "9c690d0e",
-                    "modulemd": testmodule_mmd_9c690d0e
+                    "modulemd": testmodule_mmd_9c690d0e,
                 }
             ],
-            "meta": {"next": None}
+            "meta": {"next": None},
         }
 
         mock_session().get.return_value = mock_res
 
-        resolver = mbs_resolver.GenericResolver.create(tests.conf, backend='mbs')
+        resolver = mbs_resolver.GenericResolver.create(tests.conf, backend="mbs")
         module_mmds = resolver.get_module_modulemds(
-            'testmodule', 'master', '20180205135154', '9c690d0e', virtual_streams=["f28"])
+            "testmodule", "master", "20180205135154", "9c690d0e", virtual_streams=["f28"]
+        )
         nsvcs = set(
-            '{}:{}:{}:{}'.format(m.peek_name(), m.peek_stream(),
-                                 m.peek_version(), m.peek_context())
+            "{}:{}:{}:{}".format(m.peek_name(), m.peek_stream(), m.peek_version(), m.peek_context())
             for m in module_mmds
         )
         expected = set(["testmodule:master:20180205135154:9c690d0e"])
@@ -80,8 +79,9 @@ class TestMBSModule:
         assert nsvcs == expected
 
     @patch("requests.Session")
-    def test_get_module_modulemds_partial(self, mock_session, testmodule_mmd_9c690d0e,
-                                          testmodule_mmd_c2c572ed):
+    def test_get_module_modulemds_partial(
+        self, mock_session, testmodule_mmd_9c690d0e, testmodule_mmd_c2c572ed
+    ):
         """ Test for querying MBS without the context of a module """
 
         version = "20180205135154"
@@ -95,29 +95,30 @@ class TestMBSModule:
                     "stream": "master",
                     "version": version,
                     "context": "9c690d0e",
-                    "modulemd": testmodule_mmd_9c690d0e
+                    "modulemd": testmodule_mmd_9c690d0e,
                 },
                 {
                     "name": "testmodule",
                     "stream": "master",
                     "version": version,
                     "context": "c2c572ed",
-                    "modulemd": testmodule_mmd_c2c572ed
-                }
+                    "modulemd": testmodule_mmd_c2c572ed,
+                },
             ],
-            "meta": {"next": None}
+            "meta": {"next": None},
         }
 
         mock_session().get.return_value = mock_res
-        resolver = mbs_resolver.GenericResolver.create(tests.conf, backend='mbs')
-        ret = resolver.get_module_modulemds('testmodule', 'master', version)
+        resolver = mbs_resolver.GenericResolver.create(tests.conf, backend="mbs")
+        ret = resolver.get_module_modulemds("testmodule", "master", version)
         nsvcs = set(
-            '{}:{}:{}:{}'.format(m.peek_name(), m.peek_stream(),
-                                 m.peek_version(), m.peek_context())
+            "{}:{}:{}:{}".format(m.peek_name(), m.peek_stream(), m.peek_version(), m.peek_context())
             for m in ret
         )
-        expected = set(["testmodule:master:20180205135154:9c690d0e",
-                        "testmodule:master:20180205135154:c2c572ed"])
+        expected = set([
+            "testmodule:master:20180205135154:9c690d0e",
+            "testmodule:master:20180205135154:c2c572ed",
+        ])
         mbs_url = tests.conf.mbs_url
         expected_query = {
             "name": "testmodule",
@@ -127,14 +128,15 @@ class TestMBSModule:
             "order_desc_by": "version",
             "page": 1,
             "per_page": 10,
-            "state": "ready"
+            "state": "ready",
         }
         mock_session().get.assert_called_once_with(mbs_url, params=expected_query)
         assert nsvcs == expected
 
     @patch("requests.Session")
-    def test_get_module_build_dependencies(self, mock_session, platform_mmd,
-                                           testmodule_mmd_9c690d0e):
+    def test_get_module_build_dependencies(
+        self, mock_session, platform_mmd, testmodule_mmd_9c690d0e
+    ):
         """
         Tests that we return just direct build-time dependencies of testmodule.
         """
@@ -148,11 +150,12 @@ class TestMBSModule:
                         "stream": "master",
                         "version": "20180205135154",
                         "context": "9c690d0e",
-                        "modulemd": testmodule_mmd_9c690d0e
+                        "modulemd": testmodule_mmd_9c690d0e,
                     }
                 ],
-                "meta": {"next": None}
-            }, {
+                "meta": {"next": None},
+            },
+            {
                 "items": [
                     {
                         "name": "platform",
@@ -160,57 +163,63 @@ class TestMBSModule:
                         "version": "3",
                         "context": "00000000",
                         "modulemd": platform_mmd,
-                        "koji_tag": "module-f28-build"
+                        "koji_tag": "module-f28-build",
                     }
                 ],
-                "meta": {"next": None}
-            }
+                "meta": {"next": None},
+            },
         ]
 
         mock_session().get.return_value = mock_res
-        expected = set(['module-f28-build'])
-        resolver = mbs_resolver.GenericResolver.create(tests.conf, backend='mbs')
+        expected = set(["module-f28-build"])
+        resolver = mbs_resolver.GenericResolver.create(tests.conf, backend="mbs")
         result = resolver.get_module_build_dependencies(
-            'testmodule', 'master', '20180205135154', '9c690d0e').keys()
+            "testmodule", "master", "20180205135154", "9c690d0e").keys()
 
-        expected_queries = [{
-            "name": "testmodule",
-            "stream": "master",
-            "version": "20180205135154",
-            "context": "9c690d0e",
-            "verbose": True,
-            "order_desc_by": "version",
-            "page": 1,
-            "per_page": 10,
-            "state": "ready"
-        }, {
-            "name": "platform",
-            "stream": "f28",
-            "version": "3",
-            "context": "00000000",
-            "verbose": True,
-            "order_desc_by": "version",
-            "page": 1,
-            "per_page": 10,
-            "state": "ready"
-        }]
+        expected_queries = [
+            {
+                "name": "testmodule",
+                "stream": "master",
+                "version": "20180205135154",
+                "context": "9c690d0e",
+                "verbose": True,
+                "order_desc_by": "version",
+                "page": 1,
+                "per_page": 10,
+                "state": "ready",
+            },
+            {
+                "name": "platform",
+                "stream": "f28",
+                "version": "3",
+                "context": "00000000",
+                "verbose": True,
+                "order_desc_by": "version",
+                "page": 1,
+                "per_page": 10,
+                "state": "ready",
+            },
+        ]
 
         mbs_url = tests.conf.mbs_url
-        expected_calls = [call(mbs_url, params=expected_queries[0]),
-                          call(mbs_url, params=expected_queries[1])]
+        expected_calls = [
+            call(mbs_url, params=expected_queries[0]),
+            call(mbs_url, params=expected_queries[1]),
+        ]
         mock_session().get.mock_calls = expected_calls
         assert mock_session().get.call_count == 2
         assert set(result) == expected
 
     @patch("requests.Session")
-    def test_get_module_build_dependencies_empty_buildrequires(self, mock_session,
-                                                               testmodule_mmd_9c690d0e):
+    def test_get_module_build_dependencies_empty_buildrequires(
+        self, mock_session, testmodule_mmd_9c690d0e
+    ):
 
         mmd = module_build_service.utils.load_mmd(testmodule_mmd_9c690d0e)
         # Wipe out the dependencies
         mmd.set_dependencies()
         xmd = glib.from_variant_dict(mmd.get_xmd())
-        xmd['mbs']['buildrequires'] = {}
+        xmd["mbs"]["buildrequires"] = {}
         mmd.set_xmd(glib.dict_values(xmd))
 
         mock_res = Mock()
@@ -224,10 +233,10 @@ class TestMBSModule:
                         "version": "20180205135154",
                         "context": "9c690d0e",
                         "modulemd": mmd.dumps(),
-                        "build_deps": []
+                        "build_deps": [],
                     }
                 ],
-                "meta": {"next": None}
+                "meta": {"next": None},
             }
         ]
 
@@ -235,9 +244,10 @@ class TestMBSModule:
 
         expected = set()
 
-        resolver = mbs_resolver.GenericResolver.create(tests.conf, backend='mbs')
+        resolver = mbs_resolver.GenericResolver.create(tests.conf, backend="mbs")
         result = resolver.get_module_build_dependencies(
-            'testmodule', 'master', '20180205135154', '9c690d0e').keys()
+            "testmodule", "master", "20180205135154", "9c690d0e"
+        ).keys()
         mbs_url = tests.conf.mbs_url
         expected_query = {
             "name": "testmodule",
@@ -248,7 +258,7 @@ class TestMBSModule:
             "order_desc_by": "version",
             "page": 1,
             "per_page": 10,
-            "state": "ready"
+            "state": "ready",
         }
         mock_session().get.assert_called_once_with(mbs_url, params=expected_query)
         assert set(result) == expected
@@ -265,27 +275,53 @@ class TestMBSModule:
                     "stream": "f28",
                     "version": "3",
                     "context": "00000000",
-                    "modulemd": platform_mmd
+                    "modulemd": platform_mmd,
                 }
             ],
-            "meta": {"next": None}
+            "meta": {"next": None},
         }
 
         mock_session().get.return_value = mock_res
-        resolver = mbs_resolver.GenericResolver.create(tests.conf, backend='mbs')
-        result = resolver.resolve_profiles(formatted_testmodule_mmd,
-                                           ('buildroot', 'srpm-buildroot'))
+        resolver = mbs_resolver.GenericResolver.create(tests.conf, backend="mbs")
+        result = resolver.resolve_profiles(
+            formatted_testmodule_mmd, ("buildroot", "srpm-buildroot")
+        )
         expected = {
-            'buildroot':
-                set(['unzip', 'tar', 'cpio', 'gawk', 'gcc', 'xz', 'sed',
-                     'findutils', 'util-linux', 'bash', 'info', 'bzip2',
-                     'grep', 'redhat-rpm-config', 'fedora-release',
-                     'diffutils', 'make', 'patch', 'shadow-utils', 'coreutils',
-                     'which', 'rpm-build', 'gzip', 'gcc-c++']),
-            'srpm-buildroot':
-                set(['shadow-utils', 'redhat-rpm-config', 'rpm-build',
-                     'fedora-release', 'fedpkg-minimal', 'gnupg2',
-                     'bash'])
+            "buildroot": set([
+                "unzip",
+                "tar",
+                "cpio",
+                "gawk",
+                "gcc",
+                "xz",
+                "sed",
+                "findutils",
+                "util-linux",
+                "bash",
+                "info",
+                "bzip2",
+                "grep",
+                "redhat-rpm-config",
+                "fedora-release",
+                "diffutils",
+                "make",
+                "patch",
+                "shadow-utils",
+                "coreutils",
+                "which",
+                "rpm-build",
+                "gzip",
+                "gcc-c++",
+            ]),
+            "srpm-buildroot": set([
+                "shadow-utils",
+                "redhat-rpm-config",
+                "rpm-build",
+                "fedora-release",
+                "fedpkg-minimal",
+                "gnupg2",
+                "bash",
+            ]),
         }
 
         mbs_url = tests.conf.mbs_url
@@ -298,92 +334,84 @@ class TestMBSModule:
             "order_desc_by": "version",
             "page": 1,
             "per_page": 10,
-            "state": "ready"
+            "state": "ready",
         }
 
         mock_session().get.assert_called_once_with(mbs_url, params=expected_query)
         assert result == expected
 
-    @patch("module_build_service.config.Config.system",
-           new_callable=PropertyMock, return_value="test")
-    @patch("module_build_service.config.Config.mock_resultsdir",
-           new_callable=PropertyMock,
-           return_value=os.path.join(base_dir, 'staged_data', "local_builds"))
-    def test_resolve_profiles_local_module(self, local_builds, conf_system,
-                                           formatted_testmodule_mmd):
+    @patch(
+        "module_build_service.config.Config.system", new_callable=PropertyMock, return_value="test"
+    )
+    @patch(
+        "module_build_service.config.Config.mock_resultsdir",
+        new_callable=PropertyMock,
+        return_value=os.path.join(base_dir, "staged_data", "local_builds"),
+    )
+    def test_resolve_profiles_local_module(
+        self, local_builds, conf_system, formatted_testmodule_mmd
+    ):
         tests.clean_database()
         with app.app_context():
-            module_build_service.utils.load_local_builds(['platform'])
+            module_build_service.utils.load_local_builds(["platform"])
 
-            resolver = mbs_resolver.GenericResolver.create(tests.conf, backend='mbs')
-            result = resolver.resolve_profiles(formatted_testmodule_mmd,
-                                               ('buildroot', 'srpm-buildroot'))
-            expected = {
-                'buildroot':
-                    set(['foo']),
-                'srpm-buildroot':
-                    set(['bar'])
-            }
+            resolver = mbs_resolver.GenericResolver.create(tests.conf, backend="mbs")
+            result = resolver.resolve_profiles(
+                formatted_testmodule_mmd, ("buildroot", "srpm-buildroot"))
+            expected = {"buildroot": set(["foo"]), "srpm-buildroot": set(["bar"])}
             assert result == expected
 
     def test_get_empty_buildrequired_modulemds(self):
-        resolver = mbs_resolver.GenericResolver.create(tests.conf, backend='mbs')
+        resolver = mbs_resolver.GenericResolver.create(tests.conf, backend="mbs")
 
-        with patch.object(resolver, 'session') as session:
+        with patch.object(resolver, "session") as session:
             session.get.return_value = Mock(ok=True)
-            session.get.return_value.json.return_value = {
-                'items': [], 'meta': {'next': None}
-            }
+            session.get.return_value.json.return_value = {"items": [], "meta": {"next": None}}
 
-            result = resolver.get_buildrequired_modulemds(
-                'nodejs', '10', 'platform:el8:1:00000000')
+            result = resolver.get_buildrequired_modulemds("nodejs", "10", "platform:el8:1:00000000")
             assert [] == result
 
     def test_get_buildrequired_modulemds(self):
-        resolver = mbs_resolver.GenericResolver.create(tests.conf, backend='mbs')
+        resolver = mbs_resolver.GenericResolver.create(tests.conf, backend="mbs")
 
-        with patch.object(resolver, 'session') as session:
+        with patch.object(resolver, "session") as session:
             session.get.return_value = Mock(ok=True)
             session.get.return_value.json.return_value = {
-                'items': [{
-                    'name': 'nodejs', 'stream': '10',
-                    'version': 1, 'context': 'c1',
-                    'modulemd': tests.make_module(
-                        'nodejs:10:1:c1', store_to_db=False).dumps(),
-                }, {
-                    'name': 'nodejs', 'stream': '10',
-                    'version': 2, 'context': 'c1',
-                    'modulemd': tests.make_module(
-                        'nodejs:10:2:c1', store_to_db=False).dumps(),
-                }], 'meta': {'next': None}
+                "items": [
+                    {
+                        "name": "nodejs",
+                        "stream": "10",
+                        "version": 1,
+                        "context": "c1",
+                        "modulemd": tests.make_module("nodejs:10:1:c1", store_to_db=False).dumps(),
+                    },
+                    {
+                        "name": "nodejs",
+                        "stream": "10",
+                        "version": 2,
+                        "context": "c1",
+                        "modulemd": tests.make_module("nodejs:10:2:c1", store_to_db=False).dumps(),
+                    },
+                ],
+                "meta": {"next": None},
             }
 
-            result = resolver.get_buildrequired_modulemds(
-                'nodejs', '10', 'platform:el8:1:00000000')
+            result = resolver.get_buildrequired_modulemds("nodejs", "10", "platform:el8:1:00000000")
 
             assert 1 == len(result)
             mmd = result[0]
-            assert 'nodejs' == mmd.get_name()
-            assert '10' == mmd.get_stream()
+            assert "nodejs" == mmd.get_name()
+            assert "10" == mmd.get_stream()
             assert 1 == mmd.get_version()
-            assert 'c1' == mmd.get_context()
+            assert "c1" == mmd.get_context()
 
     @patch("requests.Session")
     def test_get_module_count(self, mock_session):
         mock_res = Mock()
         mock_res.ok.return_value = True
         mock_res.json.return_value = {
-            "items": [
-                {
-                    "name": "platform",
-                    "stream": "f28",
-                    "version": "3",
-                    "context": "00000000",
-                }
-            ],
-            "meta": {
-                "total": 5
-            }
+            "items": [{"name": "platform", "stream": "f28", "version": "3", "context": "00000000"}],
+            "meta": {"total": 5},
         }
         mock_session.return_value.get.return_value = mock_res
 
@@ -393,13 +421,7 @@ class TestMBSModule:
         assert count == 5
         mock_session.return_value.get.assert_called_once_with(
             "https://mbs.fedoraproject.org/module-build-service/1/module-builds/",
-            params={
-                "name": "platform",
-                "page": 1,
-                "per_page": 1,
-                "short": True,
-                "stream": "f28",
-            }
+            params={"name": "platform", "page": 1, "per_page": 1, "short": True, "stream": "f28"},
         )
 
     @patch("requests.Session")
@@ -416,9 +438,7 @@ class TestMBSModule:
                     "version": "3",
                 }
             ],
-            "meta": {
-                "total": 5
-            }
+            "meta": {"total": 5},
         }
         mock_session.return_value.get.return_value = mock_res
 
@@ -435,5 +455,5 @@ class TestMBSModule:
                 "per_page": 1,
                 "verbose": True,
                 "virtual_stream": "virtualf28",
-            }
+            },
         )

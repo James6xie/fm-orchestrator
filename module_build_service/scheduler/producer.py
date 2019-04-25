@@ -54,11 +54,10 @@ class MBSProducer(PollingProducer):
                 self.cleanup_stale_failed_builds(conf, session)
                 self.sync_koji_build_tags(conf, session)
             except Exception:
-                msg = 'Error in poller execution:'
+                msg = "Error in poller execution:"
                 log.exception(msg)
 
-        log.info('Poller will now sleep for "{}" seconds'
-                 .format(conf.polling_interval))
+        log.info('Poller will now sleep for "{}" seconds'.format(conf.polling_interval))
 
     def fail_lost_builds(self, session):
         # This function is supposed to be handling only the part which can't be
@@ -66,15 +65,17 @@ class MBSProducer(PollingProducer):
         # fit `n` slim. We do want rest to be processed elsewhere
         # TODO re-use
 
-        if conf.system == 'koji':
+        if conf.system == "koji":
             # We don't do this on behalf of users
             koji_session = KojiModuleBuilder.get_session(conf, login=False)
-            log.info('Querying tasks for statuses:')
-            res = models.ComponentBuild.query.filter_by(
-                state=koji.BUILD_STATES['BUILDING']).options(
-                    lazyload('module_build')).all()
+            log.info("Querying tasks for statuses:")
+            res = (
+                models.ComponentBuild.query.filter_by(state=koji.BUILD_STATES["BUILDING"])
+                .options(lazyload("module_build"))
+                .all()
+            )
 
-            log.info('Checking status for {0} tasks'.format(len(res)))
+            log.info("Checking status for {0} tasks".format(len(res)))
             for component_build in res:
                 log.debug(component_build.json())
                 # Don't check tasks which haven't been triggered yet
@@ -85,10 +86,11 @@ class MBSProducer(PollingProducer):
                 # they may have BUILDING state temporarily before we tag them
                 # to new module tag. Checking them would be waste of resources.
                 if component_build.reused_component_id:
-                    log.debug('Skipping check for task "{0}", '
-                              'the component has been reused ("{1}").'.format(
-                                  component_build.task_id,
-                                  component_build.reused_component_id))
+                    log.debug(
+                        'Skipping check for task "{0}", '
+                        'the component has been reused ("{1}").'.format(
+                            component_build.task_id, component_build.reused_component_id)
+                    )
                     continue
 
                 task_id = component_build.task_id
@@ -98,42 +100,41 @@ class MBSProducer(PollingProducer):
 
                 state_mapping = {
                     # Cancelled and failed builds should be marked as failed.
-                    koji.TASK_STATES['CANCELED']: koji.BUILD_STATES['FAILED'],
-                    koji.TASK_STATES['FAILED']: koji.BUILD_STATES['FAILED'],
+                    koji.TASK_STATES["CANCELED"]: koji.BUILD_STATES["FAILED"],
+                    koji.TASK_STATES["FAILED"]: koji.BUILD_STATES["FAILED"],
                     # Completed tasks should be marked as complete.
-                    koji.TASK_STATES['CLOSED']: koji.BUILD_STATES['COMPLETE'],
+                    koji.TASK_STATES["CLOSED"]: koji.BUILD_STATES["COMPLETE"],
                 }
 
                 # If it is a closed/completed task, then we can extract the NVR
                 build_version, build_release = None, None  # defaults
-                if task_info['state'] == koji.TASK_STATES['CLOSED']:
+                if task_info["state"] == koji.TASK_STATES["CLOSED"]:
                     builds = koji_session.listBuilds(taskID=task_id)
                     if not builds:
-                        log.warning("Task ID %r is closed, but we found no "
-                                    "builds in koji." % task_id)
+                        log.warning(
+                            "Task ID %r is closed, but we found no builds in koji." % task_id)
                     elif len(builds) > 1:
-                        log.warning("Task ID %r is closed, but more than one "
-                                    "build is present!" % task_id)
+                        log.warning(
+                            "Task ID %r is closed, but more than one build is present!" % task_id)
                     else:
-                        build_version = builds[0]['version']
-                        build_release = builds[0]['release']
+                        build_version = builds[0]["version"]
+                        build_release = builds[0]["release"]
 
-                log.info('  task {0!r} is in state {1!r}'.format(
-                    task_id, task_info['state']))
-                if task_info['state'] in state_mapping:
+                log.info("  task {0!r} is in state {1!r}".format(task_id, task_info["state"]))
+                if task_info["state"] in state_mapping:
                     # Fake a fedmsg message on our internal queue
                     msg = module_build_service.messaging.KojiBuildChange(
-                        msg_id='producer::fail_lost_builds fake msg',
+                        msg_id="producer::fail_lost_builds fake msg",
                         build_id=component_build.task_id,
                         task_id=component_build.task_id,
                         build_name=component_build.package,
-                        build_new_state=state_mapping[task_info['state']],
+                        build_new_state=state_mapping[task_info["state"]],
                         build_release=build_release,
                         build_version=build_version,
                     )
                     module_build_service.scheduler.consumer.work_queue_put(msg)
 
-        elif conf.system == 'mock':
+        elif conf.system == "mock":
             pass
 
     def cleanup_stale_failed_builds(self, conf, session):
@@ -141,60 +142,71 @@ class MBSProducer(PollingProducer):
         :param conf: the MBS configuration object
         :param session: a SQLAlchemy database session
         """
-        if conf.system == 'koji':
-            stale_date = datetime.utcnow() - timedelta(
-                days=conf.cleanup_failed_builds_time)
-            stale_module_builds = session.query(models.ModuleBuild).filter(
-                models.ModuleBuild.state == models.BUILD_STATES['failed'],
-                models.ModuleBuild.time_modified <= stale_date).all()
+        if conf.system == "koji":
+            stale_date = datetime.utcnow() - timedelta(days=conf.cleanup_failed_builds_time)
+            stale_module_builds = (
+                session.query(models.ModuleBuild)
+                .filter(
+                    models.ModuleBuild.state == models.BUILD_STATES["failed"],
+                    models.ModuleBuild.time_modified <= stale_date,
+                )
+                .all()
+            )
             if stale_module_builds:
-                log.info('{0} stale failed module build(s) will be cleaned up'.format(
-                    len(stale_module_builds)))
+                log.info(
+                    "{0} stale failed module build(s) will be cleaned up".format(
+                        len(stale_module_builds))
+                )
             for module in stale_module_builds:
-                log.info('{0!r} is stale and is being cleaned up'.format(module))
+                log.info("{0!r} is stale and is being cleaned up".format(module))
                 # Find completed artifacts in the stale build
-                artifacts = [c for c in module.component_builds
-                             if c.state == koji.BUILD_STATES['COMPLETE']]
+                artifacts = [
+                    c for c in module.component_builds
+                    if c.state == koji.BUILD_STATES["COMPLETE"]
+                ]
                 # If there are no completed artifacts, then there is nothing to tag
                 if artifacts:
                     # Set buildroot_connect=False so it doesn't recreate the Koji target and etc.
                     builder = GenericBuilder.create_from_module(
-                        session, module, conf, buildroot_connect=False)
+                        session, module, conf, buildroot_connect=False
+                    )
                     builder.untag_artifacts([c.nvr for c in artifacts])
                     # Mark the artifacts as untagged in the database
                     for c in artifacts:
                         c.tagged = False
                         c.tagged_in_final = False
                         session.add(c)
-                state_reason = ('The module was garbage collected since it has failed over {0}'
-                                ' day(s) ago'.format(conf.cleanup_failed_builds_time))
+                state_reason = (
+                    "The module was garbage collected since it has failed over {0}"
+                    " day(s) ago".format(conf.cleanup_failed_builds_time)
+                )
                 module.transition(
-                    conf, models.BUILD_STATES['garbage'], state_reason=state_reason,
-                    failure_type='user')
+                    conf,
+                    models.BUILD_STATES["garbage"],
+                    state_reason=state_reason,
+                    failure_type="user",
+                )
                 session.add(module)
                 session.commit()
 
     def log_summary(self, session):
-        log.info('Current status:')
+        log.info("Current status:")
         consumer = module_build_service.scheduler.consumer.get_global_consumer()
         backlog = consumer.incoming.qsize()
-        log.info('  * internal queue backlog is {0}'.format(backlog))
+        log.info("  * internal queue backlog is {0}".format(backlog))
         states = sorted(models.BUILD_STATES.items(), key=operator.itemgetter(1))
         for name, code in states:
             query = models.ModuleBuild.query.filter_by(state=code)
             count = query.count()
             if count:
-                log.info('  * {0} module builds in the {1} state'.format(
-                    count, name))
-            if name == 'build':
+                log.info("  * {0} module builds in the {1} state".format(count, name))
+            if name == "build":
                 for module_build in query.all():
-                    log.info('    * {0!r}'.format(module_build))
+                    log.info("    * {0!r}".format(module_build))
                     # First batch is number '1'.
                     for i in range(1, module_build.batch + 1):
-                        n = len([c for c in module_build.component_builds
-                                 if c.batch == i])
-                        log.info('      * {0} components in batch {1}'
-                                 .format(n, i))
+                        n = len([c for c in module_build.component_builds if c.batch == i])
+                        log.info("      * {0} components in batch {1}".format(n, i))
 
     def _nudge_module_builds_in_state(self, session, state_name, older_than_minutes):
         """
@@ -202,9 +214,9 @@ class MBSProducer(PollingProducer):
         than `older_than_minutes` and adds fake MBSModule message to the
         work queue.
         """
-        log.info('Looking for module builds stuck in the %s state', state_name)
+        log.info("Looking for module builds stuck in the %s state", state_name)
         builds = models.ModuleBuild.by_state(session, state_name)
-        log.info(' %r module builds in the %s state...', len(builds), state_name)
+        log.info(" %r module builds in the %s state...", len(builds), state_name)
         now = datetime.utcnow()
         time_modified_threshold = timedelta(minutes=older_than_minutes)
         for build in builds:
@@ -220,32 +232,38 @@ class MBSProducer(PollingProducer):
             # Fake a message to kickstart the build anew in the consumer
             state = module_build_service.models.BUILD_STATES[state_name]
             msg = module_build_service.messaging.MBSModule(
-                'nudge_module_builds_fake_message', build.id, state)
+                "nudge_module_builds_fake_message", build.id, state)
             log.info("  Scheduling faked event %r" % msg)
             module_build_service.scheduler.consumer.work_queue_put(msg)
 
     def process_waiting_module_builds(self, session):
-        for state in ['init', 'wait']:
+        for state in ["init", "wait"]:
             self._nudge_module_builds_in_state(session, state, 10)
 
     def process_open_component_builds(self, session):
-        log.warning('process_open_component_builds is not yet implemented...')
+        log.warning("process_open_component_builds is not yet implemented...")
 
     def process_paused_module_builds(self, config, session):
-        log.info('Looking for paused module builds in the build state')
-        if module_build_service.utils.at_concurrent_component_threshold(
-                config, session):
-            log.debug('Will not attempt to start paused module builds due to '
-                      'the concurrent build threshold being met')
+        log.info("Looking for paused module builds in the build state")
+        if module_build_service.utils.at_concurrent_component_threshold(config, session):
+            log.debug(
+                "Will not attempt to start paused module builds due to "
+                "the concurrent build threshold being met"
+            )
             return
 
         ten_minutes = timedelta(minutes=10)
         # Check for module builds that are in the build state but don't have any active component
         # builds. Exclude module builds in batch 0. This is likely a build of a module without
         # components.
-        module_builds = session.query(models.ModuleBuild).filter(
-            models.ModuleBuild.state == models.BUILD_STATES['build'],
-            models.ModuleBuild.batch > 0).all()
+        module_builds = (
+            session.query(models.ModuleBuild)
+            .filter(
+                models.ModuleBuild.state == models.BUILD_STATES["build"],
+                models.ModuleBuild.batch > 0,
+            )
+            .all()
+        )
         for module_build in module_builds:
             now = datetime.utcnow()
             # Only give builds a nudge if stuck for more than ten minutes
@@ -255,12 +273,13 @@ class MBSProducer(PollingProducer):
             # then no possible event will start off new component builds.
             # But do not try to start new builds when we are waiting for the
             # repo-regen.
-            if (not module_build.current_batch(koji.BUILD_STATES['BUILDING']) and
-               not module_build.new_repo_task_id):
-                log.info('  Processing the paused module build %r', module_build)
+            if (
+                not module_build.current_batch(koji.BUILD_STATES["BUILDING"])
+                and not module_build.new_repo_task_id
+            ):
+                log.info("  Processing the paused module build %r", module_build)
                 # Initialize the builder...
-                builder = GenericBuilder.create_from_module(
-                    session, module_build, config)
+                builder = GenericBuilder.create_from_module(session, module_build, config)
 
                 further_work = module_build_service.utils.start_next_batch_build(
                     config, module_build, session, builder)
@@ -269,8 +288,7 @@ class MBSProducer(PollingProducer):
                     module_build_service.scheduler.consumer.work_queue_put(event)
 
             # Check if we have met the threshold.
-            if module_build_service.utils.at_concurrent_component_threshold(
-                    config, session):
+            if module_build_service.utils.at_concurrent_component_threshold(config, session):
                 break
 
     def trigger_new_repo_when_stalled(self, config, session):
@@ -279,22 +297,24 @@ class MBSProducer(PollingProducer):
         doing anything and our module build stucks. In case the module build
         gets stuck on that, we trigger newRepo again to rebuild it.
         """
-        if config.system != 'koji':
+        if config.system != "koji":
             return
 
-        koji_session = module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder\
-            .get_session(config)
+        koji_session = module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session(
+            config)
 
-        for module_build in session.query(models.ModuleBuild) \
-                .filter_by(state=models.BUILD_STATES['build']).all():
+        for module_build in (
+            session.query(models.ModuleBuild).filter_by(state=models.BUILD_STATES["build"]).all()
+        ):
             if not module_build.new_repo_task_id:
                 continue
 
             task_info = koji_session.getTaskInfo(module_build.new_repo_task_id)
-            if (task_info["state"] in [koji.TASK_STATES['CANCELED'],
-                                       koji.TASK_STATES['FAILED']]):
-                log.info("newRepo task %s for %r failed, starting another one",
-                         str(module_build.new_repo_task_id), module_build)
+            if task_info["state"] in [koji.TASK_STATES["CANCELED"], koji.TASK_STATES["FAILED"]]:
+                log.info(
+                    "newRepo task %s for %r failed, starting another one",
+                    str(module_build.new_repo_task_id), module_build,
+                )
                 taginfo = koji_session.getTag(module_build.koji_tag + "-build")
                 module_build.new_repo_task_id = koji_session.newRepo(taginfo["name"])
             else:
@@ -307,39 +327,42 @@ class MBSProducer(PollingProducer):
         Deletes targets older than `config.koji_target_delete_time` seconds
         from Koji to cleanup after the module builds.
         """
-        if config.system != 'koji':
+        if config.system != "koji":
             return
 
-        log.info('Looking for module builds which Koji target can be removed')
+        log.info("Looking for module builds which Koji target can be removed")
 
         now = datetime.utcnow()
 
         koji_session = KojiModuleBuilder.get_session(config)
         for target in koji_session.getBuildTargets():
             koji_tag = target["dest_tag_name"]
-            module = session.query(models.ModuleBuild).filter_by(
-                koji_tag=koji_tag).first()
-            if not module or module.name in conf.base_module_names or module.state in [
+            module = session.query(models.ModuleBuild).filter_by(koji_tag=koji_tag).first()
+            if (
+                not module
+                or module.name in conf.base_module_names
+                or module.state in [
                     models.BUILD_STATES["init"],
                     models.BUILD_STATES["wait"],
-                    models.BUILD_STATES["build"]]:
+                    models.BUILD_STATES["build"],
+                ]
+            ):
                 continue
 
             # Double-check that the target we are going to remove is prefixed
             # by our prefix, so we won't remove f26 when there is some garbage
             # in DB or Koji.
             for allowed_prefix in config.koji_tag_prefixes:
-                if target['name'].startswith(allowed_prefix + "-"):
+                if target["name"].startswith(allowed_prefix + "-"):
                     break
             else:
-                log.error("Module %r has Koji target with not allowed prefix.",
-                          module)
+                log.error("Module %r has Koji target with not allowed prefix.", module)
                 continue
 
             delta = now - module.time_completed
             if delta.total_seconds() > config.koji_target_delete_time:
                 log.info("Removing target of module %r", module)
-                koji_session.deleteBuildTarget(target['id'])
+                koji_session.deleteBuildTarget(target["id"])
 
     def cancel_stuck_module_builds(self, config, session):
         """
@@ -347,34 +370,45 @@ class MBSProducer(PollingProducer):
         The states are defined with the "cleanup_stuck_builds_states" config option and the
         time is defined by the "cleanup_stuck_builds_time" config option.
         """
-        log.info(('Looking for module builds stuck in the states "{states}" '
-                  'more than {days} days').format(
-            states=' and '.join(config.cleanup_stuck_builds_states),
-            days=config.cleanup_stuck_builds_time
-        ))
+        log.info(
+            'Looking for module builds stuck in the states "{states}" more than {days} days'
+            .format(
+                states=" and ".join(config.cleanup_stuck_builds_states),
+                days=config.cleanup_stuck_builds_time,
+            )
+        )
 
         delta = timedelta(days=config.cleanup_stuck_builds_time)
         now = datetime.utcnow()
         threshold = now - delta
-        states = [module_build_service.models.BUILD_STATES[state]
-                  for state in config.cleanup_stuck_builds_states]
+        states = [
+            module_build_service.models.BUILD_STATES[state]
+            for state in config.cleanup_stuck_builds_states
+        ]
 
-        module_builds = session.query(models.ModuleBuild).filter(
-            models.ModuleBuild.state.in_(states),
-            models.ModuleBuild.time_modified < threshold).all()
+        module_builds = (
+            session.query(models.ModuleBuild)
+            .filter(
+                models.ModuleBuild.state.in_(states), models.ModuleBuild.time_modified < threshold
+            )
+            .all()
+        )
 
-        log.info(' {0!r} module builds are stuck...'.format(len(module_builds)))
+        log.info(" {0!r} module builds are stuck...".format(len(module_builds)))
 
         for build in module_builds:
             nsvc = ":".join([build.name, build.stream, build.version, build.context])
             log.info('Transitioning build "{nsvc}" to "Failed" state.'.format(nsvc=nsvc))
 
             state_reason = "The module was in {state} for more than {days} days".format(
-                state=build.state,
-                days=config.cleanup_stuck_builds_time
+                state=build.state, days=config.cleanup_stuck_builds_time
             )
-            build.transition(config, state=models.BUILD_STATES["failed"],
-                             state_reason=state_reason, failure_type='user')
+            build.transition(
+                config,
+                state=models.BUILD_STATES["failed"],
+                state_reason=state_reason,
+                failure_type="user",
+            )
             session.commit()
 
     def sync_koji_build_tags(self, config, session):
@@ -386,15 +420,14 @@ class MBSProducer(PollingProducer):
         In case the Koji shows the build as tagged/tagged_in_final,
         fake "tagged" message is added to work queue.
         """
-        if conf.system != 'koji':
+        if conf.system != "koji":
             return
 
         koji_session = KojiModuleBuilder.get_session(conf, login=False)
 
         module_builds = models.ModuleBuild.by_state(session, "build")
         for module_build in module_builds:
-            complete_components = module_build.current_batch(
-                koji.BUILD_STATES['COMPLETE'])
+            complete_components = module_build.current_batch(koji.BUILD_STATES["COMPLETE"])
             for c in complete_components:
                 # In case the component is tagged in the build tag and
                 # also tagged in the final tag (or it is build_time_only
@@ -402,8 +435,11 @@ class MBSProducer(PollingProducer):
                 if c.tagged and (c.tagged_in_final or c.build_time_only):
                     continue
 
-                log.info("%r: Component %r is complete, but not tagged in the "
-                         "final and/or build tags.", module_build, c)
+                log.info(
+                    "%r: Component %r is complete, but not tagged in the "
+                    "final and/or build tags.",
+                    module_build, c,
+                )
 
                 # Check in which tags the component is tagged.
                 tag_dicts = koji_session.listTags(c.nvr)
@@ -413,8 +449,8 @@ class MBSProducer(PollingProducer):
                 # schedule fake message.
                 if not c.tagged_in_final and module_build.koji_tag in tags:
                     msg = module_build_service.messaging.KojiTagChange(
-                        'sync_koji_build_tags_fake_message',
-                        module_build.koji_tag, c.package, c.nvr)
+                        "sync_koji_build_tags_fake_message", module_build.koji_tag, c.package, c.nvr
+                    )
                     log.info("  Scheduling faked event %r" % msg)
                     module_build_service.scheduler.consumer.work_queue_put(msg)
 
@@ -423,7 +459,6 @@ class MBSProducer(PollingProducer):
                 build_tag = module_build.koji_tag + "-build"
                 if not c.tagged and build_tag in tags:
                     msg = module_build_service.messaging.KojiTagChange(
-                        'sync_koji_build_tags_fake_message',
-                        build_tag, c.package, c.nvr)
+                        "sync_koji_build_tags_fake_message", build_tag, c.package, c.nvr)
                     log.info("  Scheduling faked event %r" % msg)
                     module_build_service.scheduler.consumer.work_queue_put(msg)

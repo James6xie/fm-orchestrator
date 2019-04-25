@@ -52,6 +52,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 def get_session(config, login=True):
     from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
+
     return KojiModuleBuilder.get_session(config, login=login)
 
 
@@ -69,7 +70,7 @@ def strip_suffixes(s, suffixes):
     """
     for suffix in suffixes:
         if s.endswith(suffix):
-            s = s[:-len(suffix)]
+            s = s[: -len(suffix)]
             break
     return s
 
@@ -79,8 +80,9 @@ def koji_retrying_multicall_map(*args, **kwargs):
     Wrapper around KojiModuleBuilder.koji_retrying_multicall_map, because
     we cannot import that method normally because of import loop.
     """
-    from module_build_service.builder.KojiModuleBuilder import \
-        koji_retrying_multicall_map as multicall
+    from module_build_service.builder.KojiModuleBuilder import (
+        koji_retrying_multicall_map as multicall,)
+
     return multicall(*args, **kwargs)
 
 
@@ -109,7 +111,7 @@ class KojiContentGenerator(object):
         return "<KojiContentGenerator module: %s>" % (self.module_name)
 
     @staticmethod
-    def parse_rpm_output(output, tags, separator=';'):
+    def parse_rpm_output(output, tags, separator=";"):
         """
         Copied from:
         https://github.com/projectatomic/atomic-reactor/blob/master/atomic_reactor/plugins/exit_koji_promote.py
@@ -130,42 +132,42 @@ class KojiContentGenerator(object):
             except ValueError:
                 return None
 
-            if value == '(none)':
+            if value == "(none)":
                 return None
 
             return value
 
         components = []
-        sigmarker = 'Key ID '
+        sigmarker = "Key ID "
         for rpm in output:
-            fields = rpm.rstrip('\n').split(separator)
+            fields = rpm.rstrip("\n").split(separator)
             if len(fields) < len(tags):
                 continue
 
-            signature = field('SIGPGP:pgpsig') or field('SIGGPG:pgpsig')
+            signature = field("SIGPGP:pgpsig") or field("SIGGPG:pgpsig")
             if signature:
                 parts = signature.split(sigmarker, 1)
                 if len(parts) > 1:
                     signature = parts[1]
 
             component_rpm = {
-                u'type': u'rpm',
-                u'name': field('NAME'),
-                u'version': field('VERSION'),
-                u'release': field('RELEASE'),
-                u'arch': field('ARCH'),
-                u'sigmd5': field('SIGMD5'),
-                u'signature': signature,
+                u"type": u"rpm",
+                u"name": field("NAME"),
+                u"version": field("VERSION"),
+                u"release": field("RELEASE"),
+                u"arch": field("ARCH"),
+                u"sigmd5": field("SIGMD5"),
+                u"signature": signature,
             }
 
             # Special handling for epoch as it must be an integer or None
-            epoch = field('EPOCH')
+            epoch = field("EPOCH")
             if epoch is not None:
                 epoch = int(epoch)
 
-            component_rpm[u'epoch'] = epoch
+            component_rpm[u"epoch"] = epoch
 
-            if component_rpm['name'] != 'gpg-pubkey':
+            if component_rpm["name"] != "gpg-pubkey":
                 components.append(component_rpm)
 
         return components
@@ -177,28 +179,25 @@ class KojiContentGenerator(object):
 
         Build a list of installed RPMs in the format required for the
         metadata.
-        """ # noqa
+        """  # noqa
 
         tags = [
-            'NAME',
-            'VERSION',
-            'RELEASE',
-            'ARCH',
-            'EPOCH',
-            'SIGMD5',
-            'SIGPGP:pgpsig',
-            'SIGGPG:pgpsig',
+            "NAME",
+            "VERSION",
+            "RELEASE",
+            "ARCH",
+            "EPOCH",
+            "SIGMD5",
+            "SIGPGP:pgpsig",
+            "SIGGPG:pgpsig",
         ]
 
-        sep = ';'
+        sep = ";"
         fmt = sep.join(["%%{%s}" % tag for tag in tags])
         cmd = "/bin/rpm -qa --qf '{0}\n'".format(fmt)
-        with open('/dev/null', 'r+') as devnull:
-            p = subprocess.Popen(cmd,
-                                 shell=True,
-                                 stdin=devnull,
-                                 stdout=subprocess.PIPE,
-                                 stderr=devnull)
+        with open("/dev/null", "r+") as devnull:
+            p = subprocess.Popen(
+                cmd, shell=True, stdin=devnull, stdout=subprocess.PIPE, stderr=devnull)
 
             (stdout, stderr) = p.communicate()
             status = p.wait()
@@ -216,16 +215,12 @@ class KojiContentGenerator(object):
         # TODO: In libmodulemd v1.5, there'll be a property we can check instead
         # of using RPM
         try:
-            libmodulemd_version = subprocess.check_output(
-                ['rpm', '--queryformat', '%{VERSION}', '-q', 'libmodulemd'],
-                universal_newlines=True).strip()
+            cmd = ["rpm", "--queryformat", "%{VERSION}", "-q", "libmodulemd"]
+            libmodulemd_version = subprocess.check_output(cmd, universal_newlines=True).strip()
         except subprocess.CalledProcessError:
-            libmodulemd_version = 'unknown'
+            libmodulemd_version = "unknown"
 
-        return [{
-            'name': 'libmodulemd',
-            'version': libmodulemd_version
-        }]
+        return [{"name": "libmodulemd", "version": libmodulemd_version}]
 
     def _koji_rpms_in_tag(self, tag):
         """ Return the list of koji rpms in a tag. """
@@ -257,17 +252,20 @@ class KojiContentGenerator(object):
         # Prepare the arguments for Koji multicall.
         # We will call session.getRPMHeaders(...) for each SRC RPM to get exclusivearch,
         # excludearch and license headers.
-        multicall_kwargs = [{"rpmID": rpm_id,
-                             "headers": ["exclusivearch", "excludearch", "license"]}
-                            for rpm_id in src_rpms.keys()]
+        multicall_kwargs = [
+            {"rpmID": rpm_id, "headers": ["exclusivearch", "excludearch", "license"]}
+            for rpm_id in src_rpms.keys()
+        ]
         # For each binary RPM, we only care about the "license" header.
-        multicall_kwargs += [{"rpmID": rpm_id, "headers": ["license"]}
-                             for rpm_id in binary_rpms.keys()]
+        multicall_kwargs += [
+            {"rpmID": rpm_id, "headers": ["license"]} for rpm_id in binary_rpms.keys()
+        ]
         rpms_headers = koji_retrying_multicall_map(
-            session, session.getRPMHeaders, list_of_kwargs=multicall_kwargs)
+            session, session.getRPMHeaders, list_of_kwargs=multicall_kwargs
+        )
 
         # Temporary dict with build_id as a key to find builds easily.
-        builds = {build['build_id']: build for build in builds}
+        builds = {build["build_id"]: build for build in builds}
 
         # Create a mapping of build IDs to SRPM NEVRAs so that the for loop below can directly
         # access these values when adding the `srpm_nevra` key to the returned RPMs
@@ -280,8 +278,7 @@ class KojiContentGenerator(object):
         # also other useful data from the Build associated with the RPM.
         for rpm, headers in zip(chain(src_rpms.values(), binary_rpms.values()), rpms_headers):
             if not headers:
-                raise RuntimeError(
-                    "No RPM headers received from Koji for RPM %s" % rpm["name"])
+                raise RuntimeError("No RPM headers received from Koji for RPM %s" % rpm["name"])
             if "license" not in headers:
                 raise RuntimeError(
                     "No RPM 'license' header received from Koji for RPM %s" % rpm["name"])
@@ -291,44 +288,42 @@ class KojiContentGenerator(object):
                 build["excludearch"] = headers["excludearch"]
 
             rpm["license"] = headers["license"]
-            rpm['srpm_name'] = build['name']
-            rpm['srpm_nevra'] = build_id_to_srpm_nevra[rpm["build_id"]]
-            rpm['exclusivearch'] = build['exclusivearch']
-            rpm['excludearch'] = build['excludearch']
+            rpm["srpm_name"] = build["name"]
+            rpm["srpm_nevra"] = build_id_to_srpm_nevra[rpm["build_id"]]
+            rpm["exclusivearch"] = build["exclusivearch"]
+            rpm["excludearch"] = build["excludearch"]
 
         return rpms
 
     def _get_build(self):
         ret = {}
-        ret[u'name'] = self.module.name
+        ret[u"name"] = self.module.name
         if self.devel:
-            ret['name'] += "-devel"
-        ret[u'version'] = self.module.stream.replace("-", "_")
+            ret["name"] += "-devel"
+        ret[u"version"] = self.module.stream.replace("-", "_")
         # Append the context to the version to make NVRs of modules unique in the event of
         # module stream expansion
-        ret[u'release'] = '{0}.{1}'.format(self.module.version, self.module.context)
-        ret[u'source'] = self.module.scmurl
-        ret[u'start_time'] = calendar.timegm(
-            self.module.time_submitted.utctimetuple())
-        ret[u'end_time'] = calendar.timegm(
-            self.module.time_completed.utctimetuple())
-        ret[u'extra'] = {
+        ret[u"release"] = "{0}.{1}".format(self.module.version, self.module.context)
+        ret[u"source"] = self.module.scmurl
+        ret[u"start_time"] = calendar.timegm(self.module.time_submitted.utctimetuple())
+        ret[u"end_time"] = calendar.timegm(self.module.time_completed.utctimetuple())
+        ret[u"extra"] = {
             u"typeinfo": {
                 u"module": {
                     u"module_build_service_id": self.module.id,
                     u"content_koji_tag": self.module.koji_tag,
                     u"modulemd_str": self.module.modulemd,
-                    u"name": ret['name'],
+                    u"name": ret["name"],
                     u"stream": self.module.stream,
                     u"version": self.module.version,
-                    u"context": self.module.context
+                    u"context": self.module.context,
                 }
             }
         }
         session = get_session(self.config, login=False)
         # Only add the CG build owner if the user exists in Koji
         if session.getUser(self.owner):
-            ret[u'owner'] = self.owner
+            ret[u"owner"] = self.owner
         return ret
 
     def _get_buildroot(self):
@@ -338,18 +333,15 @@ class KojiContentGenerator(object):
             u"id": 1,
             u"host": {
                 u"arch": text_type(platform.machine()),
-                u'os': u"%s %s" % (distro[0], distro[1])
+                u"os": u"%s %s" % (distro[0], distro[1]),
             },
             u"content_generator": {
                 u"name": u"module-build-service",
-                u"version": text_type(version)
+                u"version": text_type(version),
             },
-            u"container": {
-                u"arch": text_type(platform.machine()),
-                u"type": u"none"
-            },
+            u"container": {u"arch": text_type(platform.machine()), u"type": u"none"},
             u"components": self.__get_rpms(),
-            u"tools": self.__get_tools()
+            u"tools": self.__get_tools(),
         }
         return ret
 
@@ -368,7 +360,7 @@ class KojiContentGenerator(object):
             u"arch": rpm["arch"],
             u"epoch": rpm["epoch"],
             u"sigmd5": rpm["payloadhash"],
-            u"type": u"rpm"
+            u"type": u"rpm",
         }
 
     def _get_arch_mmd_output(self, output_path, arch):
@@ -385,15 +377,11 @@ class KojiContentGenerator(object):
         :return: Dictionary with record in "output" list.
         """
         ret = {
-            'buildroot_id': 1,
-            'arch': arch,
-            'type': 'file',
-            'extra': {
-                'typeinfo': {
-                    'module': {}
-                }
-            },
-            'checksum_type': 'md5',
+            "buildroot_id": 1,
+            "arch": arch,
+            "type": "file",
+            "extra": {"typeinfo": {"module": {}}},
+            "checksum_type": "md5",
         }
 
         # Noarch architecture represents "generic" modulemd.txt.
@@ -406,13 +394,13 @@ class KojiContentGenerator(object):
         # parse it to get the Modulemd instance.
         mmd_path = os.path.join(output_path, mmd_filename)
         try:
-            with open(mmd_path, 'rb') as mmd_f:
+            with open(mmd_path, "rb") as mmd_f:
                 raw_data = mmd_f.read()
                 data = to_text_type(raw_data)
                 mmd = load_mmd(data)
-                ret['filename'] = mmd_filename
-                ret['filesize'] = len(raw_data)
-                ret['checksum'] = hashlib.md5(raw_data).hexdigest()
+                ret["filename"] = mmd_filename
+                ret["filesize"] = len(raw_data)
+                ret["checksum"] = hashlib.md5(raw_data).hexdigest()
         except IOError:
             if arch == "src":
                 # This might happen in case the Module is submitted directly
@@ -428,8 +416,7 @@ class KojiContentGenerator(object):
         if arch in ["noarch", "src"]:
             # For generic noarch/src modulemd, include all the RPMs.
             for rpm in self.rpms:
-                components.append(
-                    self._koji_rpm_to_component_record(rpm))
+                components.append(self._koji_rpm_to_component_record(rpm))
         else:
             # Check the RPM artifacts built for this architecture in modulemd file,
             # find the matching RPM in the `rpms_dict` coming from Koji and use it
@@ -438,11 +425,10 @@ class KojiContentGenerator(object):
             # RPM sigmd5 signature is not stored in MMD.
             for rpm in mmd.get_rpm_artifacts().get():
                 if rpm not in self.rpms_dict:
-                    raise RuntimeError("RPM %s found in the final modulemd but not "
-                                       "in Koji tag." % rpm)
+                    raise RuntimeError(
+                        "RPM %s found in the final modulemd but not in Koji tag." % rpm)
                 tag_rpm = self.rpms_dict[rpm]
-                components.append(
-                    self._koji_rpm_to_component_record(tag_rpm))
+                components.append(self._koji_rpm_to_component_record(tag_rpm))
         ret["components"] = components
         return ret
 
@@ -455,18 +441,18 @@ class KojiContentGenerator(object):
 
         try:
             log_path = os.path.join(output_path, "build.log")
-            with open(log_path, 'rb') as build_log:
+            with open(log_path, "rb") as build_log:
                 checksum = hashlib.md5(build_log.read()).hexdigest()
             stat = os.stat(log_path)
             ret.append(
                 {
-                    u'buildroot_id': 1,
-                    u'arch': u'noarch',
-                    u'type': u'log',
-                    u'filename': u'build.log',
-                    u'filesize': stat.st_size,
-                    u'checksum_type': u'md5',
-                    u'checksum': checksum
+                    u"buildroot_id": 1,
+                    u"arch": u"noarch",
+                    u"type": u"log",
+                    u"filename": u"build.log",
+                    u"filesize": stat.st_size,
+                    u"checksum_type": u"md5",
+                    u"checksum": checksum,
                 }
             )
         except IOError:
@@ -480,7 +466,7 @@ class KojiContentGenerator(object):
             u"metadata_version": 0,
             u"buildroots": [self._get_buildroot()],
             u"build": self._get_build(),
-            u"output": self._get_output(output_path)
+            u"output": self._get_output(output_path),
         }
 
         return ret
@@ -567,12 +553,10 @@ class KojiContentGenerator(object):
         # For example:
         #   "x86_64" -> ['athlon', 'i386', 'i586', 'i486', 'i686']
         #   "i686" -> []
-        multilib_arches = set(compatible_arches) - set(
-            pungi.arch.get_compatible_arches(arch))
+        multilib_arches = set(compatible_arches) - set(pungi.arch.get_compatible_arches(arch))
         # List of architectures that should be in ExclusiveArch tag or missing
         # from ExcludeArch tag. Multilib should not be enabled here.
-        exclusive_arches = pungi.arch.get_valid_arches(
-            arch, multilib=False, add_noarch=False)
+        exclusive_arches = pungi.arch.get_valid_arches(arch, multilib=False, add_noarch=False)
 
         # Modulemd.SimpleSet into which we will add the RPMs.
         rpm_artifacts = Modulemd.SimpleSet()
@@ -605,8 +589,7 @@ class KojiContentGenerator(object):
             # - the architecture of an RPM is not multilib architecture for `arch`.
             # - the architecture of an RPM is not the final mmd architecture.
             # - the architecture of an RPM is not "noarch" or "src".
-            if (rpm["arch"] not in multilib_arches and
-                    rpm["arch"] not in [arch, "noarch", "src"]):
+            if rpm["arch"] not in multilib_arches and rpm["arch"] not in [arch, "noarch", "src"]:
                 continue
 
             # Skip the RPM if it is excluded on this arch or exclusive
@@ -728,8 +711,7 @@ class KojiContentGenerator(object):
         commit = xmd.get("mbs", {}).get("commit")
         scmurl = xmd.get("mbs", {}).get("scmurl")
         if not commit or not scmurl:
-            log.warning("%r: xmd['mbs'] does not contain 'commit' or 'scmurl'.",
-                        self.module)
+            log.warning("%r: xmd['mbs'] does not contain 'commit' or 'scmurl'.", self.module)
             return
 
         td = None
@@ -747,9 +729,7 @@ class KojiContentGenerator(object):
                 if td is not None:
                     shutil.rmtree(td)
             except Exception as e:
-                log.warning(
-                    "Failed to remove temporary directory {!r}: {}".format(
-                        td, str(e)))
+                log.warning("Failed to remove temporary directory {!r}: {}".format(td, str(e)))
 
     def _prepare_file_directory(self):
         """ Creates a temporary directory that will contain all the files
@@ -787,10 +767,10 @@ class KojiContentGenerator(object):
         Uploads output files to Koji hub.
         """
         to_upload = []
-        for info in metadata['output']:
-            if info.get('metadata_only', False):
+        for info in metadata["output"]:
+            if info.get("metadata_only", False):
                 continue
-            localpath = os.path.join(file_dir, info['filename'])
+            localpath = os.path.join(file_dir, info["filename"])
             if not os.path.exists(localpath):
                 err = "Cannot upload %s to Koji. No such file." % localpath
                 log.error(err)
@@ -799,7 +779,7 @@ class KojiContentGenerator(object):
             to_upload.append([localpath, info])
 
         # Create unique server directory.
-        serverdir = 'mbs/%r.%d' % (time.time(), self.module.id)
+        serverdir = "mbs/%r.%d" % (time.time(), self.module.id)
 
         for localpath, info in to_upload:
             log.info("Uploading %s to Koji" % localpath)
@@ -816,8 +796,8 @@ class KojiContentGenerator(object):
 
         tag_name = self.module.cg_build_koji_tag
         if not tag_name:
-            log.info("%r: Not tagging Content Generator build, no "
-                     "cg_build_koji_tag set", self.module)
+            log.info(
+                "%r: Not tagging Content Generator build, no cg_build_koji_tag set", self.module)
             return
 
         tag_names_to_try = [tag_name, self.config.koji_cg_default_build_tag]
@@ -827,20 +807,19 @@ class KojiContentGenerator(object):
             if tag_info:
                 break
 
-            log.info("%r: Tag %s not found in Koji, trying next one.",
-                     self.module, tag)
+            log.info("%r: Tag %s not found in Koji, trying next one.", self.module, tag)
 
         if not tag_info:
             log.warning(
-                "%r:, Not tagging Content Generator build, no available tag"
-                " found, tried %r", self.module, tag_names_to_try)
+                "%r:, Not tagging Content Generator build, no available tag found, tried %r",
+                self.module, tag_names_to_try,
+            )
             return
 
         build = self._get_build()
         nvr = "%s-%s-%s" % (build["name"], build["version"], build["release"])
 
-        log.info("Content generator build %s will be tagged as %s in "
-                 "Koji", nvr, tag)
+        log.info("Content generator build %s will be tagged as %s in Koji", nvr, tag)
         session.tagBuild(tag_info["id"], nvr)
 
     def _load_koji_tag(self, koji_session):
@@ -879,7 +858,7 @@ class KojiContentGenerator(object):
             except koji.GenericError as e:
                 if "Build already exists" not in str(e):
                     raise
-                log.warning('Failed to import content generator')
+                log.warning("Failed to import content generator")
                 build_info = None
             if conf.koji_cg_tag_build:
                 self._tag_cg_build()

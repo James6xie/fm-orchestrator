@@ -32,7 +32,6 @@ from module_build_service import glib
 
 
 class TestMMDResolver:
-
     def setup_method(self, test_method):
         self.mmd_resolver = MMDResolver()
 
@@ -87,7 +86,8 @@ class TestMMDResolver:
         return mmd
 
     @pytest.mark.parametrize(
-        "deps, expected", (
+        "deps, expected",
+        (
             ([], "None"),
             ([{"x": []}], "module(x)"),
             ([{"x": ["1"]}], "(module(x) with module(x:1))"),
@@ -96,7 +96,7 @@ class TestMMDResolver:
             ([{"x": ["-1", "2"]}], "(module(x) with module(x:2))"),
             ([{"x": [], "y": []}], "(module(x) and module(y))"),
             ([{"x": []}, {"y": []}], "(module(x) or module(y))"),
-        )
+        ),
     )
     def test_deps2reqs(self, deps, expected):
         # Sort by keys here to avoid unordered dicts
@@ -105,48 +105,64 @@ class TestMMDResolver:
         assert str(reqs) == expected
 
     @pytest.mark.parametrize(
-        "buildrequires, expected", (
-            ({"platform": []}, [
-                [["platform:f28:0:c0:x86_64"],
-                 ["platform:f29:0:c0:x86_64"]],
-            ]),
-            ({"platform": ["f28"]}, [
-                [["platform:f28:0:c0:x86_64"]],
-            ]),
-            ({"platform": ["-f28"]}, [
-                [["platform:f29:0:c0:x86_64"]],
-            ]),
-            ({"gtk": [], "qt": []}, [
-                [["gtk:3:0:c8:x86_64", "qt:4:0:c8:x86_64", "platform:f28:0:c0:x86_64"],
-                 ["gtk:4:0:c8:x86_64", "qt:4:0:c8:x86_64", "platform:f28:0:c0:x86_64"],
-                 ["gtk:3:0:c8:x86_64", "qt:5:0:c8:x86_64", "platform:f28:0:c0:x86_64"],
-                 ["gtk:4:0:c8:x86_64", "qt:5:0:c8:x86_64", "platform:f28:0:c0:x86_64"]],
-            ]),
-            ({"gtk": [], "qt": [], "platform": []}, [
-                [["gtk:3:0:c8:x86_64", "qt:4:0:c8:x86_64", "platform:f28:0:c0:x86_64"],
-                 ["gtk:4:0:c8:x86_64", "qt:4:0:c8:x86_64", "platform:f28:0:c0:x86_64"],
-                 ["gtk:3:0:c8:x86_64", "qt:5:0:c8:x86_64", "platform:f28:0:c0:x86_64"],
-                 ["gtk:4:0:c8:x86_64", "qt:5:0:c8:x86_64", "platform:f28:0:c0:x86_64"],
-                 ["gtk:3:0:c9:x86_64", "qt:4:0:c9:x86_64", "platform:f29:0:c0:x86_64"],
-                 ["gtk:4:0:c9:x86_64", "qt:4:0:c9:x86_64", "platform:f29:0:c0:x86_64"],
-                 ["gtk:3:0:c9:x86_64", "qt:5:0:c9:x86_64", "platform:f29:0:c0:x86_64"],
-                 ["gtk:4:0:c9:x86_64", "qt:5:0:c9:x86_64", "platform:f29:0:c0:x86_64"]],
-            ]),
-            ([{"qt": [], "platform": ["f28"]},
-              {"gtk": [], "platform": ["-f28"]}], [
-                [["qt:4:0:c8:x86_64", "platform:f28:0:c0:x86_64"],
-                 ["qt:5:0:c8:x86_64", "platform:f28:0:c0:x86_64"]],
-                [["gtk:3:0:c9:x86_64", "platform:f29:0:c0:x86_64"],
-                 ["gtk:4:0:c9:x86_64", "platform:f29:0:c0:x86_64"]],
-            ]),
-            ({"mess": []}, [
-                [["mess:1:0:c0:x86_64", "gtk:3:0:c8:x86_64", "platform:f28:0:c0:x86_64"]],
-            ]),
-            ({"mess": [], "platform": []}, [
-                [["mess:1:0:c0:x86_64", "gtk:3:0:c8:x86_64", "platform:f28:0:c0:x86_64"],
-                 ["mess:1:0:c0:x86_64", "gtk:4:0:c9:x86_64", "platform:f29:0:c0:x86_64"]],
-            ]),
-        )
+        "buildrequires, expected",
+        (
+            ({"platform": []}, [[["platform:f28:0:c0:x86_64"], ["platform:f29:0:c0:x86_64"]]]),
+            ({"platform": ["f28"]}, [[["platform:f28:0:c0:x86_64"]]]),
+            ({"platform": ["-f28"]}, [[["platform:f29:0:c0:x86_64"]]]),
+            (
+                {"gtk": [], "qt": []},
+                [
+                    [
+                        ["gtk:3:0:c8:x86_64", "qt:4:0:c8:x86_64", "platform:f28:0:c0:x86_64"],
+                        ["gtk:4:0:c8:x86_64", "qt:4:0:c8:x86_64", "platform:f28:0:c0:x86_64"],
+                        ["gtk:3:0:c8:x86_64", "qt:5:0:c8:x86_64", "platform:f28:0:c0:x86_64"],
+                        ["gtk:4:0:c8:x86_64", "qt:5:0:c8:x86_64", "platform:f28:0:c0:x86_64"],
+                    ]
+                ],
+            ),
+            (
+                {"gtk": [], "qt": [], "platform": []},
+                [
+                    [
+                        ["gtk:3:0:c8:x86_64", "qt:4:0:c8:x86_64", "platform:f28:0:c0:x86_64"],
+                        ["gtk:4:0:c8:x86_64", "qt:4:0:c8:x86_64", "platform:f28:0:c0:x86_64"],
+                        ["gtk:3:0:c8:x86_64", "qt:5:0:c8:x86_64", "platform:f28:0:c0:x86_64"],
+                        ["gtk:4:0:c8:x86_64", "qt:5:0:c8:x86_64", "platform:f28:0:c0:x86_64"],
+                        ["gtk:3:0:c9:x86_64", "qt:4:0:c9:x86_64", "platform:f29:0:c0:x86_64"],
+                        ["gtk:4:0:c9:x86_64", "qt:4:0:c9:x86_64", "platform:f29:0:c0:x86_64"],
+                        ["gtk:3:0:c9:x86_64", "qt:5:0:c9:x86_64", "platform:f29:0:c0:x86_64"],
+                        ["gtk:4:0:c9:x86_64", "qt:5:0:c9:x86_64", "platform:f29:0:c0:x86_64"],
+                    ]
+                ],
+            ),
+            (
+                [{"qt": [], "platform": ["f28"]}, {"gtk": [], "platform": ["-f28"]}],
+                [
+                    [
+                        ["qt:4:0:c8:x86_64", "platform:f28:0:c0:x86_64"],
+                        ["qt:5:0:c8:x86_64", "platform:f28:0:c0:x86_64"],
+                    ],
+                    [
+                        ["gtk:3:0:c9:x86_64", "platform:f29:0:c0:x86_64"],
+                        ["gtk:4:0:c9:x86_64", "platform:f29:0:c0:x86_64"],
+                    ],
+                ],
+            ),
+            (
+                {"mess": []},
+                [[["mess:1:0:c0:x86_64", "gtk:3:0:c8:x86_64", "platform:f28:0:c0:x86_64"]]],
+            ),
+            (
+                {"mess": [], "platform": []},
+                [
+                    [
+                        ["mess:1:0:c0:x86_64", "gtk:3:0:c8:x86_64", "platform:f28:0:c0:x86_64"],
+                        ["mess:1:0:c0:x86_64", "gtk:4:0:c9:x86_64", "platform:f29:0:c0:x86_64"],
+                    ]
+                ],
+            ),
+        ),
     )
     def test_solve(self, buildrequires, expected):
         modules = (
@@ -160,8 +176,10 @@ class TestMMDResolver:
             ("qt:4:0:c9", {"platform": ["f29"]}),
             ("qt:5:0:c8", {"platform": ["f28"]}),
             ("qt:5:0:c9", {"platform": ["f29"]}),
-            ("mess:1:0:c0", [{"gtk": ["3"], "platform": ["f28"]},
-                             {"gtk": ["4"], "platform": ["-f28"]}]),
+            (
+                "mess:1:0:c0",
+                [{"gtk": ["3"], "platform": ["f28"]}, {"gtk": ["4"], "platform": ["-f28"]}],
+            ),
         )
         for n, req in modules:
             self.mmd_resolver.add_modules(self._make_mmd(n, req))
@@ -169,58 +187,77 @@ class TestMMDResolver:
         app = self._make_mmd("app:1:0", buildrequires)
         expanded = self.mmd_resolver.solve(app)
 
-        expected = set(frozenset(["app:1:0:%d:src" % c] + e)
-                       for c, exp in enumerate(expected)
-                       for e in exp)
+        expected = set(
+            frozenset(["app:1:0:%d:src" % c] + e) for c, exp in enumerate(expected) for e in exp
+        )
 
         assert expanded == expected
 
     @pytest.mark.parametrize(
-        "buildrequires, xmd_buildrequires, expected", (
+        "buildrequires, xmd_buildrequires, expected",
+        (
             # BR all platform streams -> build for all platform streams.
-            ({"platform": []}, {}, [
-                [["platform:el8.2.0.z:0:c0:x86_64"],
-                 ["platform:el8.1.0:0:c0:x86_64"],
-                 ["platform:el8.0.0:0:c0:x86_64"],
-                 ["platform:el7.6.0:0:c0:x86_64"]],
-            ]),
+            (
+                {"platform": []},
+                {},
+                [
+                    [
+                        ["platform:el8.2.0.z:0:c0:x86_64"],
+                        ["platform:el8.1.0:0:c0:x86_64"],
+                        ["platform:el8.0.0:0:c0:x86_64"],
+                        ["platform:el7.6.0:0:c0:x86_64"],
+                    ]
+                ],
+            ),
             # BR "el8" platform stream -> build for all el8 platform streams.
-            ({"platform": ["el8"]}, {}, [
-                [["platform:el8.2.0.z:0:c0:x86_64"],
-                 ["platform:el8.1.0:0:c0:x86_64"],
-                 ["platform:el8.0.0:0:c0:x86_64"]],
-            ]),
+            (
+                {"platform": ["el8"]},
+                {},
+                [
+                    [
+                        ["platform:el8.2.0.z:0:c0:x86_64"],
+                        ["platform:el8.1.0:0:c0:x86_64"],
+                        ["platform:el8.0.0:0:c0:x86_64"],
+                    ]
+                ],
+            ),
             # BR "el8.1.0" platfrom stream -> build just for el8.1.0.
-            ({"platform": ["el8"]}, ["platform:el8.1.0"], [
-                [["platform:el8.1.0:0:c0:x86_64"]],
-            ]),
+            ({"platform": ["el8"]}, ["platform:el8.1.0"], [[["platform:el8.1.0:0:c0:x86_64"]]]),
             # BR platform:el8.1.0 and gtk:3, which is not built against el8.1.0,
             # but it is built only against el8.0.0 -> cherry-pick gtk:3 from el8.0.0
             # and build once against platform:el8.1.0.
-            ({"platform": ["el8"], "gtk": ["3"]}, ["platform:el8.1.0"], [
-                [["platform:el8.1.0:0:c0:x86_64", "gtk:3:0:c8:x86_64", ]],
-            ]),
+            (
+                {"platform": ["el8"], "gtk": ["3"]},
+                ["platform:el8.1.0"],
+                [[["platform:el8.1.0:0:c0:x86_64", "gtk:3:0:c8:x86_64"]]],
+            ),
             # BR platform:el8.2.0 and gtk:3, this time gtk:3 build against el8.2.0 exists
             # -> use both platform and gtk from el8.2.0 and build once.
-            ({"platform": ["el8"], "gtk": ["3"]}, ["platform:el8.2.0.z"], [
-                [["platform:el8.2.0.z:0:c0:x86_64", "gtk:3:1:c8:x86_64", ]],
-            ]),
+            (
+                {"platform": ["el8"], "gtk": ["3"]},
+                ["platform:el8.2.0.z"],
+                [[["platform:el8.2.0.z:0:c0:x86_64", "gtk:3:1:c8:x86_64"]]],
+            ),
             # BR platform:el8.2.0 and mess:1 which is built against platform:el8.1.0 and
             # requires gtk:3 which is built against platform:el8.2.0 and platform:el8.0.0
             # -> Use platform:el8.2.0 and
             # -> cherry-pick mess:1 from el8.1.0 and
             # -> use gtk:3:1 from el8.2.0.
-            ({"platform": ["el8"], "mess": ["1"]}, ["platform:el8.2.0.z"], [
-                [["platform:el8.2.0.z:0:c0:x86_64", "mess:1:0:c0:x86_64", "gtk:3:1:c8:x86_64", ]],
-            ]),
+            (
+                {"platform": ["el8"], "mess": ["1"]},
+                ["platform:el8.2.0.z"],
+                [[["platform:el8.2.0.z:0:c0:x86_64", "mess:1:0:c0:x86_64", "gtk:3:1:c8:x86_64"]]],
+            ),
             # BR platform:el8.1.0 and mess:1 which is built against platform:el8.1.0 and
             # requires gtk:3 which is built against platform:el8.2.0 and platform:el8.0.0
             # -> Use platform:el8.1.0 and
             # -> Used mess:1 from el8.1.0 and
             # -> cherry-pick gtk:3:0 from el8.0.0.
-            ({"platform": ["el8"], "mess": ["1"]}, ["platform:el8.1.0"], [
-                [["platform:el8.1.0:0:c0:x86_64", "mess:1:0:c0:x86_64", "gtk:3:0:c8:x86_64", ]],
-            ]),
+            (
+                {"platform": ["el8"], "mess": ["1"]},
+                ["platform:el8.1.0"],
+                [[["platform:el8.1.0:0:c0:x86_64", "mess:1:0:c0:x86_64", "gtk:3:0:c8:x86_64"]]],
+            ),
             # BR platform:el8.0.0 and mess:1 which is built against platform:el8.1.0 and
             # requires gtk:3 which is built against platform:el8.2.0 and platform:el8.0.0
             # -> No valid combination, because mess:1 is only available in el8.1.0 and later.
@@ -230,7 +267,7 @@ class TestMMDResolver:
             # ({"platform": ["el8"], "gtk": ["3"]}, {}, [
             #     [["platform:el8.2.0:0:c0:x86_64", "gtk:3:1:c8:x86_64"]],
             # ]),
-        )
+        ),
     )
     def test_solve_virtual_streams(self, buildrequires, xmd_buildrequires, expected):
         modules = (
@@ -244,8 +281,7 @@ class TestMMDResolver:
             ("mess:1:0:c0", [{"gtk": ["3"], "platform": ["el8"]}], {"platform:el8.1.0"}, None),
         )
         for n, req, xmd_br, virtual_streams in modules:
-            self.mmd_resolver.add_modules(self._make_mmd(
-                n, req, xmd_br, virtual_streams))
+            self.mmd_resolver.add_modules(self._make_mmd(n, req, xmd_br, virtual_streams))
 
         app = self._make_mmd("app:1:0", buildrequires, xmd_buildrequires)
         if not expected:
@@ -255,69 +291,65 @@ class TestMMDResolver:
         else:
             expanded = self.mmd_resolver.solve(app)
 
-        expected = set(frozenset(["app:1:0:%d:src" % c] + e)
-                       for c, exp in enumerate(expected)
-                       for e in exp)
+        expected = set(
+            frozenset(["app:1:0:%d:src" % c] + e) for c, exp in enumerate(expected) for e in exp)
 
         assert expanded == expected
 
-    @pytest.mark.parametrize('app_buildrequires, modules, err_msg_regex', (
-        # app --br--> gtk:1 --req--> bar:1* ---req---> platform:f29
-        #    \--br--> foo:1 --req--> bar:2* ---req--/
+    @pytest.mark.parametrize(
+        "app_buildrequires, modules, err_msg_regex",
         (
-            {'gtk': '1', 'foo': '1'},
+            # app --br--> gtk:1 --req--> bar:1* ---req---> platform:f29
+            #    \--br--> foo:1 --req--> bar:2* ---req--/
             (
-                ('platform:f29:0:c0', {}),
-                ('gtk:1:1:c01', {'bar': ['1']}),
-                ('bar:1:0:c02', {'platform': ['f29']}),
-                ('foo:1:1:c03', {'bar': ['2']}),
-                ('bar:2:0:c04', {'platform': ['f29']}),
+                {"gtk": "1", "foo": "1"},
+                (
+                    ("platform:f29:0:c0", {}),
+                    ("gtk:1:1:c01", {"bar": ["1"]}),
+                    ("bar:1:0:c02", {"platform": ["f29"]}),
+                    ("foo:1:1:c03", {"bar": ["2"]}),
+                    ("bar:2:0:c04", {"platform": ["f29"]}),
+                ),
+                "bar:1:0:c02 and bar:2:0:c04",
             ),
-            'bar:1:0:c02 and bar:2:0:c04',
-        ),
-        # app --br--> gtk:1 --req--> bar:1* ----------req----------> platform:f29
-        #    \--br--> foo:1 --req--> baz:1 --req--> bar:2* --req--/
-        (
-            {'gtk': '1', 'foo': '1'},
+            # app --br--> gtk:1 --req--> bar:1* ----------req----------> platform:f29
+            #    \--br--> foo:1 --req--> baz:1 --req--> bar:2* --req--/
             (
-                ('platform:f29:0:c0', {}),
-
-                ('gtk:1:1:c01', {'bar': ['1']}),
-                ('bar:1:0:c02', {'platform': ['f29']}),
-
-                ('foo:1:1:c03', {'baz': ['1']}),
-                ('baz:1:1:c04', {'bar': ['2']}),
-                ('bar:2:0:c05', {'platform': ['f29']}),
+                {"gtk": "1", "foo": "1"},
+                (
+                    ("platform:f29:0:c0", {}),
+                    ("gtk:1:1:c01", {"bar": ["1"]}),
+                    ("bar:1:0:c02", {"platform": ["f29"]}),
+                    ("foo:1:1:c03", {"baz": ["1"]}),
+                    ("baz:1:1:c04", {"bar": ["2"]}),
+                    ("bar:2:0:c05", {"platform": ["f29"]}),
+                ),
+                "bar:1:0:c02 and bar:2:0:c05",
             ),
-            'bar:1:0:c02 and bar:2:0:c05',
-        ),
-        # Test multiple conflicts pairs are detected.
-        # app --br--> gtk:1 --req--> bar:1* ---------req-----------\
-        #    \--br--> foo:1 --req--> baz:1 --req--> bar:2* ---req---> platform:f29
-        #    \--br--> pkga:1 --req--> perl:5' -------req-----------/
-        #    \--br--> pkgb:1 --req--> perl:6' -------req-----------/
-        (
-            {'gtk': '1', 'foo': '1', 'pkga': '1', 'pkgb': '1'},
+            # Test multiple conflicts pairs are detected.
+            # app --br--> gtk:1 --req--> bar:1* ---------req-----------\
+            #    \--br--> foo:1 --req--> baz:1 --req--> bar:2* ---req---> platform:f29
+            #    \--br--> pkga:1 --req--> perl:5' -------req-----------/
+            #    \--br--> pkgb:1 --req--> perl:6' -------req-----------/
             (
-                ('platform:f29:0:c0', {}),
-
-                ('gtk:1:1:c01', {'bar': ['1']}),
-                ('bar:1:0:c02', {'platform': ['f29']}),
-
-                ('foo:1:1:c03', {'baz': ['1']}),
-                ('baz:1:1:c04', {'bar': ['2']}),
-                ('bar:2:0:c05', {'platform': ['f29']}),
-
-                ('pkga:1:0:c06', {'perl': ['5']}),
-                ('perl:5:0:c07', {'platform': ['f29']}),
-
-                ('pkgb:1:0:c08', {'perl': ['6']}),
-                ('perl:6:0:c09', {'platform': ['f29']}),
+                {"gtk": "1", "foo": "1", "pkga": "1", "pkgb": "1"},
+                (
+                    ("platform:f29:0:c0", {}),
+                    ("gtk:1:1:c01", {"bar": ["1"]}),
+                    ("bar:1:0:c02", {"platform": ["f29"]}),
+                    ("foo:1:1:c03", {"baz": ["1"]}),
+                    ("baz:1:1:c04", {"bar": ["2"]}),
+                    ("bar:2:0:c05", {"platform": ["f29"]}),
+                    ("pkga:1:0:c06", {"perl": ["5"]}),
+                    ("perl:5:0:c07", {"platform": ["f29"]}),
+                    ("pkgb:1:0:c08", {"perl": ["6"]}),
+                    ("perl:6:0:c09", {"platform": ["f29"]}),
+                ),
+                # MMD Resolver should still catch a conflict
+                "bar:1:0:c02 and bar:2:0:c05",
             ),
-            # MMD Resolver should still catch a conflict
-            'bar:1:0:c02 and bar:2:0:c05',
         ),
-    ))
+    )
     def test_solve_stream_conflicts(self, app_buildrequires, modules, err_msg_regex):
         for n, req in modules:
             self.mmd_resolver.add_modules(self._make_mmd(n, req))
@@ -349,7 +381,8 @@ class TestMMDResolver:
 
         # Build only against f28 and f29, because "gtk:3" is not built against f30.
         expected = set([
-            frozenset(['gtk:3:0:c8:x86_64', 'app:1:0:0:src', 'platform:f28:0:c0:x86_64']),
-            frozenset(['gtk:3:0:c9:x86_64', 'app:1:0:0:src', 'platform:f29:0:c0:x86_64'])])
+            frozenset(["gtk:3:0:c8:x86_64", "app:1:0:0:src", "platform:f28:0:c0:x86_64"]),
+            frozenset(["gtk:3:0:c9:x86_64", "app:1:0:0:src", "platform:f29:0:c0:x86_64"]),
+        ])
 
         assert expanded == expected

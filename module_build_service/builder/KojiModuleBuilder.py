@@ -76,8 +76,10 @@ def koji_multicall_map(koji_session, koji_session_fnc, list_of_args=None, list_o
     if list_of_args is None and list_of_kwargs is None:
         raise ProgrammingError("One of list_of_args or list_of_kwargs must be set.")
 
-    if (type(list_of_args) not in [type(None), list] or
-            type(list_of_kwargs) not in [type(None), list]):
+    if (
+        type(list_of_args) not in [type(None), list]
+        or type(list_of_kwargs) not in [type(None), list]
+    ):
         raise ProgrammingError("list_of_args and list_of_kwargs must be list or None.")
 
     if list_of_kwargs is None:
@@ -99,16 +101,19 @@ def koji_multicall_map(koji_session, koji_session_fnc, list_of_args=None, list_o
     try:
         responses = koji_session.multiCall(strict=True)
     except Exception:
-        log.exception("Exception raised for multicall of method %r with args %r, %r:",
-                      koji_session_fnc, args, kwargs)
+        log.exception(
+            "Exception raised for multicall of method %r with args %r, %r:",
+            koji_session_fnc, args, kwargs,
+        )
         return None
 
     if not responses:
         log.error("Koji did not return response for multicall of %r", koji_session_fnc)
         return None
     if type(responses) != list:
-        log.error("Fault element was returned for multicall of method %r: %r",
-                  koji_session_fnc, responses)
+        log.error(
+            "Fault element was returned for multicall of method %r: %r", koji_session_fnc, responses
+        )
         return None
 
     results = []
@@ -122,13 +127,17 @@ def koji_multicall_map(koji_session, koji_session_fnc, list_of_args=None, list_o
     for response, args, kwargs in zip(responses, list_of_args, list_of_kwargs):
         if type(response) == list:
             if not response:
-                log.error("Empty list returned for multicall of method %r with args %r, %r",
-                          koji_session_fnc, args, kwargs)
+                log.error(
+                    "Empty list returned for multicall of method %r with args %r, %r",
+                    koji_session_fnc, args, kwargs
+                )
                 return None
             results.append(response[0])
         else:
-            log.error("Unexpected data returned for multicall of method %r with args %r, %r: %r",
-                      koji_session_fnc, args, kwargs, response)
+            log.error(
+                "Unexpected data returned for multicall of method %r with args %r, %r: %r",
+                koji_session_fnc, args, kwargs, response
+            )
             return None
 
     return results
@@ -150,9 +159,9 @@ class KojiModuleBuilder(GenericBuilder):
 
     backend = "koji"
     _build_lock = threading.Lock()
-    region = dogpile.cache.make_region().configure('dogpile.cache.memory')
+    region = dogpile.cache.make_region().configure("dogpile.cache.memory")
 
-    @module_build_service.utils.validate_koji_tag('tag_name')
+    @module_build_service.utils.validate_koji_tag("tag_name")
     def __init__(self, owner, module, config, tag_name, components):
         """
         :param owner: a string representing who kicked off the builds
@@ -186,12 +195,11 @@ class KojiModuleBuilder(GenericBuilder):
         self.components = components
 
     def __repr__(self):
-        return "<KojiModuleBuilder module: %s, tag: %s>" % (
-            self.module_str, self.tag_name)
+        return "<KojiModuleBuilder module: %s, tag: %s>" % (self.module_str, self.tag_name)
 
     @region.cache_on_arguments()
     def getPerms(self):
-        return dict([(p['name'], p['id']) for p in self.koji_session.getAllPerms()])
+        return dict([(p["name"], p["id"]) for p in self.koji_session.getAllPerms()])
 
     @module_build_service.utils.retry(wait_on=(IOError, koji.GenericError))
     def buildroot_ready(self, artifacts=None):
@@ -201,24 +209,22 @@ class KojiModuleBuilder(GenericBuilder):
         """
         assert self.module_target, "Invalid build target"
 
-        tag_id = self.module_target['build_tag']
+        tag_id = self.module_target["build_tag"]
         repo = self.koji_session.getRepo(tag_id)
         builds = [self.koji_session.getBuild(a, strict=True) for a in artifacts or []]
-        log.info("%r checking buildroot readiness for "
-                 "repo: %r, tag_id: %r, artifacts: %r, builds: %r" % (
-                     self, repo, tag_id, artifacts, builds))
+        log.info(
+            "%r checking buildroot readiness for repo: %r, tag_id: %r, artifacts: %r, builds: %r"
+            % (self, repo, tag_id, artifacts, builds)
+        )
 
         if not repo:
             log.info("Repo is not generated yet, buildroot is not ready yet.")
             return False
 
-        ready = bool(koji.util.checkForBuilds(
-            self.koji_session,
-            tag_id,
-            builds,
-            repo['create_event'],
-            latest=True,
-        ))
+        ready = bool(
+            koji.util.checkForBuilds(
+                self.koji_session, tag_id, builds, repo["create_event"], latest=True)
+        )
         if ready:
             log.info("%r buildroot is ready" % self)
         else:
@@ -239,19 +245,22 @@ class KojiModuleBuilder(GenericBuilder):
             # Get all the RPMs and builds of the reusable module in Koji
             rpms, builds = koji_session.listTaggedRPMS(reusable_module.koji_tag, latest=True)
             # Convert the list to a dict where each key is the build_id
-            builds = {build['build_id']: build for build in builds}
+            builds = {build["build_id"]: build for build in builds}
             # Create a mapping of package (SRPM) to the RPMs in NVR format
             package_to_rpms = {}
             for rpm in rpms:
-                package = builds[rpm['build_id']]['name']
+                package = builds[rpm["build_id"]]["name"]
                 if package not in package_to_rpms:
                     package_to_rpms[package] = []
                 package_to_rpms[package].append(kobo.rpmlib.make_nvr(rpm))
 
             components_in_module = [c.package for c in module_build.component_builds]
             reusable_components = get_reusable_components(
-                db_session, module_build, components_in_module,
-                previous_module_build=reusable_module)
+                db_session,
+                module_build,
+                components_in_module,
+                previous_module_build=reusable_module,
+            )
             # Loop through all the reusable components to find if any of their RPMs are
             # being filtered
             for reusable_component in reusable_components:
@@ -261,7 +270,7 @@ class KojiModuleBuilder(GenericBuilder):
                 # We must get the component name from the NVR and not from
                 # reusable_component.package because macros such as those used
                 # by SCLs can change the name of the underlying build
-                component_name = kobo.rpmlib.parse_nvr(reusable_component.nvr)['name']
+                component_name = kobo.rpmlib.parse_nvr(reusable_component.nvr)["name"]
 
                 if component_name not in package_to_rpms:
                     continue
@@ -270,13 +279,13 @@ class KojiModuleBuilder(GenericBuilder):
                 for nvr in package_to_rpms[component_name]:
                     parsed_nvr = kobo.rpmlib.parse_nvr(nvr)
                     # Don't compare with the epoch
-                    parsed_nvr['epoch'] = None
+                    parsed_nvr["epoch"] = None
                     # Loop through all the filtered RPMs to find a match with the reusable
                     # component's RPMs.
                     for nvr2 in list(filtered_rpms):
                         parsed_nvr2 = kobo.rpmlib.parse_nvr(nvr2)
                         # Don't compare with the epoch
-                        parsed_nvr2['epoch'] = None
+                        parsed_nvr2["epoch"] = None
                         # Only remove the filter if we are going to reuse a component with
                         # the same exact NVR
                         if parsed_nvr == parsed_nvr2:
@@ -299,10 +308,10 @@ class KojiModuleBuilder(GenericBuilder):
         # Taken from Karsten's create-distmacro-pkg.sh
         # - however removed any provides to system-release/redhat-release
 
-        name = 'module-build-macros'
+        name = "module-build-macros"
         version = "0.1"
         release = "1"
-        today = datetime.date.today().strftime('%a %b %d %Y')
+        today = datetime.date.today().strftime("%a %b %d %Y")
         mmd = module_build.mmd()
 
         # Generate "Conflicts: name = version-release". This is workaround for
@@ -320,19 +329,20 @@ class KojiModuleBuilder(GenericBuilder):
                     module_build, req_data["filtered_rpms"])
             else:
                 filtered_rpms = req_data["filtered_rpms"]
-            filter_conflicts.extend(map(
-                KojiModuleBuilder.format_conflicts_line, filtered_rpms))
+            filter_conflicts.extend(map(KojiModuleBuilder.format_conflicts_line, filtered_rpms))
 
-            if req_name in conf.base_module_names and 'ursine_rpms' in req_data:
+            if req_name in conf.base_module_names and "ursine_rpms" in req_data:
                 comments = (
-                    '# Filter out RPMs from stream collision modules found from ursine content'
-                    ' for base module {}:'.format(req_name),
-                    '# ' + ', '.join(req_data['stream_collision_modules']),
+                    ("# Filter out RPMs from stream collision modules found from ursine content"
+                     " for base module {}:".format(req_name)),
+                    "# " + ", ".join(req_data["stream_collision_modules"]),
                 )
-                filter_conflicts.extend(chain(
-                    comments,
-                    map(KojiModuleBuilder.format_conflicts_line, req_data['ursine_rpms'])
-                ))
+                filter_conflicts.extend(
+                    chain(
+                        comments,
+                        map(KojiModuleBuilder.format_conflicts_line, req_data["ursine_rpms"]),
+                    )
+                )
 
         spec_content = textwrap.dedent("""
             %global dist {disttag}
@@ -433,11 +443,20 @@ class KojiModuleBuilder(GenericBuilder):
         log.debug("Building %s.spec" % name)
 
         # We are not interested in the rpmbuild stdout...
-        null_fd = open(os.devnull, 'w')
-        execute_cmd(['rpmbuild', '-bs', '%s.spec' % name,
-                     '--define', '_topdir %s' % td,
-                     '--define', '_sourcedir %s' % sources_dir],
-                    cwd=td, stdout=null_fd)
+        null_fd = open(os.devnull, "w")
+        execute_cmd(
+            [
+                "rpmbuild",
+                "-bs",
+                "%s.spec" % name,
+                "--define",
+                "_topdir %s" % td,
+                "--define",
+                "_sourcedir %s" % sources_dir,
+            ],
+            cwd=td,
+            stdout=null_fd,
+        )
         null_fd.close()
         sdir = os.path.join(td, "SRPMS")
         srpm_paths = glob.glob("%s/*.src.rpm" % sdir)
@@ -458,10 +477,8 @@ class KojiModuleBuilder(GenericBuilder):
         :return: the Koji session object.
         :rtype: :class:`koji.ClientSession`
         """
-        koji_config = munch.Munch(koji.read_config(
-            profile_name=config.koji_profile,
-            user_config=config.koji_config,
-        ))
+        koji_config = munch.Munch(
+            koji.read_config(profile_name=config.koji_profile, user_config=config.koji_config))
         # Timeout after 10 minutes.  The default is 12 hours.
         koji_config["timeout"] = 60 * 10
 
@@ -494,9 +511,7 @@ class KojiModuleBuilder(GenericBuilder):
             koji_session.krb_login(principal=principal, keytab=keytab, ctx=ctx, ccache=ccache)
         elif authtype == "ssl":
             koji_session.ssl_login(
-                os.path.expanduser(koji_config.cert),
-                None,
-                os.path.expanduser(koji_config.serverca)
+                os.path.expanduser(koji_config.cert), None, os.path.expanduser(koji_config.serverca)
             )
         else:
             raise ValueError("Unrecognized koji authtype %r" % authtype)
@@ -512,8 +527,7 @@ class KojiModuleBuilder(GenericBuilder):
 
         # Create or update individual tags
         # the main tag needs arches so pungi can dump it
-        self.module_tag = self._koji_create_tag(
-            self.tag_name, self.arches, perm="admin")
+        self.module_tag = self._koji_create_tag(self.tag_name, self.arches, perm="admin")
         self.module_build_tag = self._koji_create_tag(
             self.tag_name + "-build", self.arches, perm="admin")
 
@@ -530,19 +544,23 @@ class KojiModuleBuilder(GenericBuilder):
 
         @module_build_service.utils.retry(wait_on=SysCallError, interval=5)
         def add_groups():
-            return self._koji_add_groups_to_tag(
-                dest_tag=self.module_build_tag,
-                groups=groups,
-            )
+            return self._koji_add_groups_to_tag(dest_tag=self.module_build_tag, groups=groups)
+
         add_groups()
 
         # Koji targets can only be 50 characters long, but the generate_koji_tag function
         # checks the length with '-build' at the end, but we know we will never append '-build',
         # so we can safely have the name check be more characters
-        target_length = 50 + len('-build')
+        target_length = 50 + len("-build")
         target = module_build_service.utils.generate_koji_tag(
-            self.module.name, self.module.stream, self.module.version, self.module.context,
-            target_length, scratch=self.module.scratch, scratch_id=self.module.id)
+            self.module.name,
+            self.module.stream,
+            self.module.version,
+            self.module.context,
+            target_length,
+            scratch=self.module.scratch,
+            scratch_id=self.module.id,
+        )
         # Add main build target.
         self.module_target = self._koji_add_target(target, self.module_build_tag, self.module_tag)
 
@@ -570,17 +588,19 @@ class KojiModuleBuilder(GenericBuilder):
         This method is safe to call multiple times.
         """
         log.info("%r adding artifacts %r" % (self, artifacts))
-        build_tag = self._get_tag(self.module_build_tag)['id']
+        build_tag = self._get_tag(self.module_build_tag)["id"]
 
         xmd = self.mmd.get_xmd()
         if "mbs_options" in xmd.keys() and "blocked_packages" in xmd["mbs_options"].keys():
             packages = [kobo.rpmlib.parse_nvr(nvr)["name"] for nvr in artifacts]
-            packages = [package for package in packages
-                        if package in xmd["mbs_options"]["blocked_packages"]]
+            packages = [
+                package for package in packages
+                if package in xmd["mbs_options"]["blocked_packages"]
+            ]
             if packages:
                 self._koji_unblock_packages(packages)
 
-        tagged_nvrs = self._get_tagged_nvrs(self.module_build_tag['name'])
+        tagged_nvrs = self._get_tagged_nvrs(self.module_build_tag["name"])
 
         self.koji_session.multicall = True
         for nvr in artifacts:
@@ -593,8 +613,8 @@ class KojiModuleBuilder(GenericBuilder):
             if not install:
                 continue
 
-            for group in ('srpm-build', 'build'):
-                name = kobo.rpmlib.parse_nvr(nvr)['name']
+            for group in ("srpm-build", "build"):
+                name = kobo.rpmlib.parse_nvr(nvr)["name"]
                 log.info("%r adding %s to group %s" % (self, name, group))
                 self.koji_session.groupPackageListAdd(build_tag, group, name)
         self.koji_session.multiCall(strict=True)
@@ -606,11 +626,11 @@ class KojiModuleBuilder(GenericBuilder):
         :return: None
         """
         if dest_tag:
-            tag = self._get_tag(self.module_tag)['id']
-            tagged_nvrs = self._get_tagged_nvrs(self.module_tag['name'])
+            tag = self._get_tag(self.module_tag)["id"]
+            tagged_nvrs = self._get_tagged_nvrs(self.module_tag["name"])
         else:
-            tag = self._get_tag(self.module_build_tag)['id']
-            tagged_nvrs = self._get_tagged_nvrs(self.module_build_tag['name'])
+            tag = self._get_tag(self.module_build_tag)["id"]
+            tagged_nvrs = self._get_tagged_nvrs(self.module_build_tag["name"])
 
         self.koji_session.multicall = True
         for nvr in artifacts:
@@ -626,18 +646,18 @@ class KojiModuleBuilder(GenericBuilder):
         :param artifacts: a list of NVRs to untag
         :return: None
         """
-        build_tag_name = self.tag_name + '-build'
+        build_tag_name = self.tag_name + "-build"
         dest_tag = self._get_tag(self.tag_name, strict=False)
         build_tag = self._get_tag(build_tag_name, strict=False)
         # Get the NVRs in the tags to make sure the builds exist and they're tagged before
         # untagging them
         if dest_tag:
-            dest_tagged_nvrs = self._get_tagged_nvrs(dest_tag['name'])
+            dest_tagged_nvrs = self._get_tagged_nvrs(dest_tag["name"])
         else:
             log.info('The tag "{0}" doesn\'t exist'.format(self.tag_name))
             dest_tagged_nvrs = []
         if build_tag:
-            build_tagged_nvrs = self._get_tagged_nvrs(build_tag['name'])
+            build_tagged_nvrs = self._get_tagged_nvrs(build_tag["name"])
         else:
             log.info('The tag "{0}" doesn\'t exist'.format(build_tag_name))
             build_tagged_nvrs = []
@@ -649,11 +669,11 @@ class KojiModuleBuilder(GenericBuilder):
         self.koji_session.multicall = True
         for nvr in artifacts:
             if nvr in dest_tagged_nvrs:
-                log.info("%r untagging %r from %r" % (self, nvr, dest_tag['id']))
-                self.koji_session.untagBuild(dest_tag['id'], nvr)
+                log.info("%r untagging %r from %r" % (self, nvr, dest_tag["id"]))
+                self.koji_session.untagBuild(dest_tag["id"], nvr)
             if nvr in build_tagged_nvrs:
-                log.info("%r untagging %r from %r" % (self, nvr, build_tag['id']))
-                self.koji_session.untagBuild(build_tag['id'], nvr)
+                log.info("%r untagging %r from %r" % (self, nvr, build_tag["id"]))
+                self.koji_session.untagBuild(build_tag["id"], nvr)
         self.koji_session.multiCall(strict=True)
 
     def wait_task(self, task_id):
@@ -683,12 +703,12 @@ class KojiModuleBuilder(GenericBuilder):
         :param component_build: a ComponentBuild object
         :return: a list of msgs that MBS needs to process
         """
-        opts = {'latest': True, 'package': component_build.package, 'inherit': False}
-        build_tagged = self.koji_session.listTagged(self.module_build_tag['name'], **opts)
+        opts = {"latest": True, "package": component_build.package, "inherit": False}
+        build_tagged = self.koji_session.listTagged(self.module_build_tag["name"], **opts)
         dest_tagged = None
         # Only check the destination tag if the component is not a build_time_only component
         if not component_build.build_time_only:
-            dest_tagged = self.koji_session.listTagged(self.module_tag['name'], **opts)
+            dest_tagged = self.koji_session.listTagged(self.module_tag["name"], **opts)
         for rv in [build_tagged, dest_tagged]:
             if rv and len(rv) != 1:
                 raise ValueError("Expected exactly one item in list. Got %s" % rv)
@@ -716,33 +736,48 @@ class KojiModuleBuilder(GenericBuilder):
             return further_work
 
         # Start setting up MBS' database to use the existing build
-        log.info('Skipping build of "{0}" since it already exists.'.format(build['nvr']))
+        log.info('Skipping build of "{0}" since it already exists.'.format(build["nvr"]))
         # Set it to COMPLETE so it doesn't count towards the concurrent component threshold
-        component_build.state = koji.BUILD_STATES['COMPLETE']
-        component_build.nvr = build['nvr']
-        component_build.task_id = build['task_id']
-        component_build.state_reason = 'Found existing build'
+        component_build.state = koji.BUILD_STATES["COMPLETE"]
+        component_build.nvr = build["nvr"]
+        component_build.task_id = build["task_id"]
+        component_build.state_reason = "Found existing build"
         nvr_dict = kobo.rpmlib.parse_nvr(component_build.nvr)
         # Trigger a completed build message
-        further_work.append(module_build_service.messaging.KojiBuildChange(
-            'recover_orphaned_artifact: fake message', build['build_id'],
-            build['task_id'], koji.BUILD_STATES['COMPLETE'], component_build.package,
-            nvr_dict['version'], nvr_dict['release'], component_build.module_build.id))
+        further_work.append(
+            module_build_service.messaging.KojiBuildChange(
+                "recover_orphaned_artifact: fake message",
+                build["build_id"],
+                build["task_id"],
+                koji.BUILD_STATES["COMPLETE"],
+                component_build.package,
+                nvr_dict["version"],
+                nvr_dict["release"],
+                component_build.module_build.id,
+            )
+        )
 
         component_tagged_in = []
         if build_tagged:
-            component_tagged_in.append(self.module_build_tag['name'])
+            component_tagged_in.append(self.module_build_tag["name"])
         else:
             # Tag it in the build tag if it's not there
             self.tag_artifacts([component_build.nvr], dest_tag=False)
         if dest_tagged:
-            component_tagged_in.append(self.module_tag['name'])
+            component_tagged_in.append(self.module_tag["name"])
         for tag in component_tagged_in:
-            log.info('The build being skipped isn\'t tagged in the "{0}" tag. Will send a '
-                     'message to the tag handler'.format(tag))
-            further_work.append(module_build_service.messaging.KojiTagChange(
-                'recover_orphaned_artifact: fake message', tag, component_build.package,
-                component_build.nvr))
+            log.info(
+                'The build being skipped isn\'t tagged in the "{0}" tag. Will send a message to '
+                "the tag handler".format(tag)
+            )
+            further_work.append(
+                module_build_service.messaging.KojiTagChange(
+                    "recover_orphaned_artifact: fake message",
+                    tag,
+                    component_build.package,
+                    component_build.nvr,
+                )
+            )
         return further_work
 
     def build(self, artifact_name, source):
@@ -768,21 +803,23 @@ class KojiModuleBuilder(GenericBuilder):
                 # For some reason repr(time.time()) includes 4 or 5
                 # more digits of precision than str(time.time())
                 # Unnamed Engineer: Guido v. R., I am disappoint
-                return '%s/%r.%s' % (prefix, time.time(),
-                                     ''.join([random.choice(string.ascii_letters)
-                                              for i in range(8)]))
+                return "%s/%r.%s" % (
+                    prefix,
+                    time.time(),
+                    "".join([random.choice(string.ascii_letters) for i in range(8)]),
+                )
 
             if not self.__prep:
                 raise RuntimeError("Buildroot is not prep-ed")
 
             self._koji_whitelist_packages([artifact_name])
 
-            if source.startswith('cli-build/'):
+            if source.startswith("cli-build/"):
                 # treat source as a custom srpm that has already been uploaded to koji
                 pass
-            elif '://' not in source:
+            elif "://" not in source:
                 # treat source as an srpm and upload it
-                serverdir = _unique_path('cli-build')
+                serverdir = _unique_path("cli-build")
                 callback = None
                 self.koji_session.uploadWrapper(source, serverdir, callback=callback)
                 source = "%s/%s" % (serverdir, os.path.basename(source))
@@ -792,32 +829,30 @@ class KojiModuleBuilder(GenericBuilder):
             # The reason is that it is faster to build this RPM in
             # already existing shared target, because Koji does not need to do
             # repo-regen.
-            if (artifact_name == "module-build-macros" and
-               self.config.koji_build_macros_target):
+            if artifact_name == "module-build-macros" and self.config.koji_build_macros_target:
                 module_target = self.config.koji_build_macros_target
             else:
-                module_target = self.module_target['name']
+                module_target = self.module_target["name"]
 
             build_opts = {
                 "skip_tag": True,
                 "mbs_artifact_name": artifact_name,
-                "mbs_module_target": module_target
+                "mbs_module_target": module_target,
             }
 
             # disabled by default, wouldn't work until Koji issue #1158 is done
             if conf.allow_arch_override:
-                build_opts['arch_override'] = \
-                    self.mmd.get_rpm_components()[artifact_name].get_arches().get()
+                build_opts["arch_override"] = (
+                    self.mmd.get_rpm_components()[artifact_name].get_arches().get())
 
-            task_id = self.koji_session.build(source, module_target, build_opts,
-                                              priority=self.build_priority)
-            log.info("submitted build of %s (task_id=%s), via %s" % (
-                source, task_id, self))
+            task_id = self.koji_session.build(
+                source, module_target, build_opts, priority=self.build_priority)
+            log.info("submitted build of %s (task_id=%s), via %s" % (source, task_id, self))
             if task_id:
-                state = koji.BUILD_STATES['BUILDING']
+                state = koji.BUILD_STATES["BUILDING"]
                 reason = "Submitted %s to Koji" % (artifact_name)
             else:
-                state = koji.BUILD_STATES['FAILED']
+                state = koji.BUILD_STATES["FAILED"]
                 reason = "Failed to submit artifact %s to Koji" % (artifact_name)
             return task_id, state, reason, None
 
@@ -825,8 +860,10 @@ class KojiModuleBuilder(GenericBuilder):
         try:
             self.koji_session.cancelTask(task_id)
         except Exception as error:
-            log.error('Failed to cancel task ID {0} in Koji. The error '
-                      'message was: {1}'.format(task_id, str(error)))
+            log.error(
+                "Failed to cancel task ID {0} in Koji. The error "
+                "message was: {1}".format(task_id, str(error))
+            )
 
     @classmethod
     def repo_from_tag(cls, config, tag_name, arch):
@@ -840,52 +877,52 @@ class KojiModuleBuilder(GenericBuilder):
         """
         return "%s/%s/latest/%s" % (config.koji_repository_url, tag_name, arch)
 
-    @module_build_service.utils.validate_koji_tag('tag', post='')
+    @module_build_service.utils.validate_koji_tag("tag", post="")
     def _get_tag(self, tag, strict=True):
         if isinstance(tag, dict):
-            tag = tag['name']
+            tag = tag["name"]
         taginfo = self.koji_session.getTag(tag)
         if not taginfo:
             if strict:
                 raise SystemError("Unknown tag: %s" % tag)
         return taginfo
 
-    @module_build_service.utils.validate_koji_tag(['tag_name'], post='')
+    @module_build_service.utils.validate_koji_tag(["tag_name"], post="")
     def _koji_add_many_tag_inheritance(self, tag_name, parent_tags):
         tag = self._get_tag(tag_name)
         # highest priority num is at the end
-        inheritance_data = sorted(self.koji_session.getInheritanceData(tag['name']) or
-                                  [], key=lambda k: k['priority'])
+        inheritance_data = sorted(
+            self.koji_session.getInheritanceData(tag["name"]) or [], key=lambda k: k["priority"])
         # Set initial priority to last record in inheritance data or 0
         priority = 0
         if inheritance_data:
-            priority = inheritance_data[-1]['priority'] + 10
+            priority = inheritance_data[-1]["priority"] + 10
 
         def record_exists(parent_id, data):
             for item in data:
-                if parent_id == item['parent_id']:
+                if parent_id == item["parent_id"]:
                     return True
             return False
 
         for parent in parent_tags:  # We expect that they're sorted
             parent = self._get_tag(parent)
-            if record_exists(parent['id'], inheritance_data):
+            if record_exists(parent["id"], inheritance_data):
                 continue
 
             parent_data = {}
-            parent_data['parent_id'] = parent['id']
-            parent_data['priority'] = priority
-            parent_data['maxdepth'] = None
-            parent_data['intransitive'] = False
-            parent_data['noconfig'] = False
-            parent_data['pkg_filter'] = ''
+            parent_data["parent_id"] = parent["id"]
+            parent_data["priority"] = priority
+            parent_data["maxdepth"] = None
+            parent_data["intransitive"] = False
+            parent_data["noconfig"] = False
+            parent_data["pkg_filter"] = ""
             inheritance_data.append(parent_data)
             priority += 10
 
         if inheritance_data:
-            self.koji_session.setInheritanceData(tag['id'], inheritance_data)
+            self.koji_session.setInheritanceData(tag["id"], inheritance_data)
 
-    @module_build_service.utils.validate_koji_tag('dest_tag')
+    @module_build_service.utils.validate_koji_tag("dest_tag")
     def _koji_add_groups_to_tag(self, dest_tag, groups):
         """Add groups to a tag as well as packages listed by group
 
@@ -899,17 +936,17 @@ class KojiModuleBuilder(GenericBuilder):
         log.debug("Adding groups=%s to tag=%s" % (list(groups), dest_tag))
         if groups and not isinstance(groups, dict):
             raise ValueError("Expected dict {'group' : [str(package1), ...]")
-        dest_tag = self._get_tag(dest_tag)['name']
-        existing_groups = dict([(p['name'], p['group_id'])
-                                for p
-                                in self.koji_session.getTagGroups(dest_tag, inherit=False)
-                                ])
+        dest_tag = self._get_tag(dest_tag)["name"]
+        existing_groups = dict([
+            (p["name"], p["group_id"])
+            for p in self.koji_session.getTagGroups(dest_tag, inherit=False)
+        ])
 
         for group, packages in groups.items():
             group_id = existing_groups.get(group, None)
             if group_id is not None:
-                log.debug("Group %s already exists for tag %s. Skipping creation."
-                          % (group, dest_tag))
+                log.debug(
+                    "Group %s already exists for tag %s. Skipping creation." % (group, dest_tag))
                 continue
 
             self.koji_session.groupListAdd(dest_tag, group)
@@ -919,7 +956,7 @@ class KojiModuleBuilder(GenericBuilder):
             for pkg in packages:
                 self.koji_session.groupPackageListAdd(dest_tag, group, pkg)
 
-    @module_build_service.utils.validate_koji_tag('tag_name')
+    @module_build_service.utils.validate_koji_tag("tag_name")
     def _koji_create_tag(self, tag_name, arches=None, perm=None):
         """Create a tag in Koji
 
@@ -945,16 +982,16 @@ class KojiModuleBuilder(GenericBuilder):
                 raise ValueError("Expected list or None on input got %s" % type(arches))
 
             current_arches = []
-            if taginfo['arches']:  # None if none
-                current_arches = taginfo['arches'].split()  # string separated by empty spaces
+            if taginfo["arches"]:  # None if none
+                current_arches = taginfo["arches"].split()  # string separated by empty spaces
 
             if set(arches) != set(current_arches):
-                opts['arches'] = " ".join(arches)
+                opts["arches"] = " ".join(arches)
 
         if perm:
-            if taginfo['locked']:
-                raise SystemError("Tag %s: master lock already set. Can't edit tag"
-                                  % taginfo['name'])
+            if taginfo["locked"]:
+                raise SystemError(
+                    "Tag %s: master lock already set. Can't edit tag" % taginfo["name"])
 
             perm_ids = self.getPerms()
 
@@ -962,15 +999,15 @@ class KojiModuleBuilder(GenericBuilder):
                 raise ValueError("Unknown permissions %s" % perm)
 
             perm_id = perm_ids[perm]
-            if taginfo['perm'] not in (perm_id, perm):  # check either id or the string
-                opts['perm'] = perm_id
+            if taginfo["perm"] not in (perm_id, perm):  # check either id or the string
+                opts["perm"] = perm_id
 
         # Create deepcopy of conf dict, because we are going to change it later.
-        opts['extra'] = copy.deepcopy(conf.koji_tag_extra_opts)
+        opts["extra"] = copy.deepcopy(conf.koji_tag_extra_opts)
 
         xmd = self.mmd.get_xmd()
         if "mbs_options" in xmd.keys() and "repo_include_all" in xmd["mbs_options"].keys():
-            opts['extra']['repo_include_all'] = xmd["mbs_options"]["repo_include_all"]
+            opts["extra"]["repo_include_all"] = xmd["mbs_options"]["repo_include_all"]
 
         # edit tag with opts
         self.koji_session.editTag2(tag_name, **opts)
@@ -983,18 +1020,20 @@ class KojiModuleBuilder(GenericBuilder):
         # This will help with potential resubmitting of failed builds
         pkglists = {}
         for tag in tags:
-            pkglists[tag['id']] = dict([(p['package_name'], p['package_id'])
-                                        for p in self.koji_session.listPackages(tagID=tag['id'])])
+            pkglists[tag["id"]] = dict([
+                (p["package_name"], p["package_id"])
+                for p in self.koji_session.listPackages(tagID=tag["id"])
+            ])
 
         self.koji_session.multicall = True
         for tag in tags:
-            pkglist = pkglists[tag['id']]
+            pkglist = pkglists[tag["id"]]
             for package in packages:
                 if pkglist.get(package, None):
                     log.debug("%s Package %s is already whitelisted." % (self, package))
                     continue
 
-                self.koji_session.packageListAdd(tag['name'], package, self.owner)
+                self.koji_session.packageListAdd(tag["name"], package, self.owner)
         self.koji_session.multiCall(strict=True)
 
     def _koji_block_packages(self, packages):
@@ -1013,7 +1052,7 @@ class KojiModuleBuilder(GenericBuilder):
         args = [[self.module_build_tag["name"], package] for package in packages]
         koji_multicall_map(self.koji_session, self.koji_session.packageListUnblock, args)
 
-    @module_build_service.utils.validate_koji_tag(['build_tag', 'dest_tag'])
+    @module_build_service.utils.validate_koji_tag(["build_tag", "dest_tag"])
     def _koji_add_target(self, name, build_tag, dest_tag):
         """Add build target if it doesn't exist or validate the existing one
 
@@ -1036,25 +1075,29 @@ class KojiModuleBuilder(GenericBuilder):
         target_info = self.koji_session.getBuildTarget(name)
 
         barches = build_tag.get("arches", None)
-        assert barches, "Build tag %s has no arches defined." % build_tag['name']
+        assert barches, "Build tag %s has no arches defined." % build_tag["name"]
 
         if not target_info:
-            target_info = self.koji_session.createBuildTarget(name, build_tag['name'],
-                                                              dest_tag['name'])
+            target_info = self.koji_session.createBuildTarget(
+                name, build_tag["name"], dest_tag["name"])
 
         else:  # verify whether build and destination tag matches
-            if build_tag['name'] != target_info['build_tag_name']:
-                raise SystemError(("Target references unexpected build_tag_name. "
-                                   "Got '%s', expected '%s'. Please contact administrator.")
-                                  % (target_info['build_tag_name'], build_tag['name']))
-            if dest_tag['name'] != target_info['dest_tag_name']:
-                raise SystemError(("Target references unexpected dest_tag_name. "
-                                   "Got '%s', expected '%s'. Please contact administrator.")
-                                  % (target_info['dest_tag_name'], dest_tag['name']))
+            if build_tag["name"] != target_info["build_tag_name"]:
+                raise SystemError(
+                    "Target references unexpected build_tag_name. "
+                    "Got '%s', expected '%s'. Please contact administrator."
+                    % (target_info["build_tag_name"], build_tag["name"])
+                )
+            if dest_tag["name"] != target_info["dest_tag_name"]:
+                raise SystemError(
+                    "Target references unexpected dest_tag_name. "
+                    "Got '%s', expected '%s'. Please contact administrator."
+                    % (target_info["dest_tag_name"], dest_tag["name"])
+                )
 
         return self.koji_session.getBuildTarget(name)
 
-    def list_tasks_for_components(self, component_builds=None, state='active'):
+    def list_tasks_for_components(self, component_builds=None, state="active"):
         """
         :param component_builds: list of component builds which we want to check
         :param state: limit the check only for Koji tasks in the given state
@@ -1064,33 +1107,36 @@ class KojiModuleBuilder(GenericBuilder):
         """
 
         component_builds = component_builds or []
-        if state == 'active':
-            states = [koji.TASK_STATES['FREE'],
-                      koji.TASK_STATES['OPEN'],
-                      koji.TASK_STATES['ASSIGNED']]
+        if state == "active":
+            states = [
+                koji.TASK_STATES["FREE"],
+                koji.TASK_STATES["OPEN"],
+                koji.TASK_STATES["ASSIGNED"],
+            ]
         elif state.upper() in koji.TASK_STATES:
             states = [koji.TASK_STATES[state.upper()]]
         else:
-            raise ValueError("State {} is not valid within Koji task states."
-                             .format(state))
+            raise ValueError("State {} is not valid within Koji task states.".format(state))
 
         tasks = []
-        for task in self.koji_session.listTasks(opts={'state': states,
-                                                      'decode': True,
-                                                      'method': 'build'}):
-            task_opts = task['request'][-1]
+        for task in self.koji_session.listTasks(
+            opts={"state": states, "decode": True, "method": "build"}
+        ):
+            task_opts = task["request"][-1]
             assert isinstance(task_opts, dict), "Task options shall be a dict."
-            if 'scratch' in task_opts and task_opts['scratch']:
+            if "scratch" in task_opts and task_opts["scratch"]:
                 continue
-            if 'mbs_artifact_name' not in task_opts:
-                task_opts['mbs_artifact_name'] = None
-            if 'mbs_module_target' not in task_opts:
-                task_opts['mbs_module_target'] = None
+            if "mbs_artifact_name" not in task_opts:
+                task_opts["mbs_artifact_name"] = None
+            if "mbs_module_target" not in task_opts:
+                task_opts["mbs_module_target"] = None
             for c in component_builds:
                 # TODO: https://pagure.io/fm-orchestrator/issue/397
                 # Subj: Do not mix target/tag when looking for component builds
-                if (c.package == task_opts['mbs_artifact_name'] and
-                   c.module_build.koji_tag == task_opts['mbs_module_target']):
+                if (
+                    c.package == task_opts["mbs_artifact_name"]
+                    and c.module_build.koji_tag == task_opts["mbs_module_target"]
+                ):
                     tasks.append(task)
 
         return tasks
@@ -1143,7 +1189,8 @@ class KojiModuleBuilder(GenericBuilder):
                 "packageID": component_id,
                 "userID": mbs_user_id,
                 "state": koji.BUILD_STATES["COMPLETE"],
-                "queryOpts": {"order": "-build_id", "limit": 1}})
+                "queryOpts": {"order": "-build_id", "limit": 1},
+            })
 
         # Get the latest Koji build created by MBS for every component in single Koji call.
         builds_per_component = koji_retrying_multicall_map(
@@ -1209,8 +1256,7 @@ class KojiModuleBuilder(GenericBuilder):
         """
         with models.make_session(conf) as db_session:
             build = models.ModuleBuild.get_build_from_nsvc(
-                db_session, mmd.get_name(), mmd.get_stream(), mmd.get_version(),
-                mmd.get_context())
+                db_session, mmd.get_name(), mmd.get_stream(), mmd.get_version(), mmd.get_context())
             koji_session = KojiModuleBuilder.get_session(conf, login=False)
             rpms = koji_session.listTaggedRPMS(build.koji_tag, latest=True)[0]
             nvrs = set(kobo.rpmlib.make_nvr(rpm, force_epoch=True) for rpm in rpms)
@@ -1218,9 +1264,11 @@ class KojiModuleBuilder(GenericBuilder):
 
     def finalize(self, succeeded=True):
         # Only import to koji CG if the module is "build" and not scratch.
-        if (not self.module.scratch and
-                self.config.koji_enable_content_generator and
-                self.module.state == models.BUILD_STATES['build']):
+        if (
+            not self.module.scratch
+            and self.config.koji_enable_content_generator
+            and self.module.state == models.BUILD_STATES["build"]
+        ):
             cg = KojiContentGenerator(self.module, self.config)
             cg.koji_import()
             if conf.koji_cg_devel_module:
@@ -1244,8 +1292,10 @@ class KojiModuleBuilder(GenericBuilder):
         tags = []
         koji_tags = session.listTags(rpm_md["build_id"])
         for t in koji_tags:
-            if (not t["name"].endswith("-build") and
-                    t["name"].startswith(tuple(conf.koji_tag_prefixes))):
+            if (
+                not t["name"].endswith("-build")
+                and t["name"].startswith(tuple(conf.koji_tag_prefixes))
+            ):
                 tags.append(t["name"])
 
         return tags

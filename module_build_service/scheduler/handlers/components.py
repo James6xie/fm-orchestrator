@@ -40,8 +40,7 @@ def _finalize(config, session, msg, state):
     # First, find our ModuleBuild associated with this component, if any.
     component_build = models.ComponentBuild.from_component_event(session, msg)
     try:
-        nvr = "{}-{}-{}".format(msg.build_name, msg.build_version,
-                                msg.build_release)
+        nvr = "{}-{}-{}".format(msg.build_name, msg.build_version, msg.build_release)
     except KeyError:
         nvr = None
 
@@ -53,7 +52,7 @@ def _finalize(config, session, msg, state):
 
     if msg.state_reason:
         state_reason = msg.state_reason
-    elif state != koji.BUILD_STATES['COMPLETE']:
+    elif state != koji.BUILD_STATES["COMPLETE"]:
         state_reason = "Failed to build artifact %s in Koji" % (msg.build_name)
     else:
         state_reason = ""
@@ -67,10 +66,13 @@ def _finalize(config, session, msg, state):
     parent = component_build.module_build
 
     # If the macro build failed, then the module is doomed.
-    if (component_build.package == 'module-build-macros' and
-       state != koji.BUILD_STATES['COMPLETE']):
-        parent.transition(config, state=models.BUILD_STATES['failed'],
-                          state_reason=state_reason, failure_type='user')
+    if component_build.package == "module-build-macros" and state != koji.BUILD_STATES["COMPLETE"]:
+        parent.transition(
+            config,
+            state=models.BUILD_STATES["failed"],
+            state_reason=state_reason,
+            failure_type="user",
+        )
         session.commit()
         return
 
@@ -80,31 +82,36 @@ def _finalize(config, session, msg, state):
     # we can tag all successfully built components in the batch.
     unbuilt_components_in_batch = [
         c for c in parent.current_batch()
-        if c.state == koji.BUILD_STATES['BUILDING'] or not c.state
+        if c.state == koji.BUILD_STATES["BUILDING"] or not c.state
     ]
     if not unbuilt_components_in_batch:
         failed_components_in_batch = [
             c for c in parent.current_batch()
-            if (c.state in [koji.BUILD_STATES['FAILED'],
-                            koji.BUILD_STATES['CANCELED']])
+            if (c.state in [koji.BUILD_STATES["FAILED"], koji.BUILD_STATES["CANCELED"]])
         ]
 
         built_components_in_batch = [
             c for c in parent.current_batch()
-            if c.state == koji.BUILD_STATES['COMPLETE']
+            if c.state == koji.BUILD_STATES["COMPLETE"]
         ]
 
         builder = module_build_service.builder.GenericBuilder.create_from_module(
-            session, parent, config)
+            session, parent, config
+        )
 
         if failed_components_in_batch:
-            log.info("Batch done, but not tagging because of failed component builds. Will "
-                     "transition the module to \"failed\"")
-            state_reason = 'Component(s) {} failed to build.'.format(
-                ', '.join(c.package for c in failed_components_in_batch))
-            parent.transition(config,
-                              state=models.BUILD_STATES['failed'],
-                              state_reason=state_reason, failure_type='user')
+            log.info(
+                "Batch done, but not tagging because of failed component builds. Will "
+                'transition the module to "failed"'
+            )
+            state_reason = "Component(s) {} failed to build.".format(
+                ", ".join(c.package for c in failed_components_in_batch))
+            parent.transition(
+                config,
+                state=models.BUILD_STATES["failed"],
+                state_reason=state_reason,
+                failure_type="user",
+            )
             session.commit()
             return []
         elif not built_components_in_batch:
@@ -112,14 +119,17 @@ def _finalize(config, session, msg, state):
             # The repository won't be regenerated in this case and therefore we generate fake repo
             # change message here.
             log.info("Batch done. No component to tag")
-            further_work += [messaging.KojiRepoChange(
-                'components::_finalize: fake msg',
-                builder.module_build_tag['name'])]
+            further_work += [
+                messaging.KojiRepoChange(
+                    "components::_finalize: fake msg", builder.module_build_tag["name"])
+            ]
         else:
             built_component_nvrs_in_batch = [c.nvr for c in built_components_in_batch]
             # tag && add to srpm-build group if neccessary
-            log.info("Batch done.  Tagging %i component(s) in the build tag." % len(
-                built_component_nvrs_in_batch))
+            log.info(
+                "Batch done.  Tagging %i component(s) in the build tag."
+                % len(built_component_nvrs_in_batch)
+            )
             log.debug("%r" % built_component_nvrs_in_batch)
             # TODO: install=component_build.build_time_only works here because module-build-macros
             # is alone in its batch and the only component with build_time_only set. All other
@@ -129,16 +139,17 @@ def _finalize(config, session, msg, state):
                 built_component_nvrs_in_batch, install=component_build.build_time_only)
 
             # Do not tag packages which only belong to the build tag to the dest tag
-            component_nvrs_to_tag_in_dest = [c.nvr for c in built_components_in_batch
-                                             if c.build_time_only is False]
-            log.info("Tagging %i component(s) in the dest tag." % len(
-                component_nvrs_to_tag_in_dest))
+            component_nvrs_to_tag_in_dest = [
+                c.nvr for c in built_components_in_batch
+                if c.build_time_only is False
+            ]
+            log.info(
+                "Tagging %i component(s) in the dest tag." % len(component_nvrs_to_tag_in_dest))
             if component_nvrs_to_tag_in_dest:
                 builder.tag_artifacts(component_nvrs_to_tag_in_dest)
 
         session.commit()
-    elif (any([c.state != koji.BUILD_STATES['BUILDING']
-          for c in unbuilt_components_in_batch])):
+    elif any([c.state != koji.BUILD_STATES["BUILDING"] for c in unbuilt_components_in_batch]):
         # We are not in the middle of the batch building and
         # we have some unbuilt components in this batch. We might hit the
         # concurrent builds threshold in previous call of continue_batch_build
@@ -153,12 +164,12 @@ def _finalize(config, session, msg, state):
 
 
 def complete(config, session, msg):
-    return _finalize(config, session, msg, state=koji.BUILD_STATES['COMPLETE'])
+    return _finalize(config, session, msg, state=koji.BUILD_STATES["COMPLETE"])
 
 
 def failed(config, session, msg):
-    return _finalize(config, session, msg, state=koji.BUILD_STATES['FAILED'])
+    return _finalize(config, session, msg, state=koji.BUILD_STATES["FAILED"])
 
 
 def canceled(config, session, msg):
-    return _finalize(config, session, msg, state=koji.BUILD_STATES['CANCELED'])
+    return _finalize(config, session, msg, state=koji.BUILD_STATES["CANCELED"])

@@ -66,9 +66,10 @@ class BaseMessage(object):
             "{}={!r}".format(name, getattr(self, name))
             if param.default != param.empty
             else repr(getattr(self, name))
-            for name, param in init_sig.parameters.items())
+            for name, param in init_sig.parameters.items()
+        )
 
-        return "{}({})".format(type(self).__name__, ', '.join(args_strs))
+        return "{}({})".format(type(self).__name__, ", ".join(args_strs))
 
     def __getitem__(self, key):
         """ Used to trick moksha into thinking we are a dict. """
@@ -87,13 +88,11 @@ class BaseMessage(object):
 
 
 class MessageParser(object):
-
     def parse(self, msg):
         raise NotImplementedError()
 
 
 class FedmsgMessageParser(MessageParser):
-
     def parse(self, msg):
         """
         Takes a fedmsg topic and message and converts it to a message object
@@ -101,83 +100,105 @@ class FedmsgMessageParser(MessageParser):
         :return: an object of BaseMessage descent if the message is a type
         that the app looks for, otherwise None is returned
         """
-        if 'body' in msg:
-            msg = msg['body']
-        topic = msg['topic']
-        topic_categories = _messaging_backends['fedmsg']['services']
-        categories_re = '|'.join(map(re.escape, topic_categories))
+        if "body" in msg:
+            msg = msg["body"]
+        topic = msg["topic"]
+        topic_categories = _messaging_backends["fedmsg"]["services"]
+        categories_re = "|".join(map(re.escape, topic_categories))
         regex_pattern = re.compile(
-            r'(?P<category>' + categories_re + r')'
-            r'(?:(?:\.)(?P<object>build|repo|module|decision))?'
-            r'(?:(?:\.)(?P<subobject>state|build))?'
-            r'(?:\.)(?P<event>change|done|end|tag|update)$'
+            r"(?P<category>" + categories_re + r")"
+            r"(?:(?:\.)(?P<object>build|repo|module|decision))?"
+            r"(?:(?:\.)(?P<subobject>state|build))?"
+            r"(?:\.)(?P<event>change|done|end|tag|update)$"
         )
         regex_results = re.search(regex_pattern, topic)
 
         if regex_results:
-            category = regex_results.group('category')
-            object = regex_results.group('object')
-            subobject = regex_results.group('subobject')
-            event = regex_results.group('event')
+            category = regex_results.group("category")
+            object = regex_results.group("object")
+            subobject = regex_results.group("subobject")
+            event = regex_results.group("event")
 
-            msg_id = msg.get('msg_id')
-            msg_inner_msg = msg.get('msg')
+            msg_id = msg.get("msg_id")
+            msg_inner_msg = msg.get("msg")
 
             # If there isn't a msg dict in msg then this message can be skipped
             if not msg_inner_msg:
-                log.debug(('Skipping message without any content with the '
-                           'topic "{0}"').format(topic))
+                log.debug(
+                    "Skipping message without any content with the " 'topic "{0}"'.format(topic))
                 return None
 
             msg_obj = None
 
             # Ignore all messages from the secondary koji instances.
-            if category == 'buildsys':
-                instance = msg_inner_msg.get('instance', 'primary')
-                if instance != 'primary':
+            if category == "buildsys":
+                instance = msg_inner_msg.get("instance", "primary")
+                if instance != "primary":
                     log.debug("Ignoring message from %r koji hub." % instance)
                     return
 
-            if category == 'buildsys' and object == 'build' and \
-                    subobject == 'state' and event == 'change':
-                build_id = msg_inner_msg.get('build_id')
-                task_id = msg_inner_msg.get('task_id')
-                build_new_state = msg_inner_msg.get('new')
-                build_name = msg_inner_msg.get('name')
-                build_version = msg_inner_msg.get('version')
-                build_release = msg_inner_msg.get('release')
+            if (
+                category == "buildsys"
+                and object == "build"
+                and subobject == "state"
+                and event == "change"
+            ):
+                build_id = msg_inner_msg.get("build_id")
+                task_id = msg_inner_msg.get("task_id")
+                build_new_state = msg_inner_msg.get("new")
+                build_name = msg_inner_msg.get("name")
+                build_version = msg_inner_msg.get("version")
+                build_release = msg_inner_msg.get("release")
 
                 msg_obj = KojiBuildChange(
-                    msg_id, build_id, task_id, build_new_state, build_name,
-                    build_version, build_release)
+                    msg_id,
+                    build_id,
+                    task_id,
+                    build_new_state,
+                    build_name,
+                    build_version,
+                    build_release,
+                )
 
-            elif category == 'buildsys' and object == 'repo' and \
-                    subobject is None and event == 'done':
-                repo_tag = msg_inner_msg.get('tag')
+            elif (
+                category == "buildsys"
+                and object == "repo"
+                and subobject is None
+                and event == "done"
+            ):
+                repo_tag = msg_inner_msg.get("tag")
                 msg_obj = KojiRepoChange(msg_id, repo_tag)
 
-            elif category == 'buildsys' and event == 'tag':
-                tag = msg_inner_msg.get('tag')
-                name = msg_inner_msg.get('name')
-                version = msg_inner_msg.get('version')
-                release = msg_inner_msg.get('release')
+            elif category == "buildsys" and event == "tag":
+                tag = msg_inner_msg.get("tag")
+                name = msg_inner_msg.get("name")
+                version = msg_inner_msg.get("version")
+                release = msg_inner_msg.get("release")
                 nvr = None
                 if name and version and release:
-                    nvr = '-'.join((name, version, release))
+                    nvr = "-".join((name, version, release))
                 msg_obj = KojiTagChange(msg_id, tag, name, nvr)
 
-            elif category == 'mbs' and object == 'module' and \
-                    subobject == 'state' and event == 'change':
-                msg_obj = MBSModule(
-                    msg_id, msg_inner_msg.get('id'), msg_inner_msg.get('state'))
+            elif (
+                category == "mbs"
+                and object == "module"
+                and subobject == "state"
+                and event == "change"
+            ):
+                msg_obj = MBSModule(msg_id, msg_inner_msg.get("id"), msg_inner_msg.get("state"))
 
-            elif (category == 'greenwave' and object == 'decision' and
-                    subobject is None and event == 'update'):
+            elif (
+                category == "greenwave"
+                and object == "decision"
+                and subobject is None
+                and event == "update"
+            ):
                 msg_obj = GreenwaveDecisionUpdate(
                     msg_id=msg_id,
-                    decision_context=msg_inner_msg.get('decision_context'),
-                    policies_satisfied=msg_inner_msg.get('policies_satisfied'),
-                    subject_identifier=msg_inner_msg.get('subject_identifier'))
+                    decision_context=msg_inner_msg.get("decision_context"),
+                    policies_satisfied=msg_inner_msg.get("policies_satisfied"),
+                    subject_identifier=msg_inner_msg.get("subject_identifier"),
+                )
 
             # If the message matched the regex and is important to the app,
             # it will be returned
@@ -201,9 +222,19 @@ class KojiBuildChange(BaseMessage):
     :param module_build_id: the optional id of the module_build in the database
     :param state_reason: the optional reason as to why the state changed
     """
-    def __init__(self, msg_id, build_id, task_id, build_new_state, build_name,
-                 build_version, build_release, module_build_id=None,
-                 state_reason=None):
+
+    def __init__(
+        self,
+        msg_id,
+        build_id,
+        task_id,
+        build_new_state,
+        build_name,
+        build_version,
+        build_release,
+        module_build_id=None,
+        state_reason=None,
+    ):
         if task_id is None:
             raise IgnoreMessage("KojiBuildChange with a null task_id is invalid.")
         super(KojiBuildChange, self).__init__(msg_id)
@@ -225,6 +256,7 @@ class KojiTagChange(BaseMessage):
     :param artifact: the name of tagged artifact (e.g. module-build-macros)
     :param nvr: the nvr of the tagged artifact
     """
+
     def __init__(self, msg_id, tag, artifact, nvr):
         super(KojiTagChange, self).__init__(msg_id)
         self.tag = tag
@@ -238,6 +270,7 @@ class KojiRepoChange(BaseMessage):
     :param msg_id: the id of the msg (e.g. 2016-SomeGUID)
     :param repo_tag: the repo's tag (e.g. SHADOWBUILD-f25-build)
     """
+
     def __init__(self, msg_id, repo_tag):
         super(KojiRepoChange, self).__init__(msg_id)
         self.repo_tag = repo_tag
@@ -250,6 +283,7 @@ class MBSModule(BaseMessage):
     :param module_build_id: the id of the module build
     :param module_build_state: the state of the module build
     """
+
     def __init__(self, msg_id, module_build_id, module_build_state):
         super(MBSModule, self).__init__(msg_id)
         self.module_build_id = module_build_id
@@ -259,8 +293,7 @@ class MBSModule(BaseMessage):
 class GreenwaveDecisionUpdate(BaseMessage):
     """A class representing message send to topic greenwave.decision.update"""
 
-    def __init__(self, msg_id, decision_context, policies_satisfied,
-                 subject_identifier):
+    def __init__(self, msg_id, decision_context, policies_satisfied, subject_identifier):
         super(GreenwaveDecisionUpdate, self).__init__(msg_id)
         self.decision_context = decision_context
         self.policies_satisfied = policies_satisfied
@@ -277,14 +310,18 @@ def publish(topic, msg, conf, service):
     :return:
     """
     try:
-        handler = _messaging_backends[conf.messaging]['publish']
+        handler = _messaging_backends[conf.messaging]["publish"]
     except KeyError:
-        raise KeyError("No messaging backend found for %r in %r" % (
-            conf.messaging, _messaging_backends.keys()))
+        raise KeyError(
+            "No messaging backend found for %r in %r" % (conf.messaging, _messaging_backends.keys())
+        )
 
     from module_build_service.monitor import (
-        messaging_tx_to_send_counter, messaging_tx_sent_ok_counter,
-        messaging_tx_failed_counter)
+        messaging_tx_to_send_counter,
+        messaging_tx_sent_ok_counter,
+        messaging_tx_failed_counter,
+    )
+
     messaging_tx_to_send_counter.inc()
     try:
         rv = handler(topic, msg, conf, service)
@@ -298,6 +335,7 @@ def publish(topic, msg, conf, service):
 def _fedmsg_publish(topic, msg, conf, service):
     # fedmsg doesn't really need access to conf, however other backends do
     import fedmsg
+
     return fedmsg.publish(topic, msg=msg, modname=service)
 
 
@@ -318,11 +356,12 @@ def _in_memory_publish(topic, msg, conf, service):
     wrapped_msg = FedmsgMessageParser().parse({
         "msg_id": str(_in_memory_msg_id),
         "topic": service + "." + topic,
-        "msg": msg,
+        "msg": msg
     })
 
     # Put the message to queue.
     from module_build_service.scheduler.consumer import work_queue_put
+
     try:
         work_queue_put(wrapped_msg)
     except ValueError as e:
@@ -336,26 +375,25 @@ def _in_memory_publish(topic, msg, conf, service):
 
 
 _fedmsg_backend = {
-    'publish': _fedmsg_publish,
-    'services': ['buildsys', 'mbs', 'greenwave'],
-    'parser': FedmsgMessageParser(),
-    'topic_suffix': '.',
+    "publish": _fedmsg_publish,
+    "services": ["buildsys", "mbs", "greenwave"],
+    "parser": FedmsgMessageParser(),
+    "topic_suffix": ".",
 }
 _in_memory_backend = {
-    'publish': _in_memory_publish,
-    'services': [],
-    'parser': FedmsgMessageParser(),  # re-used.  :)
-    'topic_suffix': '.',
+    "publish": _in_memory_publish,
+    "services": [],
+    "parser": FedmsgMessageParser(),  # re-used.  :)
+    "topic_suffix": ".",
 }
 
 
 _messaging_backends = {}
-for entrypoint in pkg_resources.iter_entry_points('mbs.messaging_backends'):
+for entrypoint in pkg_resources.iter_entry_points("mbs.messaging_backends"):
     _messaging_backends[entrypoint.name] = ep = entrypoint.load()
-    required = ['publish', 'services', 'parser', 'topic_suffix']
+    required = ["publish", "services", "parser", "topic_suffix"]
     if any([key not in ep for key in required]):
-        raise ValueError('messaging backend %r is malformed: %r' % (
-            entrypoint.name, ep))
+        raise ValueError("messaging backend %r is malformed: %r" % (entrypoint.name, ep))
 
 if not _messaging_backends:
     raise ValueError("No messaging plugins are installed or available.")

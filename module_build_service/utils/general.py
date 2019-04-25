@@ -30,8 +30,7 @@ from datetime import datetime
 from six import text_type, string_types
 
 from module_build_service import conf, log, models, Modulemd, glib
-from module_build_service.errors import (
-    ValidationError, ProgrammingError, UnprocessableEntity)
+from module_build_service.errors import ValidationError, ProgrammingError, UnprocessableEntity
 
 
 def to_text_type(s):
@@ -62,8 +61,15 @@ def scm_url_schemes(terse=False):
     """
 
     scm_types = {
-        "git": ("git://", "git+http://", "git+https://",
-                "git+rsync://", "http://", "https://", "file://")
+        "git": (
+            "git://",
+            "git+http://",
+            "git+https://",
+            "git+rsync://",
+            "http://",
+            "https://",
+            "file://",
+        )
     }
 
     if not terse:
@@ -79,6 +85,7 @@ def retry(timeout=conf.net_timeout, interval=conf.net_retry_interval, wait_on=Ex
     """ A decorator that allows to retry a section of code...
     ...until success or timeout.
     """
+
     def wrapper(function):
         @functools.wraps(function)
         def inner(*args, **kwargs):
@@ -87,21 +94,26 @@ def retry(timeout=conf.net_timeout, interval=conf.net_retry_interval, wait_on=Ex
                 try:
                     return function(*args, **kwargs)
                 except wait_on as e:
-                    log.warning("Exception %r raised from %r.  Retry in %rs" % (
-                        e, function, interval))
+                    log.warning(
+                        "Exception %r raised from %r.  Retry in %rs" % (e, function, interval)
+                    )
                     time.sleep(interval)
                     if (time.time() - start) >= timeout:
                         raise  # This re-raises the last exception.
+
         return inner
+
     return wrapper
 
 
 def module_build_state_from_msg(msg):
     state = int(msg.module_build_state)
     # TODO better handling
-    assert state in models.BUILD_STATES.values(), (
-        'state=%s(%s) is not in %s'
-        % (state, type(state), list(models.BUILD_STATES.values())))
+    assert state in models.BUILD_STATES.values(), "state=%s(%s) is not in %s" % (
+        state,
+        type(state),
+        list(models.BUILD_STATES.values()),
+    )
     return state
 
 
@@ -125,23 +137,23 @@ def generate_koji_tag(name, stream, version, context, max_length=256, scratch=Fa
     :rtype: str
     """
     if scratch:
-        prefix = 'scrmod-'
+        prefix = "scrmod-"
         # use unique suffix so same commit can be resubmitted
-        suffix = '+' + str(scratch_id)
+        suffix = "+" + str(scratch_id)
     else:
-        prefix = 'module-'
-        suffix = ''
+        prefix = "module-"
+        suffix = ""
     nsvc_list = [name, stream, str(version), context]
-    nsvc_tag = prefix + '-'.join(nsvc_list) + suffix
-    if len(nsvc_tag) + len('-build') > max_length:
+    nsvc_tag = prefix + "-".join(nsvc_list) + suffix
+    if len(nsvc_tag) + len("-build") > max_length:
         # Fallback to the old format of 'module-<hash>' if the generated koji tag
         # name is longer than max_length
-        nsvc_hash = hashlib.sha1('.'.join(nsvc_list).encode('utf-8')).hexdigest()[:16]
+        nsvc_hash = hashlib.sha1(".".join(nsvc_list).encode("utf-8")).hexdigest()[:16]
         return prefix + nsvc_hash + suffix
     return nsvc_tag
 
 
-def validate_koji_tag(tag_arg_names, pre='', post='-', dict_key='name'):
+def validate_koji_tag(tag_arg_names, pre="", post="-", dict_key="name"):
     """
     Used as a decorator validates koji tag arg(s)' value(s)
     against configurable list of koji tag prefixes.
@@ -168,24 +180,29 @@ def validate_koji_tag(tag_arg_names, pre='', post='-', dict_key='name'):
                 # If any of them don't appear in the function, then fail.
                 if tag_arg_name not in call_args:
                     raise ProgrammingError(
-                        '{} Inspected argument {} is not within function args.'
-                        ' The function was: {}.'
-                        .format(err_subject, tag_arg_name, function.__name__))
+                        "{} Inspected argument {} is not within function args."
+                        " The function was: {}.".format(
+                            err_subject, tag_arg_name, function.__name__
+                        )
+                    )
 
                 tag_arg_val = call_args[tag_arg_name]
 
                 # First, check that we have some value
                 if not tag_arg_val:
-                    raise ValidationError('{} Can not validate {}. No value provided.'
-                                          .format(err_subject, tag_arg_name))
+                    raise ValidationError(
+                        "{} Can not validate {}. No value provided.".format(
+                            err_subject, tag_arg_name)
+                    )
 
                 # If any of them are a dict, then use the provided dict_key
                 if isinstance(tag_arg_val, dict):
                     if dict_key not in tag_arg_val:
                         raise ProgrammingError(
-                            '{} Inspected dict arg {} does not contain {} key.'
-                            ' The function was: {}.'
-                            .format(err_subject, tag_arg_name, dict_key, function.__name__))
+                            "{} Inspected dict arg {} does not contain {} key."
+                            " The function was: {}.".format(
+                                err_subject, tag_arg_name, dict_key, function.__name__)
+                        )
                     tag_list = [tag_arg_val[dict_key]]
                 elif isinstance(tag_arg_val, list):
                     tag_list = tag_arg_val
@@ -200,9 +217,9 @@ def validate_koji_tag(tag_arg_names, pre='', post='-', dict_key='name'):
                     # Only raise this error if the given tags don't start with
                     # *any* of our allowed prefixes.
                     raise ValidationError(
-                        'Koji tag validation: {} does not satisfy any of allowed prefixes: {}'
-                        .format(tag_list,
-                                [pre + p + post for p in conf.koji_tag_prefixes]))
+                        "Koji tag validation: {} does not satisfy any of allowed prefixes: {}"
+                        .format(tag_list, [pre + p + post for p in conf.koji_tag_prefixes])
+                    )
 
             # Finally.. after all that validation, call the original function
             # and return its value.
@@ -223,8 +240,12 @@ def get_rpm_release(module_build):
     :param module_build: a models.ModuleBuild object
     :return: a string of the module's dist tag
     """
-    dist_str = '.'.join([module_build.name, module_build.stream, str(module_build.version),
-                         str(module_build.context)]).encode('utf-8')
+    dist_str = ".".join([
+        module_build.name,
+        module_build.stream,
+        str(module_build.version),
+        str(module_build.context),
+    ]).encode("utf-8")
     dist_hash = hashlib.sha1(dist_str).hexdigest()[:8]
 
     # We need to share the same auto-incrementing index in dist tag between all MSE builds.
@@ -234,14 +255,14 @@ def get_rpm_release(module_build):
     mse_build_ids.sort()
     index = mse_build_ids[0]
     try:
-        buildrequires = module_build.mmd().get_xmd()['mbs']['buildrequires']
+        buildrequires = module_build.mmd().get_xmd()["mbs"]["buildrequires"]
     except (ValueError, KeyError):
-        log.warning('Module build {0} does not have buildrequires in its xmd'
-                    .format(module_build.id))
+        log.warning(
+            "Module build {0} does not have buildrequires in its xmd".format(module_build.id))
         buildrequires = None
 
     # Determine which buildrequired module will influence the disttag
-    br_module_marking = ''
+    br_module_marking = ""
     # If the buildrequires are recorded in the xmd then we can try to find the base module that
     # is buildrequired
     if buildrequires:
@@ -256,13 +277,17 @@ def get_rpm_release(module_build):
 
             with models.make_session(conf) as session:
                 module_obj = models.ModuleBuild.get_build_from_nsvc(
-                    session, module, module_in_xmd['stream'], module_in_xmd['version'],
-                    module_in_xmd['context'])
+                    session,
+                    module,
+                    module_in_xmd["stream"],
+                    module_in_xmd["version"],
+                    module_in_xmd["context"],
+                )
                 if not module_obj:
                     continue
 
                 try:
-                    marking = module_obj.mmd().get_xmd()['mbs']['disttag_marking']
+                    marking = module_obj.mmd().get_xmd()["mbs"]["disttag_marking"]
                 # We must check for a KeyError because a Variant object doesn't support the `get`
                 # method
                 except KeyError:
@@ -272,20 +297,19 @@ def get_rpm_release(module_build):
                     # conf.allowed_disttag_marking_module_names, and the base module doesn't have
                     # the disttag_marking set, then default to the stream of the first base module
                     marking = module_obj.stream
-                br_module_marking = marking + '+'
+                br_module_marking = marking + "+"
                 break
         else:
-            log.warning('Module build {0} does not buildrequire a base module ({1})'
-                        .format(module_build.id, ' or '.join(conf.base_module_names)))
+            log.warning(
+                "Module build {0} does not buildrequire a base module ({1})".format(
+                    module_build.id, " or ".join(conf.base_module_names))
+            )
 
     # use alternate prefix for scratch module build components so they can be identified
-    prefix = ('scrmod+' if module_build.scratch else conf.default_dist_tag_prefix)
+    prefix = "scrmod+" if module_build.scratch else conf.default_dist_tag_prefix
 
-    return '{prefix}{base_module_marking}{index}+{dist_hash}'.format(
-        prefix=prefix,
-        base_module_marking=br_module_marking,
-        index=index,
-        dist_hash=dist_hash,
+    return "{prefix}{base_module_marking}{index}+{dist_hash}".format(
+        prefix=prefix, base_module_marking=br_module_marking, index=index, dist_hash=dist_hash
     )
 
 
@@ -302,6 +326,7 @@ def create_dogpile_key_generator_func(skip_first_n_args=0):
       when the db.session is part of cached method call, and the caching should
       work no matter what session instance is passed to cached method argument.
     """
+
     def key_generator(namespace, fn):
         fname = fn.__name__
 
@@ -315,6 +340,7 @@ def create_dogpile_key_generator_func(skip_first_n_args=0):
             return key_template
 
         return generate_key
+
     return key_generator
 
 
@@ -354,8 +380,8 @@ def import_mmd(session, mmd, check_buildrequires=True):
 
     # Verify that the virtual streams are the correct type
     if virtual_streams and (
-        not isinstance(virtual_streams, list) or
-        any(not isinstance(vs, string_types) for vs in virtual_streams)
+        not isinstance(virtual_streams, list)
+        or any(not isinstance(vs, string_types) for vs in virtual_streams)
     ):
         msg = "The virtual streams must be a list of strings"
         log.error(msg)
@@ -398,19 +424,19 @@ def import_mmd(session, mmd, check_buildrequires=True):
         xmd_brs = set(xmd["mbs"].get("buildrequires", {}).keys())
         if brs - xmd_brs:
             raise UnprocessableEntity(
-                'The imported module buildrequires other modules, but the metadata in the '
-                'xmd["mbs"]["buildrequires"] dictionary is missing entries')
+                "The imported module buildrequires other modules, but the metadata in the "
+                'xmd["mbs"]["buildrequires"] dictionary is missing entries'
+            )
     elif "buildrequires" not in xmd["mbs"]:
         xmd["mbs"]["buildrequires"] = {}
         mmd.set_xmd(glib.dict_values(xmd))
 
-    koji_tag = xmd['mbs'].get('koji_tag')
+    koji_tag = xmd["mbs"].get("koji_tag")
     if koji_tag is None:
         log.warning("'koji_tag' is not set in xmd['mbs'] for module {}".format(nsvc))
 
     # Get the ModuleBuild from DB.
-    build = models.ModuleBuild.get_build_from_nsvc(
-        session, name, stream, version, context)
+    build = models.ModuleBuild.get_build_from_nsvc(session, name, stream, version, context)
     if build:
         msg = "Updating existing module build {}.".format(nsvc)
         log.info(msg)
@@ -422,11 +448,11 @@ def import_mmd(session, mmd, check_buildrequires=True):
     build.stream = stream
     build.version = version
     build.koji_tag = koji_tag
-    build.state = models.BUILD_STATES['ready']
+    build.state = models.BUILD_STATES["ready"]
     build.modulemd = to_text_type(mmd.dumps())
     build.context = context
     build.owner = "mbs_import"
-    build.rebuild_strategy = 'all'
+    build.rebuild_strategy = "all"
     build.time_submitted = datetime.utcnow()
     build.time_modified = datetime.utcnow()
     build.time_completed = datetime.utcnow()
@@ -492,15 +518,15 @@ def import_fake_base_module(nsvc):
         srpm_buildroot.add_rpm(rpm)
     mmd.add_profile(srpm_buildroot)
 
-    xmd = {'mbs': {}}
-    xmd_mbs = xmd['mbs']
-    xmd_mbs['buildrequires'] = {}
-    xmd_mbs['requires'] = {}
-    xmd_mbs['commit'] = 'ref_%s' % context
-    xmd_mbs['mse'] = 'true'
+    xmd = {"mbs": {}}
+    xmd_mbs = xmd["mbs"]
+    xmd_mbs["buildrequires"] = {}
+    xmd_mbs["requires"] = {}
+    xmd_mbs["commit"] = "ref_%s" % context
+    xmd_mbs["mse"] = "true"
     # Use empty "repofile://" URI for base module. The base module will use the
     # `conf.base_module_names` list as list of default repositories.
-    xmd_mbs['koji_tag'] = 'repofile://'
+    xmd_mbs["koji_tag"] = "repofile://"
     mmd.set_xmd(glib.dict_values(xmd))
 
     with models.make_session(conf) as session:
@@ -513,6 +539,7 @@ def get_local_releasever():
     """
     # Import DNF here to not force it as a hard MBS dependency.
     import dnf
+
     dnf_base = dnf.Base()
     return dnf_base.conf.releasever
 
@@ -578,8 +605,8 @@ def get_mmd_from_scm(url):
     """
     from module_build_service.utils.submit import _fetch_mmd
 
-    mmd, _ = _fetch_mmd(url, branch=None, allow_local_url=False,
-                        whitelist_url=False, mandatory_checks=False)
+    mmd, _ = _fetch_mmd(
+        url, branch=None, allow_local_url=False, whitelist_url=False, mandatory_checks=False)
 
     return mmd
 

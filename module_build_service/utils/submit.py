@@ -40,8 +40,7 @@ from gi.repository import GLib
 
 import module_build_service.scm
 from module_build_service import conf, db, log, models, Modulemd
-from module_build_service.errors import (
-    ValidationError, UnprocessableEntity, Forbidden, Conflict)
+from module_build_service.errors import ValidationError, UnprocessableEntity, Forbidden, Conflict
 from module_build_service import glib
 from module_build_service.utils import to_text_type
 
@@ -106,18 +105,15 @@ def _scm_get_latest(pkg):
         # we want to pull from, we need to resolve that f25 branch
         # to the specific commit available at the time of
         # submission (now).
-        pkgref = module_build_service.scm.SCM(
-            pkg.get_repository()).get_latest(pkg.get_ref())
+        pkgref = module_build_service.scm.SCM(pkg.get_repository()).get_latest(pkg.get_ref())
     except Exception as e:
         log.exception(e)
-        return {'error': "Failed to get the latest commit for %s#%s" % (
-            pkg.get_repository(), pkg.get_ref())}
+        return {
+            "error": "Failed to get the latest commit for %s#%s"
+            % (pkg.get_repository(), pkg.get_ref())
+        }
 
-    return {
-        'pkg_name': pkg.get_name(),
-        'pkg_ref': pkgref,
-        'error': None
-    }
+    return {"pkg_name": pkg.get_name(), "pkg_ref": pkgref, "error": None}
 
 
 def format_mmd(mmd, scmurl, module=None, session=None):
@@ -136,12 +132,12 @@ def format_mmd(mmd, scmurl, module=None, session=None):
     from module_build_service.scm import SCM
 
     xmd = glib.from_variant_dict(mmd.get_xmd())
-    if 'mbs' not in xmd:
-        xmd['mbs'] = {}
-    if 'scmurl' not in xmd['mbs']:
-        xmd['mbs']['scmurl'] = scmurl or ''
-    if 'commit' not in xmd['mbs']:
-        xmd['mbs']['commit'] = ''
+    if "mbs" not in xmd:
+        xmd["mbs"] = {}
+    if "scmurl" not in xmd["mbs"]:
+        xmd["mbs"]["scmurl"] = scmurl or ""
+    if "commit" not in xmd["mbs"]:
+        xmd["mbs"]["commit"] = ""
 
     # If module build was submitted via yaml file, there is no scmurl
     if scmurl:
@@ -154,35 +150,37 @@ def format_mmd(mmd, scmurl, module=None, session=None):
             else:
                 full_scm_hash = scm.get_full_commit_hash()
 
-            xmd['mbs']['commit'] = full_scm_hash
+            xmd["mbs"]["commit"] = full_scm_hash
         # If a commit hash wasn't provided then just get the latest from master
         else:
-            xmd['mbs']['commit'] = scm.get_latest()
+            xmd["mbs"]["commit"] = scm.get_latest()
 
     if mmd.get_rpm_components() or mmd.get_module_components():
-        if 'rpms' not in xmd['mbs']:
-            xmd['mbs']['rpms'] = {}
+        if "rpms" not in xmd["mbs"]:
+            xmd["mbs"]["rpms"] = {}
         # Add missing data in RPM components
         for pkgname, pkg in mmd.get_rpm_components().items():
             # In case of resubmit of existing module which have been
             # cancelled/failed during the init state, the package
             # was maybe already handled by MBS, so skip it in this case.
-            if pkgname in xmd['mbs']['rpms']:
+            if pkgname in xmd["mbs"]["rpms"]:
                 continue
             if pkg.get_repository() and not conf.rpms_allow_repository:
                 raise Forbidden(
                     "Custom component repositories aren't allowed.  "
-                    "%r bears repository %r" % (pkgname, pkg.get_repository()))
+                    "%r bears repository %r" % (pkgname, pkg.get_repository())
+                )
             if pkg.get_cache() and not conf.rpms_allow_cache:
                 raise Forbidden(
                     "Custom component caches aren't allowed.  "
-                    "%r bears cache %r" % (pkgname, pkg.cache))
+                    "%r bears cache %r" % (pkgname, pkg.cache)
+                )
             if not pkg.get_repository():
                 pkg.set_repository(conf.rpms_default_repository + pkgname)
             if not pkg.get_cache():
                 pkg.set_cache(conf.rpms_default_cache + pkgname)
             if not pkg.get_ref():
-                pkg.set_ref('master')
+                pkg.set_ref("master")
             if pkg.get_arches().size() == 0:
                 arches = Modulemd.SimpleSet()
                 arches.set(conf.arches)
@@ -193,11 +191,12 @@ def format_mmd(mmd, scmurl, module=None, session=None):
             if mod.get_repository() and not conf.modules_allow_repository:
                 raise Forbidden(
                     "Custom module repositories aren't allowed.  "
-                    "%r bears repository %r" % (modname, mod.get_repository()))
+                    "%r bears repository %r" % (modname, mod.get_repository())
+                )
             if not mod.get_repository():
                 mod.set_repository(conf.modules_default_repository + modname)
             if not mod.get_ref():
-                mod.set_ref('master')
+                mod.set_ref("master")
 
         # Check that SCM URL is valid and replace potential branches in pkg refs
         # by real SCM hash and store the result to our private xmd place in modulemd.
@@ -205,8 +204,10 @@ def format_mmd(mmd, scmurl, module=None, session=None):
         try:
             # Filter out the packages which we have already resolved in possible
             # previous runs of this method (can be caused by module build resubmition).
-            pkgs_to_resolve = [pkg for pkg in mmd.get_rpm_components().values()
-                               if pkg.get_name() not in xmd['mbs']['rpms']]
+            pkgs_to_resolve = [
+                pkg for pkg in mmd.get_rpm_components().values()
+                if pkg.get_name() not in xmd["mbs"]["rpms"]
+            ]
             async_result = pool.map_async(_scm_get_latest, pkgs_to_resolve)
 
             # For modules with lot of components, the _scm_get_latest can take a lot of time.
@@ -228,7 +229,7 @@ def format_mmd(mmd, scmurl, module=None, session=None):
             else:
                 pkg_name = pkg_dict["pkg_name"]
                 pkg_ref = pkg_dict["pkg_ref"]
-                xmd['mbs']['rpms'][pkg_name] = {'ref': pkg_ref}
+                xmd["mbs"]["rpms"][pkg_name] = {"ref": pkg_ref}
         if err_msg:
             raise UnprocessableEntity(err_msg)
 
@@ -251,32 +252,38 @@ def get_prefixed_version(mmd):
     for base_module in conf.base_module_names:
         # xmd is a GLib Variant and doesn't support .get() syntax
         try:
-            base_module_stream = xmd['mbs']['buildrequires'].get(
-                base_module, {}).get('stream')
+            base_module_stream = xmd["mbs"]["buildrequires"].get(base_module, {}).get("stream")
             if base_module_stream:
                 # Break after finding the first base module that is buildrequired
                 break
         except KeyError:
-            log.warning('The module\'s mmd is missing information in the xmd section')
+            log.warning("The module's mmd is missing information in the xmd section")
             return version
     else:
-        log.warning('This module does not buildrequire a base module ({0})'
-                    .format(' or '.join(conf.base_module_names)))
+        log.warning(
+            "This module does not buildrequire a base module ({0})".format(
+                " or ".join(conf.base_module_names)
+            )
+        )
         return version
 
     # The platform version (e.g. prefix1.2.0 => 010200)
     version_prefix = models.ModuleBuild.get_stream_version(base_module_stream, right_pad=False)
 
     if version_prefix is None:
-        log.warning('The "{0}" stream "{1}" couldn\'t be used to prefix the module\'s '
-                    'version'.format(base_module, base_module_stream))
+        log.warning(
+            'The "{0}" stream "{1}" couldn\'t be used to prefix the module\'s '
+            "version".format(base_module, base_module_stream)
+        )
         return version
 
     # Strip the stream suffix because Modulemd requires version to be an integer
     new_version = int(str(int(math.floor(version_prefix))) + str(version))
     if new_version > GLib.MAXUINT64:
-        log.warning('The "{0}" stream "{1}" caused the module\'s version prefix to be '
-                    'too long'.format(base_module, base_module_stream))
+        log.warning(
+            'The "{0}" stream "{1}" caused the module\'s version prefix to be '
+            "too long".format(base_module, base_module_stream)
+        )
         return version
     return new_version
 
@@ -297,13 +304,14 @@ def validate_mmd(mmd):
         if mod.get_repository() and not conf.modules_allow_repository:
             raise Forbidden(
                 "Custom module repositories aren't allowed.  "
-                "%r bears repository %r" % (modname, mod.get_repository()))
+                "%r bears repository %r" % (modname, mod.get_repository())
+            )
 
     name = mmd.get_name()
     xmd = mmd.get_xmd()
-    if 'mbs' in xmd:
+    if "mbs" in xmd:
         allowed_to_mark_disttag = name in conf.allowed_disttag_marking_module_names
-        if not (xmd['mbs'].keys() == ['disttag_marking'] and allowed_to_mark_disttag):
+        if not (xmd["mbs"].keys() == ["disttag_marking"] and allowed_to_mark_disttag):
             raise ValidationError('The "mbs" xmd field is reserved for MBS')
 
     if name in conf.base_module_names:
@@ -317,12 +325,12 @@ def merge_included_mmd(mmd, included_mmd):
     the `main` when it includes another module defined by `included_mmd`
     """
     included_xmd = glib.from_variant_dict(included_mmd.get_xmd())
-    if 'rpms' in included_xmd['mbs']:
+    if "rpms" in included_xmd["mbs"]:
         xmd = glib.from_variant_dict(mmd.get_xmd())
-        if 'rpms' not in xmd['mbs']:
-            xmd['mbs']['rpms'] = included_xmd['mbs']['rpms']
+        if "rpms" not in xmd["mbs"]:
+            xmd["mbs"]["rpms"] = included_xmd["mbs"]["rpms"]
         else:
-            xmd['mbs']['rpms'].update(included_xmd['mbs']['rpms'])
+            xmd["mbs"]["rpms"].update(included_xmd["mbs"]["rpms"])
     # Set the modified xmd back to the modulemd
     mmd.set_xmd(glib.dict_values(xmd))
 
@@ -351,10 +359,10 @@ def get_module_srpm_overrides(module):
         raise ValueError("Invalid srpms list encountered: {}".format(module.srpms))
 
     for source in srpms:
-        if source.startswith('cli-build/') and source.endswith('.src.rpm'):
+        if source.startswith("cli-build/") and source.endswith(".src.rpm"):
             # This is a custom srpm that has been uploaded to koji by rpkg
             # using the package name as the basename suffixed with .src.rpm
-            rpm_name = os.path.basename(source)[:-len('.src.rpm')]
+            rpm_name = os.path.basename(source)[: -len(".src.rpm")]
         else:
             # This should be a local custom srpm path
             if not os.path.exists(source):
@@ -362,13 +370,15 @@ def get_module_srpm_overrides(module):
             # Get package name from rpm headers
             try:
                 rpm_hdr = kobo.rpmlib.get_rpm_header(source)
-                rpm_name = kobo.rpmlib.get_header_field(rpm_hdr, 'name').decode('utf-8')
+                rpm_name = kobo.rpmlib.get_header_field(rpm_hdr, "name").decode("utf-8")
             except Exception:
                 raise ValueError("Provided srpm is invalid: {}".format(source))
 
         if rpm_name in overrides:
-            log.warning('Encountered duplicate custom SRPM "{0}"'
-                        ' for package {1}'.format(source, rpm_name))
+            log.warning(
+                'Encountered duplicate custom SRPM "{0}" for package {1}'
+                .format(source, rpm_name)
+            )
             continue
 
         log.debug('Using custom SRPM "{0}" for package {1}'.format(source, rpm_name))
@@ -377,8 +387,9 @@ def get_module_srpm_overrides(module):
     return overrides
 
 
-def record_component_builds(mmd, module, initial_batch=1,
-                            previous_buildorder=None, main_mmd=None, session=None):
+def record_component_builds(
+    mmd, module, initial_batch=1, previous_buildorder=None, main_mmd=None, session=None
+):
     # Imported here to allow import of utils in GenericBuilder.
     import module_build_service.builder
 
@@ -394,13 +405,15 @@ def record_component_builds(mmd, module, initial_batch=1,
     if main_mmd:
         # Check for components that are in both MMDs before merging since MBS
         # currently can't handle that situation.
-        duplicate_components = [rpm for rpm in main_mmd.get_rpm_components().keys()
-                                if rpm in mmd.get_rpm_components()]
+        duplicate_components = [
+            rpm for rpm in main_mmd.get_rpm_components().keys() if rpm in mmd.get_rpm_components()
+        ]
         if duplicate_components:
             error_msg = (
                 'The included module "{0}" in "{1}" have the following '
-                'conflicting components: {2}'.format(
-                    mmd.get_name(), main_mmd.get_name(), ', '.join(duplicate_components)))
+                "conflicting components: {2}".format(
+                    mmd.get_name(), main_mmd.get_name(), ", ".join(duplicate_components))
+            )
             raise UnprocessableEntity(error_msg)
         merge_included_mmd(main_mmd, mmd)
     else:
@@ -417,7 +430,8 @@ def record_component_builds(mmd, module, initial_batch=1,
     srpm_overrides = get_module_srpm_overrides(module)
 
     rpm_weights = module_build_service.builder.GenericBuilder.get_build_weights(
-        [c.get_name() for c in rpm_components])
+        [c.get_name() for c in rpm_components]
+    )
     all_components.sort(key=lambda x: x.get_buildorder())
     # We do not start with batch = 0 here, because the first batch is
     # reserved for module-build-macros. First real components must be
@@ -439,33 +453,35 @@ def record_component_builds(mmd, module, initial_batch=1,
             # It is OK to whitelist all URLs here, because the validity
             # of every URL have been already checked in format_mmd(...).
             included_mmd = _fetch_mmd(full_url, whitelist_url=True)[0]
-            batch = record_component_builds(included_mmd, module, batch,
-                                            previous_buildorder, main_mmd, session=session)
+            batch = record_component_builds(
+                included_mmd, module, batch, previous_buildorder, main_mmd, session=session)
             continue
 
         package = component.get_name()
         if package in srpm_overrides:
             component_ref = None
             full_url = srpm_overrides[package]
-            log.info('Building custom SRPM "{0}"'
-                     ' for package {1}'.format(full_url, package))
+            log.info('Building custom SRPM "{0}"' " for package {1}".format(full_url, package))
         else:
-            component_ref = mmd.get_xmd()['mbs']['rpms'][package]['ref']
+            component_ref = mmd.get_xmd()["mbs"]["rpms"][package]["ref"]
             full_url = component.get_repository() + "?#" + component_ref
 
         # Skip the ComponentBuild if it already exists in database. This can happen
         # in case of module build resubmition.
-        existing_build = models.ComponentBuild.from_component_name(
-            db.session, package, module.id)
+        existing_build = models.ComponentBuild.from_component_name(db.session, package, module.id)
         if existing_build:
             # Check that the existing build has the same most important attributes.
             # This should never be a problem, but it's good to be defensive here so
             # we do not mess things during resubmition.
-            if (existing_build.batch != batch or existing_build.scmurl != full_url or
-                    existing_build.ref != component_ref):
+            if (
+                existing_build.batch != batch
+                or existing_build.scmurl != full_url
+                or existing_build.ref != component_ref
+            ):
                 raise ValidationError(
                     "Module build %s already exists in database, but its attributes "
-                    " are different from resubmitted one." % component.get_name())
+                    " are different from resubmitted one." % component.get_name()
+                )
             continue
 
         build = models.ComponentBuild(
@@ -475,7 +491,7 @@ def record_component_builds(mmd, module, initial_batch=1,
             scmurl=full_url,
             batch=batch,
             ref=component_ref,
-            weight=rpm_weights[package]
+            weight=rpm_weights[package],
         )
         session.add(build)
 
@@ -486,12 +502,13 @@ def submit_module_build_from_yaml(username, handle, params, stream=None, skiptes
     yaml_file = to_text_type(handle.read())
     mmd = load_mmd(yaml_file)
     dt = datetime.utcfromtimestamp(int(time.time()))
-    if hasattr(handle, 'filename'):
+    if hasattr(handle, "filename"):
         def_name = str(os.path.splitext(os.path.basename(handle.filename))[0])
     elif not mmd.get_name():
         raise ValidationError(
             "The module's name was not present in the modulemd file. Please use the "
-            "\"module_name\" parameter")
+            '"module_name" parameter'
+        )
     def_version = int(dt.strftime("%Y%m%d%H%M%S"))
     mmd.set_name(mmd.get_name() or def_name)
     mmd.set_stream(stream or mmd.get_stream() or "master")
@@ -507,12 +524,11 @@ _url_check_re = re.compile(r"^[^:/]+:.*$")
 
 
 def submit_module_build_from_scm(username, params, allow_local_url=False):
-    url = params['scmurl']
-    branch = params['branch']
+    url = params["scmurl"]
+    branch = params["branch"]
     # Translate local paths into file:// URL
     if allow_local_url and not _url_check_re.match(url):
-        log.info(
-            "'{}' is not a valid URL, assuming local path".format(url))
+        log.info("'{}' is not a valid URL, assuming local path".format(url))
         url = os.path.abspath(url)
         url = "file://" + url
     mmd, scm = _fetch_mmd(url, branch, allow_local_url)
@@ -529,27 +545,29 @@ def _apply_dep_overrides(mmd, params):
     :raises ValidationError: if one of the overrides doesn't apply
     """
     dep_overrides = {
-        'buildrequires': copy.copy(params.get('buildrequire_overrides', {})),
-        'requires': copy.copy(params.get('require_overrides', {}))
+        "buildrequires": copy.copy(params.get("buildrequire_overrides", {})),
+        "requires": copy.copy(params.get("require_overrides", {})),
     }
 
     # Parse the module's branch to determine if it should override the stream of the buildrequired
     # module defined in conf.br_stream_override_module
     branch_search = None
-    if params.get('branch') and conf.br_stream_override_module and conf.br_stream_override_regexes:
+    if params.get("branch") and conf.br_stream_override_module and conf.br_stream_override_regexes:
         # Only parse the branch for a buildrequire override if the user didn't manually specify an
         # override for the module specified in conf.br_stream_override_module
-        if not dep_overrides['buildrequires'].get(conf.br_stream_override_module):
+        if not dep_overrides["buildrequires"].get(conf.br_stream_override_module):
             branch_search = None
             for regex in conf.br_stream_override_regexes:
-                branch_search = re.search(regex, params['branch'])
+                branch_search = re.search(regex, params["branch"])
                 if branch_search:
                     log.debug(
-                        'The stream override regex `%s` matched the branch %s',
-                        regex, params['branch'])
+                        "The stream override regex `%s` matched the branch %s",
+                        regex,
+                        params["branch"],
+                    )
                     break
             else:
-                log.debug('No stream override regexes matched the branch "%s"', params['branch'])
+                log.debug('No stream override regexes matched the branch "%s"', params["branch"])
 
     # If a stream was parsed from the branch, then add it as a stream override for the module
     # specified in conf.br_stream_override_module
@@ -557,21 +575,23 @@ def _apply_dep_overrides(mmd, params):
         # Concatenate all the groups that are not None together to get the desired stream.
         # This approach is taken in case there are sections to ignore.
         # For instance, if we need to parse `el8.0.0` from `rhel-8.0.0`.
-        parsed_stream = ''.join(group for group in branch_search.groups() if group)
+        parsed_stream = "".join(group for group in branch_search.groups() if group)
         if parsed_stream:
-            dep_overrides['buildrequires'][conf.br_stream_override_module] = [parsed_stream]
+            dep_overrides["buildrequires"][conf.br_stream_override_module] = [parsed_stream]
             log.info(
                 'The buildrequired stream of "%s" was overriden with "%s" based on the branch "%s"',
-                conf.br_stream_override_module, parsed_stream, params['branch'])
+                conf.br_stream_override_module, parsed_stream, params["branch"],
+            )
         else:
             log.warning(
-                ('The regex `%s` only matched empty capture groups on the branch "%s". The regex '
-                 'is invalid and should be rewritten.'),
-                regex, params['branch'])
+                'The regex `%s` only matched empty capture groups on the branch "%s". The regex is '
+                " invalid and should be rewritten.",
+                regex, params["branch"],
+            )
 
     unused_dep_overrides = {
-        'buildrequires': set(dep_overrides['buildrequires'].keys()),
-        'requires': set(dep_overrides['requires'].keys())
+        "buildrequires": set(dep_overrides["buildrequires"].keys()),
+        "requires": set(dep_overrides["requires"].keys()),
     }
 
     deps = mmd.get_dependencies()
@@ -579,7 +599,7 @@ def _apply_dep_overrides(mmd, params):
         for dep_type, overrides in dep_overrides.items():
             overridden = False
             # Get the existing streams (e.g. dep.get_buildrequires())
-            reqs = getattr(dep, 'get_' + dep_type)()
+            reqs = getattr(dep, "get_" + dep_type)()
             for name, streams in dep_overrides[dep_type].items():
                 if name in reqs:
                     reqs[name].set(streams)
@@ -587,7 +607,7 @@ def _apply_dep_overrides(mmd, params):
                     overridden = True
             if overridden:
                 # Set the overridden streams (e.g. dep.set_buildrequires(reqs))
-                getattr(dep, 'set_' + dep_type)(reqs)
+                getattr(dep, "set_" + dep_type)(reqs)
 
     for dep_type in unused_dep_overrides.keys():
         # If a stream override was applied from parsing the branch and it wasn't applicable,
@@ -596,8 +616,9 @@ def _apply_dep_overrides(mmd, params):
             unused_dep_overrides[dep_type].remove(conf.br_stream_override_module)
         if unused_dep_overrides[dep_type]:
             raise ValidationError(
-                'The {} overrides for the following modules aren\'t applicable: {}'
-                .format(dep_type[:-1], ', '.join(sorted(unused_dep_overrides[dep_type]))))
+                "The {} overrides for the following modules aren't applicable: {}".format(
+                    dep_type[:-1], ", ".join(sorted(unused_dep_overrides[dep_type])))
+            )
 
     mmd.set_dependencies(deps)
 
@@ -624,7 +645,7 @@ def _handle_base_module_virtual_stream_br(mmd):
             for i, stream in enumerate(streams):
                 # Ignore streams that start with a minus sign, since those are handled in the
                 # MSE code
-                if stream.startswith('-'):
+                if stream.startswith("-"):
                     continue
 
                 # Check if the base module stream is available
@@ -636,30 +657,25 @@ def _handle_base_module_virtual_stream_br(mmd):
                 # If the base module stream is not available, check if there's a virtual stream
                 log.debug(
                     'Checking to see if there is a base module "%s" with the virtual stream "%s"',
-                    base_module,
-                    stream
+                    base_module, stream,
                 )
                 base_module_mmd = system_resolver.get_latest_with_virtual_stream(
-                    name=base_module, virtual_stream=stream)
+                    name=base_module, virtual_stream=stream
+                )
                 if not base_module_mmd:
                     # If there isn't this base module stream or virtual stream available, skip it,
                     # and let the dep solving code deal with it like it normally would
                     log.warning(
                         'There is no base module "%s" with stream/virtual stream "%s"',
-                        base_module,
-                        stream
+                        base_module, stream,
                     )
                     continue
 
                 latest_stream = base_module_mmd.get_stream()
                 log.info(
-                    ('Replacing the buildrequire "%s:%s" with "%s:%s", since "%s" is a virtual '
-                     'stream'),
-                    base_module,
-                    stream,
-                    base_module,
-                    latest_stream,
-                    stream
+                    'Replacing the buildrequire "%s:%s" with "%s:%s", since "%s" is a virtual '
+                    "stream",
+                    base_module, stream, base_module, latest_stream, stream
                 )
                 new_streams[i] = latest_stream
                 overridden = True
@@ -687,9 +703,13 @@ def submit_module_build(username, mmd, params):
     import koji  # Placed here to avoid py2/py3 conflicts...
     from .mse import generate_expanded_mmds
 
-    log.debug('Submitted %s module build for %s:%s:%s',
-              ("scratch" if params.get('scratch', False) else "normal"),
-              mmd.get_name(), mmd.get_stream(), mmd.get_version())
+    log.debug(
+        "Submitted %s module build for %s:%s:%s",
+        ("scratch" if params.get("scratch", False) else "normal"),
+        mmd.get_name(),
+        mmd.get_stream(),
+        mmd.get_version(),
+    )
     validate_mmd(mmd)
 
     raise_if_stream_ambigous = False
@@ -706,8 +726,10 @@ def submit_module_build(username, mmd, params):
 
     mmds = generate_expanded_mmds(db.session, mmd, raise_if_stream_ambigous, default_streams)
     if not mmds:
-        raise ValidationError('No dependency combination was satisfied. Please verify the '
-                              'buildrequires in your modulemd have previously been built.')
+        raise ValidationError(
+            "No dependency combination was satisfied. Please verify the "
+            "buildrequires in your modulemd have previously been built."
+        )
     modules = []
 
     # True if all module builds are skipped so MBS will actually not rebuild
@@ -722,52 +744,57 @@ def submit_module_build(username, mmd, params):
         version_str = str(version)
         nsvc = ":".join([mmd.get_name(), mmd.get_stream(), version_str, mmd.get_context()])
 
-        log.debug('Checking whether module build already exists: %s.', nsvc)
+        log.debug("Checking whether module build already exists: %s.", nsvc)
         module = models.ModuleBuild.get_build_from_nsvc(
             db.session, mmd.get_name(), mmd.get_stream(), version_str, mmd.get_context())
-        if module and not params.get('scratch', False):
-            if module.state != models.BUILD_STATES['failed']:
-                log.info("Skipping rebuild of %s, only rebuild of modules in failed state "
-                         "is allowed.", nsvc)
+        if module and not params.get("scratch", False):
+            if module.state != models.BUILD_STATES["failed"]:
+                log.info(
+                    "Skipping rebuild of %s, only rebuild of modules in failed state is allowed.",
+                    nsvc,
+                )
                 modules.append(module)
                 continue
 
-            rebuild_strategy = params.get('rebuild_strategy')
+            rebuild_strategy = params.get("rebuild_strategy")
             if rebuild_strategy and module.rebuild_strategy != rebuild_strategy:
                 raise ValidationError(
                     'You cannot change the module\'s "rebuild_strategy" when '
-                    'resuming a module build')
+                    "resuming a module build"
+                )
 
-            log.debug('Resuming existing module build %r' % module)
+            log.debug("Resuming existing module build %r" % module)
             # Reset all component builds that didn't complete
             for component in module.component_builds:
-                if component.state and component.state != koji.BUILD_STATES['COMPLETE']:
+                if component.state and component.state != koji.BUILD_STATES["COMPLETE"]:
                     component.state = None
                     component.state_reason = None
                     db.session.add(component)
             module.username = username
             prev_state = module.previous_non_failed_state
-            if prev_state == models.BUILD_STATES['init']:
-                transition_to = models.BUILD_STATES['init']
+            if prev_state == models.BUILD_STATES["init"]:
+                transition_to = models.BUILD_STATES["init"]
             else:
-                transition_to = models.BUILD_STATES['wait']
+                transition_to = models.BUILD_STATES["wait"]
                 module.batch = 0
             module.transition(conf, transition_to, "Resubmitted by %s" % username)
             log.info("Resumed existing module build in previous state %s" % module.state)
         else:
             # make NSVC unique for every scratch build
-            context_suffix = ''
-            if params.get('scratch', False):
-                log.debug('Checking for existing scratch module builds by NSVC')
+            context_suffix = ""
+            if params.get("scratch", False):
+                log.debug("Checking for existing scratch module builds by NSVC")
                 scrmods = models.ModuleBuild.get_scratch_builds_from_nsvc(
                     db.session, mmd.get_name(), mmd.get_stream(), version_str, mmd.get_context())
                 scrmod_contexts = [scrmod.context for scrmod in scrmods]
-                log.debug('Found %d previous scratch module build context(s): %s',
-                          len(scrmods), ",".join(scrmod_contexts))
+                log.debug(
+                    "Found %d previous scratch module build context(s): %s",
+                    len(scrmods), ",".join(scrmod_contexts),
+                )
                 # append incrementing counter to context
-                context_suffix = '_' + str(len(scrmods) + 1)
+                context_suffix = "_" + str(len(scrmods) + 1)
                 mmd.set_context(mmd.get_context() + context_suffix)
-            log.debug('Creating new module build')
+            log.debug("Creating new module build")
             module = models.ModuleBuild.create(
                 db.session,
                 conf,
@@ -775,27 +802,35 @@ def submit_module_build(username, mmd, params):
                 stream=mmd.get_stream(),
                 version=version_str,
                 modulemd=to_text_type(mmd.dumps()),
-                scmurl=params.get('scmurl'),
+                scmurl=params.get("scmurl"),
                 username=username,
-                rebuild_strategy=params.get('rebuild_strategy'),
-                scratch=params.get('scratch'),
-                srpms=params.get('srpms')
+                rebuild_strategy=params.get("rebuild_strategy"),
+                scratch=params.get("scratch"),
+                srpms=params.get("srpms"),
             )
-            (module.ref_build_context, module.build_context, module.runtime_context,
-             module.context) = module.contexts_from_mmd(module.modulemd)
+            (
+                module.ref_build_context,
+                module.build_context,
+                module.runtime_context,
+                module.context,
+            ) = module.contexts_from_mmd(module.modulemd)
             module.context += context_suffix
 
         all_modules_skipped = False
         db.session.add(module)
         db.session.commit()
         modules.append(module)
-        log.info("%s submitted build of %s, stream=%s, version=%s, context=%s", username,
-                 mmd.get_name(), mmd.get_stream(), version_str, mmd.get_context())
+        log.info(
+            "%s submitted build of %s, stream=%s, version=%s, context=%s",
+            username, mmd.get_name(), mmd.get_stream(), version_str, mmd.get_context()
+        )
 
     if all_modules_skipped:
-        err_msg = ('Module (state=%s) already exists. Only a new build, resubmission of '
-                   'a failed build or build against new buildrequirements is '
-                   'allowed.' % module.state)
+        err_msg = (
+            "Module (state=%s) already exists. Only a new build, resubmission of "
+            "a failed build or build against new buildrequirements is "
+            "allowed." % module.state
+        )
         log.error(err_msg)
         raise Conflict(err_msg)
 
@@ -805,25 +840,24 @@ def submit_module_build(username, mmd, params):
 def _is_eol_in_pdc(name, stream):
     """ Check PDC if the module name:stream is no longer active. """
 
-    params = {'type': 'module', 'global_component': name, 'name': stream}
-    url = conf.pdc_url + '/component-branches/'
+    params = {"type": "module", "global_component": name, "name": stream}
+    url = conf.pdc_url + "/component-branches/"
 
     response = requests.get(url, params=params)
     if not response:
         raise ValidationError("Failed to talk to PDC {}{}".format(response, response.text))
 
     data = response.json()
-    results = data['results']
+    results = data["results"]
     if not results:
-        raise ValidationError("No such module {}:{} found at {}".format(
-            name, stream, response.request.url))
+        raise ValidationError(
+            "No such module {}:{} found at {}".format(name, stream, response.request.url))
 
     # If the module is active, then it is not EOL and vice versa.
-    return not results[0]['active']
+    return not results[0]["active"]
 
 
-def _fetch_mmd(url, branch=None, allow_local_url=False, whitelist_url=False,
-               mandatory_checks=True):
+def _fetch_mmd(url, branch=None, allow_local_url=False, whitelist_url=False, mandatory_checks=True):
     # Import it here, because SCM uses utils methods
     # and fails to import them because of dep-chain.
     import module_build_service.scm
@@ -831,7 +865,7 @@ def _fetch_mmd(url, branch=None, allow_local_url=False, whitelist_url=False,
     td = None
     scm = None
     try:
-        log.debug('Verifying modulemd')
+        log.debug("Verifying modulemd")
         td = tempfile.mkdtemp()
         if whitelist_url:
             scm = module_build_service.scm.SCM(url, branch, [url], allow_local_url)
@@ -847,14 +881,12 @@ def _fetch_mmd(url, branch=None, allow_local_url=False, whitelist_url=False,
             if td is not None:
                 shutil.rmtree(td)
         except Exception as e:
-            log.warning(
-                "Failed to remove temporary directory {!r}: {}".format(
-                    td, str(e)))
+            log.warning("Failed to remove temporary directory {!r}: {}".format(td, str(e)))
 
     if conf.check_for_eol:
         if _is_eol_in_pdc(scm.name, scm.branch):
             raise ValidationError(
-                'Module {}:{} is marked as EOL in PDC.'.format(scm.name, scm.branch))
+                "Module {}:{} is marked as EOL in PDC.".format(scm.name, scm.branch))
 
     if not mandatory_checks:
         return mmd, scm
@@ -863,8 +895,8 @@ def _fetch_mmd(url, branch=None, allow_local_url=False, whitelist_url=False,
     # says it should be
     if mmd.get_name() and mmd.get_name() != scm.name:
         if not conf.allow_name_override_from_scm:
-            raise ValidationError('The name "{0}" that is stored in the modulemd '
-                                  'is not valid'.format(mmd.get_name()))
+            raise ValidationError(
+                'The name "{0}" that is stored in the modulemd is not valid'.format(mmd.get_name()))
     else:
         mmd.set_name(scm.name)
 
@@ -872,19 +904,20 @@ def _fetch_mmd(url, branch=None, allow_local_url=False, whitelist_url=False,
     # branch is
     if mmd.get_stream() and mmd.get_stream() != scm.branch:
         if not conf.allow_stream_override_from_scm:
-            raise ValidationError('The stream "{0}" that is stored in the modulemd '
-                                  'does not match the branch "{1}"'.format(
-                                      mmd.get_stream(), scm.branch))
+            raise ValidationError(
+                'The stream "{0}" that is stored in the modulemd does not match the branch "{1}"'
+                .format(mmd.get_stream(), scm.branch)
+            )
     else:
         mmd.set_stream(scm.branch)
 
     # If the version is in the modulemd, throw an exception since the version
     # since the version is generated by MBS
     if mmd.get_version():
-        raise ValidationError('The version "{0}" is already defined in the '
-                              'modulemd but it shouldn\'t be since the version '
-                              'is generated based on the commit time'.format(
-                                  mmd.get_version()))
+        raise ValidationError(
+            'The version "{0}" is already defined in the modulemd but it shouldn\'t be since the '
+            "version is generated based on the commit time".format(mmd.get_version())
+        )
     else:
         mmd.set_version(int(scm.version))
 
@@ -901,18 +934,17 @@ def load_mmd(yaml, is_file=False):
         mmd.upgrade()
     except Exception:
         if is_file:
-            error = 'The modulemd {} is invalid. Please verify the syntax is correct'.format(
-                os.path.basename(yaml)
-            )
+            error = "The modulemd {} is invalid. Please verify the syntax is correct".format(
+                os.path.basename(yaml))
             if os.path.exists(yaml):
-                with open(yaml, 'rt') as yaml_hdl:
-                    log.debug('Modulemd content:\n%s', yaml_hdl.read())
+                with open(yaml, "rt") as yaml_hdl:
+                    log.debug("Modulemd content:\n%s", yaml_hdl.read())
             else:
-                error = 'The modulemd file {} not found!'.format(os.path.basename(yaml))
-                log.error('The modulemd file %s not found!', yaml)
+                error = "The modulemd file {} not found!".format(os.path.basename(yaml))
+                log.error("The modulemd file %s not found!", yaml)
         else:
-            error = 'The modulemd is invalid. Please verify the syntax is correct.'
-            log.debug('Modulemd content:\n%s', yaml)
+            error = "The modulemd is invalid. Please verify the syntax is correct."
+            log.debug("Modulemd content:\n%s", yaml)
         log.exception(error)
         raise UnprocessableEntity(error)
 
@@ -943,7 +975,7 @@ def load_local_builds(local_build_nsvs, session=None):
     builds = []
     try:
         for d in os.listdir(conf.mock_resultsdir):
-            m = re.match('^module-(.*)-([^-]*)-([0-9]+)$', d)
+            m = re.match("^module-(.*)-([^-]*)-([0-9]+)$", d)
             if m:
                 builds.append((m.group(1), m.group(2), int(m.group(3)), d))
     except OSError:
@@ -958,11 +990,12 @@ def load_local_builds(local_build_nsvs, session=None):
         builds.sort(key=lambda a: a[2], reverse=True)
 
     for nsv in local_build_nsvs:
-        parts = nsv.split(':')
+        parts = nsv.split(":")
         if len(parts) < 1 or len(parts) > 3:
             raise RuntimeError(
-                'The local build "{0}" couldn\'t be be parsed into '
-                'NAME[:STREAM[:VERSION]]'.format(nsv))
+                'The local build "{0}" couldn\'t be be parsed into NAME[:STREAM[:VERSION]]'
+                .format(nsv)
+            )
 
         name = parts[0]
         stream = parts[1] if len(parts) > 1 else None
@@ -983,11 +1016,12 @@ def load_local_builds(local_build_nsvs, session=None):
         if not found_build:
             raise RuntimeError(
                 'The local build "{0}" couldn\'t be found in "{1}"'.format(
-                    nsv, conf.mock_resultsdir))
+                    nsv, conf.mock_resultsdir)
+            )
 
         # Load the modulemd metadata.
-        path = os.path.join(conf.mock_resultsdir, found_build[3], 'results')
-        mmd = load_mmd(os.path.join(path, 'modules.yaml'), is_file=True)
+        path = os.path.join(conf.mock_resultsdir, found_build[3], "results")
+        mmd = load_mmd(os.path.join(path, "modules.yaml"), is_file=True)
 
         # Create ModuleBuild in database.
         module = models.ModuleBuild.create(
@@ -1000,14 +1034,19 @@ def load_local_builds(local_build_nsvs, session=None):
             modulemd=to_text_type(mmd.dumps()),
             scmurl="",
             username="mbs",
-            publish_msg=False)
+            publish_msg=False,
+        )
         module.koji_tag = path
-        module.state = models.BUILD_STATES['ready']
+        module.state = models.BUILD_STATES["ready"]
         session.commit()
 
-        if (found_build[0] != module.name or found_build[1] != module.stream or
-                str(found_build[2]) != module.version):
+        if (
+            found_build[0] != module.name
+            or found_build[1] != module.stream
+            or str(found_build[2]) != module.version
+        ):
             raise RuntimeError(
-                'Parsed metadata results for "{0}" don\'t match the directory name'
-                .format(found_build[3]))
+                'Parsed metadata results for "{0}" don\'t match the directory name'.format(
+                    found_build[3])
+            )
         log.info("Loaded local module build %r", module)

@@ -24,7 +24,6 @@ from module_build_service.messaging import KojiTagChange, KojiRepoChange
 
 
 class TestConsumer:
-
     def test_get_abstracted_msg_fedmsg(self):
         """
         Test the output of get_abstracted_msg() when using the
@@ -51,17 +50,17 @@ class TestConsumer:
                 "user": "bodhi",
                 "version": "15.1.0",
                 "owner": "orion",
-                "release": "1.el7"
-            }
+                "release": "1.el7",
+            },
         }
         msg_obj = consumer.get_abstracted_msg(msg)
         assert isinstance(msg_obj, KojiTagChange)
-        assert msg_obj.msg_id == msg['msg_id']
-        assert msg_obj.tag == msg['msg']['tag']
-        assert msg_obj.artifact == msg['msg']['name']
+        assert msg_obj.msg_id == msg["msg_id"]
+        assert msg_obj.tag == msg["msg"]["tag"]
+        assert msg_obj.artifact == msg["msg"]["name"]
 
-    @patch('module_build_service.scheduler.consumer.models')
-    @patch.object(MBSConsumer, 'process_message')
+    @patch("module_build_service.scheduler.consumer.models")
+    @patch.object(MBSConsumer, "process_message")
     def test_consume_fedmsg(self, process_message, models):
         """
         Test the MBSConsumer.consume() method when using the
@@ -86,13 +85,13 @@ class TestConsumer:
                     "instance": "primary",
                     "repo_id": 400859,
                     "tag": "f22-build",
-                    "tag_id": 278
-                }
-            }
+                    "tag_id": 278,
+                },
+            },
         }
         consumer.consume(msg)
         assert process_message.call_count == 1
         msg_obj = process_message.call_args[0][1]
         assert isinstance(msg_obj, KojiRepoChange)
-        assert msg_obj.msg_id == msg['body']['msg_id']
-        assert msg_obj.repo_tag == msg['body']['msg']['tag']
+        assert msg_obj.msg_id == msg["body"]["msg_id"]
+        assert msg_obj.repo_tag == msg["body"]["msg"]["tag"]

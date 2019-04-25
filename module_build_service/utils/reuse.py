@@ -28,8 +28,7 @@ import module_build_service.messaging
 from module_build_service import log, models, conf
 
 
-def reuse_component(component, previous_component_build,
-                    change_state_now=False):
+def reuse_component(component, previous_component_build, change_state_now=False):
     """
     Reuses component build `previous_component_build` instead of building
     component `component`
@@ -42,8 +41,8 @@ def reuse_component(component, previous_component_build,
 
     log.info(
         'Reusing component "{0}" from a previous module '
-        'build with the nvr "{1}"'.format(
-            component.package, previous_component_build.nvr))
+        'build with the nvr "{1}"'.format(component.package, previous_component_build.nvr)
+    )
     component.reused_component_id = previous_component_build.id
     component.task_id = previous_component_build.task_id
     if change_state_now:
@@ -54,24 +53,23 @@ def reuse_component(component, previous_component_build,
         # few lines below. If we would set it to the right state right
         # here, we would miss the code path handling the KojiBuildChange
         # which works only when switching from BUILDING to COMPLETE.
-        component.state = koji.BUILD_STATES['BUILDING']
-    component.state_reason = \
-        'Reused component from previous module build'
+        component.state = koji.BUILD_STATES["BUILDING"]
+    component.state_reason = "Reused component from previous module build"
     component.nvr = previous_component_build.nvr
     nvr_dict = kobo.rpmlib.parse_nvr(component.nvr)
     # Add this message to further_work so that the reused
     # component will be tagged properly
     return [
         module_build_service.messaging.KojiBuildChange(
-            msg_id='reuse_component: fake msg',
+            msg_id="reuse_component: fake msg",
             build_id=None,
             task_id=component.task_id,
             build_new_state=previous_component_build.state,
-            build_name=nvr_dict['name'],
-            build_version=nvr_dict['version'],
-            build_release=nvr_dict['release'],
+            build_name=nvr_dict["name"],
+            build_version=nvr_dict["version"],
+            build_release=nvr_dict["release"],
             module_build_id=component.module_id,
-            state_reason=component.state_reason
+            state_reason=component.state_reason,
         )
     ]
 
@@ -90,18 +88,20 @@ def get_reusable_module(session, module):
     mmd = module.mmd()
 
     # Find the latest module that is in the done or ready state
-    previous_module_build = session.query(models.ModuleBuild)\
-        .filter_by(name=mmd.get_name())\
-        .filter_by(stream=mmd.get_stream())\
-        .filter_by(state=models.BUILD_STATES["ready"])\
-        .filter(models.ModuleBuild.scmurl.isnot(None))\
-        .filter_by(build_context=module.build_context)\
+    previous_module_build = (
+        session.query(models.ModuleBuild)
+        .filter_by(name=mmd.get_name())
+        .filter_by(stream=mmd.get_stream())
+        .filter_by(state=models.BUILD_STATES["ready"])
+        .filter(models.ModuleBuild.scmurl.isnot(None))
+        .filter_by(build_context=module.build_context)
         .order_by(models.ModuleBuild.time_completed.desc())
+    )
     # If we are rebuilding with the "changed-and-after" option, then we can't reuse
     # components from modules that were built more liberally
-    if module.rebuild_strategy == 'changed-and-after':
+    if module.rebuild_strategy == "changed-and-after":
         previous_module_build = previous_module_build.filter(
-            models.ModuleBuild.rebuild_strategy.in_(['all', 'changed-and-after']))
+            models.ModuleBuild.rebuild_strategy.in_(["all", "changed-and-after"]))
         previous_module_build = previous_module_build.filter_by(
             ref_build_context=module.ref_build_context)
     previous_module_build = previous_module_build.first()
@@ -139,9 +139,13 @@ def attempt_to_reuse_all_components(builder, session, module):
         if c.package == "module-build-macros":
             continue
         component_to_reuse = get_reusable_component(
-            session, module, c.package,
-            previous_module_build=previous_module_build, mmd=mmd,
-            old_mmd=old_mmd)
+            session,
+            module,
+            c.package,
+            previous_module_build=previous_module_build,
+            mmd=mmd,
+            old_mmd=old_mmd,
+        )
         if not component_to_reuse:
             return False
 
@@ -188,7 +192,7 @@ def get_reusable_components(session, module, component_names, previous_module_bu
              order as `component_names`
     """
     # We support components reusing only for koji and test backend.
-    if conf.system not in ['koji', 'test']:
+    if conf.system not in ["koji", "test"]:
         return [None] * len(component_names)
 
     if not previous_module_build:
@@ -201,15 +205,17 @@ def get_reusable_components(session, module, component_names, previous_module_bu
 
     ret = []
     for component_name in component_names:
-        ret.append(get_reusable_component(
-            session, module, component_name, previous_module_build, mmd,
-            old_mmd))
+        ret.append(
+            get_reusable_component(
+                session, module, component_name, previous_module_build, mmd, old_mmd)
+        )
 
     return ret
 
 
-def get_reusable_component(session, module, component_name,
-                           previous_module_build=None, mmd=None, old_mmd=None):
+def get_reusable_component(
+    session, module, component_name, previous_module_build=None, mmd=None, old_mmd=None
+):
     """
     Returns the component (RPM) build of a module that can be reused
     instead of needing to rebuild it
@@ -235,11 +241,11 @@ def get_reusable_component(session, module, component_name,
     """
 
     # We support component reusing only for koji and test backend.
-    if conf.system not in ['koji', 'test']:
+    if conf.system not in ["koji", "test"]:
         return None
 
     # If the rebuild strategy is "all", that means that nothing can be reused
-    if module.rebuild_strategy == 'all':
+    if module.rebuild_strategy == "all":
         log.info('Cannot re-use the component because the rebuild strategy is "all".')
         return None
 
@@ -258,39 +264,46 @@ def get_reusable_component(session, module, component_name,
     # be reused
     new_module_build_component = models.ComponentBuild.from_component_name(
         session, component_name, module.id)
-    if not new_module_build_component or not new_module_build_component.batch \
-            or not new_module_build_component.ref:
-        log.info('Cannot re-use.  New component not found in the db.')
+    if (
+        not new_module_build_component
+        or not new_module_build_component.batch
+        or not new_module_build_component.ref
+    ):
+        log.info("Cannot re-use.  New component not found in the db.")
         return None
 
     prev_module_build_component = models.ComponentBuild.from_component_name(
-        session, component_name, previous_module_build.id)
+        session, component_name, previous_module_build.id
+    )
     # If the component to reuse for some reason was not found in the database,
     # or the ref is missing, something has gone wrong and the component cannot
     # be reused
-    if not prev_module_build_component or not prev_module_build_component.batch\
-            or not prev_module_build_component.ref:
-        log.info('Cannot re-use.  Previous component not found in the db.')
+    if (
+        not prev_module_build_component
+        or not prev_module_build_component.batch
+        or not prev_module_build_component.ref
+    ):
+        log.info("Cannot re-use.  Previous component not found in the db.")
         return None
 
     # Make sure the ref for the component that is trying to be reused
     # hasn't changed since the last build
     if prev_module_build_component.ref != new_module_build_component.ref:
-        log.info('Cannot re-use.  Component commit hashes do not match.')
+        log.info("Cannot re-use.  Component commit hashes do not match.")
         return None
 
     # At this point we've determined that both module builds contain the component
     # and the components share the same commit hash
-    if module.rebuild_strategy == 'changed-and-after':
+    if module.rebuild_strategy == "changed-and-after":
         # Make sure the batch number for the component that is trying to be reused
         # hasn't changed since the last build
         if prev_module_build_component.batch != new_module_build_component.batch:
-            log.info('Cannot re-use.  Batch numbers do not match.')
+            log.info("Cannot re-use.  Batch numbers do not match.")
             return None
 
         # If the mmd.buildopts.macros.rpms changed, we cannot reuse
-        if mmd.get_rpm_buildopts().get('macros') != old_mmd.get_rpm_buildopts().get('macros'):
-            log.info('Cannot re-use.  Old modulemd macros do not match the new.')
+        if mmd.get_rpm_buildopts().get("macros") != old_mmd.get_rpm_buildopts().get("macros"):
+            log.info("Cannot re-use.  Old modulemd macros do not match the new.")
             return None
 
         # At this point we've determined that both module builds contain the component
@@ -318,32 +331,34 @@ def get_reusable_component(session, module, component_name,
                 continue
 
             new_module_build_components.append(set([
-                (value.package, value.ref) for value in
-                new_component_builds if value.batch == i + 1
+                (value.package, value.ref)
+                for value in new_component_builds
+                if value.batch == i + 1
             ]))
 
             previous_module_build_components.append(set([
-                (value.package, value.ref) for value in
-                prev_component_builds if value.batch == i + 1
+                (value.package, value.ref)
+                for value in prev_component_builds
+                if value.batch == i + 1
             ]))
 
         # If the previous batches don't have the same ordering and hashes, then the
         # component can't be reused
         if previous_module_build_components != new_module_build_components:
-            log.info('Cannot re-use.  Ordering or commit hashes of '
-                     'previous batches differ.')
+            log.info("Cannot re-use.  Ordering or commit hashes of previous batches differ.")
             return None
 
     for pkg_name, pkg in mmd.get_rpm_components().items():
         if pkg_name not in old_mmd.get_rpm_components():
-            log.info('Cannot re-use. Package lists are different.')
+            log.info("Cannot re-use. Package lists are different.")
             return None
-        if set(pkg.get_arches().get()) != \
-                set(old_mmd.get_rpm_components()[pkg_name].get_arches().get()):
-            log.info('Cannot re-use. Architectures are different for package: %s.' % pkg_name)
+        if set(pkg.get_arches().get()) != set(
+            old_mmd.get_rpm_components()[pkg_name].get_arches().get()
+        ):
+            log.info("Cannot re-use. Architectures are different for package: %s." % pkg_name)
             return None
 
     reusable_component = models.ComponentBuild.query.filter_by(
         package=component_name, module_id=previous_module_build.id).one()
-    log.debug('Found reusable component!')
+    log.debug("Found reusable component!")
     return reusable_component

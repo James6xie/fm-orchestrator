@@ -52,15 +52,15 @@ def at_concurrent_component_threshold(config, session):
 
     import koji  # Placed here to avoid py2/py3 conflicts...
 
-    if config.num_concurrent_builds and config.num_concurrent_builds <= \
-        session.query(models.ComponentBuild).filter_by(
-            state=koji.BUILD_STATES['BUILDING'],
-            # Components which are reused should not be counted in, because
-            # we do not submit new build for them. They are in BUILDING state
-            # just internally in MBS to be handled by
-            # scheduler.handlers.components.complete.
-            reused_component_id=None).count():
-        return True
+    # Components which are reused should not be counted in, because
+    # we do not submit new build for them. They are in BUILDING state
+    # just internally in MBS to be handled by
+    # scheduler.handlers.components.complete.
+    if config.num_concurrent_builds:
+        count = session.query(models.ComponentBuild).filter_by(
+            state=koji.BUILD_STATES["BUILDING"], reused_component_id=None).count()
+        if config.num_concurrent_builds <= count:
+            return True
 
     return False
 
@@ -71,21 +71,21 @@ def start_build_component(builder, c):
     by QueueBasedThreadPool in continue_batch_build.
     """
     import koji
+
     try:
         c.task_id, c.state, c.state_reason, c.nvr = builder.build(
             artifact_name=c.package, source=c.scmurl)
     except Exception as e:
-        c.state = koji.BUILD_STATES['FAILED']
+        c.state = koji.BUILD_STATES["FAILED"]
         c.state_reason = "Failed to build artifact %s: %s" % (c.package, str(e))
         log.exception(e)
-        c.module_build.transition(conf, models.BUILD_STATES['failed'], failure_type='infra')
+        c.module_build.transition(conf, models.BUILD_STATES["failed"], failure_type="infra")
         return
 
-    if not c.task_id and c.state == koji.BUILD_STATES['BUILDING']:
-        c.state = koji.BUILD_STATES['FAILED']
-        c.state_reason = ("Failed to build artifact %s: "
-                          "Builder did not return task ID" % (c.package))
-        c.module_build.transition(conf, models.BUILD_STATES['failed'], failure_type='infra')
+    if not c.task_id and c.state == koji.BUILD_STATES["BUILDING"]:
+        c.state = koji.BUILD_STATES["FAILED"]
+        c.state_reason = "Failed to build artifact %s: Builder did not return task ID" % (c.package)
+        c.module_build.transition(conf, models.BUILD_STATES["failed"], failure_type="infra")
         return
 
 
@@ -104,10 +104,12 @@ def continue_batch_build(config, module, session, builder, components=None):
     # successfully built yet or isn't currently being built.
     unbuilt_components = components or [
         c for c in module.component_builds
-        if (c.state != koji.BUILD_STATES['COMPLETE'] and
-            c.state != koji.BUILD_STATES['BUILDING'] and
-            c.state != koji.BUILD_STATES['FAILED'] and
-            c.batch == module.batch)
+        if (
+            c.state != koji.BUILD_STATES["COMPLETE"]
+            and c.state != koji.BUILD_STATES["BUILDING"]
+            and c.state != koji.BUILD_STATES["FAILED"]
+            and c.batch == module.batch
+        )
     ]
 
     if not unbuilt_components:
@@ -134,17 +136,17 @@ def continue_batch_build(config, module, session, builder, components=None):
     for c in unbuilt_components:
         # If a previous build of the component was found, then the state will be marked as
         # COMPLETE so we should skip this
-        if c.state == koji.BUILD_STATES['COMPLETE']:
+        if c.state == koji.BUILD_STATES["COMPLETE"]:
             continue
         # Check the concurrent build threshold.
         if at_concurrent_component_threshold(config, session):
-            log.info('Concurrent build threshold met')
+            log.info("Concurrent build threshold met")
             break
 
         # We set state to "BUILDING" here because at this point we are committed
         # to build the component and at_concurrent_component_threshold() works by
         # counting the number of components in the "BUILDING" state.
-        c.state = koji.BUILD_STATES['BUILDING']
+        c.state = koji.BUILD_STATES["BUILDING"]
         components_to_build.append(c)
 
     # Start build of components in this batch.
@@ -152,8 +154,9 @@ def continue_batch_build(config, module, session, builder, components=None):
     if config.num_concurrent_builds > 0:
         max_workers = config.num_concurrent_builds
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {executor.submit(start_build_component, builder, c):
-                   c for c in components_to_build}
+        futures = {
+            executor.submit(start_build_component, builder, c): c for c in components_to_build
+        }
         concurrent.futures.wait(futures)
         # In case there has been an excepion generated directly in the
         # start_build_component, the future.result() will re-raise it in the
@@ -186,16 +189,15 @@ def start_next_batch_build(config, module, session, builder, components=None):
     # later on in the code
     all_reused_in_prev_batch = True
     for c in module.component_builds:
-        if c.state in [None, koji.BUILD_STATES['BUILDING']]:
+        if c.state in [None, koji.BUILD_STATES["BUILDING"]]:
             has_unbuilt_components = True
 
             if c.batch == module.batch:
                 if not c.state:
                     has_unbuilt_components_in_batch = True
-                elif c.state == koji.BUILD_STATES['BUILDING']:
+                elif c.state == koji.BUILD_STATES["BUILDING"]:
                     has_building_components_in_batch = True
-        elif (c.state in [koji.BUILD_STATES['FAILED'],
-                          koji.BUILD_STATES['CANCELED']]):
+        elif c.state in [koji.BUILD_STATES["FAILED"], koji.BUILD_STATES["CANCELED"]]:
             has_failed_components = True
 
         if c.batch == module.batch and not c.reused_component_id:
@@ -203,57 +205,60 @@ def start_next_batch_build(config, module, session, builder, components=None):
 
     # Do not start new batch if there are no components to build.
     if not has_unbuilt_components:
-        log.debug("Not starting new batch, there is no component to build "
-                  "for module %s" % module)
+        log.debug(
+            "Not starting new batch, there is no component to build for module %s" % module)
         return []
 
     # Check that there is something to build in current batch before starting
     # the new one. If there is, continue building current batch.
     if has_unbuilt_components_in_batch:
         log.info("Continuing building batch %d", module.batch)
-        return continue_batch_build(
-            config, module, session, builder, components)
+        return continue_batch_build(config, module, session, builder, components)
 
     # Check that there are no components in BUILDING state in current batch.
     # If there are, wait until they are built.
     if has_building_components_in_batch:
-        log.debug("Not starting new batch, there are still components in "
-                  "BUILDING state in current batch for module %s", module)
+        log.debug(
+            "Not starting new batch, there are still components in "
+            "BUILDING state in current batch for module %s",
+            module,
+        )
         return []
 
     # Check that there are no failed components in this batch. If there are,
     # do not start the new batch.
     if has_failed_components:
-        log.info("Not starting new batch, there are failed components for "
-                 "module %s", module)
+        log.info("Not starting new batch, there are failed components for module %s", module)
         return []
 
     # Identify active tasks which might contain relicts of previous builds
     # and fail the module build if this^ happens.
-    active_tasks = builder.list_tasks_for_components(module.component_builds,
-                                                     state='active')
+    active_tasks = builder.list_tasks_for_components(module.component_builds, state="active")
     if isinstance(active_tasks, list) and active_tasks:
-        state_reason = ("Cannot start a batch, because some components are already"
-                        " in 'building' state.")
+        state_reason = \
+            "Cannot start a batch, because some components are already in 'building' state."
         state_reason += " See tasks (ID): {}".format(
-            ', '.join([str(t['id']) for t in active_tasks])
+            ", ".join([str(t["id"]) for t in active_tasks])
         )
-        module.transition(config, state=models.BUILD_STATES['failed'],
-                          state_reason=state_reason, failure_type='infra')
+        module.transition(
+            config,
+            state=models.BUILD_STATES["failed"],
+            state_reason=state_reason,
+            failure_type="infra",
+        )
         session.commit()
         return []
 
     else:
-        log.debug("Builder {} doesn't provide information about active tasks."
-                  .format(builder))
+        log.debug("Builder {} doesn't provide information about active tasks.".format(builder))
 
     # Find out if there is repo regeneration in progress for this module.
     # If there is, wait until the repo is regenerated before starting a new
     # batch.
     artifacts = [c.nvr for c in module.current_batch()]
     if not builder.buildroot_ready(artifacts):
-        log.info("Not starting new batch, not all of %r are in the buildroot. "
-                 "Waiting." % artifacts)
+        log.info(
+            "Not starting new batch, not all of %r are in the buildroot. Waiting." % artifacts)
         return []
 
     # Although this variable isn't necessary, it is easier to read code later on with it
@@ -265,21 +270,21 @@ def start_next_batch_build(config, module, session, builder, components=None):
     # successfully built yet or isn't currently being built.
     unbuilt_components = components or [
         c for c in module.component_builds
-        if (c.state != koji.BUILD_STATES['COMPLETE'] and
-            c.state != koji.BUILD_STATES['BUILDING'] and
-            c.state != koji.BUILD_STATES['FAILED'] and
-            c.batch == module.batch)
+        if (
+            c.state != koji.BUILD_STATES["COMPLETE"]
+            and c.state != koji.BUILD_STATES["BUILDING"]
+            and c.state != koji.BUILD_STATES["FAILED"]
+            and c.batch == module.batch
+        )
     ]
 
     # If there are no components to build, skip the batch and start building
     # the new one. This can happen when resubmitting the failed module build.
     if not unbuilt_components and not components:
-        log.info("Skipping build of batch %d, no component to build.",
-                 module.batch)
+        log.info("Skipping build of batch %d, no component to build.", module.batch)
         return start_next_batch_build(config, module, session, builder)
 
-    log.info("Starting build of next batch %d, %s" % (module.batch,
-             unbuilt_components))
+    log.info("Starting build of next batch %d, %s" % (module.batch, unbuilt_components))
 
     # Attempt to reuse any components possible in the batch before attempting to build any
     further_work = []
@@ -288,14 +293,13 @@ def start_next_batch_build(config, module, session, builder, components=None):
     should_try_reuse = True
     # If the rebuild strategy is "changed-and-after", try to figure out if it's worth checking if
     # the components can be reused to save on resources
-    if module.rebuild_strategy == 'changed-and-after':
+    if module.rebuild_strategy == "changed-and-after":
         # Check to see if the previous batch had all their builds reused except for when the
         # previous batch was 1 because that always has the module-build-macros component built
         should_try_reuse = all_reused_in_prev_batch or prev_batch == 1
     if should_try_reuse:
         component_names = [c.package for c in unbuilt_components]
-        reusable_components = get_reusable_components(
-            session, module, component_names)
+        reusable_components = get_reusable_components(session, module, component_names)
         for c, reusable_c in zip(unbuilt_components, reusable_components):
             if reusable_c:
                 components_reused = True
@@ -309,8 +313,10 @@ def start_next_batch_build(config, module, session, builder, components=None):
     # If all the components were reused in the batch then make a KojiRepoChange
     # message and return
     if components_reused and not unbuilt_components_after_reuse:
-        further_work.append(module_build_service.messaging.KojiRepoChange(
-            'start_build_batch: fake msg', builder.module_build_tag['name']))
+        further_work.append(
+            module_build_service.messaging.KojiRepoChange(
+                "start_build_batch: fake msg", builder.module_build_tag["name"])
+        )
         return further_work
 
     return further_work + continue_batch_build(

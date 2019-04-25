@@ -46,11 +46,10 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.pool import StaticPool
 from logging import getLogger
 import gi  # noqa
-gi.require_version('Modulemd', '1.0')  # noqa
+gi.require_version("Modulemd", "1.0")  # noqa
 from gi.repository import Modulemd  # noqa
 
-from module_build_service.logger import (
-    init_logging, ModuleBuildLogs, level_flags, MBSLogger)
+from module_build_service.logger import init_logging, ModuleBuildLogs, level_flags, MBSLogger
 
 from module_build_service.errors import (
     ValidationError, Unauthorized, UnprocessableEntity, Conflict, NotFound,
@@ -59,9 +58,9 @@ from module_build_service.config import init_config
 from module_build_service.proxy import ReverseProxy
 
 try:
-    version = pkg_resources.get_distribution('module-build-service').version
+    version = pkg_resources.get_distribution("module-build-service").version
 except pkg_resources.DistributionNotFound:
-    version = 'unknown'
+    version = "unknown"
 api_version = 2
 
 app = Flask(__name__)
@@ -77,12 +76,13 @@ class MBSSQLAlchemy(SQLAlchemy):
 
     This is used *only* during tests to make them faster.
     """
+
     def apply_driver_hacks(self, app, info, options):
-        if info.drivername == 'sqlite' and info.database in (None, '', ':memory:'):
-            options['poolclass'] = StaticPool
-            options['connect_args'] = {'check_same_thread': False}
+        if info.drivername == "sqlite" and info.database in (None, "", ":memory:"):
+            options["poolclass"] = StaticPool
+            options["connect_args"] = {"check_same_thread": False}
             try:
-                del options['pool_size']
+                del options["pool_size"]
             except KeyError:
                 pass
 
@@ -107,59 +107,56 @@ def create_app(debug=False, verbose=False, quiet=False):
 
 def load_views():
     from module_build_service import views
+
     assert views
 
 
 @app.errorhandler(ValidationError)
 def validationerror_error(e):
     """Flask error handler for ValidationError exceptions"""
-    return json_error(400, 'Bad Request', str(e))
+    return json_error(400, "Bad Request", str(e))
 
 
 @app.errorhandler(Unauthorized)
 def unauthorized_error(e):
     """Flask error handler for NotAuthorized exceptions"""
-    return json_error(401, 'Unauthorized', str(e))
+    return json_error(401, "Unauthorized", str(e))
 
 
 @app.errorhandler(Forbidden)
 def forbidden_error(e):
     """Flask error handler for Forbidden exceptions"""
-    return json_error(403, 'Forbidden', str(e))
+    return json_error(403, "Forbidden", str(e))
 
 
 @app.errorhandler(RuntimeError)
 def runtimeerror_error(e):
     """Flask error handler for RuntimeError exceptions"""
     log.exception("RuntimeError exception raised")
-    return json_error(500, 'Internal Server Error', str(e))
+    return json_error(500, "Internal Server Error", str(e))
 
 
 @app.errorhandler(UnprocessableEntity)
 def unprocessableentity_error(e):
     """Flask error handler for UnprocessableEntity exceptions"""
-    return json_error(422, 'Unprocessable Entity', str(e))
+    return json_error(422, "Unprocessable Entity", str(e))
 
 
 @app.errorhandler(Conflict)
 def conflict_error(e):
     """Flask error handler for Conflict exceptions"""
-    return json_error(409, 'Conflict', str(e))
+    return json_error(409, "Conflict", str(e))
 
 
 @app.errorhandler(NotFound)
 def notfound_error(e):
     """Flask error handler for Conflict exceptions"""
-    return json_error(404, 'Not Found', str(e))
+    return json_error(404, "Not Found", str(e))
 
 
 init_logging(conf)
 log = MBSLogger()
-build_logs = ModuleBuildLogs(
-    conf.build_logs_dir,
-    conf.build_logs_name_format,
-    conf.log_level,
-)
+build_logs = ModuleBuildLogs(conf.build_logs_dir, conf.build_logs_name_format, conf.log_level)
 
 
 def get_url_for(*args, **kwargs):
@@ -171,11 +168,13 @@ def get_url_for(*args, **kwargs):
 
     # Localhost is right URL only when the scheduler runs on the same
     # system as the web views.
-    app.config['SERVER_NAME'] = 'localhost'
+    app.config["SERVER_NAME"] = "localhost"
     with app.app_context():
-        log.debug("WARNING: get_url_for() has been called without the Flask "
-                  "app_context. That can lead to SQLAlchemy errors caused by "
-                  "multiple session being used in the same time.")
+        log.debug(
+            "WARNING: get_url_for() has been called without the Flask "
+            "app_context. That can lead to SQLAlchemy errors caused by "
+            "multiple session being used in the same time."
+        )
         return url_for(*args, **kwargs)
 
 

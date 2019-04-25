@@ -32,7 +32,7 @@ from module_build_service.models import ModuleBuild
 
 
 class MMDResolverPolicy(enum.Enum):
-    All = "all"      # All possible top-level combinations
+    All = "all"  # All possible top-level combinations
     First = "first"  # All possible top-level combinations (filtered by N:S, first picked)
 
 
@@ -106,7 +106,8 @@ class MMDResolver(object):
         # This method creates such solve.Dep.
         stream_dep = lambda n, s: pool.Dep("module(%s:%s)" % (n, s))
         versioned_stream_dep = lambda n, s, v, op: pool.Dep("module(%s:%s)" % (n, s)).Rel(
-            op, pool.Dep(str(v)))
+            op, pool.Dep(str(v))
+        )
 
         # There are relations between modules in `deps`. For example:
         #   deps = [{'gtk': ['1'], 'foo': ['1']}]" means "gtk:1 and foo:1" are both required.
@@ -144,14 +145,15 @@ class MMDResolver(object):
 
                         # In case x.y.z versioning is not used for this base module, do not
                         # use versions solv.Dep.
-                        if len(str(ModuleBuild.get_stream_version(
-                                stream_for_version, right_pad=False))) < 5:
+                        stream_version_str = str(
+                            ModuleBuild.get_stream_version(stream_for_version, right_pad=False))
+                        if len(stream_version_str) < 5:
                             if stream.startswith("-"):
                                 req_neg = rel_or_dep(
-                                    req_neg, solv.REL_OR, stream_dep(name, stream[1:]))
+                                    req_neg, solv.REL_OR, stream_dep(name, stream[1:])
+                                )
                             else:
-                                req_pos = rel_or_dep(
-                                    req_pos, solv.REL_OR, stream_dep(name, stream))
+                                req_pos = rel_or_dep(req_pos, solv.REL_OR, stream_dep(name, stream))
                         else:
                             # The main reason why to use `exact_versions` is the case when
                             # adding deps for the input module we want to resolve. This module
@@ -178,19 +180,23 @@ class MMDResolver(object):
                             if not exact_versions:
                                 op |= solv.REL_GT
                             version = ModuleBuild.get_stream_version(
-                                stream_for_version, right_pad=False)
+                                stream_for_version, right_pad=False
+                            )
                             if stream.startswith("-"):
                                 req_neg = rel_or_dep(
-                                    req_neg, solv.REL_OR,
-                                    versioned_stream_dep(name, stream[1:], version, op))
+                                    req_neg,
+                                    solv.REL_OR,
+                                    versioned_stream_dep(name, stream[1:], version, op),
+                                )
                             else:
                                 req_pos = rel_or_dep(
-                                    req_pos, solv.REL_OR,
-                                    versioned_stream_dep(name, stream, version, op))
+                                    req_pos,
+                                    solv.REL_OR,
+                                    versioned_stream_dep(name, stream, version, op),
+                                )
                     else:
                         if stream.startswith("-"):
-                            req_neg = rel_or_dep(
-                                req_neg, solv.REL_OR, stream_dep(name, stream[1:]))
+                            req_neg = rel_or_dep(req_neg, solv.REL_OR, stream_dep(name, stream[1:]))
                         else:
                             req_pos = rel_or_dep(req_pos, solv.REL_OR, stream_dep(name, stream))
 
@@ -291,9 +297,10 @@ class MMDResolver(object):
         # Helper method to return the dependencies of `mmd` in the {name: [streams], ... form}.
         # The `fn` is either "get_requires" or "get_buildrequires" str depending on whether
         # the return deps should be runtime requires or buildrequires.
-        normdeps = lambda mmd, fn: [{name: streams.get()
-                                     for name, streams in getattr(dep, fn)().items()}
-                                    for dep in mmd.get_dependencies()]
+        normdeps = lambda mmd, fn: [
+            {name: streams.get() for name, streams in getattr(dep, fn)().items()}
+            for dep in mmd.get_dependencies()
+        ]
 
         base_module_stream_overrides = self._get_base_module_stream_overrides(mmd)
 
@@ -319,20 +326,21 @@ class MMDResolver(object):
             # This is used for example to find the buildrequired module when
             # no particular stream is used - for example when buildrequiring
             # "gtk: []"
-            solvable.add_deparray(solv.SOLVABLE_PROVIDES,
-                                  pool.Dep("module(%s)" % n))
+            solvable.add_deparray(solv.SOLVABLE_PROVIDES, pool.Dep("module(%s)" % n))
             # Add "Provides: module(name:stream) = version", so we can find buildrequired
             # modules when "gtk:[1]" is used and also choose the latest version.
-            solvable.add_deparray(solv.SOLVABLE_PROVIDES,
-                                  pool.Dep("module(%s:%s)" % (n, s)).Rel(
-                                      solv.REL_EQ, pool.Dep(str(v))))
+            solvable.add_deparray(
+                solv.SOLVABLE_PROVIDES,
+                pool.Dep("module(%s:%s)" % (n, s)).Rel(solv.REL_EQ, pool.Dep(str(v))),
+            )
 
             self._add_base_module_provides(solvable, mmd)
 
             # Fill in the "Requires" of this module, so we can track its dependencies
             # on other modules.
-            requires = self._deps2reqs(normdeps(mmd, "get_requires"),
-                                       base_module_stream_overrides, False)
+            requires = self._deps2reqs(
+                normdeps(mmd, "get_requires"), base_module_stream_overrides, False
+            )
             log.debug("Adding module %s with requires: %r", solvable.name, requires)
             solvable.add_deparray(solv.SOLVABLE_REQUIRES, requires)
 
@@ -491,8 +499,10 @@ class MMDResolver(object):
                 deps[0] = deps[0][1:]
                 deps[-1] = deps[-1][:-1]
             # Generate the new deps using the parserpmrichdep.
-            deps = [self.pool.parserpmrichdep(dep) if dep.startswith("(") else self.pool.Dep(dep)
-                    for dep in deps]
+            deps = [
+                self.pool.parserpmrichdep(dep) if dep.startswith("(") else self.pool.Dep(dep)
+                for dep in deps
+            ]
 
             # 2) For each dep (name:stream), get the set of all solvables in particular NSVCs,
             #    which provides that name:stream. Then use itertools.product() to actually
@@ -519,8 +529,10 @@ class MMDResolver(object):
                 # we are currently trying, otherwise it would just choose some random ones.
                 # We do that by FAVORING those modules - this is done in libsolv by another
                 # job prepending to our main job to resolve the deps of input module.
-                jobs = [self.pool.Job(solv.Job.SOLVER_FAVOR | solv.Job.SOLVER_SOLVABLE, s.id)
-                        for s in opt] + [job]
+                jobs = [
+                    self.pool.Job(solv.Job.SOLVER_FAVOR | solv.Job.SOLVER_SOLVABLE, s.id)
+                    for s in opt
+                ] + [job]
 
                 # Log the job.
                 log.debug("Jobs:")
@@ -533,10 +545,11 @@ class MMDResolver(object):
                     if problem_str:
                         err_msg = problem_str
                     else:
-                        err_msg = ', '.join(str(p) for p in problems)
+                        err_msg = ", ".join(str(p) for p in problems)
                     raise RuntimeError(
-                        'Problems were found during module dependency resolution: {}'
-                        .format(err_msg))
+                        "Problems were found during module dependency resolution: {}".format(
+                            err_msg)
+                    )
                 # Find out what was actually resolved by libsolv to be installed as a result
                 # of our jobs - those are the modules we are looking for.
                 newsolvables = solver.transaction().newsolvables()
@@ -603,9 +616,11 @@ class MMDResolver(object):
                         transactions[ns] = [trans[sorted_trans[0][0]]]
 
         # Convert the solvables in alternatives to nsvc and return them as set of frozensets.
-        return set(frozenset(s2nsvc(s) for s in transactions[0])
-                   for src_alternatives in alternatives.values()
-                   for transactions in src_alternatives.values())
+        return set(
+            frozenset(s2nsvc(s) for s in transactions[0])
+            for src_alternatives in alternatives.values()
+            for transactions in src_alternatives.values()
+        )
 
     @staticmethod
     def _detect_transitive_stream_collision(problems):
@@ -636,9 +651,9 @@ class MMDResolver(object):
                         pair.sort()  # only for pretty print
                         yield pair
 
-        formatted_conflicts_pairs = ', '.join(
-            '{} and {}'.format(*item) for item in find_conflicts_pairs()
+        formatted_conflicts_pairs = ", ".join(
+            "{} and {}".format(*item) for item in find_conflicts_pairs()
         )
         if formatted_conflicts_pairs:
-            return 'The module has conflicting buildrequires of: {}'.format(
+            return "The module has conflicting buildrequires of: {}".format(
                 formatted_conflicts_pairs)

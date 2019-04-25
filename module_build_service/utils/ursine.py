@@ -63,22 +63,25 @@ def find_build_tags_from_external_repos(koji_session, repo_infos):
     :return: a list of tag names.
     :rtype: list[str]
     """
-    re_external_repo_url = r'^{}/repos/(.+-build)/latest/\$arch/?$'.format(
-        conf.koji_external_repo_url_prefix.rstrip('/'))
+    re_external_repo_url = r"^{}/repos/(.+-build)/latest/\$arch/?$".format(
+        conf.koji_external_repo_url_prefix.rstrip("/"))
     tag_names = []
     for info in repo_infos:
-        match = re.match(re_external_repo_url, info['url'])
+        match = re.match(re_external_repo_url, info["url"])
         if match:
             name = match.groups()[0]
             if koji_session.getTag(name) is None:
-                log.warning('Ignoring the found tag %s because no tag info was found '
-                            'with this name.', name)
+                log.warning(
+                    "Ignoring the found tag %s because no tag info was found with this name.",
+                    name,
+                )
             else:
                 tag_names.append(name)
         else:
-            log.warning('The build tag could not be parsed from external repo '
-                        '%s whose url is %s.',
-                        info['external_repo_name'], info['url'])
+            log.warning(
+                "The build tag could not be parsed from external repo %s whose url is %s.",
+                info["external_repo_name"], info["url"],
+            )
     return tag_names
 
 
@@ -98,8 +101,9 @@ def find_module_koji_tags(koji_session, build_tag):
     :rtype: list[str]
     """
     return [
-        data['name'] for data in koji_session.getFullInheritance(build_tag)
-        if any(data['name'].startswith(prefix) for prefix in conf.koji_tag_prefixes)
+        data["name"]
+        for data in koji_session.getFullInheritance(build_tag)
+        if any(data["name"].startswith(prefix) for prefix in conf.koji_tag_prefixes)
     ]
 
 
@@ -126,11 +130,12 @@ def get_modulemds_from_ursine_content(tag):
     :rtype: list[Modulemd.Module]
     """
     from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
+
     koji_session = KojiModuleBuilder.get_session(conf, login=False)
     repos = koji_session.getExternalRepoList(tag)
     build_tags = find_build_tags_from_external_repos(koji_session, repos)
     if not build_tags:
-        log.debug('No external repo containing ursine content is found.')
+        log.debug("No external repo containing ursine content is found.")
         return []
     modulemds = []
     for tag in build_tags:
@@ -140,7 +145,7 @@ def get_modulemds_from_ursine_content(tag):
             if md:
                 modulemds.append(md)
             else:
-                log.warning('No module is found by koji_tag \'%s\'', koji_tag)
+                log.warning("No module is found by koji_tag '%s'", koji_tag)
     return modulemds
 
 
@@ -161,7 +166,7 @@ def find_stream_collision_modules(buildrequired_modules, koji_tag):
     """
     ursine_modulemds = get_modulemds_from_ursine_content(koji_tag)
     if not ursine_modulemds:
-        log.debug('No module metadata is found from ursine content.')
+        log.debug("No module metadata is found from ursine content.")
         return []
 
     collision_modules = [
@@ -171,15 +176,19 @@ def find_stream_collision_modules(buildrequired_modules, koji_tag):
         # different stream, that is what we want to record here, whose RPMs will be
         # excluded from buildroot by adding them into SRPM module-build-macros as
         # Conflicts.
-        if (item.get_name() in buildrequired_modules and
-            item.get_stream() != buildrequired_modules[item.get_name()]['stream'])
+        if (
+            item.get_name() in buildrequired_modules
+            and item.get_stream() != buildrequired_modules[item.get_name()]["stream"]
+        )
     ]
 
     for item in collision_modules:
-        name, stream, _ = item.split(':', 2)
-        log.info('Buildrequired module %s exists in ursine content with '
-                 'different stream %s, whose RPMs will be excluded.',
-                 name, stream)
+        name, stream, _ = item.split(":", 2)
+        log.info(
+            "Buildrequired module %s exists in ursine content with "
+            "different stream %s, whose RPMs will be excluded.",
+            name, stream,
+        )
 
     return collision_modules
 
@@ -206,17 +215,18 @@ def handle_stream_collision_modules(mmd):
     :param mmd: a module's metadata which will be built.
     :type mmd: Modulemd.Module
     """
-    log.info('Start to find out stream collision modules.')
+    log.info("Start to find out stream collision modules.")
     unpacked_xmd = glib.from_variant_dict(mmd.get_xmd())
-    buildrequires = unpacked_xmd['mbs']['buildrequires']
+    buildrequires = unpacked_xmd["mbs"]["buildrequires"]
 
     for module_name in conf.base_module_names:
         base_module_info = buildrequires.get(module_name)
         if base_module_info is None:
             log.info(
-                'Base module %s is not a buildrequire of module %s. '
-                'Skip handling module stream collision for this base module.',
-                module_name, mmd.get_name())
+                "Base module %s is not a buildrequire of module %s. "
+                "Skip handling module stream collision for this base module.",
+                module_name, mmd.get_name(),
+            )
             continue
 
         # Module stream collision is handled only for newly created module
@@ -225,27 +235,26 @@ def handle_stream_collision_modules(mmd):
         # base module.
         # Just check the existence, and following code ensures this key exists
         # even if no stream collision module is found.
-        if ('stream_collision_modules' in base_module_info and
-                'ursine_rpms' in base_module_info):
-            log.debug('Base module %s has stream collision modules and ursine '
-                      'rpms. Skip to handle stream collision again for it.',
-                      module_name)
+        if "stream_collision_modules" in base_module_info and "ursine_rpms" in base_module_info:
+            log.debug(
+                "Base module %s has stream collision modules and ursine "
+                "rpms. Skip to handle stream collision again for it.",
+                module_name,
+            )
             continue
 
-        modules_nsvc = find_stream_collision_modules(
-            buildrequires, base_module_info['koji_tag'])
+        modules_nsvc = find_stream_collision_modules(buildrequires, base_module_info["koji_tag"])
 
         if modules_nsvc:
             # Save modules NSVC for later use in subsequent event handlers to
             # log readable messages.
-            base_module_info['stream_collision_modules'] = modules_nsvc
-            base_module_info['ursine_rpms'] = find_module_built_rpms(modules_nsvc)
+            base_module_info["stream_collision_modules"] = modules_nsvc
+            base_module_info["ursine_rpms"] = find_module_built_rpms(modules_nsvc)
         else:
-            log.info('No stream collision module is found against base module %s.',
-                     module_name)
+            log.info("No stream collision module is found against base module %s.", module_name)
             # Always set in order to mark it as handled already.
-            base_module_info['stream_collision_modules'] = None
-            base_module_info['ursine_rpms'] = None
+            base_module_info["stream_collision_modules"] = None
+            base_module_info["ursine_rpms"] = None
 
     mmd.set_xmd(glib.dict_values(unpacked_xmd))
 
@@ -262,18 +271,17 @@ def find_module_built_rpms(modules_nsvc):
     import kobo.rpmlib
     from module_build_service.resolver import GenericResolver
     from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
+
     resolver = GenericResolver.create(conf)
 
     built_rpms = []
     koji_session = KojiModuleBuilder.get_session(conf, login=False)
 
     for nsvc in modules_nsvc:
-        name, stream, version, context = nsvc.split(':')
+        name, stream, version, context = nsvc.split(":")
         module = resolver._get_module(name, stream, version, context, strict=True)
-        rpms = koji_session.listTaggedRPMS(module['koji_tag'], latest=True)[0]
-        built_rpms.extend(
-            kobo.rpmlib.make_nvr(rpm, force_epoch=True) for rpm in rpms
-        )
+        rpms = koji_session.listTaggedRPMS(module["koji_tag"], latest=True)[0]
+        built_rpms.extend(kobo.rpmlib.make_nvr(rpm, force_epoch=True) for rpm in rpms)
 
     # In case there is duplicate NEVRs, ensure every NEVR is unique in the final list.
     # And, sometimes, sorted list of RPMs would be easier to read.

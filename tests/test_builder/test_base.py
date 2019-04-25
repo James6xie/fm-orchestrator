@@ -33,29 +33,22 @@ from mock import patch
 
 
 class TestGenericBuilder:
-
     def setup_method(self, test_method):
         init_data(1)
         self.module = module_build_service.models.ModuleBuild.query.filter_by(id=1).one()
 
-    @patch('module_build_service.resolver.DBResolver')
-    @patch('module_build_service.resolver.GenericResolver')
+    @patch("module_build_service.resolver.DBResolver")
+    @patch("module_build_service.resolver.GenericResolver")
     def test_default_buildroot_groups_cache(self, generic_resolver, resolver):
-        mbs_groups = {
-            "buildroot": [],
-            "srpm-buildroot": []
-        }
+        mbs_groups = {"buildroot": [], "srpm-buildroot": []}
 
         resolver = mock.MagicMock()
-        resolver.backend = 'mbs'
+        resolver.backend = "mbs"
         resolver.resolve_profiles.return_value = mbs_groups
 
-        expected_groups = {
-            "build": [],
-            "srpm-build": []
-        }
+        expected_groups = {"build": [], "srpm-build": []}
 
-        with patch.object(module_build_service.resolver, 'system_resolver', new=resolver):
+        with patch.object(module_build_service.resolver, "system_resolver", new=resolver):
             # Call default_buildroot_groups, the result should be cached.
             ret = GenericBuilder.default_buildroot_groups(db.session, self.module)
             assert ret == expected_groups
@@ -64,14 +57,14 @@ class TestGenericBuilder:
 
         # Now try calling it again to verify resolve_profiles is not called,
         # because it is cached.
-        with patch.object(module_build_service.resolver, 'system_resolver', new=resolver):
+        with patch.object(module_build_service.resolver, "system_resolver", new=resolver):
             ret = GenericBuilder.default_buildroot_groups(db.session, self.module)
             assert ret == expected_groups
             resolver.resolve_profiles.assert_not_called()
             resolver.resolve_profiles.reset_mock()
 
         # And now try clearing the cache and call it again.
-        with patch.object(module_build_service.resolver, 'system_resolver', new=resolver):
+        with patch.object(module_build_service.resolver, "system_resolver", new=resolver):
             GenericBuilder.clear_cache(self.module)
             ret = GenericBuilder.default_buildroot_groups(db.session, self.module)
             assert ret == expected_groups

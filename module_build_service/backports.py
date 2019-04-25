@@ -33,11 +33,11 @@ def jsonify(*args, **kwargs):
     # input only since 0.11, but RHEL7 contains 0.10.1.
     # https://github.com/pallets/flask/commit/daceb3e3a028b4b408c4bbdbdef0047f1de3a7c9
     indent = None
-    separators = (',', ':')
+    separators = (",", ":")
 
-    if module_build_service.app.config['JSONIFY_PRETTYPRINT_REGULAR'] and not request.is_xhr:
+    if module_build_service.app.config["JSONIFY_PRETTYPRINT_REGULAR"] and not request.is_xhr:
         indent = 2
-        separators = (', ', ': ')
+        separators = (", ", ": ")
 
     if args and kwargs:
         raise TypeError("jsonify() behavior undefined when passed both args and kwargs")
@@ -51,6 +51,5 @@ def jsonify(*args, **kwargs):
     # Note that we add '\n' to end of response
     # (see https://github.com/mitsuhiko/flask/pull/1262)
     rv = module_build_service.app.response_class(
-        (dumps(data, indent=indent, separators=separators), '\n'),
-        mimetype='application/json')
+        (dumps(data, indent=indent, separators=separators), "\n"), mimetype="application/json")
     return rv

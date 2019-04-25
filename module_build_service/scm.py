@@ -36,7 +36,11 @@ import datetime
 
 from module_build_service import log, conf
 from module_build_service.errors import (
-    Forbidden, ValidationError, UnprocessableEntity, ProgrammingError)
+    Forbidden,
+    ValidationError,
+    UnprocessableEntity,
+    ProgrammingError,
+)
 from module_build_service.utils.general import scm_url_schemes, retry
 
 
@@ -57,16 +61,16 @@ class SCM(object):
         """
 
         if allowed_scm:
-            if not (url.startswith(tuple(allowed_scm)) or
-                    (allow_local and url.startswith("file://"))):
-                raise Forbidden(
-                    '%s is not in the list of allowed SCMs' % url)
+            if not (
+                url.startswith(tuple(allowed_scm)) or (allow_local and url.startswith("file://"))
+            ):
+                raise Forbidden("%s is not in the list of allowed SCMs" % url)
 
         # If we are given the option for the git protocol or the http(s) protocol,
         # then just use http(s)
-        if re.match(r'(git\+http(?:s)?:\/\/)', url):
+        if re.match(r"(git\+http(?:s)?:\/\/)", url):
             url = url[4:]
-        url = url.rstrip('/')
+        url = url.rstrip("/")
 
         self.url = url
         self.sourcedir = None
@@ -78,14 +82,14 @@ class SCM(object):
                 self.scheme = scmtype
                 break
         else:
-            raise ValidationError('Invalid SCM URL: %s' % url)
+            raise ValidationError("Invalid SCM URL: %s" % url)
 
         # git is the only one supported SCM provider atm
         if self.scheme == "git":
             match = re.search(r"^(?P<repository>.*/(?P<name>[^?]*))(\?#(?P<commit>.*))?", url)
             self.repository = match.group("repository")
             self.name = match.group("name")
-            self.repository_root = self.repository[:-len(self.name)]
+            self.repository_root = self.repository[: -len(self.name)]
             if self.name.endswith(".git"):
                 self.name = self.name[:-4]
             self.commit = match.group("commit")
@@ -108,9 +112,10 @@ class SCM(object):
             raise ProgrammingError("Do .checkout() first.")
 
         found = False
-        branches = SCM._run(["git", "branch", "-r", "--contains", self.commit],
-                            chdir=self.sourcedir)[1]
-        for branch in branches.decode('utf-8').split("\n"):
+        branches = SCM._run(
+            ["git", "branch", "-r", "--contains", self.commit], chdir=self.sourcedir
+        )[1]
+        for branch in branches.decode("utf-8").split("\n"):
             branch = branch.strip()
             if branch[len("origin/"):] == self.branch:
                 found = True
@@ -137,15 +142,17 @@ class SCM(object):
         if stderr:
             log.warning(stderr)
         if proc.returncode != 0:
-            raise UnprocessableEntity("Failed on %r, retcode %r, out %r, err %r" % (
-                cmd, proc.returncode, stdout, stderr))
+            raise UnprocessableEntity(
+                "Failed on %r, retcode %r, out %r, err %r" % (cmd, proc.returncode, stdout, stderr)
+            )
         return proc.returncode, stdout, stderr
 
     @staticmethod
     @retry(
         timeout=conf.scm_net_timeout,
         interval=conf.scm_net_retry_interval,
-        wait_on=UnprocessableEntity)
+        wait_on=UnprocessableEntity,
+    )
     def _run(cmd, chdir=None, log_stdout=False):
         return SCM._run_without_retry(cmd, chdir, log_stdout)
 
@@ -158,14 +165,14 @@ class SCM(object):
         """
         # TODO: sanity check arguments
         if self.scheme == "git":
-            self.sourcedir = '%s/%s' % (scmdir, self.name)
+            self.sourcedir = "%s/%s" % (scmdir, self.name)
 
-            module_clone_cmd = ['git', 'clone', '-q']
+            module_clone_cmd = ["git", "clone", "-q"]
             if self.commit:
-                module_clone_cmd.append('--no-checkout')
-                module_checkout_cmd = ['git', 'checkout', '-q', self.commit]
+                module_clone_cmd.append("--no-checkout")
+                module_checkout_cmd = ["git", "checkout", "-q", self.commit]
             else:
-                module_clone_cmd.extend(['--depth', '1'])
+                module_clone_cmd.extend(["--depth", "1"])
             module_clone_cmd.extend([self.repository, self.sourcedir])
 
             # perform checkouts
@@ -174,13 +181,15 @@ class SCM(object):
                 try:
                     SCM._run(module_checkout_cmd, chdir=self.sourcedir)
                 except RuntimeError as e:
-                    if (e.message.endswith(
-                            " did not match any file(s) known to git.\\n\"") or
-                       "fatal: reference is not a tree: " in e.message):
+                    if (
+                        e.message.endswith(' did not match any file(s) known to git.\\n"')
+                        or "fatal: reference is not a tree: " in e.message
+                    ):
                         raise UnprocessableEntity(
                             "checkout: The requested commit hash was not found "
                             "within the repository. Perhaps you forgot to push. "
-                            "The original message was: %s" % e.message)
+                            "The original message was: %s" % e.message
+                        )
                     raise
 
             timestamp = SCM._run(["git", "show", "-s", "--format=%ct"], chdir=self.sourcedir)[1]
@@ -190,7 +199,7 @@ class SCM(object):
             raise RuntimeError("checkout: Unhandled SCM scheme.")
         return self.sourcedir
 
-    def get_latest(self, ref='master'):
+    def get_latest(self, ref="master"):
         """ Get the latest commit hash based on the provided git ref
 
         :param ref: a string of a git ref (either a branch or commit hash)
@@ -198,7 +207,7 @@ class SCM(object):
         :raises: RuntimeError
         """
         if ref is None:
-            ref = 'master'
+            ref = "master"
         if self.scheme == "git":
             log.debug("Getting/verifying commit hash for %s" % self.repository)
             try:
@@ -208,9 +217,9 @@ class SCM(object):
                 # fallbac to `get_full_commit_hash`. We do not want to retry here, because
                 # in case module contains only commit hashes, it would block for very long
                 # time.
-                _, output, _ = SCM._run_without_retry([
-                    "git", "ls-remote", "--exit-code", self.repository, 'refs/heads/' + ref
-                ])
+                _, output, _ = SCM._run_without_retry(
+                    ["git", "ls-remote", "--exit-code", self.repository, "refs/heads/" + ref]
+                )
             except UnprocessableEntity:
                 # The call below will either return the commit hash as is (if a full one was
                 # provided) or the full commit hash (if a short hash was provided). If ref is not
@@ -220,7 +229,7 @@ class SCM(object):
                 # git-ls-remote prints output like this, where the first commit
                 # hash is what to return.
                 # bf028e573e7c18533d89c7873a411de92d4d913e	refs/heads/master
-                return output.split()[0].decode('utf-8')
+                return output.split()[0].decode("utf-8")
         else:
             raise RuntimeError("get_latest: Unhandled SCM scheme.")
 
@@ -236,30 +245,28 @@ class SCM(object):
         elif self.commit:
             commit_to_check = self.commit
         else:
-            raise RuntimeError('No commit hash was specified for "{0}"'.format(
-                self.url))
+            raise RuntimeError('No commit hash was specified for "{0}"'.format(self.url))
 
-        if self.scheme == 'git':
-            log.debug('Getting the full commit hash for "{0}"'
-                      .format(self.repository))
+        if self.scheme == "git":
+            log.debug('Getting the full commit hash for "{0}"'.format(self.repository))
             td = None
             try:
                 td = tempfile.mkdtemp()
-                SCM._run(['git', 'clone', '-q', self.repository, td, '--bare'])
-                output = SCM._run(
-                    ['git', 'rev-parse', commit_to_check], chdir=td)[1]
+                SCM._run(["git", "clone", "-q", self.repository, td, "--bare"])
+                output = SCM._run(["git", "rev-parse", commit_to_check], chdir=td)[1]
             finally:
                 if td and os.path.exists(td):
                     shutil.rmtree(td)
 
             if output:
-                return str(output.decode('utf-8').strip('\n'))
+                return str(output.decode("utf-8").strip("\n"))
 
             raise UnprocessableEntity(
-                'The full commit hash of "{0}" for "{1}" could not be found'
-                .format(commit_hash, self.repository))
+                'The full commit hash of "{0}" for "{1}" could not be found'.format(
+                    commit_hash, self.repository)
+            )
         else:
-            raise RuntimeError('get_full_commit_hash: Unhandled SCM scheme.')
+            raise RuntimeError("get_full_commit_hash: Unhandled SCM scheme.")
 
     def get_module_yaml(self):
         """
@@ -276,8 +283,10 @@ class SCM(object):
             with open(path_to_yaml):
                 return path_to_yaml
         except IOError:
-            log.error("get_module_yaml: The SCM repository doesn't contain a modulemd file. "
-                      "Couldn't access: %s" % path_to_yaml)
+            log.error(
+                "get_module_yaml: The SCM repository doesn't contain a modulemd file. "
+                "Couldn't access: %s" % path_to_yaml
+            )
             raise UnprocessableEntity("The SCM repository doesn't contain a modulemd file")
 
     @staticmethod
@@ -289,11 +298,11 @@ class SCM(object):
         :param commit: a string containing the commit
         :return: boolean
         """
-        if scheme == 'git':
-            sha1_pattern = re.compile(r'^[0-9a-f]{40}$')
+        if scheme == "git":
+            sha1_pattern = re.compile(r"^[0-9a-f]{40}$")
             return bool(re.match(sha1_pattern, commit))
         else:
-            raise RuntimeError('is_full_commit_hash: Unhandled SCM scheme.')
+            raise RuntimeError("is_full_commit_hash: Unhandled SCM scheme.")
 
     def is_available(self, strict=False):
         """Check whether the scmurl is available for checkout.
@@ -316,9 +325,7 @@ class SCM(object):
                 if td is not None:
                     shutil.rmtree(td)
             except Exception as e:
-                log.warning(
-                    "Failed to remove temporary directory {!r}: {}".format(
-                        td, str(e)))
+                log.warning("Failed to remove temporary directory {!r}: {}".format(td, str(e)))
 
     @property
     def url(self):

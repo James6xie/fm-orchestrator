@@ -58,7 +58,7 @@ level_flags["verbose"] = levels["info"]
 level_flags["quiet"] = levels["error"]
 
 
-log_format = '%(asctime)s - %(threadName)s - %(name)s - %(levelname)s - %(message)s'
+log_format = "%(asctime)s - %(threadName)s - %(name)s - %(levelname)s - %(message)s"
 
 
 class ModuleBuildFileHandler(logging.FileHandler):
@@ -66,7 +66,8 @@ class ModuleBuildFileHandler(logging.FileHandler):
     FileHandler subclass which handles only messages generated during
     particular module build with `build_id` set in its constructor.
     """
-    def __init__(self, build_id, filename, mode='a', encoding=None, delay=0):
+
+    def __init__(self, build_id, filename, mode="a", encoding=None, delay=0):
         logging.FileHandler.__init__(self, filename, mode, encoding, delay)
         self.build_id = build_id
 
@@ -88,6 +89,7 @@ class ModuleBuildLogs(object):
     """
     Manages ModuleBuildFileHandler logging handlers.
     """
+
     def __init__(self, build_logs_dir, build_logs_name_format, level=logging.INFO):
         """
         Creates new ModuleBuildLogs instance. Module build logs are stored
@@ -152,7 +154,7 @@ class ModuleBuildLogs(object):
 
 class MBSLogger:
     def __init__(self):
-        self._logger = logging.getLogger('MBS')
+        self._logger = logging.getLogger("MBS")
         self._level = logging.NOTSET
         self._current_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -173,33 +175,33 @@ class MBSLogger:
         self.level = level
 
     def debug(self, *args, **kwargs):
-        return self._log_call('debug', args, kwargs)
+        return self._log_call("debug", args, kwargs)
 
     def info(self, *args, **kwargs):
-        return self._log_call('info', args, kwargs)
+        return self._log_call("info", args, kwargs)
 
     def warning(self, *args, **kwargs):
-        return self._log_call('warning', args, kwargs)
+        return self._log_call("warning", args, kwargs)
 
     def error(self, *args, **kwargs):
-        return self._log_call('error', args, kwargs)
+        return self._log_call("error", args, kwargs)
 
     def critical(self, *args, **kwargs):
-        return self._log_call('critical', args, kwargs)
+        return self._log_call("critical", args, kwargs)
 
     def exception(self, *args, **kwargs):
-        return self._log_call('exception', args, kwargs)
+        return self._log_call("exception", args, kwargs)
 
     def log(self, *args, **kwargs):
-        return self._log_call('log', args, kwargs)
+        return self._log_call("log", args, kwargs)
 
     def _log_call(self, level_name, args, kwargs):
         caller_filename = inspect.stack()[2][1]
         caller_filename = os.path.normpath(caller_filename)
         if not caller_filename.startswith(self._current_path):
-            log_name = 'MBS'
+            log_name = "MBS"
         else:
-            log_name = 'MBS' + caller_filename[len(self._current_path):-3].replace('/', '.')
+            log_name = "MBS" + caller_filename[len(self._current_path):-3].replace("/", ".")
         return getattr(logging.getLogger(log_name), level_name)(*args, **kwargs)
 
 
@@ -231,6 +233,5 @@ def init_logging(conf):
         log = MBSLogger()
         log.level = conf.log_level
     else:
-        logging.basicConfig(filename=conf.log_file, level=conf.log_level,
-                            format=log_format)
+        logging.basicConfig(filename=conf.log_file, level=conf.log_level, format=log_format)
         log = MBSLogger()

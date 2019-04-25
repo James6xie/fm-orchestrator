@@ -39,9 +39,9 @@ def variant_str(s):
     """ Converts a string to a GLib.Variant
     """
     if not isinstance(s, str):
-        raise TypeError('Only strings are supported for scalars')
+        raise TypeError("Only strings are supported for scalars")
 
-    return GLib.Variant('s', s)
+    return GLib.Variant("s", s)
 
 
 def variant_list(l):
@@ -50,11 +50,11 @@ def variant_list(l):
     l_variant = list()
     for item in l:
         if item is None:
-            item = ''
+            item = ""
         if type(item) == str:
             l_variant.append(variant_str(item))
         elif type(item) == text_type:
-            l_variant.append(variant_str(item.encode('utf-8')))
+            l_variant.append(variant_str(item.encode("utf-8")))
         elif type(item) == list:
             l_variant.append(variant_list(item))
         elif type(item) == dict:
@@ -62,33 +62,33 @@ def variant_list(l):
         elif type(item) == bool:
             l_variant.append(variant_bool(item))
         else:
-            raise TypeError('Cannot convert unknown type')
-    return GLib.Variant('av', l_variant)
+            raise TypeError("Cannot convert unknown type")
+    return GLib.Variant("av", l_variant)
 
 
 def variant_bool(b):
     """ Converts a boolean to a GLib.Varant
     """
     if not isinstance(b, bool):
-        raise TypeError('Only booleans are supported')
+        raise TypeError("Only booleans are supported")
 
-    return GLib.Variant('b', b)
+    return GLib.Variant("b", b)
 
 
 def dict_values(d):
     """ Converts each dictionary value to a GLib.Variant
     """
     if not isinstance(d, dict):
-        raise TypeError('Only dictionaries are supported for mappings')
+        raise TypeError("Only dictionaries are supported for mappings")
 
     d_variant = dict()
     for k, v in d.items():
         if v is None:
-            v = ''
+            v = ""
         if type(v) == str:
             d_variant[k] = variant_str(v)
         elif type(v) == text_type:
-            d_variant[k] = variant_str(v.encode('utf-8'))
+            d_variant[k] = variant_str(v.encode("utf-8"))
         elif type(v) == list:
             d_variant[k] = variant_list(v)
         elif type(v) == dict:
@@ -96,7 +96,7 @@ def dict_values(d):
         elif type(v) == bool:
             d_variant[k] = variant_bool(v)
         else:
-            raise TypeError('Cannot convert unknown type')
+            raise TypeError("Cannot convert unknown type")
     return d_variant
 
 
@@ -104,7 +104,7 @@ def variant_dict(d):
     """ Converts a dictionary to a dictionary of GLib.Variant
     """
     if not isinstance(d, dict):
-        raise TypeError('Only dictionaries are supported for mappings')
+        raise TypeError("Only dictionaries are supported for mappings")
 
     d_variant = dict_values(d)
-    return GLib.Variant('a{sv}', d_variant)
+    return GLib.Variant("a{sv}", d_variant)

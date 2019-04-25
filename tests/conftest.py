@@ -27,20 +27,17 @@ from module_build_service import Modulemd
 
 
 BASE_DIR = os.path.dirname(__file__)
-STAGED_DATA_DIR = os.path.join(BASE_DIR, 'staged_data')
+STAGED_DATA_DIR = os.path.join(BASE_DIR, "staged_data")
 
-_mmd = Modulemd.Module().new_from_file(
-    os.path.join(STAGED_DATA_DIR, 'platform.yaml'))
+_mmd = Modulemd.Module().new_from_file(os.path.join(STAGED_DATA_DIR, "platform.yaml"))
 _mmd.upgrade()
 PLATFORM_MODULEMD = _mmd.dumps()
 
-_mmd2 = Modulemd.Module().new_from_file(
-    os.path.join(STAGED_DATA_DIR, 'formatted_testmodule.yaml'))
+_mmd2 = Modulemd.Module().new_from_file(os.path.join(STAGED_DATA_DIR, "formatted_testmodule.yaml"))
 _mmd2.upgrade()
 TESTMODULE_MODULEMD = _mmd2.dumps()
 
-_mmd3 = Modulemd.Module().new_from_file(
-    os.path.join(STAGED_DATA_DIR, 'formatted_testmodule.yaml'))
+_mmd3 = Modulemd.Module().new_from_file(os.path.join(STAGED_DATA_DIR, "formatted_testmodule.yaml"))
 _mmd3.upgrade()
 _mmd3.set_context("c2c572ed")
 TESTMODULE_MODULEMD_SECOND_CONTEXT = _mmd3.dumps()

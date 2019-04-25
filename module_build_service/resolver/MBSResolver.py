@@ -64,7 +64,7 @@ class MBSResolver(GenericResolver):
             "stream": stream,
             "state": state,
             "verbose": True,
-            "order_desc_by": "version"
+            "order_desc_by": "version",
         }
         if version is not None:
             query["version"] = str(version)
@@ -72,8 +72,9 @@ class MBSResolver(GenericResolver):
             query["context"] = context
         return query
 
-    def _get_modules(self, name, stream, version=None, context=None, state="ready", strict=False,
-                     **kwargs):
+    def _get_modules(
+        self, name, stream, version=None, context=None, state="ready", strict=False, **kwargs
+    ):
         """Query and return modules from MBS with specific info
 
         :param str name: module's name.
@@ -133,11 +134,7 @@ class MBSResolver(GenericResolver):
         :return: the number of modules that match the provided filter
         :rtype: int
         """
-        query = {
-            "page": 1,
-            "per_page": 1,
-            "short": True,
-        }
+        query = {"page": 1, "per_page": 1, "short": True}
         query.update(kwargs)
         res = self.session.get(self.mbs_prod_url, params=query)
         if not res.ok:
@@ -171,8 +168,16 @@ class MBSResolver(GenericResolver):
         if data["items"]:
             return load_mmd(data["items"][0]["modulemd"])
 
-    def get_module_modulemds(self, name, stream, version=None, context=None, strict=False,
-                             stream_version_lte=False, virtual_streams=None):
+    def get_module_modulemds(
+        self,
+        name,
+        stream,
+        version=None,
+        context=None,
+        strict=False,
+        stream_version_lte=False,
+        virtual_streams=None,
+    ):
         """
         Gets the module modulemds from the resolver.
         :param name: a string of the module's name
@@ -197,8 +202,9 @@ class MBSResolver(GenericResolver):
             return [m.mmd() for m in local_modules]
 
         extra_args = {}
-        if (stream_version_lte and len(str(models.ModuleBuild.get_stream_version(
-                stream, right_pad=False))) >= 5):
+        if stream_version_lte and (
+            len(str(models.ModuleBuild.get_stream_version(stream, right_pad=False))) >= 5
+        ):
             stream_version = models.ModuleBuild.get_stream_version(stream)
             extra_args["stream_version_lte"] = stream_version
 
@@ -212,7 +218,7 @@ class MBSResolver(GenericResolver):
         mmds = []
         for module in modules:
             if module:
-                yaml = module['modulemd']
+                yaml = module["modulemd"]
 
             if not yaml:
                 if strict:
@@ -236,9 +242,8 @@ class MBSResolver(GenericResolver):
         :rtype: list
         :return: List of modulemd metadata.
         """
-        modules = self._get_modules(name, stream, strict=False,
-                                    base_module_br=base_module_nsvc)
-        return [load_mmd(module['modulemd']) for module in modules]
+        modules = self._get_modules(name, stream, strict=False, base_module_br=base_module_nsvc)
+        return [load_mmd(module["modulemd"]) for module in modules]
 
     def resolve_profiles(self, mmd, keys):
         """
@@ -258,13 +263,12 @@ class MBSResolver(GenericResolver):
         results = {}
         for key in keys:
             results[key] = set()
-        for module_name, module_info in mmd.get_xmd()['mbs']['buildrequires'].items():
+        for module_name, module_info in mmd.get_xmd()["mbs"]["buildrequires"].items():
             local_modules = models.ModuleBuild.local_modules(
-                db.session, module_name, module_info['stream'])
+                db.session, module_name, module_info["stream"])
             if local_modules:
                 local_module = local_modules[0]
-                log.info("Using local module %r to resolve profiles.",
-                         local_module)
+                log.info("Using local module %r to resolve profiles.", local_module)
                 dep_mmd = local_module.mmd()
                 for key in keys:
                     if key in dep_mmd.get_profiles().keys():
@@ -273,11 +277,15 @@ class MBSResolver(GenericResolver):
 
             # Find the dep in the built modules in MBS
             modules = self._get_modules(
-                module_name, module_info['stream'], module_info['version'],
-                module_info['context'], strict=True)
+                module_name,
+                module_info["stream"],
+                module_info["version"],
+                module_info["context"],
+                strict=True,
+            )
 
             for module in modules:
-                yaml = module['modulemd']
+                yaml = module["modulemd"]
                 dep_mmd = load_mmd(yaml)
                 # Take note of what rpms are in this dep's profile.
                 for key in keys:
@@ -287,8 +295,9 @@ class MBSResolver(GenericResolver):
         # Return the union of all rpms in all profiles of the given keys.
         return results
 
-    def get_module_build_dependencies(self, name=None, stream=None, version=None, context=None,
-                                      mmd=None, strict=False):
+    def get_module_build_dependencies(
+        self, name=None, stream=None, version=None, context=None, mmd=None, strict=False
+    ):
         """
         Returns a dictionary of koji_tag:[mmd, ...] of all the dependencies of input module.
 
@@ -311,11 +320,13 @@ class MBSResolver(GenericResolver):
         if mmd:
             log.debug("get_module_build_dependencies(mmd=%r strict=%r)" % (mmd, strict))
         elif any(x is None for x in [name, stream, version, context]):
-            raise RuntimeError('The name, stream, version, and/or context weren\'t specified')
+            raise RuntimeError("The name, stream, version, and/or context weren't specified")
         else:
             version = str(version)
-            log.debug("get_module_build_dependencies(%s, strict=%r)"
-                      % (', '.join([name, stream, str(version), context]), strict))
+            log.debug(
+                "get_module_build_dependencies(%s, strict=%r)"
+                % (", ".join([name, stream, str(version), context]), strict)
+            )
 
         # This is the set we're going to build up and return.
         module_tags = {}
@@ -323,22 +334,24 @@ class MBSResolver(GenericResolver):
         if mmd:
             queried_mmd = mmd
         else:
-            queried_module = self._get_module(
-                name, stream, version, context, strict=strict)
-            yaml = queried_module['modulemd']
+            queried_module = self._get_module(name, stream, version, context, strict=strict)
+            yaml = queried_module["modulemd"]
             queried_mmd = load_mmd(yaml)
 
-        if (not queried_mmd or not queried_mmd.get_xmd().get('mbs') or
-                'buildrequires' not in queried_mmd.get_xmd()['mbs'].keys()):
+        if (
+            not queried_mmd
+            or not queried_mmd.get_xmd().get("mbs")
+            or "buildrequires" not in queried_mmd.get_xmd()["mbs"].keys()
+        ):
             raise RuntimeError(
                 'The module "{0!r}" did not contain its modulemd or did not have '
-                'its xmd attribute filled out in MBS'.format(queried_mmd))
+                "its xmd attribute filled out in MBS".format(queried_mmd)
+            )
 
-        buildrequires = queried_mmd.get_xmd()['mbs']['buildrequires']
+        buildrequires = queried_mmd.get_xmd()["mbs"]["buildrequires"]
         # Queue up the next tier of deps that we should look at..
         for name, details in buildrequires.items():
-            local_modules = models.ModuleBuild.local_modules(
-                db.session, name, details['stream'])
+            local_modules = models.ModuleBuild.local_modules(db.session, name, details["stream"])
             if local_modules:
                 for m in local_modules:
                     # If the buildrequire is a meta-data only module with no Koji tag set, then just
@@ -351,8 +364,7 @@ class MBSResolver(GenericResolver):
             if "context" not in details:
                 details["context"] = models.DEFAULT_MODULE_CONTEXT
             modules = self._get_modules(
-                name, details['stream'], details['version'],
-                details['context'], strict=True)
+                name, details["stream"], details["version"], details["context"], strict=True)
             for m in modules:
                 if m["koji_tag"] in module_tags:
                     continue
@@ -390,21 +402,20 @@ class MBSResolver(GenericResolver):
                     "Only N:S or N:S:V:C is accepted by resolve_requires, got %s" % nsvc)
             # Try to find out module dependency in the local module builds
             # added by utils.load_local_builds(...).
-            local_modules = models.ModuleBuild.local_modules(
-                db.session, module_name, module_stream)
+            local_modules = models.ModuleBuild.local_modules(db.session, module_name, module_stream)
             if local_modules:
                 local_build = local_modules[0]
                 new_requires[module_name] = {
                     # The commit ID isn't currently saved in modules.yaml
-                    'ref': None,
-                    'stream': local_build.stream,
-                    'version': local_build.version,
-                    'context': local_build.context,
-                    'koji_tag': local_build.koji_tag,
+                    "ref": None,
+                    "stream": local_build.stream,
+                    "version": local_build.version,
+                    "context": local_build.context,
+                    "koji_tag": local_build.koji_tag,
                     # No need to set filtered_rpms for local builds, because MBS
                     # filters the RPMs automatically when the module build is
                     # done.
-                    'filtered_rpms': []
+                    "filtered_rpms": [],
                 }
                 continue
 
@@ -412,12 +423,12 @@ class MBSResolver(GenericResolver):
             version = None
             filtered_rpms = []
             module = self._get_module(
-                module_name, module_stream, module_version,
-                module_context, strict=True)
-            if module.get('modulemd'):
-                mmd = load_mmd(module['modulemd'])
-                if mmd.get_xmd().get('mbs') and 'commit' in mmd.get_xmd()['mbs'].keys():
-                    commit_hash = mmd.get_xmd()['mbs']['commit']
+                module_name, module_stream, module_version, module_context, strict=True
+            )
+            if module.get("modulemd"):
+                mmd = load_mmd(module["modulemd"])
+                if mmd.get_xmd().get("mbs") and "commit" in mmd.get_xmd()["mbs"].keys():
+                    commit_hash = mmd.get_xmd()["mbs"]["commit"]
 
                 # Find out the particular NVR of filtered packages
                 if "rpms" in module and mmd.get_rpm_filter().get():
@@ -433,22 +444,23 @@ class MBSResolver(GenericResolver):
                             continue
                         filtered_rpms.append(nvr)
 
-            if module.get('version'):
-                version = module['version']
+            if module.get("version"):
+                version = module["version"]
 
             if version and commit_hash:
                 new_requires[module_name] = {
-                    'ref': commit_hash,
-                    'stream': module_stream,
-                    'version': str(version),
-                    'context': module["context"],
-                    'koji_tag': module['koji_tag'],
-                    'filtered_rpms': filtered_rpms,
+                    "ref": commit_hash,
+                    "stream": module_stream,
+                    "version": str(version),
+                    "context": module["context"],
+                    "koji_tag": module["koji_tag"],
+                    "filtered_rpms": filtered_rpms,
                 }
             else:
                 raise RuntimeError(
                     'The module "{0}" didn\'t contain either a commit hash or a'
-                    ' version in MBS'.format(module_name))
+                    " version in MBS".format(module_name)
+                )
             # If the module is a base module, then import it in the database so that entries in
             # the module_builds_to_module_buildrequires table can be created later on
             if module_name in conf.base_module_names:
@@ -457,10 +469,10 @@ class MBSResolver(GenericResolver):
         return new_requires
 
     def get_modulemd_by_koji_tag(self, tag):
-        resp = self.session.get(self.mbs_prod_url, params={'koji_tag': tag, 'verbose': True})
+        resp = self.session.get(self.mbs_prod_url, params={"koji_tag": tag, "verbose": True})
         data = resp.json()
-        if data['items']:
-            modulemd = data['items'][0]['modulemd']
+        if data["items"]:
+            modulemd = data["items"][0]["modulemd"]
             return load_mmd(modulemd)
         else:
             return None

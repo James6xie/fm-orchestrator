@@ -30,14 +30,17 @@ class TestMBSManage:
     def setup_method(self, test_method):
         init_data()
 
-    @pytest.mark.parametrize(('identifier', 'is_valid'), (
-        ('', False),
-        ('spam', False),
-        ('spam:bacon', True),
-        ('spam:bacon:eggs', True),
-        ('spam:bacon:eggs:ham', True),
-        ('spam:bacon:eggs:ham:sausage', False),
-    ))
+    @pytest.mark.parametrize(
+        ("identifier", "is_valid"),
+        (
+            ("", False),
+            ("spam", False),
+            ("spam:bacon", True),
+            ("spam:bacon:eggs", True),
+            ("spam:bacon:eggs:ham", True),
+            ("spam:bacon:eggs:ham:sausage", False),
+        ),
+    )
     def test_retire_identifier_validation(self, identifier, is_valid):
         if is_valid:
             retire(identifier)
@@ -45,29 +48,31 @@ class TestMBSManage:
             with pytest.raises(ValueError):
                 retire(identifier)
 
-    @pytest.mark.parametrize(('overrides', 'identifier', 'changed_count'), (
-        ({'name': 'pickme'}, 'pickme:eggs', 1),
-        ({'stream': 'pickme'}, 'spam:pickme', 1),
-        ({'version': 'pickme'}, 'spam:eggs:pickme', 1),
-        ({'context': 'pickme'}, 'spam:eggs:ham:pickme', 1),
-
-        ({}, 'spam:eggs', 3),
-        ({'version': 'pickme'}, 'spam:eggs', 3),
-        ({'context': 'pickme'}, 'spam:eggs:ham', 3),
-    ))
-    @patch('module_build_service.manage.prompt_bool')
+    @pytest.mark.parametrize(
+        ("overrides", "identifier", "changed_count"),
+        (
+            ({"name": "pickme"}, "pickme:eggs", 1),
+            ({"stream": "pickme"}, "spam:pickme", 1),
+            ({"version": "pickme"}, "spam:eggs:pickme", 1),
+            ({"context": "pickme"}, "spam:eggs:ham:pickme", 1),
+            ({}, "spam:eggs", 3),
+            ({"version": "pickme"}, "spam:eggs", 3),
+            ({"context": "pickme"}, "spam:eggs:ham", 3),
+        ),
+    )
+    @patch("module_build_service.manage.prompt_bool")
     def test_retire_build(self, prompt_bool, overrides, identifier, changed_count):
         prompt_bool.return_value = True
 
         with make_session(conf) as session:
-            module_builds = session.query(ModuleBuild).filter_by(state=BUILD_STATES['ready']).all()
+            module_builds = session.query(ModuleBuild).filter_by(state=BUILD_STATES["ready"]).all()
             # Verify our assumption of the amount of ModuleBuilds in database
             assert len(module_builds) == 3
 
             for x, build in enumerate(module_builds):
-                build.name = 'spam'
-                build.stream = 'eggs'
-                build.version = 'ham'
+                build.name = "spam"
+                build.stream = "eggs"
+                build.version = "ham"
                 build.context = str(x)
 
             for attr, value in overrides.items():
@@ -77,38 +82,44 @@ class TestMBSManage:
 
             retire(identifier)
             retired_module_builds = (
-                session.query(ModuleBuild).filter_by(state=BUILD_STATES['garbage']).all())
+                session.query(ModuleBuild).filter_by(state=BUILD_STATES["garbage"]).all()
+            )
 
         assert len(retired_module_builds) == changed_count
         for x in range(changed_count):
             assert retired_module_builds[x].id == module_builds[x].id
-            assert retired_module_builds[x].state == BUILD_STATES['garbage']
+            assert retired_module_builds[x].state == BUILD_STATES["garbage"]
 
-    @pytest.mark.parametrize(('confirm_prompt', 'confirm_arg', 'confirm_expected'), (
-        (True, False, True),
-        (True, True, True),
-        (False, False, False),
-        (False, True, True),
-    ))
-    @patch('module_build_service.manage.prompt_bool')
-    def test_retire_build_confirm_prompt(self, prompt_bool, confirm_prompt, confirm_arg,
-                                         confirm_expected):
+    @pytest.mark.parametrize(
+        ("confirm_prompt", "confirm_arg", "confirm_expected"),
+        (
+            (True, False, True),
+            (True, True, True),
+            (False, False, False),
+            (False, True, True)
+        ),
+    )
+    @patch("module_build_service.manage.prompt_bool")
+    def test_retire_build_confirm_prompt(
+        self, prompt_bool, confirm_prompt, confirm_arg, confirm_expected
+    ):
         prompt_bool.return_value = confirm_prompt
 
         with make_session(conf) as session:
-            module_builds = session.query(ModuleBuild).filter_by(state=BUILD_STATES['ready']).all()
+            module_builds = session.query(ModuleBuild).filter_by(state=BUILD_STATES["ready"]).all()
             # Verify our assumption of the amount of ModuleBuilds in database
             assert len(module_builds) == 3
 
             for x, build in enumerate(module_builds):
-                build.name = 'spam'
-                build.stream = 'eggs'
+                build.name = "spam"
+                build.stream = "eggs"
 
             session.commit()
 
-            retire('spam:eggs', confirm_arg)
+            retire("spam:eggs", confirm_arg)
             retired_module_builds = (
-                session.query(ModuleBuild).filter_by(state=BUILD_STATES['garbage']).all())
+                session.query(ModuleBuild).filter_by(state=BUILD_STATES["garbage"]).all()
+            )
 
         expected_changed_count = 3 if confirm_expected else 0
         assert len(retired_module_builds) == expected_changed_count

@@ -58,10 +58,8 @@ def get_koji_config(mbs_config):
     # Placed here to avoid py2/py3 conflicts...
     import koji
 
-    koji_config = munch.Munch(koji.read_config(
-        profile_name=mbs_config.koji_profile,
-        user_config=mbs_config.koji_config,
-    ))
+    koji_config = munch.Munch(
+        koji.read_config(profile_name=mbs_config.koji_profile, user_config=mbs_config.koji_config))
     # Timeout after 10 minutes.  The default is 12 hours.
     koji_config["timeout"] = 60 * 10
     return koji_config
@@ -93,7 +91,7 @@ def create_local_repo_from_koji_tag(config, tag, repo_dir, archs=None):
         log.exception("Failed to list rpms in tag %r" % tag)
 
     # Reformat builds so they are dict with build_id as a key.
-    builds = {build['build_id']: build for build in builds}
+    builds = {build["build_id"]: build for build in builds}
 
     # Prepare pathinfo we will use to generate the URL.
     pathinfo = koji.PathInfo(topdir=session.opts["topurl"])
@@ -104,26 +102,25 @@ def create_local_repo_from_koji_tag(config, tag, repo_dir, archs=None):
     # Prepare the list of URLs to download
     download_args = []
     for rpm in rpms:
-        build_info = builds[rpm['build_id']]
+        build_info = builds[rpm["build_id"]]
 
         # We do not download debuginfo packages or packages built for archs
         # we are not interested in.
-        if koji.is_debuginfo(rpm['name']) or not rpm['arch'] in archs:
+        if koji.is_debuginfo(rpm["name"]) or not rpm["arch"] in archs:
             continue
 
         fname = pathinfo.rpm(rpm)
         relpath = os.path.basename(fname)
         local_fn = os.path.join(repo_dir, relpath)
         # Download only when the RPM is not downloaded or the size does not match.
-        if not os.path.exists(local_fn) or os.path.getsize(local_fn) != rpm['size']:
+        if not os.path.exists(local_fn) or os.path.getsize(local_fn) != rpm["size"]:
             if os.path.exists(local_fn):
                 os.remove(local_fn)
             repo_changed = True
-            url = pathinfo.build(build_info) + '/' + fname
+            url = pathinfo.build(build_info) + "/" + fname
             download_args.append((url, local_fn))
 
-    log.info(
-        "Downloading %d packages from Koji tag %s to %s" % (len(download_args), tag, repo_dir))
+    log.info("Downloading %d packages from Koji tag %s to %s" % (len(download_args), tag, repo_dir))
 
     # Create the output directory
     try:
@@ -162,4 +159,4 @@ def create_local_repo_from_koji_tag(config, tag, repo_dir, archs=None):
             shutil.rmtree(repodata_path)
 
         log.info("Creating local repository in %s" % repo_dir)
-        execute_cmd(['/usr/bin/createrepo_c', repo_dir])
+        execute_cmd(["/usr/bin/createrepo_c", repo_dir])

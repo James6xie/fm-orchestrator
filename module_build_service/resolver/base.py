@@ -78,13 +78,13 @@ class GenericResolver(six.with_metaclass(ABCMeta)):
     @classmethod
     def supported_builders(cls):
         if cls is GenericResolver:
-            return {k: v['builders'] for k, v in cls._resolvers.items()}
+            return {k: v["builders"] for k, v in cls._resolvers.items()}
         else:
             try:
-                return cls._resolvers[cls.backend]['builders']
+                return cls._resolvers[cls.backend]["builders"]
             except KeyError:
-                raise RuntimeError("No configuration of builder backends found "
-                                   "for resolver {}".format(cls))
+                raise RuntimeError(
+                    "No configuration of builder backends found for resolver {}".format(cls))
 
     @classmethod
     def is_builder_compatible(cls, builder):
@@ -100,9 +100,12 @@ class GenericResolver(six.with_metaclass(ABCMeta)):
 
     @staticmethod
     def extract_modulemd(yaml, strict=False):
-        log.warning('GenericResolver.extract_modulemd is deprecated. Please call '
-                    'module_build_service.utils.load_mmd in new code.')
+        log.warning(
+            "GenericResolver.extract_modulemd is deprecated. Please call "
+            "module_build_service.utils.load_mmd in new code."
+        )
         from module_build_service.utils import load_mmd
+
         return load_mmd(yaml)
 
     @abstractmethod
@@ -114,8 +117,16 @@ class GenericResolver(six.with_metaclass(ABCMeta)):
         raise NotImplementedError()
 
     @abstractmethod
-    def get_module_modulemds(self, name, stream, version=None, context=None, strict=False,
-                             stream_version_lte=None, virtual_streams=None):
+    def get_module_modulemds(
+        self,
+        name,
+        stream,
+        version=None,
+        context=None,
+        strict=False,
+        stream_version_lte=None,
+        virtual_streams=None,
+    ):
         raise NotImplementedError()
 
     @abstractmethod
@@ -127,8 +138,9 @@ class GenericResolver(six.with_metaclass(ABCMeta)):
         raise NotImplementedError()
 
     @abstractmethod
-    def get_module_build_dependencies(self, name=None, stream=None, version=None, mmd=None,
-                                      context=None, strict=False):
+    def get_module_build_dependencies(
+        self, name=None, stream=None, version=None, mmd=None, context=None, strict=False
+    ):
         raise NotImplementedError()
 
     @abstractmethod

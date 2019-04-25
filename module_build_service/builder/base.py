@@ -91,9 +91,10 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
     # We are skipping the caching based on the first two arguments of
     # default_buildroot_groups, because they are "self" and db.session
     # instance which are different each call we call that method.
-    default_buildroot_groups_cache = dogpile.cache.make_region(
-        function_key_generator=create_dogpile_key_generator_func(2)).configure(
-            'dogpile.cache.memory')
+    default_buildroot_groups_cache = (
+        dogpile.cache.make_region(function_key_generator=create_dogpile_key_generator_func(2))
+        .configure("dogpile.cache.memory")
+    )
 
     @classmethod
     def register_backend_class(cls, backend_class):
@@ -113,13 +114,14 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
         # check if the backend is within allowed backends for the used resolver
         resolver = module_build_service.resolver.system_resolver
         if not resolver.is_builder_compatible(backend):
-            raise ValueError("Builder backend '{}' is not compatible with "
-                             "resolver backend '{}'. Check your configuration."
-                             .format(backend, resolver.backend))
+            raise ValueError(
+                "Builder backend '{}' is not compatible with resolver backend '{}'. Check your "
+                "configuration.".format(backend, resolver.backend)
+            )
 
         if backend in GenericBuilder.backends:
-            return GenericBuilder.backends[backend](owner=owner, module=module,
-                                                    config=config, **extra)
+            return GenericBuilder.backends[backend](
+                owner=owner, module=module, config=config, **extra)
         else:
             raise ValueError("Builder backend='%s' not recognized" % backend)
 
@@ -137,8 +139,13 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
         """
         components = [c.package for c in module.component_builds]
         builder = GenericBuilder.create(
-            module.owner, module, config.system, config, tag_name=module.koji_tag,
-            components=components)
+            module.owner,
+            module,
+            config.system,
+            config,
+            tag_name=module.koji_tag,
+            components=components,
+        )
         if buildroot_connect is True:
             groups = GenericBuilder.default_buildroot_groups(session, module)
             builder.buildroot_connect(groups)
@@ -156,8 +163,7 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
         the tag with particular name and architecture.
         """
         if backend in GenericBuilder.backends:
-            return GenericBuilder.backends[backend].repo_from_tag(
-                config, tag_name, arch)
+            return GenericBuilder.backends[backend].repo_from_tag(config, tag_name, arch)
         else:
             raise ValueError("Builder backend='%s' not recognized" % backend)
 
@@ -310,23 +316,18 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
 
             # Resolve default buildroot groups using the MBS, but only for
             # non-local modules.
-            groups = resolver.resolve_profiles(
-                mmd, ('buildroot', 'srpm-buildroot'))
-
-            groups = {
-                'build': groups['buildroot'],
-                'srpm-build': groups['srpm-buildroot'],
-            }
+            groups = resolver.resolve_profiles(mmd, ("buildroot", "srpm-buildroot"))
+            groups = {"build": groups["buildroot"], "srpm-build": groups["srpm-buildroot"]}
         except ValueError:
             reason = "Failed to gather buildroot groups from SCM."
             log.exception(reason)
-            module.transition(conf, state="failed", state_reason=reason, failure_type='user')
+            module.transition(conf, state="failed", state_reason=reason, failure_type="user")
             session.commit()
             raise
         return groups
 
     @abstractmethod
-    def list_tasks_for_components(self, component_builds=None, state='active'):
+    def list_tasks_for_components(self, component_builds=None, state="active"):
         """
         :param component_builds: list of component builds which we want to check
         :param state: limit the check only for tasks in the given state
@@ -416,13 +417,15 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
                 continue
 
             if average_time_to_build < 0:
-                log.warning("Negative average build duration for component %s: %s",
-                            component, str(average_time_to_build))
+                log.warning(
+                    "Negative average build duration for component %s: %s",
+                    component, str(average_time_to_build),
+                )
                 weights[component] = weight
                 continue
 
             # Increase the task weight by 0.75 for every hour of build duration.
-            adj = (average_time_to_build / ((60 * 60) / 0.75))
+            adj = average_time_to_build / ((60 * 60) / 0.75)
             # cap the adjustment at +4.5
             weight += min(4.5, adj)
 
