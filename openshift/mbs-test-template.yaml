@@ -290,6 +290,19 @@ objects:
 
       from module_build_service import app as application
 - apiVersion: v1
+  # Only creating this as a Secret because it supports base64-encoded data.
+  # Convert to a ConfigMap and use binaryData once we're running on OpenShift 3.10+.
+  kind: Secret
+  metadata:
+    name: mbs-cacerts
+    labels:
+      app: mbs
+      service: frontend
+      environment: "test-${TEST_ID}"
+  data:
+    ca-bundle.crt: |-
+      ${CA_CERTS}
+- apiVersion: v1
   kind: Secret
   metadata:
     name: "mbs-frontend-certificates"
@@ -392,6 +405,9 @@ objects:
           - name: koji-certificates
             mountPath: /etc/koji-certs
             readOnly: true
+          - name: cacerts-vol
+            mountPath: /etc/pki/tls/certs
+            readOnly: true
           resources:
             limits:
               memory: 400Mi
@@ -415,6 +431,10 @@ objects:
         - name: koji-certificates
           secret:
             secretName: mbs-koji-secrets
+        - name: cacerts-vol
+          secret:
+            secretName: mbs-cacerts
+            defaultMode: 0444
       triggers:
       - type: ConfigChange
 # backend
@@ -753,6 +773,9 @@ objects:
           - name: koji-certificates
             mountPath: /etc/koji-certs
             readOnly: true
+          - name: cacerts-vol
+            mountPath: /etc/pki/tls/certs
+            readOnly: true
           resources:
             limits:
               memory: 400Mi
@@ -770,6 +793,10 @@ objects:
         - name: koji-certificates
           secret:
             secretName: mbs-koji-secrets
+        - name: cacerts-vol
+          secret:
+            secretName: mbs-cacerts
+            defaultMode: 0444
       triggers:
       - type: ConfigChange
 # postgresql
@@ -903,4 +930,8 @@ parameters:
   displayName: Top level URL of the Koji instance to use
   description: Top level URL of the Koji instance to use. Without a '/' at the end.
   default: https://mbs-brew-hub.usersys.redhat.com
+  required: true
+- name: CA_CERTS
+  displayName: CA certificates
+  description: Bundle of CA certificates that should be trusted
   required: true

@@ -1,0 +1,17 @@
+#!/bin/bash
+
+set -eu
+
+export USER_ID=$(id -u)
+export GROUP_ID=$(id -g)
+
+cp /etc/passwd /tmp/passwd
+cat >> /tmp/passwd <<EOF
+default:x:${USER_ID}:${GROUP_ID}:Default Application User:${HOME}:/sbin/nologin
+EOF
+
+export LD_PRELOAD=libnss_wrapper.so
+export NSS_WRAPPER_PASSWD=/tmp/passwd
+export NSS_WRAPPER_GROUP=/etc/group
+
+exec httpd -D FOREGROUND $@

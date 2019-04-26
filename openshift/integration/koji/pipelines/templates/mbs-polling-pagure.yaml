@@ -1,0 +1,229 @@
+# Template to produce a new OpenShift pipeline job for polling for Pagure branches or PRs
+#
+---
+apiVersion: v1
+kind: Template
+metadata:
+  name: mbs-polling-to-pagure
+labels:
+  template: mbs-polling-to-pagure
+parameters:
+- name: NAME
+  displayName: Short unique identifier for the templated instances
+  description: This field is used to deploy multiple pipelines to one OpenShift project from this template.
+  required: true
+  value: mbs-polling-to-pagure
+- name: PAGURE_REPO_NAME
+  displayName: Pagure project name
+  description: <username>/<namespace>/<repo>
+  required: true
+  value: fm-orchestrator
+- name: PAGURE_REPO_IS_FORK
+  displayName: Is the Pagure repo a fork?
+  required: true
+  value: "false"
+- name: PAGURE_POLLING_FOR_PR
+  displayName: set to 'true' to poll for PRs, or 'false' for the master branch
+  required: true
+  value: "false"
+- name: PAGURE_URL
+  displayName: Pagure URL
+  value: "https://pagure.io"
+- name: PAGURE_POLLING_SCHEDULE
+  displayName: Schedule of polling
+  description: using cron-style syntax
+  required: true
+  value: "H/5 * * * *"
+- name: PAGURE_POLLED_BRANCH
+  displayName: Name of polled branch
+  required: true
+  value: "master"
+- name: PREMERGE_JOB_NAME
+  displayName: Downstream pre-merge job name
+  required: true
+  value: mbs-premerge
+- name: POSTMERGE_JOB_NAME
+  displayName: Downstream post-merge job name
+  required: true
+  value: mbs-postmerge
+- name: PIPELINE_UPDATE_JOBS_DIR
+  displayName: location of pipeline job definitions for auto update
+  value: jobs
+  required: false
+- name: JENKINS_AGENT_IMAGE
+  displayName: Container image for Jenkins slave pods
+  required: true
+  value: quay.io/factory2/mbs-jenkins-slave:latest
+- name: JENKINS_AGENT_CLOUD_NAME
+  displayName: Name of OpenShift cloud in Jenkins master configuration
+  required: true
+  value: openshift
+objects:
+- kind: ServiceAccount
+  apiVersion: v1
+  metadata:
+    name: "${NAME}-jenkins-slave"
+    labels:
+      app: "${NAME}"
+- kind: RoleBinding
+  apiVersion: v1
+  metadata:
+    name: "${NAME}-jenkins-slave_edit"
+    labels:
+      app: "${NAME}"
+  subjects:
+  - kind: ServiceAccount
+    name: "${NAME}-jenkins-slave"
+  roleRef:
+    name: edit
+- kind: "BuildConfig"
+  apiVersion: "v1"
+  metadata:
+    name: "${NAME}"
+    labels:
+      app: "${NAME}"
+  spec:
+    runPolicy: "Serial"
+    completionDeadlineSeconds: 1800
+    strategy:
+      type: JenkinsPipeline
+      jenkinsPipelineStrategy:
+        jenkinsfile: |-
+          // Don't use external Jenkinsfile here, or Jenkins will also poll on that repo and branch
+          pipeline {
+            agent {
+              kubernetes {
+                cloud "${JENKINS_AGENT_CLOUD_NAME}"
+                label "jenkins-slave-${UUID.randomUUID().toString()}"
+                serviceAccount "${NAME}-jenkins-slave"
+                defaultContainer 'jnlp'
+                yaml """
+                apiVersion: v1
+                kind: Pod
+                metadata:
+                  labels:
+                    app: "jenkins-${env.JOB_BASE_NAME.take(50)}"
+                    factory2-pipeline-kind: "mbs-polling-to-pagure-pipeline"
+                    factory2-pipeline-build-number: "${env.BUILD_NUMBER}"
+                spec:
+                  containers:
+                  - name: jnlp
+                    image: "${JENKINS_AGENT_IMAGE}"
+                    imagePullPolicy: Always
+                    tty: true
+                    resources:
+                      requests:
+                        memory: 512Mi
+                        cpu: 300m
+                      limits:
+                        memory: 768Mi
+                        cpu: 500m
+                """
+              }
+            }
+            options {
+              timestamps()
+            }
+            environment {
+              PIPELINE_NAMESPACE = readFile('/run/secrets/kubernetes.io/serviceaccount/namespace').trim()
+              PAGURE_URL = "${PAGURE_URL}"
+              PAGURE_REPO_IS_FORK = "${PAGURE_REPO_IS_FORK}"
+              PAGURE_POLLING_FOR_PR = "${PAGURE_POLLING_FOR_PR}"
+              PAGURE_REPO_HOME = "${env.PAGURE_URL}${env.PAGURE_REPO_IS_FORK == 'true' ? '/fork' : ''}/${PAGURE_REPO_NAME}"
+              GIT_URL = "${env.PAGURE_URL}/${env.PAGURE_REPO_IS_FORK == 'true' ? 'forks/' : ''}${PAGURE_REPO_NAME}.git"
+              PREMERGE_JOB_NAME = "${PREMERGE_JOB_NAME}"
+              POSTMERGE_JOB_NAME = "${POSTMERGE_JOB_NAME}"
+            }
+            triggers { pollSCM("${PAGURE_POLLING_SCHEDULE}") }
+            stages {
+              stage('Prepare') {
+                agent { label 'master' }
+                steps {
+                  script {
+                    // checking out the polled branch
+                    def polledBranch = env.PAGURE_POLLING_FOR_PR == 'true' ? 'origin/pull/*/head' : "origin/${PAGURE_POLLED_BRANCH}"
+                    def scmVars = checkout([$class: 'GitSCM',
+                      branches: [[name: polledBranch]],
+                      userRemoteConfigs: [
+                        [
+                          name: 'origin',
+                          url: env.GIT_URL,
+                          refspec: '+refs/heads/*:refs/remotes/origin/* +refs/pull/*/head:refs/remotes/origin/pull/*/head',
+                        ],
+                      ],
+                      extensions: [[$class: 'CleanBeforeCheckout']],
+                    ])
+                    env.MBS_GIT_COMMIT = scmVars.GIT_COMMIT
+                    // setting build display name
+                    def prefix = 'origin/'
+                    def branch = scmVars.GIT_BRANCH.startsWith(prefix) ? scmVars.GIT_BRANCH.substring(prefix.size())
+                      : scmVars.GIT_BRANCH // origin/pull/1234/head -> pull/1234/head, origin/master -> master
+                    env.MBS_GIT_BRANCH = branch
+                    echo "Build on branch=${env.MBS_GIT_BRANCH}, commit=${env.MBS_GIT_COMMIT}"
+                    if (env.PAGURE_POLLING_FOR_PR == 'false') {
+                      currentBuild.displayName = "${env.MBS_GIT_BRANCH}: ${env.MBS_GIT_COMMIT.substring(0, 7)}"
+                      currentBuild.description = """<a href="${env.PAGURE_REPO_HOME}/c/${env.MBS_GIT_COMMIT}">${currentBuild.displayName}</a>"""
+                    } else if (env.PAGURE_POLLING_FOR_PR == 'true' && branch ==~ /^pull\/[0-9]+\/head$/) {
+                      env.PR_NO = branch.split('/')[1]
+                      env.PR_URL = "${env.PAGURE_REPO_HOME}/pull-request/${env.PR_NO}"
+                      // To HTML syntax in build description, go to `Jenkins/Global Security/Markup Formatter` and select 'Safe HTML'.
+                      def pagureLink = """<a href="${env.PR_URL}">PR#${env.PR_NO}</a>"""
+                      echo "Building PR #${env.PR_NO}: ${env.PR_URL}"
+                      currentBuild.displayName = "PR#${env.PR_NO}"
+                      currentBuild.description = pagureLink
+                    } else { // This shouldn't happen.
+                      error("Build is aborted due to unexpected polling trigger actions.")
+                    }
+                  }
+                }
+              }
+              stage('Update pipeline jobs') {
+                when {
+                  expression {
+                    return "${PIPELINE_UPDATE_JOBS_DIR}" && env.PAGURE_POLLING_FOR_PR == 'false' && env.MBS_GIT_BRANCH == "${PAGURE_POLLED_BRANCH}"
+                  }
+                }
+                steps {
+                  checkout([$class: 'GitSCM',
+                    branches: [[name: env.MBS_GIT_BRANCH]],
+                    userRemoteConfigs: [
+                      [
+                        name: 'origin',
+                        url: env.GIT_URL,
+                        refspec: '+refs/heads/*:refs/remotes/origin/* +refs/pull/*/head:refs/remotes/origin/pull/*/head',
+                      ],
+                    ],
+                    extensions: [[$class: 'CleanBeforeCheckout']],
+                  ])
+                  script {
+                    dir('openshift/integration/koji/pipelines') {
+                      sh '''
+                      make install JOBS_DIR="${PIPELINE_UPDATE_JOBS_DIR}"
+                      '''
+                    }
+                  }
+                }
+              }
+              stage('Build') {
+                steps {
+                  script {
+                    openshift.withCluster() {
+                      def bcSelector = openshift.selector('bc',
+                        env.PAGURE_POLLING_FOR_PR == 'true' ? env.PREMERGE_JOB_NAME : env.POSTMERGE_JOB_NAME)
+                      echo 'Starting a MBS build run...'
+                      def devBuild = bcSelector.startBuild(
+                        '-e', "MBS_GIT_REF=${env.MBS_GIT_BRANCH}",
+                      )
+                      devBuild.watch {
+                        return !(it.object().status.phase in ["New", "Pending"])
+                      }
+                      def devBuildInfo = devBuild.object()
+                      def downstreamBuildName = devBuildInfo.metadata.name
+                      def downstreamBuildUrl = devBuildInfo.metadata.annotations['openshift.io/jenkins-build-uri']
+                      echo "Downstream build ${downstreamBuildName}(${downstreamBuildUrl}) started."
+                    }
+                  }
+                }
+              }
+            }
+          }

@@ -1,0 +1,91 @@
+# Template to produce a new BuildConfig and ImageStream for MBS backend image builds.
+
+---
+apiVersion: v1
+kind: Template
+metadata:
+  name: mbs-backend-build-template
+labels:
+  template: mbs-backend-build-template
+parameters:
+- name: NAME
+  displayName: Short unique identifier for the templated instances.
+  required: true
+  value: mbs-backend
+- name: MBS_GIT_REPO
+  displayName: MBS Git repo URL
+  description: Default MBS Git repo URL in which to run dev tests against
+  required: true
+  value: https://pagure.io/fm-orchestrator.git
+- name: MBS_GIT_REF
+  displayName: MBS Git repo ref
+  description: Default MBS Git repo ref in which to run dev tests against
+  required: true
+  value: master
+- name: MBS_BACKEND_IMAGESTREAM_NAME
+  displayName: ImageStream name of the resulting image
+  required: true
+  value: mbs-backend
+- name: MBS_BACKEND_IMAGESTREAM_NAMESPACE
+  displayName: Namespace of ImageStream for MBS images
+  required: false
+- name: MBS_IMAGE_TAG
+  displayName: Tag of resulting image
+  required: true
+  value: latest
+- name: EXTRA_RPMS
+  displayName: Names of extra rpms to install
+  required: false
+  value: ""
+- name: CREATED
+  displayName: Creation date
+  description: The date and time the image was built, in RFC 3339 format
+  required: false
+  value: ""
+objects:
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    name: "${MBS_BACKEND_IMAGESTREAM_NAME}"
+    labels:
+      app: "${NAME}"
+- kind: "BuildConfig"
+  apiVersion: "v1"
+  metadata:
+    name: "${NAME}"
+    labels:
+      app: "${NAME}"
+  spec:
+    runPolicy: "Parallel"
+    completionDeadlineSeconds: 1800
+    strategy:
+      dockerStrategy:
+        forcePull: true
+        dockerfilePath: openshift/backend/Dockerfile
+        buildArgs:
+        - name: EXTRA_RPMS
+          value: "${EXTRA_RPMS}"
+        - name: GIT_REPO
+          value: "${MBS_GIT_REPO}"
+        - name: GIT_REF
+          value: "${MBS_GIT_REF}"
+        - name: VERSION
+          value: "${MBS_IMAGE_TAG}"
+        - name: CREATED
+          value: "${CREATED}"
+    resources:
+      requests:
+        memory: "768Mi"
+        cpu: "500m"
+      limits:
+       memory: "1Gi"
+       cpu: "800m"
+    source:
+      git:
+        uri: "${MBS_GIT_REPO}"
+        ref: "${MBS_GIT_REF}"
+    output:
+      to:
+        kind: "ImageStreamTag"
+        name: "${MBS_BACKEND_IMAGESTREAM_NAME}:${MBS_IMAGE_TAG}"
+        namespace: "${MBS_BACKEND_IMAGESTREAM_NAMESPACE}"

@@ -1,27 +1,54 @@
 # See `../backend/` for building `mbs-backend:latest`
 FROM mbs-backend:latest
+
+ARG GIT_REPO=""
+ARG GIT_REF=""
+ARG VERSION=""
+ARG CREATED=""
+ARG DNF_CMD="dnf -y --setopt=deltarpm=0 --setopt=install_weak_deps=false --setopt=tsflags=nodocs"
+
 LABEL \
-    name="Frontend for the Module Build Service (MBS)" \
-    vendor="The Factory 2.0 Team" \
-    license="MIT" \
-    description="The MBS coordinates module builds. This image is to serve as the MBS frontend." \
-    usage="https://pagure.io/fm-orchestrator" \
-    build-date=""
+    org.opencontainers.image.title="Frontend for the Module Build Service (MBS)" \
+    org.opencontainers.image.description="The MBS coordinates module builds. This image is to serve as the MBS frontend." \
+    org.opencontainers.image.vendor="The Factory 2.0 Team" \
+    org.opencontainers.image.authors="The Factory 2.0 Team <pnt-factory2-devel@redhat.com>" \
+    org.opencontainers.image.licenses="MIT" \
+    org.opencontainers.image.source="$GIT_REPO" \
+    org.opencontainers.image.revision="$GIT_REF" \
+    org.opencontainers.image.version="$VERSION" \
+    org.opencontainers.image.created="$CREATED" \
+    org.opencontainers.image.url="https://pagure.io/fm-orchestrator" \
+    org.opencontainers.image.documentation="https://pagure.io/fm-orchestrator" \
+    io.openshift.expose-services="8080:http,8443:https" \
+    distribution-scope="public"
 
-RUN dnf -y install \
-            httpd \
-            mod_wsgi \
-    && dnf -y clean all
+USER root
 
-EXPOSE 8080/tcp 8443/tcp
+RUN $DNF_CMD install \
+      nss_wrapper httpd mod_ssl python3-mod_wsgi && \
+    $DNF_CMD clean all
+
+RUN chmod a+rwx /run/httpd && \
+    sed -i -r -e 's!Listen 80!Listen 8080!' \
+              -e 's!^User apache!User default!' \
+              -e 's!^Group apache!Group root!' \
+              -e 's!^(\s*CustomLog)\s+\S+!\1 /proc/self/fd/1!' \
+              -e 's!^(\s*ErrorLog)\s+\S+!\1 /proc/self/fd/2!' \
+        /etc/httpd/conf/httpd.conf && \
+    sed -i -r -e 's!Listen 443!Listen 8443!' \
+              -e 's!_default_:443!_default_:8443!' \
+              -e 's!^(\s*CustomLog)\s+\S+!\1 /proc/self/fd/1!' \
+              -e 's!^(\s*TransferLog)\s+\S+!\1 /proc/self/fd/1!' \
+              -e 's!^(\s*ErrorLog)\s+\S+!\1 /proc/self/fd/2!' \
+              -e 's!^(SSLCertificateFile)\s+\S+!\1 /etc/mbs-certs/frontend.crt!' \
+              -e 's!^(SSLCertificateKeyFile)\s+\S+!\1 /etc/mbs-certs/frontend.key!' \
+              -e 's!^#(SSLCertificateChainFile)\s+\S+!\1 /etc/mbs-certs/frontendca.crt!' \
+        /etc/httpd/conf.d/ssl.conf
+
+COPY openshift/frontend/run-httpd /usr/bin
+
+USER 1001
+
 VOLUME ["/etc/module-build-service", "/etc/fedmsg.d", "/etc/mbs-certs", "/etc/httpd/conf.d"]
-ENTRYPOINT ["mod_wsgi-express", "start-server", "/usr/share/mbs/mbs.wsgi"]
-CMD [\
-    "--user", "fedmsg", "--group", "fedmsg", \
-    "--port", "8080", "--threads", "1", \
-    "--include-file", "/etc/httpd/conf.d/mbs.conf", \
-    "--log-level", "info", \
-    "--log-to-terminal", \
-    "--access-log", \
-    "--startup-log" \
-]
+EXPOSE 8080/tcp 8443/tcp
+ENTRYPOINT ["/usr/bin/run-httpd"]

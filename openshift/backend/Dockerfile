@@ -1,28 +1,57 @@
-FROM fedora:28
+FROM fedora:29 AS builder
+
+ARG EXTRA_RPMS=""
+ARG GIT_REPO=""
+ARG GIT_REF=""
+ARG VERSION=""
+ARG CREATED=""
+ARG DNF_CMD="dnf -y --setopt=deltarpm=0 --setopt=install_weak_deps=false --setopt=tsflags=nodocs"
+
+COPY . /src
+WORKDIR /src
+
+RUN ${DNF_CMD} install \
+      'dnf-command(builddep)' rpm-build rpmdevtools rpmlint \
+      python3-tox python3-pytest python3-mock python3-flake8 bandit && \
+    ${DNF_CMD} builddep *.spec && \
+    ${DNF_CMD} clean all
+RUN rpmdev-setuptree && \
+    python3 setup.py sdist && \
+    rpmbuild --define "_sourcedir $PWD/dist" -ba *.spec && \
+    mv $HOME/rpmbuild/RPMS /srv
+RUN flake8 && \
+    bandit -r -ll -s B102,B303,B411,B602 module_build_service && \
+    tox -v -e py3
+
+
+FROM fedora:29
 LABEL \
-    name="Backend for the Module Build Service (MBS)" \
-    vendor="The Factory 2.0 Team" \
-    license="MIT" \
-    description="The MBS coordinates module builds. This image is to serve as the MBS backend." \
-    usage="https://pagure.io/fm-orchestrator" \
-    build-date=""
+    org.opencontainers.image.title="Backend for the Module Build Service (MBS)" \
+    org.opencontainers.image.description="The MBS coordinates module builds. This image is to serve as the MBS backend." \
+    org.opencontainers.image.vendor="The Factory 2.0 Team" \
+    org.opencontainers.image.authors="The Factory 2.0 Team <pnt-factory2-devel@redhat.com>" \
+    org.opencontainers.image.licenses="MIT" \
+    org.opencontainers.image.source="$GIT_REPO" \
+    org.opencontainers.image.revision="$GIT_REF" \
+    org.opencontainers.image.version="$VERSION" \
+    org.opencontainers.image.created="$CREATED" \
+    org.opencontainers.image.url="https://pagure.io/fm-orchestrator" \
+    org.opencontainers.image.documentation="https://pagure.io/fm-orchestrator" \
+    distribution-scope="public"
 
-# The caller can chose to provide an already built module-build-service RPM.
-ARG mbs_rpm=module-build-service
-ARG mbs_messaging_umb_rpm
-ARG umb_ca_crt
+COPY --from=builder /srv/RPMS /srv/RPMS
+COPY repos/ /etc/yum.repos.d/
 
-RUN dnf -y install \
-            python2-pungi \
-            python2-psycopg2 \
-            https://dl.fedoraproject.org/pub/epel/7Server/x86_64/Packages/s/stomppy-3.1.6-3.el7.noarch.rpm \
-            $mbs_rpm \
-            $mbs_messaging_umb_rpm \
-    && dnf -y clean all
+RUN $DNF_CMD install \
+      python3-psycopg2 \
+      python3-docopt \
+      python3-service-identity \
+      /srv/*/*/*.rpm \
+      $EXTRA_RPMS && \
+    $DNF_CMD clean all && \
+    rm -rf /srv/RPMS
 
-ADD $umb_ca_crt /etc/pki/ca-trust/source/anchors/umb_serverca.crt
-# Do this as a workaround instead of `update-ca-trust`
-RUN cat /etc/pki/ca-trust/source/anchors/umb_serverca.crt >> /etc/pki/tls/certs/ca-bundle.crt
+USER 1001
 
 VOLUME ["/etc/module-build-service", "/etc/fedmsg.d", "/etc/mbs-certs"]
-ENTRYPOINT fedmsg-hub
+ENTRYPOINT ["fedmsg-hub-3"]

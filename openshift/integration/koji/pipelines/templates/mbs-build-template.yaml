@@ -1,0 +1,272 @@
+# Template to produce a new MBS build job in OpenShift.
+#
+# MBS build job is a part of the MBS C3I pipeline, covering the following steps:
+#
+# - Run Flake8 and Bandit checks
+# - Run unit tests
+# - Build SRPM
+# - Build RPM
+# - Invoke Rpmlint
+# - Build container
+# - Run integration tests against the latest Koji images
+# - Push container
+#
+# Required Jenkins Plugins:
+# - Openshift Sync plugin
+# - Openshift Client plugin
+# - Kubernetes plugin
+# - SSH Agent plugin
+# - Timestamper plugin
+# - HTTP Request plugin
+# - Red Hat CI Plugin
+#
+---
+apiVersion: v1
+kind: Template
+metadata:
+  name: mbs-build-pipeline
+parameters:
+- name: NAME
+  displayName: Short unique identifier for the templated instances
+  description: This field is used to deploy multiple pipelines to one OpenShift project from this template.
+  required: true
+  value: mbs-build
+- name: MBS_GIT_REPO
+  displayName: MBS Git repo URL
+  description: Default MBS Git repo URL in which to run dev tests against
+  required: true
+  value: https://pagure.io/fm-orchestrator.git
+- name: MBS_GIT_REF
+  displayName: MBS Git repo ref
+  description: Default MBS Git repo ref in which to run dev tests against
+  required: true
+  value: master
+- name: MBS_MAIN_BRANCH
+  displayName: Name of the main branch.
+  description: If MBS_MAIN_BRANCH equals MBS_GIT_REF, this is a post-merge build, otherwise it's a pre-merge build.
+  value: master
+  required: true
+- name: JENKINS_AGENT_CLOUD_NAME
+  displayName: Name of OpenShift cloud in Jenkins master configuration
+  required: true
+  value: openshift
+- name: JENKINS_AGENT_IMAGE
+  displayName: Container image for Jenkins slave pods
+  required: true
+  value: quay.io/factory2/mbs-jenkins-slave:latest
+- name: JENKINS_AGENT_CA_URLS
+  displayName: Space-separated list of URLs to CA certificates to install in the agent image
+  required: false
+  value: ""
+- name: MBS_BACKEND_DEV_IMAGE_DESTINATIONS
+  displayName: Comma seperated list of container repositories (without tag) to which the built MBS backend dev image will be pushed
+  description: OpenShift registries must be prefixed with 'atomic:'
+  required: false
+  value: "quay.io/factory2/mbs-backend"
+- name: MBS_FRONTEND_DEV_IMAGE_DESTINATIONS
+  displayName: Comma seperated list of container repositories (without tag) to which the built MBS frontend dev image will be pushed
+  description: OpenShift registries must be prefixed with 'atomic:'
+  required: false
+  value: "quay.io/factory2/mbs-frontend"
+- name: CONTAINER_REGISTRY_CREDENTIALS
+  displayName: Secret name of container registries used for pulling and pushing images
+  value: factory2-pipeline-registry-credentials
+  required: false
+- name: MBS_DEV_IMAGE_TAG
+  displayName: Tag name of the resulting container image for development environment
+  value: "latest"
+  required: true
+- name: MBS_BACKEND_IMAGESTREAM_NAME
+  displayName: Name of ImageStream for MBS backend images
+  required: true
+  value: mbs-backend
+- name: MBS_BACKEND_IMAGESTREAM_NAMESPACE
+  displayName: Namespace of ImageStream for MBS backend images
+  required: false
+- name: MBS_FRONTEND_IMAGESTREAM_NAME
+  displayName: Name of ImageStream for MBS frontend images
+  required: true
+  value: mbs-frontend
+- name: MBS_FRONTEND_IMAGESTREAM_NAMESPACE
+  displayName: Namespace of ImageStream for MBS frontend images
+  required: false
+- name: MBS_INTEGRATION_TEST_BUILD_CONFIG_NAME
+  displayName: Name of BuildConfig for running integration tests
+  required: true
+  value: mbs-dev-integration-test
+- name: MBS_INTEGRATION_TEST_BUILD_CONFIG_NAMESPACE
+  displayName: Namespace of BuildConfig for running integration tests
+  required: false
+- name: FORCE_PUBLISH_IMAGE
+  displayName: Whether to push the resulting image regardless of the Git branch
+  value: "false"
+  required: true
+- name: TAG_INTO_IMAGESTREAM
+  displayName: Whether to tag the pushed image as dev
+  value: "true"
+  required: true
+- name: PAGURE_URL
+  displayName: Pagure URL
+  value: "https://pagure.io"
+- name: PAGURE_REPO_NAME
+  value: fm-orchestrator
+- name: PAGURE_REPO_IS_FORK
+  value: "false"
+- name: PAGURE_API_KEY_SECRET_NAME
+  displayName: Name of Pagure API key secret for updating Pagure pull-request statuses
+  value: "pagure-api-key"
+- name: MAIL_ADDRESS
+  displayName: If set, build failure messages to this mail address.
+- name: MBS_SPEC_FILE
+  displayName: Repo to the rpm specfile for the module-build-service
+  required: true
+  value: "https://src.fedoraproject.org/rpms/module-build-service/raw/master/f/module-build-service.spec"
+- name: EXTRA_REPOS
+  displayName: Space-separated list of URLs to .repo files to install in the images
+  required: false
+  value: ""
+- name: EXTRA_RPMS
+  displayName: Space-separated list of rpm names to install in the images
+  required: false
+  value: ""
+- name: TESTCASES
+  displayName: >-
+    Space-separated list of testcases to run as part of the pipeline. An empty string (the default)
+    causes all available testcases to run. The value "skip" causes no testcases to be run.
+  required: false
+  value: ""
+- name: CLEANUP
+  displayName: Cleanup objects after the pipeline is complete
+  required: true
+  value: "true"
+labels:
+  template: mbs-build
+objects:
+- kind: "BuildConfig"
+  apiVersion: "v1"
+  metadata:
+    name: "${NAME}-jenkins-slave"
+    labels:
+      app: "${NAME}"
+  spec:
+    runPolicy: "Serial"
+    completionDeadlineSeconds: 1800
+    strategy:
+      dockerStrategy:
+        forcePull: true
+        dockerfilePath: Dockerfile
+        buildArgs:
+        - name: CA_URLS
+          value: "${JENKINS_AGENT_CA_URLS}"
+    resources:
+      requests:
+        memory: 512Mi
+        cpu: 300m
+      limits:
+       memory: 768Mi
+       cpu: 500m
+    source:
+      contextDir: openshift/integration/koji/containers/jenkins-slave
+      git:
+        uri: "${MBS_GIT_REPO}"
+        ref: "${MBS_GIT_REF}"
+    output:
+      to:
+        kind: DockerImage
+        name: "${JENKINS_AGENT_IMAGE}"
+      pushSecret:
+       name: "${CONTAINER_REGISTRY_CREDENTIALS}"
+
+- kind: ServiceAccount
+  apiVersion: v1
+  metadata:
+    name: "${NAME}-jenkins-slave"
+    labels:
+      app: "${NAME}"
+
+- kind: RoleBinding
+  apiVersion: v1
+  metadata:
+    name: "${NAME}-jenkins-slave_edit"
+    labels:
+      app: "${NAME}"
+  subjects:
+  - kind: ServiceAccount
+    name: "${NAME}-jenkins-slave"
+  roleRef:
+    name: edit
+
+- kind: "BuildConfig"
+  apiVersion: "v1"
+  metadata:
+    name: "${NAME}"
+    labels:
+      app: "${NAME}"
+  spec:
+    runPolicy: "Serial"
+    completionDeadlineSeconds: 1800
+    source:
+      git:
+        uri: "${MBS_GIT_REPO}"
+        ref: "${MBS_GIT_REF}"
+    strategy:
+      type: JenkinsPipeline
+      jenkinsPipelineStrategy:
+        env:
+        - name: MBS_GIT_REPO
+          value: "${MBS_GIT_REPO}"
+        - name: MBS_GIT_REF
+          value: "${MBS_GIT_REF}"
+        - name: JENKINS_AGENT_CLOUD_NAME
+          value: "${JENKINS_AGENT_CLOUD_NAME}"
+        - name: JENKINS_AGENT_IMAGE
+          value: "${JENKINS_AGENT_IMAGE}"
+        - name: JENKINS_AGENT_SERVICE_ACCOUNT
+          value: "${NAME}-jenkins-slave"
+        - name: MBS_BACKEND_DEV_IMAGE_DESTINATIONS
+          value: "${MBS_BACKEND_DEV_IMAGE_DESTINATIONS}"
+        - name: MBS_FRONTEND_DEV_IMAGE_DESTINATIONS
+          value: "${MBS_FRONTEND_DEV_IMAGE_DESTINATIONS}"
+        - name: CONTAINER_REGISTRY_CREDENTIALS
+          value: "${CONTAINER_REGISTRY_CREDENTIALS}"
+        - name: FORCE_PUBLISH_IMAGE
+          value: "${FORCE_PUBLISH_IMAGE}"
+        - name: TAG_INTO_IMAGESTREAM
+          value: "${TAG_INTO_IMAGESTREAM}"
+        - name: MBS_DEV_IMAGE_TAG
+          value: "${MBS_DEV_IMAGE_TAG}"
+        - name: MBS_BACKEND_IMAGESTREAM_NAME
+          value: "${MBS_BACKEND_IMAGESTREAM_NAME}"
+        - name: MBS_BACKEND_IMAGESTREAM_NAMESPACE
+          value: "${MBS_BACKEND_IMAGESTREAM_NAMESPACE}"
+        - name: MBS_FRONTEND_IMAGESTREAM_NAME
+          value: "${MBS_FRONTEND_IMAGESTREAM_NAME}"
+        - name: MBS_FRONTEND_IMAGESTREAM_NAMESPACE
+          value: "${MBS_FRONTEND_IMAGESTREAM_NAMESPACE}"
+        - name: MBS_MAIN_BRANCH
+          value: "${MBS_MAIN_BRANCH}"
+        - name: MBS_INTEGRATION_TEST_BUILD_CONFIG_NAME
+          value: "${MBS_INTEGRATION_TEST_BUILD_CONFIG_NAME}"
+        - name: MBS_INTEGRATION_TEST_BUILD_CONFIG_NAMESPACE
+          value: "${MBS_INTEGRATION_TEST_BUILD_CONFIG_NAMESPACE}"
+        - name: PAGURE_REPO_NAME
+          value: "${PAGURE_REPO_NAME}"
+        - name: PAGURE_REPO_IS_FORK
+          value: "${PAGURE_REPO_IS_FORK}"
+        - name: PAGURE_URL
+          value: "${PAGURE_URL}"
+        - name: PAGURE_API_KEY_SECRET_NAME
+          value: "${PAGURE_API_KEY_SECRET_NAME}"
+        - name: MAIL_ADDRESS
+          value: "${MAIL_ADDRESS}"
+        - name: MBS_SPEC_FILE
+          value: "${MBS_SPEC_FILE}"
+        - name: EXTRA_REPOS
+          value: "${EXTRA_REPOS}"
+        - name: EXTRA_RPMS
+          value: "${EXTRA_RPMS}"
+        - name: TESTCASES
+          value: "${TESTCASES}"
+        - name: CLEANUP
+          value: "${CLEANUP}"
+        jenkinsfilePath: openshift/integration/koji/pipelines/templates/mbs-build.Jenkinsfile

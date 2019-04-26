@@ -6,22 +6,14 @@ Deploy MBS to OpenShift
 ```bash
 $ docker build openshift/backend \
     --tag mbs-backend:latest \
-    --build-arg mbs_rpm=<MBS_RPM> \
-    --build-arg mbs_messaging_umb_rpm=<MBS_MESSAGING_UMB_RPM> \
-    --build-arg umb_ca_crt=<UMB_CA_CRT>
+    --build-arg EXTRA_RPMS=<MBS_MESSAGING_UMB_RPM>
 ```
 
 where:
-* MBS_RPM is a path or URL to the Module Build Service RPM. If not specified,
-  MBS [provided by
-  Fedora](https://apps.fedoraproject.org/packages/module-build-service) will be
-  installed in the image.
 * MBS_MESSAGING_UMB_RPM is a path or URL to the [UMB Messaging
   Plugin](https://github.com/release-engineering/mbs-messaging-umb) RPM. If not
   provided, only `fedmsg` and `in_memory` will be available for messaging in the
   image.
-* UMB_CA_CRT is a path or URL to the CA certificate of the message bus to be
-  used by MBS.
 
 ## Build the container image for MBS frontend
 

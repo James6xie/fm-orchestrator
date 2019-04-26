@@ -1,0 +1,120 @@
+# Template to produce a pipeline for promoting images between environments
+#
+# The pipeline pulls the image to be promoted, then pushes it to destinations with promoted tags.
+# Optionally, it tags the promoted image into an image stream after pushes.
+---
+apiVersion: v1
+kind: Template
+metadata:
+  name: mbs-image-promotion
+labels:
+  template: mbs-image-promotion
+parameters:
+- name: NAME
+  displayName: Short unique identifier for the templated instances
+  description: This field is used to deploy multiple pipelines to one OpenShift project from this template.
+  required: true
+- name: MBS_GIT_REPO
+  displayName: MBS Git repo URL
+  description: Default MBS Git repo URL in which to run functional tests against
+  required: true
+  value: "https://pagure.io/fm-orchestrator.git"
+- name: MBS_GIT_REF
+  displayName: MBS Git repo ref
+  description: Default MBS Git repo ref in which to run functional tests against
+  required: true
+  value: master
+- name: IMAGE
+  displayName: The container image to be promoted
+  description: This field must be in repo:tag or repo@sha256 format
+  value: provided-by-trigger
+- name: PROMOTING_DESTINATIONS
+  displayName: Comma seperated list of container repositories (without tags) to which the image will be promoted
+  description: OpenShift registries must be prefixed with 'atomic:'
+  required: true
+- name: CONTAINER_REGISTRY_CREDENTIALS
+  displayName: Secret name of container registries used for pulling and pushing images
+  value: factory2-pipeline-registry-credentials
+  required: false
+- name: TAG_INTO_IMAGESTREAM
+  displayName: Whether to tag the image into an ImageStream
+  value: "false"
+  required: true
+- name: DEST_IMAGESTREAM_NAME
+  displayName: Name of the ImageStream to be tagged
+  required: false
+  value: ""
+- name: DEST_IMAGESTREAM_NAMESPACE
+  displayName: Namespace of the ImageStream to be tagged
+  description: Leaving blank means using the same namespace as the pipeline build
+  required: false
+  value: ""
+- name: DEST_TAG
+  displayName: Name of the new tag
+  required: true
+- name: JENKINS_AGENT_IMAGE
+  displayName: Container image for Jenkins slave pods
+  required: true
+  value: quay.io/factory2/mbs-jenkins-slave:latest
+- name: JENKINS_AGENT_CLOUD_NAME
+  displayName: Name of OpenShift cloud in Jenkins master configuration
+  required: true
+  value: openshift
+objects:
+- kind: ServiceAccount
+  apiVersion: v1
+  metadata:
+    name: "${NAME}-jenkins-slave"
+    labels:
+      app: "${NAME}"
+- kind: RoleBinding
+  apiVersion: v1
+  metadata:
+    name: "${NAME}-jenkins-slave_edit"
+    labels:
+      app: "${NAME}"
+  subjects:
+  - kind: ServiceAccount
+    name: "${NAME}-jenkins-slave"
+  roleRef:
+    name: edit
+- kind: "BuildConfig"
+  apiVersion: "v1"
+  metadata:
+    name: "${NAME}"
+    labels:
+      app: "${NAME}"
+  spec:
+    runPolicy: "Serial" # FIXME: Parallel is supported, but we have limited quota in UpShift.
+    completionDeadlineSeconds: 1800
+    source:
+      git:
+        uri: "${MBS_GIT_REPO}"
+        ref: "${MBS_GIT_REF}"
+    strategy:
+      type: JenkinsPipeline
+      source:
+        type: None
+      jenkinsPipelineStrategy:
+        env:
+        - name: IMAGE
+          value: "${IMAGE}"
+        - name: PROMOTING_DESTINATIONS
+          value: "${PROMOTING_DESTINATIONS}"
+        - name: CONTAINER_REGISTRY_CREDENTIALS
+          value: "${CONTAINER_REGISTRY_CREDENTIALS}"
+        - name: TAG_INTO_IMAGESTREAM
+          value: "${TAG_INTO_IMAGESTREAM}"
+        - name: DEST_IMAGESTREAM_NAME
+          value: "${DEST_IMAGESTREAM_NAME}"
+        - name: DEST_IMAGESTREAM_NAMESPACE
+          value: "${DEST_IMAGESTREAM_NAMESPACE}"
+        - name: DEST_TAG
+          value: "${DEST_TAG}"
+        - name: JENKINS_AGENT_IMAGE
+          value: "${JENKINS_AGENT_IMAGE}"
+        - name: JENKINS_AGENT_CLOUD_NAME
+          value: "${JENKINS_AGENT_CLOUD_NAME}"
+        - name: JENKINS_AGENT_SERVICE_ACCOUNT
+          value: "${NAME}-jenkins-slave"
+        jenkinsfilePath: openshift/integration/koji/pipelines/templates/mbs-image-promotion.Jenkinsfile

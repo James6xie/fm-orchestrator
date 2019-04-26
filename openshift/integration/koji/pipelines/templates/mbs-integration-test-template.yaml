@@ -1,0 +1,141 @@
+# Template to produce a new OpenShift pipeline for running integration tests
+#
+---
+apiVersion: v1
+kind: Template
+metadata:
+  name: mbs-integration-test
+labels:
+  template: mbs-integration-test
+parameters:
+- name: NAME
+  displayName: Short unique identifier for the templated instances
+  description: This field is used to deploy multiple pipelines to one OpenShift project from this template.
+  required: true
+  value: mbs-integration-test
+- name: MBS_BACKEND_IMAGE
+  displayName: The MBS backend container image to be tested
+  description: This field must be in repo:tag or repo@sha256 format
+  value: quay.io/factory2/mbs-backend:latest
+- name: MBS_FRONTEND_IMAGE
+  displayName: The MBS frontend container image to be tested
+  description: This field must be in repo:tag or repo@sha256 format
+  value: quay.io/factory2/mbs-frontend:latest
+- name: MBS_GIT_REPO
+  displayName: MBS Git repo URL
+  description: Default MBS Git repo URL in which to find the integration tests to run
+  required: true
+  value: "https://pagure.io/fm-orchestrator.git"
+- name: MBS_GIT_REF
+  displayName: MBS Git repo ref
+  description: Default MBS Git repo ref in which to find the integration tests to run
+  required: true
+  value: master
+- name: KOJI_IMAGE
+  displayName: The Koji container image to be tested
+  description: This field must be in repo:tag or repo@sha256 format
+  value: quay.io/factory2/koji:latest
+- name: UMB_IMAGE
+  displayName: The UMB container image to be tested
+  description: This field must be in repo:tag or repo@sha256 format
+  value: docker-registry.engineering.redhat.com/factory2/umb:latest
+- name: TEST_IMAGES
+  displayName: Images being tested
+  description: >-
+    A space-separated list of the refs of the images being tested.
+    Results of the tests will be reported to ResultsDB.
+- name: JENKINS_AGENT_IMAGE
+  displayName: Container image for Jenkins slave pods
+  required: true
+  value: quay.io/factory2/mbs-jenkins-slave:latest
+- name: CONTAINER_REGISTRY_CREDENTIALS
+  displayName: Secret name of container registries used for pulling and pushing images
+  value: factory2-pipeline-registry-credentials
+  required: false
+- name: JENKINS_AGENT_CLOUD_NAME
+  displayName: Name of OpenShift cloud in Jenkins master configuration
+  required: true
+  value: openshift
+- name: ENVIRONMENT
+  displayName: environment name (dev/stage/prod)
+  required: true
+  value: dev
+- name: MESSAGING_PROVIDER
+  displayName: Name of the JMS messaging provider
+  value: Red Hat UMB
+- name: TESTCASES
+  displayName: >-
+    Space-separated list of testcases to run as part of the pipeline. An empty string (the default)
+    causes all available testcases to run. The value "skip" causes no testcases to be run.
+  required: false
+  value: ""
+- name: CLEANUP
+  displayName: Cleanup objects after testing is complete
+  required: true
+  value: "true"
+objects:
+- kind: ServiceAccount
+  apiVersion: v1
+  metadata:
+    name: "${NAME}-jenkins-slave"
+    labels:
+      app: "${NAME}"
+- kind: RoleBinding
+  apiVersion: v1
+  metadata:
+    name: "${NAME}-jenkins-slave_edit"
+    labels:
+      app: "${NAME}"
+  subjects:
+  - kind: ServiceAccount
+    name: "${NAME}-jenkins-slave"
+  roleRef:
+    name: edit
+- kind: "BuildConfig"
+  apiVersion: "v1"
+  metadata:
+    name: "${NAME}"
+    labels:
+      app: "${NAME}"
+  spec:
+    runPolicy: "Serial" # FIXME: Parallel is supported, but we have limited quota in UpShift.
+    completionDeadlineSeconds: 1800
+    source:
+      git:
+        uri: "${MBS_GIT_REPO}"
+        ref: "${MBS_GIT_REF}"
+    strategy:
+      type: JenkinsPipeline
+      jenkinsPipelineStrategy:
+        env:
+        - name: MBS_BACKEND_IMAGE
+          value: "${MBS_BACKEND_IMAGE}"
+        - name: MBS_FRONTEND_IMAGE
+          value: "${MBS_FRONTEND_IMAGE}"
+        - name: KOJI_IMAGE
+          value: "${KOJI_IMAGE}"
+        - name: UMB_IMAGE
+          value: "${UMB_IMAGE}"
+        - name: TEST_IMAGES
+          value: "${TEST_IMAGES}"
+        - name: IMAGE_IS_SCRATCH
+          value: "true"
+        - name: "TEST_ID"
+          value: ""
+        - name: CONTAINER_REGISTRY_CREDENTIALS
+          value: "${CONTAINER_REGISTRY_CREDENTIALS}"
+        - name: JENKINS_AGENT_IMAGE
+          value: "${JENKINS_AGENT_IMAGE}"
+        - name: JENKINS_AGENT_CLOUD_NAME
+          value: "${JENKINS_AGENT_CLOUD_NAME}"
+        - name: ENVIRONMENT
+          value: "${ENVIRONMENT}"
+        - name: MESSAGING_PROVIDER
+          value: "${MESSAGING_PROVIDER}"
+        - name: JENKINS_AGENT_SERVICE_ACCOUNT
+          value: "${NAME}-jenkins-slave"
+        - name: TESTCASES
+          value: "${TESTCASES}"
+        - name: CLEANUP
+          value: "${CLEANUP}"
+        jenkinsfilePath: openshift/integration/koji/pipelines/templates/mbs-integration-test.Jenkinsfile
