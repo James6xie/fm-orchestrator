@@ -298,29 +298,6 @@ class SCM(object):
         else:
             raise RuntimeError("is_full_commit_hash: Unhandled SCM scheme.")
 
-    def is_available(self, strict=False):
-        """Check whether the scmurl is available for checkout.
-
-        :param bool strict: When True, raise expection on error instead of
-                            returning False.
-        :returns: bool -- the scmurl is available for checkout
-        """
-        td = None
-        try:
-            td = tempfile.mkdtemp()
-            self.checkout(td)
-            return True
-        except Exception:
-            if strict:
-                raise
-            return False
-        finally:
-            try:
-                if td is not None:
-                    shutil.rmtree(td)
-            except Exception as e:
-                log.warning("Failed to remove temporary directory {!r}: {}".format(td, str(e)))
-
     @property
     def url(self):
         """The original scmurl."""
