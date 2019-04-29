@@ -167,30 +167,24 @@ class SCM(object):
         if self.scheme == "git":
             self.sourcedir = "%s/%s" % (scmdir, self.name)
 
-            module_clone_cmd = ["git", "clone", "-q"]
-            if self.commit:
-                module_clone_cmd.append("--no-checkout")
-                module_checkout_cmd = ["git", "checkout", "-q", self.commit]
-            else:
-                module_clone_cmd.extend(["--depth", "1"])
-            module_clone_cmd.extend([self.repository, self.sourcedir])
-
+            module_clone_cmd = [
+                "git", "clone", "-q", "--no-checkout", self.repository, self.sourcedir
+            ]
+            module_checkout_cmd = ["git", "checkout", "-q", self.commit]
             # perform checkouts
             SCM._run(module_clone_cmd, chdir=scmdir)
-            if self.commit:
-                try:
-                    SCM._run(module_checkout_cmd, chdir=self.sourcedir)
-                except RuntimeError as e:
-                    if (
-                        e.message.endswith(' did not match any file(s) known to git.\\n"')
-                        or "fatal: reference is not a tree: " in e.message
-                    ):
-                        raise UnprocessableEntity(
-                            "checkout: The requested commit hash was not found "
-                            "within the repository. Perhaps you forgot to push. "
-                            "The original message was: %s" % e.message
-                        )
-                    raise
+            try:
+                SCM._run(module_checkout_cmd, chdir=self.sourcedir)
+            except RuntimeError as e:
+                if (
+                    e.message.endswith(' did not match any file(s) known to git.\\n"')
+                    or "fatal: reference is not a tree: " in e.message
+                ):
+                    raise UnprocessableEntity(
+                        "checkout: The requested commit hash was not found within the repository. "
+                        "Perhaps you forgot to push. The original message was: %s" % e.message
+                    )
+                raise
 
             timestamp = SCM._run(["git", "show", "-s", "--format=%ct"], chdir=self.sourcedir)[1]
             dt = datetime.datetime.utcfromtimestamp(int(timestamp))
