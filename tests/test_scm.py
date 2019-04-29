@@ -93,7 +93,10 @@ class TestSCMModule:
 
     def test_verify_unknown_branch(self):
         with pytest.raises(UnprocessableEntity):
-            module_build_service.scm.SCM(repo_url, "unknown")
+            scm = module_build_service.scm.SCM(repo_url, "unknown")
+            # Accessing the commit property will cause the commit to be resolved, causing an
+            # exception
+            scm.commit
 
     def test_verify_commit_in_branch(self):
         target = "7035bd33614972ac66559ac1fdd019ff6027ad21"

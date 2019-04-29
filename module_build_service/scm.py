@@ -98,8 +98,6 @@ class SCM(object):
                 self.name = self.name[:-4]
             self.commit = match.group("commit")
             self.branch = branch if branch else "master"
-            if not self.commit:
-                self.commit = self.get_latest(self.branch)
             self.version = None
         else:
             raise ValidationError("Unhandled SCM scheme: %s" % self.scheme)
@@ -351,6 +349,9 @@ class SCM(object):
     @property
     def commit(self):
         """The commit ID, for example the git hash, or None."""
+        if not self._commit:
+            self._commit = self.get_latest(self.branch)
+
         return self._commit
 
     @commit.setter
