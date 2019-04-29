@@ -51,12 +51,16 @@ class SCM(object):
     types = scm_url_schemes()
 
     def __init__(self, url, branch=None, allowed_scm=None, allow_local=False):
-        """Initialize the SCM object using the specified scmurl.
+        """
+        Initialize the SCM object using the specified SCM URL.
 
         If url is not in the list of allowed_scm, an error will be raised.
 
         :param str url: The unmodified scmurl
-        :param list allowed_scm: The list of allowed SCMs, optional
+        :param str branch: The optional source control branch. This defaults to "master" when git
+            is used.
+        :param list allowed_scm: The optional list of allowed SCM URL prefixes
+        :param bool allow_local: Allow SCM URLs that start with "file://"
         :raises: Forbidden or ValidationError
         """
 
