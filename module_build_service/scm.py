@@ -197,15 +197,17 @@ class SCM(object):
             raise RuntimeError("checkout: Unhandled SCM scheme.")
         return self.sourcedir
 
-    def get_latest(self, ref="master"):
+    def get_latest(self, ref=None):
         """ Get the latest commit hash based on the provided git ref
 
-        :param ref: a string of a git ref (either a branch or commit hash)
+        :param ref: a string of a git ref (either a branch or commit hash). This defaults to
+            self.branch.
         :returns: a string of the latest commit hash
         :raises: RuntimeError
         """
         if ref is None:
-            ref = "master"
+            ref = self.branch
+
         if self.scheme == "git":
             log.debug("Getting/verifying commit hash for %s" % self.repository)
             try:
