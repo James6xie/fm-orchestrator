@@ -209,12 +209,9 @@ class SCM(object):
         if self.scheme == "git":
             log.debug("Getting/verifying commit hash for %s" % self.repository)
             try:
-                # This will fail if `ref` is not a branch name, but for example commit hash.
-                # It is valid use-case to use commit hashes in modules instead of branch names
-                # and in this case, there is no other way to get the full commit hash then
-                # fallbac to `get_full_commit_hash`. We do not want to retry here, because
-                # in case module contains only commit hashes, it would block for very long
-                # time.
+                # This will fail if `ref` is not a branch name, but this works for commit hashes.
+                # If the ref is not a branch, then fallback to `get_full_commit_hash`. We do not
+                # want to retry here, since if it's a commit, it would block for a very long time.
                 cmd = ["git", "ls-remote", "--exit-code", self.repository, "refs/heads/" + ref]
                 log.debug("Checking to see if the ref %s is a branch with `%s`", ref, " ".join(cmd))
                 _, output, _ = SCM._run_without_retry(cmd)
