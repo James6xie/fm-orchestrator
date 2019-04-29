@@ -217,10 +217,11 @@ class SCM(object):
                 # fallbac to `get_full_commit_hash`. We do not want to retry here, because
                 # in case module contains only commit hashes, it would block for very long
                 # time.
-                _, output, _ = SCM._run_without_retry(
-                    ["git", "ls-remote", "--exit-code", self.repository, "refs/heads/" + ref]
-                )
+                cmd = ["git", "ls-remote", "--exit-code", self.repository, "refs/heads/" + ref]
+                log.debug("Checking to see if the ref %s is a branch with `%s`", ref, " ".join(cmd))
+                _, output, _ = SCM._run_without_retry(cmd)
             except UnprocessableEntity:
+                log.debug("The ref %s is not a branch. Checking to see if it's a commit hash", ref)
                 # The call below will either return the commit hash as is (if a full one was
                 # provided) or the full commit hash (if a short hash was provided). If ref is not
                 # a commit hash, then this will raise an exception.
@@ -248,12 +249,19 @@ class SCM(object):
             raise RuntimeError('No commit hash was specified for "{0}"'.format(self.url))
 
         if self.scheme == "git":
-            log.debug('Getting the full commit hash for "{0}"'.format(self.repository))
+            log.debug(
+                "Getting the full commit hash on %s from %s", self.repository, commit_to_check)
             td = None
             try:
                 td = tempfile.mkdtemp()
                 SCM._run(["git", "clone", "-q", self.repository, td, "--bare"])
-                output = SCM._run(["git", "rev-parse", commit_to_check], chdir=td)[1]
+                cmd = ["git", "rev-parse", commit_to_check]
+                log.debug(
+                    "Running `%s` to get the full commit hash for %s",
+                    " ".join(cmd),
+                    commit_to_check
+                )
+                output = SCM._run(cmd, chdir=td)[1]
             finally:
                 if td and os.path.exists(td):
                     shutil.rmtree(td)

@@ -105,7 +105,10 @@ def _scm_get_latest(pkg):
         # we want to pull from, we need to resolve that f25 branch
         # to the specific commit available at the time of
         # submission (now).
-        pkgref = module_build_service.scm.SCM(pkg.get_repository()).get_latest(pkg.get_ref())
+        repo = pkg.get_repository()
+        ref = pkg.get_ref()
+        log.debug("Getting the commit hash for the ref %s on the repo %s", ref, repo)
+        pkgref = module_build_service.scm.SCM(repo).get_latest(ref)
     except Exception as e:
         log.exception(e)
         return {
