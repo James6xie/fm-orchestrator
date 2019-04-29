@@ -36,28 +36,24 @@ from six.moves import urllib_parse
 
 
 env_config = {
-    'fedora': {
-        'prod': {
-            'server_url': 'https://mbs.fedoraproject.org',
+    "fedora": {
+        "prod": {
+            "server_url": "https://mbs.fedoraproject.org"
         },
-        'staging': {
-            'server_url': 'https://mbs.stg.fedoraproject.org',
-        }
+        "staging": {
+            "server_url": "https://mbs.stg.fedoraproject.org"
+        },
     },
-    'redhat': {
-        'prod': {
-            'server_url': 'https://mbs.engineering.redhat.com',
-        },
-        'staging': {
-            'server_url': 'https://mbs.stage.engineering.redhat.com',
-        }
-    }
+    "redhat": {
+        "prod": {"server_url": "https://mbs.engineering.redhat.com"},
+        "staging": {"server_url": "https://mbs.stage.engineering.redhat.com"},
+    },
 }
 
 
 id_provider_config = {
-    'prod': 'https://id.fedoraproject.org/openidc/',
-    'staging': 'https://id.stg.fedoraproject.org/openidc/',
+    "prod": "https://id.fedoraproject.org/openidc/",
+    "staging": "https://id.stg.fedoraproject.org/openidc/",
 }
 
 
@@ -68,9 +64,14 @@ class AuthMech(enum.IntEnum):
 
 
 class MBSCli(object):
-
-    def __init__(self, server_url, api_version='2', verify_ssl=True,
-                 auth_mech=None, openidc_token=None):
+    def __init__(
+        self,
+        server_url,
+        api_version="2",
+        verify_ssl=True,
+        auth_mech=None,
+        openidc_token=None,
+    ):
         """Initialize MBS client
 
         :param str server_url: Base server URL of MBS (For example "https://localhost.tld").
@@ -91,8 +92,8 @@ class MBSCli(object):
         self._api_version = api_version
         self._verify_ssl = verify_ssl
         if auth_mech == AuthMech.OpenIDC and not openidc_token:
-            raise ValueError('OpenIDC token must be specified when OpenIDC'
-                             ' authentication is enabled.')
+            raise ValueError(
+                "OpenIDC token must be specified when OpenIDC authentication is enabled.")
         self._openidc_token = openidc_token
 
         if auth_mech is None:
@@ -129,7 +130,8 @@ class MBSCli(object):
         """
         return urllib_parse.urljoin(
             self._server_url,
-            'module-build-service/{0}/{1}'.format(self._api_version, resource_path.lstrip('/')))
+            "module-build-service/{0}/{1}".format(self._api_version, resource_path.lstrip("/")),
+        )
 
     def _make_request(self, method, resource_path, data=None):
         """Make a HTTP request to server
@@ -148,23 +150,24 @@ class MBSCli(object):
         request_data = {}
         headers = {}
         if data:
-            if method in ('post', 'patch'):
-                request_data['data'] = json.dumps(data)
-                headers['Content-Type'] = 'application/json'
-            if method == 'get':
-                request_data['params'] = data
+            if method in ("post", "patch"):
+                request_data["data"] = json.dumps(data)
+                headers["Content-Type"] = "application/json"
+            if method == "get":
+                request_data["params"] = data
         if not self._verify_ssl:
-            request_data['verify'] = False
+            request_data["verify"] = False
         if self._auth_mech == AuthMech.OpenIDC:
-            headers['Authorization'] = 'Bearer {0}'.format(self._openidc_token)
+            headers["Authorization"] = "Bearer {0}".format(self._openidc_token)
         elif self._auth_mech == AuthMech.Kerberos:
             import requests_kerberos
+
             # MBS server does not support mutual auth, so make it optional.
-            request_data['auth'] = requests_kerberos.HTTPKerberosAuth(
+            request_data["auth"] = requests_kerberos.HTTPKerberosAuth(
                 mutual_authentication=requests_kerberos.OPTIONAL)
 
         if headers:
-            request_data['headers'] = headers
+            request_data["headers"] = headers
 
         request_method = getattr(requests, method)
         resource_url = self._make_endpoint(resource_path)
@@ -179,15 +182,15 @@ class MBSCli(object):
 
     def _get(self, resource_path, data=None):
         """Make a GET HTTP request to server"""
-        return self._make_request('get', resource_path, data)
+        return self._make_request("get", resource_path, data)
 
     def _post(self, resource_path, data=None):
         """Make a POST HTTP request to server"""
-        return self._make_request('post', resource_path, data)
+        return self._make_request("post", resource_path, data)
 
     def _patch(self, resource_path, data=None):
         """Make a PATCH HTTP request to server"""
-        return self._make_request('patch', resource_path, data)
+        return self._make_request("patch", resource_path, data)
 
     def import_module(self, scmurl):
         """
@@ -211,38 +214,40 @@ def parse_args():
     Parses command line arguments using argparse and returns the result.
     """
     parser = argparse.ArgumentParser(
-        description='''\
+        description="""\
     %(prog)s - MBS API client
 
     If you have problems authenticating with OpenID Connect, try:
 
     $ rm -rf ~/.openidc/
-    ''',
+    """,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
-        '--redhat', action='store_const',
-        const='redhat', default='fedora', dest='infra',
-        help='Use internal MBS infra environment. If omitted, Fedora Infra will '
-             'be used by default.')
+        "--redhat",
+        action="store_const",
+        const="redhat",
+        default="fedora",
+        dest="infra",
+        help="Use internal MBS infra environment. If omitted, Fedora Infra will be used by "
+             "default.",
+    )
     parser.add_argument(
-        '--staging', action='store_const',
-        const='staging', default='prod', dest='env',
-        help='Use Fedora Infra or internal staging environment, which depends on '
-             'if --redhat is specified. If omitted, production environment will '
-             'be used.')
-    parser.add_argument(
-        '--server', default=None, help="Use custom MBS server.")
+        "--staging",
+        action="store_const",
+        const="staging",
+        default="prod",
+        dest="env",
+        help="Use Fedora Infra or internal staging environment, which depends on if --redhat "
+             "is specified. If omitted, production environment will be used.",
+    )
+    parser.add_argument("--server", default=None, help="Use custom MBS server.")
 
-    subparsers = parser.add_subparsers(
-        description='Commands you can use in MBS client.')
+    subparsers = parser.add_subparsers(description="Commands you can use in MBS client.")
 
-    import_parser = subparsers.add_parser(
-        'import', help='Import new virtual module.')
-    import_parser.set_defaults(command='import')
-    import_parser.add_argument(
-        'scmurl', default="",
-        help="SCM URL of module to import.")
+    import_parser = subparsers.add_parser("import", help="Import new virtual module.")
+    import_parser.set_defaults(command="import")
+    import_parser.add_argument("scmurl", default="", help="SCM URL of module to import.")
 
     args = parser.parse_args()
 
@@ -259,7 +264,7 @@ def create_mbs_client(args):
     `args`.
     """
     if args.server is None:
-        mbs_url = env_config[args.infra][args.env]['server_url']
+        mbs_url = env_config[args.infra][args.env]["server_url"]
     else:
         mbs_url = args.server
 
@@ -270,23 +275,23 @@ def create_mbs_client(args):
         try:
             import openidc_client
         except ImportError:
-            print('The python-openidc-client package must be installed', file=sys.stderr)
+            print("The python-openidc-client package must be installed", file=sys.stderr)
             sys.exit(1)
         id_provider = id_provider_config[args.env]
 
         # Get the auth token using the OpenID client.
         oidc = openidc_client.OpenIDCClient(
-            'mbs',
+            "mbs",
             id_provider,
-            {'Token': 'Token', 'Authorization': 'Authorization'},
-            'mbs-authorizer',
-            'notsecret',
+            {"Token": "Token", "Authorization": "Authorization"},
+            "mbs-authorizer",
+            "notsecret",
         )
 
         scopes = [
-            'openid',
-            'https://id.fedoraproject.org/scope/groups',
-            'https://mbs.fedoraproject.org/oidc/submit-build',
+            "openid",
+            "https://id.fedoraproject.org/scope/groups",
+            "https://mbs.fedoraproject.org/oidc/submit-build",
         ]
         try:
             token = oidc.get_token(scopes, new_token=True)
@@ -300,7 +305,7 @@ def create_mbs_client(args):
         try:
             import requests_kerberos  # noqa
         except ImportError:
-            print('The python-requests-kerberos package must be installed', file=sys.stderr)
+            print("The python-requests-kerberos package must be installed", file=sys.stderr)
             sys.exit(1)
 
     return MBSCli(mbs_url, auth_mech=auth_mech, openidc_token=openidc_token)
