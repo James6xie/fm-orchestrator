@@ -311,42 +311,6 @@ class SCM(object):
             raise RuntimeError("is_full_commit_hash: Unhandled SCM scheme.")
 
     @property
-    def url(self):
-        """The original scmurl."""
-        return self._url
-
-    @url.setter
-    def url(self, s):
-        self._url = str(s)
-
-    @property
-    def scheme(self):
-        """The SCM scheme."""
-        return self._scheme
-
-    @scheme.setter
-    def scheme(self, s):
-        self._scheme = str(s)
-
-    @property
-    def sourcedir(self):
-        """The SCM source directory."""
-        return self._sourcedir
-
-    @sourcedir.setter
-    def sourcedir(self, s):
-        self._sourcedir = str(s)
-
-    @property
-    def repository(self):
-        """The repository part of the scmurl."""
-        return self._repository
-
-    @repository.setter
-    def repository(self, s):
-        self._repository = str(s)
-
-    @property
     def commit(self):
         """The commit ID, for example the git hash, or None."""
         if not self._commit:
@@ -357,12 +321,3 @@ class SCM(object):
     @commit.setter
     def commit(self, s):
         self._commit = str(s) if s else None
-
-    @property
-    def name(self):
-        """The module name."""
-        return self._name
-
-    @name.setter
-    def name(self, s):
-        self._name = str(s)
