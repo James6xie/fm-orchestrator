@@ -238,10 +238,18 @@ class SCM(object):
         """
         if commit_hash:
             commit_to_check = commit_hash
-        elif self.commit:
-            commit_to_check = self.commit
+        elif self._commit:
+            commit_to_check = self._commit
         else:
-            raise RuntimeError('No commit hash was specified for "{0}"'.format(self.url))
+            try:
+                # If self._commit was None, then calling `self.commit` will resolve the ref based
+                # on the branch
+                return self.commit
+            except UnprocessableEntity:
+                # If there was an exception resolving the ref based on the branch (could be the
+                # default branch that doesn't exist), then there is not enough information to get
+                # the commit hash
+                raise RuntimeError('No commit hash was specified for "{0}"'.format(self.url))
 
         if self.scheme == "git":
             log.debug(
