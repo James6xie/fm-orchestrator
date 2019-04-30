@@ -102,6 +102,8 @@ class FakeSCM(object):
         self.mocked_scm.return_value.branch = branch
         self.mocked_scm.return_value.sourcedir = self.sourcedir
         self.mocked_scm.return_value.get_module_yaml = self.get_module_yaml
+        self.mocked_scm.return_value.is_full_commit_hash.return_value = commit and len(commit) == 40
+        self.mocked_scm.return_value.get_full_commit_hash.return_value = self.get_full_commit_hash
 
     def checkout(self, temp_dir):
         try:
@@ -123,6 +125,12 @@ class FakeSCM(object):
 
     def get_module_yaml(self):
         return path.join(self.sourcedir, self.name + ".yaml")
+
+    def get_full_commit_hash(self, commit_hash=None):
+        if not commit_hash:
+            commit_hash = self.commit
+        sha1_hash = hashlib.sha1("random").hexdigest()
+        return commit_hash + sha1_hash[len(commit_hash):]
 
 
 class TestViews:

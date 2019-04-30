@@ -145,18 +145,13 @@ def format_mmd(mmd, scmurl, module=None, session=None):
     # If module build was submitted via yaml file, there is no scmurl
     if scmurl:
         scm = SCM(scmurl)
-        # If a commit hash is provided, add that information to the modulemd
-        if scm.commit:
-            # We want to make sure we have the full commit hash for consistency
-            if SCM.is_full_commit_hash(scm.scheme, scm.commit):
-                full_scm_hash = scm.commit
-            else:
-                full_scm_hash = scm.get_full_commit_hash()
-
-            xmd["mbs"]["commit"] = full_scm_hash
-        # If a commit hash wasn't provided then just get the latest from master
+        # We want to make sure we have the full commit hash for consistency
+        if SCM.is_full_commit_hash(scm.scheme, scm.commit):
+            full_scm_hash = scm.commit
         else:
-            xmd["mbs"]["commit"] = scm.get_latest()
+            full_scm_hash = scm.get_full_commit_hash()
+
+        xmd["mbs"]["commit"] = full_scm_hash
 
     if mmd.get_rpm_components() or mmd.get_module_components():
         if "rpms" not in xmd["mbs"]:
