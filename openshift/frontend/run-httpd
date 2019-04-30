@@ -2,6 +2,14 @@
 
 set -eu
 
+# OpenShift containers run as a user with a random uid, which does not appear in
+# /etc/passwd. httpd tries to look up the uid for the user it is running as
+# (default in this case), and will exit if it cannot find that user in
+# /etc/passwd. This script copies /etc/passwd to /tmp to make it writable, and
+# appends an entry to /etc/passwd for the "default" user, using the current uid
+# and gid. It then uses libnss_wrapper.so to redirect references from
+# /etc/passwd to our modified file in /tmp, so httpd can run as "default".
+
 export USER_ID=$(id -u)
 export GROUP_ID=$(id -g)
 
