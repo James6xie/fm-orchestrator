@@ -54,7 +54,7 @@ pipeline {
       steps {
         script {
           // check out specified branch/commit
-          /*def scmVars =*/ checkout([$class: 'GitSCM',
+          checkout([$class: 'GitSCM',
             branches: [[name: params.MBS_GIT_REF]],
             userRemoteConfigs: [[url: params.MBS_GIT_REPO, refspec: '+refs/heads/*:refs/remotes/origin/* +refs/pull/*/head:refs/remotes/origin/pull/*/head']],
           ])
