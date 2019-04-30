@@ -163,8 +163,8 @@ def build_module_locally(
         params["local_build"] = True
         params["default_streams"] = {}
         for ns in default_streams:
-            name, stream = ns.split(":")
-            params["default_streams"][name] = stream
+            n, s = ns.split(":")
+            params["default_streams"][n] = s
         if srpms:
             params["srpms"] = srpms
 

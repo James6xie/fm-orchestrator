@@ -18,10 +18,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 import pytest
-from mock import patch
+from mock import patch, mock_open, ANY
 
 from module_build_service import conf
-from module_build_service.manage import retire
+from module_build_service.manage import retire, build_module_locally
 from module_build_service.models import BUILD_STATES, ModuleBuild, make_session
 from tests.test_models import init_data
 
@@ -123,3 +123,16 @@ class TestMBSManage:
 
         expected_changed_count = 3 if confirm_expected else 0
         assert len(retired_module_builds) == expected_changed_count
+
+    @patch("module_build_service.manage.open", create=True, new_callable=mock_open)
+    @patch("module_build_service.manage.submit_module_build_from_yaml")
+    @patch("module_build_service.scheduler.main")
+    @patch("module_build_service.manage.conf.set_item")
+    def test_build_module_locally_set_stream(
+            self, conf_set_item, main, submit_module_build_from_yaml, patched_open):
+        build_module_locally(
+            yaml_file="./fake.yaml", default_streams=["platform:el8"], stream="foo")
+
+        submit_module_build_from_yaml.assert_called_once_with(
+            ANY, ANY, {"default_streams": {"platform": "el8"}, "local_build": True},
+            skiptests=False, stream="foo")
