@@ -82,7 +82,7 @@ def runTests() {
       echo "Groups of ${target.build_tag_name}: ${groups}"
       def srpm_build = groups.find { it.name == "srpm-build" }
       if (!srpm_build) {
-        echo "${target.build_tag_name} does not have a srpm-build group"
+        echo "${target.build_tag_name} does not have an srpm-build group"
         return false
       }
       def srpm_packages = srpm_build.packagelist.findAll { it.package in ["bash", "rpm-build", "module-build-macros"] }
@@ -116,7 +116,7 @@ def runTests() {
         return false
       }
       if (!build_task.request[0].endsWith(".src.rpm")) {
-        echo "The build task is not building from a srpm"
+        echo "The build task is not building from an SRPM"
         return false
       }
       if (build_task.request[1] != target.name) {
