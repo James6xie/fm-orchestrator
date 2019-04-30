@@ -54,4 +54,4 @@ RUN $DNF_CMD install \
 USER 1001
 
 VOLUME ["/etc/module-build-service", "/etc/fedmsg.d", "/etc/mbs-certs"]
-ENTRYPOINT ["fedmsg-hub-3"]
+CMD ["fedmsg-hub-3"]

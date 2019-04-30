@@ -51,4 +51,4 @@ USER 1001
 
 VOLUME ["/etc/module-build-service", "/etc/fedmsg.d", "/etc/mbs-certs", "/etc/httpd/conf.d"]
 EXPOSE 8080/tcp 8443/tcp
-ENTRYPOINT ["/usr/bin/run-httpd"]
+CMD ["/usr/bin/run-httpd"]
