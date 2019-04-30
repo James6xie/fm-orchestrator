@@ -191,7 +191,7 @@ class ModuleBuild(MBSBase):
     ref_build_context = db.Column(db.String)
     build_context = db.Column(db.String)
     runtime_context = db.Column(db.String)
-    context = db.Column(db.String, server_default=DEFAULT_MODULE_CONTEXT)
+    context = db.Column(db.String, nullable=False, server_default=DEFAULT_MODULE_CONTEXT)
     state = db.Column(db.Integer, nullable=False)
     state_reason = db.Column(db.String)
     modulemd = db.Column(db.String, nullable=False)

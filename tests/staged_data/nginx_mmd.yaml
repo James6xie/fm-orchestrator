@@ -16,6 +16,7 @@ data:
     # timestamp.  Module version defines upgrade path for the particular
     # update stream.
     version: 2
+    context: '00000000'
     # A short summary describing the module, required
     summary: An example nginx module
     # A verbose description of the module, required

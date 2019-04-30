@@ -204,20 +204,20 @@ class TestBuild:
         """ Test preparation of directory with output files """
         dir_path = self.cg._prepare_file_directory()
         with io.open(path.join(dir_path, "modulemd.txt"), encoding="utf-8") as mmd:
-            assert len(mmd.read()) == 1136
+            assert len(mmd.read()) == 1160
 
     def test_prepare_file_directory_per_arch_mmds(self):
         """ Test preparation of directory with output files """
         self.cg.arches = ["x86_64", "i686"]
         dir_path = self.cg._prepare_file_directory()
         with io.open(path.join(dir_path, "modulemd.txt"), encoding="utf-8") as mmd:
-            assert len(mmd.read()) == 1136
+            assert len(mmd.read()) == 1160
 
         with io.open(path.join(dir_path, "modulemd.x86_64.txt"), encoding="utf-8") as mmd:
-            assert len(mmd.read()) == 236
+            assert len(mmd.read()) == 256
 
         with io.open(path.join(dir_path, "modulemd.i686.txt"), encoding="utf-8") as mmd:
-            assert len(mmd.read()) == 234
+            assert len(mmd.read()) == 254
 
     @patch.dict("sys.modules", krbV=Mock())
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
@@ -290,12 +290,12 @@ class TestBuild:
         assert ret == {
             "arch": "x86_64",
             "buildroot_id": 1,
-            "checksum": "96b7739ffa3918e6ac3e3bd422b064ea",
+            "checksum": "aed2e2774c82cbc19fe9555f70cafd79",
             "checksum_type": "md5",
             "components": [],
             "extra": {"typeinfo": {"module": {}}},
             "filename": "modulemd.x86_64.txt",
-            "filesize": 1138,
+            "filesize": 1162,
             "type": "file",
         }
 
@@ -333,7 +333,7 @@ class TestBuild:
         assert ret == {
             "arch": "x86_64",
             "buildroot_id": 1,
-            "checksum": "bb6ba47519b68aee215d095fd2c57c70",
+            "checksum": "5fbad2ef9b6c5496bdce4368ca3182d6",
             "checksum_type": "md5",
             "components": [
                 {
@@ -348,7 +348,7 @@ class TestBuild:
             ],
             "extra": {"typeinfo": {"module": {}}},
             "filename": "modulemd.x86_64.txt",
-            "filesize": 296,
+            "filesize": 316,
             "type": "file",
         }
 
