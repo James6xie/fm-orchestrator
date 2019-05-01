@@ -70,7 +70,7 @@ pipeline {
           env.PR_NO = getPrNo(params.MBS_GIT_REF)
 
           // Generate a version-release number for the target Git commit
-          env.MBS_VERSION = sh(script: """grep -m 1 -P -o "(?<=version=')[^']+" setup.py""", returnStdout: true).trim()
+          env.MBS_VERSION = sh(script: """grep -m 1 -P -o '(?<=version=")[^"]+' setup.py""", returnStdout: true).trim()
           env.BUILD_SUFFIX = ".jenkins${currentBuild.id}.git${env.MBS_GIT_COMMIT.take(7)}"
           env.TEMP_TAG = "${env.MBS_VERSION}${env.BUILD_SUFFIX}"
 
