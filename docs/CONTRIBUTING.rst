@@ -17,6 +17,68 @@ Then run the tests with::
 
     $ sudo docker run -t --rm -v $PWD:/src:Z mbs/test
 
+Style Guide
+===========
+
+Automatically Checked
+---------------------
+
+The codebase conforms to the style enforced by ``flake8`` with the following exceptions:
+
+- The maximum line length allowed is 100 characters instead of 80 characters
+- The use of lambda functions are allowed (ignoring E731)
+- Line breaks should occur before a binary operator (ignoring W503)
+
+These rules are enforced by running ``tox -e flake8`` on pull-requests.
+
+Requires Manual Review
+----------------------
+
+In addition to the ``flake8`` rules, **double quotes** are used over single quotes. If the string
+contains double quotes in it, then single quotes may be used to avoid escaping.
+
+Also, the format of the docstrings should be in the
+`Sphinx style <http://www.sphinx-doc.org/en/master/usage/restructuredtext/domains.html>`_ such as:
+
+::
+
+    Calculate the sum of two numbers.
+
+    :param int a: the first number to add
+    :param int b: the second number to add
+    :return: the sum of a and b
+    :rtype: int
+    :raises TypeError: if a or b are not integers
+
+
+Additionally, the imports should be ordered by standard library, third-party, then local. For example:
+
+::
+
+    import math
+    import os
+
+    import flask
+    import requests
+
+    import module_build_service.utils
+    from module_build_service.errors import ValidationError
+
+
+Lastly, hanging indentation should be avoided when possible. For example:
+
+::
+
+    # Preferred
+    def get_module_build_dependencies(
+        self, name=None, stream=None, version=None, context=None, mmd=None, strict=False
+    ):
+        pass
+
+    # Should be avoided
+    def get_module_build_dependencies(self, name=None, stream=None, version=None,
+                                      context=None, mmd=None, strict=False):
+        pass
 
 Development
 ===========

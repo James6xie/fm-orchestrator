@@ -23,6 +23,14 @@ For a detailed change log, see |docs/CHANGELOG.rst|_.
 .. |docs/CHANGELOG.rst| replace:: ``docs/CHANGELOG.rst``
 .. _docs/CHANGELOG.rst: docs/CHANGELOG.rst
 
+Contributing
+============
+
+For detailed information on how to contribute, see |docs/CONTRIBUTING.rst|_.
+
+.. |docs/CONTRIBUTING.rst| replace:: ``docs/CONTRIBUTING.rst``
+.. _docs/CONTRIBUTING.rst: docs/CONTRIBUTING.rst
+
 Supported build systems
 =======================
 
