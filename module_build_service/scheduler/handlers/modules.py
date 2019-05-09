@@ -37,6 +37,7 @@ from module_build_service.utils import (
 )
 from module_build_service.errors import UnprocessableEntity, Forbidden, ValidationError
 from module_build_service.utils.ursine import handle_stream_collision_modules
+from module_build_service.utils.greenwave import greenwave
 
 from requests.exceptions import ConnectionError
 from module_build_service.utils import mmd_to_str
@@ -131,10 +132,11 @@ def done(config, session, msg):
         # This is ok.. it's a race condition we can ignore.
         pass
 
-    # Scratch builds stay in 'done' state, otherwise move to 'ready'
+    # Scratch builds stay in 'done' state
     if not build.scratch:
-        build.transition(config, state="ready")
-        session.commit()
+        if greenwave is None or greenwave.check_gating(build):
+            build.transition(config, state="ready")
+            session.commit()
 
     build_logs.stop(build)
     module_build_service.builder.GenericBuilder.clear_cache(build)

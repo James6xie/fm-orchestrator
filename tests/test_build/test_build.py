@@ -406,9 +406,12 @@ class TestBuild:
                 pass
 
     @pytest.mark.parametrize("mmd_version", [1, 2])
+    @patch("module_build_service.utils.greenwave.Greenwave.check_gating", return_value=True)
     @patch("module_build_service.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
-    def test_submit_build(self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc, mmd_version):
+    def test_submit_build(
+        self, mocked_scm, mocked_get_user, mocked_greenwave, conf_system, dbg, hmsc, mmd_version
+    ):
         """
         Tests the build of testmodule.yaml using FakeModuleBuilder which
         succeeds everytime.
@@ -481,12 +484,17 @@ class TestBuild:
         assert module_build.module_builds_trace[4].state == models.BUILD_STATES["ready"]
         assert len(module_build.module_builds_trace) == 5
 
+    @pytest.mark.parametrize("gating_result", (True, False))
+    @patch("module_build_service.utils.greenwave.Greenwave.check_gating")
     @patch("module_build_service.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
-    def test_submit_build_no_components(self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc):
+    def test_submit_build_no_components(
+        self, mocked_scm, mocked_get_user, mocked_greenwave, conf_system, dbg, hmsc, gating_result
+    ):
         """
         Tests the build of a module with no components
         """
+        mocked_greenwave.return_value = gating_result
         FakeSCM(
             mocked_scm,
             "python3",
@@ -512,7 +520,10 @@ class TestBuild:
         # Make sure no component builds were registered
         assert len(module_build.component_builds) == 0
         # Make sure the build is done
-        assert module_build.state == models.BUILD_STATES["ready"]
+        if gating_result:
+            assert module_build.state == models.BUILD_STATES["ready"]
+        else:
+            assert module_build.state == models.BUILD_STATES["done"]
 
     @patch(
         "module_build_service.config.Config.check_for_eol",
@@ -1412,10 +1423,11 @@ class TestBuild:
                 models.BUILD_STATES["ready"],
             ]
 
+    @patch("module_build_service.utils.greenwave.Greenwave.check_gating", return_value=True)
     @patch("module_build_service.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_resume_init_fail(
-        self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc
+        self, mocked_scm, mocked_get_user, mock_greenwave, conf_system, dbg, hmsc
     ):
         """
         Tests that resuming the build fails when the build is in init state
@@ -1654,10 +1666,11 @@ class TestBuild:
         module = db.session.query(models.ModuleBuild).get(module_build_id)
         assert module.state == models.BUILD_STATES["build"]
 
+    @patch("module_build_service.utils.greenwave.Greenwave.check_gating", return_value=True)
     @patch("module_build_service.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_br_metadata_only_module(
-        self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc
+        self, mocked_scm, mocked_get_user, mock_greenwave, conf_system, dbg, hmsc
     ):
         """
         Test that when a build is submitted with a buildrequire without a Koji tag,
