@@ -26,7 +26,7 @@ from module_build_service import log, models, Modulemd, db, conf
 from module_build_service.errors import StreamAmbigous
 from module_build_service.errors import UnprocessableEntity
 from module_build_service.mmd_resolver import MMDResolver
-from module_build_service import glib
+from module_build_service.utils.general import deps_to_dict, mmd_to_str
 import module_build_service.resolver
 
 
@@ -90,7 +90,7 @@ def expand_mse_streams(session, mmd, default_streams=None, raise_if_stream_ambig
     Expands streams in both buildrequires/requires sections of MMD.
 
     :param session: SQLAlchemy DB session.
-    :param Modulemd.Module mmd: Modulemd metadata with original unexpanded module.
+    :param Modulemd.ModuleStream mmd: Modulemd metadata with original unexpanded module.
     :param dict default_streams: Dict in {module_name: module_stream, ...} format defining
         the default stream to choose for module in case when there are multiple streams to
         choose from.
@@ -99,25 +99,32 @@ def expand_mse_streams(session, mmd, default_streams=None, raise_if_stream_ambig
         defined in `default_streams`, so it is not clear which stream should be used.
     """
     for deps in mmd.get_dependencies():
-        expanded = {}
-        for name, streams in deps.get_requires().items():
-            streams_set = Modulemd.SimpleSet()
-            streams_set.set(
-                _expand_mse_streams(
-                    session, name, streams.get(), default_streams, raise_if_stream_ambigous)
-            )
-            expanded[name] = streams_set
-        deps.set_requires(expanded)
+        new_deps = Modulemd.Dependencies()
+        for name in deps.get_runtime_modules():
+            streams = deps.get_runtime_streams(name)
+            new_streams = _expand_mse_streams(
+                session, name, streams, default_streams, raise_if_stream_ambigous)
 
-        expanded = {}
-        for name, streams in deps.get_buildrequires().items():
-            streams_set = Modulemd.SimpleSet()
-            streams_set.set(
-                _expand_mse_streams(
-                    session, name, streams.get(), default_streams, raise_if_stream_ambigous)
-            )
-            expanded[name] = streams_set
-        deps.set_buildrequires(expanded)
+            if new_streams == []:
+                new_deps.set_empty_runtime_dependencies_for_module(name)
+            else:
+                for stream in new_streams:
+                    new_deps.add_runtime_stream(name, stream)
+
+        for name in deps.get_buildtime_modules():
+            streams = deps.get_buildtime_streams(name)
+            new_streams = _expand_mse_streams(
+                session, name, streams, default_streams, raise_if_stream_ambigous)
+
+            if new_streams == []:
+                new_deps.set_empty_buildtime_dependencies_for_module(name)
+            else:
+                for stream in new_streams:
+                    new_deps.add_buildtime_stream(name, stream)
+
+        # Replace the Dependencies object
+        mmd.remove_dependencies(deps)
+        mmd.add_dependencies(new_deps)
 
 
 def _get_mmds_from_requires(
@@ -132,7 +139,7 @@ def _get_mmds_from_requires(
     Helper method for get_mmds_required_by_module_recursively returning
     the list of module metadata objects defined by `requires` dict.
 
-    :param requires: Modulemd.Module requires or buildrequires.
+    :param dict requires: requires or buildrequires in the form {module: [streams]}
     :param mmds: Dictionary with already handled name:streams as a keys and lists
         of resulting mmds as values.
     :param recursive: If True, the requires are checked recursively.
@@ -158,7 +165,7 @@ def _get_mmds_from_requires(
         if name in conf.base_module_names:
             continue
 
-        streams_to_try = streams.get()
+        streams_to_try = streams
         if name in default_streams:
             streams_to_try = [default_streams[name]]
         elif len(streams_to_try) > 1 and raise_if_stream_ambigous:
@@ -171,7 +178,7 @@ def _get_mmds_from_requires(
         # its contexts and add mmds of these builds to `mmds` and `added_mmds`.
         # Of course only do that if we have not done that already in some
         # previous call of this method.
-        for stream in streams.get():
+        for stream in streams:
             ns = "%s:%s" % (name, stream)
             if ns not in mmds:
                 mmds[ns] = []
@@ -180,12 +187,7 @@ def _get_mmds_from_requires(
 
             if base_module_mmds:
                 for base_module_mmd in base_module_mmds:
-                    base_module_nsvc = ":".join([
-                        base_module_mmd.get_name(),
-                        base_module_mmd.get_stream(),
-                        str(base_module_mmd.get_version()),
-                        base_module_mmd.get_context(),
-                    ])
+                    base_module_nsvc = base_module_mmd.get_nsvc()
                     mmds[ns] += resolver.get_buildrequired_modulemds(name, stream, base_module_nsvc)
             else:
                 mmds[ns] = resolver.get_module_modulemds(name, stream, strict=True)
@@ -196,8 +198,9 @@ def _get_mmds_from_requires(
         for mmd_list in added_mmds.values():
             for mmd in mmd_list:
                 for deps in mmd.get_dependencies():
+                    deps_dict = deps_to_dict(deps, 'runtime')
                     mmds = _get_mmds_from_requires(
-                        deps.get_requires(), mmds, True, base_module_mmds=base_module_mmds)
+                        deps_dict, mmds, True, base_module_mmds=base_module_mmds)
 
     return mmds
 
@@ -216,7 +219,10 @@ def _get_base_module_mmds(mmd):
 
     resolver = module_build_service.resolver.system_resolver
     for deps in mmd.get_dependencies():
-        buildrequires = deps.get_buildrequires()
+        buildrequires = {
+            module: deps.get_buildtime_streams(module)
+            for module in deps.get_buildtime_modules()
+        }
         for name in conf.base_module_names:
             if name not in buildrequires.keys():
                 continue
@@ -226,7 +232,7 @@ def _get_base_module_mmds(mmd):
             # streams are f29.1.0 and f29.2.0, then two queries will occur, causing f29.1.0 to be
             # returned twice. Only one query for that scenario is necessary.
             sorted_desc_streams = sorted(
-                buildrequires[name].get(), reverse=True, key=models.ModuleBuild.get_stream_version)
+                buildrequires[name], reverse=True, key=models.ModuleBuild.get_stream_version)
             for stream in sorted_desc_streams:
                 ns = ":".join([name, stream])
                 if ns in seen:
@@ -243,16 +249,18 @@ def _get_base_module_mmds(mmd):
                     continue
                 stream_mmd = mmds[0]
 
+                # Get the list of compatible virtual streams.
+                xmd = stream_mmd.get_xmd()
+                virtual_streams = xmd.get("mbs", {}).get("virtual_streams")
+
                 # In case there are no virtual_streams in the buildrequired name:stream,
                 # it is clear that there are no compatible streams, so return just this
                 # `stream_mmd`.
-                xmd = stream_mmd.get_xmd()
-                if "mbs" not in xmd.keys() or "virtual_streams" not in xmd["mbs"].keys():
+                if not virtual_streams:
                     seen.add(ns)
                     ret.append(stream_mmd)
                     continue
 
-                # Get the list of compatible virtual streams.
                 virtual_streams = xmd["mbs"]["virtual_streams"]
 
                 mmds = resolver.get_module_modulemds(
@@ -261,7 +269,7 @@ def _get_base_module_mmds(mmd):
                 # Add the returned mmds to the `seen` set to avoid querying those individually if
                 # they are part of the buildrequire streams for this base module
                 for mmd_ in mmds:
-                    mmd_ns = ":".join([mmd_.get_name(), mmd_.get_stream()])
+                    mmd_ns = ":".join([mmd_.get_module_name(), mmd_.get_stream_name()])
                     # An extra precaution to ensure there are no duplicates in the event the sorting
                     # above wasn't flawless
                     if mmd_ns not in seen:
@@ -317,27 +325,23 @@ def get_mmds_required_by_module_recursively(
 
     # Add base modules to `mmds`.
     for base_module in base_module_mmds:
-        ns = ":".join([base_module.get_name(), base_module.get_stream()])
+        ns = ":".join([base_module.get_module_name(), base_module.get_stream_name()])
         mmds.setdefault(ns, [])
         mmds[ns].append(base_module)
 
     # Get all the buildrequires of the module of interest.
     for deps in mmd.get_dependencies():
+        deps_dict = deps_to_dict(deps, 'buildtime')
         mmds = _get_mmds_from_requires(
-            deps.get_buildrequires(),
-            mmds,
-            False,
-            default_streams,
-            raise_if_stream_ambigous,
-            base_module_mmds,
-        )
+            deps_dict, mmds, False, default_streams, raise_if_stream_ambigous, base_module_mmds)
 
     # Now get the requires of buildrequires recursively.
     for mmd_key in list(mmds.keys()):
         for mmd in mmds[mmd_key]:
             for deps in mmd.get_dependencies():
+                deps_dict = deps_to_dict(deps, 'runtime')
                 mmds = _get_mmds_from_requires(
-                    deps.get_requires(),
+                    deps_dict,
                     mmds,
                     True,
                     default_streams,
@@ -361,7 +365,7 @@ def generate_expanded_mmds(session, mmd, raise_if_stream_ambigous=False, default
     built using MBS.
 
     :param session: SQLAlchemy DB session.
-    :param Modulemd.Module mmd: Modulemd metadata with original unexpanded module.
+    :param Modulemd.ModuleStream mmd: Modulemd metadata with original unexpanded module.
     :param bool raise_if_stream_ambigous: When True, raises a StreamAmbigous exception in case
         there are multiple streams for some dependency of module and the module name is not
         defined in `default_streams`, so it is not clear which stream should be used.
@@ -377,9 +381,7 @@ def generate_expanded_mmds(session, mmd, raise_if_stream_ambigous=False, default
 
     # Create local copy of mmd, because we will expand its dependencies,
     # which would change the module.
-    # TODO: Use copy method once its in released libmodulemd:
-    # https://github.com/fedora-modularity/libmodulemd/pull/20
-    current_mmd = Modulemd.Module.new_from_string(mmd.dumps())
+    current_mmd = mmd.copy()
 
     # MMDResolver expects the input MMD to have no context.
     current_mmd.set_context(None)
@@ -396,10 +398,7 @@ def generate_expanded_mmds(session, mmd, raise_if_stream_ambigous=False, default
         mmd_resolver.add_modules(m)
 
     # Show log.info message with the NSVCs we have added to mmd_resolver.
-    nsvcs_to_solve = [
-        ":".join([m.get_name(), m.get_stream(), str(m.get_version()), str(m.get_context())])
-        for m in mmds_for_resolving
-    ]
+    nsvcs_to_solve = [m.get_nsvc() for m in mmds_for_resolving]
     log.info("Starting resolving with following input modules: %r", nsvcs_to_solve)
 
     # Resolve the dependencies between modules and get the list of all valid
@@ -411,10 +410,8 @@ def generate_expanded_mmds(session, mmd, raise_if_stream_ambigous=False, default
     mmds = []
     for requires in requires_combinations:
         # Each generated MMD must be new Module object...
-        # TODO: Use copy method once its in released libmodulemd:
-        # https://github.com/fedora-modularity/libmodulemd/pull/20
-        mmd_copy = Modulemd.Module.new_from_string(mmd.dumps())
-        xmd = glib.from_variant_dict(mmd_copy.get_xmd())
+        mmd_copy = mmd.copy()
+        xmd = mmd_copy.get_xmd()
 
         # Requires contain the NSVC representing the input mmd.
         # The 'context' of this NSVC defines the id of buildrequires/requires
@@ -433,8 +430,8 @@ def generate_expanded_mmds(session, mmd, raise_if_stream_ambigous=False, default
         for nsvca in requires:
             req_name, req_stream, _, req_context, req_arch = nsvca.split(":")
             if req_arch == "src":
-                assert req_name == current_mmd.get_name()
-                assert req_stream == current_mmd.get_stream()
+                assert req_name == current_mmd.get_module_name()
+                assert req_stream == current_mmd.get_stream_name()
                 assert dependencies_id is None
                 assert self_nsvca is None
                 dependencies_id = int(req_context)
@@ -444,7 +441,7 @@ def generate_expanded_mmds(session, mmd, raise_if_stream_ambigous=False, default
         if dependencies_id is None or self_nsvca is None:
             raise RuntimeError(
                 "%s:%s not found in requires %r"
-                % (current_mmd.get_name(), current_mmd.get_stream(), requires)
+                % (current_mmd.get_module_name(), current_mmd.get_stream_name(), requires)
             )
 
         # The name:[streams, ...] pairs do not have to be the same in both
@@ -453,35 +450,45 @@ def generate_expanded_mmds(session, mmd, raise_if_stream_ambigous=False, default
         # In case they are not the same, we have to keep the streams as they are in requires
         # section.  We always replace stream(s) for build-requirement with the one we
         # will build this MMD against.
-        new_dep = Modulemd.Dependencies()
-        dep = mmd_copy.get_dependencies()[dependencies_id]
-        dep_requires = dep.get_requires()
-        dep_buildrequires = dep.get_buildrequires()
-        for req_name, req_streams in dep_requires.items():
-            if req_name not in dep_buildrequires:
+        new_deps = Modulemd.Dependencies()
+        deps = mmd_copy.get_dependencies()[dependencies_id]
+        deps_requires = deps_to_dict(deps, 'runtime')
+        deps_buildrequires = deps_to_dict(deps, 'buildtime')
+        for req_name, req_streams in deps_requires.items():
+            if req_name not in deps_buildrequires:
                 # This require is not a buildrequire so just copy this runtime requirement to
                 # new_dep and don't touch buildrequires
-                new_dep.add_requires(req_name, req_streams.get())
-            elif set(req_streams.get()) != set(dep_buildrequires[req_name].get()):
+                if req_streams == []:
+                    new_deps.set_empty_runtime_dependencies_for_module(req_name)
+                else:
+                    for req_stream in req_streams:
+                        new_deps.add_runtime_stream(req_name, req_stream)
+            elif set(req_streams) != set(deps_buildrequires[req_name]):
                 # Streams in runtime section are not the same as in buildtime section,
                 # so just copy this runtime requirement to new_dep.
-                new_dep.add_requires(req_name, req_streams.get())
-                new_dep.add_buildrequires(req_name, [req_name_stream[req_name]])
+                if req_streams == []:
+                    new_deps.set_empty_runtime_dependencies_for_module(req_name)
+                else:
+                    for req_stream in req_streams:
+                        new_deps.add_runtime_stream(req_name, req_stream)
+
+                new_deps.add_buildtime_stream(req_name, req_name_stream[req_name])
             else:
                 # This runtime requirement has the same streams in both runtime/buildtime
                 # requires sections, so replace streams in both sections by the one we
                 # really used in this resolved variant.
-                new_dep.add_requires(req_name, [req_name_stream[req_name]])
-                new_dep.add_buildrequires(req_name, [req_name_stream[req_name]])
+                new_deps.add_runtime_stream(req_name, req_name_stream[req_name])
+                new_deps.add_buildtime_stream(req_name, req_name_stream[req_name])
 
         # There might be buildrequires which are not in runtime requires list.
         # Such buildrequires must be copied to expanded MMD.
-        for req_name, req_streams in dep_buildrequires.items():
-            if req_name not in dep_requires:
-                new_dep.add_buildrequires(req_name, [req_name_stream[req_name]])
+        for req_name, req_streams in deps_buildrequires.items():
+            if req_name not in deps_requires:
+                new_deps.add_buildtime_stream(req_name, req_name_stream[req_name])
 
         # Set the new dependencies.
-        mmd_copy.set_dependencies((new_dep,))
+        mmd_copy.remove_dependencies(deps)
+        mmd_copy.add_dependencies(new_deps)
 
         # The Modulemd.Dependencies() stores only streams, but to really build this
         # module, we need NSVC of buildrequires, so we have to store this data in XMD.
@@ -503,11 +510,10 @@ def generate_expanded_mmds(session, mmd, raise_if_stream_ambigous=False, default
         xmd["mbs"]["buildrequires"] = resolver.resolve_requires(br_list)
         xmd["mbs"]["mse"] = True
 
-        mmd_copy.set_xmd(glib.dict_values(xmd))
+        mmd_copy.set_xmd(xmd)
 
         # Now we have all the info to actually compute context of this module.
-        ref_build_context, build_context, runtime_context, context = \
-            models.ModuleBuild.contexts_from_mmd(mmd_copy.dumps())
+        _, _, _, context = models.ModuleBuild.contexts_from_mmd(mmd_to_str(mmd_copy))
         mmd_copy.set_context(context)
 
         mmds.append(mmd_copy)

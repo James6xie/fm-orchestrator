@@ -27,11 +27,11 @@ import json
 
 import os
 from os import path
-from module_build_service.utils import to_text_type
 
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.repos  # noqa
-from module_build_service import models, conf, build_logs, Modulemd, glib
+from module_build_service import models, conf, build_logs, Modulemd
+from module_build_service.utils.general import mmd_to_str
 
 from mock import patch, Mock, call, mock_open
 import kobo.rpmlib
@@ -95,7 +95,7 @@ class TestBuild:
 
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
     @patch("subprocess.Popen")
-    @patch("subprocess.check_output", return_value="1.4")
+    @patch("module_build_service.builder.KojiContentGenerator.Modulemd")
     @patch("pkg_resources.get_distribution")
     @patch("platform.linux_distribution")
     @patch("platform.machine")
@@ -104,9 +104,10 @@ class TestBuild:
     )
     @pytest.mark.parametrize("devel", (False, True))
     def test_get_generator_json(
-        self, rpms_in_tag, machine, distro, pkg_res, coutput, popen, ClientSession, devel
+        self, rpms_in_tag, machine, distro, pkg_res, mock_Modulemd, popen, ClientSession, devel
     ):
         """ Test generation of content generator json """
+        mock_Modulemd.get_version.return_value = "2.3.1"
         koji_session = ClientSession.return_value
         koji_session.getUser.return_value = GET_USER_RV
         koji_session.getTag.return_value = {"arches": ""}
@@ -154,7 +155,7 @@ class TestBuild:
 
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
     @patch("subprocess.Popen")
-    @patch("subprocess.check_output", return_value="1.4")
+    @patch("module_build_service.builder.KojiContentGenerator.Modulemd")
     @patch("pkg_resources.get_distribution")
     @patch("platform.linux_distribution")
     @patch("platform.machine")
@@ -162,9 +163,10 @@ class TestBuild:
         "module_build_service.builder.KojiContentGenerator.KojiContentGenerator._koji_rpms_in_tag"
     )
     def test_get_generator_json_no_log(
-        self, rpms_in_tag, machine, distro, pkg_res, coutput, popen, ClientSession
+        self, rpms_in_tag, machine, distro, pkg_res, mock_Modulemd, popen, ClientSession
     ):
         """ Test generation of content generator json """
+        mock_Modulemd.get_version.return_value = "2.3.1"
         koji_session = ClientSession.return_value
         koji_session.getUser.return_value = GET_USER_RV
         koji_session.getTag.return_value = {"arches": ""}
@@ -212,10 +214,10 @@ class TestBuild:
             assert len(mmd.read()) == 1136
 
         with io.open(path.join(dir_path, "modulemd.x86_64.txt"), encoding="utf-8") as mmd:
-            assert len(mmd.read()) == 259
+            assert len(mmd.read()) == 236
 
         with io.open(path.join(dir_path, "modulemd.i686.txt"), encoding="utf-8") as mmd:
-            assert len(mmd.read()) == 257
+            assert len(mmd.read()) == 234
 
     @patch.dict("sys.modules", krbV=Mock())
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
@@ -300,10 +302,8 @@ class TestBuild:
     @patch("module_build_service.builder.KojiContentGenerator.open", create=True)
     def test_get_arch_mmd_output_components(self, patched_open):
         mmd = self.cg.module.mmd()
-        rpm_artifacts = mmd.get_rpm_artifacts()
-        rpm_artifacts.add("dhcp-libs-12:4.3.5-5.module_2118aef6.x86_64")
-        mmd.set_rpm_artifacts(rpm_artifacts)
-        mmd_data = to_text_type(mmd.dumps()).encode("utf-8")
+        mmd.add_rpm_artifact("dhcp-libs-12:4.3.5-5.module_2118aef6.x86_64")
+        mmd_data = mmd_to_str(mmd).encode("utf-8")
 
         patched_open.return_value = mock_open(read_data=mmd_data).return_value
 
@@ -333,7 +333,7 @@ class TestBuild:
         assert ret == {
             "arch": "x86_64",
             "buildroot_id": 1,
-            "checksum": "502e46889affec24d98a281289104d4d",
+            "checksum": "bb6ba47519b68aee215d095fd2c57c70",
             "checksum_type": "md5",
             "components": [
                 {
@@ -348,7 +348,7 @@ class TestBuild:
             ],
             "extra": {"typeinfo": {"module": {}}},
             "filename": "modulemd.x86_64.txt",
-            "filesize": 319,
+            "filesize": 296,
             "type": "file",
         }
 
@@ -557,20 +557,17 @@ class TestBuild:
         self.cg.rpms_dict[nevra] = parsed_nevra
 
         mmd = self.cg.module.mmd()
-        if srpm_name not in mmd.get_rpm_components().keys():
-            component = Modulemd.ComponentRpm()
-            component.set_name(srpm_name)
+        if srpm_name not in mmd.get_rpm_component_names():
+            component = Modulemd.ComponentRpm.new(srpm_name)
             component.set_rationale("foo")
 
             if multilib:
-                multilib_set = Modulemd.SimpleSet()
                 for arch in multilib:
-                    multilib_set.add(arch)
-                component.set_multilib(multilib_set)
+                    component.add_multilib_arch(arch)
 
-            mmd.add_rpm_component(component)
-            self.cg.module.modulemd = to_text_type(mmd.dumps())
-            self.cg.modulemd = to_text_type(mmd.dumps())
+            mmd.add_component(component)
+            self.cg.module.modulemd = mmd_to_str(mmd)
+            self.cg.modulemd = mmd_to_str(mmd)
 
     @pytest.mark.parametrize("devel", (False, True))
     def test_fill_in_rpms_list(self, devel):
@@ -609,7 +606,7 @@ class TestBuild:
 
         if not devel:
             # Only x86_64 packages should be filled in, because we requested x86_64 arch.
-            assert set(mmd.get_rpm_artifacts().get()) == set([
+            assert set(mmd.get_rpm_artifacts()) == set([
                 "dhcp-12:4.3.5-5.module_2118aef6.src",
                 "dhcp-libs-12:4.3.5-5.module_2118aef6.x86_64",
                 "perl-Tangerine-12:4.3.5-5.module_2118aef6.src",
@@ -618,7 +615,7 @@ class TestBuild:
         else:
             # The i686 packages are filtered out in normal packages, because multilib
             # is not enabled for them - therefore we want to include them in -devel.
-            assert set(mmd.get_rpm_artifacts().get()) == set([
+            assert set(mmd.get_rpm_artifacts()) == set([
                 "dhcp-libs-12:4.3.5-5.module_2118aef6.i686",
                 "perl-Tangerine-12:4.3.5-5.module_2118aef6.i686",
             ])
@@ -646,7 +643,7 @@ class TestBuild:
 
         # Only dhcp-libs should be filled in, because perl-Tangerine has different
         # exclusivearch.
-        assert set(mmd.get_rpm_artifacts().get()) == set(
+        assert set(mmd.get_rpm_artifacts()) == set(
             ["dhcp-12:4.3.5-5.module_2118aef6.src", "dhcp-libs-12:4.3.5-5.module_2118aef6.noarch"])
 
     def test_fill_in_rpms_excludearch(self):
@@ -671,7 +668,7 @@ class TestBuild:
         mmd = self.cg._fill_in_rpms_list(mmd, "x86_64")
 
         # Only perl-Tangerine should be filled in, because dhcp-libs is excluded from x86_64.
-        assert set(mmd.get_rpm_artifacts().get()) == set([
+        assert set(mmd.get_rpm_artifacts()) == set([
             "perl-Tangerine-12:4.3.5-5.module_2118aef6.src",
             "perl-Tangerine-12:4.3.5-5.module_2118aef6.noarch",
         ])
@@ -712,7 +709,9 @@ class TestBuild:
         self.cg.devel = devel
         mmd = self.cg.module.mmd()
         opts = mmd.get_buildopts()
-        opts.set_rpm_whitelist(["python27-dhcp"])
+        if not opts:
+            opts = Modulemd.Buildopts()
+        opts.add_rpm_to_whitelist("python27-dhcp")
         mmd.set_buildopts(opts)
 
         mmd = self.cg._fill_in_rpms_list(mmd, "x86_64")
@@ -720,12 +719,12 @@ class TestBuild:
         if not devel:
             # Only x86_64 dhcp-libs should be filled in, because only python27-dhcp is whitelisted
             # srpm name.
-            assert set(mmd.get_rpm_artifacts().get()) == set([
+            assert set(mmd.get_rpm_artifacts()) == set([
                 "python27-dhcp-12:4.3.5-5.module_2118aef6.src",
                 "python27-dhcp-libs-12:4.3.5-5.module_2118aef6.x86_64",
             ])
         else:
-            assert set(mmd.get_rpm_artifacts().get()) == set([
+            assert set(mmd.get_rpm_artifacts()) == set([
                 "python27-dhcp-libs-12:4.3.5-5.module_2118aef6.i686",
                 "foo-perl-Tangerine-12:4.3.5-5.module_2118aef6.src",
                 "foo-perl-Tangerine-12:4.3.5-5.module_2118aef6.x86_64",
@@ -787,22 +786,22 @@ class TestBuild:
 
         self.cg.devel = devel
         mmd = self.cg.module.mmd()
-        filter_list = Modulemd.SimpleSet()
-        filter_list.add("dhcp-libs")
-        mmd.set_rpm_filter(filter_list)
+        for rpm in mmd.get_rpm_filters():
+            mmd.remove_rpm_filter(rpm)
+        mmd.add_rpm_filter("dhcp-libs")
 
         mmd = self.cg._fill_in_rpms_list(mmd, "x86_64")
 
         if not devel:
             # Only x86_64 perl-Tangerine should be filled in, because dhcp-libs is filtered out.
-            assert set(mmd.get_rpm_artifacts().get()) == set([
+            assert set(mmd.get_rpm_artifacts()) == set([
                 "perl-Tangerine-12:4.3.5-5.module_2118aef6.src",
                 "perl-Tangerine-12:4.3.5-5.module_2118aef6.x86_64",
                 "perl-Tangerine-debuginfo-12:4.3.5-5.module_2118aef6.x86_64",
                 "perl-Tangerine-debugsource-12:4.3.5-5.module_2118aef6.x86_64",
             ])
         else:
-            assert set(mmd.get_rpm_artifacts().get()) == set([
+            assert set(mmd.get_rpm_artifacts()) == set([
                 "dhcp-12:4.3.5-5.module_2118aef6.src",
                 "dhcp-libs-12:4.3.5-5.module_2118aef6.x86_64",
                 "dhcp-libs-debuginfo-12:4.3.5-5.module_2118aef6.x86_64",
@@ -855,7 +854,7 @@ class TestBuild:
         if not devel:
             # Only i686 package for dhcp-libs should be added, because perl-Tangerine does not have
             # multilib set.
-            assert set(mmd.get_rpm_artifacts().get()) == set([
+            assert set(mmd.get_rpm_artifacts()) == set([
                 "dhcp-libs-12:4.3.5-5.module_2118aef6.src",
                 "dhcp-libs-12:4.3.5-5.module_2118aef6.x86_64",
                 "dhcp-libs-12:4.3.5-5.module_2118aef6.i686",
@@ -863,7 +862,7 @@ class TestBuild:
                 "perl-Tangerine-12:4.3.5-5.module_2118aef6.x86_64",
             ])
         else:
-            assert set(mmd.get_rpm_artifacts().get()) == set(
+            assert set(mmd.get_rpm_artifacts()) == set(
                 ["perl-Tangerine-12:4.3.5-5.module_2118aef6.i686"])
 
     @pytest.mark.parametrize(
@@ -898,7 +897,7 @@ class TestBuild:
         mmd = self.cg._fill_in_rpms_list(mmd, "x86_64")
 
         # Only x86_64 packages should be filled in, because we requested x86_64 arch.
-        assert set(mmd.get_content_licenses().get()) == set(expected)
+        assert set(mmd.get_content_licenses()) == set(expected)
 
     @pytest.mark.parametrize("devel", (False, True))
     def test_fill_in_rpms_list_noarch_filtering_not_influenced_by_multilib(self, devel):
@@ -923,25 +922,25 @@ class TestBuild:
         if not devel:
             # Only i686 package for dhcp-libs should be added, because perl-Tangerine does not have
             # multilib set. The "dhcp" SRPM should be also included.
-            assert set(mmd.get_rpm_artifacts().get()) == set([
+            assert set(mmd.get_rpm_artifacts()) == set([
                 "dhcp-libs-12:4.3.5-5.module_2118aef6.noarch",
                 "dhcp-12:4.3.5-5.module_2118aef6.src",
             ])
         else:
-            assert set(mmd.get_rpm_artifacts().get()) == set([])
+            assert set(mmd.get_rpm_artifacts()) == set([])
 
     def test_sanitize_mmd(self):
         mmd = self.cg.module.mmd()
-        component = Modulemd.ComponentRpm()
-        component.set_name("foo")
+        component = Modulemd.ComponentRpm.new("foo")
         component.set_rationale("foo")
         component.set_repository("http://private.tld/foo.git")
         component.set_cache("http://private.tld/cache")
-        mmd.add_rpm_component(component)
-        mmd.set_xmd(glib.dict_values({"mbs": {"buildrequires": []}}))
+        mmd.add_component(component)
+        mmd.set_xmd({"mbs": {"buildrequires": []}})
         mmd = self.cg._sanitize_mmd(mmd)
 
-        for pkg in mmd.get_rpm_components().values():
+        for pkg_name in mmd.get_rpm_component_names():
+            pkg = mmd.get_rpm_component(pkg_name)
             assert pkg.get_repository() is None
             assert pkg.get_cache() is None
 
@@ -956,11 +955,8 @@ class TestBuild:
             "620ec77321b2ea7b0d67d82992dda3e1d67055b4",
         )
         mmd = self.cg.module.mmd()
-        mmd.set_xmd(
-            glib.dict_values(
-                {"mbs": {"commit": "foo", "scmurl": "git://localhost/modules/foo.git#master"}})
-        )
-        self.cg.module.modulemd = to_text_type(mmd.dumps())
+        mmd.set_xmd({"mbs": {"commit": "foo", "scmurl": "git://localhost/modules/foo.git#master"}})
+        self.cg.module.modulemd = mmd_to_str(mmd)
         file_dir = self.cg._prepare_file_directory()
         with io.open(path.join(file_dir, "modulemd.src.txt"), encoding="utf-8") as mmd:
             assert len(mmd.read()) == 1339
@@ -971,15 +967,15 @@ class TestBuild:
         new_mmd = module_build_service.utils.load_mmd(self.cg._finalize_mmd("x86_64"))
 
         # Check that -devel suffix is set.
-        assert new_mmd.get_name().endswith("-devel")
+        assert new_mmd.get_module_name().endswith("-devel")
 
         # Check that -devel requires non-devel.
         for dep in new_mmd.get_dependencies():
             requires = []
-            for name, streams in dep.get_requires().items():
-                for stream in streams.get():
+            for name in dep.get_runtime_modules():
+                for stream in dep.get_runtime_streams(name):
                     requires.append("%s:%s" % (name, stream))
-            assert "%s:%s" % (mmd.get_name(), mmd.get_stream()) in requires
+            assert "%s:%s" % (mmd.get_module_name(), mmd.get_stream_name()) in requires
 
     @patch.dict("sys.modules", krbV=Mock())
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
@@ -1018,7 +1014,7 @@ class TestBuild:
         mmd = self.cg.module.mmd()
         mmd = self.cg._fill_in_rpms_list(mmd, "x86_64")
 
-        assert set(mmd.get_rpm_artifacts().get()) == set([
+        assert set(mmd.get_rpm_artifacts()) == set([
             'python-pymongo-debuginfo-3.6.1-9.module+f29.1.0+2993+d789589b.x86_64',
             'python3-pymongo-debuginfo-3.6.1-9.module+f29.1.0+2993+d789589b.x86_64',
             'python-pymongo-3.6.1-9.module+f29.1.0+2993+d789589b.src',
@@ -1065,7 +1061,7 @@ class TestBuild:
         mmd = self.cg.module.mmd()
         mmd = self.cg._fill_in_rpms_list(mmd, "x86_64")
 
-        assert set(mmd.get_rpm_artifacts().get()) == set([
+        assert set(mmd.get_rpm_artifacts()) == set([
             "python2-psycopg2-debuginfo-2.7.5-7.module+f29.0.0+2961+596d0223.x86_64",
             "python2-psycopg2-debug-debuginfo-2.7.5-7.module+f29.0.0+2961+596d0223.x86_64",
             "python-psycopg2-debugsource-2.7.5-7.module+f29.0.0+2961+596d0223.x86_64",
@@ -1091,7 +1087,7 @@ class TestBuild:
         mmd = self.cg.module.mmd()
         mmd = self.cg._fill_in_rpms_list(mmd, "x86_64")
 
-        assert set(mmd.get_rpm_artifacts().get()) == set([
+        assert set(mmd.get_rpm_artifacts()) == set([
             "python2-psycopg2-debugsource-2.7.5-7.module+f29.0.0+2961+596d0223.x86_64",
             "python2-psycopg2-2.7.5-7.module+f29.0.0+2961+596d0223.x86_64",
             "python-psycopg2-2.7.5-7.module+f29.0.0+2961+596d0223.src"])
@@ -1120,7 +1116,7 @@ class TestBuild:
         mmd = self.cg.module.mmd()
         mmd = self.cg._fill_in_rpms_list(mmd, "x86_64")
 
-        assert set(mmd.get_rpm_artifacts().get()) == set([
+        assert set(mmd.get_rpm_artifacts()) == set([
             "glibc-common-2.29.9000-16.fc31.x86_64",
             "glibc-2.29.9000-16.fc31.src",
             "glibc-2.29.9000-16.fc31.x86_64",
@@ -1147,7 +1143,7 @@ class TestBuild:
         mmd = self.cg.module.mmd()
         mmd = self.cg._fill_in_rpms_list(mmd, "aarch64")
 
-        assert set(mmd.get_rpm_artifacts().get()) == set([
+        assert set(mmd.get_rpm_artifacts()) == set([
             "kernel-debuginfo-common-aarch64-5.0.9-301.fc30.aarch64",
             "kernel-5.0.9-301.fc30.src",
             "kernel-debuginfo-5.0.9-301.fc30.aarch64",
@@ -1167,9 +1163,9 @@ class TestBuild:
             "python-psycopg2-2.7.5-7.module+f29.0.0+2961+596d0223.src")
 
         mmd = self.cg.module.mmd()
-        filter_list = Modulemd.SimpleSet()
-        filter_list.add("python2-psycopg2")
-        mmd.set_rpm_filter(filter_list)
+        for rpm in mmd.get_rpm_filters():
+            mmd.remove_rpm_filter(rpm)
+        mmd.add_rpm_filter("python2-psycopg2")
         mmd = self.cg._fill_in_rpms_list(mmd, "x86_64")
 
-        assert set(mmd.get_rpm_artifacts().get()) == set([])
+        assert set(mmd.get_rpm_artifacts()) == set([])

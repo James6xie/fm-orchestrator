@@ -23,10 +23,9 @@
 import os
 from datetime import datetime
 
-from module_build_service.utils import to_text_type
 import module_build_service.resolver as mbs_resolver
 from module_build_service import db
-from module_build_service.utils import import_mmd, load_mmd_file
+from module_build_service.utils.general import import_mmd, load_mmd_file, mmd_to_str
 from module_build_service.models import ModuleBuild
 import tests
 
@@ -40,11 +39,10 @@ class TestLocalResolverModule:
 
     def test_get_buildrequired_modulemds(self):
         mmd = load_mmd_file(os.path.join(base_dir, "staged_data", "platform.yaml"))
-        mmd.set_stream("f8")
+        mmd = mmd.copy(mmd.get_module_name(), "f8")
         import_mmd(db.session, mmd)
         platform_f8 = ModuleBuild.query.filter_by(stream="f8").one()
-        mmd.set_name("testmodule")
-        mmd.set_stream("master")
+        mmd = mmd.copy("testmodule", "master")
         mmd.set_version(20170109091357)
         mmd.set_context("123")
         build = ModuleBuild(
@@ -62,14 +60,14 @@ class TestLocalResolverModule:
             time_submitted=datetime(2018, 11, 15, 16, 8, 18),
             time_modified=datetime(2018, 11, 15, 16, 19, 35),
             rebuild_strategy="changed-and-after",
-            modulemd=to_text_type(mmd.dumps()),
+            modulemd=mmd_to_str(mmd),
         )
         db.session.add(build)
         db.session.commit()
 
         resolver = mbs_resolver.GenericResolver.create(tests.conf, backend="local")
         result = resolver.get_buildrequired_modulemds(
-            "testmodule", "master", platform_f8.mmd().dup_nsvc())
-        nsvcs = set([m.dup_nsvc() for m in result])
+            "testmodule", "master", platform_f8.mmd().get_nsvc())
+        nsvcs = set([m.get_nsvc() for m in result])
         assert nsvcs == set(
             ["testmodule:master:20170109091357:9c690d0e", "testmodule:master:20170109091357:123"])

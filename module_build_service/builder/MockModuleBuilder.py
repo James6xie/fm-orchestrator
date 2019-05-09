@@ -32,7 +32,7 @@ import re
 import subprocess
 import threading
 
-from module_build_service import conf, log, Modulemd
+from module_build_service import conf, log
 import module_build_service.scm
 import module_build_service.utils
 import module_build_service.scheduler
@@ -170,7 +170,7 @@ class MockModuleBuilder(GenericBuilder):
 
         # Generate the mmd the same way as pungi does.
         m1_mmd = self.module.mmd()
-        artifacts = Modulemd.SimpleSet()
+        artifacts = set()
 
         rpm_files = [f for f in os.listdir(self.resultsdir) if f.endswith(".rpm")]
 
@@ -195,14 +195,18 @@ class MockModuleBuilder(GenericBuilder):
 
                 if self.module.last_batch_id() == self.module.batch:
                     # If RPM is filtered-out, do not add it to artifacts list.
-                    if name in m1_mmd.get_rpm_filter().get():
+                    if name in m1_mmd.get_rpm_filters():
                         continue
 
                 pkglist_f.write(rpm_file + "\n")
                 artifacts.add("{}-{}:{}-{}.{}".format(name, epoch, version, release, arch))
 
         pkglist_f.close()
-        m1_mmd.set_rpm_artifacts(artifacts)
+        # There is no way to replace the RPM artifacts, so remove any extra RPM artifacts
+        for artifact_to_remove in (set(m1_mmd.get_rpm_artifacts()) - artifacts):
+            m1_mmd.remove_rpm_artifact(artifact_to_remove)
+        for artifact_to_add in (artifacts - set(m1_mmd.get_rpm_artifacts())):
+            m1_mmd.add_rpm_artifact(artifact_to_add)
 
         # Generate repo.
         execute_cmd(["/usr/bin/createrepo_c", "--pkglist", pkglist, path])
@@ -340,20 +344,23 @@ class MockModuleBuilder(GenericBuilder):
             # repo file.
             elif source.startswith("repofile://"):
                 # For the base module, we want to include all the `conf.base_module_repofiles`.
-                if len(mmds) == 1 and mmds[0].get_name() in conf.base_module_names:
+                if len(mmds) == 1 and mmds[0].get_module_name() in conf.base_module_names:
                     for repofile in conf.base_module_repofiles:
                         self._add_repo_from_path(repofile)
                     # Also set the platform_id.
                     mmd = mmds[0]
                     self.yum_conf = self.yum_conf.replace(
-                        "$module_platform_id", "%s:%s" % (mmd.get_name(), mmd.get_stream()))
+                        "$module_platform_id",
+                        "%s:%s" % (mmd.get_module_name(), mmd.get_stream_name())
+                    )
                 else:
                     # Add repositories defined in repofile to mock config.
                     repofile = source[len("repofile://"):]
                     self._add_repo_from_path(repofile)
                     # Enabled all the modular dependencies by default in Mock.
                     for mmd in mmds:
-                        self.enabled_modules.append("%s:%s" % (mmd.get_name(), mmd.get_stream()))
+                        self.enabled_modules.append(
+                            "%s:%s" % (mmd.get_module_name(), mmd.get_stream_name()))
                 continue
             else:
                 repo_name = tag = source
@@ -558,10 +565,15 @@ class MockModuleBuilder(GenericBuilder):
         """
         with models.make_session(conf) as db_session:
             build = models.ModuleBuild.get_build_from_nsvc(
-                db_session, mmd.get_name(), mmd.get_stream(), mmd.get_version(), mmd.get_context())
+                db_session,
+                mmd.get_module_name(),
+                mmd.get_stream_name(),
+                mmd.get_version(),
+                mmd.get_context()
+            )
             if build.koji_tag.startswith("repofile://"):
                 # Modules from local repository have already the RPMs filled in mmd.
-                return list(mmd.get_rpm_artifacts().get())
+                return mmd.get_rpm_artifacts()
             else:
                 koji_session = KojiModuleBuilder.get_session(conf, login=False)
                 rpms = koji_session.listTaggedRPMS(build.koji_tag, latest=True)[0]

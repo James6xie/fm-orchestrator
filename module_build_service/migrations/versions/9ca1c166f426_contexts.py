@@ -41,27 +41,26 @@ def upgrade():
         if not build.modulemd:
             continue
         try:
-            mmd = Modulemd.Module().new_from_string(build.modulemd)
-            mmd.upgrade()
+            mmd = Modulemd.ModuleStream.read_string(build.modulemd, True)
+            mmd = mmd.upgrade(Modulemd.ModuleStreamVersionEnum.TWO)
         except Exception:
             # If the modulemd isn't parseable then skip this build
             continue
 
         mbs_xmd = mmd.get_xmd().get('mbs', {})
         contexts = {}
-        for property_name in ['buildrequires', 'requires']:
+        for mmd_name, xmd_name in (('buildtime', 'buildrequires'), ('runtime', 'requires')):
             # It's possible this module build was built before MBS filled out xmd or before MBS
-            # filled out the requires in xmd. We also have to use keys because GLib.Variant
-            # doesn't support `in` directly.
-            if property_name not in mbs_xmd.keys():
+            # filled out the requires in xmd
+            if xmd_name not in mbs_xmd:
                 break
-            mmd_property = getattr(mmd.get_dependencies()[0], 'get_{0}'.format(property_name))()
-            if set(mbs_xmd[property_name].keys()) != set(mmd_property.keys()):
+            mmd_property = getattr(mmd.get_dependencies()[0], 'get_{0}_modules'.format(mmd_name))()
+            if set(mbs_xmd[xmd_name].keys()) != set(mmd_property):
                 break
             mmd_formatted_property = {
-                dep: info['ref'] for dep, info in mbs_xmd[property_name].items()}
+                dep: info['ref'] for dep, info in mbs_xmd[xmd_name].items()}
             property_json = json.dumps(OrderedDict(sorted(mmd_formatted_property.items())))
-            contexts[property_name] = hashlib.sha1(property_json).hexdigest()
+            contexts[xmd_name] = hashlib.sha1(property_json).hexdigest()
 
         # Update the database now
         if len(contexts) == 2:

@@ -17,12 +17,9 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-
-import copy
-
 from mock import patch, Mock
 
-from module_build_service import conf, glib
+from module_build_service import conf
 from module_build_service.utils import ursine
 from tests import make_module, clean_database
 
@@ -184,10 +181,10 @@ class TestGetModulemdsFromUrsineContent:
         with patch.object(conf, "koji_external_repo_url_prefix", new="http://example.com/"):
             modulemds = ursine.get_modulemds_from_ursine_content(koji_tag)
 
-        test_nsvcs = [item.dup_nsvc() for item in modulemds]
+        test_nsvcs = [item.get_nsvc() for item in modulemds]
         test_nsvcs.sort()
 
-        expected_nsvcs = [mmd_name1s2020c.mmd().dup_nsvc(), mmd_name2s2021c.mmd().dup_nsvc()]
+        expected_nsvcs = [mmd_name1s2020c.mmd().get_nsvc(), mmd_name2s2021c.mmd().get_nsvc()]
         expected_nsvcs.sort()
 
         session.getExternalRepoList.assert_called_once_with(koji_tag)
@@ -204,14 +201,14 @@ class TestRecordStreamCollisionModules:
     ):
         xmd = {"mbs": {"buildrequires": {"modulea": {"stream": "master"}}}}
         fake_mmd = make_module("name1:s:2020:c", xmd=xmd, store_to_db=False)
-        original_xmd = glib.from_variant_dict(fake_mmd.get_xmd())
+        original_xmd = fake_mmd.get_xmd()
 
         with patch.object(ursine, "log") as log:
             ursine.handle_stream_collision_modules(fake_mmd)
             assert 2 == log.info.call_count
             find_stream_collision_modules.assert_not_called()
 
-        assert original_xmd == glib.from_variant_dict(fake_mmd.get_xmd())
+        assert original_xmd == fake_mmd.get_xmd()
 
     @patch.object(conf, "base_module_names", new=["platform"])
     @patch("module_build_service.utils.ursine.get_modulemds_from_ursine_content")
@@ -227,7 +224,7 @@ class TestRecordStreamCollisionModules:
             }
         }
         fake_mmd = make_module("name1:s:2020:c", xmd=xmd, store_to_db=False)
-        original_xmd = glib.from_variant_dict(fake_mmd.get_xmd())
+        expected_xmd = fake_mmd.get_xmd()
 
         get_modulemds_from_ursine_content.return_value = []
 
@@ -235,11 +232,10 @@ class TestRecordStreamCollisionModules:
             ursine.handle_stream_collision_modules(fake_mmd)
             assert 2 == log.info.call_count
 
-        expected_xmd = copy.deepcopy(original_xmd)
         # Ensure stream_collision_modules is set.
         expected_xmd["mbs"]["buildrequires"]["platform"]["stream_collision_modules"] = ""
         expected_xmd["mbs"]["buildrequires"]["platform"]["ursine_rpms"] = ""
-        assert expected_xmd == glib.from_variant_dict(fake_mmd.get_xmd())
+        assert expected_xmd == fake_mmd.get_xmd()
 
     @patch.object(conf, "base_module_names", new=["platform", "project-platform"])
     @patch("module_build_service.utils.ursine.get_modulemds_from_ursine_content")
@@ -315,7 +311,7 @@ class TestRecordStreamCollisionModules:
 
         ursine.handle_stream_collision_modules(fake_mmd)
 
-        xmd = glib.from_variant_dict(fake_mmd.get_xmd())
+        xmd = fake_mmd.get_xmd()
         buildrequires = xmd["mbs"]["buildrequires"]
 
         modules = buildrequires["platform"]["stream_collision_modules"]
@@ -359,4 +355,4 @@ class TestFindStreamCollisionModules:
         get_modulemds_from_ursine_content.return_value = fake_modules
 
         modules = ursine.find_stream_collision_modules(xmd_mbs_buildrequires, "koji_tag")
-        assert [fake_modules[1].dup_nsvc()] == modules
+        assert [fake_modules[1].get_nsvc()] == modules

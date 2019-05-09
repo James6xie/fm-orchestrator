@@ -32,7 +32,6 @@ from os.path import basename, dirname, splitext
 from requests.utils import quote
 import hashlib
 import pytest
-from module_build_service.utils import to_text_type, load_mmd_file, load_mmd
 import re
 
 from tests import app, init_data, clean_database, reuse_component_init_data
@@ -43,8 +42,9 @@ from module_build_service.models import ModuleBuild
 from module_build_service import db, version
 import module_build_service.config as mbs_config
 import module_build_service.scheduler.handlers.modules
-from module_build_service.utils import import_mmd
-from module_build_service.glib import dict_values, from_variant_dict
+from module_build_service.utils.general import (
+    import_mmd, mmd_to_str, to_text_type, load_mmd_file, load_mmd
+)
 
 
 user = ("Homer J. Simpson", set(["packager"]))
@@ -806,7 +806,7 @@ class TestViews:
     def test_query_base_module_br_filters(self):
         reuse_component_init_data()
         mmd = load_mmd_file(path.join(base_dir, "staged_data", "platform.yaml"))
-        mmd.set_stream("f30.1.3")
+        mmd = mmd.copy(mmd.get_module_name(), "f30.1.3")
         import_mmd(db.session, mmd)
         platform_f300103 = ModuleBuild.query.filter_by(stream="f30.1.3").one()
         build = ModuleBuild(
@@ -1522,8 +1522,8 @@ class TestViews:
         mmd = module_build_service.utils.load_mmd(data[0]["modulemd"])
         assert len(mmd.get_dependencies()) == 1
         dep = mmd.get_dependencies()[0]
-        assert set(dep.get_buildrequires()["platform"].get()) == expected_br
-        assert set(dep.get_requires()["platform"].get()) == expected_req
+        assert set(dep.get_buildtime_streams("platform")) == expected_br
+        assert set(dep.get_runtime_streams("platform")) == expected_req
 
     @patch("module_build_service.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
@@ -1994,13 +1994,13 @@ class TestViews:
         with make_session(conf) as session:
             build = ModuleBuild.query.first()
             mmd = build.mmd()
-            xmd = from_variant_dict(mmd.get_xmd())
+            xmd = mmd.get_xmd()
             mbs = xmd.setdefault("mbs", {})
             buildrequires = mbs.setdefault("buildrequires", {})
             buildrequires["modulea"] = br_modulea
             buildrequires["moduleb"] = br_moduleb
-            mmd.set_xmd(dict_values(xmd))
-            build.modulemd = to_text_type(mmd.dumps())
+            mmd.set_xmd(xmd)
+            build.modulemd = mmd_to_str(mmd)
             session.commit()
 
         rv = self.client.get("/module-build-service/1/module-builds/{}".format(build.id))
@@ -2264,11 +2264,11 @@ class TestViews:
         # Create a platform for whatever the override is so the build submission succeeds
         if platform_override:
             platform_mmd = load_mmd_file(path.join(base_dir, "staged_data", "platform.yaml"))
-            platform_mmd.set_stream(platform_override)
+            platform_mmd = platform_mmd.copy(platform_mmd.get_module_name(), platform_override)
             if platform_override == "el8.0.0":
-                xmd = from_variant_dict(platform_mmd.get_xmd())
+                xmd = platform_mmd.get_xmd()
                 xmd["mbs"]["virtual_streams"] = ["el8"]
-                platform_mmd.set_xmd(dict_values(xmd))
+                platform_mmd.set_xmd(xmd)
             import_mmd(db.session, platform_mmd)
 
         FakeSCM(
@@ -2291,9 +2291,9 @@ class TestViews:
             expected_br = {platform_override}
         else:
             expected_br = {"f28"}
-        assert set(dep.get_buildrequires()["platform"].get()) == expected_br
+        assert set(dep.get_buildtime_streams("platform")) == expected_br
         # The requires should not change
-        assert set(dep.get_requires()["platform"].get()) == {"f28"}
+        assert dep.get_runtime_streams("platform") == ["f28"]
 
     @patch("module_build_service.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
@@ -2311,7 +2311,7 @@ class TestViews:
         init_data(data_size=1, multiple_stream_versions=True)
         # Create a platform for the override so the build submission succeeds
         platform_mmd = load_mmd_file(path.join(base_dir, "staged_data", "platform.yaml"))
-        platform_mmd.set_stream("product1.3")
+        platform_mmd = platform_mmd.copy(platform_mmd.get_module_name(), "product1.3")
         import_mmd(db.session, platform_mmd)
 
         FakeSCM(
@@ -2337,9 +2337,9 @@ class TestViews:
         dep = mmd.get_dependencies()[0]
         # The buildrequire_override value should take precedence over the stream override from
         # parsing the branch
-        assert set(dep.get_buildrequires()["platform"].get()) == {"product1.3"}
+        assert dep.get_buildtime_streams("platform") == ["product1.3"]
         # The requires should not change
-        assert set(dep.get_requires()["platform"].get()) == {"f28"}
+        assert dep.get_runtime_streams("platform") == ["f28"]
 
     @patch("module_build_service.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
@@ -2350,7 +2350,7 @@ class TestViews:
         """
         init_data(data_size=1, multiple_stream_versions=True)
         platform_mmd = load_mmd_file(path.join(base_dir, "staged_data", "platform.yaml"))
-        platform_mmd.set_stream("el8.0.0")
+        platform_mmd = platform_mmd.copy(platform_mmd.get_module_name(), "el8.0.0")
         import_mmd(db.session, platform_mmd)
 
         FakeSCM(
@@ -2408,10 +2408,10 @@ class TestViews:
     def test_submit_build_request_platform_virtual_stream(self, mocked_scm, mocked_get_user):
         # Create a platform with el8.25.0 but with the virtual stream el8
         mmd = load_mmd_file(path.join(base_dir, "staged_data", "platform.yaml"))
-        mmd.set_stream("el8.25.0")
-        xmd = from_variant_dict(mmd.get_xmd())
+        mmd = mmd.copy(mmd.get_module_name(), "el8.25.0")
+        xmd = mmd.get_xmd()
         xmd["mbs"]["virtual_streams"] = ["el8"]
-        mmd.set_xmd(dict_values(xmd))
+        mmd.set_xmd(xmd)
         import_mmd(db.session, mmd)
 
         # Use a testmodule that buildrequires platform:el8
@@ -2434,5 +2434,5 @@ class TestViews:
         mmd = load_mmd(data[0]["modulemd"])
         assert len(mmd.get_dependencies()) == 1
         dep = mmd.get_dependencies()[0]
-        assert set(dep.get_buildrequires()["platform"].get()) == set(["el8.25.0"])
-        assert set(dep.get_requires()["platform"].get()) == set(["el8"])
+        assert dep.get_buildtime_streams("platform") == ["el8.25.0"]
+        assert dep.get_runtime_streams("platform") == ["el8"]

@@ -39,7 +39,7 @@ from module_build_service.errors import UnprocessableEntity, Forbidden, Validati
 from module_build_service.utils.ursine import handle_stream_collision_modules
 
 from requests.exceptions import ConnectionError
-from module_build_service.utils import to_text_type
+from module_build_service.utils import mmd_to_str
 
 import koji
 import six.moves.xmlrpc_client as xmlrpclib
@@ -159,7 +159,7 @@ def init(config, session, msg):
         if conf.system in ["koji", "test"]:
             handle_stream_collision_modules(mmd)
         mmd = record_filtered_rpms(mmd)
-        build.modulemd = to_text_type(mmd.dumps())
+        build.modulemd = mmd_to_str(mmd)
         build.transition(conf, models.BUILD_STATES["wait"])
     # Catch custom exceptions that we can expose to the user
     except (UnprocessableEntity, Forbidden, ValidationError, RuntimeError) as e:
@@ -251,7 +251,9 @@ def get_content_generator_build_koji_tag(module_deps):
         # Find out the name of Koji tag to which the module's Content
         # Generator build should be tagged once the build finishes.
         module_names_streams = {
-            mmd.get_name(): mmd.get_stream() for mmds in module_deps.values() for mmd in mmds
+            mmd.get_module_name(): mmd.get_stream_name()
+            for mmds in module_deps.values()
+            for mmd in mmds
         }
         for base_module_name in conf.base_module_names:
             if base_module_name in module_names_streams:

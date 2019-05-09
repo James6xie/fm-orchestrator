@@ -25,11 +25,10 @@ import os
 from datetime import datetime
 from mock import patch, PropertyMock
 import pytest
-from module_build_service.utils import to_text_type
 
 import module_build_service.resolver as mbs_resolver
-from module_build_service import app, db, models, glib, utils, Modulemd
-from module_build_service.utils import import_mmd, load_mmd_file
+from module_build_service import app, db, models, utils, Modulemd
+from module_build_service.utils import import_mmd, load_mmd_file, mmd_to_str
 from module_build_service.models import ModuleBuild
 import tests
 
@@ -43,13 +42,10 @@ class TestDBModule:
 
     def test_get_buildrequired_modulemds(self):
         mmd = load_mmd_file(os.path.join(base_dir, "staged_data", "platform.yaml"))
-        mmd.set_stream("f30.1.3")
+        mmd = mmd.copy(mmd.get_module_name(), "f30.1.3")
         import_mmd(db.session, mmd)
         platform_f300103 = ModuleBuild.query.filter_by(stream="f30.1.3").one()
-        mmd.set_name("testmodule")
-        mmd.set_stream("master")
-        mmd.set_version(20170109091357)
-        mmd.set_context("123")
+        mmd = tests.make_module("testmodule:master:20170109091357:123", store_to_db=False)
         build = ModuleBuild(
             name="testmodule",
             stream="master",
@@ -65,7 +61,7 @@ class TestDBModule:
             time_submitted=datetime(2018, 11, 15, 16, 8, 18),
             time_modified=datetime(2018, 11, 15, 16, 19, 35),
             rebuild_strategy="changed-and-after",
-            modulemd=to_text_type(mmd.dumps()),
+            modulemd=mmd_to_str(mmd),
         )
         build.buildrequires.append(platform_f300103)
         db.session.add(build)
@@ -73,8 +69,8 @@ class TestDBModule:
 
         resolver = mbs_resolver.GenericResolver.create(tests.conf, backend="db")
         result = resolver.get_buildrequired_modulemds(
-            "testmodule", "master", platform_f300103.mmd().dup_nsvc())
-        nsvcs = set([m.dup_nsvc() for m in result])
+            "testmodule", "master", platform_f300103.mmd().get_nsvc())
+        nsvcs = set([m.get_nsvc() for m in result])
         assert nsvcs == set(["testmodule:master:20170109091357:123"])
 
     @pytest.mark.parametrize("stream_versions", [False, True])
@@ -83,7 +79,7 @@ class TestDBModule:
         resolver = mbs_resolver.GenericResolver.create(tests.conf, backend="db")
         result = resolver.get_module_modulemds(
             "platform", "f29.1.0", stream_version_lte=stream_versions)
-        nsvcs = set([mmd.dup_nsvc() for mmd in result])
+        nsvcs = set([mmd.get_nsvc() for mmd in result])
         if stream_versions:
             assert nsvcs == set(["platform:f29.1.0:3:00000000", "platform:f29.0.0:3:00000000"])
         else:
@@ -101,11 +97,11 @@ class TestDBModule:
             module = models.ModuleBuild.query.get(2)
             mmd = module.mmd()
             # Wipe out the dependencies
-            mmd.set_dependencies()
-            xmd = glib.from_variant_dict(mmd.get_xmd())
+            mmd.clear_dependencies()
+            xmd = mmd.get_xmd()
             xmd["mbs"]["buildrequires"] = {}
-            mmd.set_xmd(glib.dict_values(xmd))
-            module.modulemd = to_text_type(mmd.dumps())
+            mmd.set_xmd(xmd)
+            module.modulemd = mmd_to_str(mmd)
             db.session.add(module)
             db.session.commit()
         resolver = mbs_resolver.GenericResolver.create(tests.conf, backend="db")
@@ -120,21 +116,21 @@ class TestDBModule:
         # Add testmodule2 that requires testmodule
         module = models.ModuleBuild.query.get(3)
         mmd = module.mmd()
-        mmd.set_name("testmodule2")
+        # Rename the module
+        mmd = mmd.copy("testmodule2")
         mmd.set_version(20180123171545)
-        requires = mmd.get_dependencies()[0].get_requires()
-        requires["testmodule"] = Modulemd.SimpleSet()
-        requires["testmodule"].add("master")
-        mmd.get_dependencies()[0].set_requires(requires)
-        xmd = glib.from_variant_dict(mmd.get_xmd())
+        deps = Modulemd.Dependencies()
+        deps.add_runtime_stream("testmodule", "master")
+        mmd.add_dependencies(deps)
+        xmd = mmd.get_xmd()
         xmd["mbs"]["requires"]["testmodule"] = {
             "filtered_rpms": [],
             "ref": "620ec77321b2ea7b0d67d82992dda3e1d67055b4",
             "stream": "master",
             "version": "20180205135154",
         }
-        mmd.set_xmd(glib.dict_values(xmd))
-        module.modulemd = to_text_type(mmd.dumps())
+        mmd.set_xmd(xmd)
+        module.modulemd = mmd_to_str(mmd)
         module.name = "testmodule2"
         module.version = str(mmd.get_version())
         module.koji_tag = "module-ae2adf69caf0e1b6"
@@ -256,7 +252,7 @@ class TestDBModule:
         resolver = mbs_resolver.GenericResolver.create(tests.conf, backend="db")
         mmd = resolver.get_latest_with_virtual_stream("platform", "f29")
         assert mmd
-        assert mmd.get_stream() == "f29.2.0"
+        assert mmd.get_stream_name() == "f29.2.0"
 
     def test_get_latest_with_virtual_stream_none(self):
         resolver = mbs_resolver.GenericResolver.create(tests.conf, backend="db")

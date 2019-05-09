@@ -18,29 +18,25 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 #
-# Written by Matt Prahl <mprahl@redhat.com>
 import os
 
 import pytest
 
-from module_build_service import Modulemd
+from module_build_service.utils.general import load_mmd_file, mmd_to_str
 
 
 BASE_DIR = os.path.dirname(__file__)
 STAGED_DATA_DIR = os.path.join(BASE_DIR, "staged_data")
 
-_mmd = Modulemd.Module().new_from_file(os.path.join(STAGED_DATA_DIR, "platform.yaml"))
-_mmd.upgrade()
-PLATFORM_MODULEMD = _mmd.dumps()
+_mmd = load_mmd_file(os.path.join(STAGED_DATA_DIR, "platform.yaml"))
+PLATFORM_MODULEMD = mmd_to_str(_mmd)
 
-_mmd2 = Modulemd.Module().new_from_file(os.path.join(STAGED_DATA_DIR, "formatted_testmodule.yaml"))
-_mmd2.upgrade()
-TESTMODULE_MODULEMD = _mmd2.dumps()
+_mmd2 = load_mmd_file(os.path.join(STAGED_DATA_DIR, "formatted_testmodule.yaml"))
+TESTMODULE_MODULEMD = mmd_to_str(_mmd2)
 
-_mmd3 = Modulemd.Module().new_from_file(os.path.join(STAGED_DATA_DIR, "formatted_testmodule.yaml"))
-_mmd3.upgrade()
+_mmd3 = load_mmd_file(os.path.join(STAGED_DATA_DIR, "formatted_testmodule.yaml"))
 _mmd3.set_context("c2c572ed")
-TESTMODULE_MODULEMD_SECOND_CONTEXT = _mmd3.dumps()
+TESTMODULE_MODULEMD_SECOND_CONTEXT = mmd_to_str(_mmd3)
 
 
 @pytest.fixture()

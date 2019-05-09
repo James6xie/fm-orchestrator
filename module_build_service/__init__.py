@@ -46,7 +46,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.pool import StaticPool
 from logging import getLogger
 import gi  # noqa
-gi.require_version("Modulemd", "1.0")  # noqa
+gi.require_version("Modulemd", "2.0")  # noqa
 from gi.repository import Modulemd  # noqa
 
 from module_build_service.logger import init_logging, ModuleBuildLogs, level_flags, MBSLogger

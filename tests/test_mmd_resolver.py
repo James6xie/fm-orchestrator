@@ -28,7 +28,6 @@ import pytest
 
 from module_build_service.mmd_resolver import MMDResolver
 from module_build_service import Modulemd
-from module_build_service import glib
 
 
 class TestMMDResolver:
@@ -41,17 +40,14 @@ class TestMMDResolver:
     @staticmethod
     def _make_mmd(nsvc, requires, xmd_buildrequires=None, virtual_streams=None):
         name, stream, version = nsvc.split(":", 2)
-        mmd = Modulemd.Module()
-        mmd.set_mdversion(2)
-        mmd.set_name(name)
-        mmd.set_stream(stream)
+        mmd = Modulemd.ModuleStreamV2.new(name, stream)
         mmd.set_summary("foo")
         mmd.set_description("foo")
-        licenses = Modulemd.SimpleSet()
-        licenses.add("GPL")
-        mmd.set_module_licenses(licenses)
+        for license_ in mmd.get_module_licenses():
+            mmd.remove_module_license(license_)
+        mmd.add_module_license("GPL")
 
-        xmd = glib.from_variant_dict(mmd.get_xmd())
+        xmd = mmd.get_xmd()
         xmd["mbs"] = {}
         xmd["mbs"]["buildrequires"] = {}
         if xmd_buildrequires:
@@ -60,14 +56,16 @@ class TestMMDResolver:
                 xmd["mbs"]["buildrequires"][n] = {"stream": s}
         if virtual_streams:
             xmd["mbs"]["virtual_streams"] = virtual_streams
-        mmd.set_xmd(glib.dict_values(xmd))
+        mmd.set_xmd(xmd)
 
         if ":" in version:
             version, context = version.split(":")
             mmd.set_context(context)
-            add_requires = Modulemd.Dependencies.add_requires
+            add_requires = Modulemd.Dependencies.add_runtime_stream
+            add_empty_requires = Modulemd.Dependencies.set_empty_runtime_dependencies_for_module
         else:
-            add_requires = Modulemd.Dependencies.add_buildrequires
+            add_requires = Modulemd.Dependencies.add_buildtime_stream
+            add_empty_requires = Modulemd.Dependencies.set_empty_buildtime_dependencies_for_module
         mmd.set_version(int(version))
 
         if not isinstance(requires, list):
@@ -75,13 +73,15 @@ class TestMMDResolver:
         else:
             requires = requires
 
-        deps_list = []
         for reqs in requires:
             deps = Modulemd.Dependencies()
             for req_name, req_streams in reqs.items():
-                add_requires(deps, req_name, req_streams)
-            deps_list.append(deps)
-        mmd.set_dependencies(deps_list)
+                if req_streams == []:
+                    add_empty_requires(deps, req_name)
+                else:
+                    for req_stream in req_streams:
+                        add_requires(deps, req_name, req_stream)
+            mmd.add_dependencies(deps)
 
         return mmd
 

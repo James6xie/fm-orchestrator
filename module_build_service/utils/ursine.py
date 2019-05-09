@@ -23,7 +23,7 @@
 
 import re
 
-from module_build_service import conf, log, glib
+from module_build_service import conf, log
 from module_build_service.resolver import system_resolver
 
 
@@ -170,15 +170,15 @@ def find_stream_collision_modules(buildrequired_modules, koji_tag):
         return []
 
     collision_modules = [
-        item.dup_nsvc()
+        item.get_nsvc()
         for item in ursine_modulemds
         # If some module in the ursine content is one of the buildrequires but has
         # different stream, that is what we want to record here, whose RPMs will be
         # excluded from buildroot by adding them into SRPM module-build-macros as
         # Conflicts.
         if (
-            item.get_name() in buildrequired_modules
-            and item.get_stream() != buildrequired_modules[item.get_name()]["stream"]
+            item.get_module_name() in buildrequired_modules
+            and item.get_stream_name() != buildrequired_modules[item.get_module_name()]["stream"]
         )
     ]
 
@@ -216,8 +216,8 @@ def handle_stream_collision_modules(mmd):
     :type mmd: Modulemd.Module
     """
     log.info("Start to find out stream collision modules.")
-    unpacked_xmd = glib.from_variant_dict(mmd.get_xmd())
-    buildrequires = unpacked_xmd["mbs"]["buildrequires"]
+    xmd = mmd.get_xmd()
+    buildrequires = xmd["mbs"]["buildrequires"]
 
     for module_name in conf.base_module_names:
         base_module_info = buildrequires.get(module_name)
@@ -225,7 +225,7 @@ def handle_stream_collision_modules(mmd):
             log.info(
                 "Base module %s is not a buildrequire of module %s. "
                 "Skip handling module stream collision for this base module.",
-                module_name, mmd.get_name(),
+                module_name, mmd.get_module_name(),
             )
             continue
 
@@ -256,7 +256,7 @@ def handle_stream_collision_modules(mmd):
             base_module_info["stream_collision_modules"] = None
             base_module_info["ursine_rpms"] = None
 
-    mmd.set_xmd(glib.dict_values(unpacked_xmd))
+    mmd.set_xmd(xmd)
 
 
 def find_module_built_rpms(modules_nsvc):

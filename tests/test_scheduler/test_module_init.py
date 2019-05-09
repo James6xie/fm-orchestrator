@@ -20,18 +20,16 @@
 #
 
 import os
-import yaml
 
 from mock import patch, PropertyMock
-from gi.repository import GLib
-from module_build_service.utils import to_text_type
 
 from tests import conf, clean_database
 from tests.test_views.test_views import FakeSCM
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.modules
-from module_build_service import build_logs, Modulemd, db
+from module_build_service import build_logs, db
 from module_build_service.models import make_session, ModuleBuild, ComponentBuild
+from module_build_service.utils.general import mmd_to_str, load_mmd, load_mmd_file
 
 
 class TestModuleInit:
@@ -39,12 +37,14 @@ class TestModuleInit:
         self.fn = module_build_service.scheduler.handlers.modules.init
         self.staged_data_dir = os.path.join(os.path.dirname(__file__), "../", "staged_data")
         testmodule_yml_path = os.path.join(self.staged_data_dir, "testmodule_init.yaml")
-        with open(testmodule_yml_path, "r") as f:
-            yaml = to_text_type(f.read())
+        mmd = load_mmd_file(testmodule_yml_path)
+        # Set the name and stream
+        mmd = mmd.copy("testmodule", "1")
         scmurl = "git://pkgs.domain.local/modules/testmodule?#620ec77"
         clean_database()
         with make_session(conf) as session:
-            ModuleBuild.create(session, conf, "testmodule", "1", 3, yaml, scmurl, "mprahl")
+            ModuleBuild.create(
+                session, conf, "testmodule", "1", 3, mmd_to_str(mmd), scmurl, "mprahl")
 
     def teardown_method(self, test_method):
         try:
@@ -78,11 +78,11 @@ class TestModuleInit:
 
         platform_build = ModuleBuild.query.get(1)
         mmd = platform_build.mmd()
-        filter_list = Modulemd.SimpleSet()
-        filter_list.add("foo")
-        filter_list.add("bar")
-        mmd.set_rpm_filter(filter_list)
-        platform_build.modulemd = to_text_type(mmd.dumps())
+        for rpm in mmd.get_rpm_filters():
+            mmd.remove_rpm_filter(rpm)
+        mmd.add_rpm_filter("foo")
+        mmd.add_rpm_filter("bar")
+        platform_build.modulemd = mmd_to_str(mmd)
         db.session.commit()
 
         msg = module_build_service.messaging.MBSModule(
@@ -96,7 +96,6 @@ class TestModuleInit:
         assert build.state == 1, build.state
         # Make sure format_mmd was run properly
         xmd_mbs = build.mmd().get_xmd()["mbs"]
-        assert type(xmd_mbs) is GLib.Variant
         assert xmd_mbs["buildrequires"]["platform"]["filtered_rpms"] == [
             "foo-0:2.4.48-3.el8+1308+551bfa71",
             "bar-0:2.5.48-3.el8+1308+551bfa71",
@@ -106,7 +105,7 @@ class TestModuleInit:
     def test_init_called_twice(self):
         build = self.test_init_basic()
         old_component_builds = len(build.component_builds)
-        old_mmd = yaml.safe_load(build.modulemd)
+        old_mmd = load_mmd(build.modulemd)
 
         build.state = 4
         db.session.commit()
@@ -116,8 +115,8 @@ class TestModuleInit:
         assert build.state == 1
         assert old_component_builds == len(build.component_builds)
 
-        new_mmd = yaml.safe_load(build.modulemd)
-        assert old_mmd == new_mmd
+        new_mmd = load_mmd(build.modulemd)
+        assert mmd_to_str(old_mmd) == mmd_to_str(new_mmd)
 
     @patch("module_build_service.scm.SCM")
     def test_init_scm_not_available(self, mocked_scm):
@@ -145,11 +144,13 @@ class TestModuleInit:
     def test_init_includedmodule(self, mocked_scm, mocked_mod_allow_repo):
         FakeSCM(mocked_scm, "includedmodules", ["testmodule_init.yaml"])
         includedmodules_yml_path = os.path.join(self.staged_data_dir, "includedmodules.yaml")
-        with open(includedmodules_yml_path, "r") as f:
-            yaml = to_text_type(f.read())
+        mmd = load_mmd_file(includedmodules_yml_path)
+        # Set the name and stream
+        mmd = mmd.copy("includedmodules", "1")
         scmurl = "git://pkgs.domain.local/modules/includedmodule?#da95886"
         with make_session(conf) as session:
-            ModuleBuild.create(session, conf, "includemodule", "1", 3, yaml, scmurl, "mprahl")
+            ModuleBuild.create(
+                session, conf, "includemodule", "1", 3, mmd_to_str(mmd), scmurl, "mprahl")
             msg = module_build_service.messaging.MBSModule(
                 msg_id=None, module_build_id=3, module_build_state="init")
             self.fn(config=conf, session=session, msg=msg)

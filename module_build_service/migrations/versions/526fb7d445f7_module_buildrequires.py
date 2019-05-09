@@ -63,8 +63,8 @@ def upgrade():
 
         brs = None
         try:
-            mmd = Modulemd.Module().new_from_string(build.modulemd)
-            mmd.upgrade()
+            mmd = Modulemd.ModuleStream.read_string(build.modulemd, True)
+            mmd = mmd.upgrade(Modulemd.ModuleStreamVersionEnum.TWO)
             brs = mmd.get_xmd()['mbs']['buildrequires']
         except Exception:
             # If the modulemd isn't parseable then skip this build

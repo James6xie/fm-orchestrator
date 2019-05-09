@@ -28,13 +28,13 @@ import koji
 
 import six.moves.xmlrpc_client as xmlrpclib
 from collections import OrderedDict
-from module_build_service.utils import to_text_type
 
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.repos
 import module_build_service.models
 import module_build_service.builder
-from module_build_service import glib, db
+from module_build_service import Modulemd, db
+from module_build_service.utils.general import mmd_to_str
 
 import pytest
 from mock import patch, MagicMock
@@ -276,10 +276,10 @@ class TestKojiBuilder:
         """
         if blocklist:
             mmd = self.module.mmd()
-            xmd = glib.from_variant_dict(mmd.get_xmd())
+            xmd = mmd.get_xmd()
             xmd["mbs_options"] = {"blocked_packages": ["foo", "bar", "new"]}
-            mmd.set_xmd(glib.dict_values(xmd))
-            self.module.modulemd = to_text_type(mmd.dumps())
+            mmd.set_xmd(xmd)
+            self.module.modulemd = mmd_to_str(mmd)
 
         builder = FakeKojiModuleBuilder(
             owner=self.module.owner,
@@ -473,35 +473,36 @@ class TestKojiBuilder:
     ):
         if blocklist:
             mmd = self.module.mmd()
-            xmd = glib.from_variant_dict(mmd.get_xmd())
+            xmd = mmd.get_xmd()
             xmd["mbs_options"] = {"blocked_packages": ["foo", "nginx"]}
-            mmd.set_xmd(glib.dict_values(xmd))
-            self.module.modulemd = to_text_type(mmd.dumps())
+            mmd.set_xmd(xmd)
+            self.module.modulemd = mmd_to_str(mmd)
 
         if custom_whitelist:
             mmd = self.module.mmd()
-            opts = mmd.get_buildopts()
-            opts.set_rpm_whitelist(["custom1", "custom2"])
+            opts = Modulemd.Buildopts()
+            opts.add_rpm_to_whitelist("custom1")
+            opts.add_rpm_to_whitelist("custom2")
             mmd.set_buildopts(opts)
-            self.module.modulemd = to_text_type(mmd.dumps())
+            self.module.modulemd = mmd_to_str(mmd)
 
         if repo_include_all is False:
             mmd = self.module.mmd()
-            xmd = glib.from_variant_dict(mmd.get_xmd())
+            xmd = mmd.get_xmd()
             mbs_options = xmd["mbs_options"] if "mbs_options" in xmd.keys() else {}
             mbs_options["repo_include_all"] = False
             xmd["mbs_options"] = mbs_options
-            mmd.set_xmd(glib.dict_values(xmd))
-            self.module.modulemd = to_text_type(mmd.dumps())
+            mmd.set_xmd(xmd)
+            self.module.modulemd = mmd_to_str(mmd)
 
         if override_arches:
             mmd = self.module.mmd()
-            xmd = glib.from_variant_dict(mmd.get_xmd())
+            xmd = mmd.get_xmd()
             mbs_options = xmd["mbs"] if "mbs" in xmd.keys() else {}
             mbs_options["buildrequires"] = {"platform": {"stream": "xx"}}
             xmd["mbs"] = mbs_options
-            mmd.set_xmd(glib.dict_values(xmd))
-            self.module.modulemd = to_text_type(mmd.dumps())
+            mmd.set_xmd(xmd)
+            self.module.modulemd = mmd_to_str(mmd)
 
         builder = FakeKojiModuleBuilder(
             owner=self.module.owner,
@@ -579,10 +580,10 @@ class TestKojiBuilder:
     def test_buildroot_connect_create_tag(self, blocklist):
         if blocklist:
             mmd = self.module.mmd()
-            xmd = glib.from_variant_dict(mmd.get_xmd())
+            xmd = mmd.get_xmd()
             xmd["mbs_options"] = {"blocked_packages": ["foo", "nginx"]}
-            mmd.set_xmd(glib.dict_values(xmd))
-            self.module.modulemd = to_text_type(mmd.dumps())
+            mmd.set_xmd(xmd)
+            self.module.modulemd = mmd_to_str(mmd)
 
         builder = FakeKojiModuleBuilder(
             owner=self.module.owner,
@@ -682,8 +683,8 @@ class TestKojiBuilder:
         # the module's name/stream/version/context does not have to match it.
         # But for this test, we need it to match.
         mmd = self.module.mmd()
-        self.module.name = mmd.get_name()
-        self.module.stream = mmd.get_stream()
+        self.module.name = mmd.get_module_name()
+        self.module.stream = mmd.get_stream_name()
         self.module.version = mmd.get_version()
         self.module.context = mmd.get_context()
         db.session.commit()

@@ -31,12 +31,12 @@ from module_build_service.utils import to_text_type, load_mmd_file
 import koji
 import module_build_service
 from module_build_service import db
-from module_build_service.utils import get_rpm_release, import_mmd
+from module_build_service.utils import get_rpm_release, import_mmd, mmd_to_str
 from module_build_service.config import init_config
 from module_build_service.models import (
     ModuleBuild, ComponentBuild, VirtualStream, make_session, BUILD_STATES,
 )
-from module_build_service import glib, Modulemd
+from module_build_service import Modulemd
 
 
 base_dir = os.path.dirname(__file__)
@@ -126,19 +126,17 @@ def init_data(data_size=10, contexts=False, multiple_stream_versions=False, scra
     if multiple_stream_versions:
         mmd = load_mmd_file(os.path.join(base_dir, "staged_data", "platform.yaml"))
         for stream in ["f28.0.0", "f29.0.0", "f29.1.0", "f29.2.0"]:
-            mmd.set_name("platform")
-            mmd.set_stream(stream)
+            mmd = mmd.copy("platform", stream)
 
             # Set the virtual_streams based on "fXY" to mark the platform streams
             # with the same major stream_version compatible.
-            xmd = glib.from_variant_dict(mmd.get_xmd())
+            xmd = mmd.get_xmd()
             xmd["mbs"]["virtual_streams"] = [stream[:3]]
-            mmd.set_xmd(glib.dict_values(xmd))
+            mmd.set_xmd(xmd)
             import_mmd(db.session, mmd)
 
             # Just to possibly confuse tests by adding another base module.
-            mmd.set_name("bootstrap")
-            mmd.set_stream(stream)
+            mmd = mmd.copy("bootstrap", stream)
             import_mmd(db.session, mmd)
     with make_session(conf) as session:
         _populate_data(session, data_size, contexts=contexts, scratch=scratch)
@@ -327,7 +325,7 @@ def scheduler_init_data(tangerine_state=None, scratch=False):
     formatted_testmodule_yml_path = os.path.join(
         current_dir, "staged_data", "formatted_testmodule.yaml")
     mmd = load_mmd_file(formatted_testmodule_yml_path)
-    mmd.get_rpm_components()["tangerine"].set_buildorder(0)
+    mmd.get_rpm_component("tangerine").set_buildorder(0)
 
     platform_br = module_build_service.models.ModuleBuild.query.get(1)
 
@@ -350,7 +348,7 @@ def scheduler_init_data(tangerine_state=None, scratch=False):
         time_submitted=datetime(2017, 2, 15, 16, 8, 18),
         time_modified=datetime(2017, 2, 15, 16, 19, 35),
         rebuild_strategy="changed-and-after",
-        modulemd=to_text_type(mmd.dumps()),
+        modulemd=mmd_to_str(mmd),
     )
 
     module_build.buildrequires.append(platform_br)
@@ -450,11 +448,11 @@ def reuse_component_init_data():
     build_one_component_release = get_rpm_release(build_one)
 
     mmd.set_version(int(build_one.version))
-    xmd = glib.from_variant_dict(mmd.get_xmd())
+    xmd = mmd.get_xmd()
     xmd["mbs"]["scmurl"] = build_one.scmurl
     xmd["mbs"]["commit"] = "ff1ea79fc952143efeed1851aa0aa006559239ba"
-    mmd.set_xmd(glib.dict_values(xmd))
-    build_one.modulemd = to_text_type(mmd.dumps())
+    mmd.set_xmd(xmd)
+    build_one.modulemd = mmd_to_str(mmd)
     build_one.buildrequires.append(platform_br)
 
     build_one.component_builds.extend([
@@ -532,11 +530,11 @@ def reuse_component_init_data():
     build_two_component_release = get_rpm_release(build_two)
 
     mmd.set_version(int(build_one.version))
-    xmd = glib.from_variant_dict(mmd.get_xmd())
+    xmd = mmd.get_xmd()
     xmd["mbs"]["scmurl"] = build_one.scmurl
     xmd["mbs"]["commit"] = "55f4a0a2e6cc255c88712a905157ab39315b8fd8"
-    mmd.set_xmd(glib.dict_values(xmd))
-    build_two.modulemd = to_text_type(mmd.dumps())
+    mmd.set_xmd(xmd)
+    build_two.modulemd = mmd_to_str(mmd)
     build_two.buildrequires.append(platform_br)
 
     build_two.component_builds.extend([
@@ -597,13 +595,13 @@ def reuse_shared_userspace_init_data():
         mmd = load_mmd_file(formatted_testmodule_yml_path)
 
         module_build = module_build_service.models.ModuleBuild(
-            name=mmd.get_name(),
-            stream=mmd.get_stream(),
+            name=mmd.get_module_name(),
+            stream=mmd.get_stream_name(),
             version=mmd.get_version(),
             build_context="e046b867a400a06a3571f3c71142d497895fefbe",
             runtime_context="50dd3eb5dde600d072e45d4120e1548ce66bc94a",
             state=BUILD_STATES["ready"],
-            modulemd=to_text_type(mmd.dumps()),
+            modulemd=mmd_to_str(mmd),
             koji_tag="module-shared-userspace-f26-20170601141014-75f92abb",
             scmurl="https://src.stg.fedoraproject.org/modules/testmodule.git?#7fea453",
             batch=16,
@@ -614,7 +612,10 @@ def reuse_shared_userspace_init_data():
             rebuild_strategy="changed-and-after",
         )
 
-        components = list(mmd.get_rpm_components().values())
+        components = [
+            mmd.get_rpm_component(rpm)
+            for rpm in mmd.get_rpm_component_names()
+        ]
         components.sort(key=lambda x: x.get_buildorder())
         previous_buildorder = None
         batch = 1
@@ -650,13 +651,13 @@ def reuse_shared_userspace_init_data():
         mmd2 = load_mmd_file(formatted_testmodule_yml_path)
 
         module_build = module_build_service.models.ModuleBuild(
-            name=mmd2.get_name(),
-            stream=mmd2.get_stream(),
+            name=mmd2.get_module_name(),
+            stream=mmd2.get_stream_name(),
             version=mmd2.get_version(),
             build_context="e046b867a400a06a3571f3c71142d497895fefbe",
             runtime_context="50dd3eb5dde600d072e45d4120e1548ce66bc94a",
             state=BUILD_STATES["done"],
-            modulemd=to_text_type(mmd2.dumps()),
+            modulemd=mmd_to_str(mmd2),
             koji_tag="module-shared-userspace-f26-20170605091544-75f92abb",
             scmurl="https://src.stg.fedoraproject.org/modules/testmodule.git?#7fea453",
             batch=0,
@@ -667,7 +668,10 @@ def reuse_shared_userspace_init_data():
             rebuild_strategy="changed-and-after",
         )
 
-        components2 = list(mmd2.get_rpm_components().values())
+        components2 = [
+            mmd2.get_rpm_component(rpm)
+            for rpm in mmd2.get_rpm_component_names()
+        ]
         # Store components to database in different order than for 570 to
         # reproduce the reusing issue.
         components2.sort(key=lambda x: len(x.get_name()))
@@ -725,23 +729,17 @@ def make_module(
     :rtype: ModuleBuild or Modulemd.Module
     """
     name, stream, version, context = nsvc.split(":")
-    mmd = Modulemd.Module()
-    mmd.set_mdversion(2)
-    mmd.set_name(name)
-    mmd.set_stream(stream)
+    mmd = Modulemd.ModuleStreamV2.new(name, stream)
     mmd.set_version(int(version))
     mmd.set_context(context)
     mmd.set_summary("foo")
     # Test unicode in mmd.
     mmd.set_description(u"foo \u2019s")
-    licenses = Modulemd.SimpleSet()
-    licenses.add("GPL")
-    mmd.set_module_licenses(licenses)
+    mmd.add_module_license("GPL")
 
     if filtered_rpms:
-        rpm_filter_set = Modulemd.SimpleSet()
-        rpm_filter_set.set(filtered_rpms)
-        mmd.set_rpm_filter(rpm_filter_set)
+        for rpm in filtered_rpms:
+            mmd.add_rpm_filter(rpm)
 
     if requires_list is not None and build_requires_list is not None:
         if not isinstance(requires_list, list):
@@ -749,15 +747,23 @@ def make_module(
         if not isinstance(build_requires_list, list):
             build_requires_list = [build_requires_list]
 
-        deps_list = []
         for requires, build_requires in zip(requires_list, build_requires_list):
             deps = Modulemd.Dependencies()
             for req_name, req_streams in requires.items():
-                deps.add_requires(req_name, req_streams)
+                if req_streams == []:
+                    deps.set_empty_runtime_dependencies_for_module(req_name)
+                else:
+                    for req_stream in req_streams:
+                        deps.add_runtime_stream(req_name, req_stream)
+
             for req_name, req_streams in build_requires.items():
-                deps.add_buildrequires(req_name, req_streams)
-            deps_list.append(deps)
-        mmd.set_dependencies(deps_list)
+                if req_streams == []:
+                    deps.set_empty_buildtime_dependencies_for_module(req_name)
+                else:
+                    for req_stream in req_streams:
+                        deps.add_buildtime_stream(req_name, req_stream)
+
+            mmd.add_dependencies(deps)
 
     # Caller could pass whole xmd including mbs, but if something is missing,
     # default values are given here.
@@ -775,7 +781,7 @@ def make_module(
     if virtual_streams:
         xmd_mbs["virtual_streams"] = virtual_streams
 
-    mmd.set_xmd(glib.dict_values(xmd))
+    mmd.set_xmd(xmd)
 
     if not store_to_db:
         return mmd
@@ -795,7 +801,7 @@ def make_module(
         rebuild_strategy="changed-and-after",
         build_context=context,
         runtime_context=context,
-        modulemd=to_text_type(mmd.dumps()),
+        modulemd=mmd_to_str(mmd),
         koji_tag=xmd["mbs"]["koji_tag"] if "koji_tag" in xmd["mbs"] else None,
     )
     if base_module:

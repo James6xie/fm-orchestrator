@@ -42,8 +42,8 @@ def upgrade():
         if not build.modulemd:
             continue
         try:
-            mmd = Modulemd.Module().new_from_string(build.modulemd)
-            mmd.upgrade()
+            mmd = Modulemd.ModuleStream.read_string(build.modulemd, True)
+            mmd = mmd.upgrade(Modulemd.ModuleStreamVersionEnum.TWO)
         except Exception:
             # If the modulemd isn't parseable then skip this build
             continue
@@ -51,13 +51,12 @@ def upgrade():
         mbs_xmd = mmd.get_xmd().get('mbs', {})
         # Skip the non-MSE builds, so the "context" will be set default one
         # in models.ModuleBuild.
-        if "mse" not in mbs_xmd.keys() or not mbs_xmd["mse"]:
+        if not mbs_xmd.get("mse"):
             continue
 
         # It's possible this module build was built before MBS filled out xmd or before MBS
-        # filled out the requires in xmd. We also have to use keys because GLib.Variant
-        # doesn't support `in` directly.
-        if 'buildrequires' not in mbs_xmd.keys():
+        # filled out the requires in xmd
+        if 'buildrequires' not in mbs_xmd:
             continue
         # Get the streams of buildrequires and hash it.
         mmd_formatted_buildrequires = {

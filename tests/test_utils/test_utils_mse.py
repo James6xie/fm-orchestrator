@@ -23,7 +23,7 @@ import os
 import pytest
 
 import module_build_service.utils
-from module_build_service import glib
+from module_build_service import Modulemd
 from module_build_service.errors import StreamAmbigous
 from tests import db, clean_database, make_module, init_data, base_dir
 
@@ -45,7 +45,7 @@ class TestUtilsModuleStreamExpansion:
         module_build_service.utils.expand_mse_streams(db.session, mmd)
         modules = module_build_service.utils.get_mmds_required_by_module_recursively(mmd)
         nsvcs = [
-            ":".join([m.get_name(), m.get_stream(), str(m.get_version()), m.get_context()])
+            m.get_nsvc()
             for m in modules
         ]
         return nsvcs
@@ -130,13 +130,6 @@ class TestUtilsModuleStreamExpansion:
             ),
             (
                 {"gtk": ["1"], "foo": ["1"]},
-                {"platform": ["f28"], "gtk": ["-1", "1"], "foo": ["-2", "1"]},
-                False,
-                set([frozenset(["foo:1:0:c2", "gtk:1:0:c2", "platform:f28:0:c10"])]),
-                set([frozenset(["foo:1", "gtk:1", "platform:f28"])]),
-            ),
-            (
-                {"gtk": ["1"], "foo": ["1"]},
                 {"platform": ["f28"], "gtk": ["1"]},
                 False,
                 set([frozenset(["gtk:1:0:c2", "platform:f28:0:c10"])]),
@@ -193,7 +186,7 @@ class TestUtilsModuleStreamExpansion:
         buildrequires_per_mmd_xmd = set()
         buildrequires_per_mmd_buildrequires = set()
         for mmd in mmds:
-            xmd = glib.from_variant_dict(mmd.get_xmd())
+            xmd = mmd.get_xmd()
             br_nsvcs = []
             for name, detail in xmd["mbs"]["buildrequires"].items():
                 br_nsvcs.append(
@@ -204,8 +197,8 @@ class TestUtilsModuleStreamExpansion:
 
             buildrequires = set()
             dep = mmd.get_dependencies()[0]
-            for req_name, req_streams in dep.get_buildrequires().items():
-                for req_stream in req_streams.get():
+            for req_name in dep.get_buildtime_modules():
+                for req_stream in dep.get_buildtime_streams(req_name):
                     buildrequires.add(":".join([req_name, req_stream]))
             buildrequires_per_mmd_buildrequires.add(frozenset(buildrequires))
 
@@ -236,11 +229,6 @@ class TestUtilsModuleStreamExpansion:
                 set([frozenset(["foo:1", "gtk:1"])]),
             ),
             (
-                {"gtk": ["-1", "1"], "foo": ["-2", "1"]},
-                {"platform": [], "gtk": ["-1", "1"], "foo": ["-2", "1"]},
-                set([frozenset(["foo:1", "gtk:1"])]),
-            ),
-            (
                 {"gtk": [], "foo": []},
                 {"platform": [], "gtk": ["1"], "foo": ["1"]},
                 set([frozenset([])]),
@@ -257,8 +245,8 @@ class TestUtilsModuleStreamExpansion:
             assert len(mmd.get_dependencies()) == 1
             mmd_requires = set()
             dep = mmd.get_dependencies()[0]
-            for req_name, req_streams in dep.get_requires().items():
-                for req_stream in req_streams.get():
+            for req_name in dep.get_runtime_modules():
+                for req_stream in dep.get_runtime_streams(req_name):
                     mmd_requires.add(":".join([req_name, req_stream]))
             requires_per_mmd.add(frozenset(mmd_requires))
 
@@ -318,18 +306,6 @@ class TestUtilsModuleStreamExpansion:
             (
                 {},
                 {"platform": [], "gtk": ["-2"], "foo": ["-2"]},
-                [
-                    "foo:1:0:c2",
-                    "foo:1:0:c3",
-                    "platform:f29:0:c11",
-                    "platform:f28:0:c10",
-                    "gtk:1:0:c2",
-                    "gtk:1:0:c3",
-                ],
-            ),
-            (
-                {},
-                {"platform": [], "gtk": ["-1", "1"], "foo": ["-2", "1"]},
                 [
                     "foo:1:0:c2",
                     "foo:1:0:c3",
@@ -427,11 +403,14 @@ class TestUtilsModuleStreamExpansion:
         init_data(data_size=1, multiple_stream_versions=True)
         mmd = module_build_service.utils.load_mmd_file(
             os.path.join(base_dir, "staged_data", "testmodule_v2.yaml"))
-        deps = mmd.get_dependencies()
-        brs = deps[0].get_buildrequires()
-        brs["platform"].set(["f29.1.0", "f29.2.0"])
-        deps[0].set_buildrequires(brs)
-        mmd.set_dependencies(deps)
+        deps = mmd.get_dependencies()[0]
+        new_deps = Modulemd.Dependencies()
+        for stream in deps.get_runtime_streams("platform"):
+            new_deps.add_runtime_stream("platform", stream)
+        new_deps.add_buildtime_stream("platform", "f29.1.0")
+        new_deps.add_buildtime_stream("platform", "f29.2.0")
+        mmd.remove_dependencies(deps)
+        mmd.add_dependencies(new_deps)
 
         mmds = module_build_service.utils.mse._get_base_module_mmds(mmd)
         expected = set(["platform:f29.0.0", "platform:f29.1.0", "platform:f29.2.0"])
@@ -440,7 +419,7 @@ class TestUtilsModuleStreamExpansion:
         # Verify the expected ones were returned
         actual = set()
         for mmd_ in mmds:
-            actual.add("{}:{}".format(mmd_.get_name(), mmd_.get_stream()))
+            actual.add("{}:{}".format(mmd_.get_module_name(), mmd_.get_stream_name()))
         assert actual == expected
 
     @pytest.mark.parametrize("virtual_streams", (None, ["f29"], ["lp29"]))
@@ -449,11 +428,13 @@ class TestUtilsModuleStreamExpansion:
         init_data(data_size=1, multiple_stream_versions=True)
         mmd = module_build_service.utils.load_mmd_file(
             os.path.join(base_dir, "staged_data", "testmodule_v2.yaml"))
-        deps = mmd.get_dependencies()
-        brs = deps[0].get_buildrequires()
-        brs["platform"].set(["f29.2.0"])
-        deps[0].set_buildrequires(brs)
-        mmd.set_dependencies(deps)
+        deps = mmd.get_dependencies()[0]
+        new_deps = Modulemd.Dependencies()
+        for stream in deps.get_runtime_streams("platform"):
+            new_deps.add_runtime_stream("platform", stream)
+        new_deps.add_buildtime_stream("platform", "f29.2.0")
+        mmd.remove_dependencies(deps)
+        mmd.add_dependencies(new_deps)
 
         make_module("platform:lp29.1.1:12:c11", {}, {}, virtual_streams=virtual_streams)
 
@@ -468,5 +449,5 @@ class TestUtilsModuleStreamExpansion:
         # Verify the expected ones were returned
         actual = set()
         for mmd_ in mmds:
-            actual.add("{}:{}".format(mmd_.get_name(), mmd_.get_stream()))
+            actual.add("{}:{}".format(mmd_.get_module_name(), mmd_.get_stream_name()))
         assert actual == expected

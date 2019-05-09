@@ -1,6 +1,7 @@
 FROM fedora:29
 
 WORKDIR /build
+# Unpin the libmodulemd RPMs and replace with `python3-libmodulemd` after FEDORA-2019-b1cdf17e35
 RUN dnf -y install \
     --nogpgcheck \
     --setopt=deltarpm=0 \
@@ -11,7 +12,6 @@ RUN dnf -y install \
     python3-fedmsg \
     python3-kobo-rpmlib \
     python3-rpm \
-    libmodulemd \
     python3-gobject \
     python3-dnf \
     python3-dogpile-cache \
@@ -20,6 +20,9 @@ RUN dnf -y install \
     python3-flask-sqlalchemy \
     python3-koji \
     python3-ldap3 \
+    https://kojipkgs.fedoraproject.org//packages/libmodulemd/2.4.0/1.fc29/x86_64/python3-libmodulemd-2.4.0-1.fc29.x86_64.rpm \
+    https://kojipkgs.fedoraproject.org//packages/libmodulemd/2.4.0/1.fc29/x86_64/libmodulemd-2.4.0-1.fc29.x86_64.rpm \
+    https://kojipkgs.fedoraproject.org//packages/libmodulemd/2.4.0/1.fc29/x86_64/libmodulemd1-1.8.10-1.fc29.x86_64.rpm \
     python3-munch \
     python3-pip \
     python3-prometheus_client \

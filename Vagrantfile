@@ -5,6 +5,7 @@ $script = <<SCRIPT
     grep -q '^127\.0\.0\.1 fedmsg-relay$' /etc/hosts || echo "127.0.0.1 fedmsg-relay" >> /etc/hosts
     echo "export MODULE_BUILD_SERVICE_DEVELOPER_ENV=1" > /etc/profile.d/module_build_service_developer_env.sh
     source /etc/profile.d/module_build_service_developer_env.sh
+    # Unpin the libmodulemd RPMs and replace with `python2-libmodulemd` after FEDORA-2019-b1cdf17e35
     dnf install -y \
         fedmsg-hub \
         fedmsg-relay \
@@ -15,7 +16,6 @@ $script = <<SCRIPT
         koji \
         krb5-workstation \
         libffi-devel \
-        libmodulemd \
         mock-scm \
         openssl-devel \
         python \
@@ -24,6 +24,9 @@ $script = <<SCRIPT
         python-docutils \
         python-flask \
         python-gobject-base \
+        https://kojipkgs.fedoraproject.org//packages/libmodulemd/2.4.0/1.fc29/x86_64/python2-libmodulemd-2.4.0-1.fc29.x86_64.rpm \
+        https://kojipkgs.fedoraproject.org//packages/libmodulemd/2.4.0/1.fc29/x86_64/libmodulemd-2.4.0-1.fc29.x86_64.rpm \
+        https://kojipkgs.fedoraproject.org//packages/libmodulemd/2.4.0/1.fc29/x86_64/libmodulemd1-1.8.10-1.fc29.x86_64.rpm \
         python-m2ext \
         python-mock \
         python-qpid \

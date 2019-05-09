@@ -42,9 +42,9 @@ from six import text_type
 import koji
 import pungi.arch
 
-from module_build_service import conf, log, build_logs, Modulemd, glib
+from module_build_service import conf, log, build_logs, Modulemd
 from module_build_service.scm import SCM
-from module_build_service.utils import to_text_type, load_mmd
+from module_build_service.utils import to_text_type, load_mmd, mmd_to_str
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -211,15 +211,7 @@ class KojiContentGenerator(object):
     def __get_tools(self):
         """Return list of tools which are important for reproducing mbs outputs"""
 
-        # TODO: In libmodulemd v1.5, there'll be a property we can check instead
-        # of using RPM
-        try:
-            cmd = ["rpm", "--queryformat", "%{VERSION}", "-q", "libmodulemd"]
-            libmodulemd_version = subprocess.check_output(cmd, universal_newlines=True).strip()
-        except subprocess.CalledProcessError:
-            libmodulemd_version = "unknown"
-
-        return [{"name": "libmodulemd", "version": libmodulemd_version}]
+        return [{"name": "libmodulemd", "version": Modulemd.get_version()}]
 
     def _koji_rpms_in_tag(self, tag):
         """ Return the list of koji rpms in a tag. """
@@ -417,7 +409,7 @@ class KojiContentGenerator(object):
             # to generate list of components for this architecture.
             # We cannot simply use the data from MMD here without `rpms_dict`, because
             # RPM sigmd5 signature is not stored in MMD.
-            for rpm in mmd.get_rpm_artifacts().get():
+            for rpm in mmd.get_rpm_artifacts():
                 if rpm not in self.rpms_dict:
                     raise RuntimeError(
                         "RPM %s found in the final modulemd but not in Koji tag." % rpm)
@@ -471,11 +463,11 @@ class KojiContentGenerator(object):
         should be included in a final MMD file for given arch.
         """
         # Check the "whitelist" buildopts section of MMD.
-        # When "whitelist" is defined, it overrides component names in
-        # `mmd.get_rpm_components()`. The whitelist is used when module needs to build
+        # When "whitelist" is defined, it overrides component names from
+        # `mmd.get_rpm_component(component)`. The whitelist is used when module needs to build
         # package with different SRPM name than the package name. This is case for example
         # for software collections where SRPM name can be "httpd24-httpd", but package name
-        # is still "httpd". In this case, get_rpm_components() would contain "httpd", but the
+        # is still "httpd". In this case, the component would contain "httpd", but the
         # rpm["srpm_name"] would be "httpd24-httpd".
         srpm = rpm["srpm_name"]
         whitelist = None
@@ -490,21 +482,20 @@ class KojiContentGenerator(object):
         # If there is no whitelist, just check that the SRPM name we have here
         # exists in the list of components.
         # In theory, there should never be situation where modular tag contains
-        # some RPM built from SRPM not included in get_rpm_components() or in whitelist,
+        # some RPM built from SRPM not included in get_rpm_component_names() or in whitelist,
         # but the original Pungi code checked for this case.
-        if not whitelist and srpm not in mmd.get_rpm_components().keys():
+        if not whitelist and srpm not in mmd.get_rpm_component_names():
             return False
 
         # Do not include this RPM if it is filtered.
-        if rpm["name"] in mmd.get_rpm_filter().get():
+        if rpm["name"] in mmd.get_rpm_filters():
             return False
 
         # Skip the rpm if it's built for multilib arch, but
         # multilib is not enabled for this srpm in MMD.
         try:
-            mmd_component = mmd.get_rpm_components()[srpm]
-            multilib = mmd_component.get_multilib()
-            multilib = multilib.get() if multilib else set()
+            mmd_component = mmd.get_rpm_component(srpm)
+            multilib = set(mmd_component.get_multilib_arches())
             # The `multilib` set defines the list of architectures for which
             # the multilib is enabled.
             #
@@ -513,7 +504,7 @@ class KojiContentGenerator(object):
             # architectures.
             if arch not in multilib and rpm["arch"] in multilib_arches:
                 return False
-        except KeyError:
+        except AttributeError:
             # TODO: This exception is raised only when "whitelist" is used.
             # Since components in whitelist have different names than ones in
             # components list, we won't find them there.
@@ -532,7 +523,7 @@ class KojiContentGenerator(object):
         Fills in the list of built RPMs in architecture specific `mmd` for `arch`
         using the data from `self.rpms_dict` as well as the content licenses field.
 
-        :param Modulemd.Module mmd: MMD to add built RPMs to.
+        :param Modulemd.ModuleStream mmd: MMD to add built RPMs to.
         :param str arch: Architecture for which to add RPMs.
         :rtype: Modulemd.Module
         :return: MMD with built RPMs filled in.
@@ -552,11 +543,11 @@ class KojiContentGenerator(object):
         # from ExcludeArch tag. Multilib should not be enabled here.
         exclusive_arches = pungi.arch.get_valid_arches(arch, multilib=False, add_noarch=False)
 
-        # Modulemd.SimpleSet into which we will add the RPMs.
-        rpm_artifacts = Modulemd.SimpleSet()
+        # A set into which we will add the RPMs.
+        rpm_artifacts = set()
 
-        # Modulemd.SimpleSet into which we will add licenses of all RPMs.
-        rpm_licenses = Modulemd.SimpleSet()
+        # A set into which we will add licenses of all RPMs.
+        rpm_licenses = set()
 
         # RPM name suffixes for debug RPMs.
         debug_suffixes = ("-debuginfo", "-debugsource")
@@ -669,8 +660,17 @@ class KojiContentGenerator(object):
             for source_nevra in non_devel_source_rpms.values():
                 rpm_artifacts.add(source_nevra)
 
-        mmd.set_content_licenses(rpm_licenses)
-        mmd.set_rpm_artifacts(rpm_artifacts)
+        # There is no way to replace the licenses, so remove any extra licenses
+        for license_to_remove in (set(mmd.get_content_licenses()) - rpm_licenses):
+            mmd.remove_content_license(license_to_remove)
+        for license_to_add in (rpm_licenses - set(mmd.get_content_licenses())):
+            mmd.add_content_license(license_to_add)
+
+        # There is no way to replace the RPM artifacts, so remove any extra RPM artifacts
+        for artifact_to_remove in (set(mmd.get_rpm_artifacts()) - rpm_artifacts):
+            mmd.remove_rpm_artifact(artifact_to_remove)
+        for artifact_to_add in (rpm_artifacts - set(mmd.get_rpm_artifacts())):
+            mmd.add_rpm_artifact(artifact_to_add)
         return mmd
 
     def _sanitize_mmd(self, mmd):
@@ -685,17 +685,18 @@ class KojiContentGenerator(object):
         :return: Sanitized Modulemd instance.
         """
         # Remove components.repository and components.cache.
-        for pkg in mmd.get_rpm_components().values():
+        for pkg_name in mmd.get_rpm_component_names():
+            pkg = mmd.get_rpm_component(pkg_name)
             if pkg.get_repository():
                 pkg.set_repository(None)
             if pkg.get_cache():
                 pkg.set_cache(None)
 
         # Remove 'mbs' XMD section.
-        xmd = glib.from_variant_dict(mmd.get_xmd())
+        xmd = mmd.get_xmd()
         if "mbs" in xmd:
             del xmd["mbs"]
-            mmd.set_xmd(glib.dict_values(xmd))
+            mmd.set_xmd(xmd)
 
         return mmd
 
@@ -710,15 +711,16 @@ class KojiContentGenerator(object):
         """
         mmd = self._sanitize_mmd(self.module.mmd())
         if self.devel:
+            # Set the new name
+            mmd = mmd.copy(mmd.get_module_name() + "-devel")
+
             # Depend on the actual module
             for dep in mmd.get_dependencies():
-                dep.add_requires_single(mmd.get_name(), mmd.get_stream())
-
-            # Set the new name
-            mmd.set_name(mmd.get_name() + "-devel")
+                dep.add_runtime_stream(mmd.get_module_name(), mmd.get_stream_name())
 
             # Delete API and profiles
-            mmd.set_rpm_api(Modulemd.SimpleSet())
+            for rpm in mmd.get_rpm_api():
+                mmd.remove_rpm_api(rpm)
             mmd.clear_profiles()
 
         # Set the "Arch" field in mmd.
@@ -726,7 +728,7 @@ class KojiContentGenerator(object):
         # Fill in the list of built RPMs.
         mmd = self._fill_in_rpms_list(mmd, arch)
 
-        return to_text_type(mmd.dumps())
+        return mmd_to_str(mmd)
 
     def _download_source_modulemd(self, mmd, output_path):
         """
@@ -739,7 +741,7 @@ class KojiContentGenerator(object):
         :param str output_path: Full path to file into which the original modulemd
             file will be stored.
         """
-        xmd = glib.from_variant_dict(mmd.get_xmd())
+        xmd = mmd.get_xmd()
         commit = xmd.get("mbs", {}).get("commit")
         scmurl = xmd.get("mbs", {}).get("scmurl")
         if not commit or not scmurl:

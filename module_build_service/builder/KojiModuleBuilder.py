@@ -404,9 +404,9 @@ class KojiModuleBuilder(GenericBuilder):
         )
 
         modulemd_macros = ""
-        rpm_buildopts = mmd.get_rpm_buildopts()
-        if rpm_buildopts:
-            modulemd_macros = rpm_buildopts.get("macros")
+        buildopts = mmd.get_buildopts()
+        if buildopts:
+            modulemd_macros = buildopts.get_rpm_macros() or ""
 
         macros_content = textwrap.dedent("""
             # General macros set by MBS
@@ -531,15 +531,19 @@ class KojiModuleBuilder(GenericBuilder):
         self.module_build_tag = self._koji_create_tag(
             self.tag_name + "-build", self.arches, perm="admin")
 
-        self._koji_whitelist_packages(
-            self.mmd.props.buildopts.props.rpm_whitelist or self.components)
+        buildopts = self.mmd.get_buildopts()
+        if buildopts:
+            rpm_whitelist = buildopts.get_rpm_whitelist()
+        else:
+            rpm_whitelist = self.components
+        self._koji_whitelist_packages(rpm_whitelist)
 
         # If we have just created the build tag in this buildroot_connect call, block all
         # the components in `blocked_packages` list. We want to do that just once, because
         # there might be some unblocked packages later and we would block them again...
         if not build_tag_exists:
             xmd = self.mmd.get_xmd()
-            if "mbs_options" in xmd.keys() and "blocked_packages" in xmd["mbs_options"].keys():
+            if "blocked_packages" in xmd.get("mbs_options", {}):
                 self._koji_block_packages(xmd["mbs_options"]["blocked_packages"])
 
         @module_build_service.utils.retry(wait_on=SysCallError, interval=5)
@@ -591,7 +595,7 @@ class KojiModuleBuilder(GenericBuilder):
         build_tag = self._get_tag(self.module_build_tag)["id"]
 
         xmd = self.mmd.get_xmd()
-        if "mbs_options" in xmd.keys() and "blocked_packages" in xmd["mbs_options"].keys():
+        if "blocked_packages" in xmd.get("mbs_options", {}):
             packages = [kobo.rpmlib.parse_nvr(nvr)["name"] for nvr in artifacts]
             packages = [
                 package for package in packages
@@ -842,8 +846,7 @@ class KojiModuleBuilder(GenericBuilder):
 
             # disabled by default, wouldn't work until Koji issue #1158 is done
             if conf.allow_arch_override:
-                build_opts["arch_override"] = (
-                    self.mmd.get_rpm_components()[artifact_name].get_arches().get())
+                build_opts["arch_override"] = self.mmd.get_rpm_component(artifact_name).get_arches()
 
             task_id = self.koji_session.build(
                 source, module_target, build_opts, priority=self.build_priority)
@@ -1006,7 +1009,7 @@ class KojiModuleBuilder(GenericBuilder):
         opts["extra"] = copy.deepcopy(conf.koji_tag_extra_opts)
 
         xmd = self.mmd.get_xmd()
-        if "mbs_options" in xmd.keys() and "repo_include_all" in xmd["mbs_options"].keys():
+        if "repo_include_all" in xmd.get("mbs_options", {}):
             opts["extra"]["repo_include_all"] = xmd["mbs_options"]["repo_include_all"]
 
         # edit tag with opts
@@ -1256,7 +1259,12 @@ class KojiModuleBuilder(GenericBuilder):
         """
         with models.make_session(conf) as db_session:
             build = models.ModuleBuild.get_build_from_nsvc(
-                db_session, mmd.get_name(), mmd.get_stream(), mmd.get_version(), mmd.get_context())
+                db_session,
+                mmd.get_module_name(),
+                mmd.get_stream_name(),
+                mmd.get_version(),
+                mmd.get_context()
+            )
             koji_session = KojiModuleBuilder.get_session(conf, login=False)
             rpms = koji_session.listTaggedRPMS(build.koji_tag, latest=True)[0]
             nvrs = set(kobo.rpmlib.make_nvr(rpm, force_epoch=True) for rpm in rpms)

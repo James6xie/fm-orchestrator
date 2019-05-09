@@ -29,7 +29,6 @@ import time
 import shutil
 import tempfile
 import os
-from functools import partial
 from multiprocessing.dummy import Pool as ThreadPool
 from datetime import datetime
 import copy
@@ -41,8 +40,9 @@ from gi.repository import GLib
 import module_build_service.scm
 from module_build_service import conf, db, log, models, Modulemd
 from module_build_service.errors import ValidationError, UnprocessableEntity, Forbidden, Conflict
-from module_build_service import glib
-from module_build_service.utils import to_text_type
+from module_build_service.utils import (
+    to_text_type, deps_to_dict, mmd_to_str, load_mmd, load_mmd_file
+)
 
 
 def record_filtered_rpms(mmd):
@@ -80,9 +80,8 @@ def record_filtered_rpms(mmd):
 
         # Find out the particular NVR of filtered packages
         filtered_rpms = []
-        rpm_filter = req_mmd.get_rpm_filter()
-        if rpm_filter and rpm_filter.get():
-            rpm_filter = rpm_filter.get()
+        rpm_filter = req_mmd.get_rpm_filters()
+        if rpm_filter:
             built_nvrs = builder.get_built_rpms_in_module_build(req_mmd)
             for nvr in built_nvrs:
                 parsed_nvr = kobo.rpmlib.parse_nvr(nvr)
@@ -93,9 +92,9 @@ def record_filtered_rpms(mmd):
         new_buildrequires[req_name] = req_data
 
     # Replace the old buildrequires with new ones.
-    xmd = glib.from_variant_dict(mmd.get_xmd())
+    xmd = mmd.get_xmd()
     xmd["mbs"]["buildrequires"] = new_buildrequires
-    mmd.set_xmd(glib.dict_values(xmd))
+    mmd.set_xmd(xmd)
     return mmd
 
 
@@ -124,7 +123,7 @@ def format_mmd(mmd, scmurl, module=None, session=None):
     Prepares the modulemd for the MBS. This does things such as replacing the
     branches of components with commit hashes and adding metadata in the xmd
     dictionary.
-    :param mmd: the Modulemd.Module object to format
+    :param mmd: the Modulemd.ModuleStream object to format
     :param scmurl: the url to the modulemd
     :param module: When specified together with `session`, the time_modified
         of a module is updated regularly in case this method takes lot of time.
@@ -134,7 +133,7 @@ def format_mmd(mmd, scmurl, module=None, session=None):
     # them because of dep-chain.
     from module_build_service.scm import SCM
 
-    xmd = glib.from_variant_dict(mmd.get_xmd())
+    xmd = mmd.get_xmd()
     if "mbs" not in xmd:
         xmd["mbs"] = {}
     if "scmurl" not in xmd["mbs"]:
@@ -153,11 +152,12 @@ def format_mmd(mmd, scmurl, module=None, session=None):
 
         xmd["mbs"]["commit"] = full_scm_hash
 
-    if mmd.get_rpm_components() or mmd.get_module_components():
+    if mmd.get_rpm_component_names() or mmd.get_module_component_names():
         if "rpms" not in xmd["mbs"]:
             xmd["mbs"]["rpms"] = {}
         # Add missing data in RPM components
-        for pkgname, pkg in mmd.get_rpm_components().items():
+        for pkgname in mmd.get_rpm_component_names():
+            pkg = mmd.get_rpm_component(pkgname)
             # In case of resubmit of existing module which have been
             # cancelled/failed during the init state, the package
             # was maybe already handled by MBS, so skip it in this case.
@@ -171,7 +171,7 @@ def format_mmd(mmd, scmurl, module=None, session=None):
             if pkg.get_cache() and not conf.rpms_allow_cache:
                 raise Forbidden(
                     "Custom component caches aren't allowed.  "
-                    "%r bears cache %r" % (pkgname, pkg.cache)
+                    "%r bears cache %r" % (pkgname, pkg.get_cache())
                 )
             if not pkg.get_repository():
                 pkg.set_repository(conf.rpms_default_repository + pkgname)
@@ -179,13 +179,13 @@ def format_mmd(mmd, scmurl, module=None, session=None):
                 pkg.set_cache(conf.rpms_default_cache + pkgname)
             if not pkg.get_ref():
                 pkg.set_ref("master")
-            if pkg.get_arches().size() == 0:
-                arches = Modulemd.SimpleSet()
-                arches.set(conf.arches)
-                pkg.set_arches(arches)
+            if not pkg.get_arches():
+                for arch in conf.arches:
+                    pkg.add_restricted_arch(arch)
 
         # Add missing data in included modules components
-        for modname, mod in mmd.get_module_components().items():
+        for modname in mmd.get_module_component_names():
+            mod = mmd.get_module_component(modname)
             if mod.get_repository() and not conf.modules_allow_repository:
                 raise Forbidden(
                     "Custom module repositories aren't allowed.  "
@@ -203,8 +203,9 @@ def format_mmd(mmd, scmurl, module=None, session=None):
             # Filter out the packages which we have already resolved in possible
             # previous runs of this method (can be caused by module build resubmition).
             pkgs_to_resolve = [
-                pkg for pkg in mmd.get_rpm_components().values()
-                if pkg.get_name() not in xmd["mbs"]["rpms"]
+                mmd.get_rpm_component(name)
+                for name in mmd.get_rpm_component_names()
+                if name not in xmd["mbs"]["rpms"]
             ]
             async_result = pool.map_async(_scm_get_latest, pkgs_to_resolve)
 
@@ -232,14 +233,14 @@ def format_mmd(mmd, scmurl, module=None, session=None):
             raise UnprocessableEntity(err_msg)
 
     # Set the modified xmd back to the modulemd
-    mmd.set_xmd(glib.dict_values(xmd))
+    mmd.set_xmd(xmd)
 
 
 def get_prefixed_version(mmd):
     """
     Return the prefixed version of the module based on the buildrequired base module stream.
 
-    :param mmd: the Modulemd.Module object to format
+    :param mmd: the Modulemd.ModuleStream object to format
     :return: the prefixed version
     :rtype: int
     """
@@ -248,7 +249,6 @@ def get_prefixed_version(mmd):
 
     base_module_stream = None
     for base_module in conf.base_module_names:
-        # xmd is a GLib Variant and doesn't support .get() syntax
         try:
             base_module_stream = xmd["mbs"]["buildrequires"].get(base_module, {}).get("stream")
             if base_module_stream:
@@ -298,14 +298,15 @@ def validate_mmd(mmd):
         allowed.
     :raise ValidationError: if the xmd has the "mbs" key set.
     """
-    for modname, mod in mmd.get_module_components().items():
+    for modname in mmd.get_module_component_names():
+        mod = mmd.get_module_component(modname)
         if mod.get_repository() and not conf.modules_allow_repository:
             raise Forbidden(
                 "Custom module repositories aren't allowed.  "
                 "%r bears repository %r" % (modname, mod.get_repository())
             )
 
-    name = mmd.get_name()
+    name = mmd.get_module_name()
     xmd = mmd.get_xmd()
     if "mbs" in xmd:
         allowed_to_mark_disttag = name in conf.allowed_disttag_marking_module_names
@@ -322,15 +323,15 @@ def merge_included_mmd(mmd, included_mmd):
     Merges two modulemds. This merges only metadata which are needed in
     the `main` when it includes another module defined by `included_mmd`
     """
-    included_xmd = glib.from_variant_dict(included_mmd.get_xmd())
+    included_xmd = included_mmd.get_xmd()
     if "rpms" in included_xmd["mbs"]:
-        xmd = glib.from_variant_dict(mmd.get_xmd())
+        xmd = mmd.get_xmd()
         if "rpms" not in xmd["mbs"]:
             xmd["mbs"]["rpms"] = included_xmd["mbs"]["rpms"]
         else:
             xmd["mbs"]["rpms"].update(included_xmd["mbs"]["rpms"])
     # Set the modified xmd back to the modulemd
-    mmd.set_xmd(glib.dict_values(xmd))
+    mmd.set_xmd(xmd)
 
 
 def get_module_srpm_overrides(module):
@@ -403,14 +404,19 @@ def record_component_builds(
     if main_mmd:
         # Check for components that are in both MMDs before merging since MBS
         # currently can't handle that situation.
+        main_mmd_rpms = main_mmd.get_rpm_component_names()
+        mmd_rpms = mmd.get_rpm_component_names()
         duplicate_components = [
-            rpm for rpm in main_mmd.get_rpm_components().keys() if rpm in mmd.get_rpm_components()
+            rpm for rpm in main_mmd_rpms
+            if rpm in mmd_rpms
         ]
         if duplicate_components:
             error_msg = (
                 'The included module "{0}" in "{1}" have the following '
                 "conflicting components: {2}".format(
-                    mmd.get_name(), main_mmd.get_name(), ", ".join(duplicate_components))
+                    mmd.get_module_name(), main_mmd.get_module_name(),
+                    ", ".join(duplicate_components)
+                )
             )
             raise UnprocessableEntity(error_msg)
         merge_included_mmd(main_mmd, mmd)
@@ -418,8 +424,14 @@ def record_component_builds(
         main_mmd = mmd
 
     # If the modulemd yaml specifies components, then submit them for build
-    rpm_components = mmd.get_rpm_components().values()
-    module_components = mmd.get_module_components().values()
+    rpm_components = [
+        mmd.get_rpm_component(name)
+        for name in mmd.get_rpm_component_names()
+    ]
+    module_components = [
+        mmd.get_module_component(name)
+        for name in mmd.get_module_component_names()
+    ]
     all_components = list(rpm_components) + list(module_components)
     if not all_components:
         return
@@ -478,7 +490,7 @@ def record_component_builds(
             ):
                 raise ValidationError(
                     "Module build %s already exists in database, but its attributes "
-                    " are different from resubmitted one." % component.get_name()
+                    " are different from resubmitted one." % component.get_module_name()
                 )
             continue
 
@@ -502,19 +514,23 @@ def submit_module_build_from_yaml(username, handle, params, stream=None, skiptes
     dt = datetime.utcfromtimestamp(int(time.time()))
     if hasattr(handle, "filename"):
         def_name = str(os.path.splitext(os.path.basename(handle.filename))[0])
-    elif not mmd.get_name():
+    elif not mmd.get_module_name():
         raise ValidationError(
             "The module's name was not present in the modulemd file. Please use the "
             '"module_name" parameter'
         )
     def_version = int(dt.strftime("%Y%m%d%H%M%S"))
-    mmd.set_name(mmd.get_name() or def_name)
-    mmd.set_stream(stream or mmd.get_stream() or "master")
+    module_name = mmd.get_module_name() or def_name
+    module_stream = stream or mmd.get_stream_name() or "master"
+    if module_name != mmd.get_module_name() or module_stream != mmd.get_stream_name():
+        # This is how you set the name and stream in the modulemd
+        mmd = mmd.copy(module_name, module_stream)
     mmd.set_version(mmd.get_version() or def_version)
     if skiptests:
-        buildopts = mmd.get_rpm_buildopts()
-        buildopts["macros"] = buildopts.get("macros", "") + "\n\n%__spec_check_pre exit 0\n"
-        mmd.set_rpm_buildopts(buildopts)
+        buildopts = mmd.get_buildopts() or Modulemd.Buildopts()
+        macros = buildopts.get_rpm_macros() or ""
+        buildopts.set_rpm_macros(macros + "\n\n%__spec_check_pre exit 0\n")
+        mmd.set_buildopts(buildopts)
     return submit_module_build(username, mmd, params)
 
 
@@ -538,7 +554,7 @@ def _apply_dep_overrides(mmd, params):
     """
     Apply the dependency override parameters (if specified) on the input modulemd.
 
-    :param Modulemd.Module mmd: the modulemd to apply the overrides on
+    :param Modulemd.ModuleStream mmd: the modulemd to apply the overrides on
     :param dict params: the API parameters passed in by the user
     :raises ValidationError: if one of the overrides doesn't apply
     """
@@ -594,18 +610,37 @@ def _apply_dep_overrides(mmd, params):
 
     deps = mmd.get_dependencies()
     for dep in deps:
+        overridden = False
+        new_dep = Modulemd.Dependencies()
         for dep_type, overrides in dep_overrides.items():
-            overridden = False
-            # Get the existing streams (e.g. dep.get_buildrequires())
-            reqs = getattr(dep, "get_" + dep_type)()
-            for name, streams in dep_overrides[dep_type].items():
-                if name in reqs:
-                    reqs[name].set(streams)
+            if dep_type == "buildrequires":
+                mmd_dep_type = "buildtime"
+            else:
+                mmd_dep_type = "runtime"
+            # Get the existing streams
+            reqs = deps_to_dict(dep, mmd_dep_type)
+            # Get the method to add a new stream for this dependency type
+            # (e.g. add_buildtime_stream)
+            add_func = getattr(new_dep, "add_{}_stream".format(mmd_dep_type))
+            add_empty_func = getattr(
+                new_dep, "set_empty_{}_dependencies_for_module".format(mmd_dep_type))
+            for name, streams in reqs.items():
+                if name in dep_overrides[dep_type]:
+                    streams_to_add = dep_overrides[dep_type][name]
                     unused_dep_overrides[dep_type].remove(name)
                     overridden = True
-            if overridden:
-                # Set the overridden streams (e.g. dep.set_buildrequires(reqs))
-                getattr(dep, "set_" + dep_type)(reqs)
+                else:
+                    streams_to_add = reqs[name]
+
+                if streams_to_add == []:
+                    add_empty_func(name)
+                else:
+                    for stream in streams_to_add:
+                        add_func(name, stream)
+        if overridden:
+            # Set the overridden streams
+            mmd.remove_dependencies(dep)
+            mmd.add_dependencies(new_dep)
 
     for dep_type in unused_dep_overrides.keys():
         # If a stream override was applied from parsing the branch and it wasn't applicable,
@@ -618,28 +653,33 @@ def _apply_dep_overrides(mmd, params):
                     dep_type[:-1], ", ".join(sorted(unused_dep_overrides[dep_type])))
             )
 
-    mmd.set_dependencies(deps)
-
 
 def _handle_base_module_virtual_stream_br(mmd):
     """
     Translate a base module virtual stream buildrequire to an actual stream on the input modulemd.
 
-    :param Modulemd.Module mmd: the modulemd to apply the overrides on
+    :param Modulemd.ModuleStream mmd: the modulemd to apply the overrides on
     """
     from module_build_service.resolver import system_resolver
 
-    overridden = False
     deps = mmd.get_dependencies()
     for dep in deps:
-        brs = dep.get_buildrequires()
+        overridden = False
+        brs = deps_to_dict(dep, "buildtime")
+        # There is no way to replace streams, so create a new Dependencies object that will end up
+        # being a copy, but with the streams replaced if a virtual stream is detected
+        new_dep = Modulemd.Dependencies()
 
-        for base_module in conf.base_module_names:
-            if base_module not in brs:
+        for name, streams in brs.items():
+            if name not in conf.base_module_names:
+                if streams == []:
+                    new_dep.set_empty_buildtime_dependencies_for_module(name)
+                else:
+                    for stream in streams:
+                        new_dep.add_buildtime_stream(name, stream)
                 continue
 
-            streams = list(brs[base_module].get())
-            new_streams = copy.copy(streams)
+            new_streams = copy.deepcopy(streams)
             for i, stream in enumerate(streams):
                 # Ignore streams that start with a minus sign, since those are handled in the
                 # MSE code
@@ -647,45 +687,54 @@ def _handle_base_module_virtual_stream_br(mmd):
                     continue
 
                 # Check if the base module stream is available
-                log.debug(
-                    'Checking to see if the base module "%s:%s" is available', base_module, stream)
-                if system_resolver.get_module_count(name=base_module, stream=stream) > 0:
+                log.debug('Checking to see if the base module "%s:%s" is available', name, stream)
+                if system_resolver.get_module_count(name=name, stream=stream) > 0:
                     continue
 
                 # If the base module stream is not available, check if there's a virtual stream
                 log.debug(
                     'Checking to see if there is a base module "%s" with the virtual stream "%s"',
-                    base_module, stream,
+                    name, stream,
                 )
                 base_module_mmd = system_resolver.get_latest_with_virtual_stream(
-                    name=base_module, virtual_stream=stream
+                    name=name, virtual_stream=stream
                 )
                 if not base_module_mmd:
                     # If there isn't this base module stream or virtual stream available, skip it,
                     # and let the dep solving code deal with it like it normally would
                     log.warning(
                         'There is no base module "%s" with stream/virtual stream "%s"',
-                        base_module, stream,
+                        name, stream,
                     )
                     continue
 
-                latest_stream = base_module_mmd.get_stream()
+                latest_stream = base_module_mmd.get_stream_name()
                 log.info(
                     'Replacing the buildrequire "%s:%s" with "%s:%s", since "%s" is a virtual '
                     "stream",
-                    base_module, stream, base_module, latest_stream, stream
+                    name, stream, name, latest_stream, stream
                 )
                 new_streams[i] = latest_stream
                 overridden = True
 
-            if streams != new_streams:
-                brs[base_module].set(new_streams)
+            if new_streams == []:
+                new_dep.set_empty_buildtime_dependencies_for_module(name)
+            else:
+                for stream in new_streams:
+                    new_dep.add_buildtime_stream(name, stream)
 
         if overridden:
-            dep.set_buildrequires(brs)
-
-    if overridden:
-        mmd.set_dependencies(deps)
+            # Copy the runtime streams as is
+            reqs = deps_to_dict(dep, "runtime")
+            for name, streams in reqs.items():
+                if streams == []:
+                    new_dep.set_empty_runtime_dependencies_for_module(name)
+                else:
+                    for stream in streams:
+                        new_dep.add_runtime_stream(name, stream)
+            # Replace the old Dependencies object with the new one with the overrides
+            mmd.remove_dependencies(dep)
+            mmd.add_dependencies(new_dep)
 
 
 def submit_module_build(username, mmd, params):
@@ -693,7 +742,7 @@ def submit_module_build(username, mmd, params):
     Submits new module build.
 
     :param str username: Username of the build's owner.
-    :param Modulemd.Module mmd: Modulemd defining the build.
+    :param Modulemd.ModuleStream mmd: Modulemd defining the build.
     :param dict params: the API parameters passed in by the user
     :rtype: list with ModuleBuild
     :return: List with submitted module builds.
@@ -704,8 +753,8 @@ def submit_module_build(username, mmd, params):
     log.debug(
         "Submitted %s module build for %s:%s:%s",
         ("scratch" if params.get("scratch", False) else "normal"),
-        mmd.get_name(),
-        mmd.get_stream(),
+        mmd.get_module_name(),
+        mmd.get_stream_name(),
         mmd.get_version(),
     )
     validate_mmd(mmd)
@@ -739,12 +788,10 @@ def submit_module_build(username, mmd, params):
         # Prefix the version of the modulemd based on the base module it buildrequires
         version = get_prefixed_version(mmd)
         mmd.set_version(version)
-        version_str = str(version)
-        nsvc = ":".join([mmd.get_name(), mmd.get_stream(), version_str, mmd.get_context()])
+        nsvc = mmd.get_nsvc()
 
         log.debug("Checking whether module build already exists: %s.", nsvc)
-        module = models.ModuleBuild.get_build_from_nsvc(
-            db.session, mmd.get_name(), mmd.get_stream(), version_str, mmd.get_context())
+        module = models.ModuleBuild.get_build_from_nsvc(db.session, *nsvc.split(":"))
         if module and not params.get("scratch", False):
             if module.state != models.BUILD_STATES["failed"]:
                 log.info(
@@ -783,7 +830,7 @@ def submit_module_build(username, mmd, params):
             if params.get("scratch", False):
                 log.debug("Checking for existing scratch module builds by NSVC")
                 scrmods = models.ModuleBuild.get_scratch_builds_from_nsvc(
-                    db.session, mmd.get_name(), mmd.get_stream(), version_str, mmd.get_context())
+                    db.session, *nsvc.split(":"))
                 scrmod_contexts = [scrmod.context for scrmod in scrmods]
                 log.debug(
                     "Found %d previous scratch module build context(s): %s",
@@ -792,14 +839,15 @@ def submit_module_build(username, mmd, params):
                 # append incrementing counter to context
                 context_suffix = "_" + str(len(scrmods) + 1)
                 mmd.set_context(mmd.get_context() + context_suffix)
+
             log.debug("Creating new module build")
             module = models.ModuleBuild.create(
                 db.session,
                 conf,
-                name=mmd.get_name(),
-                stream=mmd.get_stream(),
-                version=version_str,
-                modulemd=to_text_type(mmd.dumps()),
+                name=mmd.get_module_name(),
+                stream=mmd.get_stream_name(),
+                version=str(mmd.get_version()),
+                modulemd=mmd_to_str(mmd),
                 scmurl=params.get("scmurl"),
                 username=username,
                 rebuild_strategy=params.get("rebuild_strategy"),
@@ -818,10 +866,7 @@ def submit_module_build(username, mmd, params):
         db.session.add(module)
         db.session.commit()
         modules.append(module)
-        log.info(
-            "%s submitted build of %s, stream=%s, version=%s, context=%s",
-            username, mmd.get_name(), mmd.get_stream(), version_str, mmd.get_context()
-        )
+        log.info('The user "%s" submitted the build "%s"', username, nsvc)
 
     if all_modules_skipped:
         err_msg = (
@@ -891,23 +936,27 @@ def _fetch_mmd(url, branch=None, allow_local_url=False, whitelist_url=False, man
 
     # If the name was set in the modulemd, make sure it matches what the scmurl
     # says it should be
-    if mmd.get_name() and mmd.get_name() != scm.name:
+    if mmd.get_module_name() and mmd.get_module_name() != scm.name:
         if not conf.allow_name_override_from_scm:
             raise ValidationError(
-                'The name "{0}" that is stored in the modulemd is not valid'.format(mmd.get_name()))
+                'The name "{0}" that is stored in the modulemd is not valid'
+                .format(mmd.get_module_name())
+            )
     else:
-        mmd.set_name(scm.name)
+        # Set the module name
+        mmd = mmd.copy(scm.name)
 
     # If the stream was set in the modulemd, make sure it matches what the repo
     # branch is
-    if mmd.get_stream() and mmd.get_stream() != scm.branch:
+    if mmd.get_stream_name() and mmd.get_stream_name() != scm.branch:
         if not conf.allow_stream_override_from_scm:
             raise ValidationError(
                 'The stream "{0}" that is stored in the modulemd does not match the branch "{1}"'
-                .format(mmd.get_stream(), scm.branch)
+                .format(mmd.get_stream_name(), scm.branch)
             )
     else:
-        mmd.set_stream(scm.branch)
+        # Set the module stream
+        mmd = mmd.copy(mmd.get_module_name(), scm.branch)
 
     # If the version is in the modulemd, throw an exception since the version
     # since the version is generated by MBS
@@ -920,36 +969,6 @@ def _fetch_mmd(url, branch=None, allow_local_url=False, whitelist_url=False, man
         mmd.set_version(int(scm.version))
 
     return mmd, scm
-
-
-def load_mmd(yaml, is_file=False):
-    try:
-        if is_file:
-            mmd = Modulemd.Module().new_from_file(yaml)
-        else:
-            mmd = Modulemd.Module().new_from_string(yaml)
-        # If the modulemd was v1, it will be upgraded to v2
-        mmd.upgrade()
-    except Exception:
-        if is_file:
-            error = "The modulemd {} is invalid. Please verify the syntax is correct".format(
-                os.path.basename(yaml))
-            if os.path.exists(yaml):
-                with open(yaml, "rt") as yaml_hdl:
-                    log.debug("Modulemd content:\n%s", yaml_hdl.read())
-            else:
-                error = "The modulemd file {} not found!".format(os.path.basename(yaml))
-                log.error("The modulemd file %s not found!", yaml)
-        else:
-            error = "The modulemd is invalid. Please verify the syntax is correct."
-            log.debug("Modulemd content:\n%s", yaml)
-        log.exception(error)
-        raise UnprocessableEntity(error)
-
-    return mmd
-
-
-load_mmd_file = partial(load_mmd, is_file=True)
 
 
 def load_local_builds(local_build_nsvs, session=None):
@@ -1025,11 +1044,11 @@ def load_local_builds(local_build_nsvs, session=None):
         module = models.ModuleBuild.create(
             session,
             conf,
-            name=mmd.get_name(),
-            stream=mmd.get_stream(),
+            name=mmd.get_module_name(),
+            stream=mmd.get_stream_name(),
             version=str(mmd.get_version()),
             context=mmd.get_context(),
-            modulemd=to_text_type(mmd.dumps()),
+            modulemd=mmd_to_str(mmd),
             scmurl="",
             username="mbs",
             publish_msg=False,

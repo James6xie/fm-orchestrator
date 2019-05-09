@@ -22,14 +22,17 @@
 # Written by Ralph Bean <rbean@redhat.com>
 #            Matt Prahl <mprahl@redhat.com>
 #            Jan Kaluza <jkaluza@redhat.com>
+import os
 import functools
 import inspect
 import hashlib
 import time
 from datetime import datetime
+from functools import partial
+
 from six import text_type, string_types
 
-from module_build_service import conf, log, models, Modulemd, glib
+from module_build_service import conf, log, models, Modulemd
 from module_build_service.errors import ValidationError, ProgrammingError, UnprocessableEntity
 
 
@@ -41,6 +44,45 @@ def to_text_type(s):
         return text_type(s, "utf-8")
     except TypeError:
         return s
+
+
+def load_mmd(yaml, is_file=False):
+    try:
+        if is_file:
+            mmd = Modulemd.ModuleStream.read_file(yaml, True)
+        else:
+            mmd = Modulemd.ModuleStream.read_string(to_text_type(yaml), True)
+        mmd.validate()
+        # If the modulemd was v1, it will be upgraded to v2
+        mmd = mmd.upgrade(Modulemd.ModuleStreamVersionEnum.TWO)
+    except Exception as e:
+        not_found = False
+        if is_file:
+            error = "The modulemd {} is invalid.".format(os.path.basename(yaml))
+            if os.path.exists(yaml):
+                with open(yaml, "rt") as yaml_hdl:
+                    log.debug("Modulemd that failed to load:\n%s", yaml_hdl.read())
+            else:
+                not_found = True
+                error = "The modulemd file {} was not found.".format(os.path.basename(yaml))
+                log.error("The modulemd file %s was not found.", yaml)
+        else:
+            error = "The modulemd is invalid."
+            log.debug("Modulemd that failed to load:\n%s", yaml)
+
+        if "modulemd-error-quark: " in str(e):
+            error = "{} The error was '{}'.".format(
+                error, str(e).split("modulemd-error-quark: ")[-1])
+        elif not_found is False:
+            error = "{} Please verify the syntax is correct.".format(error)
+
+        log.exception(error)
+        raise UnprocessableEntity(error)
+
+    return mmd
+
+
+load_mmd_file = partial(load_mmd, is_file=True)
 
 
 def scm_url_schemes(terse=False):
@@ -363,8 +405,8 @@ def import_mmd(session, mmd, check_buildrequires=True):
     """
     if not mmd.get_context():
         mmd.set_context(models.DEFAULT_MODULE_CONTEXT)
-    name = mmd.get_name()
-    stream = mmd.get_stream()
+    name = mmd.get_module_name()
+    stream = mmd.get_stream_name()
     version = str(mmd.get_version())
     context = mmd.get_context()
 
@@ -414,13 +456,13 @@ def import_mmd(session, mmd, check_buildrequires=True):
         raise UnprocessableEntity(
             "The imported module's dependencies list should contain just one element")
 
-    xmd = glib.from_variant_dict(mmd.get_xmd())
+    xmd = mmd.get_xmd()
     # Set some defaults in xmd["mbs"] if they're not provided by the user
     if "mbs" not in xmd:
         xmd["mbs"] = {"mse": True}
 
     if check_buildrequires and mmd.get_dependencies():
-        brs = set(mmd.get_dependencies()[0].get_buildrequires().keys())
+        brs = set(mmd.get_dependencies()[0].get_buildtime_modules())
         xmd_brs = set(xmd["mbs"].get("buildrequires", {}).keys())
         if brs - xmd_brs:
             raise UnprocessableEntity(
@@ -429,7 +471,7 @@ def import_mmd(session, mmd, check_buildrequires=True):
             )
     elif "buildrequires" not in xmd["mbs"]:
         xmd["mbs"]["buildrequires"] = {}
-        mmd.set_xmd(glib.dict_values(xmd))
+        mmd.set_xmd(xmd)
 
     koji_tag = xmd["mbs"].get("koji_tag")
     if koji_tag is None:
@@ -449,7 +491,7 @@ def import_mmd(session, mmd, check_buildrequires=True):
     build.version = version
     build.koji_tag = koji_tag
     build.state = models.BUILD_STATES["ready"]
-    build.modulemd = to_text_type(mmd.dumps())
+    build.modulemd = mmd_to_str(mmd)
     build.context = context
     build.owner = "mbs_import"
     build.rebuild_strategy = "all"
@@ -494,26 +536,19 @@ def import_fake_base_module(nsvc):
     :param str nsvc: name:stream:version:context of a module.
     """
     name, stream, version, context = nsvc.split(":")
-    mmd = Modulemd.Module()
-    mmd.set_mdversion(2)
-    mmd.set_name(name)
-    mmd.set_stream(stream)
+    mmd = Modulemd.ModuleStreamV2.new(name, stream)
     mmd.set_version(int(version))
     mmd.set_context(context)
     mmd.set_summary("fake base module")
     mmd.set_description("fake base module")
-    licenses = Modulemd.SimpleSet()
-    licenses.add("GPL")
-    mmd.set_module_licenses(licenses)
+    mmd.add_module_license("GPL")
 
-    buildroot = Modulemd.Profile()
-    buildroot.set_name("buildroot")
+    buildroot = Modulemd.Profile.new("buildroot")
     for rpm in conf.default_buildroot_packages:
         buildroot.add_rpm(rpm)
     mmd.add_profile(buildroot)
 
-    srpm_buildroot = Modulemd.Profile()
-    srpm_buildroot.set_name("srpm-buildroot")
+    srpm_buildroot = Modulemd.Profile.new("srpm-buildroot")
     for rpm in conf.default_srpm_buildroot_packages:
         srpm_buildroot.add_rpm(rpm)
     mmd.add_profile(srpm_buildroot)
@@ -527,7 +562,7 @@ def import_fake_base_module(nsvc):
     # Use empty "repofile://" URI for base module. The base module will use the
     # `conf.base_module_names` list as list of default repositories.
     xmd_mbs["koji_tag"] = "repofile://"
-    mmd.set_xmd(glib.dict_values(xmd))
+    mmd.set_xmd(xmd)
 
     with models.make_session(conf) as session:
         import_mmd(session, mmd, False)
@@ -570,16 +605,22 @@ def import_builds_from_local_dnf_repos(platform_id=None):
                 log.warning(str(e))
                 continue
             mmd_data = repo.get_metadata_content("modules")
-            mmds = Modulemd.Module.new_all_from_string(mmd_data)
-            for mmd in mmds:
-                xmd = glib.from_variant_dict(mmd.get_xmd())
-                xmd["mbs"] = {}
-                xmd["mbs"]["koji_tag"] = "repofile://" + repo.repofile
-                xmd["mbs"]["mse"] = True
-                xmd["mbs"]["commit"] = "unknown"
-                mmd.set_xmd(glib.dict_values(xmd))
+            mmd_index = Modulemd.ModuleIndex.new()
+            ret, _ = mmd_index.update_from_string(mmd_data, True)
+            if not ret:
+                log.warning("Loading the repo '%s' failed", repo.name)
+                continue
 
-                import_mmd(session, mmd, False)
+            for module_name in mmd_index.get_module_names():
+                for mmd in mmd_index.get_module(module_name).get_all_streams():
+                    xmd = mmd.get_xmd()
+                    xmd["mbs"] = {}
+                    xmd["mbs"]["koji_tag"] = "repofile://" + repo.repofile
+                    xmd["mbs"]["mse"] = True
+                    xmd["mbs"]["commit"] = "unknown"
+                    mmd.set_xmd(xmd)
+
+                    import_mmd(session, mmd, False)
 
     if not platform_id:
         # Parse the /etc/os-release to find out the local platform:stream.
@@ -623,10 +664,40 @@ def get_build_arches(mmd, config):
 
     # Handle BASE_MODULE_ARCHES. Find out the base modules in buildrequires
     # section of XMD and set the Koji tag arches according to it.
-    if "mbs" in mmd.get_xmd().keys():
+    if "mbs" in mmd.get_xmd():
         for req_name, req_data in mmd.get_xmd()["mbs"]["buildrequires"].items():
             ns = ":".join([req_name, req_data["stream"]])
             if ns in config.base_module_arches:
                 arches = config.base_module_arches[ns]
                 break
     return arches
+
+
+def deps_to_dict(deps, deps_type):
+    """
+    Helper method to convert a Modulemd.Dependencies object to a dictionary.
+
+    :param Modulemd.Dependencies deps: the Modulemd.Dependencies object to convert
+    :param str deps_type: the type of dependency (buildtime or runtime)
+    :return: a dictionary with the keys as module names and values as a list of strings
+    :rtype dict
+    """
+    names_func = getattr(deps, 'get_{}_modules'.format(deps_type))
+    streams_func = getattr(deps, 'get_{}_streams'.format(deps_type))
+    return {
+        module: streams_func(module)
+        for module in names_func()
+    }
+
+
+def mmd_to_str(mmd):
+    """
+    Helper method to convert a Modulemd.ModuleStream object to a YAML string.
+
+    :param Modulemd.ModuleStream mmd: the modulemd to convert
+    :return: the YAML string of the modulemd
+    :rtype: str
+    """
+    index = Modulemd.ModuleIndex()
+    index.add_module_stream(mmd)
+    return to_text_type(index.dump_to_string())

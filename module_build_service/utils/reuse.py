@@ -90,8 +90,8 @@ def get_reusable_module(session, module):
     # Find the latest module that is in the done or ready state
     previous_module_build = (
         session.query(models.ModuleBuild)
-        .filter_by(name=mmd.get_name())
-        .filter_by(stream=mmd.get_stream())
+        .filter_by(name=mmd.get_module_name())
+        .filter_by(stream=mmd.get_stream_name())
         .filter_by(state=models.BUILD_STATES["ready"])
         .filter(models.ModuleBuild.scmurl.isnot(None))
         .filter_by(build_context=module.build_context)
@@ -229,10 +229,10 @@ def get_reusable_component(
         is called to get the ModuleBuild instance. Consider passing the ModuleBuild
         instance in case you plan to call get_reusable_component repeatedly for the
         same module to make this method faster.
-    :param mmd: ModuleMd.Module of `module`. If not passed, it is taken from
+    :param mmd: Modulemd.ModuleStream of `module`. If not passed, it is taken from
         module.mmd(). Consider passing this arg in case you plan to call
         get_reusable_component repeatedly for the same module to make this method faster.
-    :param old_mmd: ModuleMd.Module of `previous_module_build`. If not passed,
+    :param old_mmd: Modulemd.ModuleStream of `previous_module_build`. If not passed,
         it is taken from previous_module_build.mmd(). Consider passing this arg in
         case you plan to call get_reusable_component repeatedly for the same
         module to make this method faster.
@@ -302,7 +302,19 @@ def get_reusable_component(
             return None
 
         # If the mmd.buildopts.macros.rpms changed, we cannot reuse
-        if mmd.get_rpm_buildopts().get("macros") != old_mmd.get_rpm_buildopts().get("macros"):
+        buildopts = mmd.get_buildopts()
+        if buildopts:
+            modulemd_macros = buildopts.get_rpm_macros()
+        else:
+            modulemd_macros = None
+
+        old_buildopts = old_mmd.get_buildopts()
+        if old_buildopts:
+            old_modulemd_macros = old_buildopts.get_rpm_macros()
+        else:
+            old_modulemd_macros = None
+
+        if modulemd_macros != old_modulemd_macros:
             log.info("Cannot re-use.  Old modulemd macros do not match the new.")
             return None
 
@@ -348,13 +360,12 @@ def get_reusable_component(
             log.info("Cannot re-use.  Ordering or commit hashes of previous batches differ.")
             return None
 
-    for pkg_name, pkg in mmd.get_rpm_components().items():
-        if pkg_name not in old_mmd.get_rpm_components():
+    for pkg_name in mmd.get_rpm_component_names():
+        pkg = mmd.get_rpm_component(pkg_name)
+        if pkg_name not in old_mmd.get_rpm_component_names():
             log.info("Cannot re-use. Package lists are different.")
             return None
-        if set(pkg.get_arches().get()) != set(
-            old_mmd.get_rpm_components()[pkg_name].get_arches().get()
-        ):
+        if set(pkg.get_arches()) != set(old_mmd.get_rpm_component(pkg_name).get_arches()):
             log.info("Cannot re-use. Architectures are different for package: %s." % pkg_name)
             return None
 

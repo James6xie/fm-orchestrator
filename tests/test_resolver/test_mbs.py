@@ -24,8 +24,8 @@ from mock import patch, PropertyMock, Mock, call
 
 import module_build_service.resolver as mbs_resolver
 import module_build_service.utils
+from module_build_service.utils.general import mmd_to_str
 import module_build_service.models
-from module_build_service import glib, app
 import tests
 
 
@@ -58,7 +58,7 @@ class TestMBSModule:
             "testmodule", "master", "20180205135154", "9c690d0e", virtual_streams=["f28"]
         )
         nsvcs = set(
-            "{}:{}:{}:{}".format(m.peek_name(), m.peek_stream(), m.peek_version(), m.peek_context())
+            m.get_nsvc()
             for m in module_mmds
         )
         expected = set(["testmodule:master:20180205135154:9c690d0e"])
@@ -112,7 +112,7 @@ class TestMBSModule:
         resolver = mbs_resolver.GenericResolver.create(tests.conf, backend="mbs")
         ret = resolver.get_module_modulemds("testmodule", "master", version)
         nsvcs = set(
-            "{}:{}:{}:{}".format(m.peek_name(), m.peek_stream(), m.peek_version(), m.peek_context())
+            m.get_nsvc()
             for m in ret
         )
         expected = set([
@@ -217,10 +217,11 @@ class TestMBSModule:
 
         mmd = module_build_service.utils.load_mmd(testmodule_mmd_9c690d0e)
         # Wipe out the dependencies
-        mmd.set_dependencies()
-        xmd = glib.from_variant_dict(mmd.get_xmd())
+        for deps in mmd.get_dependencies():
+            mmd.remove_dependencies(deps)
+        xmd = mmd.get_xmd()
         xmd["mbs"]["buildrequires"] = {}
-        mmd.set_xmd(glib.dict_values(xmd))
+        mmd.set_xmd(xmd)
 
         mock_res = Mock()
         mock_res.ok.return_value = True
@@ -232,7 +233,7 @@ class TestMBSModule:
                         "stream": "master",
                         "version": "20180205135154",
                         "context": "9c690d0e",
-                        "modulemd": mmd.dumps(),
+                        "modulemd": mmd_to_str(mmd),
                         "build_deps": [],
                     }
                 ],
@@ -352,7 +353,7 @@ class TestMBSModule:
         self, local_builds, conf_system, formatted_testmodule_mmd
     ):
         tests.clean_database()
-        with app.app_context():
+        with tests.app.app_context():
             module_build_service.utils.load_local_builds(["platform"])
 
             resolver = mbs_resolver.GenericResolver.create(tests.conf, backend="mbs")
@@ -383,14 +384,18 @@ class TestMBSModule:
                         "stream": "10",
                         "version": 1,
                         "context": "c1",
-                        "modulemd": tests.make_module("nodejs:10:1:c1", store_to_db=False).dumps(),
+                        "modulemd": mmd_to_str(
+                            tests.make_module("nodejs:10:1:c1", store_to_db=False),
+                        ),
                     },
                     {
                         "name": "nodejs",
                         "stream": "10",
                         "version": 2,
                         "context": "c1",
-                        "modulemd": tests.make_module("nodejs:10:2:c1", store_to_db=False).dumps(),
+                        "modulemd": mmd_to_str(
+                            tests.make_module("nodejs:10:2:c1", store_to_db=False),
+                        ),
                     },
                 ],
                 "meta": {"next": None},
@@ -400,8 +405,8 @@ class TestMBSModule:
 
             assert 1 == len(result)
             mmd = result[0]
-            assert "nodejs" == mmd.get_name()
-            assert "10" == mmd.get_stream()
+            assert "nodejs" == mmd.get_module_name()
+            assert "10" == mmd.get_stream_name()
             assert 1 == mmd.get_version()
             assert "c1" == mmd.get_context()
 
@@ -445,7 +450,7 @@ class TestMBSModule:
         resolver = mbs_resolver.GenericResolver.create(tests.conf, backend="mbs")
         mmd = resolver.get_latest_with_virtual_stream("platform", "virtualf28")
 
-        assert mmd.get_name() == "platform"
+        assert mmd.get_module_name() == "platform"
         mock_session.return_value.get.assert_called_once_with(
             "https://mbs.fedoraproject.org/module-build-service/1/module-builds/",
             params={

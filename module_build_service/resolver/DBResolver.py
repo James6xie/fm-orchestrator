@@ -28,7 +28,7 @@ from module_build_service import log, db
 from module_build_service.resolver.base import GenericResolver
 from module_build_service import models
 from module_build_service.errors import UnprocessableEntity
-from module_build_service.utils.submit import load_mmd
+from module_build_service.utils.general import load_mmd
 import sqlalchemy
 
 
@@ -72,7 +72,7 @@ class DBResolver(GenericResolver):
         :param str name: the module name to search for
         :param str virtual_stream: the module virtual stream to search for
         :return: the module's modulemd or None
-        :rtype: Modulemd.Module or None
+        :rtype: Modulemd.ModuleStream or None
         """
         with models.make_session(self.config) as session:
             query = session.query(models.ModuleBuild).filter_by(name=name)
@@ -191,9 +191,7 @@ class DBResolver(GenericResolver):
 
             mmds = [build.mmd() for build in builds]
             nsvcs = [
-                ":".join(
-                    [mmd.get_name(), mmd.get_stream(), str(mmd.get_version()), mmd.get_context()]
-                )
+                mmd.get_nsvc()
                 for mmd in mmds
             ]
             log.debug("Found: %r", nsvcs)
@@ -206,7 +204,7 @@ class DBResolver(GenericResolver):
         the key in all buildrequires. If there are some modules loaded by
         utils.load_local_builds(...), these local modules will be considered when returning
         the profiles.
-        :param mmd: Modulemd.Module instance representing the module
+        :param mmd: Modulemd.ModuleStream instance representing the module
         :param keys: list of modulemd installation profiles to include in the result
         :return: a dictionary
         """
@@ -222,8 +220,9 @@ class DBResolver(GenericResolver):
                     log.info("Using local module {0!r} to resolve profiles.".format(local_module))
                     dep_mmd = local_module.mmd()
                     for key in keys:
-                        if key in dep_mmd.get_profiles().keys():
-                            results[key] |= set(dep_mmd.get_profiles()[key].get_rpms().get())
+                        profile = dep_mmd.get_profile(key)
+                        if profile:
+                            results[key] |= set(profile.get_rpms())
                     continue
 
                 build = models.ModuleBuild.get_build_from_nsvc(
@@ -247,8 +246,9 @@ class DBResolver(GenericResolver):
 
                 # Take note of what rpms are in this dep's profile
                 for key in keys:
-                    if key in dep_mmd.get_profiles().keys():
-                        results[key] |= set(dep_mmd.get_profiles()[key].get_rpms().get())
+                    profile = dep_mmd.get_profile(key)
+                    if profile:
+                        results[key] |= set(profile.get_rpms())
 
         # Return the union of all rpms in all profiles of the given keys
         return results
@@ -267,7 +267,7 @@ class DBResolver(GenericResolver):
         :kwarg stream: a string of a module's stream (required if mmd is not set)
         :kwarg version: a string of a module's version (required if mmd is not set)
         :kwarg context: a string of a module's context (required if mmd is not set)
-        :kwarg mmd: Modulemd.Module object. If this is set, the mmd will be used instead of
+        :kwarg mmd: Modulemd.ModuleStream object. If this is set, the mmd will be used instead of
             querying the DB with the name, stream, version, and context.
         :kwarg strict: Normally this function returns None if no module can be
             found.  If strict=True, then an UnprocessableEntity is raised.
@@ -289,8 +289,8 @@ class DBResolver(GenericResolver):
             if mmd:
                 queried_mmd = mmd
                 nsvc = ":".join([
-                    mmd.get_name(),
-                    mmd.get_stream(),
+                    mmd.get_module_name(),
+                    mmd.get_stream_name(),
                     str(mmd.get_version()),
                     mmd.get_context() or models.DEFAULT_MODULE_CONTEXT,
                 ])
@@ -305,8 +305,8 @@ class DBResolver(GenericResolver):
                 queried_mmd = build.mmd()
                 nsvc = ":".join([name, stream, version, context])
 
-            xmd_mbs = queried_mmd.get_xmd().get("mbs")
-            if not xmd_mbs or "buildrequires" not in xmd_mbs.keys():
+            xmd_mbs = queried_mmd.get_xmd().get("mbs", {})
+            if "buildrequires" not in xmd_mbs:
                 raise RuntimeError(
                     "The module {} did not contain its modulemd or did not have "
                     "its xmd attribute filled out in MBS".format(nsvc)
@@ -385,8 +385,8 @@ class DBResolver(GenericResolver):
 
                 commit_hash = None
                 mmd = build.mmd()
-                mbs_xmd = mmd.get_xmd().get("mbs")
-                if mbs_xmd and "commit" in mbs_xmd.keys():
+                mbs_xmd = mmd.get_xmd().get("mbs", {})
+                if mbs_xmd.get("commit"):
                     commit_hash = mbs_xmd["commit"]
                 else:
                     raise RuntimeError(
@@ -394,7 +394,7 @@ class DBResolver(GenericResolver):
                             module_name)
                     )
 
-                if "mse" not in mbs_xmd.keys() or not mbs_xmd["mse"]:
+                if not mbs_xmd.get("mse"):
                     raise RuntimeError(
                         'The module "{}" is not built using Module Stream Expansion. '
                         "Please rebuild this module first".format(nsvc)

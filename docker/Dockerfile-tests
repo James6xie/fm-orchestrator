@@ -4,6 +4,8 @@ WORKDIR /build
 RUN yum -y update
 RUN yum -y install epel-release yum-utils
 RUN yum-config-manager --add-repo https://kojipkgs.fedoraproject.org/repos-dist/epel7Server-infra/latest/x86_64/
+# Unpin the libmodulemd RPMs and replace with `python2-libmodulemd` after 2.4.0 is in
+# epel7Server-infra
 RUN yum -y install \
     --nogpgcheck \
     --setopt=deltarpm=0 \
@@ -17,7 +19,6 @@ RUN yum -y install \
     git \
     kobo \
     kobo-rpmlib \
-    libmodulemd \
     python-backports-ssl_match_hostname \
     python-dnf \
     python-dogpile-cache \
@@ -29,6 +30,9 @@ RUN yum -y install \
     python-futures \
     python-koji \
     python-ldap3 \
+    https://kojipkgs.fedoraproject.org/work/tasks/3269/34833269/libmodulemd-2.4.0-1.el7.infra.x86_64.rpm \
+    https://kojipkgs.fedoraproject.org/work/tasks/3269/34833269/python2-libmodulemd-2.4.0-1.el7.infra.x86_64.rpm \
+    https://kojipkgs.fedoraproject.org/work/tasks/5596/34835596/libmodulemd1-1.8.10-1.el7.infra.x86_64.rpm \
     python-mock \
     python-munch \
     python-pip \

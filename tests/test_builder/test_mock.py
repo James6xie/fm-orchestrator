@@ -4,15 +4,13 @@ import koji
 import tempfile
 import shutil
 from textwrap import dedent
-from module_build_service.utils import to_text_type
 
 import kobo.rpmlib
 
 from module_build_service import conf, db
 from module_build_service.models import ModuleBuild, ComponentBuild, make_session
 from module_build_service.builder.MockModuleBuilder import MockModuleBuilder
-from module_build_service import glib, Modulemd
-from module_build_service.utils import import_fake_base_module
+from module_build_service.utils import import_fake_base_module, load_mmd_file, mmd_to_str
 from tests import clean_database, make_module
 
 
@@ -52,10 +50,11 @@ class TestMockModuleBuilder:
         ]
 
         base_dir = os.path.abspath(os.path.dirname(__file__))
-        mmd = Modulemd.Module().new_from_file(
+        mmd = load_mmd_file(
             os.path.join(base_dir, "..", "staged_data", "testmodule-with-filters.yaml"))
-        mmd.upgrade()
-        mmd.set_xmd(glib.dict_values({
+        # Set the name and stream
+        mmd = mmd.copy("mbs-testmodule", "test")
+        mmd.set_xmd({
             "mbs": {
                 "rpms": {
                     "ed": {"ref": "01bf8330812fea798671925cc537f2f29b0bd216"},
@@ -89,14 +88,14 @@ class TestMockModuleBuilder:
                     }
                 },
             }
-        }))
+        })
         module = ModuleBuild.create(
             session,
             conf,
             name="mbs-testmodule",
             stream="test",
             version="20171027111452",
-            modulemd=to_text_type(mmd.dumps()),
+            modulemd=mmd_to_str(mmd),
             scmurl="file:///testdir",
             username="test",
         )

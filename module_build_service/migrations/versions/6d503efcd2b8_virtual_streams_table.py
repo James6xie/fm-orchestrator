@@ -76,8 +76,8 @@ def upgrade():
             continue
 
         try:
-            mmd = Modulemd.Module().new_from_string(build.modulemd)
-            mmd.upgrade()
+            mmd = Modulemd.ModuleStream.read_string(build.modulemd, True)
+            mmd = mmd.upgrade(Modulemd.ModuleStreamVersionEnum.TWO)
         except Exception:
             # If the modulemd isn't parseable, then skip this build
             continue

@@ -84,10 +84,7 @@ class MMDResolver(object):
         See the inline comments for more information.
 
         :param list deps: List of dicts with dependency name as key and list of
-            streams as value. Generally, it is just the return value from
-            ``Modulemd.Dependencies.get_requires`` or
-            ``Modulemd.Dependencies.get_buildrequires`` whose value is
-            converted from ``Modulemd.SimpleSet`` to list.
+            streams as value.
         :param dict base_module_stream_overrides: The key is base module name, value
             is the stream string which will be used to compute `version` part of the
             base module solv.Dep expression.
@@ -229,7 +226,7 @@ class MMDResolver(object):
         - module(platform:el8.1.0) = 80100 - Modules can require specific platform stream.
         - module(platform:el8) = 80100 - Module can also require just platform:el8.
         """
-        if mmd.get_name() not in conf.base_module_names:
+        if mmd.get_module_name() not in conf.base_module_names:
             return
 
         # When depsolving, we will need to follow specific rules to choose the right base
@@ -238,21 +235,24 @@ class MMDResolver(object):
         # and so on. We therefore need to convert the stream and version of base module to
         # integer representation and add "module($name:$stream) = $stream_based_version"
         # to Provides.
-        version = ModuleBuild.get_stream_version(mmd.get_stream(), right_pad=False)
+        version = ModuleBuild.get_stream_version(mmd.get_stream_name(), right_pad=False)
         if version:
-            dep = self.pool.Dep("module(%s:%s)" % (mmd.get_name(), mmd.get_stream())).Rel(
-                solv.REL_EQ, self.pool.Dep(str(version)))
+            dep = self.pool.Dep(
+                "module(%s:%s)" % (mmd.get_module_name(), mmd.get_stream_name())
+            ).Rel(
+                solv.REL_EQ, self.pool.Dep(str(version))
+            )
             solvable.add_deparray(solv.SOLVABLE_PROVIDES, dep)
 
         xmd = mmd.get_xmd()
         # Return in case virtual_streams are not set for this mmd.
-        if "mbs" not in xmd.keys() or "virtual_streams" not in xmd["mbs"].keys():
+        if not xmd.get("mbs", {}).get("virtual_streams"):
             return
 
         # For each virtual stream, add
         # "module($name:$stream) = $virtual_stream_based_version" provide.
         for stream in xmd["mbs"]["virtual_streams"]:
-            dep = self.pool.Dep("module(%s:%s)" % (mmd.get_name(), stream)).Rel(
+            dep = self.pool.Dep("module(%s:%s)" % (mmd.get_module_name(), stream)).Rel(
                 solv.REL_EQ, self.pool.Dep(str(version)))
             solvable.add_deparray(solv.SOLVABLE_PROVIDES, dep)
 
@@ -269,11 +269,11 @@ class MMDResolver(object):
         """
         overrides = {}
         xmd = mmd.get_xmd()
-        if "mbs" in xmd.keys() and "buildrequires" in xmd["mbs"].keys():
+        if "buildrequires" in xmd.get("mbs", {}):
             for base_module_name in conf.base_module_names:
-                if base_module_name not in xmd["mbs"]["buildrequires"].keys():
+                if base_module_name not in xmd["mbs"]["buildrequires"]:
                     continue
-                if "stream" not in xmd["mbs"]["buildrequires"][base_module_name].keys():
+                if "stream" not in xmd["mbs"]["buildrequires"][base_module_name]:
                     continue
                 stream = xmd["mbs"]["buildrequires"][base_module_name]["stream"]
 
@@ -291,14 +291,18 @@ class MMDResolver(object):
         :rtype: list
         :return: list of solv.Solvable instances representing the module in libsolv world.
         """
-        n, s, v, c = mmd.get_name(), mmd.get_stream(), mmd.get_version(), mmd.get_context()
+        n, s, v, c = \
+            mmd.get_module_name(), mmd.get_stream_name(), mmd.get_version(), mmd.get_context()
         pool = self.pool
 
         # Helper method to return the dependencies of `mmd` in the {name: [streams], ... form}.
-        # The `fn` is either "get_requires" or "get_buildrequires" str depending on whether
+        # The `dep_type` is either "runtime" or "buildtime" str depending on whether
         # the return deps should be runtime requires or buildrequires.
-        normdeps = lambda mmd, fn: [
-            {name: streams.get() for name, streams in getattr(dep, fn)().items()}
+        normdeps = lambda mmd, dep_type: [
+            {
+                name: getattr(dep, "get_{}_streams".format(dep_type))(name)
+                for name in getattr(dep, "get_{}_modules".format(dep_type))()
+            }
             for dep in mmd.get_dependencies()
         ]
 
@@ -339,7 +343,7 @@ class MMDResolver(object):
             # Fill in the "Requires" of this module, so we can track its dependencies
             # on other modules.
             requires = self._deps2reqs(
-                normdeps(mmd, "get_requires"), base_module_stream_overrides, False
+                normdeps(mmd, "runtime"), base_module_stream_overrides, False
             )
             log.debug("Adding module %s with requires: %r", solvable.name, requires)
             solvable.add_deparray(solv.SOLVABLE_REQUIRES, requires)
@@ -391,7 +395,7 @@ class MMDResolver(object):
             # Using this trick, libsolv will try to solve all the buildrequires/requires pairs,
             # because they are expressed as separate Solvables and we are able to distinguish
             # between them thanks to context value.
-            normalized_deps = normdeps(mmd, "get_buildrequires")
+            normalized_deps = normdeps(mmd, "buildtime")
             for c, deps in enumerate(mmd.get_dependencies()):
                 # $n:$s:$c-$v.src
                 solvable = self.build_repo.add_solvable()

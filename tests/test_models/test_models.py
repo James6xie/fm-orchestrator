@@ -24,9 +24,9 @@ import os
 import pytest
 
 from mock import patch
-from module_build_service import conf, Modulemd
+from module_build_service import conf
 from module_build_service.models import ComponentBuild, ModuleBuild, make_session
-from module_build_service.utils import to_text_type
+from module_build_service.utils.general import load_mmd_file, mmd_to_str
 from tests import init_data as init_data_contexts, clean_database, make_module
 from tests.test_models import init_data, module_build_from_modulemd
 
@@ -68,9 +68,8 @@ class TestModels:
         build = ModuleBuild.query.filter_by(id=1).one()
         yaml_path = os.path.join(
             os.path.dirname(__file__), "..", "staged_data", "testmodule_dependencies.yaml")
-        mmd = Modulemd.Module.new_from_file(yaml_path)
-        mmd.upgrade()
-        build.modulemd = to_text_type(mmd.dumps())
+        mmd = load_mmd_file(yaml_path)
+        build.modulemd = mmd_to_str(mmd)
         (
             build.ref_build_context,
             build.build_context,
@@ -89,11 +88,10 @@ class TestModels:
         clean_database()
         yaml_path = os.path.join(
             os.path.dirname(__file__), "..", "staged_data", "formatted_testmodule.yaml")
-        mmd = Modulemd.Module.new_from_file(yaml_path)
-        mmd.upgrade()
+        mmd = load_mmd_file(yaml_path)
         with make_session(conf) as session:
             for i in range(3):
-                build = module_build_from_modulemd(to_text_type(mmd.dumps()))
+                build = module_build_from_modulemd(mmd_to_str(mmd))
                 build.build_context = "f6e2aeec7576196241b9afa0b6b22acf2b6873d" + str(i)
                 build.runtime_context = "bbc84c7b817ab3dd54916c0bcd6c6bdf512f7f9c" + str(i)
                 session.add(build)

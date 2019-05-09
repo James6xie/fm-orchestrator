@@ -40,8 +40,8 @@ datadir = os.path.dirname(__file__) + "/data/"
 def module_build_from_modulemd(yaml):
     mmd = load_mmd(yaml)
     build = ModuleBuild()
-    build.name = mmd.get_name()
-    build.stream = mmd.get_stream()
+    build.name = mmd.get_module_name()
+    build.stream = mmd.get_stream_name()
     build.version = mmd.get_version()
     build.state = BUILD_STATES["ready"]
     build.modulemd = yaml

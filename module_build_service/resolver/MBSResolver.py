@@ -33,8 +33,7 @@ from module_build_service import db, conf
 from module_build_service import models
 from module_build_service.errors import UnprocessableEntity
 from module_build_service.resolver.base import GenericResolver
-from module_build_service.utils.submit import load_mmd
-from module_build_service.utils.general import import_mmd
+from module_build_service.utils.general import import_mmd, load_mmd
 
 log = logging.getLogger()
 
@@ -150,7 +149,7 @@ class MBSResolver(GenericResolver):
         :param str name: the module name to search for
         :param str virtual_stream: the module virtual stream to search for
         :return: the module's modulemd or None
-        :rtype: Modulemd.Module or None
+        :rtype: Modulemd.ModuleStream or None
         """
         query = {
             "name": name,
@@ -247,7 +246,7 @@ class MBSResolver(GenericResolver):
 
     def resolve_profiles(self, mmd, keys):
         """
-        :param mmd: Modulemd.Module instance of module
+        :param mmd: Modulemd.ModuleStream instance of module
         :param keys: list of modulemd installation profiles to include in
                      the result.
         :return: Dictionary with keys set according to `keys` param and values
@@ -271,8 +270,9 @@ class MBSResolver(GenericResolver):
                 log.info("Using local module %r to resolve profiles.", local_module)
                 dep_mmd = local_module.mmd()
                 for key in keys:
-                    if key in dep_mmd.get_profiles().keys():
-                        results[key] |= set(dep_mmd.get_profiles()[key].get_rpms().get())
+                    profile = dep_mmd.get_profile(key)
+                    if profile:
+                        results[key] |= set(profile.get_rpms())
                 continue
 
             # Find the dep in the built modules in MBS
@@ -289,8 +289,9 @@ class MBSResolver(GenericResolver):
                 dep_mmd = load_mmd(yaml)
                 # Take note of what rpms are in this dep's profile.
                 for key in keys:
-                    if key in dep_mmd.get_profiles().keys():
-                        results[key] |= set(dep_mmd.get_profiles()[key].get_rpms().get())
+                    profile = dep_mmd.get_profile(key)
+                    if profile:
+                        results[key] |= set(profile.get_rpms())
 
         # Return the union of all rpms in all profiles of the given keys.
         return results
@@ -313,7 +314,7 @@ class MBSResolver(GenericResolver):
         :param strict: Normally this function returns None if no module can be
             found.  If strict=True, then an UnprocessableEntity is raised.
         :return: a mapping containing buildrequire modules info in key/value pairs,
-            where key is koji_tag and value is list of Modulemd.Module objects.
+            where key is koji_tag and value is list of Modulemd.ModuleStream objects.
         :rtype: dict(str, :class:`Modulemd.Module`)
         """
 
@@ -338,11 +339,7 @@ class MBSResolver(GenericResolver):
             yaml = queried_module["modulemd"]
             queried_mmd = load_mmd(yaml)
 
-        if (
-            not queried_mmd
-            or not queried_mmd.get_xmd().get("mbs")
-            or "buildrequires" not in queried_mmd.get_xmd()["mbs"].keys()
-        ):
+        if not queried_mmd or "buildrequires" not in queried_mmd.get_xmd().get("mbs", {}):
             raise RuntimeError(
                 'The module "{0!r}" did not contain its modulemd or did not have '
                 "its xmd attribute filled out in MBS".format(queried_mmd)
@@ -427,15 +424,15 @@ class MBSResolver(GenericResolver):
             )
             if module.get("modulemd"):
                 mmd = load_mmd(module["modulemd"])
-                if mmd.get_xmd().get("mbs") and "commit" in mmd.get_xmd()["mbs"].keys():
+                if mmd.get_xmd().get("mbs", {}).get("commit"):
                     commit_hash = mmd.get_xmd()["mbs"]["commit"]
 
                 # Find out the particular NVR of filtered packages
-                if "rpms" in module and mmd.get_rpm_filter().get():
+                if "rpms" in module and mmd.get_rpm_filters():
                     for rpm in module["rpms"]:
                         nvr = kobo.rpmlib.parse_nvra(rpm)
                         # If the package is not filtered, continue
-                        if not nvr["name"] in mmd.get_rpm_filter().get():
+                        if not nvr["name"] in mmd.get_rpm_filters():
                             continue
 
                         # If the nvr is already in filtered_rpms, continue

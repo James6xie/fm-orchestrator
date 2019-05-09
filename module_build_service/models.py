@@ -41,7 +41,6 @@ from sqlalchemy.orm import lazyload
 from sqlalchemy.orm import validates, scoped_session, sessionmaker, load_only
 
 import module_build_service.messaging
-from module_build_service.glib import from_variant_dict
 from module_build_service import db, log, get_url_for, app, conf
 from module_build_service.errors import UnprocessableEntity
 
@@ -544,7 +543,7 @@ class ModuleBuild(MBSBase):
         :return: Tuple with build_context, strem_build_context, runtime_context and
                  context hashes.
         """
-        from module_build_service.utils import load_mmd
+        from module_build_service.utils.general import load_mmd
 
         try:
             mmd = load_mmd(mmd_str)
@@ -555,8 +554,7 @@ class ModuleBuild(MBSBase):
 
         # Get the buildrequires from the XMD section, because it contains
         # all the buildrequires as we resolved them using dependency resolver.
-        # We have to use keys because GLib.Variant doesn't support `in` directly.
-        if "buildrequires" not in mbs_xmd.keys():
+        if "buildrequires" not in mbs_xmd:
             raise ValueError("The module's modulemd hasn't been formatted by MBS")
         mmd_formatted_buildrequires = {
             dep: info["ref"] for dep, info in mbs_xmd["buildrequires"].items()
@@ -575,10 +573,11 @@ class ModuleBuild(MBSBase):
         # Get the requires from the real "dependencies" section in MMD.
         mmd_requires = {}
         for deps in mmd.get_dependencies():
-            for name, streams in deps.get_requires().items():
+            for name in deps.get_runtime_modules():
+                streams = deps.get_runtime_streams(name)
                 if name not in mmd_requires:
                     mmd_requires[name] = set()
-                mmd_requires[name] = mmd_requires[name].union(streams.get())
+                mmd_requires[name] = mmd_requires[name].union(streams)
 
         # Sort the streams for each module name and also sort the module names.
         mmd_requires = {dep: sorted(list(streams)) for dep, streams in mmd_requires.items()}
@@ -800,11 +799,8 @@ class ModuleBuild(MBSBase):
 
     def json(self, show_tasks=True):
         mmd = self.mmd()
-        xmd = from_variant_dict(mmd.get_xmd())
-        try:
-            buildrequires = xmd["mbs"]["buildrequires"]
-        except KeyError:
-            buildrequires = {}
+        xmd = mmd.get_xmd()
+        buildrequires = xmd.get("mbs", {}).get("buildrequires", {})
         rv = self.short_json()
         rv.update({
             "component_builds": [build.id for build in self.component_builds],
@@ -950,7 +946,6 @@ class ModuleBuild(MBSBase):
         xmd = self.mmd().get_xmd()
         with make_session(conf) as db_session:
             for bm in conf.base_module_names:
-                # xmd is a GLib Variant and doesn't support .get() syntax
                 try:
                     bm_dict = xmd["mbs"]["buildrequires"].get(bm)
                 except KeyError:

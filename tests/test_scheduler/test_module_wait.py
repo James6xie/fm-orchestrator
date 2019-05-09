@@ -30,6 +30,7 @@ import pytest
 from tests import conf, db, app, scheduler_init_data
 import module_build_service.resolver
 from module_build_service import build_logs, Modulemd
+from module_build_service.utils.general import load_mmd_file
 from module_build_service.models import ComponentBuild, ModuleBuild
 
 base_dir = os.path.dirname(os.path.dirname(__file__))
@@ -73,8 +74,7 @@ class TestModuleWait:
 
         formatted_testmodule_yml_path = os.path.join(
             base_dir, "staged_data", "formatted_testmodule.yaml")
-        mmd = Modulemd.Module().new_from_file(formatted_testmodule_yml_path)
-        mmd.upgrade()
+        mmd = load_mmd_file(formatted_testmodule_yml_path)
         mocked_module_build.id = 1
         mocked_module_build.mmd.return_value = mmd
         mocked_module_build.component_builds = []
@@ -191,9 +191,7 @@ class TestModuleWait:
         Test that build.cg_build_koji_tag fallbacks to default tag.
         """
         with app.app_context():
-            base_mmd = Modulemd.Module()
-            base_mmd.set_name("base-runtime")
-            base_mmd.set_stream("f27")
+            base_mmd = Modulemd.ModuleStreamV2.new("base-runtime", "f27")
 
             scheduler_init_data()
             koji_session = mock.MagicMock()
@@ -259,9 +257,7 @@ class TestModuleWait:
         Test that build.cg_build_koji_tag is set.
         """
         with app.app_context():
-            base_mmd = Modulemd.Module()
-            base_mmd.set_name("base-runtime")
-            base_mmd.set_stream("f27")
+            base_mmd = Modulemd.ModuleStreamV2.new("base-runtime", "f27")
 
             scheduler_init_data()
             koji_session = mock.MagicMock()
