@@ -480,8 +480,10 @@ class TestUtils:
     @pytest.mark.parametrize(
         "scmurl",
         [
-            "https://src.stg.fedoraproject.org/modules/testmodule.git"
-            "?#620ec77321b2ea7b0d67d82992dda3e1d67055b4",
+            (
+                "https://src.stg.fedoraproject.org/modules/testmodule.git"
+                "?#620ec77321b2ea7b0d67d82992dda3e1d67055b4"
+            ),
             None,
         ],
     )
@@ -489,6 +491,10 @@ class TestUtils:
     def test_format_mmd(self, mocked_scm, scmurl):
         mocked_scm.return_value.commit = "620ec77321b2ea7b0d67d82992dda3e1d67055b4"
         # For all the RPMs in testmodule, get_latest is called
+        mocked_scm.return_value.get_latest.side_effect = [
+            "4ceea43add2366d8b8c5a622a2fb563b625b9abf",
+            "fbed359411a1baa08d4a88e0d12d426fbf8f602c",
+        ]
         hashes_returned = {
             "master": "fbed359411a1baa08d4a88e0d12d426fbf8f602c",
             "f28": "4ceea43add2366d8b8c5a622a2fb563b625b9abf",

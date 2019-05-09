@@ -173,6 +173,10 @@ def format_mmd(mmd, scmurl, module=None, session=None):
                     "Custom component caches aren't allowed.  "
                     "%r bears cache %r" % (pkgname, pkg.get_cache())
                 )
+            if pkg.get_buildonly() is True:
+                raise ValidationError('The usage of "buildonly" is not yet supported')
+            if pkg.get_buildafter():
+                raise ValidationError('The usage of "buildafter" is not yet supported')
             if not pkg.get_repository():
                 pkg.set_repository(conf.rpms_default_repository + pkgname)
             if not pkg.get_cache():
