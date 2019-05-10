@@ -1,6 +1,21 @@
 Change Log
 ==========
 
+v2.20.0
+-------
+* Fix a bug where the ``master`` branch had to exist on module component git repos even when they
+  were not used
+* Fix an issue where local builds get their stream overwritten by the base module stream
+* Fix -debuginfo/-debugsource package handling for the Koji Content Generator build
+* Expose the stream version of a module in the REST API
+* Fix buildrequiring a virtual stream of a base module
+* Add support for the ``stream_version_lte`` parameter in the ``modules`` REST API endpoint
+* Order the module version as if they were integers instead of strings in the REST API
+* Accept multiple order by parameters of the same direction in the REST API
+* Allow configuring "release streams" for base module streams and how they affect the stream
+  version
+* Convert the stream version to be a float
+
 v2.19.1
 -------
 * Expose metrics about the number of completed builds and their status
