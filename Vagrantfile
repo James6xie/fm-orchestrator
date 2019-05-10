@@ -2,6 +2,7 @@
 # vi: set ft=ruby ts=2 sw=2 ai et:
 
 $script = <<SCRIPT
+    set -e
     grep -q '^127\.0\.0\.1 fedmsg-relay$' /etc/hosts || echo "127.0.0.1 fedmsg-relay" >> /etc/hosts
     echo "export MODULE_BUILD_SERVICE_DEVELOPER_ENV=1" > /etc/profile.d/module_build_service_developer_env.sh
     source /etc/profile.d/module_build_service_developer_env.sh
@@ -14,6 +15,7 @@ $script = <<SCRIPT
         gcc-c++ \
         git \
         koji \
+        krb5-devel \
         krb5-workstation \
         libffi-devel \
         mock-scm \
@@ -58,6 +60,7 @@ $script = <<SCRIPT
 SCRIPT
 
 $make_devenv = <<DEVENV
+  set -e
   env_dir=~/devenv
   pip=${env_dir}/bin/pip
   py=${env_dir}/bin/python
