@@ -314,7 +314,7 @@ def validate_mmd(mmd):
     xmd = mmd.get_xmd()
     if "mbs" in xmd:
         allowed_to_mark_disttag = name in conf.allowed_disttag_marking_module_names
-        if not (xmd["mbs"].keys() == ["disttag_marking"] and allowed_to_mark_disttag):
+        if not (set(xmd["mbs"].keys()) == {"disttag_marking"} and allowed_to_mark_disttag):
             raise ValidationError('The "mbs" xmd field is reserved for MBS')
 
     if name in conf.base_module_names:
