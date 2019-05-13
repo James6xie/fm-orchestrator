@@ -10,9 +10,13 @@ ARG DNF_CMD="dnf -y --setopt=deltarpm=0 --setopt=install_weak_deps=false --setop
 COPY . /src
 WORKDIR /src
 
+# Unpin the libmodulemd RPMs once MBS is released with libmodulemd v2
 RUN ${DNF_CMD} install \
       'dnf-command(builddep)' rpm-build rpmdevtools rpmlint \
-      python3-tox python3-pytest python3-mock python3-flake8 bandit && \
+      python3-tox python3-pytest python3-mock python3-flake8 bandit \
+      https://kojipkgs.fedoraproject.org//packages/libmodulemd/2.4.0/1.fc29/x86_64/python3-libmodulemd-2.4.0-1.fc29.x86_64.rpm \
+      https://kojipkgs.fedoraproject.org//packages/libmodulemd/2.4.0/1.fc29/x86_64/libmodulemd-2.4.0-1.fc29.x86_64.rpm \
+      https://kojipkgs.fedoraproject.org//packages/libmodulemd/2.4.0/1.fc29/x86_64/libmodulemd1-1.8.10-1.fc29.x86_64.rpm && \
     ${DNF_CMD} builddep *.spec && \
     ${DNF_CMD} clean all
 RUN rpmdev-setuptree && \
@@ -42,11 +46,15 @@ LABEL \
 COPY --from=builder /srv/RPMS /srv/RPMS
 COPY repos/ /etc/yum.repos.d/
 
+# Unpin the libmodulemd RPMs once MBS is released with libmodulemd v2
 RUN $DNF_CMD install \
       python3-psycopg2 \
       python3-docopt \
       python3-service-identity \
       /srv/*/*/*.rpm \
+      https://kojipkgs.fedoraproject.org//packages/libmodulemd/2.4.0/1.fc29/x86_64/python3-libmodulemd-2.4.0-1.fc29.x86_64.rpm \
+      https://kojipkgs.fedoraproject.org//packages/libmodulemd/2.4.0/1.fc29/x86_64/libmodulemd-2.4.0-1.fc29.x86_64.rpm \
+      https://kojipkgs.fedoraproject.org//packages/libmodulemd/2.4.0/1.fc29/x86_64/libmodulemd1-1.8.10-1.fc29.x86_64.rpm \
       $EXTRA_RPMS && \
     $DNF_CMD clean all && \
     rm -rf /srv/RPMS
