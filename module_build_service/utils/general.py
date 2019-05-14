@@ -31,6 +31,7 @@ from datetime import datetime
 from functools import partial
 
 from six import text_type, string_types
+from gi.repository.GLib import Error as ModuleMDError
 
 from module_build_service import conf, log, models, Modulemd
 from module_build_service.errors import ValidationError, ProgrammingError, UnprocessableEntity
@@ -47,15 +48,23 @@ def to_text_type(s):
 
 
 def load_mmd(yaml, is_file=False):
+    if not yaml:
+        raise UnprocessableEntity('The input modulemd was empty')
+
+    target_mmd_version = Modulemd.ModuleStreamVersionEnum.TWO
     try:
         if is_file:
             mmd = Modulemd.ModuleStream.read_file(yaml, True)
         else:
             mmd = Modulemd.ModuleStream.read_string(to_text_type(yaml), True)
         mmd.validate()
-        # If the modulemd was v1, it will be upgraded to v2
-        mmd = mmd.upgrade(Modulemd.ModuleStreamVersionEnum.TWO)
-    except Exception as e:
+        if mmd.get_mdversion() < target_mmd_version:
+            mmd = mmd.upgrade(target_mmd_version)
+        elif mmd.get_mdversion() > target_mmd_version:
+            log.error("Encountered a modulemd file with the version %d", mmd.get_mdversion())
+            raise UnprocessableEntity(
+                "The modulemd version cannot be greater than {}".format(target_mmd_version))
+    except ModuleMDError as e:
         not_found = False
         if is_file:
             error = "The modulemd {} is invalid.".format(os.path.basename(yaml))
@@ -73,6 +82,11 @@ def load_mmd(yaml, is_file=False):
         if "modulemd-error-quark: " in str(e):
             error = "{} The error was '{}'.".format(
                 error, str(e).split("modulemd-error-quark: ")[-1])
+        elif "Unknown ModuleStream version" in str(e):
+            error = (
+                "{}. The modulemd version can't be greater than {}."
+                .format(error, target_mmd_version)
+            )
         elif not_found is False:
             error = "{} Please verify the syntax is correct.".format(error)
 
