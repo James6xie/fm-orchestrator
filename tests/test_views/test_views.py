@@ -191,6 +191,7 @@ class TestViews:
         assert data["state_name"] == "ready"
         assert data["stream"] == "1"
         assert data["version"] == "2"
+        assert data["scratch"] is False
 
     def test_query_build_with_verbose_mode(self):
         rv = self.client.get("/module-build-service/1/module-builds/2?verbose=true")

@@ -793,7 +793,7 @@ class ModuleBuild(MBSBase):
 
         return query.first()
 
-    def short_json(self, show_stream_version=False):
+    def short_json(self, show_stream_version=False, show_scratch=True):
         rv = {
             "id": self.id,
             "state": self.state,
@@ -805,6 +805,8 @@ class ModuleBuild(MBSBase):
         }
         if show_stream_version:
             rv["stream_version"] = self.stream_version
+        if show_scratch:
+            rv["scratch"] = self.scratch
         return rv
 
     def json(self, show_tasks=True):
@@ -818,7 +820,6 @@ class ModuleBuild(MBSBase):
             "owner": self.owner,
             "rebuild_strategy": self.rebuild_strategy,
             "scmurl": self.scmurl,
-            "scratch": self.scratch,
             "srpms": json.loads(self.srpms or "[]"),
             "siblings": self.siblings,
             "state_reason": self.state_reason,
@@ -845,7 +846,7 @@ class ModuleBuild(MBSBase):
             state_url = get_url_for("module_build", api_version=api_version, id=self.id)
 
         rv.update({
-            "base_module_buildrequires": [br.short_json(True) for br in self.buildrequires],
+            "base_module_buildrequires": [br.short_json(True, False) for br in self.buildrequires],
             "build_context": self.build_context,
             "modulemd": self.modulemd,
             "ref_build_context": self.ref_build_context,
