@@ -2429,7 +2429,6 @@ class TestViews:
         )
         rv = self.client.post(post_url, data=json.dumps({"branch": "master", "scmurl": scm_url}))
         data = json.loads(rv.data)
-        print(data)
 
         mmd = load_mmd(data[0]["modulemd"])
         assert len(mmd.get_dependencies()) == 1
