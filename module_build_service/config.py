@@ -618,6 +618,11 @@ class Config(object):
             "type": int,
             "default": 60,
             "desc": "Greenwave response timeout"
+        },
+        "modules_allow_scratch": {
+            "type": bool,
+            "default": False,
+            "desc": "Allow module scratch builds",
         }
     }
 
