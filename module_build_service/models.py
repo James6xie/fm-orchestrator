@@ -419,11 +419,21 @@ class ModuleBuild(MBSBase):
         if not virtual_streams:
             return query
 
-        return (
-            query.join(VirtualStream, ModuleBuild.virtual_streams)
+        # Create a subquery that filters down all the module builds that contain the virtual
+        # streams. Using distinct is necessary since a module build may contain multiple virtual
+        # streams that are desired.
+        modules_with_virtual_streams = (
+            session.query(ModuleBuild)
+            .join(VirtualStream, ModuleBuild.virtual_streams)
             .filter(VirtualStream.name.in_(virtual_streams))
+            .order_by(ModuleBuild.id)
             .distinct(ModuleBuild.id)
-        )
+        ).subquery()
+
+        # Join the original query with the subquery so that only module builds with the desired
+        # virtual streams remain
+        return query.join(
+            modules_with_virtual_streams, ModuleBuild.id == modules_with_virtual_streams.c.id)
 
     @staticmethod
     def get_last_builds_in_stream_version_lte(session, name, stream_version, virtual_streams=None):
