@@ -11,12 +11,18 @@ def runTests() {
   if (!tags.any { it.name == "module-f28-build" }) {
     koji.addTag("module-f28-build", "--parent=module-f28", "--arches=x86_64")
   }
-  // There's currently no way to query whether a given user has CG access, so just add it
-  // and hope no one else has already done it.
-  koji.runCmd("grant-cg-access", "mbs-${TEST_ID}-koji-admin", "module-build-service", "--new")
+  try {
+    // There's currently no way to query whether a given user has CG access, so just add it
+    // and hope no one else has already done it.
+    koji.runCmd("grant-cg-access", "mbs-${TEST_ID}-koji-admin", "module-build-service", "--new")
+  } catch (ex) {
+    echo "Granting cg-access to mbs-${TEST_ID}-koji-admin failed, assuming it was already provided in a previous test"
+  }
+
   if (!koji.callMethod("listBTypes").any { it.name == "module" }) {
     koji.callMethodLogin("addBType", "module")
   }
+
   def buildparams = """
         {"scmurl": "https://src.fedoraproject.org/forks/mikeb/modules/testmodule.git?#8b3fb16160f899ce10905faf570f110d52b91154",
          "branch": "empty-f28",
