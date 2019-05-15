@@ -454,7 +454,7 @@ class ModuleBuild(MBSBase):
             session.query(ModuleBuild)
             .filter(ModuleBuild.name == name)
             .filter(ModuleBuild.state == BUILD_STATES["ready"])
-            .order_by(ModuleBuild.version.desc())
+            .order_by(sqlalchemy.cast(ModuleBuild.version, db.BigInteger).desc())
         )
 
         query = ModuleBuild._add_stream_version_lte_filter(session, query, stream_version)
