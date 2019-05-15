@@ -42,6 +42,7 @@ pipeline {
     timestamps()
     timeout(time: 120, unit: 'MINUTES')
     buildDiscarder(logRotator(numToKeepStr: '10'))
+    skipDefaultCheckout()
   }
   environment {
     PIPELINE_NAMESPACE = readFile("/run/secrets/kubernetes.io/serviceaccount/namespace").trim()
@@ -267,6 +268,8 @@ pipeline {
           openshift.withCluster() {
             openshift.withProject(params.MBS_INTEGRATION_TEST_BUILD_CONFIG_NAMESPACE) {
               def build = c3i.buildAndWait("bc/${params.MBS_INTEGRATION_TEST_BUILD_CONFIG_NAME}",
+                  '-e', "MBS_GIT_REPO=${params.MBS_GIT_REPO}",
+                  '-e', "MBS_GIT_REF=${env.PR_NO ? params.MBS_GIT_REF : env.MBS_GIT_COMMIT}",
                   '-e', "MBS_BACKEND_IMAGE=${env.BACKEND_IMAGE_REF}",
                   '-e', "MBS_FRONTEND_IMAGE=${env.FRONTEND_IMAGE_REF}",
                   '-e', "TEST_IMAGES='${env.BACKEND_IMAGE_REF} ${env.FRONTEND_IMAGE_REF}'",
