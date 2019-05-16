@@ -753,6 +753,125 @@ def resolve_base_module_virtual_streams(name, streams):
     return new_streams
 
 
+def _process_support_streams(mmd, params):
+    """
+    Check if any buildrequired base modules require a support stream suffix.
+
+    This checks the Red Hat Product Pages to see if the buildrequired base module stream has been
+    released, if yes, then add the appropriate stream suffix.
+
+    :param Modulemd.ModuleStream mmd: the modulemd to apply the overrides on
+    :param dict params: the API parameters passed in by the user
+    """
+    config_msg = (
+        'Skipping the release date checks for adding a stream suffix since "%s" '
+        "is not configured"
+    )
+    if not conf.product_pages_url:
+        log.debug(config_msg, "product_pages_url")
+        return
+    elif not conf.product_pages_module_streams:
+        log.debug(config_msg, "product_pages_module_streams")
+        return
+
+    buildrequire_overrides = params.get("buildrequire_overrides", {})
+
+    def new_streams_func(name, streams):
+        if name not in conf.base_module_names:
+            log.debug("The module %s is not a base module. Skipping the release date check.", name)
+            return streams
+        elif name in buildrequire_overrides:
+            log.debug(
+                "The module %s is a buildrequire override. Skipping the release date check.", name)
+            return streams
+
+        new_streams = copy.deepcopy(streams)
+        for i, stream in enumerate(streams):
+            for regex, values in conf.product_pages_module_streams.items():
+                if re.match(regex, stream):
+                    log.debug(
+                        'The regex `%s` from the configuration "product_pages_module_streams" '
+                        "matched the stream %s",
+                        regex, stream,
+                    )
+                    stream_suffix, pp_release_template, pp_major_release_template = values
+                    break
+            else:
+                log.debug(
+                    'No regexes in the configuration "product_pages_module_streams" matched the '
+                    "stream %s. Skipping the release date check for this stream.",
+                    stream,
+                )
+                continue
+
+            if stream.endswith(stream_suffix):
+                log.debug(
+                    'The stream %s already contains the stream suffix of "%s". Skipping the '
+                    "release date check.",
+                    stream, stream_suffix
+                )
+                continue
+
+            stream_version = models.ModuleBuild.get_stream_version(stream)
+            if not stream_version:
+                log.debug("A stream version couldn't be parsed from %s", stream)
+                continue
+
+            # Convert the stream_version float to an int to make the math below deal with only
+            # integers
+            stream_version_int = int(stream_version)
+            # For example 80000 => 8
+            x = stream_version_int // 10000
+            # For example 80100 => 1
+            y = (stream_version_int - x * 10000) // 100
+            # For example 80104 => 4
+            z = stream_version_int - x * 10000 - y * 100
+            # Check if the stream version is x.0.0
+            if stream_version_int % 10000 == 0 and pp_major_release_template:
+                # For example, el8.0.0 => rhel-8-0
+                pp_release = pp_major_release_template.format(x=x, y=y, z=z)
+            else:
+                # For example el8.0.1 => rhel-8-0.1
+                pp_release = pp_release_template.format(x=x, y=y, z=z)
+
+            url = "{}/api/v7/releases/{}/?fields=ga_date".format(
+                conf.product_pages_url.rstrip("/"), pp_release)
+
+            try:
+                pp_rv = requests.get(url, timeout=15)
+                pp_json = pp_rv.json()
+            # Catch requests failures and JSON parsing errors
+            except (requests.exceptions.RequestException, ValueError):
+                log.exception(
+                    "The query to the Product Pages at %s failed. Assuming it is not yet released.",
+                    url,
+                )
+                continue
+
+            ga_date = pp_json.get("ga_date")
+            if not ga_date:
+                log.debug("A release date for the release %s could not be determined", pp_release)
+                continue
+
+            if datetime.strptime(ga_date, '%Y-%m-%d') > datetime.utcnow():
+                log.debug(
+                    "The release %s hasn't been released yet. Not adding a stream suffix.",
+                    ga_date
+                )
+                continue
+
+            new_stream = stream + stream_suffix
+            log.info(
+                'Replacing the buildrequire "%s:%s" with "%s:%s", since the stream is released',
+                name, stream, name, new_stream
+            )
+            new_streams[i] = new_stream
+
+        return new_streams
+
+    _modify_buildtime_streams(mmd, new_streams_func)
+
+
 def submit_module_build(username, mmd, params):
     """
     Submits new module build.
@@ -786,6 +905,7 @@ def submit_module_build(username, mmd, params):
         default_streams = params["default_streams"]
     _apply_dep_overrides(mmd, params)
     _modify_buildtime_streams(mmd, resolve_base_module_virtual_streams)
+    _process_support_streams(mmd, params)
 
     mmds = generate_expanded_mmds(db.session, mmd, raise_if_stream_ambigous, default_streams)
     if not mmds:

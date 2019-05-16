@@ -30,6 +30,8 @@ import pkg_resources
 import re
 import sys
 
+from six import string_types
+
 from module_build_service import logger
 
 
@@ -623,6 +625,25 @@ class Config(object):
             "type": bool,
             "default": False,
             "desc": "Allow module scratch builds",
+        },
+        "product_pages_url": {
+            "type": str,
+            "default": "",
+            "desc": "The URL to the Product Pages. This is queried to determine if a base module "
+                    "stream has been released. If it has, the stream may be modified automatically "
+                    "to use a different support stream.",
+        },
+        "product_pages_module_streams": {
+            "type": dict,
+            "default": {},
+            "desc": "The keys are regexes of base module streams that should be checked in the Red "
+                    "Hat Product Pages. The values are tuples. The first value is a string that "
+                    "should be appended to the stream if there is a match and the release the "
+                    "stream represents has been released. The second value is a template string "
+                    "that represents the release in Product Pages and can accept format kwargs of "
+                    "x, y, and z (represents the version). The third value is an optional template "
+                    "string that represent the Product Pages release for major releases "
+                    "(e.g. 8.0.0). After the first match, the rest will be ignored."
         }
     }
 
@@ -838,3 +859,42 @@ class Config(object):
                     s, ", ".join(SUPPORTED_RESOLVERS.keys()))
             )
         self._resolver = s
+
+    def _setifok_product_pages_module_streams(self, d):
+        if not isinstance(d, dict):
+            raise ValueError("PRODUCT_PAGES_MODULE_STREAMS must be a dict")
+
+        for regex, values in d.items():
+            try:
+                re.compile(regex)
+            except (TypeError, re.error):
+                raise ValueError(
+                    'The regex `%r` in the configuration "PRODUCT_PAGES_MODULE_STREAMS" is invalid'
+                    % regex
+                )
+
+            if not isinstance(values, list) and not isinstance(values, tuple):
+                raise ValueError(
+                    'The values in the configured dictionary for "PRODUCT_PAGES_MODULE_STREAMS" '
+                    "must be a list or tuple"
+                )
+
+            if len(values) != 3:
+                raise ValueError(
+                    "There must be three entries in each value in the dictionary configured for "
+                    '"PRODUCT_PAGES_MODULE_STREAMS"'
+                )
+
+            for i, value in enumerate(values):
+                if not isinstance(value, string_types):
+                    # The last value is optional
+                    if value is None and i == 2:
+                        continue
+
+                    raise ValueError(
+                        'The value in the %i index of the values in "PRODUCT_PAGES_MODULE_STREAMS" '
+                        "must be a string"
+                        % i
+                    )
+
+        self._product_pages_module_streams = d

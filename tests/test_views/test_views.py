@@ -2436,3 +2436,151 @@ class TestViews:
         dep = mmd.get_dependencies()[0]
         assert dep.get_buildtime_streams("platform") == ["el8.25.0"]
         assert dep.get_runtime_streams("platform") == ["el8"]
+
+    @pytest.mark.parametrize(
+        "pp_url, pp_streams, get_rv, br_stream, br_override, expected_stream",
+        (
+            # Test a stream of a major release
+            (
+                "https://pp.domain.local/pp/",
+                {r"el.+": ("z", "rhel-{x}-{y}.{z}", "rhel-{x}-{y}")},
+                {"ga_date": "2019-05-07"},
+                "el8.0.0",
+                {},
+                "el8.0.0z",
+            ),
+            # Test when the releases GA date is far in the future
+            (
+                "https://pp.domain.local/pp/",
+                {r"el.+": ("z", "rhel-{x}-{y}.{z}", "rhel-{x}-{y}")},
+                {"ga_date": "2099-10-30"},
+                "el8.0.0",
+                {},
+                "el8.0.0",
+            ),
+            # Test when product_pages_url isn't set
+            (
+                "",
+                {r"el.+": ("z", "rhel-{x}-{y}.{z}", "rhel-{x}-{y}")},
+                {"ga_date": "2019-05-07"},
+                "el8.0.0",
+                {},
+                "el8.0.0",
+            ),
+            # Test when the release isn't found in Product Pages
+            (
+                "https://pp.domain.local/pp/",
+                {r"el.+": ("z", "rhel-{x}-{y}.{z}", "rhel-{x}-{y}")},
+                {"detail": "Not found."},
+                "el8.0.0",
+                {},
+                "el8.0.0",
+            ),
+            # Test when a non-major release stream
+            (
+                "https://pp.domain.local/pp/",
+                {r"el.+": ("z", "rhel-{x}-{y}.{z}", "rhel-{x}-{y}")},
+                {"ga_date": "2019-05-07"},
+                "el8.2.1",
+                {},
+                "el8.2.1z",
+            ),
+            # Test that when buildrequire overrides is set for platform, nothing changes
+            (
+                "https://pp.domain.local/pp/",
+                {r"el.+": ("z", "rhel-{x}-{y}.{z}", "rhel-{x}-{y}")},
+                {"ga_date": "2019-05-07"},
+                "el8.0.0",
+                {"platform": ["el8.0.0"]},
+                "el8.0.0",
+            ),
+            # Test when product_pages_module_streams is not set
+            (
+                "https://pp.domain.local/pp/",
+                {},
+                {"ga_date": "2019-05-07"},
+                "el8.0.0",
+                {},
+                "el8.0.0",
+            ),
+            # Test when there is no stream that matches the configured regexes
+            (
+                "https://pp.domain.local/pp/",
+                {r"js.+": ("z", "js-{x}-{y}", "js-{x}-{y}")},
+                {"ga_date": "2019-05-07"},
+                "el8.0.0",
+                {},
+                "el8.0.0",
+            ),
+            # Test when there is no configured special Product Pages template for major releases
+            (
+                "https://pp.domain.local/pp/",
+                {r"el.+": ("z", "rhel-{x}-{y}", None)},
+                {"ga_date": "2019-05-07"},
+                "el8.0.0",
+                {},
+                "el8.0.0z",
+            ),
+        ),
+    )
+    @patch(
+        "module_build_service.config.Config.product_pages_url",
+        new_callable=PropertyMock,
+    )
+    @patch(
+        "module_build_service.config.Config.product_pages_module_streams",
+        new_callable=PropertyMock,
+    )
+    @patch("requests.get")
+    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.scm.SCM")
+    def test_submit_build_automatic_z_stream_detection(
+        self, mocked_scm, mocked_get_user, mock_get, mock_pp_streams, mock_pp_url, pp_url,
+        pp_streams, get_rv, br_stream, br_override, expected_stream,
+    ):
+        # Configure the Product Pages URL
+        mock_pp_url.return_value = pp_url
+        mock_pp_streams.return_value = pp_streams
+        # Mock the Product Pages query
+        mock_get.return_value.json.return_value = get_rv
+        mmd = load_mmd_file(path.join(base_dir, "staged_data", "platform.yaml"))
+        # Create the required platforms
+        for stream in ("el8.0.0", "el8.0.0z", "el8.2.1", "el8.2.1z"):
+            mmd = mmd.copy(mmd.get_module_name(), stream)
+            import_mmd(db.session, mmd)
+
+        # Use a testmodule that buildrequires platform:el8.0.0 or platform:el8.2.1
+        FakeSCM(
+            mocked_scm,
+            "testmodule",
+            "testmodule_{}.yaml".format(br_stream.replace(".", "")),
+            "620ec77321b2ea7b0d67d82992dda3e1d67055b4",
+        )
+
+        post_url = "/module-build-service/2/module-builds/"
+        scm_url = (
+            "https://src.stg.fedoraproject.org/modules/testmodule.git?#"
+            "68931c90de214d9d13feefbd35246a81b6cb8d49"
+        )
+        payload = {"branch": "master", "scmurl": scm_url}
+        if br_override:
+            payload["buildrequire_overrides"] = br_override
+        rv = self.client.post(post_url, json=payload)
+        data = json.loads(rv.data)
+
+        mmd = load_mmd(data[0]["modulemd"])
+        assert len(mmd.get_dependencies()) == 1
+        dep = mmd.get_dependencies()[0]
+        assert dep.get_buildtime_streams("platform") == [expected_stream]
+        # The runtime stream suffix should remain unchanged
+        assert dep.get_runtime_streams("platform") == ["el8.0.0"]
+
+        if pp_url and not br_override and pp_streams.get(r"el.+"):
+            if br_stream == "el8.0.0":
+                pp_release = "rhel-8-0"
+            else:
+                pp_release = "rhel-8-2.1"
+            expected_url = "{}api/v7/releases/{}/?fields=ga_date".format(pp_url, pp_release)
+            mock_get.assert_called_once_with(expected_url, timeout=15)
+        else:
+            mock_get.assert_not_called()
