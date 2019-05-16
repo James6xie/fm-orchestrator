@@ -38,6 +38,9 @@ pipeline {
   options {
     timestamps()
     timeout(time: 30, unit: 'MINUTES')
+    buildDiscarder(logRotator(numToKeepStr: '10'))
+    disableConcurrentBuilds()
+    skipDefaultCheckout()
   }
   environment {
     PIPELINE_NAMESPACE = readFile(file: '/run/secrets/kubernetes.io/serviceaccount/namespace').trim()
