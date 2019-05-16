@@ -1,4 +1,5 @@
 // Build an empty module that buildrequires a virtual stream
+import groovy.json.JsonOutput
 
 def runTests() {
   def clientcert = ca.get_ssl_cert("mbs-${TEST_ID}-koji-admin")
@@ -43,10 +44,7 @@ def runTests() {
       documentation: https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules
   """
 
-  def buildparams = """
-        {"modulemd": "${testmodule}",
-         "owner":  "mbs-${TEST_ID}-koji-admin"}
-      """
+  def buildparams = groovy.json.JsonOutput.toJson([modulemd: testmodule, owner: "mbs-${TEST_ID}-koji-admin"])
   def resp = httpRequest(
         httpMode: "POST",
         url: "https://mbs-${TEST_ID}-frontend/module-build-service/1/module-builds/",
