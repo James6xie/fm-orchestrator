@@ -658,14 +658,14 @@ def _apply_dep_overrides(mmd, params):
             )
 
 
-def _handle_base_module_virtual_stream_br(mmd):
+def _modify_buildtime_streams(mmd, new_streams_func):
     """
-    Translate a base module virtual stream buildrequire to an actual stream on the input modulemd.
+    Modify buildtime streams using the input new_streams_func.
 
     :param Modulemd.ModuleStream mmd: the modulemd to apply the overrides on
+    :param function new_streams: a function that takes the parameters (module_name, module_streams),
+        and returns the streams that should be set on the buildtime dependency.
     """
-    from module_build_service.resolver import system_resolver
-
     deps = mmd.get_dependencies()
     for dep in deps:
         overridden = False
@@ -675,50 +675,8 @@ def _handle_base_module_virtual_stream_br(mmd):
         new_dep = Modulemd.Dependencies()
 
         for name, streams in brs.items():
-            if name not in conf.base_module_names:
-                if streams == []:
-                    new_dep.set_empty_buildtime_dependencies_for_module(name)
-                else:
-                    for stream in streams:
-                        new_dep.add_buildtime_stream(name, stream)
-                continue
-
-            new_streams = copy.deepcopy(streams)
-            for i, stream in enumerate(streams):
-                # Ignore streams that start with a minus sign, since those are handled in the
-                # MSE code
-                if stream.startswith("-"):
-                    continue
-
-                # Check if the base module stream is available
-                log.debug('Checking to see if the base module "%s:%s" is available', name, stream)
-                if system_resolver.get_module_count(name=name, stream=stream) > 0:
-                    continue
-
-                # If the base module stream is not available, check if there's a virtual stream
-                log.debug(
-                    'Checking to see if there is a base module "%s" with the virtual stream "%s"',
-                    name, stream,
-                )
-                base_module_mmd = system_resolver.get_latest_with_virtual_stream(
-                    name=name, virtual_stream=stream
-                )
-                if not base_module_mmd:
-                    # If there isn't this base module stream or virtual stream available, skip it,
-                    # and let the dep solving code deal with it like it normally would
-                    log.warning(
-                        'There is no base module "%s" with stream/virtual stream "%s"',
-                        name, stream,
-                    )
-                    continue
-
-                latest_stream = base_module_mmd.get_stream_name()
-                log.info(
-                    'Replacing the buildrequire "%s:%s" with "%s:%s", since "%s" is a virtual '
-                    "stream",
-                    name, stream, name, latest_stream, stream
-                )
-                new_streams[i] = latest_stream
+            new_streams = new_streams_func(name, streams)
+            if streams != new_streams:
                 overridden = True
 
             if new_streams == []:
@@ -739,6 +697,60 @@ def _handle_base_module_virtual_stream_br(mmd):
             # Replace the old Dependencies object with the new one with the overrides
             mmd.remove_dependencies(dep)
             mmd.add_dependencies(new_dep)
+
+
+def resolve_base_module_virtual_streams(name, streams):
+    """
+    Resolve any base module virtual streams and return a copy of `streams` with the resolved values.
+
+    :param str name: the module name
+    :param str streams: the streams to resolve
+    :return: the resolved streams
+    :rtype: list
+    """
+    from module_build_service.resolver import system_resolver
+
+    if name not in conf.base_module_names:
+        return streams
+
+    new_streams = copy.deepcopy(streams)
+    for i, stream in enumerate(streams):
+        # Ignore streams that start with a minus sign, since those are handled in the
+        # MSE code
+        if stream.startswith("-"):
+            continue
+
+        # Check if the base module stream is available
+        log.debug('Checking to see if the base module "%s:%s" is available', name, stream)
+        if system_resolver.get_module_count(name=name, stream=stream) > 0:
+            continue
+
+        # If the base module stream is not available, check if there's a virtual stream
+        log.debug(
+            'Checking to see if there is a base module "%s" with the virtual stream "%s"',
+            name, stream,
+        )
+        base_module_mmd = system_resolver.get_latest_with_virtual_stream(
+            name=name, virtual_stream=stream
+        )
+        if not base_module_mmd:
+            # If there isn't this base module stream or virtual stream available, skip it,
+            # and let the dep solving code deal with it like it normally would
+            log.warning(
+                'There is no base module "%s" with stream/virtual stream "%s"',
+                name, stream,
+            )
+            continue
+
+        latest_stream = base_module_mmd.get_stream_name()
+        log.info(
+            'Replacing the buildrequire "%s:%s" with "%s:%s", since "%s" is a virtual '
+            "stream",
+            name, stream, name, latest_stream, stream
+        )
+        new_streams[i] = latest_stream
+
+    return new_streams
 
 
 def submit_module_build(username, mmd, params):
@@ -773,7 +785,7 @@ def submit_module_build(username, mmd, params):
     if "default_streams" in params:
         default_streams = params["default_streams"]
     _apply_dep_overrides(mmd, params)
-    _handle_base_module_virtual_stream_br(mmd)
+    _modify_buildtime_streams(mmd, resolve_base_module_virtual_streams)
 
     mmds = generate_expanded_mmds(db.session, mmd, raise_if_stream_ambigous, default_streams)
     if not mmds:
