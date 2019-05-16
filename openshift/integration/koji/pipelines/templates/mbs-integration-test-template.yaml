@@ -108,6 +108,10 @@ objects:
       type: JenkinsPipeline
       jenkinsPipelineStrategy:
         env:
+        - name: MBS_GIT_REPO
+          value: "${MBS_GIT_REPO}"
+        - name: MBS_GIT_REF
+          value: "${MBS_GIT_REF}"
         - name: MBS_BACKEND_IMAGE
           value: "${MBS_BACKEND_IMAGE}"
         - name: MBS_FRONTEND_IMAGE

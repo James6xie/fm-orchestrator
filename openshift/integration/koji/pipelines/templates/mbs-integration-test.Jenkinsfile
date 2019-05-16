@@ -41,6 +41,7 @@ pipeline {
     timestamps()
     timeout(time: 60, unit: 'MINUTES')
     buildDiscarder(logRotator(numToKeepStr: '10'))
+    skipDefaultCheckout()
   }
   environment {
     // Jenkins BUILD_TAG could be too long (> 63 characters) for OpenShift to consume
@@ -52,6 +53,21 @@ pipeline {
         script {
           // Don't set ENVIRONMENT_LABEL in the environment block! Otherwise you will get 2 different UUIDs.
           env.ENVIRONMENT_LABEL = "test-${env.TEST_ID}"
+
+          // check out specified branch/commit
+          checkout([$class: 'GitSCM',
+            branches: [[name: params.MBS_GIT_REF]],
+            userRemoteConfigs: [[url: params.MBS_GIT_REPO, refspec: '+refs/heads/*:refs/remotes/origin/* +refs/pull/*/head:refs/remotes/origin/pull/*/head']],
+          ])
+
+          // get current commit ID
+          // FIXME: Due to a bug discribed in https://issues.jenkins-ci.org/browse/JENKINS-45489,
+          // the return value of checkout() is unreliable.
+          // Not working: env.MBS_GIT_COMMIT = scmVars.GIT_COMMIT
+          env.MBS_GIT_COMMIT = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
+          echo "Running integration tests for ${params.MBS_GIT_REF}, commit=${env.MBS_GIT_COMMIT}"
+
+          currentBuild.displayName = "${params.MBS_GIT_REF}: ${env.MBS_GIT_COMMIT.take(7)}"
         }
       }
     }
