@@ -36,6 +36,7 @@ import module_build_service.scheduler.consumer
 from module_build_service import conf, models, log
 from module_build_service.builder import GenericBuilder
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
+from module_build_service.utils.greenwave import greenwave
 
 
 class MBSProducer(PollingProducer):
@@ -53,6 +54,7 @@ class MBSProducer(PollingProducer):
                 self.delete_old_koji_targets(conf, session)
                 self.cleanup_stale_failed_builds(conf, session)
                 self.sync_koji_build_tags(conf, session)
+                self.poll_greenwave(conf, session)
             except Exception:
                 msg = "Error in poller execution:"
                 log.exception(msg)
@@ -462,3 +464,24 @@ class MBSProducer(PollingProducer):
                         "sync_koji_build_tags_fake_message", build_tag, c.package, c.nvr)
                     log.info("  Scheduling faked event %r" % msg)
                     module_build_service.scheduler.consumer.work_queue_put(msg)
+
+    def poll_greenwave(self, config, session):
+        """
+        Polls Greenwave for all builds in done state
+        :param session: SQLAlchemy DB session
+        :return: None
+        """
+        if greenwave is None:
+            return
+
+        module_builds = (
+            session.query(models.ModuleBuild)
+            .filter_by(state=models.BUILD_STATES["done"]).all()
+        )
+
+        log.info("Checking Greenwave for %d builds", len(module_builds))
+
+        for build in module_builds:
+            if greenwave.check_gating(build):
+                build.transition(config, state=models.BUILD_STATES["ready"])
+                session.commit()

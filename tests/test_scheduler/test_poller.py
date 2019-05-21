@@ -624,3 +624,40 @@ class TestPoller:
             assert msg.artifact == c.package
             assert msg.nvr == c.nvr
             assert msg.tag in expected_msg_tags
+
+    @pytest.mark.parametrize("greenwave_result", [True, False])
+    @patch("module_build_service.utils.greenwave.Greenwave.check_gating")
+    def test_poll_greenwave(self, mock_gw, create_builder, global_consumer, dbg, greenwave_result):
+
+        module_build1 = models.ModuleBuild.query.get(1)
+        module_build1.state = models.BUILD_STATES["ready"]
+
+        module_build2 = models.ModuleBuild.query.get(2)
+        module_build2.state = models.BUILD_STATES["done"]
+
+        module_build2 = models.ModuleBuild.query.get(3)
+        module_build2.state = models.BUILD_STATES["init"]
+
+        db.session.commit()
+
+        consumer = mock.MagicMock()
+        consumer.incoming = queue.Queue()
+        global_consumer.return_value = consumer
+        hub = mock.MagicMock()
+        poller = MBSProducer(hub)
+
+        assert consumer.incoming.qsize() == 0
+
+        mock_gw.return_value = greenwave_result
+
+        poller.poll_greenwave(conf, db.session)
+
+        mock_gw.assert_called_once()
+        module = models.ModuleBuild.query.filter_by(state=models.BUILD_STATES["ready"]).all()
+
+        if greenwave_result:
+            assert len(module) == 2
+            assert set([m.id for m in module]) == {1, 2}
+        else:
+            assert len(module) == 1
+            assert set([m.id for m in module]) == {1}
