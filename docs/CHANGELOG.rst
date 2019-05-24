@@ -1,6 +1,15 @@
 Change Log
 ==========
 
+v2.21.0
+-------
+* MBS now requires libmodulemd v2. The old libmodulemd v1 is not supported.
+* Provide a better error message when the submitted modulemd version is unsupported.
+* Fix a compatibility with PostgreSQL database when handling modules with virtual streams.
+* Add ``scratch`` field to short JSON output.
+* Add the Greenwave support to gate modules from "done" to "ready" state.
+
+
 v2.20.0
 -------
 * Fix a bug where the ``master`` branch had to exist on module component git repos even when they
