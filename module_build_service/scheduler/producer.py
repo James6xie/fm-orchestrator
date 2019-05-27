@@ -488,4 +488,11 @@ class MBSProducer(PollingProducer):
         for build in module_builds:
             if greenwave.check_gating(build):
                 build.transition(config, state=models.BUILD_STATES["ready"])
-                session.commit()
+            else:
+                build.state_reason = "Gating failed (MBS will retry in {0} seconds)".format(
+                    conf.polling_interval
+                )
+                if greenwave.error_occurred:
+                    build.state_reason += " (Error occured while querying Greenwave)"
+                build.time_modified = datetime.utcnow()
+            session.commit()

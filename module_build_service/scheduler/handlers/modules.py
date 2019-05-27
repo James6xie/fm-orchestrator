@@ -48,6 +48,7 @@ import six.moves.xmlrpc_client as xmlrpclib
 import logging
 import os
 import time
+from datetime import datetime
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -137,7 +138,12 @@ def done(config, session, msg):
     if not build.scratch:
         if greenwave is None or greenwave.check_gating(build):
             build.transition(config, state="ready")
-            session.commit()
+        else:
+            build.state_reason = "Gating failed"
+            if greenwave.error_occurred:
+                build.state_reason += " (Error occured while querying Greenwave)"
+            build.time_modified = datetime.utcnow()
+        session.commit()
 
     build_logs.stop(build)
     module_build_service.builder.GenericBuilder.clear_cache(build)

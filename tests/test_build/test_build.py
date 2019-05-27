@@ -528,6 +528,7 @@ class TestBuild:
             assert module_build.state == models.BUILD_STATES["ready"]
         else:
             assert module_build.state == models.BUILD_STATES["done"]
+            assert module_build.state_reason == "Gating failed"
 
     @patch(
         "module_build_service.config.Config.check_for_eol",

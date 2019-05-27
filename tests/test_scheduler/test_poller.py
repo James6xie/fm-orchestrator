@@ -18,6 +18,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import re
 import pytest
 from mock import patch
 from module_build_service import models, conf
@@ -666,4 +667,8 @@ class TestPoller:
             assert set([m.id for m in module]) == {1, 2}
         else:
             assert len(module) == 1
-            assert set([m.id for m in module]) == {1}
+            assert module[0].id == 1
+            module = models.ModuleBuild.query.filter_by(state=models.BUILD_STATES["done"]).all()
+            assert len(module) == 1
+            assert module[0].id == 2
+            assert re.match("Gating failed.*", module[0].state_reason)

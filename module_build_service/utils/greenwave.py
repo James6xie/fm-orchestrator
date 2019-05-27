@@ -37,9 +37,10 @@ class Greenwave(object):
         self.url = conf.greenwave_url
         self._decision_context = conf.greenwave_decision_context
         if not self.decision_context:
-            raise GreenwaveError("No Greenwave decision context set")
+            raise RuntimeError("No Greenwave decision context set")
         self._subj_type = conf.greenwave_subject_type
         self._gw_timeout = conf.greenwave_timeout
+        self.error_occurred = False
 
     def _greenwave_query(self, query_type, payload=None):
         """
@@ -63,7 +64,7 @@ class Greenwave(object):
         except requests.exceptions.Timeout:
             raise GreenwaveError("Greenwave request timed out")
         except Exception as exc:
-            error_message = "Unspecified greenwave request error" \
+            error_message = "Unspecified greenwave request error " \
                             '(original exception was: "{0}")'.format(str(exc))
             log.exception(error_message)
             raise GreenwaveError(error_message)
@@ -156,10 +157,12 @@ class Greenwave(object):
         :return: True if at least one GW response contains policies_satisfied set to true
         :rtype: bool
         """
+        self.error_occurred = False
         try:
             versions = self.get_product_versions()
         except GreenwaveError:
             log.warning('An error occured while getting a product versions')
+            self.error_occurred = True
             return False
 
         for ver in versions:
@@ -168,6 +171,7 @@ class Greenwave(object):
                     # at least one positive result is enough
                     return True
             except (KeyError, GreenwaveError) as exc:
+                self.error_occurred = True
                 log.warning('Incorrect greenwave result "%s", ignoring', str(exc))
 
         return False
@@ -180,7 +184,7 @@ class Greenwave(object):
     def url(self, value):
         value = value.rstrip("/")
         if not value:
-            raise GreenwaveError("No Greenwave URL set")
+            raise RuntimeError("No Greenwave URL set")
         self._url = value
 
     @property
@@ -202,6 +206,6 @@ class Greenwave(object):
 
 try:
     greenwave = Greenwave()
-except GreenwaveError:
+except RuntimeError:
     log.warning('Greenwave is not configured or configured improperly')
     greenwave = None
