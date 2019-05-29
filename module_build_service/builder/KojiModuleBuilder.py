@@ -542,8 +542,9 @@ class KojiModuleBuilder(GenericBuilder):
         # there might be some unblocked packages later and we would block them again...
         if not build_tag_exists:
             xmd = self.mmd.get_xmd()
-            if "blocked_packages" in xmd.get("mbs_options", {}):
-                self._koji_block_packages(xmd["mbs_options"]["blocked_packages"])
+            mbs_opts = xmd.get("mbs_options", {})
+            if "blocked_packages" in mbs_opts:
+                self._koji_block_packages(mbs_opts["blocked_packages"])
 
         @module_build_service.utils.retry(wait_on=SysCallError, interval=5)
         def add_groups():
@@ -1008,8 +1009,11 @@ class KojiModuleBuilder(GenericBuilder):
         opts["extra"] = copy.deepcopy(conf.koji_tag_extra_opts)
 
         xmd = self.mmd.get_xmd()
-        if "repo_include_all" in xmd.get("mbs_options", {}):
-            opts["extra"]["repo_include_all"] = xmd["mbs_options"]["repo_include_all"]
+        mbs_opts = xmd.get("mbs_options", {})
+        if "repo_include_all" in mbs_opts:
+            opts["extra"]["repo_include_all"] = mbs_opts["repo_include_all"]
+        if "dynamic_buildrequires" in mbs_opts:
+            opts["extra"]["dynamic_buildrequires"] = mbs_opts["dynamic_buildrequires"]
 
         # edit tag with opts
         self.koji_session.editTag2(tag_name, **opts)
