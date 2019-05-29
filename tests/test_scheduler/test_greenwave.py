@@ -43,7 +43,7 @@ class TestGetCorrespondingModuleBuild:
     def test_module_build_nvr_does_not_exist_in_koji(self, ClientSession):
         ClientSession.return_value.getBuild.return_value = None
 
-        assert get_corresponding_module_build("n-v-r") is None
+        assert get_corresponding_module_build(db.session, "n-v-r") is None
 
     @pytest.mark.parametrize(
         "build_info",
@@ -60,7 +60,7 @@ class TestGetCorrespondingModuleBuild:
     def test_cannot_find_module_build_id_from_build_info(self, ClientSession, build_info):
         ClientSession.return_value.getBuild.return_value = build_info
 
-        assert get_corresponding_module_build("n-v-r") is None
+        assert get_corresponding_module_build(db.session, "n-v-r") is None
 
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
     def test_corresponding_module_build_id_does_not_exist_in_db(self, ClientSession):
@@ -70,7 +70,7 @@ class TestGetCorrespondingModuleBuild:
             "extra": {"typeinfo": {"module": {"module_build_service_id": fake_module_build_id + 1}}}
         }
 
-        assert get_corresponding_module_build("n-v-r") is None
+        assert get_corresponding_module_build(db.session, "n-v-r") is None
 
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
     def test_find_the_module_build(self, ClientSession):
@@ -82,7 +82,7 @@ class TestGetCorrespondingModuleBuild:
             "extra": {"typeinfo": {"module": {"module_build_service_id": expected_module_build.id}}}
         }
 
-        build = get_corresponding_module_build("n-v-r")
+        build = get_corresponding_module_build(db.session, "n-v-r")
 
         assert expected_module_build.id == build.id
         assert expected_module_build.name == build.name

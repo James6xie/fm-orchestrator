@@ -235,7 +235,7 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
             build = models.ModuleBuild.from_module_event(session, msg)
         elif type(msg) == module_build_service.messaging.GreenwaveDecisionUpdate:
             handler = self.on_decision_update
-            build = greenwave.get_corresponding_module_build(msg.subject_identifier)
+            build = greenwave.get_corresponding_module_build(session, msg.subject_identifier)
         else:
             return
 

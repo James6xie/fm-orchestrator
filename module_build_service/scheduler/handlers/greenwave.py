@@ -21,14 +21,15 @@
 #
 # Written by Chenxiong Qi <cqi@redhat.com>
 
-from module_build_service import conf, db, log
+from module_build_service import conf, log
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
 from module_build_service.models import ModuleBuild, BUILD_STATES
 
 
-def get_corresponding_module_build(nvr):
+def get_corresponding_module_build(session, nvr):
     """Find corresponding module build from database and return
 
+    :param session: the SQLAlchemy database session object.
     :param str nvr: module build NVR. This is the subject_identifier included
         inside ``greenwave.decision.update`` message.
     :return: the corresponding module build object. For whatever the reason,
@@ -48,7 +49,7 @@ def get_corresponding_module_build(nvr):
         # handling Greenwave event.
         return None
 
-    return ModuleBuild.get_by_id(db.session, module_build_id)
+    return ModuleBuild.get_by_id(session, module_build_id)
 
 
 def decision_update(config, session, msg):
@@ -88,7 +89,7 @@ def decision_update(config, session, msg):
         )
         return
 
-    build = get_corresponding_module_build(module_build_nvr)
+    build = get_corresponding_module_build(session, module_build_nvr)
 
     if build is None:
         log.debug(
@@ -110,3 +111,5 @@ def decision_update(config, session, msg):
             module_build_nvr,
             msg.decision_context,
         )
+
+    session.commit()
