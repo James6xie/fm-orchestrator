@@ -2443,16 +2443,16 @@ class TestViews:
             # Test a stream of a major release
             (
                 "https://pp.domain.local/pp/",
-                {r"el.+": ("z", "rhel-{x}-{y}.{z}", "rhel-{x}-{y}")},
+                {r"el.+": (".z", "rhel-{x}-{y}.{z}", "rhel-{x}-{y}")},
                 {"ga_date": "2019-05-07"},
                 "el8.0.0",
                 {},
-                "el8.0.0z",
+                "el8.0.0.z",
             ),
             # Test when the releases GA date is far in the future
             (
                 "https://pp.domain.local/pp/",
-                {r"el.+": ("z", "rhel-{x}-{y}.{z}", "rhel-{x}-{y}")},
+                {r"el.+": (".z", "rhel-{x}-{y}.{z}", "rhel-{x}-{y}")},
                 {"ga_date": "2099-10-30"},
                 "el8.0.0",
                 {},
@@ -2461,7 +2461,7 @@ class TestViews:
             # Test when product_pages_url isn't set
             (
                 "",
-                {r"el.+": ("z", "rhel-{x}-{y}.{z}", "rhel-{x}-{y}")},
+                {r"el.+": (".z", "rhel-{x}-{y}.{z}", "rhel-{x}-{y}")},
                 {"ga_date": "2019-05-07"},
                 "el8.0.0",
                 {},
@@ -2470,7 +2470,7 @@ class TestViews:
             # Test when the release isn't found in Product Pages
             (
                 "https://pp.domain.local/pp/",
-                {r"el.+": ("z", "rhel-{x}-{y}.{z}", "rhel-{x}-{y}")},
+                {r"el.+": (".z", "rhel-{x}-{y}.{z}", "rhel-{x}-{y}")},
                 {"detail": "Not found."},
                 "el8.0.0",
                 {},
@@ -2479,16 +2479,16 @@ class TestViews:
             # Test when a non-major release stream
             (
                 "https://pp.domain.local/pp/",
-                {r"el.+": ("z", "rhel-{x}-{y}.{z}", "rhel-{x}-{y}")},
+                {r"el.+": (".z", "rhel-{x}-{y}.{z}", "rhel-{x}-{y}")},
                 {"ga_date": "2019-05-07"},
                 "el8.2.1",
                 {},
-                "el8.2.1z",
+                "el8.2.1.z",
             ),
             # Test that when buildrequire overrides is set for platform, nothing changes
             (
                 "https://pp.domain.local/pp/",
-                {r"el.+": ("z", "rhel-{x}-{y}.{z}", "rhel-{x}-{y}")},
+                {r"el.+": (".z", "rhel-{x}-{y}.{z}", "rhel-{x}-{y}")},
                 {"ga_date": "2019-05-07"},
                 "el8.0.0",
                 {"platform": ["el8.0.0"]},
@@ -2506,7 +2506,7 @@ class TestViews:
             # Test when there is no stream that matches the configured regexes
             (
                 "https://pp.domain.local/pp/",
-                {r"js.+": ("z", "js-{x}-{y}", "js-{x}-{y}")},
+                {r"js.+": (".z", "js-{x}-{y}", "js-{x}-{y}")},
                 {"ga_date": "2019-05-07"},
                 "el8.0.0",
                 {},
@@ -2515,11 +2515,11 @@ class TestViews:
             # Test when there is no configured special Product Pages template for major releases
             (
                 "https://pp.domain.local/pp/",
-                {r"el.+": ("z", "rhel-{x}-{y}", None)},
+                {r"el.+": (".z", "rhel-{x}-{y}", None)},
                 {"ga_date": "2019-05-07"},
                 "el8.0.0",
                 {},
-                "el8.0.0z",
+                "el8.0.0.z",
             ),
         ),
     )
@@ -2545,7 +2545,7 @@ class TestViews:
         mock_get.return_value.json.return_value = get_rv
         mmd = load_mmd_file(path.join(base_dir, "staged_data", "platform.yaml"))
         # Create the required platforms
-        for stream in ("el8.0.0", "el8.0.0z", "el8.2.1", "el8.2.1z"):
+        for stream in ("el8.0.0", "el8.0.0.z", "el8.2.1", "el8.2.1.z"):
             mmd = mmd.copy(mmd.get_module_name(), stream)
             import_mmd(db.session, mmd)
 
