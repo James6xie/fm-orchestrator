@@ -427,7 +427,11 @@ class MBSProducer(PollingProducer):
 
         koji_session = KojiModuleBuilder.get_session(conf, login=False)
 
-        module_builds = models.ModuleBuild.by_state(session, "build")
+        threshold = datetime.utcnow() - timedelta(minutes=10)
+        module_builds = session.query(models.ModuleBuild).filter(
+            models.ModuleBuild.time_modified < threshold,
+            models.ModuleBuild.state == models.BUILD_STATES["build"]
+        ).all()
         for module_build in module_builds:
             complete_components = module_build.current_batch(koji.BUILD_STATES["COMPLETE"])
             for c in complete_components:

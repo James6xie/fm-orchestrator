@@ -575,15 +575,18 @@ class TestPoller:
 
     @pytest.mark.parametrize("tagged", (True, False))
     @pytest.mark.parametrize("tagged_in_final", (True, False))
+    @pytest.mark.parametrize("btime", (True, False))
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
     def test_sync_koji_build_tags(
-        self, ClientSession, create_builder, global_consumer, dbg, tagged, tagged_in_final
+        self, ClientSession, create_builder, global_consumer, dbg, tagged, tagged_in_final, btime
     ):
         module_build_2 = models.ModuleBuild.query.filter_by(id=2).one()
 
         # Only module build 1's build target should be deleted.
         module_build_2.koji_tag = "module-tag1"
         module_build_2.state = models.BUILD_STATES["build"]
+        if btime:
+            module_build_2.time_modified = datetime.utcnow() - timedelta(minutes=12)
         c = module_build_2.current_batch()[0]
         c.state = koji.BUILD_STATES["COMPLETE"]
         c.tagged_in_final = False
@@ -595,10 +598,11 @@ class TestPoller:
         # No created module build has any of these tags.
         ret = []
 
-        if tagged:
-            ret.append({"id": 1, "name": module_build_2.koji_tag + "-build"})
-        if tagged_in_final:
-            ret.append({"id": 2, "name": module_build_2.koji_tag})
+        if btime:
+            if tagged:
+                ret.append({"id": 1, "name": module_build_2.koji_tag + "-build"})
+            if tagged_in_final:
+                ret.append({"id": 2, "name": module_build_2.koji_tag})
         koji_session.listTags.return_value = ret
 
         consumer = mock.MagicMock()
@@ -612,10 +616,11 @@ class TestPoller:
         assert consumer.incoming.qsize() == len(ret)
 
         expected_msg_tags = []
-        if tagged:
-            expected_msg_tags.append(module_build_2.koji_tag + "-build")
-        if tagged_in_final:
-            expected_msg_tags.append(module_build_2.koji_tag)
+        if btime:
+            if tagged:
+                expected_msg_tags.append(module_build_2.koji_tag + "-build")
+            if tagged_in_final:
+                expected_msg_tags.append(module_build_2.koji_tag)
 
         assert len(expected_msg_tags) == consumer.incoming.qsize()
 
