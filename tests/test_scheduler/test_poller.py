@@ -573,7 +573,8 @@ class TestPoller:
         assert len(module) == 1
         assert module[0].id == 2
 
-    @pytest.mark.parametrize("tagged, tagged_in_final", ([True, False], [True, False]))
+    @pytest.mark.parametrize("tagged", (True, False))
+    @pytest.mark.parametrize("tagged_in_final", (True, False))
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
     def test_sync_koji_build_tags(
         self, ClientSession, create_builder, global_consumer, dbg, tagged, tagged_in_final
@@ -608,7 +609,7 @@ class TestPoller:
 
         assert consumer.incoming.qsize() == 0
         poller.sync_koji_build_tags(conf, db.session)
-        assert consumer.incoming.qsize() == 2 - len(ret)
+        assert consumer.incoming.qsize() == len(ret)
 
         expected_msg_tags = []
         if tagged:
