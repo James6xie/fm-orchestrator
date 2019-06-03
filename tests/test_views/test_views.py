@@ -2373,7 +2373,7 @@ class TestViews:
     @patch("module_build_service.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     @patch(
-        "module_build_service.config.Config.allowed_disttag_marking_module_names",
+        "module_build_service.config.Config.allowed_privileged_module_names",
         new_callable=PropertyMock,
         return_value=["build"],
     )

@@ -48,7 +48,9 @@ import module_build_service.scheduler.consumer
 manager = Manager(create_app)
 help_args = ("-?", "--help")
 manager.help_args = help_args
-migrate = flask_migrate.Migrate(app, db)
+migrations_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)),
+                              'migrations')
+migrate = flask_migrate.Migrate(app, db, directory=migrations_dir)
 manager.add_command("db", flask_migrate.MigrateCommand)
 manager.add_option("-d", "--debug", dest="debug", action="store_true")
 manager.add_option("-v", "--verbose", dest="verbose", action="store_true")

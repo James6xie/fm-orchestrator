@@ -41,8 +41,31 @@ import module_build_service.scm
 from module_build_service import conf, db, log, models, Modulemd
 from module_build_service.errors import ValidationError, UnprocessableEntity, Forbidden, Conflict
 from module_build_service.utils import (
-    to_text_type, deps_to_dict, mmd_to_str, load_mmd, load_mmd_file
+    to_text_type, deps_to_dict, mmd_to_str, load_mmd, load_mmd_file,
+    get_build_arches
 )
+
+
+def record_module_build_arches(mmd, build, session):
+    """
+    Finds out the list of build arches against which the ModuleBuld `build` should be built
+    and records them to `build.arches`.
+
+    :param Modulemd mmd: The MMD file associated with a ModuleBuild.
+    :param ModuleBuild build: The ModuleBuild.
+    :param session: Database session.
+    """
+    arches = get_build_arches(mmd, conf)
+    for arch in arches:
+        arch_obj = session.query(models.ModuleArch).filter_by(name=arch).first()
+        if not arch_obj:
+            arch_obj = models.ModuleArch(name=arch)
+            session.add(arch_obj)
+            session.commit()
+
+        if arch_obj not in build.arches:
+            build.arches.append(arch_obj)
+            session.add(build)
 
 
 def record_filtered_rpms(mmd):
@@ -313,9 +336,13 @@ def validate_mmd(mmd):
     name = mmd.get_module_name()
     xmd = mmd.get_xmd()
     if "mbs" in xmd:
-        allowed_to_mark_disttag = name in conf.allowed_disttag_marking_module_names
-        if not (set(xmd["mbs"].keys()) == {"disttag_marking"} and allowed_to_mark_disttag):
+        if name not in conf.allowed_privileged_module_names:
             raise ValidationError('The "mbs" xmd field is reserved for MBS')
+
+        allowed_keys = ["disttag_marking", "koji_tag_arches"]
+        for key in xmd["mbs"].keys():
+            if key not in allowed_keys:
+                raise ValidationError('The "mbs" xmd field is reserved for MBS')
 
     if name in conf.base_module_names:
         raise ValidationError(

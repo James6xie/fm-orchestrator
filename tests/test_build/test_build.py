@@ -136,6 +136,10 @@ class FakeModuleBuilder(GenericBuilder):
         FakeModuleBuilder.DEFAULT_GROUPS = None
         FakeModuleBuilder.backend = "test"
 
+    @classmethod
+    def get_module_build_arches(cls, module):
+        return ["x86_64"]
+
     def buildroot_connect(self, groups):
         default_groups = FakeModuleBuilder.DEFAULT_GROUPS or {
             "srpm-build": set([

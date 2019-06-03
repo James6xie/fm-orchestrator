@@ -98,6 +98,10 @@ class FakeKojiModuleBuilder(KojiModuleBuilder):
 
         return koji_session
 
+    @classmethod
+    def get_module_build_arches(cls, module):
+        return ["x86_64"]
+
 
 class TestKojiBuilder:
     def setup_method(self, test_method):
@@ -463,13 +467,11 @@ class TestKojiBuilder:
         assert weights == {"httpd": 1.5, "apr": 1.5}
         session.krb_login.assert_called_once()
 
-    @patch.object(conf, "base_module_arches", new={"platform:xx": ["x86_64", "i686"]})
     @pytest.mark.parametrize("blocklist", [False, True])
     @pytest.mark.parametrize("custom_whitelist", [False, True])
     @pytest.mark.parametrize("repo_include_all", [False, True])
-    @pytest.mark.parametrize("override_arches", [False, True])
     def test_buildroot_connect(
-        self, custom_whitelist, blocklist, repo_include_all, override_arches
+        self, custom_whitelist, blocklist, repo_include_all
     ):
         if blocklist:
             mmd = self.module.mmd()
@@ -495,14 +497,7 @@ class TestKojiBuilder:
             mmd.set_xmd(xmd)
             self.module.modulemd = mmd_to_str(mmd)
 
-        if override_arches:
-            mmd = self.module.mmd()
-            xmd = mmd.get_xmd()
-            mbs_options = xmd["mbs"] if "mbs" in xmd.keys() else {}
-            mbs_options["buildrequires"] = {"platform": {"stream": "xx"}}
-            xmd["mbs"] = mbs_options
-            mmd.set_xmd(xmd)
-            self.module.modulemd = mmd_to_str(mmd)
+        self.module.arches.append(module_build_service.models.ModuleArch(name="i686"))
 
         builder = FakeKojiModuleBuilder(
             owner=self.module.owner,
@@ -549,10 +544,7 @@ class TestKojiBuilder:
         expected_calls = []
         assert session.packageListBlock.mock_calls == expected_calls
 
-        if override_arches:
-            expected_arches = "x86_64 i686"
-        else:
-            expected_arches = "i686 armv7hl x86_64"
+        expected_arches = "x86_64 i686"
 
         expected_calls = [
             mock.call(
@@ -824,8 +816,17 @@ class TestKojiBuilder:
     @patch.dict("sys.modules", krbV=MagicMock())
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
     def test_ensure_builder_use_a_logged_in_koji_session(self, ClientSession):
-        builder = KojiModuleBuilder("owner", MagicMock(), conf, "module-tag", [])
+        builder = KojiModuleBuilder("owner", self.module, conf, "module-tag", [])
         builder.koji_session.krb_login.assert_called_once()
+
+    @patch.dict("sys.modules", krbV=MagicMock())
+    @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
+    def test_get_module_build_arches(self, ClientSession):
+        arches = "x86_64 i686 ppc64le aarch64 s390x"
+        session = ClientSession.return_value
+        session.getTag.return_value = {"arches": arches}
+        ret = KojiModuleBuilder.get_module_build_arches(self.module)
+        assert " ".join(ret) == arches
 
 
 class TestGetDistTagSRPM:

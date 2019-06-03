@@ -52,7 +52,6 @@ from module_build_service.errors import ProgrammingError
 from module_build_service.builder.base import GenericBuilder
 from module_build_service.builder.KojiContentGenerator import KojiContentGenerator
 from module_build_service.utils import get_reusable_components, get_reusable_module
-from module_build_service.utils import get_build_arches
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -180,10 +179,10 @@ class KojiModuleBuilder(GenericBuilder):
         log.debug("Using koji_config: %s" % config.koji_config)
 
         self.koji_session = self.get_session(config)
-        self.arches = get_build_arches(self.mmd, self.config)
+        self.arches = [arch.name for arch in self.module.arches]
 
         if not self.arches:
-            raise ValueError("No arches specified in the config.")
+            raise ValueError("No arches specified in module build.")
 
         # These eventually get populated by calling _connect and __prep is set to True
         self.module_tag = None  # string
@@ -1307,3 +1306,16 @@ class KojiModuleBuilder(GenericBuilder):
                 tags.append(t["name"])
 
         return tags
+
+    @classmethod
+    def get_module_build_arches(cls, module):
+        """
+        :param ModuleBuild module: Get the list of architectures associated with
+            the module build in the build system.
+        :return: list of architectures
+        """
+        koji_session = KojiModuleBuilder.get_session(conf, login=False)
+        tag = koji_session.getTag(module.koji_tag)
+        if not tag:
+            raise ValueError("Unknown Koji tag %r." % module.koji_tag)
+        return tag["arches"].split(" ")
