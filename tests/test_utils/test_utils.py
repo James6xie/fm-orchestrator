@@ -311,6 +311,40 @@ class TestUtils:
     def teardown_method(self, test_method):
         clean_database()
 
+    @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
+    def test_get_build_arches(self, ClientSession):
+        session = ClientSession.return_value
+        session.getTag.return_value = {"arches": "ppc64le"}
+        mmd = load_mmd_file(path.join(BASE_DIR, "..", "staged_data", "formatted_testmodule.yaml"))
+        r = module_build_service.utils.get_build_arches(mmd, conf)
+        assert r == ["ppc64le"]
+
+    @patch(
+        "module_build_service.config.Config.allowed_privileged_module_names",
+        new_callable=mock.PropertyMock,
+        return_value=["testmodule"],
+    )
+    def test_get_build_arches_koji_tag_arches(self, cfg):
+        mmd = load_mmd_file(path.join(BASE_DIR, "..", "staged_data", "formatted_testmodule.yaml"))
+        xmd = mmd.get_xmd()
+        xmd["mbs"]["koji_tag_arches"] = ["ppc64", "ppc64le"]
+        mmd.set_xmd(xmd)
+
+        r = module_build_service.utils.get_build_arches(mmd, conf)
+        assert r == ["ppc64", "ppc64le"]
+
+    @patch.object(conf, "base_module_arches", new={"platform:xx": ["x86_64", "i686"]})
+    def test_get_build_arches_base_module_override(self):
+        mmd = load_mmd_file(path.join(BASE_DIR, "..", "staged_data", "formatted_testmodule.yaml"))
+        xmd = mmd.get_xmd()
+        mbs_options = xmd["mbs"] if "mbs" in xmd.keys() else {}
+        mbs_options["buildrequires"] = {"platform": {"stream": "xx"}}
+        xmd["mbs"] = mbs_options
+        mmd.set_xmd(xmd)
+
+        r = module_build_service.utils.get_build_arches(mmd, conf)
+        assert r == ["x86_64", "i686"]
+
     @pytest.mark.parametrize("context", ["c1", None])
     def test_import_mmd_contexts(self, context):
         mmd = load_mmd_file(path.join(BASE_DIR, "..", "staged_data", "formatted_testmodule.yaml"))
@@ -425,13 +459,13 @@ class TestUtils:
         assert release == "module+fedora28+2+814cfa39"
 
     @patch(
-        "module_build_service.config.Config.allowed_disttag_marking_module_names",
+        "module_build_service.config.Config.allowed_privileged_module_names",
         new_callable=mock.PropertyMock,
         return_value=["build"],
     )
     def test_get_rpm_release_metadata_br_stream_override(self, mock_admmn):
         """
-        Test that when a module buildrequires a module in conf.allowed_disttag_marking_module_names,
+        Test that when a module buildrequires a module in conf.allowed_privileged_module_names,
         and that module has the xmd.mbs.disttag_marking field set, it should influence the disttag.
         """
         scheduler_init_data(1)
@@ -476,6 +510,17 @@ class TestUtils:
         build_one = models.ModuleBuild.query.get(2)
         release = module_build_service.utils.get_rpm_release(build_one)
         assert release == "scrmod+f28+2+814cfa39"
+
+    @patch("module_build_service.utils.submit.get_build_arches")
+    def test_record_module_build_arches(self, get_build_arches):
+        get_build_arches.return_value = ["x86_64", "i686"]
+        scheduler_init_data(1)
+        build = models.ModuleBuild.query.get(2)
+        build.arches = []
+        module_build_service.utils.record_module_build_arches(build.mmd(), build, db.session)
+
+        arches = set([arch.name for arch in build.arches])
+        assert arches == set(get_build_arches.return_value)
 
     @pytest.mark.parametrize(
         "scmurl",

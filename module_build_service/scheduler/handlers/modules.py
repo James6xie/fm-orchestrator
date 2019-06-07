@@ -34,6 +34,7 @@ from module_build_service.utils import (
     get_rpm_release,
     generate_koji_tag,
     record_filtered_rpms,
+    record_module_build_arches,
 )
 from module_build_service.errors import UnprocessableEntity, Forbidden, ValidationError
 from module_build_service.utils.ursine import handle_stream_collision_modules
@@ -156,6 +157,7 @@ def init(config, session, msg):
     failure_reason = "unspec"
     try:
         mmd = build.mmd()
+        record_module_build_arches(mmd, build, session)
         record_component_builds(mmd, build, session=session)
         # The ursine.handle_stream_collision_modules is Koji specific.
         if conf.system in ["koji", "test"]:

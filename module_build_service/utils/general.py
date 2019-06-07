@@ -325,7 +325,7 @@ def get_rpm_release(module_build):
         # Looping through all the non-base modules that are allowed to set the disttag_marking
         # and the base modules to see what the disttag marking should be. Doing it this way
         # preserves the order in the configurations.
-        for module in conf.allowed_disttag_marking_module_names + conf.base_module_names:
+        for module in conf.allowed_privileged_module_names + conf.base_module_names:
             module_in_xmd = buildrequires.get(module)
 
             if not module_in_xmd:
@@ -350,7 +350,7 @@ def get_rpm_release(module_build):
                     if module not in conf.base_module_names:
                         continue
                     # If we've made it past all the modules in
-                    # conf.allowed_disttag_marking_module_names, and the base module doesn't have
+                    # conf.allowed_privileged_module_names, and the base module doesn't have
                     # the disttag_marking set, then default to the stream of the first base module
                     marking = module_obj.stream
                 br_module_marking = marking + "+"
@@ -674,16 +674,70 @@ def get_build_arches(mmd, config):
     :param config: config (module_build_service.config.Config instance)
     :return list of architectures
     """
-    arches = config.arches
+    # Imported here to allow import of utils in GenericBuilder.
+    import module_build_service.builder
+    nsvc = mmd.get_nsvc()
 
-    # Handle BASE_MODULE_ARCHES. Find out the base modules in buildrequires
-    # section of XMD and set the Koji tag arches according to it.
+    # At first, handle BASE_MODULE_ARCHES - this overrides any other option.
+    # Find out the base modules in buildrequires section of XMD and
+    # set the Koji tag arches according to it.
     if "mbs" in mmd.get_xmd():
         for req_name, req_data in mmd.get_xmd()["mbs"]["buildrequires"].items():
             ns = ":".join([req_name, req_data["stream"]])
             if ns in config.base_module_arches:
                 arches = config.base_module_arches[ns]
-                break
+                log.info("Setting build arches of %s to %r based on the BASE_MODULE_ARCHES." % (
+                    nsvc, arches))
+                return arches
+
+    # Check whether the module contains the `koji_tag_arches`. This is used only
+    # by special modules defining the layered products.
+    try:
+        arches = mmd.get_xmd()["mbs"]["koji_tag_arches"]
+        log.info("Setting build arches of %s to %r based on the koji_tag_arches." % (
+            nsvc, arches))
+        return arches
+    except KeyError:
+        pass
+
+    # Check the base/layered-product module this module buildrequires and try to get the
+    # list of arches from there.
+    try:
+        buildrequires = mmd.get_xmd()["mbs"]["buildrequires"]
+    except (ValueError, KeyError):
+        log.warning(
+            "Module {0} does not have buildrequires in its xmd".format(mmd.get_nsvc()))
+        buildrequires = None
+    if buildrequires:
+        # Looping through all the privileged modules that are allowed to set koji tag arches
+        # and the base modules to see what the koji tag arches should be. Doing it this way
+        # preserves the order in the configurations.
+        with models.make_session(conf) as session:
+            for module in conf.allowed_privileged_module_names + conf.base_module_names:
+                module_in_xmd = buildrequires.get(module)
+
+                if not module_in_xmd:
+                    continue
+
+                module_obj = models.ModuleBuild.get_build_from_nsvc(
+                    session,
+                    module,
+                    module_in_xmd["stream"],
+                    module_in_xmd["version"],
+                    module_in_xmd["context"],
+                )
+                if not module_obj:
+                    continue
+                arches = module_build_service.builder.GenericBuilder.get_module_build_arches(
+                    module_obj)
+                if arches:
+                    log.info("Setting build arches of %s to %r based on the buildrequired "
+                             "module %r." % (nsvc, arches, module_obj))
+                    return arches
+
+    # As a last resort, return just the preconfigured list of arches.
+    arches = config.arches
+    log.info("Setting build arches of %s to %r based on default ARCHES." % (nsvc, arches))
     return arches
 
 

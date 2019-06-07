@@ -589,13 +589,15 @@ class Config(object):
             "default": "",
             "desc": "The Greenwave decision context that determines a module's gating status.",
         },
-        "allowed_disttag_marking_module_names": {
+        "allowed_privileged_module_names": {
             "type": list,
             "default": [],
             "desc": (
-                "List of modules that are allowed to influence the RPM disttag when "
-                "buildrequired. These modules can set xmd.mbs.disttag_marking to do so. MBS "
-                "will use this list order to determine which modules take precedence."
+                "List of modules that are allowed to influence the RPM buildroot when "
+                "buildrequired. These modules can set xmd.mbs.disttag_marking to do change "
+                "the RPM disttag, or set the xmd.mbs.koji_tag_arches to set the arches "
+                "for which the modules are built. MBS will use this list order to determine "
+                "which modules take precedence."
             ),
         },
         "stream_suffixes": {

@@ -103,10 +103,16 @@ def patch_zeromq_time_sleep():
 patch_zeromq_time_sleep()
 
 
-def clean_database(add_platform_module=True):
+def clean_database(add_platform_module=True, add_default_arches=True):
     db.session.commit()
     db.drop_all()
     db.create_all()
+
+    if add_default_arches:
+        arch_obj = module_build_service.models.ModuleArch(name="x86_64")
+        db.session.add(arch_obj)
+        db.session.commit()
+
     if add_platform_module:
         mmd = load_mmd_file(os.path.join(base_dir, "staged_data", "platform.yaml"))
         import_mmd(db.session, mmd)
@@ -143,6 +149,7 @@ def init_data(data_size=10, contexts=False, multiple_stream_versions=False, scra
 
 
 def _populate_data(session, data_size=10, contexts=False, scratch=False):
+    arch = module_build_service.models.ModuleArch.query.get(1)
     num_contexts = 2 if contexts else 1
     for index in range(data_size):
         for context in range(num_contexts):
@@ -164,6 +171,7 @@ def _populate_data(session, data_size=10, contexts=False, scratch=False):
                 time_completed=datetime(2016, 9, 3, 11, 25, 32) + timedelta(minutes=(index * 10)),
                 rebuild_strategy="changed-and-after",
             )
+            build_one.arches.append(arch)
 
             if contexts:
                 build_one.stream = str(index)
@@ -229,6 +237,7 @@ def _populate_data(session, data_size=10, contexts=False, scratch=False):
             time_completed=datetime(2016, 9, 3, 11, 27, 19) + timedelta(minutes=(index * 10)),
             rebuild_strategy="changed-and-after",
         )
+        build_two.arches.append(arch)
 
         session.add(build_two)
         session.commit()
@@ -328,6 +337,7 @@ def scheduler_init_data(tangerine_state=None, scratch=False):
     mmd.get_rpm_component("tangerine").set_buildorder(0)
 
     platform_br = module_build_service.models.ModuleBuild.query.get(1)
+    arch = module_build_service.models.ModuleArch.query.get(1)
 
     module_build = module_build_service.models.ModuleBuild(
         name="testmodule",
@@ -351,6 +361,7 @@ def scheduler_init_data(tangerine_state=None, scratch=False):
         modulemd=mmd_to_str(mmd),
     )
 
+    module_build.arches.append(arch)
     module_build.buildrequires.append(platform_br)
     build_one_component_release = get_rpm_release(module_build)
 
@@ -425,6 +436,7 @@ def reuse_component_init_data():
     mmd = load_mmd_file(formatted_testmodule_yml_path)
 
     platform_br = module_build_service.models.ModuleBuild.query.get(1)
+    arch = module_build_service.models.ModuleArch.query.get(1)
 
     build_one = module_build_service.models.ModuleBuild(
         name="testmodule",
@@ -453,6 +465,7 @@ def reuse_component_init_data():
     xmd["mbs"]["commit"] = "ff1ea79fc952143efeed1851aa0aa006559239ba"
     mmd.set_xmd(xmd)
     build_one.modulemd = mmd_to_str(mmd)
+    build_one.arches.append(arch)
     build_one.buildrequires.append(platform_br)
 
     build_one.component_builds.extend([
@@ -535,6 +548,7 @@ def reuse_component_init_data():
     xmd["mbs"]["commit"] = "55f4a0a2e6cc255c88712a905157ab39315b8fd8"
     mmd.set_xmd(xmd)
     build_two.modulemd = mmd_to_str(mmd)
+    build_two.arches.append(arch)
     build_two.buildrequires.append(platform_br)
 
     build_two.component_builds.extend([
@@ -705,6 +719,7 @@ def make_module(
     xmd=None,
     store_to_db=True,
     virtual_streams=None,
+    arches=None,
 ):
     """
     Creates new models.ModuleBuild defined by `nsvc` string with requires
@@ -724,6 +739,8 @@ def make_module(
     :param bool store_to_db: whether to store created module metadata to the
         database.
     :param list virtual_streams: List of virtual streams provided by this module.
+    :param list arches: List of architectures this module is built against.
+        If set to None, ["x86_64"] is used as a default.
     :return: New Module Build if set to store module metadata to database,
         otherwise the module metadata is returned.
     :rtype: ModuleBuild or Modulemd.Module
@@ -820,5 +837,19 @@ def make_module(
             if vs_obj not in module_build.virtual_streams:
                 module_build.virtual_streams.append(vs_obj)
                 db.session.commit()
+
+    if arches is None:
+        arches = ["x86_64"]
+    for arch in arches:
+        arch_obj = db.session.query(module_build_service.models.ModuleArch).filter_by(
+            name=arch).first()
+        if not arch_obj:
+            arch_obj = module_build_service.models.ModuleArch(name=arch)
+            db.session.add(arch_obj)
+            db.session.commit()
+
+        if arch_obj not in module_build.arches:
+            module_build.arches.append(arch_obj)
+            db.session.commit()
 
     return module_build

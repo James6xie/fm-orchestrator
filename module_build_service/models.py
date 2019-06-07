@@ -182,6 +182,17 @@ module_builds_to_virtual_streams = db.Table(
 )
 
 
+module_builds_to_arches = db.Table(
+    "module_builds_to_arches",
+    db.Column("module_build_id", db.Integer, db.ForeignKey("module_builds.id"), nullable=False),
+    db.Column(
+        "module_arch_id", db.Integer, db.ForeignKey("module_arches.id"),
+        nullable=False),
+    db.UniqueConstraint(
+        "module_build_id", "module_arch_id", name="unique_module_to_arch"),
+)
+
+
 class ModuleBuild(MBSBase):
     __tablename__ = "module_builds"
     id = db.Column(db.Integer, primary_key=True)
@@ -210,6 +221,13 @@ class ModuleBuild(MBSBase):
     rebuild_strategy = db.Column(db.String, nullable=False)
     virtual_streams = db.relationship(
         "VirtualStream", secondary=module_builds_to_virtual_streams, back_populates="module_builds")
+
+    # List of arches against which the module is built.
+    # NOTE: It is not filled for imported modules, because imported module builds have not been
+    # built by MBS.
+    arches = db.relationship(
+        "ModuleArch", secondary=module_builds_to_arches, back_populates="module_builds",
+        order_by="ModuleArch.name")
 
     # A monotonically increasing integer that represents which batch or
     # iteration this module is currently on for successive rebuilds of its
@@ -863,6 +881,7 @@ class ModuleBuild(MBSBase):
             "state_url": state_url,
             "stream_version": self.stream_version,
             "virtual_streams": [virtual_stream.name for virtual_stream in self.virtual_streams],
+            "arches": [arch.name for arch in self.arches],
         })
 
         return rv
@@ -1003,6 +1022,18 @@ class VirtualStream(MBSBase):
 
     def __repr__(self):
         return "<VirtualStream id={} name={}>".format(self.id, self.name)
+
+
+class ModuleArch(MBSBase):
+    __tablename__ = "module_arches"
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String, nullable=False, unique=True)
+    module_builds = db.relationship(
+        "ModuleBuild", secondary=module_builds_to_arches, back_populates="arches"
+    )
+
+    def __repr__(self):
+        return "<ModuleArch id={} name={}>".format(self.id, self.name)
 
 
 class ModuleBuildTrace(MBSBase):

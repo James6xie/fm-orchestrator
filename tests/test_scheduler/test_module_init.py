@@ -59,7 +59,8 @@ class TestModuleInit:
     )
     @patch("module_build_service.scm.SCM")
     @patch("module_build_service.scheduler.handlers.modules.handle_stream_collision_modules")
-    def test_init_basic(self, rscm, mocked_scm, built_rpms):
+    @patch("module_build_service.utils.submit.get_build_arches", return_value=["x86_64"])
+    def test_init_basic(self, get_build_arches, rscm, mocked_scm, built_rpms):
         FakeSCM(
             mocked_scm,
             "testmodule",
@@ -119,7 +120,8 @@ class TestModuleInit:
         assert mmd_to_str(old_mmd) == mmd_to_str(new_mmd)
 
     @patch("module_build_service.scm.SCM")
-    def test_init_scm_not_available(self, mocked_scm):
+    @patch("module_build_service.utils.submit.get_build_arches", return_value=["x86_64"])
+    def test_init_scm_not_available(self, get_build_arches, mocked_scm):
         def mocked_scm_get_latest():
             raise RuntimeError("Failed in mocked_scm_get_latest")
 
@@ -141,7 +143,8 @@ class TestModuleInit:
         return_value=True,
     )
     @patch("module_build_service.scm.SCM")
-    def test_init_includedmodule(self, mocked_scm, mocked_mod_allow_repo):
+    @patch("module_build_service.utils.submit.get_build_arches", return_value=["x86_64"])
+    def test_init_includedmodule(self, get_build_arches, mocked_scm, mocked_mod_allow_repo):
         FakeSCM(mocked_scm, "includedmodules", ["testmodule_init.yaml"])
         includedmodules_yml_path = os.path.join(self.staged_data_dir, "includedmodules.yaml")
         mmd = load_mmd_file(includedmodules_yml_path)
@@ -177,7 +180,9 @@ class TestModuleInit:
 
     @patch("module_build_service.models.ModuleBuild.from_module_event")
     @patch("module_build_service.scm.SCM")
-    def test_init_when_get_latest_raises(self, mocked_scm, mocked_from_module_event):
+    @patch("module_build_service.utils.submit.get_build_arches", return_value=["x86_64"])
+    def test_init_when_get_latest_raises(
+            self, get_build_arches, mocked_scm, mocked_from_module_event):
         FakeSCM(
             mocked_scm,
             "testmodule",

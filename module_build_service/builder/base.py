@@ -347,6 +347,15 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
         raise NotImplementedError()
 
     @classmethod
+    def get_module_build_arches(cls, module):
+        """
+        :param ModuleBuild module: Get the list of architectures associated with
+            the module build in the build system.
+        :return: list of architectures
+        """
+        return GenericBuilder.backends[conf.system].get_module_build_arches(module)
+
+    @classmethod
     def recover_orphaned_artifact(cls, component_build):
         """
         Searches for a complete build of an artifact belonging to the module and sets the

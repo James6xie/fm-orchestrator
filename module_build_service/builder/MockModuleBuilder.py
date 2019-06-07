@@ -52,6 +52,20 @@ from module_build_service import models
 logging.basicConfig(level=logging.DEBUG)
 
 
+def detect_arch():
+    """
+    Helper method to detect the local host architecture. Fallbacks to `conf.arch_fallback`.
+    """
+    if conf.arch_autodetect:
+        arch_detected = platform.machine()
+        if arch_detected:
+            return arch_detected
+
+        log.warning("Couldn't determine machine arch. Falling back to configured arch.")
+
+    return conf.arch_fallback
+
+
 class MockModuleBuilder(GenericBuilder):
     backend = "mock"
     # Global build_id/task_id we increment when new build is executed.
@@ -94,15 +108,7 @@ class MockModuleBuilder(GenericBuilder):
         self.koji_session = None
 
         # Auto-detect arch (if possible) or fallback to the configured one
-        if conf.arch_autodetect:
-            arch_detected = platform.machine()
-            if arch_detected:
-                self.arch = arch_detected
-            else:
-                log.warning("Couldn't determine machine arch. Falling back to configured arch.")
-                self.arch = conf.arch_fallback
-        else:
-            self.arch = conf.arch_fallback
+        self.arch = detect_arch()
         log.info("Machine arch setting: {}".format(self.arch))
 
         # Create main directory for this tag
@@ -148,6 +154,17 @@ class MockModuleBuilder(GenericBuilder):
     def module_build_tag(self):
         # Workaround koji specific code in modules.py
         return {"name": self.tag_name}
+
+    @classmethod
+    def get_module_build_arches(cls, module):
+        """
+        :param ModuleBuild module: Get the list of architectures associated with
+            the module build in the build system.
+        :return: list of architectures
+        """
+        # Return local architecture, because all the modules built locally are built
+        # just against this architecture.
+        return [detect_arch()]
 
     def _createrepo(self, include_module_yaml=False):
         """
