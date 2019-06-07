@@ -2,20 +2,19 @@ Running Tests
 =============
 
 Since MBS requires Python dependencies that aren't available using PyPi (e.g. libsolv bindings),
-there is a Docker image that can be used to run the code analysis and unit tests.
+there is a container image that can be used to run the code analysis and unit tests.
 
-To run the tests, you must first install and start Docker with::
+To run the tests, you must first install `podman` with::
 
-    $ sudo dnf install docker
-    $ sudo systemctl start docker
+    $ sudo dnf install podman
 
-From the main git directory, build the Docker image with::
+From the main git directory, build the container image with::
 
-    $ sudo docker build -t mbs/test -f docker/Dockerfile-tests .
+    $ podman build -t mbs/test -f docker/Dockerfile-tests .
 
 Then run the tests with::
 
-    $ sudo docker run -t --rm -v $PWD:/src:Z mbs/test
+    $ podman run -t --rm -v $PWD:/src:Z mbs/test
 
 Style Guide
 ===========
