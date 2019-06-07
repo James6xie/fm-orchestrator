@@ -2,19 +2,27 @@ Running Tests
 =============
 
 Since MBS requires Python dependencies that aren't available using PyPi (e.g. libsolv bindings),
-there is a container image that can be used to run the code analysis and unit tests.
+there are container images (based on CentOS and Fedora) that can be used to run the code analysis and unit tests.
 
 To run the tests, you must first install `podman` with::
 
     $ sudo dnf install podman
 
-From the main git directory, build the container image with::
+From the repo root, run the tests with::
 
-    $ podman build -t mbs/test -f docker/Dockerfile-tests .
+    $ podman run -t --rm -v $PWD:/src:Z quay.io/factory2/mbs-test-centos
 
-Then run the tests with::
+To run the tests with Python 3 use the image based on Fedora::
 
-    $ podman run -t --rm -v $PWD:/src:Z mbs/test
+    $ podman run -t --rm -v $PWD:/src:Z quay.io/factory2/mbs-test-fedora
+
+If you need to build the container image locally use::
+
+    $ podman build -t mbs-test-centos -f docker/Dockerfile-tests .
+
+or::
+
+    $ podman build -t mbs-test-fedora -f docker/Dockerfile-tests-py3 .
 
 Style Guide
 ===========
