@@ -180,3 +180,18 @@ Historical Names of Module Build Service
 
 - Rida
 - The Orchestrator
+
+Updating test images in Quay
+============================
+
+The Quay web UI can be used to update the images used for testing:
+
+* https://quay.io/repository/factory2/mbs-test-centos
+* https://quay.io/repository/factory2/mbs-test-fedora
+
+Members of `the factory2 Quay organization <https://quay.io/organization/factory2>`_ 
+can start a new build from the *Builds* page of the above repositories. 
+The `:latest` tags need to be applied to the new images on the *Tags* page 
+after the builds complete.
+
+We plan to automate the process above in the future.
