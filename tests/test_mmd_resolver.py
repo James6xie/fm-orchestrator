@@ -386,3 +386,26 @@ class TestMMDResolver:
         ])
 
         assert expanded == expected
+
+    def test_solve_requires_any_platform(self,):
+        """
+        Tests that MMDResolver finds out the buildrequired module `foo` even if
+        it was built on newer platform stream, but can run on any platform stream.
+        """
+        modules = (
+            ("platform:f28:0:c0", {}, {}),
+            ("platform:f29:0:c0", {}, {}),
+            ("platform:f30:0:c0", {}, {}),
+            ("foo:1:0:c8", {"platform": []}, ["platform:f29"]),
+        )
+        for n, req, xmd_req in modules:
+            self.mmd_resolver.add_modules(self._make_mmd(n, req, xmd_req))
+
+        app = self._make_mmd("app:1:0", {"platform": ["f28"], "foo": ["1"]})
+        expanded = self.mmd_resolver.solve(app)
+
+        expected = set([
+            frozenset(["foo:1:0:c8:x86_64", "app:1:0:0:src", "platform:f28:0:c0:x86_64"]),
+        ])
+
+        assert expanded == expected

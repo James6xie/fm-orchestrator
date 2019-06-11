@@ -20,6 +20,7 @@
 
 import os
 
+from mock import patch, PropertyMock
 import pytest
 
 import module_build_service.utils
@@ -444,6 +445,34 @@ class TestUtilsModuleStreamExpansion:
                 ["platform:f29.0.0", "platform:f29.1.0", "platform:f29.2.0", "platform:lp29.1.1"])
         else:
             expected = set(["platform:f29.0.0", "platform:f29.1.0", "platform:f29.2.0"])
+        # Verify no duplicates were returned before doing set operations
+        assert len(mmds) == len(expected)
+        # Verify the expected ones were returned
+        actual = set()
+        for mmd_ in mmds:
+            actual.add("{}:{}".format(mmd_.get_module_name(), mmd_.get_stream_name()))
+        assert actual == expected
+
+    @patch(
+        "module_build_service.config.Config.allow_only_compatible_base_modules",
+        new_callable=PropertyMock, return_value=False
+    )
+    def test__get_base_module_mmds_virtual_streams_only_major_versions(self, cfg):
+        """Ensure the correct results are returned without duplicates."""
+        init_data(data_size=1, multiple_stream_versions=["foo28", "foo29", "foo30"])
+        mmd = module_build_service.utils.load_mmd_file(
+            os.path.join(base_dir, "staged_data", "testmodule_v2.yaml"))
+        deps = mmd.get_dependencies()[0]
+        new_deps = Modulemd.Dependencies()
+        for stream in deps.get_runtime_streams("platform"):
+            new_deps.add_runtime_stream("platform", stream)
+        new_deps.add_buildtime_stream("platform", "foo29")
+        mmd.remove_dependencies(deps)
+        mmd.add_dependencies(new_deps)
+
+        mmds = module_build_service.utils.mse._get_base_module_mmds(mmd)
+        expected = set(["platform:foo28", "platform:foo29", "platform:foo30"])
+
         # Verify no duplicates were returned before doing set operations
         assert len(mmds) == len(expected)
         # Verify the expected ones were returned

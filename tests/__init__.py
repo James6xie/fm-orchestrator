@@ -112,20 +112,23 @@ def clean_database(add_platform_module=True):
         import_mmd(db.session, mmd)
 
 
-def init_data(data_size=10, contexts=False, multiple_stream_versions=False, scratch=False):
+def init_data(data_size=10, contexts=False, multiple_stream_versions=None, scratch=False):
     """
     Creates data_size * 3 modules in database in different states and
     with different component builds. See _populate_data for more info.
 
     :param bool contexts: If True, multiple streams and contexts in each stream
         are generated for 'nginx' module.
-    :param bool multiple_stream_versions: If true, multiple base modules with
-        difference stream versions are generated.
+    :param list/bool multiple_stream_versions: If true, multiple base modules with
+        difference stream versions are generated. If set to list, the list defines
+        the generated base module streams.
     """
     clean_database()
     if multiple_stream_versions:
+        if multiple_stream_versions is True:
+            multiple_stream_versions = ["f28.0.0", "f29.0.0", "f29.1.0", "f29.2.0"]
         mmd = load_mmd_file(os.path.join(base_dir, "staged_data", "platform.yaml"))
-        for stream in ["f28.0.0", "f29.0.0", "f29.1.0", "f29.2.0"]:
+        for stream in multiple_stream_versions:
             mmd = mmd.copy("platform", stream)
 
             # Set the virtual_streams based on "fXY" to mark the platform streams

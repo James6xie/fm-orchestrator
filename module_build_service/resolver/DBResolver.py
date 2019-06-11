@@ -127,6 +127,9 @@ class DBResolver(GenericResolver):
                     stream_version = models.ModuleBuild.get_stream_version(stream)
                     builds = models.ModuleBuild.get_last_builds_in_stream_version_lte(
                         session, name, stream_version, virtual_streams)
+                elif not stream_version_lte and virtual_streams:
+                    builds = models.ModuleBuild.get_last_builds_in_stream_version_lte(
+                        session, name, None, virtual_streams)
                 else:
                     builds = models.ModuleBuild.get_last_builds_in_stream(session, name, stream)
             else:

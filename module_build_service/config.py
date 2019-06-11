@@ -433,6 +433,13 @@ class Config(object):
             "default": {},
             "desc": "Per base-module name:stream Koji arches list.",
         },
+        "allow_only_compatible_base_modules": {
+            "type": bool,
+            "default": True,
+            "desc": "When True, only modules built on top of compatible base modules are "
+                    "considered by MBS as possible buildrequirement. When False, modules "
+                    "built against any base module stream can be used as a buildrequire.",
+        },
         "koji_cg_tag_build": {
             "type": bool,
             "default": True,
