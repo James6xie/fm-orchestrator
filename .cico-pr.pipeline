@@ -65,8 +65,8 @@ node('factory2'){
 
         stage('Run Test Suites') {
             timeout(20) {
-                onmyduffynode 'docker run -v ~/fm-orchestrator:/src:Z quay.io/factory2/mbs-test-centos'
-                onmyduffynode 'docker run -v ~/fm-orchestrator:/src:Z quay.io/factory2/mbs-test-fedora'
+                onmyduffynode 'contrib/run-unittests.sh'
+                onmyduffynode 'contrib/run-unittests.sh --py3'
             }
         }
 

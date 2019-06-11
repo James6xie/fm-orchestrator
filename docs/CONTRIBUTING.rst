@@ -1,28 +1,33 @@
 Running Tests
 =============
 
-Since MBS requires Python dependencies that aren't available using PyPi (e.g. libsolv bindings),
-there are container images (based on CentOS and Fedora) that can be used to run the code analysis and unit tests.
+Since MBS requires Python dependencies that aren't available using PyPi (e.g.
+libsolv bindings), there are container images (based on CentOS and Fedora) that
+can be used to run the code analysis and unit tests.
 
-To run the tests, you must first install `podman` with::
+* ``docker/Dockerfile-tests`` is based on ``centos:7``, inside which tests run
+  with Python 2.
 
-    $ sudo dnf install podman
+* ``docker/Dockerfile-tests-py3`` is based on ``fedora:29``, inside which tests
+  run with Python 3.
 
-From the repo root, run the tests with::
+Both of these images are available from Quay.io under `factory2 organization`_
+and named ``mbs-test-centos`` and ``mbs-test-fedora`` individually. Refer to
+section "Updating test images in Quay" to learn how to manage these images.
 
-    $ podman run -t --rm -v $PWD:/src:Z quay.io/factory2/mbs-test-centos
+.. _factory2: https://quay.io/organization/factory2
 
-To run the tests with Python 3 use the image based on Fedora::
+To run the tests, just simply run: ``contrib/run-unittests.sh``
 
-    $ podman run -t --rm -v $PWD:/src:Z quay.io/factory2/mbs-test-fedora
+By default, this script runs tests inside container ``mbs-test-centos``
+with Python 2 and SQLite database.
 
-If you need to build the container image locally use::
+There are options to change the tests enviornment:
 
-    $ podman build -t mbs-test-centos -f docker/Dockerfile-tests .
+* ``--py3``: run tests with Python 3.
+* ``--with-pgsql``: run tests with PostgreSQL database.
 
-or::
-
-    $ podman build -t mbs-test-fedora -f docker/Dockerfile-tests-py3 .
+For example, ``contrib/run-unittests.sh --py3 --with-pgsql``.
 
 Style Guide
 ===========
@@ -184,7 +189,19 @@ Historical Names of Module Build Service
 Updating test images in Quay
 ============================
 
-The Quay web UI can be used to update the images used for testing:
+The docker images inside which to run tests could be built locally or via Quay
+web UI.
+
+For building locally, use ``podman build`` or ``docker build``. For example
+with ``podman``::
+
+    $ podman build -t quay.io/factory2/mbs-test-centos -f docker/Dockerfile-tests .
+
+or::
+
+    $ podman build -t quay.io/factory2/mbs-test-fedora -f docker/Dockerfile-tests-py3 .
+
+To update the images used for testing via Quay web UI:
 
 * https://quay.io/repository/factory2/mbs-test-centos
 * https://quay.io/repository/factory2/mbs-test-fedora

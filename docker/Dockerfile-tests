@@ -38,6 +38,7 @@ RUN yum -y install \
     python-solv \
     python-sqlalchemy \
     python2-pungi \
+    python-psycopg2 \
     # Test-only dependencies
     python-flake8 \
     python-mock \

@@ -1,4 +1,4 @@
-from os import path
+from os import environ, path
 
 # FIXME: workaround for this moment till confdir, dbdir (installdir etc.) are
 # declared properly somewhere/somehow
@@ -98,7 +98,7 @@ class TestConfiguration(BaseConfiguration):
     BUILD_LOGS_NAME_FORMAT = "build-{id}.log"
     LOG_BACKEND = "console"
     LOG_LEVEL = "debug"
-    SQLALCHEMY_DATABASE_URI = "sqlite://"
+    SQLALCHEMY_DATABASE_URI = environ.get("DATABASE_URI", "sqlite://")
     DEBUG = True
     MESSAGING = "in_memory"
     PDC_URL = "https://pdc.fedoraproject.org/rest_api/v1"

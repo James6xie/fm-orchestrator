@@ -28,6 +28,7 @@ RUN dnf -y install \
     python3-solv \
     python3-sqlalchemy \
     python3-pungi \
+    python3-psycopg2 \
     # Test-only dependencies
     python3-pytest \
     python3-flake8 \
