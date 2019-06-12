@@ -487,6 +487,14 @@ class TestKojiBuilder:
             opts.add_rpm_to_whitelist("custom2")
             mmd.set_buildopts(opts)
             self.module.modulemd = mmd_to_str(mmd)
+        else:
+            # Set some irrelevant buildopts options to test that KojiModuleBuilder
+            # is not confused by this.
+            mmd = self.module.mmd()
+            opts = Modulemd.Buildopts()
+            opts.set_rpm_macros("%my_macro 1")
+            mmd.set_buildopts(opts)
+            self.module.modulemd = mmd_to_str(mmd)
 
         if repo_include_all is False:
             mmd = self.module.mmd()

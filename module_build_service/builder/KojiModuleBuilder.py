@@ -531,7 +531,7 @@ class KojiModuleBuilder(GenericBuilder):
             self.tag_name + "-build", self.arches, perm="admin")
 
         buildopts = self.mmd.get_buildopts()
-        if buildopts:
+        if buildopts and buildopts.get_rpm_whitelist():
             rpm_whitelist = buildopts.get_rpm_whitelist()
         else:
             rpm_whitelist = self.components
