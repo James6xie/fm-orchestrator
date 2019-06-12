@@ -397,7 +397,7 @@ class SCMHandler(BaseHandler):
 
         if not get_scm_url_re().match(url):
             log.error("The submitted scmurl %r is not valid" % url)
-            raise Forbidden("The submitted scmurl %s is not valid" % url)
+            raise ValidationError("The submitted scmurl %s is not valid" % url)
 
         if not skip_branch and "branch" not in self.data:
             log.error("Missing branch")

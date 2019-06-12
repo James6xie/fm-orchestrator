@@ -1155,8 +1155,8 @@ class TestViews:
             "The submitted scmurl https://src.stg.fedoraproject.org"
             "/modules/testmodule.git is not valid"
         )
-        assert data["status"] == 403
-        assert data["error"] == "Forbidden"
+        assert data["status"] == 400
+        assert data["error"] == "Bad Request"
 
     @patch("module_build_service.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
@@ -1299,8 +1299,8 @@ class TestViews:
             "The submitted scmurl {} is not allowed".format(scmurl),
             "The submitted scmurl {} is not valid".format(scmurl),
         )
-        assert data["status"] == 403
-        assert data["error"] == "Forbidden"
+        assert data["status"] in (400, 403)
+        assert data["error"] in ("Bad Request", "Forbidden")
 
     @patch("module_build_service.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
