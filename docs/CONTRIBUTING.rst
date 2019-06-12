@@ -2,20 +2,27 @@ Running Tests
 =============
 
 Since MBS requires Python dependencies that aren't available using PyPi (e.g. libsolv bindings),
-there is a Docker image that can be used to run the code analysis and unit tests.
+there are container images (based on CentOS and Fedora) that can be used to run the code analysis and unit tests.
 
-To run the tests, you must first install and start Docker with::
+To run the tests, you must first install `podman` with::
 
-    $ sudo dnf install docker
-    $ sudo systemctl start docker
+    $ sudo dnf install podman
 
-From the main git directory, build the Docker image with::
+From the repo root, run the tests with::
 
-    $ sudo docker build -t mbs/test -f docker/Dockerfile-tests .
+    $ podman run -t --rm -v $PWD:/src:Z quay.io/factory2/mbs-test-centos
 
-Then run the tests with::
+To run the tests with Python 3 use the image based on Fedora::
 
-    $ sudo docker run -t --rm -v $PWD:/src:Z mbs/test
+    $ podman run -t --rm -v $PWD:/src:Z quay.io/factory2/mbs-test-fedora
+
+If you need to build the container image locally use::
+
+    $ podman build -t mbs-test-centos -f docker/Dockerfile-tests .
+
+or::
+
+    $ podman build -t mbs-test-fedora -f docker/Dockerfile-tests-py3 .
 
 Style Guide
 ===========
@@ -173,3 +180,18 @@ Historical Names of Module Build Service
 
 - Rida
 - The Orchestrator
+
+Updating test images in Quay
+============================
+
+The Quay web UI can be used to update the images used for testing:
+
+* https://quay.io/repository/factory2/mbs-test-centos
+* https://quay.io/repository/factory2/mbs-test-fedora
+
+Members of `the factory2 Quay organization <https://quay.io/organization/factory2>`_ 
+can start a new build from the *Builds* page of the above repositories. 
+The `:latest` tags need to be applied to the new images on the *Tags* page 
+after the builds complete.
+
+We plan to automate the process above in the future.

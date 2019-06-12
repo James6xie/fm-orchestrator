@@ -58,15 +58,15 @@ node('factory2'){
             }
         }
 
-        stage('Build Docker Images') {
-            onmyduffynode 'cd fm-orchestrator && docker build -t mbs/test -f docker/Dockerfile-tests .'
-            onmyduffynode 'cd fm-orchestrator && docker build -t mbs/test-py3 -f docker/Dockerfile-tests-py3 .'
+        stage('Pull Container Images') {
+            onmyduffynode 'docker pull quay.io/factory2/mbs-test-centos'
+            onmyduffynode 'docker pull quay.io/factory2/mbs-test-fedora'
         }
 
         stage('Run Test Suites') {
             timeout(20) {
-                onmyduffynode 'docker run -v ~/fm-orchestrator:/src:Z mbs/test'
-                onmyduffynode 'docker run -v ~/fm-orchestrator:/src:Z mbs/test-py3'
+                onmyduffynode 'docker run -v ~/fm-orchestrator:/src:Z quay.io/factory2/mbs-test-centos'
+                onmyduffynode 'docker run -v ~/fm-orchestrator:/src:Z quay.io/factory2/mbs-test-fedora'
             }
         }
 
