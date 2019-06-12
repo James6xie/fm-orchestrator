@@ -517,8 +517,9 @@ def import_mmd(session, mmd, check_buildrequires=True):
 
     # Record the base modules this module buildrequires
     if check_buildrequires:
-        for base_module in build.get_buildrequired_base_modules():
-            build.buildrequires.append(base_module)
+        for base_module in build.get_buildrequired_base_modules(session):
+            if base_module not in build.buildrequires:
+                build.buildrequires.append(base_module)
 
     session.add(build)
     session.commit()

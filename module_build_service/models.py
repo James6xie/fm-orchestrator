@@ -682,7 +682,7 @@ class ModuleBuild(MBSBase):
         module.module_builds_trace.append(mbt)
 
         # Record the base modules this module buildrequires
-        for base_module in module.get_buildrequired_base_modules():
+        for base_module in module.get_buildrequired_base_modules(session):
             module.buildrequires.append(base_module)
 
         session.add(module)
@@ -963,10 +963,11 @@ class ModuleBuild(MBSBase):
 
             return result
 
-    def get_buildrequired_base_modules(self):
+    def get_buildrequired_base_modules(self, session):
         """
         Find the base modules in the modulemd's xmd section.
 
+        :param session: the SQLAlchemy database session to use to query
         :return: a list of ModuleBuild objects of the base modules that are buildrequired with the
             ordering in conf.base_module_names preserved
         :rtype: list
@@ -974,25 +975,24 @@ class ModuleBuild(MBSBase):
         """
         rv = []
         xmd = self.mmd().get_xmd()
-        with make_session(conf) as db_session:
-            for bm in conf.base_module_names:
-                try:
-                    bm_dict = xmd["mbs"]["buildrequires"].get(bm)
-                except KeyError:
-                    raise RuntimeError("The module's mmd is missing information in the xmd section")
+        for bm in conf.base_module_names:
+            try:
+                bm_dict = xmd["mbs"]["buildrequires"].get(bm)
+            except KeyError:
+                raise RuntimeError("The module's mmd is missing information in the xmd section")
 
-                if not bm_dict:
-                    continue
-                base_module = self.get_build_from_nsvc(
-                    db_session, bm, bm_dict["stream"], bm_dict["version"], bm_dict["context"]
+            if not bm_dict:
+                continue
+            base_module = self.get_build_from_nsvc(
+                session, bm, bm_dict["stream"], bm_dict["version"], bm_dict["context"]
+            )
+            if not base_module:
+                log.error(
+                    'Module #{} buildrequires "{}" but it wasn\'t found in the database'.format(
+                        self.id, repr(bm_dict))
                 )
-                if not base_module:
-                    log.error(
-                        'Module #{} buildrequires "{}" but it wasn\'t found in the database'.format(
-                            self.id, repr(bm_dict))
-                    )
-                    continue
-                rv.append(base_module)
+                continue
+            rv.append(base_module)
 
         return rv
 
