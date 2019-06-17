@@ -263,8 +263,14 @@ def _get_base_module_mmds(mmd):
 
                 virtual_streams = xmd["mbs"]["virtual_streams"]
 
+                if conf.allow_only_compatible_base_modules:
+                    stream_version_lte = True
+                else:
+                    stream_version_lte = False
+
                 mmds = resolver.get_module_modulemds(
-                    name, stream, stream_version_lte=True, virtual_streams=virtual_streams)
+                    name, stream, stream_version_lte=stream_version_lte,
+                    virtual_streams=virtual_streams)
                 ret_chunk = []
                 # Add the returned mmds to the `seen` set to avoid querying those individually if
                 # they are part of the buildrequire streams for this base module
