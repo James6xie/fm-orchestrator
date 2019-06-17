@@ -320,10 +320,10 @@ def filter_module_builds(flask_request):
     if stream_version_lte is not None:
         invalid_error = (
             "An invalid value of stream_version_lte was provided. It must be an "
-            "integer greater than or equal to 10000."
+            "integer or float greater than or equal to 10000."
         )
         try:
-            stream_version_lte = int(stream_version_lte)
+            stream_version_lte = float(stream_version_lte)
         except (TypeError, ValueError):
             raise ValidationError(invalid_error)
 

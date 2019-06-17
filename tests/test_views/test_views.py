@@ -683,7 +683,10 @@ class TestViews:
             "An invalid Zulu ISO 8601 timestamp was " 'provided for the "modified_after" parameter'
         assert data["status"] == 400
 
-    @pytest.mark.parametrize("stream_version_lte", ("280000", "290000", "293000", "invalid"))
+    @pytest.mark.parametrize(
+        "stream_version_lte",
+        ("280000", "280000.0", "290000", "293000", "invalid"),
+    )
     def test_query_builds_filter_stream_version_lte(self, stream_version_lte):
         init_data(data_size=1, multiple_stream_versions=True)
         url = (
@@ -698,11 +701,11 @@ class TestViews:
                 "error": "Bad Request",
                 "message": (
                     "An invalid value of stream_version_lte was provided. It must be an "
-                    "integer greater than or equal to 10000."
+                    "integer or float greater than or equal to 10000."
                 ),
                 "status": 400,
             }
-        elif stream_version_lte == "280000":
+        elif stream_version_lte in ("280000", "280000.0"):
             assert total == 2
         elif stream_version_lte == "290000":
             assert total == 1
