@@ -1,6 +1,18 @@
 Change Log
 ==========
 
+v2.22.0
+-------
+* Allow configuring ``dynamic_buildrequires``
+* Allow buildrequiring modules built against all platform streams
+* Take the list of arches for ``-build`` Koji tag from buildrequired modules
+* Make ``sync_koji_build_tags`` poller working only with the builds that are in build state
+  for some time
+* Use single session object in greenwave handler and call ``commit()`` in the end
+* Fix an issue with unset RPM whitelist
+* Invalid ``scmurl`` on import yields status 400
+
+
 v2.21.0
 -------
 * MBS now requires libmodulemd v2. The old libmodulemd v1 is not supported.
