@@ -17,11 +17,13 @@
 
 enable_py3=
 with_pgsql=
+no_tty=
 
 for arg in "$@"; do
     case $arg in
         --py3) enable_py3=1 ;;
         --with-pgsql) with_pgsql=1 ;;
+        --no-tty) no_tty=1 ;;
     esac
 done
 
@@ -41,7 +43,11 @@ else
     test_image="${image_ns}/mbs-test-centos"
 fi
 
-container_opts=(--rm -i -t -v "${volume_mount}" --name mbs-test)
+container_opts=(--rm -v "${volume_mount}" --name mbs-test)
+
+if [ -z "$no_tty" ]; then
+    container_opts+=(-i -t)
+fi
 
 if [ -n "$with_pgsql" ]; then
     container_opts+=(--link "${db_container_name}":db -e "DATABASE_URI=$pgdb_uri")
