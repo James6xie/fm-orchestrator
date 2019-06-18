@@ -65,8 +65,8 @@ node('factory2'){
 
         stage('Run Test Suites') {
             timeout(20) {
-                onmyduffynode '~/fm-orchestrator/contrib/run-unittests.sh'
-                onmyduffynode '~/fm-orchestrator/contrib/run-unittests.sh --py3'
+                onmyduffynode '~/fm-orchestrator/contrib/run-unittests.sh --no-tty'
+                onmyduffynode '~/fm-orchestrator/contrib/run-unittests.sh --py3 --no-tty'
             }
         }
 
