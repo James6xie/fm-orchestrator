@@ -33,8 +33,7 @@ import dogpile.cache
 from abc import ABCMeta, abstractmethod
 from requests.exceptions import ConnectionError
 
-from module_build_service import conf, log, db
-from module_build_service import models
+from module_build_service import conf, log
 import module_build_service.resolver
 import module_build_service.scm
 import module_build_service.utils
@@ -307,9 +306,6 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
     @module_build_service.utils.retry(wait_on=(ConnectionError))
     @default_buildroot_groups_cache.cache_on_arguments()
     def default_buildroot_groups(cls, session, module):
-        local_modules = models.ModuleBuild.local_modules(db.session)
-        local_modules = {m.name + "-" + m.stream: m for m in local_modules}
-
         try:
             mmd = module.mmd()
             resolver = module_build_service.resolver.system_resolver
