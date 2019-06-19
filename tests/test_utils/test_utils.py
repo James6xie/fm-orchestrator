@@ -319,6 +319,17 @@ class TestUtils:
         r = module_build_service.utils.get_build_arches(mmd, conf)
         assert r == ["ppc64le"]
 
+    @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
+    def test_get_build_arches_no_arch_set(self, ClientSession):
+        """
+        When no architecture is set in Koji tag, fallback to conf.arches.
+        """
+        session = ClientSession.return_value
+        session.getTag.return_value = {"arches": ""}
+        mmd = load_mmd_file(path.join(BASE_DIR, "..", "staged_data", "formatted_testmodule.yaml"))
+        r = module_build_service.utils.get_build_arches(mmd, conf)
+        assert set(r) == set(conf.arches)
+
     @patch(
         "module_build_service.config.Config.allowed_privileged_module_names",
         new_callable=mock.PropertyMock,

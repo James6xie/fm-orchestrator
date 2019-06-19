@@ -1322,4 +1322,6 @@ class KojiModuleBuilder(GenericBuilder):
         tag = koji_session.getTag(module.koji_tag)
         if not tag:
             raise ValueError("Unknown Koji tag %r." % module.koji_tag)
+        if not tag["arches"]:
+            return []
         return tag["arches"].split(" ")
