@@ -78,16 +78,18 @@ class TestDBModule:
         assert nsvcs == set(["testmodule:master:20170109091357:123"])
 
     @pytest.mark.parametrize("stream_versions", [False, True])
-    def test_get_module_modulemds_stream_versions(self, stream_versions):
+    def test_get_compatible_base_module_modulemds_stream_versions(self, stream_versions):
         tests.init_data(1, multiple_stream_versions=True)
         resolver = mbs_resolver.GenericResolver.create(tests.conf, backend="db")
-        result = resolver.get_module_modulemds(
-            "platform", "f29.1.0", stream_version_lte=stream_versions)
+        result = resolver.get_compatible_base_module_modulemds(
+            "platform", "f29.1.0", stream_version_lte=stream_versions, virtual_streams=["f29"],
+            states=[models.BUILD_STATES["ready"]])
         nsvcs = set([mmd.get_nsvc() for mmd in result])
         if stream_versions:
             assert nsvcs == set(["platform:f29.1.0:3:00000000", "platform:f29.0.0:3:00000000"])
         else:
-            assert nsvcs == set(["platform:f29.1.0:3:00000000"])
+            assert nsvcs == set(["platform:f29.1.0:3:00000000", "platform:f29.0.0:3:00000000",
+                                 "platform:f29.2.0:3:00000000"])
 
     @pytest.mark.parametrize("empty_buildrequires", [False, True])
     def test_get_module_build_dependencies(self, empty_buildrequires, db_session):

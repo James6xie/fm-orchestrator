@@ -117,9 +117,13 @@ class GenericResolver(six.with_metaclass(ABCMeta)):
         stream,
         version=None,
         context=None,
-        strict=False,
-        stream_version_lte=None,
-        virtual_streams=None,
+        strict=False
+    ):
+        raise NotImplementedError()
+
+    @abstractmethod
+    def get_compatible_base_module_modulemds(
+        self, name, stream, stream_version_lte, virtual_streams, states
     ):
         raise NotImplementedError()
 
