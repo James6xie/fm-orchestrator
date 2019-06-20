@@ -1,6 +1,12 @@
 Change Log
 ==========
 
+v2.23.0
+-------
+* Accept floats when filtering by stream_version_lte on the API.
+* When no architecture is set in Koji tag, fallback to ``conf.arches``.
+
+
 v2.22.0
 -------
 * Allow configuring ``dynamic_buildrequires``
