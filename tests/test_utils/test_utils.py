@@ -1429,3 +1429,45 @@ class TestOfflineLocalBuilds:
             module_build = models.ModuleBuild.get_build_from_nsvc(
                 db.session, "platform", "y", 1, "000000")
             assert module_build
+
+
+class TestUtilsModuleReuse:
+
+    def setup_method(self, test_method):
+        init_data()
+
+    def teardown_method(self, test_method):
+        clean_database()
+
+    def test_get_reusable_module_when_reused_module_not_set(self):
+        module = models.ModuleBuild.query.filter_by(
+            name="nginx").order_by(models.ModuleBuild.id.desc()).first()
+        module.state = models.BUILD_STATES["build"]
+        db.session.commit()
+
+        assert not module.reused_module
+
+        reusable_module = module_build_service.utils.get_reusable_module(
+            db.session, module)
+
+        assert module.reused_module
+        assert reusable_module.id == module.reused_module_id
+
+    def test_get_reusable_module_when_reused_module_already_set(self):
+        modules = models.ModuleBuild.query.filter_by(
+            name="nginx").order_by(models.ModuleBuild.id.desc()).limit(2).all()
+        build_module = modules[0]
+        reused_module = modules[1]
+        build_module.state = models.BUILD_STATES["build"]
+        build_module.reused_module_id = reused_module.id
+        db.session.commit()
+
+        assert build_module.reused_module
+        assert reused_module == build_module.reused_module
+
+        reusable_module = module_build_service.utils.get_reusable_module(
+            db.session, build_module)
+
+        assert build_module.reused_module
+        assert reusable_module.id == build_module.reused_module_id
+        assert reusable_module.id == reused_module.id

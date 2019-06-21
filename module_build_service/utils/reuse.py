@@ -85,8 +85,11 @@ def get_reusable_module(session, module):
     :param module: the ModuleBuild object of module being built.
     :return: ModuleBuild object which can be used for component reuse.
     """
-    mmd = module.mmd()
 
+    if module.reused_module:
+        return module.reused_module
+
+    mmd = module.mmd()
     # Find the latest module that is in the done or ready state
     previous_module_build = (
         session.query(models.ModuleBuild)
@@ -110,6 +113,9 @@ def get_reusable_module(session, module):
     if not previous_module_build:
         log.info("Cannot re-use.  %r is the first module build." % module)
         return None
+
+    module.reused_module_id = previous_module_build.id
+    session.commit()
 
     return previous_module_build
 

@@ -221,6 +221,8 @@ class ModuleBuild(MBSBase):
     rebuild_strategy = db.Column(db.String, nullable=False)
     virtual_streams = db.relationship(
         "VirtualStream", secondary=module_builds_to_virtual_streams, back_populates="module_builds")
+    reused_module_id = db.Column(db.Integer, db.ForeignKey("module_builds.id"))
+    reused_module = db.relationship("ModuleBuild", remote_side="ModuleBuild.id")
 
     # List of arches against which the module is built.
     # NOTE: It is not filled for imported modules, because imported module builds have not been
