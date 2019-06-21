@@ -51,4 +51,4 @@ RUN yum -y install \
 RUN pip install --upgrade flask-sqlalchemy pytest flake8 tox pip "more-itertools<6.0.0"
 VOLUME /src
 WORKDIR /src
-CMD ["bash", "docker/test.sh"]
+ENTRYPOINT ["docker/test.sh"]

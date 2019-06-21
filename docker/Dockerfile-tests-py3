@@ -39,4 +39,4 @@ RUN dnf -y install \
     && dnf clean all
 VOLUME /src
 WORKDIR /src
-CMD ["bash", "docker/test-py3.sh"]
+ENTRYPOINT ["docker/test-py3.sh"]

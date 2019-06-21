@@ -19,12 +19,14 @@ enable_py3=
 with_pgsql=
 no_tty=
 
-for arg in "$@"; do
-    case $arg in
+while (( "$#" )); do
+    case "$1" in
         --py3) enable_py3=1 ;;
         --with-pgsql) with_pgsql=1 ;;
         --no-tty) no_tty=1 ;;
+        *) break ;;
     esac
+    shift
 done
 
 image_ns=quay.io/factory2
@@ -64,7 +66,7 @@ if [ -n "$with_pgsql" ]; then
     )
 fi
 
-(cd "$source_dir" && docker run "${container_opts[@]}" $test_image)
+(cd "$source_dir" && docker run "${container_opts[@]}" $test_image "$@")
 
 rv=$?
 
