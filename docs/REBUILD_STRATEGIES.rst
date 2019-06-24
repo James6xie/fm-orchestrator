@@ -1,8 +1,14 @@
 Rebuild Strategies
 ==================
 
-To view the available/allowed rebuild strategies on your MBS instance, query the rebuild-strategies
-API.
+MBS has the concept of rebuild strategies, which influence which components can be reused from a
+previous module build. This only affects MBS deployments that use Koji as the builder.
+
+Support Rebuild Strategies
+==========================
+
+To view the available and allowed rebuild strategies on an MBS instance, query the
+rebuild-strategies API endpoint.
 
 ::
 
@@ -38,18 +44,8 @@ API.
     }
 
 
-As described in the API, the following rebuild strategies are supported in MBS:
-
-- ``all`` - all components will be rebuilt. This means that even if the components have not changed
-  since the previous build of the module, all components will be rebuilt and not reused.
-- ``changed-and-after`` - all components that have changed and those in subsequent batches will be
-  rebuilt. Take for example a module with two batches, and each batch has two components. If one of
-  the two components in the first batch is changed, the other component in the batch will be reused
-  while all other components in the module will be rebuilt. By default, MBS only allows this
-  rebuild strategy.
-- ``only-changed`` - all changed components will be rebuilt. This means that all components,
-  regardless of what happened in previous batches, will be reused if they haven't been changed.
-  This strategy is a compromise between ``all`` and ``changed-and-after``.
+System Configuration
+====================
 
 To configure the rebuild strategies in MBS, you may configure the following options:
 
@@ -60,3 +56,68 @@ To configure the rebuild strategies in MBS, you may configure the following opti
 - ``rebuild_strategies_allowed`` - a list of rebuild strategies that are allowed to be used. This
   only takes effect if ``rebuild_strategy_allow_override`` is set to ``True``. This defaults to
   allowing all rebuild strategies that MBS supports.
+
+
+How MBS Finds a Compatible Module
+=================================
+
+MBS finds a compatible module to reuse components from by searching its database for the last built
+module with the following requirements:
+
+- The module name is the same as the module being built
+- The module stream is the same as the module being built
+- The module is in the ``ready`` state (this inherently ignores scratch builds)
+- The expanded buildrequires section (after Module Stream Expansion) has the same name:stream
+  entries as the module being built
+- The module must have been built from a modulemd stored in source control (most deployments only
+  allow this)
+
+Additionally, if the rebuild strategy for the module being built is ``changed-and-after``, then the
+module to reuse components from will have a rebuild strategy of ``changed-and-after`` or ``all``.
+
+
+How the Rebuild Strategies Work
+===============================
+
+all
+---
+
+No components will be reused. This is used to completely rebuild a module.
+
+
+changed-and-after
+-----------------
+
+All components that have changed and those in subsequent batches will be rebuilt. This is a
+conservative middle ground between ``all`` and ``only-changed``.
+
+The following characteristics of the compatible module must be true for a component to be reused:
+
+- The ``buildopts.rpms.macros`` field of the module being built must match the compatible module
+- All the components in the module being built must have also been built in the compatible module
+- All the arches of the components in the module being built must match the components in the
+  compatible module
+
+The following characteristics of the component must be true for it to be reused:
+
+- The ref has to match the one being built
+- The batch has to match the one being built
+- The previous batches of the module build must have the same exact components and component refs
+
+
+only-changed
+------------
+
+All changed components will be rebuilt. This means that all components, regardless of what happened
+in previous batches, will be reused if they haven't changed.
+
+The following characteristics of the compatible module must be true for a component to be reused
+(this will be changed after #1298):
+
+- All the components in the module being built must have also been built in the compatible module
+- All the arches of the components in the module being built must match the components in the
+  compatible module
+
+The following characteristics of the component must be true for it to be reused:
+
+- The ref has to match the one being built
