@@ -232,6 +232,18 @@ class KojiModuleBuilder(GenericBuilder):
 
     @staticmethod
     def _get_filtered_rpms_on_self_dep(module_build, filtered_rpms_of_dep):
+        """Remove built RPMs of reusable components from filtered RPMs
+
+        :param module_build: find out reusable components' built RPMs from the
+            reusable module build of this one.
+        :type module_build: :class:`ModuleBuild`
+        :param filtered_rpms_of_dep: list of RPMs' NVRs. Every built RPMs
+            included in reusable components will be removed from this list. The
+            result is modified inside a copy of this list.
+        :type filtered_rpms_of_dep: list[str]
+        :return: a list of RPMs without those included in reusable components.
+        :rtype: list[str]
+        """
         # filtered_rpms will contain the NVRs of non-reusable component's RPMs
         filtered_rpms = list(set(filtered_rpms_of_dep))
         with models.make_session(conf) as db_session:
@@ -249,9 +261,7 @@ class KojiModuleBuilder(GenericBuilder):
             package_to_rpms = {}
             for rpm in rpms:
                 package = builds[rpm["build_id"]]["name"]
-                if package not in package_to_rpms:
-                    package_to_rpms[package] = []
-                package_to_rpms[package].append(kobo.rpmlib.make_nvr(rpm))
+                package_to_rpms.setdefault(package, []).append(kobo.rpmlib.make_nvr(rpm))
 
             components_in_module = [c.package for c in module_build.component_builds]
             reusable_components = get_reusable_components(
