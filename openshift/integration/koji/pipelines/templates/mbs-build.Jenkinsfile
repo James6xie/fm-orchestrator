@@ -56,9 +56,20 @@ pipeline {
       steps {
         script {
           // check out specified branch/commit
+          def srcRef = env.MBS_GIT_REF.startsWith('pull/') ? env.MBS_GIT_REF : "heads/${env.MBS_GIT_REF}"
           checkout([$class: 'GitSCM',
             branches: [[name: params.MBS_GIT_REF]],
-            userRemoteConfigs: [[url: params.MBS_GIT_REPO, refspec: '+refs/heads/*:refs/remotes/origin/* +refs/pull/*/head:refs/remotes/origin/pull/*/head']],
+            userRemoteConfigs: [
+              [
+                name: 'origin',
+                url: params.MBS_GIT_REPO,
+                refspec: "+refs/${srcRef}:refs/remotes/origin/${env.MBS_GIT_REF}",
+              ],
+            ],
+            extensions: [
+              [$class: 'CleanBeforeCheckout'],
+              [$class: 'CloneOption', noTags: true, shallow: true, depth: 2, honorRefspec: true],
+            ],
           ])
 
           // get current commit ID

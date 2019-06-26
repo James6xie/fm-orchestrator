@@ -150,16 +150,20 @@ objects:
                   script {
                     // checking out the polled branch
                     def polledBranch = env.PAGURE_POLLING_FOR_PR == 'true' ? 'origin/pull/*/head' : "origin/${PAGURE_POLLED_BRANCH}"
+                    def srcRef = env.PAGURE_POLLING_FOR_PR == 'true' ? 'pull/*/head' : "heads/${PAGURE_POLLED_BRANCH}"
                     def scmVars = checkout([$class: 'GitSCM',
                       branches: [[name: polledBranch]],
                       userRemoteConfigs: [
                         [
                           name: 'origin',
                           url: env.GIT_URL,
-                          refspec: '+refs/heads/*:refs/remotes/origin/* +refs/pull/*/head:refs/remotes/origin/pull/*/head',
+                          refspec: "+refs/${srcRef}:refs/remotes/${polledBranch}",
                         ],
                       ],
-                      extensions: [[$class: 'CleanBeforeCheckout']],
+                      extensions: [
+                        [$class: 'CleanBeforeCheckout'],
+                        [$class: 'CloneOption', noTags: true, shallow: true, depth: 2, honorRefspec: true],
+                      ],
                     ])
                     env.MBS_GIT_COMMIT = scmVars.GIT_COMMIT
                     // setting build display name
@@ -206,10 +210,13 @@ objects:
                       [
                         name: 'origin',
                         url: env.GIT_URL,
-                        refspec: '+refs/heads/*:refs/remotes/origin/* +refs/pull/*/head:refs/remotes/origin/pull/*/head',
+                        refspec: "+refs/heads/${env.MBS_GIT_BRANCH}:refs/remotes/origin/${env.MBS_GIT_BRANCH}",
                       ],
                     ],
-                    extensions: [[$class: 'CleanBeforeCheckout']],
+                    extensions: [
+                      [$class: 'CleanBeforeCheckout'],
+                      [$class: 'CloneOption', noTags: true, shallow: true, depth: 2, honorRefspec: true],
+                    ],
                   ])
                   script {
                     dir('openshift/integration/koji/pipelines') {
