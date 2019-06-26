@@ -134,7 +134,7 @@ pipeline {
               pagureLink = """<a href="${env.PR_URL}">PR#${env.PR_NO}: ${escapeHtml(prInfo.title)}</a>"""
               // set PR status to Pending
               if (params.PAGURE_API_KEY_SECRET_NAME)
-                setBuildStatusOnPagurePR(null, 'Building...')
+                setBuildStatusOnPagurePR(null, "Build #${env.BUILD_NUMBER} in progress (commit: ${env.MBS_GIT_COMMIT.take(8)})")
             } catch (Exception e) {
               echo "Error using pagure API: ${e}"
             }
@@ -144,7 +144,7 @@ pipeline {
             currentBuild.description = """<a href="${env.PAGURE_REPO_HOME}/c/${env.MBS_GIT_COMMIT}">${currentBuild.displayName}</a>"""
             if (params.PAGURE_API_KEY_SECRET_NAME) {
               try {
-                flagCommit('pending', null, 'Building...')
+                flagCommit('pending', null, "Build #${env.BUILD_NUMBER} in progress (commit: ${env.MBS_GIT_COMMIT.take(8)})")
                 echo "Updated commit ${env.MBS_GIT_COMMIT} status to PENDING."
               } catch (e) {
 		echo "Error updating commit ${env.MBS_GIT_COMMIT} status to PENDING: ${e}"
@@ -418,7 +418,7 @@ pipeline {
         // on pre-merge workflow success
         if (params.PAGURE_API_KEY_SECRET_NAME && env.PR_NO) {
           try {
-            setBuildStatusOnPagurePR(100, 'Build passed.')
+            setBuildStatusOnPagurePR(100, "Build #${env.BUILD_NUMBER} successful (commit: ${env.MBS_GIT_COMMIT.take(8)})")
             echo "Updated PR #${env.PR_NO} status to PASS."
           } catch (e) {
             echo "Error updating PR #${env.PR_NO} status to PASS: ${e}"
@@ -427,7 +427,7 @@ pipeline {
         // on post-merge workflow success
         if (params.PAGURE_API_KEY_SECRET_NAME && !env.PR_NO) {
           try {
-            flagCommit('success', 100, 'Build passed.')
+            flagCommit('success', 100, "Build #${env.BUILD_NUMBER} successful (commit: ${env.MBS_GIT_COMMIT.take(8)})")
             echo "Updated commit ${env.MBS_GIT_COMMIT} status to PASS."
           } catch (e) {
             echo "Error updating commit ${env.MBS_GIT_COMMIT} status to PASS: ${e}"
@@ -441,7 +441,7 @@ pipeline {
         if (params.PAGURE_API_KEY_SECRET_NAME && env.PR_NO) {
           // updating Pagure PR flag
           try {
-            setBuildStatusOnPagurePR(0, 'Build failed.')
+            setBuildStatusOnPagurePR(0, "Build #${env.BUILD_NUMBER} failed (commit: ${env.MBS_GIT_COMMIT.take(8)})")
             echo "Updated PR #${env.PR_NO} status to FAILURE."
           } catch (e) {
             echo "Error updating PR #${env.PR_NO} status to FAILURE: ${e}"
@@ -449,7 +449,7 @@ pipeline {
           // making a comment
           try {
             commentOnPR("""
-            Build ${env.MBS_GIT_COMMIT} [FAILED](${env.BUILD_URL})!
+            Build #${env.BUILD_NUMBER} [failed](${env.BUILD_URL}) (commit: ${env.MBS_GIT_COMMIT}).
             Rebase or make new commits to rebuild.
             """.stripIndent())
             echo "Comment made."
@@ -462,7 +462,7 @@ pipeline {
           // updating Pagure commit flag
           if (params.PAGURE_API_KEY_SECRET_NAME) {
             try {
-              flagCommit('failure', 0, 'Build failed.')
+              flagCommit('failure', 0, "Build #${env.BUILD_NUMBER} failed (commit: ${env.MBS_GIT_COMMIT.take(8)})")
               echo "Updated commit ${env.MBS_GIT_COMMIT} status to FAILURE."
             } catch (e) {
               echo "Error updating commit ${env.MBS_GIT_COMMIT} status to FAILURE: ${e}"
@@ -503,13 +503,13 @@ def withPagureCreds(args=[:], cl) {
 }
 def setBuildStatusOnPagurePR(percent, String comment) {
   withPagureCreds {
-    it.updatePRStatus(username: 'c3i-jenkins', uid: 'ci-pre-merge',
+    it.updatePRStatus(username: 'c3i-jenkins', uid: "ci-pre-merge-${env.MBS_GIT_COMMIT.take(8)}",
       url: env.BUILD_URL, percent: percent, comment: comment, pr: env.PR_NO)
   }
 }
 def flagCommit(status, percent, comment) {
   withPagureCreds {
-    it.flagCommit(username: 'c3i-jenkins', uid: 'ci-post-merge', status: status,
+    it.flagCommit(username: 'c3i-jenkins', uid: "ci-post-merge-${env.MBS_GIT_COMMIT.take(8)}", status: status,
       url: env.BUILD_URL, percent: percent, comment: comment, commit: env.MBS_GIT_COMMIT)
   }
 }
