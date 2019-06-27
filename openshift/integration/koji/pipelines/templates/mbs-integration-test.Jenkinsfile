@@ -58,21 +58,23 @@ pipeline {
           def srcRef = params.MBS_GIT_REF.startsWith('pull/') ? params.MBS_GIT_REF : 'heads/master'
           def localRef = params.MBS_GIT_REF.startsWith('pull/') ? params.MBS_GIT_REF : 'master'
           def cloneDepth = params.MBS_GIT_REF.startsWith('pull/') ? 2 : 10
-          // check out specified branch/commit
-          checkout([$class: 'GitSCM',
-            branches: [[name: params.MBS_GIT_REF]],
-            userRemoteConfigs: [
-              [
-                name: 'origin',
-                url: params.MBS_GIT_REPO,
-                refspec: "+refs/${srcRef}:refs/remotes/origin/${localRef}",
+          retry(5) {
+            // check out specified branch/commit
+            checkout([$class: 'GitSCM',
+              branches: [[name: params.MBS_GIT_REF]],
+              userRemoteConfigs: [
+                [
+                  name: 'origin',
+                  url: params.MBS_GIT_REPO,
+                  refspec: "+refs/${srcRef}:refs/remotes/origin/${localRef}",
+                ],
               ],
-            ],
-            extensions: [
-              [$class: 'CleanBeforeCheckout'],
-              [$class: 'CloneOption', noTags: true, shallow: true, depth: cloneDepth, honorRefspec: true],
-            ],
-          ])
+              extensions: [
+                [$class: 'CleanBeforeCheckout'],
+                [$class: 'CloneOption', noTags: true, shallow: true, depth: cloneDepth, honorRefspec: true],
+              ],
+            ])
+          }
 
           // get current commit ID
           // FIXME: Due to a bug discribed in https://issues.jenkins-ci.org/browse/JENKINS-45489,

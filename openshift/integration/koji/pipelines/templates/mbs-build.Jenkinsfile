@@ -57,20 +57,22 @@ pipeline {
         script {
           // check out specified branch/commit
           def srcRef = env.MBS_GIT_REF.startsWith('pull/') ? env.MBS_GIT_REF : "heads/${env.MBS_GIT_REF}"
-          checkout([$class: 'GitSCM',
-            branches: [[name: params.MBS_GIT_REF]],
-            userRemoteConfigs: [
-              [
-                name: 'origin',
-                url: params.MBS_GIT_REPO,
-                refspec: "+refs/${srcRef}:refs/remotes/origin/${env.MBS_GIT_REF}",
+          retry(5) {
+            checkout([$class: 'GitSCM',
+              branches: [[name: params.MBS_GIT_REF]],
+              userRemoteConfigs: [
+                [
+                  name: 'origin',
+                  url: params.MBS_GIT_REPO,
+                  refspec: "+refs/${srcRef}:refs/remotes/origin/${env.MBS_GIT_REF}",
+                ],
               ],
-            ],
-            extensions: [
-              [$class: 'CleanBeforeCheckout'],
-              [$class: 'CloneOption', noTags: true, shallow: true, depth: 2, honorRefspec: true],
-            ],
-          ])
+              extensions: [
+                [$class: 'CleanBeforeCheckout'],
+                [$class: 'CloneOption', noTags: true, shallow: true, depth: 2, honorRefspec: true],
+              ],
+            ])
+          }
 
           // get current commit ID
           // FIXME: Due to a bug discribed in https://issues.jenkins-ci.org/browse/JENKINS-45489,

@@ -151,20 +151,23 @@ objects:
                     // checking out the polled branch
                     def polledBranch = env.PAGURE_POLLING_FOR_PR == 'true' ? 'origin/pull/*/head' : "origin/${PAGURE_POLLED_BRANCH}"
                     def srcRef = env.PAGURE_POLLING_FOR_PR == 'true' ? 'pull/*/head' : "heads/${PAGURE_POLLED_BRANCH}"
-                    def scmVars = checkout([$class: 'GitSCM',
-                      branches: [[name: polledBranch]],
-                      userRemoteConfigs: [
-                        [
-                          name: 'origin',
-                          url: env.GIT_URL,
-                          refspec: "+refs/${srcRef}:refs/remotes/${polledBranch}",
+                    def scmVars
+                    retry(5) {
+                      scmVars = checkout([$class: 'GitSCM',
+                        branches: [[name: polledBranch]],
+                        userRemoteConfigs: [
+                          [
+                            name: 'origin',
+                            url: env.GIT_URL,
+                            refspec: "+refs/${srcRef}:refs/remotes/${polledBranch}",
+                          ],
                         ],
-                      ],
-                      extensions: [
-                        [$class: 'CleanBeforeCheckout'],
-                        [$class: 'CloneOption', noTags: true, shallow: true, depth: 2, honorRefspec: true],
-                      ],
-                    ])
+                        extensions: [
+                          [$class: 'CleanBeforeCheckout'],
+                          [$class: 'CloneOption', noTags: true, shallow: true, depth: 2, honorRefspec: true],
+                        ],
+                      ])
+                    }
                     env.MBS_GIT_COMMIT = scmVars.GIT_COMMIT
                     // setting build display name
                     def prefix = 'origin/'
@@ -204,20 +207,22 @@ objects:
                   }
                 }
                 steps {
-                  checkout([$class: 'GitSCM',
-                    branches: [[name: env.MBS_GIT_BRANCH]],
-                    userRemoteConfigs: [
-                      [
-                        name: 'origin',
-                        url: env.GIT_URL,
-                        refspec: "+refs/heads/${env.MBS_GIT_BRANCH}:refs/remotes/origin/${env.MBS_GIT_BRANCH}",
+                  retry(5) {
+                    checkout([$class: 'GitSCM',
+                      branches: [[name: env.MBS_GIT_BRANCH]],
+                      userRemoteConfigs: [
+                        [
+                          name: 'origin',
+                          url: env.GIT_URL,
+                          refspec: "+refs/heads/${env.MBS_GIT_BRANCH}:refs/remotes/origin/${env.MBS_GIT_BRANCH}",
+                        ],
                       ],
-                    ],
-                    extensions: [
-                      [$class: 'CleanBeforeCheckout'],
-                      [$class: 'CloneOption', noTags: true, shallow: true, depth: 2, honorRefspec: true],
-                    ],
-                  ])
+                      extensions: [
+                        [$class: 'CleanBeforeCheckout'],
+                        [$class: 'CloneOption', noTags: true, shallow: true, depth: 2, honorRefspec: true],
+                      ],
+                    ])
+                  }
                   script {
                     dir('openshift/integration/koji/pipelines') {
                       sh '''
