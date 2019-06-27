@@ -39,7 +39,7 @@ from module_build_service.utils.general import mmd_to_str
 import pytest
 from mock import patch, MagicMock
 
-from tests import conf, init_data, reuse_component_init_data, clean_database
+from tests import conf, init_data, reuse_component_init_data, clean_database, make_module
 
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
 
@@ -853,14 +853,14 @@ class TestGetDistTagSRPM:
         with open(self.expected_srpm_file, "w") as f:
             f.write("")
 
-        module_nsvc = dict(
+        self.module_nsvc = dict(
             name="testmodule",
             stream="master",
             version="1",
             context=module_build_service.models.DEFAULT_MODULE_CONTEXT,
         )
 
-        xmd = {
+        self.xmd = {
             "mbs": {
                 "buildrequires": {
                     "modulea": {
@@ -872,14 +872,9 @@ class TestGetDistTagSRPM:
                         "ursine_rpms": ["foo-0:1.0-1.fc28", "bar-0:2.0-1.fc28"],
                     },
                 },
-                "koji_tag": "module-{name}-{stream}-{version}-{context}".format(**module_nsvc),
+                "koji_tag": "module-{name}-{stream}-{version}-{context}".format(**self.module_nsvc),
             }
         }
-        from tests import make_module
-
-        self.module_build = make_module(
-            "{name}:{stream}:{version}:{context}".format(**module_nsvc), xmd=xmd
-        )
 
     def teardown_method(self):
         shutil.rmtree(self.tmp_srpm_build_dir)
@@ -887,24 +882,29 @@ class TestGetDistTagSRPM:
 
     @patch("tempfile.mkdtemp")
     @patch("module_build_service.builder.KojiModuleBuilder.execute_cmd")
-    def _build_srpm(self, execute_cmd, mkdtemp):
-        mkdtemp.return_value = self.tmp_srpm_build_dir
-        return KojiModuleBuilder.get_disttag_srpm("disttag", self.module_build)
+    def _build_srpm(self, db_session, execute_cmd, mkdtemp):
+        module_build = make_module(
+            db_session,
+            "{name}:{stream}:{version}:{context}".format(**self.module_nsvc),
+            xmd=self.xmd)
 
-    def test_return_srpm_file(self):
-        srpm_file = self._build_srpm()
+        mkdtemp.return_value = self.tmp_srpm_build_dir
+        return KojiModuleBuilder.get_disttag_srpm("disttag", module_build)
+
+    def test_return_srpm_file(self, db_session):
+        srpm_file = self._build_srpm(db_session)
         assert self.expected_srpm_file == srpm_file
 
-    def test_filtered_rpms_are_added(self):
-        self._build_srpm()
+    def test_filtered_rpms_are_added(self, db_session):
+        self._build_srpm(db_session)
 
         with open(self.spec_file, "r") as f:
             content = f.read()
         for nevr in ["baz-devel-0:0.1-6.fc28", "baz-doc-0:0.1-6.fc28"]:
             assert KojiModuleBuilder.format_conflicts_line(nevr) + "\n" in content
 
-    def test_ursine_rpms_are_added(self):
-        self._build_srpm()
+    def test_ursine_rpms_are_added(self, db_session):
+        self._build_srpm(db_session)
 
         with open(self.spec_file, "r") as f:
             content = f.read()

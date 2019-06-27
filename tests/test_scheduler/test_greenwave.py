@@ -121,10 +121,11 @@ class TestDecisionUpdateHandler:
         clean_database()
 
         # This build should be queried and transformed to ready state
-        module_build = make_module("pkg:0.1:1:c1", requires_list={"platform": "el8"})
+        module_build = make_module(db.session, "pkg:0.1:1:c1", requires_list={"platform": "el8"})
         module_build.transition(
             conf, BUILD_STATES["done"], "Move to done directly for running test."
         )
+        db.session.commit()
 
         # Assert this call below
         first_publish_call = call(
@@ -133,8 +134,6 @@ class TestDecisionUpdateHandler:
             msg=module_build.json(show_tasks=False),
             conf=conf,
         )
-
-        db.session.refresh(module_build)
 
         ClientSession.return_value.getBuild.return_value = {
             "extra": {"typeinfo": {"module": {"module_build_service_id": module_build.id}}}

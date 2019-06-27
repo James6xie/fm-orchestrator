@@ -20,15 +20,18 @@
 import pytest
 from mock import patch, mock_open, ANY
 
-from module_build_service import conf
+from module_build_service import app, conf
 from module_build_service.manage import retire, build_module_locally
 from module_build_service.models import BUILD_STATES, ModuleBuild, make_session
-from tests.test_models import init_data
+from tests.test_models import clean_database, init_data
 
 
 class TestMBSManage:
     def setup_method(self, test_method):
         init_data()
+
+    def teardown_method(self, test_method):
+        clean_database(False, False)
 
     @pytest.mark.parametrize(
         ("identifier", "is_valid"),
@@ -85,10 +88,10 @@ class TestMBSManage:
                 session.query(ModuleBuild).filter_by(state=BUILD_STATES["garbage"]).all()
             )
 
-        assert len(retired_module_builds) == changed_count
-        for x in range(changed_count):
-            assert retired_module_builds[x].id == module_builds[x].id
-            assert retired_module_builds[x].state == BUILD_STATES["garbage"]
+            assert len(retired_module_builds) == changed_count
+            for x in range(changed_count):
+                assert retired_module_builds[x].id == module_builds[x].id
+                assert retired_module_builds[x].state == BUILD_STATES["garbage"]
 
     @pytest.mark.parametrize(
         ("confirm_prompt", "confirm_arg", "confirm_expected"),
@@ -130,8 +133,15 @@ class TestMBSManage:
     @patch("module_build_service.manage.conf.set_item")
     def test_build_module_locally_set_stream(
             self, conf_set_item, main, submit_module_build_from_yaml, patched_open):
-        build_module_locally(
-            yaml_file="./fake.yaml", default_streams=["platform:el8"], stream="foo")
+        # build_module_locally changes database uri to a local SQLite database file.
+        # Restore the uri to original one in order to not impact the database
+        # session in subsequent tests.
+        original_db_uri = app.config['SQLALCHEMY_DATABASE_URI']
+        try:
+            build_module_locally(
+                yaml_file="./fake.yaml", default_streams=["platform:el8"], stream="foo")
+        finally:
+            app.config['SQLALCHEMY_DATABASE_URI'] = original_db_uri
 
         submit_module_build_from_yaml.assert_called_once_with(
             ANY, ANY, {"default_streams": {"platform": "el8"}, "local_build": True},

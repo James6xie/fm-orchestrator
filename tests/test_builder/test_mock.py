@@ -7,7 +7,7 @@ from textwrap import dedent
 
 import kobo.rpmlib
 
-from module_build_service import conf, db
+from module_build_service import conf
 from module_build_service.models import ModuleBuild, ComponentBuild, make_session
 from module_build_service.builder.MockModuleBuilder import MockModuleBuilder
 from module_build_service.utils import import_fake_base_module, load_mmd_file, mmd_to_str
@@ -24,31 +24,6 @@ class TestMockModuleBuilder:
         shutil.rmtree(self.resultdir)
 
     def _create_module_with_filters(self, session, batch, state):
-        comp_builds = [
-            {
-                "module_id": 2,
-                "package": "ed",
-                "format": "rpms",
-                "scmurl": (
-                    "https://src.fedoraproject.org/rpms/ed"
-                    "?#01bf8330812fea798671925cc537f2f29b0bd216"
-                ),
-                "batch": 2,
-                "ref": "01bf8330812fea798671925cc537f2f29b0bd216",
-            },
-            {
-                "module_id": 2,
-                "package": "mksh",
-                "format": "rpms",
-                "scmurl": (
-                    "https://src.fedoraproject.org/rpms/mksh"
-                    "?#f70fd11ddf96bce0e2c64309706c29156b39141d"
-                ),
-                "batch": 3,
-                "ref": "f70fd11ddf96bce0e2c64309706c29156b39141d",
-            },
-        ]
-
         base_dir = os.path.abspath(os.path.dirname(__file__))
         mmd = load_mmd_file(
             os.path.join(base_dir, "..", "staged_data", "testmodule-with-filters.yaml"))
@@ -102,11 +77,37 @@ class TestMockModuleBuilder:
         module.koji_tag = "module-mbs-testmodule-test-20171027111452"
         module.batch = batch
         session.add(module)
+        session.commit()
+
+        comp_builds = [
+            {
+                "module_id": module.id,
+                "state": state,
+                "package": "ed",
+                "format": "rpms",
+                "scmurl": (
+                    "https://src.fedoraproject.org/rpms/ed"
+                    "?#01bf8330812fea798671925cc537f2f29b0bd216"
+                ),
+                "batch": 2,
+                "ref": "01bf8330812fea798671925cc537f2f29b0bd216",
+            },
+            {
+                "module_id": module.id,
+                "state": state,
+                "package": "mksh",
+                "format": "rpms",
+                "scmurl": (
+                    "https://src.fedoraproject.org/rpms/mksh"
+                    "?#f70fd11ddf96bce0e2c64309706c29156b39141d"
+                ),
+                "batch": 3,
+                "ref": "f70fd11ddf96bce0e2c64309706c29156b39141d",
+            },
+        ]
 
         for build in comp_builds:
-            cb = ComponentBuild(**dict(build, format="rpms", state=state))
-            session.add(cb)
-            session.commit()
+            session.add(ComponentBuild(**build))
         session.commit()
 
         return module
@@ -186,9 +187,6 @@ class TestMockModuleBuilderAddRepos:
     def setup_method(self, test_method):
         clean_database(add_platform_module=False)
         import_fake_base_module("platform:f29:1:000000")
-        self.platform = ModuleBuild.get_last_build_in_stream(db.session, "platform", "f29")
-        self.foo = make_module("foo:1:1:1", {"platform": ["f29"]}, {"platform": ["f29"]})
-        self.app = make_module("app:1:1:1", {"platform": ["f29"]}, {"platform": ["f29"]})
 
     @mock.patch("module_build_service.conf.system", new="mock")
     @mock.patch(
@@ -205,19 +203,25 @@ class TestMockModuleBuilderAddRepos:
         "module_build_service.builder.MockModuleBuilder.MockModuleBuilder._write_mock_config"
     )
     def test_buildroot_add_repos(
-        self, write_config, load_config, patched_open, base_module_repofiles
+        self, write_config, load_config, patched_open, base_module_repofiles, db_session
     ):
+        platform = ModuleBuild.get_last_build_in_stream(db_session, "platform", "f29")
+        foo = make_module(
+            db_session, "foo:1:1:1", {"platform": ["f29"]}, {"platform": ["f29"]})
+        app = make_module(
+            db_session, "app:1:1:1", {"platform": ["f29"]}, {"platform": ["f29"]})
+
         patched_open.side_effect = [
             mock.mock_open(read_data="[fake]\nrepofile 1\n").return_value,
             mock.mock_open(read_data="[fake]\nrepofile 2\n").return_value,
             mock.mock_open(read_data="[fake]\nrepofile 3\n").return_value,
         ]
 
-        builder = MockModuleBuilder("user", self.app, conf, "module-app", [])
+        builder = MockModuleBuilder("user", app, conf, "module-app", [])
 
         dependencies = {
-            "repofile://": [self.platform.mmd()],
-            "repofile:///etc/yum.repos.d/foo.repo": [self.foo.mmd(), self.app.mmd()],
+            "repofile://": [platform.mmd()],
+            "repofile:///etc/yum.repos.d/foo.repo": [foo.mmd(), app.mmd()],
         }
 
         builder.buildroot_add_repos(dependencies)

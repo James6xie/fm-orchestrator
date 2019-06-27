@@ -33,6 +33,7 @@ from requests.utils import quote
 import hashlib
 import pytest
 import re
+import sqlalchemy
 
 from tests import app, init_data, clean_database, reuse_component_init_data
 from tests import read_staged_data
@@ -377,11 +378,18 @@ class TestViews:
         init_data(2, contexts=True)
         rv = self.client.get("/module-build-service/1/module-builds/?context=3a4057d2")
         items = json.loads(rv.data)["items"]
+
+        checking_build_id = 3
+        # Get component build ids dynamically rather than hardcode inside expected output.
+        component_builds = sorted(
+            cb.id for cb in ModuleBuild.query.get(checking_build_id).component_builds
+        )
+
         expected = [
             {
-                "component_builds": [3, 4],
+                "component_builds": component_builds,
                 "context": "3a4057d2",
-                "id": 3,
+                "id": checking_build_id,
                 "koji_tag": "module-nginx-1.2",
                 "name": "nginx",
                 "owner": "Moe Szyslak",
@@ -420,6 +428,9 @@ class TestViews:
                 "buildrequires": {},
             }
         ]
+
+        # To avoid different order of component builds impact the subsequent assertion.
+        items[0]['component_builds'] = sorted(items[0]['component_builds'])
         assert items == expected
 
     def test_query_builds_with_id_error(self):
@@ -753,13 +764,22 @@ class TestViews:
         platform_f28.version = "150"
         db.session.add(platform_f28)
         db.session.commit()
+        # Simply assert the order of all module builds
+        page_size = ModuleBuild.query.count()
         rv = self.client.get(
             "/module-build-service/1/module-builds/?order_desc_by=stream_version"
-            "&order_desc_by=version"
+            "&order_desc_by=version&per_page={}".format(page_size)
         )
         items = json.loads(rv.data)["items"]
-        expected_ids = [8, 6, 4, 1, 2, 12, 3, 5, 7, 9]
         actual_ids = [item["id"] for item in items]
+
+        expected_ids = [
+            build.id for build in ModuleBuild.query.order_by(
+                ModuleBuild.stream_version.desc(),
+                sqlalchemy.cast(ModuleBuild.version, sqlalchemy.BigInteger).desc()
+            ).all()
+        ]
+
         assert actual_ids == expected_ids
 
     def test_query_builds_order_desc_by(self):
@@ -1990,22 +2010,18 @@ class TestViews:
     def test_buildrequires_is_included_in_json_output(self):
         # Inject xmd/mbs/buildrequires into an existing module build for
         # assertion later.
-        from module_build_service.models import make_session
-        from module_build_service import conf
-
         br_modulea = dict(stream="6", version="1", context="1234")
         br_moduleb = dict(stream="10", version="1", context="5678")
-        with make_session(conf) as session:
-            build = ModuleBuild.query.first()
-            mmd = build.mmd()
-            xmd = mmd.get_xmd()
-            mbs = xmd.setdefault("mbs", {})
-            buildrequires = mbs.setdefault("buildrequires", {})
-            buildrequires["modulea"] = br_modulea
-            buildrequires["moduleb"] = br_moduleb
-            mmd.set_xmd(xmd)
-            build.modulemd = mmd_to_str(mmd)
-            session.commit()
+        build = ModuleBuild.query.first()
+        mmd = build.mmd()
+        xmd = mmd.get_xmd()
+        mbs = xmd.setdefault("mbs", {})
+        buildrequires = mbs.setdefault("buildrequires", {})
+        buildrequires["modulea"] = br_modulea
+        buildrequires["moduleb"] = br_moduleb
+        mmd.set_xmd(xmd)
+        build.modulemd = mmd_to_str(mmd)
+        db.session.commit()
 
         rv = self.client.get("/module-build-service/1/module-builds/{}".format(build.id))
         data = json.loads(rv.data)

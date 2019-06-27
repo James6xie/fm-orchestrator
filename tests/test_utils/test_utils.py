@@ -446,26 +446,30 @@ class TestUtils:
         assert release_one == "module+2+b8645bbb"
         assert release_two == "module+2+17e35784"
 
-    def test_get_rpm_release_platform_stream(self):
-        scheduler_init_data(1)
-        build_one = models.ModuleBuild.query.get(2)
+    def test_get_rpm_release_platform_stream(self, db_session):
+        scheduler_init_data(db_session, 1)
+        build_one = db_session.query(models.ModuleBuild).get(2)
         release = module_build_service.utils.get_rpm_release(build_one)
         assert release == "module+f28+2+814cfa39"
 
-    def test_get_rpm_release_platform_stream_override(self):
-        scheduler_init_data(1)
+    def test_get_rpm_release_platform_stream_override(self, db_session):
+        scheduler_init_data(db_session, 1)
 
         # Set the disttag_marking override on the platform
-        platform = models.ModuleBuild.query.filter_by(name="platform", stream="f28").first()
+        platform = (
+            db_session.query(models.ModuleBuild)
+            .filter_by(name="platform", stream="f28")
+            .first()
+        )
         platform_mmd = platform.mmd()
         platform_xmd = platform_mmd.get_xmd()
         platform_xmd["mbs"]["disttag_marking"] = "fedora28"
         platform_mmd.set_xmd(platform_xmd)
         platform.modulemd = mmd_to_str(platform_mmd)
-        db.session.add(platform)
-        db.session.commit()
+        db_session.add(platform)
+        db_session.commit()
 
-        build_one = models.ModuleBuild.query.get(2)
+        build_one = db_session.query(models.ModuleBuild).get(2)
         release = module_build_service.utils.get_rpm_release(build_one)
         assert release == "module+fedora28+2+814cfa39"
 
@@ -474,20 +478,20 @@ class TestUtils:
         new_callable=mock.PropertyMock,
         return_value=["build"],
     )
-    def test_get_rpm_release_metadata_br_stream_override(self, mock_admmn):
+    def test_get_rpm_release_metadata_br_stream_override(self, mock_admmn, db_session):
         """
         Test that when a module buildrequires a module in conf.allowed_privileged_module_names,
         and that module has the xmd.mbs.disttag_marking field set, it should influence the disttag.
         """
-        scheduler_init_data(1)
+        scheduler_init_data(db_session, 1)
         mmd_path = path.abspath(
             path.join(
                 __file__, path.pardir, path.pardir, "staged_data", "build_metadata_module.yaml")
         )
         metadata_mmd = module_build_service.utils.load_mmd_file(mmd_path)
-        module_build_service.utils.import_mmd(db.session, metadata_mmd)
+        module_build_service.utils.import_mmd(db_session, metadata_mmd)
 
-        build_one = models.ModuleBuild.query.get(2)
+        build_one = db_session.query(models.ModuleBuild).get(2)
         mmd = build_one.mmd()
         deps = mmd.get_dependencies()[0]
         deps.add_buildtime_stream("build", "product1.2")
@@ -501,8 +505,8 @@ class TestUtils:
         }
         mmd.set_xmd(xmd)
         build_one.modulemd = mmd_to_str(mmd)
-        db.session.add(build_one)
-        db.session.commit()
+        db_session.add(build_one)
+        db_session.commit()
 
         release = module_build_service.utils.get_rpm_release(build_one)
         assert release == "module+product12+2+814cfa39"
@@ -516,19 +520,19 @@ class TestUtils:
         assert release_one == "scrmod+2+b8645bbb"
         assert release_two == "scrmod+2+17e35784"
 
-    def test_get_rpm_release_platform_stream_scratch(self):
-        scheduler_init_data(1, scratch=True)
-        build_one = models.ModuleBuild.query.get(2)
+    def test_get_rpm_release_platform_stream_scratch(self, db_session):
+        scheduler_init_data(db_session, 1, scratch=True)
+        build_one = db_session.query(models.ModuleBuild).get(2)
         release = module_build_service.utils.get_rpm_release(build_one)
         assert release == "scrmod+f28+2+814cfa39"
 
     @patch("module_build_service.utils.submit.get_build_arches")
-    def test_record_module_build_arches(self, get_build_arches):
+    def test_record_module_build_arches(self, get_build_arches, db_session):
         get_build_arches.return_value = ["x86_64", "i686"]
-        scheduler_init_data(1)
-        build = models.ModuleBuild.query.get(2)
+        scheduler_init_data(db_session, 1)
+        build = db_session.query(models.ModuleBuild).get(2)
         build.arches = []
-        module_build_service.utils.record_module_build_arches(build.mmd(), build, db.session)
+        module_build_service.utils.record_module_build_arches(build.mmd(), build, db_session)
 
         arches = set([arch.name for arch in build.arches])
         assert arches == set(get_build_arches.return_value)
@@ -896,15 +900,15 @@ class TestUtils:
         is_eol = module_build_service.utils.submit._is_eol_in_pdc("mariadb", "10.1")
         assert is_eol
 
-    def test_get_prefixed_version_f28(self):
-        scheduler_init_data(1)
-        build_one = models.ModuleBuild.query.get(2)
+    def test_get_prefixed_version_f28(self, db_session):
+        scheduler_init_data(db_session, 1)
+        build_one = db_session.query(models.ModuleBuild).get(2)
         v = module_build_service.utils.submit.get_prefixed_version(build_one.mmd())
         assert v == 2820180205135154
 
-    def test_get_prefixed_version_fl701(self):
-        scheduler_init_data(1)
-        build_one = models.ModuleBuild.query.get(2)
+    def test_get_prefixed_version_fl701(self, db_session):
+        scheduler_init_data(db_session, 1)
+        build_one = db_session.query(models.ModuleBuild).get(2)
         mmd = build_one.mmd()
         xmd = mmd.get_xmd()
         xmd["mbs"]["buildrequires"]["platform"]["stream"] = "fl7.0.1-beta"
@@ -919,18 +923,19 @@ class TestUtils:
         build adds new MSE build (it means there are new expanded
         buildrequires).
         """
-        build = make_module("foo:stream:0:c1", {}, {})
-        assert build.state == models.BUILD_STATES["ready"]
+        with models.make_session(conf) as db_session:
+            build = make_module(db_session, "foo:stream:0:c1", {}, {})
+            assert build.state == models.BUILD_STATES["ready"]
 
-        mmd1 = build.mmd()
-        mmd2 = build.mmd()
+            mmd1 = build.mmd()
+            mmd2 = build.mmd()
+
         mmd2.set_context("c2")
-
         generate_expanded_mmds.return_value = [mmd1, mmd2]
-
         # Create a copy of mmd1 without xmd.mbs, since that will cause validate_mmd to fail
         mmd1_copy = mmd1.copy()
         mmd1_copy.set_xmd({})
+
         builds = module_build_service.utils.submit_module_build("foo", mmd1_copy, {})
         ret = {b.mmd().get_context(): b.state for b in builds}
         assert ret == {"c1": models.BUILD_STATES["ready"], "c2": models.BUILD_STATES["init"]}
@@ -1268,7 +1273,6 @@ class TestBatches:
         # The component was reused when the batch first started
         building_component = module_build.current_batch()[0]
         building_component.state = koji.BUILD_STATES["BUILDING"]
-        building_component.reused_component_id = 123
         db.session.commit()
 
         builder = mock.MagicMock()
