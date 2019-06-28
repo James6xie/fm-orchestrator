@@ -67,6 +67,7 @@ node('factory2'){
             timeout(20) {
                 onmyduffynode '~/fm-orchestrator/contrib/run-unittests.sh --no-tty'
                 onmyduffynode '~/fm-orchestrator/contrib/run-unittests.sh --py3 --no-tty'
+                onmyduffynode '~/fm-orchestrator/contrib/run-unittests.sh --py3 --with-pgsql --no-tty'
             }
         }
 
