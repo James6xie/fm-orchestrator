@@ -400,7 +400,7 @@ def get_module_srpm_overrides(module):
             # Get package name from rpm headers
             try:
                 rpm_hdr = kobo.rpmlib.get_rpm_header(source)
-                rpm_name = kobo.rpmlib.get_header_field(rpm_hdr, "name").decode("utf-8")
+                rpm_name = to_text_type(kobo.rpmlib.get_header_field(rpm_hdr, "name"))
             except Exception:
                 raise ValueError("Provided srpm is invalid: {}".format(source))
 
