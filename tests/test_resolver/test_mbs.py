@@ -24,6 +24,7 @@ from mock import patch, PropertyMock, Mock, call
 
 import module_build_service.resolver as mbs_resolver
 import module_build_service.utils
+from module_build_service import conf, models
 from module_build_service.utils.general import mmd_to_str
 import module_build_service.models
 import tests
@@ -377,29 +378,30 @@ class TestMBSModule:
 
         with patch.object(resolver, "session") as session:
             session.get.return_value = Mock(ok=True)
-            session.get.return_value.json.return_value = {
-                "items": [
-                    {
-                        "name": "nodejs",
-                        "stream": "10",
-                        "version": 1,
-                        "context": "c1",
-                        "modulemd": mmd_to_str(
-                            tests.make_module("nodejs:10:1:c1", store_to_db=False),
-                        ),
-                    },
-                    {
-                        "name": "nodejs",
-                        "stream": "10",
-                        "version": 2,
-                        "context": "c1",
-                        "modulemd": mmd_to_str(
-                            tests.make_module("nodejs:10:2:c1", store_to_db=False),
-                        ),
-                    },
-                ],
-                "meta": {"next": None},
-            }
+            with models.make_session(conf) as db_session:
+                session.get.return_value.json.return_value = {
+                    "items": [
+                        {
+                            "name": "nodejs",
+                            "stream": "10",
+                            "version": 1,
+                            "context": "c1",
+                            "modulemd": mmd_to_str(
+                                tests.make_module(db_session, "nodejs:10:1:c1", store_to_db=False),
+                            ),
+                        },
+                        {
+                            "name": "nodejs",
+                            "stream": "10",
+                            "version": 2,
+                            "context": "c1",
+                            "modulemd": mmd_to_str(
+                                tests.make_module(db_session, "nodejs:10:2:c1", store_to_db=False),
+                            ),
+                        },
+                    ],
+                    "meta": {"next": None},
+                }
 
             result = resolver.get_buildrequired_modulemds("nodejs", "10", "platform:el8:1:00000000")
 

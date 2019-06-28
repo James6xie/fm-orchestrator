@@ -122,9 +122,9 @@ class TestModelsGetStreamsContexts:
         init_data_contexts(contexts=True)
         with make_session(conf) as session:
             builds = ModuleBuild.get_last_build_in_all_streams(session, "nginx")
-            builds = [
+            builds = sorted([
                 "%s:%s:%s" % (build.name, build.stream, str(build.version)) for build in builds
-            ]
+            ])
             assert builds == ["nginx:%d:%d" % (i, i + 2) for i in range(10)]
 
     def test_get_last_build_in_all_stream_last_version(self):
@@ -162,16 +162,25 @@ class TestModelsGetStreamsContexts:
         name:stream_ver modules have different versions.
         """
         clean_database(False)
-        make_module("platform:f29.1.0:10:old_version", {}, {}, virtual_streams=["f29"])
-        make_module("platform:f29.1.0:15:c11.another", {}, {}, virtual_streams=["f29"])
-        make_module("platform:f29.1.0:15:c11", {}, {}, virtual_streams=["f29"])
-        make_module("platform:f29.2.0:0:old_version", {}, {}, virtual_streams=["f29"])
-        make_module("platform:f29.2.0:1:c11", {}, {}, virtual_streams=["f29"])
-        make_module("platform:f29.3.0:15:old_version", {}, {}, virtual_streams=["f29"])
-        make_module("platform:f29.3.0:20:c11", {}, {}, virtual_streams=["f29"])
 
-        with make_session(conf) as session:
-            builds = ModuleBuild.get_last_builds_in_stream_version_lte(session, "platform", 290200)
+        with make_session(conf) as db_session:
+            make_module(
+                db_session, "platform:f29.1.0:10:old_version", {}, {}, virtual_streams=["f29"])
+            make_module(
+                db_session, "platform:f29.1.0:15:c11.another", {}, {}, virtual_streams=["f29"])
+            make_module(
+                db_session, "platform:f29.1.0:15:c11", {}, {}, virtual_streams=["f29"])
+            make_module(
+                db_session, "platform:f29.2.0:0:old_version", {}, {}, virtual_streams=["f29"])
+            make_module(
+                db_session, "platform:f29.2.0:1:c11", {}, {}, virtual_streams=["f29"])
+            make_module(
+                db_session, "platform:f29.3.0:15:old_version", {}, {}, virtual_streams=["f29"])
+            make_module(
+                db_session, "platform:f29.3.0:20:c11", {}, {}, virtual_streams=["f29"])
+
+            builds = ModuleBuild.get_last_builds_in_stream_version_lte(
+                db_session, "platform", 290200)
             builds = set([
                 "%s:%s:%s:%s" % (build.name, build.stream, str(build.version), build.context)
                 for build in builds
@@ -184,21 +193,25 @@ class TestModelsGetStreamsContexts:
 
     def test_get_module_count(self):
         clean_database(False)
-        make_module("platform:f29.1.0:10:c11", {}, {})
-        make_module("platform:f29.1.0:10:c12", {}, {})
-        with make_session(conf) as session:
-            count = ModuleBuild.get_module_count(session, name="platform")
+        with make_session(conf) as db_session:
+            make_module(db_session, "platform:f29.1.0:10:c11", {}, {})
+            make_module(db_session, "platform:f29.1.0:10:c12", {}, {})
+
+            count = ModuleBuild.get_module_count(db_session, name="platform")
             assert count == 2
 
     def test_add_virtual_streams_filter(self):
         clean_database(False)
-        make_module("platform:f29.1.0:10:c1", {}, {}, virtual_streams=["f29"])
-        make_module("platform:f29.1.0:15:c1", {}, {}, virtual_streams=["f29"])
-        make_module("platform:f29.3.0:15:old_version", {}, {}, virtual_streams=["f28", "f29"])
-        make_module("platform:f29.3.0:20:c11", {}, {}, virtual_streams=["f30"])
 
-        with make_session(conf) as session:
-            query = session.query(ModuleBuild).filter_by(name="platform")
-            query = ModuleBuild._add_virtual_streams_filter(session, query, ["f28", "f29"])
+        with make_session(conf) as db_session:
+            make_module(db_session, "platform:f29.1.0:10:c1", {}, {}, virtual_streams=["f29"])
+            make_module(db_session, "platform:f29.1.0:15:c1", {}, {}, virtual_streams=["f29"])
+            make_module(
+                db_session, "platform:f29.3.0:15:old_version", {}, {},
+                virtual_streams=["f28", "f29"])
+            make_module(db_session, "platform:f29.3.0:20:c11", {}, {}, virtual_streams=["f30"])
+
+            query = db_session.query(ModuleBuild).filter_by(name="platform")
+            query = ModuleBuild._add_virtual_streams_filter(db_session, query, ["f28", "f29"])
             count = query.count()
             assert count == 3

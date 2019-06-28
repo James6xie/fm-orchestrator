@@ -147,12 +147,16 @@ def init_data(data_size=10, contexts=False, multiple_stream_versions=None, scrat
             # Just to possibly confuse tests by adding another base module.
             mmd = mmd.copy("bootstrap", stream)
             import_mmd(db.session, mmd)
-    with make_session(conf) as session:
-        _populate_data(session, data_size, contexts=contexts, scratch=scratch)
+    with make_session(conf) as db_session:
+        _populate_data(db_session, data_size, contexts=contexts, scratch=scratch)
 
 
-def _populate_data(session, data_size=10, contexts=False, scratch=False):
-    arch = module_build_service.models.ModuleArch.query.get(1)
+def _populate_data(db_session, data_size=10, contexts=False, scratch=False):
+    # Query arch from passed database session, otherwise there will be an error
+    # like "Object '<ModuleBuild at 0x7f4ccc805c50>' is already attached to
+    # session '275' (this is '276')" when add new module build object to passed
+    # session.
+    arch = db_session.query(module_build_service.models.ModuleArch).get(1)
     num_contexts = 2 if contexts else 1
     for index in range(data_size):
         for context in range(num_contexts):
@@ -191,11 +195,11 @@ def _populate_data(session, data_size=10, contexts=False, scratch=False):
                 combined_hashes = "{0}:{1}".format(unique_hash, unique_hash)
                 build_one.context = hashlib.sha1(combined_hashes.encode("utf-8")).hexdigest()[:8]
 
-            session.add(build_one)
-            session.commit()
+            db_session.add(build_one)
+            db_session.commit()
             build_one_component_release = get_rpm_release(build_one)
 
-            component_one_build_one = ComponentBuild(
+            db_session.add(ComponentBuild(
                 package="nginx",
                 scmurl="git://pkgs.domain.local/rpms/nginx?"
                        "#ga95886c8a443b36a9ce31abda1f9bed22f2f8c3",
@@ -207,9 +211,8 @@ def _populate_data(session, data_size=10, contexts=False, scratch=False):
                 module_id=2 + index * 3,
                 tagged=True,
                 tagged_in_final=True,
-            )
-
-            component_two_build_one = ComponentBuild(
+            ))
+            db_session.add(ComponentBuild(
                 package="module-build-macros",
                 scmurl="/tmp/module_build_service-build-macrosWZUPeK/SRPMS/"
                        "module-build-macros-0.1-1.module_nginx_1_2.src.rpm",
@@ -221,7 +224,8 @@ def _populate_data(session, data_size=10, contexts=False, scratch=False):
                 module_id=2 + index * 3,
                 tagged=True,
                 tagged_in_final=True,
-            )
+            ))
+            db_session.commit()
 
         build_two = ModuleBuild(
             name="postgressql",
@@ -242,11 +246,12 @@ def _populate_data(session, data_size=10, contexts=False, scratch=False):
         )
         build_two.arches.append(arch)
 
-        session.add(build_two)
-        session.commit()
+        db_session.add(build_two)
+        db_session.commit()
+
         build_two_component_release = get_rpm_release(build_two)
 
-        component_one_build_two = ComponentBuild(
+        db_session.add(ComponentBuild(
             package="postgresql",
             scmurl="git://pkgs.domain.local/rpms/postgresql"
                    "?#dc95586c4a443b26a9ce38abda1f9bed22f2f8c3",
@@ -258,9 +263,8 @@ def _populate_data(session, data_size=10, contexts=False, scratch=False):
             module_id=3 + index * 3,
             tagged=True,
             tagged_in_final=True,
-        )
-
-        component_two_build_two = ComponentBuild(
+        ))
+        db_session.add(ComponentBuild(
             package="module-build-macros",
             scmurl="/tmp/module_build_service-build-macrosWZUPeK/SRPMS/"
                    "module-build-macros-0.1-1.module_postgresql_1_2.src.rpm",
@@ -270,7 +274,9 @@ def _populate_data(session, data_size=10, contexts=False, scratch=False):
             nvr="module-build-macros-01-1.{0}".format(build_two_component_release),
             batch=1,
             module_id=3 + index * 3,
-        )
+        ))
+
+        db_session.commit()
 
         build_three = ModuleBuild(
             name="testmodule",
@@ -289,11 +295,12 @@ def _populate_data(session, data_size=10, contexts=False, scratch=False):
             time_completed=None,
             rebuild_strategy="changed-and-after",
         )
-        session.add(build_three)
-        session.commit()
+        db_session.add(build_three)
+        db_session.commit()
+
         build_three_component_release = get_rpm_release(build_three)
 
-        component_one_build_three = ComponentBuild(
+        db_session.add(ComponentBuild(
             package="rubygem-rails",
             scmurl="git://pkgs.domain.local/rpms/rubygem-rails"
                    "?#dd55886c4a443b26a9ce38abda1f9bed22f2f8c3",
@@ -303,9 +310,9 @@ def _populate_data(session, data_size=10, contexts=False, scratch=False):
             nvr="postgresql-9.5.3-4.{0}".format(build_three_component_release),
             batch=2,
             module_id=4 + index * 3,
-        )
+        ))
 
-        component_two_build_three = ComponentBuild(
+        db_session.add(ComponentBuild(
             package="module-build-macros",
             scmurl="/tmp/module_build_service-build-macrosWZUPeK/SRPMS/"
                    "module-build-macros-0.1-1.module_testmodule_1_2.src.rpm",
@@ -317,18 +324,12 @@ def _populate_data(session, data_size=10, contexts=False, scratch=False):
             module_id=4 + index * 3,
             tagged=True,
             build_time_only=True,
-        )
+        ))
 
-        session.add(component_one_build_one)
-        session.add(component_two_build_one)
-        session.add(component_one_build_two)
-        session.add(component_two_build_two)
-        session.add(component_one_build_three)
-        session.add(component_two_build_three)
-        session.commit()
+        db_session.commit()
 
 
-def scheduler_init_data(tangerine_state=None, scratch=False):
+def scheduler_init_data(db_session, tangerine_state=None, scratch=False):
     """ Creates a testmodule in the building state with all the components in the same batch
     """
     clean_database()
@@ -339,13 +340,10 @@ def scheduler_init_data(tangerine_state=None, scratch=False):
     mmd = load_mmd_file(formatted_testmodule_yml_path)
     mmd.get_rpm_component("tangerine").set_buildorder(0)
 
-    platform_br = module_build_service.models.ModuleBuild.query.get(1)
-    arch = module_build_service.models.ModuleArch.query.get(1)
-
     module_build = module_build_service.models.ModuleBuild(
         name="testmodule",
         stream="master",
-        version=20170109091357,
+        version='20170109091357',
         state=BUILD_STATES["build"],
         scratch=scratch,
         build_context="ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0",
@@ -364,12 +362,20 @@ def scheduler_init_data(tangerine_state=None, scratch=False):
         modulemd=mmd_to_str(mmd),
     )
 
-    module_build.arches.append(arch)
+    db_session.add(module_build)
+    db_session.commit()
+
+    platform_br = db_session.query(module_build_service.models.ModuleBuild).get(1)
     module_build.buildrequires.append(platform_br)
+
+    arch = db_session.query(module_build_service.models.ModuleArch).get(1)
+    module_build.arches.append(arch)
+
     build_one_component_release = get_rpm_release(module_build)
 
-    module_build.component_builds.extend([
+    module_build_comp_builds = [
         module_build_service.models.ComponentBuild(
+            module_id=module_build.id,
             package="perl-Tangerine",
             scmurl="https://src.fedoraproject.org/rpms/perl-Tangerine"
                    "?#4ceea43add2366d8b8c5a622a2fb563b625b9abf",
@@ -383,6 +389,7 @@ def scheduler_init_data(tangerine_state=None, scratch=False):
             tagged_in_final=True,
         ),
         module_build_service.models.ComponentBuild(
+            module_id=module_build.id,
             package="perl-List-Compare",
             scmurl="https://src.fedoraproject.org/rpms/perl-List-Compare"
                    "?#76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb",
@@ -396,6 +403,7 @@ def scheduler_init_data(tangerine_state=None, scratch=False):
             tagged_in_final=True,
         ),
         module_build_service.models.ComponentBuild(
+            module_id=module_build.id,
             package="tangerine",
             scmurl="https://src.fedoraproject.org/rpms/tangerine"
                    "?#fbed359411a1baa08d4a88e0d12d426fbf8f602c",
@@ -411,6 +419,7 @@ def scheduler_init_data(tangerine_state=None, scratch=False):
             tagged_in_final=tangerine_state == koji.BUILD_STATES["COMPLETE"],
         ),
         module_build_service.models.ComponentBuild(
+            module_id=module_build.id,
             package="module-build-macros",
             scmurl="/tmp/module_build_service-build-macrosqr4AWH/SRPMS/module-build-"
                    "macros-0.1-1.module_testmodule_master_20170109091357.src.rpm",
@@ -422,12 +431,10 @@ def scheduler_init_data(tangerine_state=None, scratch=False):
             tagged=True,
             build_time_only=True,
         ),
-    ])
-
-    with make_session(conf) as session:
-        session.add(platform_br)
-        session.add(module_build)
-        session.commit()
+    ]
+    for c in module_build_comp_builds:
+        db_session.add(c)
+    db_session.commit()
 
 
 def reuse_component_init_data():
@@ -438,13 +445,10 @@ def reuse_component_init_data():
         current_dir, "staged_data", "formatted_testmodule.yaml")
     mmd = load_mmd_file(formatted_testmodule_yml_path)
 
-    platform_br = module_build_service.models.ModuleBuild.query.get(1)
-    arch = module_build_service.models.ModuleArch.query.get(1)
-
     build_one = module_build_service.models.ModuleBuild(
         name="testmodule",
         stream="master",
-        version=20170109091357,
+        version='20170109091357',
         state=BUILD_STATES["ready"],
         ref_build_context="ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0",
         runtime_context="ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0",
@@ -468,11 +472,20 @@ def reuse_component_init_data():
     xmd["mbs"]["commit"] = "ff1ea79fc952143efeed1851aa0aa006559239ba"
     mmd.set_xmd(xmd)
     build_one.modulemd = mmd_to_str(mmd)
-    build_one.arches.append(arch)
+
+    db.session.add(build_one)
+    db.session.commit()
+    db.session.refresh(build_one)
+
+    platform_br = module_build_service.models.ModuleBuild.query.get(1)
     build_one.buildrequires.append(platform_br)
 
-    build_one.component_builds.extend([
+    arch = module_build_service.models.ModuleArch.query.get(1)
+    build_one.arches.append(arch)
+
+    build_one_comp_builds = [
         module_build_service.models.ComponentBuild(
+            module_id=build_one.id,
             package="perl-Tangerine",
             scmurl="https://src.fedoraproject.org/rpms/perl-Tangerine"
                    "?#4ceea43add2366d8b8c5a622a2fb563b625b9abf",
@@ -486,6 +499,7 @@ def reuse_component_init_data():
             tagged_in_final=True,
         ),
         module_build_service.models.ComponentBuild(
+            module_id=build_one.id,
             package="perl-List-Compare",
             scmurl="https://src.fedoraproject.org/rpms/perl-List-Compare"
                    "?#76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb",
@@ -499,6 +513,7 @@ def reuse_component_init_data():
             tagged_in_final=True,
         ),
         module_build_service.models.ComponentBuild(
+            module_id=build_one.id,
             package="tangerine",
             scmurl="https://src.fedoraproject.org/rpms/tangerine"
                    "?#fbed359411a1baa08d4a88e0d12d426fbf8f602c",
@@ -512,6 +527,7 @@ def reuse_component_init_data():
             tagged_in_final=True,
         ),
         module_build_service.models.ComponentBuild(
+            module_id=build_one.id,
             package="module-build-macros",
             scmurl="/tmp/module_build_service-build-macrosqr4AWH/SRPMS/module-build-"
                    "macros-0.1-1.module_testmodule_master_20170109091357.src.rpm",
@@ -523,12 +539,17 @@ def reuse_component_init_data():
             tagged=True,
             build_time_only=True,
         ),
-    ])
+    ]
+    for c in build_one_comp_builds:
+        db.session.add(c)
+
+    # Commit component builds added to build_one
+    db.session.commit()
 
     build_two = module_build_service.models.ModuleBuild(
         name="testmodule",
         stream="master",
-        version=20170219191323,
+        version='20170219191323',
         state=BUILD_STATES["build"],
         ref_build_context="ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0",
         runtime_context="ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0",
@@ -551,11 +572,17 @@ def reuse_component_init_data():
     xmd["mbs"]["commit"] = "55f4a0a2e6cc255c88712a905157ab39315b8fd8"
     mmd.set_xmd(xmd)
     build_two.modulemd = mmd_to_str(mmd)
+
+    db.session.add(build_two)
+    db.session.commit()
+    db.session.refresh(build_two)
+
     build_two.arches.append(arch)
     build_two.buildrequires.append(platform_br)
 
-    build_two.component_builds.extend([
+    build_two_comp_builds = [
         module_build_service.models.ComponentBuild(
+            module_id=build_two.id,
             package="perl-Tangerine",
             scmurl="https://src.fedoraproject.org/rpms/perl-Tangerine"
                    "?#4ceea43add2366d8b8c5a622a2fb563b625b9abf",
@@ -564,6 +591,7 @@ def reuse_component_init_data():
             ref="4ceea43add2366d8b8c5a622a2fb563b625b9abf",
         ),
         module_build_service.models.ComponentBuild(
+            module_id=build_two.id,
             package="perl-List-Compare",
             scmurl="https://src.fedoraproject.org/rpms/perl-List-Compare"
                    "?#76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb",
@@ -572,6 +600,7 @@ def reuse_component_init_data():
             ref="76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb",
         ),
         module_build_service.models.ComponentBuild(
+            module_id=build_two.id,
             package="tangerine",
             scmurl="https://src.fedoraproject.org/rpms/tangerine"
                    "?#fbed359411a1baa08d4a88e0d12d426fbf8f602c",
@@ -580,6 +609,7 @@ def reuse_component_init_data():
             ref="fbed359411a1baa08d4a88e0d12d426fbf8f602c",
         ),
         module_build_service.models.ComponentBuild(
+            module_id=build_two.id,
             package="module-build-macros",
             scmurl="/tmp/module_build_service-build-macrosqr4AWH/SRPMS/module-build-"
                    "macros-0.1-1.module_testmodule_master_20170219191323.src.rpm",
@@ -591,13 +621,12 @@ def reuse_component_init_data():
             tagged=True,
             build_time_only=True,
         ),
-    ])
+    ]
+    for c in build_two_comp_builds:
+        db.session.add(c)
 
-    with make_session(conf) as session:
-        session.add(platform_br)
-        session.add(build_one)
-        session.add(build_two)
-        session.commit()
+    # Commit component builds added to build_two
+    db.session.commit()
 
 
 def reuse_shared_userspace_init_data():
@@ -714,6 +743,7 @@ def reuse_shared_userspace_init_data():
 
 
 def make_module(
+    db_session,
     nsvc,
     requires_list=None,
     build_requires_list=None,
@@ -728,6 +758,7 @@ def make_module(
     Creates new models.ModuleBuild defined by `nsvc` string with requires
     and buildrequires set according to ``requires_list`` and ``build_requires_list``.
 
+    :param db_session: SQLAlchemy database session.
     :param str nsvc: name:stream:version:context of a module.
     :param list_of_dicts requires_list: List of dictionaries defining the
         requires in the mmd requires field format.
@@ -826,33 +857,33 @@ def make_module(
     )
     if base_module:
         module_build.buildrequires.append(base_module)
-    db.session.add(module_build)
-    db.session.commit()
+    db_session.add(module_build)
+    db_session.commit()
 
     if virtual_streams:
         for virtual_stream in virtual_streams:
-            vs_obj = db.session.query(VirtualStream).filter_by(name=virtual_stream).first()
+            vs_obj = db_session.query(VirtualStream).filter_by(name=virtual_stream).first()
             if not vs_obj:
                 vs_obj = VirtualStream(name=virtual_stream)
-                db.session.add(vs_obj)
-                db.session.commit()
+                db_session.add(vs_obj)
+                db_session.commit()
 
             if vs_obj not in module_build.virtual_streams:
                 module_build.virtual_streams.append(vs_obj)
-                db.session.commit()
+                db_session.commit()
 
     if arches is None:
         arches = ["x86_64"]
     for arch in arches:
-        arch_obj = db.session.query(module_build_service.models.ModuleArch).filter_by(
+        arch_obj = db_session.query(module_build_service.models.ModuleArch).filter_by(
             name=arch).first()
         if not arch_obj:
             arch_obj = module_build_service.models.ModuleArch(name=arch)
-            db.session.add(arch_obj)
-            db.session.commit()
+            db_session.add(arch_obj)
+            db_session.commit()
 
         if arch_obj not in module_build.arches:
             module_build.arches.append(arch_obj)
-            db.session.commit()
+            db_session.commit()
 
     return module_build

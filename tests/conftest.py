@@ -22,6 +22,8 @@ import os
 
 import pytest
 
+from module_build_service import conf
+from module_build_service.models import make_session
 from module_build_service.utils.general import load_mmd_file, mmd_to_str
 
 
@@ -57,3 +59,9 @@ def formatted_testmodule_mmd():
 @pytest.fixture()
 def platform_mmd():
     return PLATFORM_MODULEMD
+
+
+@pytest.fixture(scope="function")
+def db_session():
+    with make_session(conf) as db_session:
+        yield db_session

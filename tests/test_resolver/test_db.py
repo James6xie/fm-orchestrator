@@ -27,7 +27,7 @@ from mock import patch, PropertyMock
 import pytest
 
 import module_build_service.resolver as mbs_resolver
-from module_build_service import app, db, models, utils, Modulemd
+from module_build_service import app, conf, db, models, utils, Modulemd
 from module_build_service.utils import import_mmd, load_mmd_file, mmd_to_str
 from module_build_service.models import ModuleBuild
 import tests
@@ -43,33 +43,37 @@ class TestDBModule:
     def test_get_buildrequired_modulemds(self):
         mmd = load_mmd_file(os.path.join(base_dir, "staged_data", "platform.yaml"))
         mmd = mmd.copy(mmd.get_module_name(), "f30.1.3")
-        import_mmd(db.session, mmd)
-        platform_f300103 = ModuleBuild.query.filter_by(stream="f30.1.3").one()
-        mmd = tests.make_module("testmodule:master:20170109091357:123", store_to_db=False)
-        build = ModuleBuild(
-            name="testmodule",
-            stream="master",
-            version=20170109091357,
-            state=5,
-            build_context="dd4de1c346dcf09ce77d38cd4e75094ec1c08ec3",
-            runtime_context="ec4de1c346dcf09ce77d38cd4e75094ec1c08ef7",
-            context="7c29193d",
-            koji_tag="module-testmodule-master-20170109091357-7c29193d",
-            scmurl="https://src.stg.fedoraproject.org/modules/testmodule.git?#ff1ea79",
-            batch=3,
-            owner="Dr. Pepper",
-            time_submitted=datetime(2018, 11, 15, 16, 8, 18),
-            time_modified=datetime(2018, 11, 15, 16, 19, 35),
-            rebuild_strategy="changed-and-after",
-            modulemd=mmd_to_str(mmd),
-        )
-        build.buildrequires.append(platform_f300103)
-        db.session.add(build)
-        db.session.commit()
+        with models.make_session(conf) as db_session:
+            import_mmd(db_session, mmd)
+            platform_f300103 = db_session.query(ModuleBuild).filter_by(stream="f30.1.3").one()
+            mmd = tests.make_module(db_session,
+                                    "testmodule:master:20170109091357:123",
+                                    store_to_db=False)
+            build = ModuleBuild(
+                name="testmodule",
+                stream="master",
+                version=20170109091357,
+                state=5,
+                build_context="dd4de1c346dcf09ce77d38cd4e75094ec1c08ec3",
+                runtime_context="ec4de1c346dcf09ce77d38cd4e75094ec1c08ef7",
+                context="7c29193d",
+                koji_tag="module-testmodule-master-20170109091357-7c29193d",
+                scmurl="https://src.stg.fedoraproject.org/modules/testmodule.git?#ff1ea79",
+                batch=3,
+                owner="Dr. Pepper",
+                time_submitted=datetime(2018, 11, 15, 16, 8, 18),
+                time_modified=datetime(2018, 11, 15, 16, 19, 35),
+                rebuild_strategy="changed-and-after",
+                modulemd=mmd_to_str(mmd),
+            )
+            build.buildrequires.append(platform_f300103)
+            db_session.add(build)
+            db_session.commit()
+
+            platform_nsvc = platform_f300103.mmd().get_nsvc()
 
         resolver = mbs_resolver.GenericResolver.create(tests.conf, backend="db")
-        result = resolver.get_buildrequired_modulemds(
-            "testmodule", "master", platform_f300103.mmd().get_nsvc())
+        result = resolver.get_buildrequired_modulemds("testmodule", "master", platform_nsvc)
         nsvcs = set([m.get_nsvc() for m in result])
         assert nsvcs == set(["testmodule:master:20170109091357:123"])
 
@@ -134,6 +138,9 @@ class TestDBModule:
         module.name = "testmodule2"
         module.version = str(mmd.get_version())
         module.koji_tag = "module-ae2adf69caf0e1b6"
+
+        db.session.add(module)
+        db.session.commit()
 
         resolver = mbs_resolver.GenericResolver.create(tests.conf, backend="db")
         result = resolver.get_module_build_dependencies(
