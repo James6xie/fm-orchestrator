@@ -150,9 +150,7 @@ def continue_batch_build(config, module, session, builder, components=None):
         components_to_build.append(c)
 
     # Start build of components in this batch.
-    max_workers = 1
-    if config.num_concurrent_builds > 0:
-        max_workers = config.num_concurrent_builds
+    max_workers = config.num_threads_for_build_submissions
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = {
             executor.submit(start_build_component, builder, c): c for c in components_to_build

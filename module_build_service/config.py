@@ -653,7 +653,13 @@ class Config(object):
                     "x, y, and z (represents the version). The third value is an optional template "
                     "string that represent the Product Pages release for major releases "
                     "(e.g. 8.0.0). After the first match, the rest will be ignored."
-        }
+        },
+        "num_threads_for_build_submissions": {
+            "type": int,
+            "default": 5,
+            "desc": "The number of threads when submitting component builds to an external build "
+                    "system.",
+        },
     }
 
     def __init__(self, conf_section_obj):
@@ -907,3 +913,10 @@ class Config(object):
                     )
 
         self._product_pages_module_streams = d
+
+    def _setifok_num_threads_for_build_submissions(self, i):
+        if not isinstance(i, int):
+            raise TypeError("NUM_THREADS_FOR_BUILD_SUBMISSIONS needs to be an int")
+        if i < 1:
+            raise ValueError("NUM_THREADS_FOR_BUILD_SUBMISSIONS must be >= 1")
+        self._num_threads_for_build_submissions = i
