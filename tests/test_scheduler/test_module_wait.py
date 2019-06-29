@@ -27,10 +27,10 @@ import module_build_service.scheduler.handlers.modules
 import os
 import koji
 import pytest
-from tests import conf, db, scheduler_init_data
+from tests import conf, db, scheduler_init_data, read_staged_data
 import module_build_service.resolver
 from module_build_service import build_logs, Modulemd
-from module_build_service.utils.general import load_mmd_file
+from module_build_service.utils.general import load_mmd
 from module_build_service.models import ComponentBuild, ModuleBuild
 
 base_dir = os.path.dirname(os.path.dirname(__file__))
@@ -71,12 +71,8 @@ class TestModuleWait:
             "state": "some state",
             "id": 1,
         }
-
-        formatted_testmodule_yml_path = os.path.join(
-            base_dir, "staged_data", "formatted_testmodule.yaml")
-        mmd = load_mmd_file(formatted_testmodule_yml_path)
         mocked_module_build.id = 1
-        mocked_module_build.mmd.return_value = mmd
+        mocked_module_build.mmd.return_value = load_mmd(read_staged_data("formatted_testmodule"))
         mocked_module_build.component_builds = []
 
         from_module_event.return_value = mocked_module_build

@@ -28,7 +28,7 @@ import pytest
 
 import module_build_service.resolver as mbs_resolver
 from module_build_service import app, conf, db, models, utils, Modulemd
-from module_build_service.utils import import_mmd, load_mmd_file, mmd_to_str
+from module_build_service.utils import import_mmd, mmd_to_str, load_mmd
 from module_build_service.models import ModuleBuild
 import tests
 
@@ -41,7 +41,7 @@ class TestDBModule:
         tests.reuse_component_init_data()
 
     def test_get_buildrequired_modulemds(self):
-        mmd = load_mmd_file(os.path.join(base_dir, "staged_data", "platform.yaml"))
+        mmd = load_mmd(tests.read_staged_data("platform"))
         mmd = mmd.copy(mmd.get_module_name(), "f30.1.3")
         with models.make_session(conf) as db_session:
             import_mmd(db_session, mmd)
@@ -153,7 +153,7 @@ class TestDBModule:
     @patch(
         "module_build_service.config.Config.mock_resultsdir",
         new_callable=PropertyMock,
-        return_value=os.path.join(base_dir, "staged_data", "local_builds"),
+        return_value=tests.staged_data_filename("local_builds"),
     )
     def test_get_module_build_dependencies_recursive_requires(self, resultdir, conf_system):
         """
@@ -166,7 +166,7 @@ class TestDBModule:
             resolver = mbs_resolver.GenericResolver.create(tests.conf, backend="db")
             result = resolver.get_module_build_dependencies(mmd=build[0].mmd()).keys()
 
-            local_path = os.path.join(base_dir, "staged_data", "local_builds")
+            local_path = tests.staged_data_filename("local_builds")
 
             expected = [os.path.join(local_path, "module-parent-master-20170816080815/results")]
             assert set(result) == set(expected)
@@ -240,7 +240,7 @@ class TestDBModule:
     @patch(
         "module_build_service.config.Config.mock_resultsdir",
         new_callable=PropertyMock,
-        return_value=os.path.join(base_dir, "staged_data", "local_builds"),
+        return_value=tests.staged_data_filename("local_builds")
     )
     def test_resolve_profiles_local_module(self, local_builds, conf_system):
         """

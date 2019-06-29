@@ -348,7 +348,7 @@ class TestMBSModule:
     @patch(
         "module_build_service.config.Config.mock_resultsdir",
         new_callable=PropertyMock,
-        return_value=os.path.join(base_dir, "staged_data", "local_builds"),
+        return_value=tests.staged_data_filename("local_builds")
     )
     def test_resolve_profiles_local_module(
         self, local_builds, conf_system, formatted_testmodule_mmd

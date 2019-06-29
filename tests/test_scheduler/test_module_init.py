@@ -23,21 +23,20 @@ import os
 
 from mock import patch, PropertyMock
 
-from tests import conf, clean_database
+from tests import conf, clean_database, read_staged_data
 from tests.test_views.test_views import FakeSCM
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.modules
 from module_build_service import build_logs, db
 from module_build_service.models import make_session, ModuleBuild, ComponentBuild
-from module_build_service.utils.general import mmd_to_str, load_mmd, load_mmd_file
+from module_build_service.utils.general import mmd_to_str, load_mmd
 
 
 class TestModuleInit:
     def setup_method(self, test_method):
         self.fn = module_build_service.scheduler.handlers.modules.init
-        self.staged_data_dir = os.path.join(os.path.dirname(__file__), "../", "staged_data")
-        testmodule_yml_path = os.path.join(self.staged_data_dir, "testmodule_init.yaml")
-        mmd = load_mmd_file(testmodule_yml_path)
+        testmodule_yml_path = read_staged_data("testmodule_init")
+        mmd = load_mmd(testmodule_yml_path)
         # Set the name and stream
         mmd = mmd.copy("testmodule", "1")
         scmurl = "git://pkgs.domain.local/modules/testmodule?#620ec77"
@@ -146,8 +145,8 @@ class TestModuleInit:
     @patch("module_build_service.utils.submit.get_build_arches", return_value=["x86_64"])
     def test_init_includedmodule(self, get_build_arches, mocked_scm, mocked_mod_allow_repo):
         FakeSCM(mocked_scm, "includedmodules", ["testmodule_init.yaml"])
-        includedmodules_yml_path = os.path.join(self.staged_data_dir, "includedmodules.yaml")
-        mmd = load_mmd_file(includedmodules_yml_path)
+        includedmodules_yml_path = read_staged_data("includedmodules")
+        mmd = load_mmd(includedmodules_yml_path)
         # Set the name and stream
         mmd = mmd.copy("includedmodules", "1")
         scmurl = "git://pkgs.domain.local/modules/includedmodule?#da95886"

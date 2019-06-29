@@ -35,7 +35,7 @@ import pytest
 import re
 import sqlalchemy
 
-from tests import app, init_data, clean_database, reuse_component_init_data
+from tests import app, init_data, clean_database, reuse_component_init_data, staged_data_filename
 from tests import read_staged_data
 from tests.test_scm import base_dir as scm_base_dir
 from module_build_service.errors import UnprocessableEntity
@@ -44,7 +44,7 @@ from module_build_service import db, version
 import module_build_service.config as mbs_config
 import module_build_service.scheduler.handlers.modules
 from module_build_service.utils.general import (
-    import_mmd, mmd_to_str, to_text_type, load_mmd_file, load_mmd
+    import_mmd, mmd_to_str, load_mmd
 )
 
 
@@ -114,8 +114,7 @@ class FakeSCM(object):
 
         self.sourcedir = path.join(temp_dir, self.name)
         mkdir(self.sourcedir)
-        base_dir = path.abspath(path.dirname(__file__))
-        copyfile(path.join(base_dir, "..", "staged_data", mmd_filename), self.get_module_yaml())
+        copyfile(staged_data_filename(mmd_filename), self.get_module_yaml())
 
         self.checkout_id += 1
 
@@ -204,8 +203,7 @@ class TestViews:
         assert data["build_context"] is None
         assert data["runtime_context"] is None
         assert data["id"] == 2
-        with open(path.join(base_dir, "staged_data", "nginx_mmd.yaml")) as mmd:
-            assert data["modulemd"] == to_text_type(mmd.read())
+        assert data["modulemd"] == read_staged_data("nginx_mmd")
         assert data["name"] == "nginx"
         assert data["owner"] == "Moe Szyslak"
         assert data["rebuild_strategy"] == "changed-and-after"
@@ -829,7 +827,7 @@ class TestViews:
 
     def test_query_base_module_br_filters(self):
         reuse_component_init_data()
-        mmd = load_mmd_file(path.join(base_dir, "staged_data", "platform.yaml"))
+        mmd = load_mmd(read_staged_data("platform"))
         mmd = mmd.copy(mmd.get_module_name(), "f30.1.3")
         import_mmd(db.session, mmd)
         platform_f300103 = ModuleBuild.query.filter_by(stream="f30.1.3").one()
@@ -2138,18 +2136,15 @@ class TestViews:
     def test_submit_scratch_build_with_mmd(
         self, mocked_allow_yaml, mocked_allow_scratch, mocked_get_user, api_version
     ):
-        base_dir = path.abspath(path.dirname(__file__))
-        mmd_path = path.join(base_dir, "..", "staged_data", "testmodule.yaml")
-        post_url = "/module-build-service/{0}/module-builds/".format(api_version)
-        with open(mmd_path, "rb") as f:
-            modulemd = f.read().decode("utf-8")
+        modulemd = read_staged_data("testmodule")
 
         post_data = {
             "branch": "master",
             "scratch": True,
             "modulemd": modulemd,
-            "module_name": str(splitext(basename(mmd_path))[0]),
+            "module_name": str(splitext(basename(staged_data_filename("testmodule")))[0]),
         }
+        post_url = "/module-build-service/{0}/module-builds/".format(api_version)
         rv = self.client.post(post_url, data=json.dumps(post_data))
         data = json.loads(rv.data)
 
@@ -2205,13 +2200,12 @@ class TestViews:
     def test_submit_scratch_build_with_mmd_no_module_name(
         self, mocked_allow_yaml, mocked_allow_scratch, mocked_get_user
     ):
-        base_dir = path.abspath(path.dirname(__file__))
-        mmd_path = path.join(base_dir, "..", "staged_data", "testmodule.yaml")
+        post_data = {
+            "branch": "master",
+            "scratch": True,
+            "modulemd": read_staged_data("testmodule")
+        }
         post_url = "/module-build-service/1/module-builds/"
-        with open(mmd_path, "rb") as f:
-            modulemd = f.read().decode("utf-8")
-
-        post_data = {"branch": "master", "scratch": True, "modulemd": modulemd}
         rv = self.client.post(post_url, data=json.dumps(post_data))
         assert rv.status_code == 400
         data = json.loads(rv.data)
@@ -2240,18 +2234,13 @@ class TestViews:
     def test_submit_scratch_build_with_mmd_yaml_not_allowed(
         self, mocked_allow_yaml, mocked_allow_scratch, mocked_get_user, api_version
     ):
-        base_dir = path.abspath(path.dirname(__file__))
-        mmd_path = path.join(base_dir, "..", "staged_data", "testmodule.yaml")
-        post_url = "/module-build-service/{0}/module-builds/".format(api_version)
-        with open(mmd_path, "rb") as f:
-            modulemd = f.read().decode("utf-8")
-
         post_data = {
             "branch": "master",
             "scratch": True,
-            "modulemd": modulemd,
-            "module_name": str(splitext(basename(mmd_path))[0]),
+            "modulemd": read_staged_data("testmodule"),
+            "module_name": str(splitext(basename(staged_data_filename("testmodule")))[0]),
         }
+        post_url = "/module-build-service/{0}/module-builds/".format(api_version)
         rv = self.client.post(post_url, data=json.dumps(post_data))
         data = json.loads(rv.data)
 
@@ -2283,7 +2272,7 @@ class TestViews:
         init_data(data_size=1, multiple_stream_versions=True)
         # Create a platform for whatever the override is so the build submission succeeds
         if platform_override:
-            platform_mmd = load_mmd_file(path.join(base_dir, "staged_data", "platform.yaml"))
+            platform_mmd = load_mmd(read_staged_data("platform"))
             platform_mmd = platform_mmd.copy(platform_mmd.get_module_name(), platform_override)
             if platform_override == "el8.0.0":
                 xmd = platform_mmd.get_xmd()
@@ -2330,7 +2319,7 @@ class TestViews:
         mocked_regexes.return_value = [r"(?:\-LP\-)(.+)$"]
         init_data(data_size=1, multiple_stream_versions=True)
         # Create a platform for the override so the build submission succeeds
-        platform_mmd = load_mmd_file(path.join(base_dir, "staged_data", "platform.yaml"))
+        platform_mmd = load_mmd(read_staged_data('platform'))
         platform_mmd = platform_mmd.copy(platform_mmd.get_module_name(), "product1.3")
         import_mmd(db.session, platform_mmd)
 
@@ -2369,7 +2358,7 @@ class TestViews:
         versioning and no virtual streams, that the dependency resolution succeeds.
         """
         init_data(data_size=1, multiple_stream_versions=True)
-        platform_mmd = load_mmd_file(path.join(base_dir, "staged_data", "platform.yaml"))
+        platform_mmd = load_mmd(read_staged_data("platform"))
         platform_mmd = platform_mmd.copy(platform_mmd.get_module_name(), "el8.0.0")
         import_mmd(db.session, platform_mmd)
 
@@ -2427,7 +2416,7 @@ class TestViews:
     @patch("module_build_service.scm.SCM")
     def test_submit_build_request_platform_virtual_stream(self, mocked_scm, mocked_get_user):
         # Create a platform with el8.25.0 but with the virtual stream el8
-        mmd = load_mmd_file(path.join(base_dir, "staged_data", "platform.yaml"))
+        mmd = load_mmd(read_staged_data("platform"))
         mmd = mmd.copy(mmd.get_module_name(), "el8.25.0")
         xmd = mmd.get_xmd()
         xmd["mbs"]["virtual_streams"] = ["el8"]
@@ -2562,7 +2551,7 @@ class TestViews:
         mock_pp_streams.return_value = pp_streams
         # Mock the Product Pages query
         mock_get.return_value.json.return_value = get_rv
-        mmd = load_mmd_file(path.join(base_dir, "staged_data", "platform.yaml"))
+        mmd = load_mmd(read_staged_data("platform"))
         # Create the required platforms
         for stream in ("el8.0.0", "el8.0.0.z", "el8.2.1", "el8.2.1.z"):
             mmd = mmd.copy(mmd.get_module_name(), stream)
