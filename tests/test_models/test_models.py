@@ -77,20 +77,19 @@ class TestModels:
         assert build.runtime_context == "bbc84c7b817ab3dd54916c0bcd6c6bdf512f7f9c"
         assert build.context == "3ee22b28"
 
-    def test_siblings_property(self):
+    def test_siblings_property(self, db_session):
         """ Tests that the siblings property returns the ID of all modules with
         the same name:stream:version
         """
         clean_database()
         mmd = load_mmd(read_staged_data("formatted_testmodule"))
-        with make_session(conf) as session:
-            for i in range(3):
-                build = module_build_from_modulemd(mmd_to_str(mmd))
-                build.build_context = "f6e2aeec7576196241b9afa0b6b22acf2b6873d" + str(i)
-                build.runtime_context = "bbc84c7b817ab3dd54916c0bcd6c6bdf512f7f9c" + str(i)
-                session.add(build)
-        session.commit()
-        build_one = ModuleBuild.query.get(2)
+        for i in range(3):
+            build = module_build_from_modulemd(mmd_to_str(mmd))
+            build.build_context = "f6e2aeec7576196241b9afa0b6b22acf2b6873d" + str(i)
+            build.runtime_context = "bbc84c7b817ab3dd54916c0bcd6c6bdf512f7f9c" + str(i)
+            db_session.add(build)
+        db_session.commit()
+        build_one = ModuleBuild.get_by_id(db_session, 2)
         assert build_one.siblings == [3, 4]
 
     @pytest.mark.parametrize(

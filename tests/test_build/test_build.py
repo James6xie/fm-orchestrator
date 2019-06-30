@@ -1650,7 +1650,7 @@ class TestBuild(BaseTestBuild):
 
         # Simulate a random repo regen message that MBS didn't expect
         cleanup_moksha()
-        module = db_session.query(models.ModuleBuild).get(module_build_id)
+        module = models.ModuleBuild.get_by_id(db_session, module_build_id)
         msgs = [
             module_build_service.messaging.KojiRepoChange(
                 msg_id="a faked internal message", repo_tag=module.koji_tag + "-build"

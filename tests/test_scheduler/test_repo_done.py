@@ -122,15 +122,15 @@ class TestRepoDone:
 
         # Ensure the time_completed is None, so we can test it is set to
         # some date once the build is finalized.
-        module_build = module_build_service.models.ModuleBuild.query.get(2)
+        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
         module_build.time_completed = None
-        db.session.commit()
+        db_session.commit()
 
         def mocked_finalizer(succeeded=None):
             # Check that the time_completed is set in the time when
             # finalizer is called.
             assert succeeded is True
-            module_build = db_session.query(module_build_service.models.ModuleBuild).get(2)
+            module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
             assert module_build.time_completed is not None
 
         finalizer.side_effect = mocked_finalizer
@@ -207,7 +207,7 @@ class TestRepoDone:
         mock_log_info.assert_called_with(
             "Ignoring repo regen, because not all components are tagged."
         )
-        module_build = module_build_service.models.ModuleBuild.query.get(2)
+        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
         # Make sure the module build didn't transition since all the components weren't tagged
         assert module_build.state == module_build_service.models.BUILD_STATES["build"]
 
@@ -242,6 +242,6 @@ class TestRepoDone:
         msg = module_build_service.messaging.KojiRepoChange(
             "some_msg_id", "module-testmodule-master-20170109091357-7c29193d-build")
         module_build_service.scheduler.handlers.repos.done(config=conf, session=db_session, msg=msg)
-        module_build = module_build_service.models.ModuleBuild.query.get(2)
+        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
 
         assert module_build.state == module_build_service.models.BUILD_STATES["failed"]

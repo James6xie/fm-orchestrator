@@ -368,7 +368,7 @@ def scheduler_init_data(db_session, tangerine_state=None, scratch=False):
     db_session.add(module_build)
     db_session.commit()
 
-    platform_br = db_session.query(module_build_service.models.ModuleBuild).get(1)
+    platform_br = module_build_service.models.ModuleBuild.get_by_id(db_session, 1)
     module_build.buildrequires.append(platform_br)
 
     arch = db_session.query(module_build_service.models.ModuleArch).get(1)
@@ -477,7 +477,7 @@ def reuse_component_init_data():
     db.session.commit()
     db.session.refresh(build_one)
 
-    platform_br = module_build_service.models.ModuleBuild.query.get(1)
+    platform_br = module_build_service.models.ModuleBuild.get_by_id(db.session, 1)
     build_one.buildrequires.append(platform_br)
 
     arch = module_build_service.models.ModuleArch.query.get(1)

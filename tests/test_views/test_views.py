@@ -758,7 +758,7 @@ class TestViews:
 
     def test_query_builds_order_by_multiple(self):
         init_data(data_size=1, multiple_stream_versions=True)
-        platform_f28 = db.session.query(module_build_service.models.ModuleBuild).get(1)
+        platform_f28 = module_build_service.models.ModuleBuild.get_by_id(db.session, 1)
         platform_f28.version = "150"
         db.session.add(platform_f28)
         db.session.commit()
@@ -945,7 +945,7 @@ class TestViews:
         module_build_service.utils.load_mmd(data["modulemd"])
 
         # Make sure the buildrequires entry was created
-        module = ModuleBuild.query.get(8)
+        module = ModuleBuild.get_by_id(db.session, 8)
         assert len(module.buildrequires) == 1
         assert module.buildrequires[0].name == "platform"
         assert module.buildrequires[0].stream == "f28"
@@ -2082,7 +2082,7 @@ class TestViews:
         module_build_service.utils.load_mmd(data["modulemd"])
 
         # Make sure the buildrequires entry was created
-        module = ModuleBuild.query.get(8)
+        module = ModuleBuild.get_by_id(db.session, 8)
         assert len(module.buildrequires) == 1
         assert module.buildrequires[0].name == "platform"
         assert module.buildrequires[0].stream == "f28"
@@ -2178,7 +2178,7 @@ class TestViews:
         module_build_service.utils.load_mmd(data["modulemd"])
 
         # Make sure the buildrequires entry was created
-        module = ModuleBuild.query.get(8)
+        module = ModuleBuild.get_by_id(db.session, 8)
         assert len(module.buildrequires) == 1
         assert module.buildrequires[0].name == "platform"
         assert module.buildrequires[0].stream == "f28"

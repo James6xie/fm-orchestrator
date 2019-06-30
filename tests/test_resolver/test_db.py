@@ -90,15 +90,15 @@ class TestDBModule:
             assert nsvcs == set(["platform:f29.1.0:3:00000000"])
 
     @pytest.mark.parametrize("empty_buildrequires", [False, True])
-    def test_get_module_build_dependencies(self, empty_buildrequires):
+    def test_get_module_build_dependencies(self, empty_buildrequires, db_session):
         """
         Tests that the buildrequires of testmodule are returned
         """
         expected = set(["module-f28-build"])
-        module = models.ModuleBuild.query.get(2)
+        module = models.ModuleBuild.get_by_id(db_session, 2)
         if empty_buildrequires:
             expected = set()
-            module = models.ModuleBuild.query.get(2)
+            module = models.ModuleBuild.get_by_id(db_session, 2)
             mmd = module.mmd()
             # Wipe out the dependencies
             mmd.clear_dependencies()
@@ -106,19 +106,18 @@ class TestDBModule:
             xmd["mbs"]["buildrequires"] = {}
             mmd.set_xmd(xmd)
             module.modulemd = mmd_to_str(mmd)
-            db.session.add(module)
-            db.session.commit()
+            db_session.commit()
         resolver = mbs_resolver.GenericResolver.create(tests.conf, backend="db")
         result = resolver.get_module_build_dependencies(
             "testmodule", "master", "20170109091357", "78e4a6fd").keys()
         assert set(result) == expected
 
-    def test_get_module_build_dependencies_recursive(self):
+    def test_get_module_build_dependencies_recursive(self, db_session):
         """
         Tests that the buildrequires are returned when it is two layers deep
         """
         # Add testmodule2 that requires testmodule
-        module = models.ModuleBuild.query.get(3)
+        module = models.ModuleBuild.get_by_id(db_session, 3)
         mmd = module.mmd()
         # Rename the module
         mmd = mmd.copy("testmodule2")
@@ -139,8 +138,7 @@ class TestDBModule:
         module.version = str(mmd.get_version())
         module.koji_tag = "module-ae2adf69caf0e1b6"
 
-        db.session.add(module)
-        db.session.commit()
+        db_session.commit()
 
         resolver = mbs_resolver.GenericResolver.create(tests.conf, backend="db")
         result = resolver.get_module_build_dependencies(
@@ -171,8 +169,8 @@ class TestDBModule:
             expected = [os.path.join(local_path, "module-parent-master-20170816080815/results")]
             assert set(result) == set(expected)
 
-    def test_resolve_requires(self):
-        build = models.ModuleBuild.query.get(2)
+    def test_resolve_requires(self, db_session):
+        build = models.ModuleBuild.get_by_id(db_session, 2)
         resolver = mbs_resolver.GenericResolver.create(tests.conf, backend="db")
         result = resolver.resolve_requires(
             [":".join([build.name, build.stream, build.version, build.context])]
@@ -188,11 +186,11 @@ class TestDBModule:
             }
         }
 
-    def test_resolve_profiles(self):
+    def test_resolve_profiles(self, db_session):
         """
         Tests that the profiles get resolved recursively
         """
-        mmd = models.ModuleBuild.query.get(2).mmd()
+        mmd = models.ModuleBuild.get_by_id(db_session, 2).mmd()
         resolver = mbs_resolver.GenericResolver.create(tests.conf, backend="db")
         result = resolver.resolve_profiles(mmd, ("buildroot", "srpm-buildroot"))
         expected = {
@@ -242,17 +240,16 @@ class TestDBModule:
         new_callable=PropertyMock,
         return_value=tests.staged_data_filename("local_builds")
     )
-    def test_resolve_profiles_local_module(self, local_builds, conf_system):
+    def test_resolve_profiles_local_module(self, local_builds, conf_system, db_session):
         """
         Test that profiles get resolved recursively on local builds
         """
-        with app.app_context():
-            utils.load_local_builds(["platform"])
-            mmd = models.ModuleBuild.query.get(2).mmd()
-            resolver = mbs_resolver.GenericResolver.create(tests.conf, backend="mbs")
-            result = resolver.resolve_profiles(mmd, ("buildroot", "srpm-buildroot"))
-            expected = {"buildroot": set(["foo"]), "srpm-buildroot": set(["bar"])}
-            assert result == expected
+        utils.load_local_builds(["platform"])
+        mmd = models.ModuleBuild.get_by_id(db_session, 2).mmd()
+        resolver = mbs_resolver.GenericResolver.create(tests.conf, backend="mbs")
+        result = resolver.resolve_profiles(mmd, ("buildroot", "srpm-buildroot"))
+        expected = {"buildroot": set(["foo"]), "srpm-buildroot": set(["bar"])}
+        assert result == expected
 
     def test_get_latest_with_virtual_stream(self):
         tests.init_data(1, multiple_stream_versions=True)
