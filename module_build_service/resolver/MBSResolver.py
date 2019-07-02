@@ -27,13 +27,13 @@
 
 import logging
 import kobo.rpmlib
-import requests
 
 from module_build_service import db, conf
 from module_build_service import models
 from module_build_service.errors import UnprocessableEntity
 from module_build_service.resolver.base import GenericResolver
 from module_build_service.utils.general import import_mmd, load_mmd
+from module_build_service.utils.request_utils import requests_session
 
 log = logging.getLogger()
 
@@ -44,9 +44,6 @@ class MBSResolver(GenericResolver):
 
     def __init__(self, config):
         self.mbs_prod_url = config.mbs_url
-        self.session = requests.Session()
-        adapter = requests.adapters.HTTPAdapter(max_retries=3)
-        self.session.mount(self.mbs_prod_url, adapter)
         self._generic_error = "Failed to query MBS with query %r returned HTTP status %s"
 
     def _query_from_nsvc(self, name, stream, version=None, context=None, state="ready"):
@@ -95,7 +92,7 @@ class MBSResolver(GenericResolver):
         modules = []
 
         while True:
-            res = self.session.get(self.mbs_prod_url, params=query)
+            res = requests_session.get(self.mbs_prod_url, params=query)
             if not res.ok:
                 raise RuntimeError(self._generic_error % (query, res.status_code))
 
@@ -135,7 +132,7 @@ class MBSResolver(GenericResolver):
         """
         query = {"page": 1, "per_page": 1, "short": True}
         query.update(kwargs)
-        res = self.session.get(self.mbs_prod_url, params=query)
+        res = requests_session.get(self.mbs_prod_url, params=query)
         if not res.ok:
             raise RuntimeError(self._generic_error % (query, res.status_code))
 
@@ -159,7 +156,7 @@ class MBSResolver(GenericResolver):
             "verbose": True,
             "virtual_stream": virtual_stream,
         }
-        res = self.session.get(self.mbs_prod_url, params=query)
+        res = requests_session.get(self.mbs_prod_url, params=query)
         if not res.ok:
             raise RuntimeError(self._generic_error % (query, res.status_code))
 
@@ -466,7 +463,7 @@ class MBSResolver(GenericResolver):
         return new_requires
 
     def get_modulemd_by_koji_tag(self, tag):
-        resp = self.session.get(self.mbs_prod_url, params={"koji_tag": tag, "verbose": True})
+        resp = requests_session.get(self.mbs_prod_url, params={"koji_tag": tag, "verbose": True})
         data = resp.json()
         if data["items"]:
             modulemd = data["items"][0]["modulemd"]
