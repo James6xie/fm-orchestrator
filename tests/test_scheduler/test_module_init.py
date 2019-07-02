@@ -23,21 +23,20 @@ import os
 
 from mock import patch, PropertyMock
 
-from tests import conf, clean_database
+from tests import conf, clean_database, read_staged_data
 from tests.test_views.test_views import FakeSCM
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.modules
-from module_build_service import build_logs, db
+from module_build_service import build_logs
 from module_build_service.models import make_session, ModuleBuild, ComponentBuild
-from module_build_service.utils.general import mmd_to_str, load_mmd, load_mmd_file
+from module_build_service.utils.general import mmd_to_str, load_mmd
 
 
 class TestModuleInit:
     def setup_method(self, test_method):
         self.fn = module_build_service.scheduler.handlers.modules.init
-        self.staged_data_dir = os.path.join(os.path.dirname(__file__), "../", "staged_data")
-        testmodule_yml_path = os.path.join(self.staged_data_dir, "testmodule_init.yaml")
-        mmd = load_mmd_file(testmodule_yml_path)
+        testmodule_yml_path = read_staged_data("testmodule_init")
+        mmd = load_mmd(testmodule_yml_path)
         # Set the name and stream
         mmd = mmd.copy("testmodule", "1")
         scmurl = "git://pkgs.domain.local/modules/testmodule?#620ec77"
@@ -60,7 +59,7 @@ class TestModuleInit:
     @patch("module_build_service.scm.SCM")
     @patch("module_build_service.scheduler.handlers.modules.handle_stream_collision_modules")
     @patch("module_build_service.utils.submit.get_build_arches", return_value=["x86_64"])
-    def test_init_basic(self, get_build_arches, rscm, mocked_scm, built_rpms):
+    def init_basic(self, db_session, get_build_arches, rscm, mocked_scm, built_rpms):
         FakeSCM(
             mocked_scm,
             "testmodule",
@@ -77,22 +76,23 @@ class TestModuleInit:
             "x-debuginfo-0:2.5.48-3.el8+1308+551bfa71",
         ]
 
-        platform_build = ModuleBuild.query.get(1)
+        platform_build = ModuleBuild.get_by_id(db_session, 1)
         mmd = platform_build.mmd()
         for rpm in mmd.get_rpm_filters():
             mmd.remove_rpm_filter(rpm)
         mmd.add_rpm_filter("foo")
         mmd.add_rpm_filter("bar")
+
         platform_build.modulemd = mmd_to_str(mmd)
-        db.session.commit()
+        db_session.commit()
 
         msg = module_build_service.messaging.MBSModule(
             msg_id=None, module_build_id=2, module_build_state="init"
         )
 
-        with make_session(conf) as session:
-            self.fn(config=conf, session=session, msg=msg)
-        build = ModuleBuild.query.filter_by(id=2).one()
+        self.fn(config=conf, session=db_session, msg=msg)
+
+        build = ModuleBuild.get_by_id(db_session, 2)
         # Make sure the module entered the wait state
         assert build.state == 1, build.state
         # Make sure format_mmd was run properly
@@ -103,15 +103,15 @@ class TestModuleInit:
         ]
         return build
 
-    def test_init_called_twice(self):
-        build = self.test_init_basic()
+    def test_init_called_twice(self, db_session):
+        build = self.init_basic(db_session)
         old_component_builds = len(build.component_builds)
         old_mmd = load_mmd(build.modulemd)
 
         build.state = 4
-        db.session.commit()
-        build = self.test_init_basic()
-        db.session.refresh(build)
+        db_session.commit()
+        build = self.init_basic(db_session)
+        db_session.refresh(build)
 
         assert build.state == 1
         assert old_component_builds == len(build.component_builds)
@@ -146,8 +146,8 @@ class TestModuleInit:
     @patch("module_build_service.utils.submit.get_build_arches", return_value=["x86_64"])
     def test_init_includedmodule(self, get_build_arches, mocked_scm, mocked_mod_allow_repo):
         FakeSCM(mocked_scm, "includedmodules", ["testmodule_init.yaml"])
-        includedmodules_yml_path = os.path.join(self.staged_data_dir, "includedmodules.yaml")
-        mmd = load_mmd_file(includedmodules_yml_path)
+        includedmodules_yml_path = read_staged_data("includedmodules")
+        mmd = load_mmd(includedmodules_yml_path)
         # Set the name and stream
         mmd = mmd.copy("includedmodules", "1")
         scmurl = "git://pkgs.domain.local/modules/includedmodule?#da95886"

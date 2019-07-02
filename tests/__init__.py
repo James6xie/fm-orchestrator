@@ -26,7 +26,7 @@ from mock import patch
 import time
 import hashlib
 from traceback import extract_stack
-from module_build_service.utils import to_text_type, load_mmd_file
+from module_build_service.utils import to_text_type, load_mmd
 
 import koji
 import module_build_service
@@ -44,16 +44,22 @@ app = module_build_service.app
 conf = init_config(app)
 
 
+def staged_data_filename(filename):
+    return os.path.join(base_dir, "staged_data", filename)
+
+
 def read_staged_data(yaml_name):
     """Read module YAML content from staged_data directory
 
-    :param str yaml_name: name of YAML file without extension ``.yaml``.
+    :param str yaml_name: name of YAML file which could be with or without
+        extension ``.yaml``. ``.yaml`` will be added if extension is omitted.
     :return: module YAML file's content.
     :rtype: str
     :raises ValueError: if specified module YAML file does not exist in
         staged_data directory.
     """
-    filename = os.path.join(base_dir, "staged_data", "{}.yaml".format(yaml_name))
+    filename = staged_data_filename(
+        yaml_name if '.' in yaml_name else "{}.yaml".format(yaml_name))
     if not os.path.exists(filename):
         raise ValueError("Staged data {}.yaml does not exist.".format(yaml_name))
     with open(filename, "r") as mmd:
@@ -114,7 +120,7 @@ def clean_database(add_platform_module=True, add_default_arches=True):
         db.session.commit()
 
     if add_platform_module:
-        mmd = load_mmd_file(os.path.join(base_dir, "staged_data", "platform.yaml"))
+        mmd = load_mmd(read_staged_data("platform"))
         import_mmd(db.session, mmd)
 
 
@@ -133,7 +139,7 @@ def init_data(data_size=10, contexts=False, multiple_stream_versions=None, scrat
     if multiple_stream_versions:
         if multiple_stream_versions is True:
             multiple_stream_versions = ["f28.0.0", "f29.0.0", "f29.1.0", "f29.2.0"]
-        mmd = load_mmd_file(os.path.join(base_dir, "staged_data", "platform.yaml"))
+        mmd = load_mmd(read_staged_data("platform"))
         for stream in multiple_stream_versions:
             mmd = mmd.copy("platform", stream)
 
@@ -334,10 +340,7 @@ def scheduler_init_data(db_session, tangerine_state=None, scratch=False):
     """
     clean_database()
 
-    current_dir = os.path.dirname(__file__)
-    formatted_testmodule_yml_path = os.path.join(
-        current_dir, "staged_data", "formatted_testmodule.yaml")
-    mmd = load_mmd_file(formatted_testmodule_yml_path)
+    mmd = load_mmd(read_staged_data("formatted_testmodule"))
     mmd.get_rpm_component("tangerine").set_buildorder(0)
 
     module_build = module_build_service.models.ModuleBuild(
@@ -365,7 +368,7 @@ def scheduler_init_data(db_session, tangerine_state=None, scratch=False):
     db_session.add(module_build)
     db_session.commit()
 
-    platform_br = db_session.query(module_build_service.models.ModuleBuild).get(1)
+    platform_br = module_build_service.models.ModuleBuild.get_by_id(db_session, 1)
     module_build.buildrequires.append(platform_br)
 
     arch = db_session.query(module_build_service.models.ModuleArch).get(1)
@@ -440,10 +443,7 @@ def scheduler_init_data(db_session, tangerine_state=None, scratch=False):
 def reuse_component_init_data():
     clean_database()
 
-    current_dir = os.path.dirname(__file__)
-    formatted_testmodule_yml_path = os.path.join(
-        current_dir, "staged_data", "formatted_testmodule.yaml")
-    mmd = load_mmd_file(formatted_testmodule_yml_path)
+    mmd = load_mmd(read_staged_data("formatted_testmodule"))
 
     build_one = module_build_service.models.ModuleBuild(
         name="testmodule",
@@ -477,7 +477,7 @@ def reuse_component_init_data():
     db.session.commit()
     db.session.refresh(build_one)
 
-    platform_br = module_build_service.models.ModuleBuild.query.get(1)
+    platform_br = module_build_service.models.ModuleBuild.get_by_id(db.session, 1)
     build_one.buildrequires.append(platform_br)
 
     arch = module_build_service.models.ModuleArch.query.get(1)
@@ -635,10 +635,7 @@ def reuse_shared_userspace_init_data():
     with make_session(conf) as session:
         # Create shared-userspace-570, state is COMPLETE, all components
         # are properly built.
-        current_dir = os.path.dirname(__file__)
-        formatted_testmodule_yml_path = os.path.join(
-            current_dir, "staged_data", "shared-userspace-570.yaml")
-        mmd = load_mmd_file(formatted_testmodule_yml_path)
+        mmd = load_mmd(read_staged_data("shared-userspace-570"))
 
         module_build = module_build_service.models.ModuleBuild(
             name=mmd.get_module_name(),
@@ -691,10 +688,7 @@ def reuse_shared_userspace_init_data():
         session.commit()
 
         # Create shared-userspace-577, state is WAIT, no component built
-        formatted_testmodule_yml_path = os.path.join(
-            current_dir, "staged_data", "shared-userspace-577.yaml"
-        )
-        mmd2 = load_mmd_file(formatted_testmodule_yml_path)
+        mmd2 = load_mmd(read_staged_data("shared-userspace-577"))
 
         module_build = module_build_service.models.ModuleBuild(
             name=mmd2.get_module_name(),

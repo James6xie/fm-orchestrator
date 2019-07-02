@@ -20,14 +20,13 @@
 #
 # Written by Ralph Bean <rbean@redhat.com>
 
-import os
 import pytest
 
 from mock import patch
 from module_build_service import conf
 from module_build_service.models import ComponentBuild, ModuleBuild, make_session
-from module_build_service.utils.general import load_mmd_file, mmd_to_str
-from tests import init_data as init_data_contexts, clean_database, make_module
+from module_build_service.utils.general import mmd_to_str, load_mmd
+from tests import init_data as init_data_contexts, clean_database, make_module, read_staged_data
 from tests.test_models import init_data, module_build_from_modulemd
 
 
@@ -66,10 +65,7 @@ class TestModels:
         """ Test that the build_context, runtime_context, and context hashes are correctly
         determined"""
         build = ModuleBuild.query.filter_by(id=1).one()
-        yaml_path = os.path.join(
-            os.path.dirname(__file__), "..", "staged_data", "testmodule_dependencies.yaml")
-        mmd = load_mmd_file(yaml_path)
-        build.modulemd = mmd_to_str(mmd)
+        build.modulemd = read_staged_data("testmodule_dependencies")
         (
             build.ref_build_context,
             build.build_context,
@@ -81,22 +77,19 @@ class TestModels:
         assert build.runtime_context == "bbc84c7b817ab3dd54916c0bcd6c6bdf512f7f9c"
         assert build.context == "3ee22b28"
 
-    def test_siblings_property(self):
+    def test_siblings_property(self, db_session):
         """ Tests that the siblings property returns the ID of all modules with
         the same name:stream:version
         """
         clean_database()
-        yaml_path = os.path.join(
-            os.path.dirname(__file__), "..", "staged_data", "formatted_testmodule.yaml")
-        mmd = load_mmd_file(yaml_path)
-        with make_session(conf) as session:
-            for i in range(3):
-                build = module_build_from_modulemd(mmd_to_str(mmd))
-                build.build_context = "f6e2aeec7576196241b9afa0b6b22acf2b6873d" + str(i)
-                build.runtime_context = "bbc84c7b817ab3dd54916c0bcd6c6bdf512f7f9c" + str(i)
-                session.add(build)
-        session.commit()
-        build_one = ModuleBuild.query.get(2)
+        mmd = load_mmd(read_staged_data("formatted_testmodule"))
+        for i in range(3):
+            build = module_build_from_modulemd(mmd_to_str(mmd))
+            build.build_context = "f6e2aeec7576196241b9afa0b6b22acf2b6873d" + str(i)
+            build.runtime_context = "bbc84c7b817ab3dd54916c0bcd6c6bdf512f7f9c" + str(i)
+            db_session.add(build)
+        db_session.commit()
+        build_one = ModuleBuild.get_by_id(db_session, 2)
         assert build_one.siblings == [3, 4]
 
     @pytest.mark.parametrize(

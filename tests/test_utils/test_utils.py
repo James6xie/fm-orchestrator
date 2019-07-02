@@ -31,6 +31,7 @@ import module_build_service.utils
 import module_build_service.scm
 from module_build_service import models, conf
 from module_build_service.errors import ProgrammingError, ValidationError, UnprocessableEntity
+from module_build_service.utils.general import load_mmd
 from tests import (
     reuse_component_init_data,
     db,
@@ -39,7 +40,7 @@ from tests import (
     init_data,
     scheduler_init_data,
     make_module,
-)
+    read_staged_data, staged_data_filename)
 import mock
 import koji
 import pytest
@@ -74,9 +75,7 @@ class FakeSCM(object):
     def checkout(self, temp_dir):
         self.sourcedir = path.join(temp_dir, self.name)
         mkdir(self.sourcedir)
-        base_dir = path.abspath(path.dirname(__file__))
-        copyfile(
-            path.join(base_dir, "..", "staged_data", self.mmd_filename), self.get_module_yaml())
+        copyfile(staged_data_filename(self.mmd_filename), self.get_module_yaml())
 
         return self.sourcedir
 
@@ -315,7 +314,7 @@ class TestUtils:
     def test_get_build_arches(self, ClientSession):
         session = ClientSession.return_value
         session.getTag.return_value = {"arches": "ppc64le"}
-        mmd = load_mmd_file(path.join(BASE_DIR, "..", "staged_data", "formatted_testmodule.yaml"))
+        mmd = load_mmd(read_staged_data("formatted_testmodule"))
         r = module_build_service.utils.get_build_arches(mmd, conf)
         assert r == ["ppc64le"]
 
@@ -326,7 +325,7 @@ class TestUtils:
         """
         session = ClientSession.return_value
         session.getTag.return_value = {"arches": ""}
-        mmd = load_mmd_file(path.join(BASE_DIR, "..", "staged_data", "formatted_testmodule.yaml"))
+        mmd = load_mmd(read_staged_data("formatted_testmodule"))
         r = module_build_service.utils.get_build_arches(mmd, conf)
         assert set(r) == set(conf.arches)
 
@@ -336,7 +335,7 @@ class TestUtils:
         return_value=["testmodule"],
     )
     def test_get_build_arches_koji_tag_arches(self, cfg):
-        mmd = load_mmd_file(path.join(BASE_DIR, "..", "staged_data", "formatted_testmodule.yaml"))
+        mmd = load_mmd(read_staged_data("formatted_testmodule"))
         xmd = mmd.get_xmd()
         xmd["mbs"]["koji_tag_arches"] = ["ppc64", "ppc64le"]
         mmd.set_xmd(xmd)
@@ -346,7 +345,7 @@ class TestUtils:
 
     @patch.object(conf, "base_module_arches", new={"platform:xx": ["x86_64", "i686"]})
     def test_get_build_arches_base_module_override(self):
-        mmd = load_mmd_file(path.join(BASE_DIR, "..", "staged_data", "formatted_testmodule.yaml"))
+        mmd = load_mmd(read_staged_data("formatted_testmodule"))
         xmd = mmd.get_xmd()
         mbs_options = xmd["mbs"] if "mbs" in xmd.keys() else {}
         mbs_options["buildrequires"] = {"platform": {"stream": "xx"}}
@@ -358,7 +357,7 @@ class TestUtils:
 
     @pytest.mark.parametrize("context", ["c1", None])
     def test_import_mmd_contexts(self, context):
-        mmd = load_mmd_file(path.join(BASE_DIR, "..", "staged_data", "formatted_testmodule.yaml"))
+        mmd = load_mmd(read_staged_data("formatted_testmodule"))
         mmd.set_context(context)
 
         xmd = mmd.get_xmd()
@@ -376,7 +375,7 @@ class TestUtils:
             assert build.context == models.DEFAULT_MODULE_CONTEXT
 
     def test_import_mmd_multiple_dependencies(self):
-        mmd = load_mmd_file(path.join(BASE_DIR, "..", "staged_data", "formatted_testmodule.yaml"))
+        mmd = load_mmd(read_staged_data("formatted_testmodule"))
         mmd.add_dependencies(mmd.get_dependencies()[0].copy())
 
         expected_error = "The imported module's dependencies list should contain just one element"
@@ -385,7 +384,7 @@ class TestUtils:
             assert str(e.value) == expected_error
 
     def test_import_mmd_no_xmd_buildrequires(self):
-        mmd = load_mmd_file(path.join(BASE_DIR, "..", "staged_data", "formatted_testmodule.yaml"))
+        mmd = load_mmd(read_staged_data("formatted_testmodule"))
         xmd = mmd.get_xmd()
         del xmd["mbs"]["buildrequires"]
         mmd.set_xmd(xmd)
@@ -399,7 +398,7 @@ class TestUtils:
             assert str(e.value) == expected_error
 
     def test_import_mmd_minimal_xmd_from_local_repository(self):
-        mmd = load_mmd_file(path.join(BASE_DIR, "..", "staged_data", "formatted_testmodule.yaml"))
+        mmd = load_mmd(read_staged_data("formatted_testmodule"))
         xmd = mmd.get_xmd()
         xmd["mbs"] = {}
         xmd["mbs"]["koji_tag"] = "repofile:///etc/yum.repos.d/fedora-modular.repo"
@@ -423,7 +422,7 @@ class TestUtils:
     )
     def test_import_mmd_base_module(self, stream, disttag_marking, error_msg):
         clean_database(add_platform_module=False)
-        mmd = load_mmd_file(path.join(BASE_DIR, "..", "staged_data", "platform.yaml"))
+        mmd = load_mmd(read_staged_data("platform"))
         mmd = mmd.copy(mmd.get_module_name(), stream)
 
         if disttag_marking:
@@ -437,18 +436,20 @@ class TestUtils:
         else:
             module_build_service.utils.import_mmd(db.session, mmd)
 
-    def test_get_rpm_release_mse(self):
+    def test_get_rpm_release_mse(self, db_session):
         init_data(contexts=True)
-        build_one = models.ModuleBuild.query.get(2)
-        build_two = models.ModuleBuild.query.get(3)
+
+        build_one = models.ModuleBuild.get_by_id(db_session, 2)
         release_one = module_build_service.utils.get_rpm_release(build_one)
-        release_two = module_build_service.utils.get_rpm_release(build_two)
         assert release_one == "module+2+b8645bbb"
+
+        build_two = models.ModuleBuild.get_by_id(db_session, 3)
+        release_two = module_build_service.utils.get_rpm_release(build_two)
         assert release_two == "module+2+17e35784"
 
     def test_get_rpm_release_platform_stream(self, db_session):
         scheduler_init_data(db_session, 1)
-        build_one = db_session.query(models.ModuleBuild).get(2)
+        build_one = models.ModuleBuild.get_by_id(db_session, 2)
         release = module_build_service.utils.get_rpm_release(build_one)
         assert release == "module+f28+2+814cfa39"
 
@@ -469,7 +470,7 @@ class TestUtils:
         db_session.add(platform)
         db_session.commit()
 
-        build_one = db_session.query(models.ModuleBuild).get(2)
+        build_one = models.ModuleBuild.get_by_id(db_session, 2)
         release = module_build_service.utils.get_rpm_release(build_one)
         assert release == "module+fedora28+2+814cfa39"
 
@@ -484,14 +485,10 @@ class TestUtils:
         and that module has the xmd.mbs.disttag_marking field set, it should influence the disttag.
         """
         scheduler_init_data(db_session, 1)
-        mmd_path = path.abspath(
-            path.join(
-                __file__, path.pardir, path.pardir, "staged_data", "build_metadata_module.yaml")
-        )
-        metadata_mmd = module_build_service.utils.load_mmd_file(mmd_path)
+        metadata_mmd = load_mmd(read_staged_data("build_metadata_module"))
         module_build_service.utils.import_mmd(db_session, metadata_mmd)
 
-        build_one = db_session.query(models.ModuleBuild).get(2)
+        build_one = models.ModuleBuild.get_by_id(db_session, 2)
         mmd = build_one.mmd()
         deps = mmd.get_dependencies()[0]
         deps.add_buildtime_stream("build", "product1.2")
@@ -511,18 +508,20 @@ class TestUtils:
         release = module_build_service.utils.get_rpm_release(build_one)
         assert release == "module+product12+2+814cfa39"
 
-    def test_get_rpm_release_mse_scratch(self):
+    def test_get_rpm_release_mse_scratch(self, db_session):
         init_data(contexts=True, scratch=True)
-        build_one = models.ModuleBuild.query.get(2)
-        build_two = models.ModuleBuild.query.get(3)
+
+        build_one = models.ModuleBuild.get_by_id(db_session, 2)
         release_one = module_build_service.utils.get_rpm_release(build_one)
-        release_two = module_build_service.utils.get_rpm_release(build_two)
         assert release_one == "scrmod+2+b8645bbb"
+
+        build_two = models.ModuleBuild.get_by_id(db_session, 3)
+        release_two = module_build_service.utils.get_rpm_release(build_two)
         assert release_two == "scrmod+2+17e35784"
 
     def test_get_rpm_release_platform_stream_scratch(self, db_session):
         scheduler_init_data(db_session, 1, scratch=True)
-        build_one = db_session.query(models.ModuleBuild).get(2)
+        build_one = models.ModuleBuild.get_by_id(db_session, 2)
         release = module_build_service.utils.get_rpm_release(build_one)
         assert release == "scrmod+f28+2+814cfa39"
 
@@ -530,7 +529,7 @@ class TestUtils:
     def test_record_module_build_arches(self, get_build_arches, db_session):
         get_build_arches.return_value = ["x86_64", "i686"]
         scheduler_init_data(db_session, 1)
-        build = db_session.query(models.ModuleBuild).get(2)
+        build = models.ModuleBuild.get_by_id(db_session, 2)
         build.arches = []
         module_build_service.utils.record_module_build_arches(build.mmd(), build, db_session)
 
@@ -565,7 +564,7 @@ class TestUtils:
             return hashes_returned[ref]
 
         mocked_scm.return_value.get_latest = mocked_get_latest
-        mmd = load_mmd_file(path.join(BASE_DIR, "..", "staged_data", "testmodule.yaml"))
+        mmd = load_mmd(read_staged_data("testmodule"))
         # Modify the component branches so we can identify them later on
         mmd.get_rpm_component("perl-Tangerine").set_ref("f28")
         mmd.get_rpm_component("tangerine").set_ref("f27")
@@ -597,7 +596,7 @@ class TestUtils:
         mmd_xmd = mmd.get_xmd()
         assert mmd_xmd == xmd
 
-    def test_get_reusable_component_shared_userspace_ordering(self):
+    def test_get_reusable_component_shared_userspace_ordering(self, db_session):
         """
         For modules with lot of components per batch, there is big chance that
         the database will return them in different order than what we have for
@@ -605,7 +604,7 @@ class TestUtils:
         reuse the components.
         """
         reuse_shared_userspace_init_data()
-        new_module = models.ModuleBuild.query.get(3)
+        new_module = models.ModuleBuild.get_by_id(db_session, 3)
         rv = module_build_service.utils.get_reusable_component(db.session, new_module, "llvm")
         assert rv.package == "llvm"
 
@@ -724,8 +723,7 @@ class TestUtils:
                 "fbed359411a1baa08d4a88e0d12d426fbf8f602c",
             ]
 
-            testmodule_mmd_path = path.join(BASE_DIR, "..", "staged_data", "testmodule.yaml")
-            mmd = load_mmd_file(testmodule_mmd_path)
+            mmd = load_mmd(read_staged_data("testmodule"))
             mmd = mmd.copy("testmodule-variant", "master")
             module_build = module_build_service.models.ModuleBuild()
             module_build.name = "testmodule-variant"
@@ -770,8 +768,7 @@ class TestUtils:
                 "dbed259411a1baa08d4a88e0d12d426fbf8f6037",
             ]
 
-            testmodule_mmd_path = path.join(BASE_DIR, "..", "staged_data", "testmodule.yaml")
-            mmd = load_mmd_file(testmodule_mmd_path)
+            mmd = load_mmd(read_staged_data("testmodule"))
             # Set the module name and stream
             mmd = mmd.copy("testmodule", "master")
             module_build = module_build_service.models.ModuleBuild()
@@ -811,7 +808,7 @@ class TestUtils:
                 "dbed259411a1baa08d4a88e0d12d426fbf8f6037",
             ]
 
-            testmodule_mmd_path = path.join(BASE_DIR, "..", "staged_data", "testmodule.yaml")
+            testmodule_mmd_path = staged_data_filename("testmodule.yaml")
             test_archs = ["powerpc", "i486"]
 
             mmd1 = load_mmd_file(testmodule_mmd_path)
@@ -837,26 +834,23 @@ class TestUtils:
 
     @patch("module_build_service.scm.SCM")
     @patch("module_build_service.utils.submit.ThreadPool")
-    def test_format_mmd_update_time_modified(self, tp, mocked_scm):
-        with app.app_context():
-            init_data()
-            build = models.ModuleBuild.query.get(2)
+    def test_format_mmd_update_time_modified(self, tp, mocked_scm, db_session):
+        init_data()
+        build = models.ModuleBuild.get_by_id(db_session, 2)
 
-            async_result = mock.MagicMock()
-            async_result.ready.side_effect = [False, False, False, True]
-            tp.return_value.map_async.return_value = async_result
+        async_result = mock.MagicMock()
+        async_result.ready.side_effect = [False, False, False, True]
+        tp.return_value.map_async.return_value = async_result
 
-            test_datetime = datetime(2019, 2, 14, 11, 11, 45, 42968)
+        test_datetime = datetime(2019, 2, 14, 11, 11, 45, 42968)
 
-            testmodule_mmd_path = path.join(BASE_DIR, "..", "staged_data", "testmodule.yaml")
+        mmd = load_mmd(read_staged_data("testmodule"))
 
-            mmd1 = load_mmd_file(testmodule_mmd_path)
+        with patch("module_build_service.utils.submit.datetime") as dt:
+            dt.utcnow.return_value = test_datetime
+            module_build_service.utils.format_mmd(mmd, None, build, db_session)
 
-            with patch("module_build_service.utils.submit.datetime") as dt:
-                dt.utcnow.return_value = test_datetime
-                module_build_service.utils.format_mmd(mmd1, None, build, db.session)
-
-            assert build.time_modified == test_datetime
+        assert build.time_modified == test_datetime
 
     def test_generate_koji_tag_in_nsvc_format(self):
         name, stream, version, context = ("testmodule", "master", "20170816080815", "37c6c57")
@@ -902,13 +896,13 @@ class TestUtils:
 
     def test_get_prefixed_version_f28(self, db_session):
         scheduler_init_data(db_session, 1)
-        build_one = db_session.query(models.ModuleBuild).get(2)
+        build_one = models.ModuleBuild.get_by_id(db_session, 2)
         v = module_build_service.utils.submit.get_prefixed_version(build_one.mmd())
         assert v == 2820180205135154
 
     def test_get_prefixed_version_fl701(self, db_session):
         scheduler_init_data(db_session, 1)
-        build_one = db_session.query(models.ModuleBuild).get(2)
+        build_one = models.ModuleBuild.get_by_id(db_session, 2)
         mmd = build_one.mmd()
         xmd = mmd.get_xmd()
         xmd["mbs"]["buildrequires"]["platform"]["stream"] = "fl7.0.1-beta"
@@ -1304,7 +1298,7 @@ class TestBatches:
 @patch(
     "module_build_service.config.Config.mock_resultsdir",
     new_callable=mock.PropertyMock,
-    return_value=path.join(BASE_DIR, "..", "staged_data", "local_builds"),
+    return_value=staged_data_filename("local_builds")
 )
 @patch(
     "module_build_service.config.Config.system", new_callable=mock.PropertyMock, return_value="mock"
@@ -1404,8 +1398,7 @@ class TestOfflineLocalBuilds:
         with patch("dnf.Base") as dnf_base:
             repo = mock.MagicMock()
             repo.repofile = "/etc/yum.repos.d/foo.repo"
-            tm_path = path.join(BASE_DIR, "..", "staged_data", "formatted_testmodule.yaml")
-            mmd = load_mmd_file(tm_path)
+            mmd = load_mmd(read_staged_data("formatted_testmodule"))
             repo.get_metadata_content.return_value = mmd_to_str(mmd)
             base = dnf_base.return_value
             base.repos = {"reponame": repo}

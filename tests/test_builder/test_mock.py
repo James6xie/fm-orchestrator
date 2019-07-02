@@ -10,8 +10,8 @@ import kobo.rpmlib
 from module_build_service import conf
 from module_build_service.models import ModuleBuild, ComponentBuild, make_session
 from module_build_service.builder.MockModuleBuilder import MockModuleBuilder
-from module_build_service.utils import import_fake_base_module, load_mmd_file, mmd_to_str
-from tests import clean_database, make_module
+from module_build_service.utils import import_fake_base_module, mmd_to_str, load_mmd
+from tests import clean_database, make_module, read_staged_data
 
 
 class TestMockModuleBuilder:
@@ -24,9 +24,7 @@ class TestMockModuleBuilder:
         shutil.rmtree(self.resultdir)
 
     def _create_module_with_filters(self, session, batch, state):
-        base_dir = os.path.abspath(os.path.dirname(__file__))
-        mmd = load_mmd_file(
-            os.path.join(base_dir, "..", "staged_data", "testmodule-with-filters.yaml"))
+        mmd = load_mmd(read_staged_data("testmodule-with-filters"))
         # Set the name and stream
         mmd = mmd.copy("mbs-testmodule", "test")
         mmd.set_xmd({

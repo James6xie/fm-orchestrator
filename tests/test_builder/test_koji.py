@@ -136,7 +136,7 @@ class TestKojiBuilder:
             "/module-base-runtime-0.25-9/latest/x86_64"
         )
 
-    def test_recover_orphaned_artifact_when_tagged(self):
+    def test_recover_orphaned_artifact_when_tagged(self, db_session):
         """ Test recover_orphaned_artifact when the artifact is found and tagged in both tags
         """
         builder = FakeKojiModuleBuilder(
@@ -154,7 +154,7 @@ class TestKojiBuilder:
         build_tagged = [{"nvr": "foo-1.0-1.module+e0095747", "task_id": 12345, "build_id": 91}]
         dest_tagged = [{"nvr": "foo-1.0-1.module+e0095747", "task_id": 12345, "build_id": 91}]
         builder.koji_session.listTagged.side_effect = [build_tagged, dest_tagged]
-        module_build = module_build_service.models.ModuleBuild.query.get(4)
+        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 4)
         component_build = module_build.component_builds[0]
         component_build.task_id = None
         component_build.state = None
@@ -181,7 +181,7 @@ class TestKojiBuilder:
         assert component_build.state_reason == "Found existing build"
         assert builder.koji_session.tagBuild.call_count == 0
 
-    def test_recover_orphaned_artifact_when_untagged(self):
+    def test_recover_orphaned_artifact_when_untagged(self, db_session):
         """ Tests recover_orphaned_artifact when the build is found but untagged
         """
         builder = FakeKojiModuleBuilder(
@@ -203,7 +203,7 @@ class TestKojiBuilder:
         builder.koji_session.untaggedBuilds.return_value = untagged
         build_info = {"nvr": "foo-1.0-1.{0}".format(dist_tag), "task_id": 12345, "build_id": 91}
         builder.koji_session.getBuild.return_value = build_info
-        module_build = module_build_service.models.ModuleBuild.query.get(4)
+        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 4)
         component_build = module_build.component_builds[0]
         component_build.task_id = None
         component_build.nvr = None
@@ -224,7 +224,7 @@ class TestKojiBuilder:
         assert component_build.state_reason == "Found existing build"
         builder.koji_session.tagBuild.assert_called_once_with(2, "foo-1.0-1.{0}".format(dist_tag))
 
-    def test_recover_orphaned_artifact_when_nothing_exists(self):
+    def test_recover_orphaned_artifact_when_nothing_exists(self, db_session):
         """ Test recover_orphaned_artifact when the build is not found
         """
         builder = FakeKojiModuleBuilder(
@@ -243,7 +243,7 @@ class TestKojiBuilder:
         builder.koji_session.listTagged.return_value = tagged
         untagged = [{"nvr": "foo-1.0-1.nope", "release": "nope"}]
         builder.koji_session.untaggedBuilds.return_value = untagged
-        module_build = module_build_service.models.ModuleBuild.query.get(4)
+        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 4)
         component_build = module_build.component_builds[0]
         component_build.task_id = None
         component_build.nvr = None
@@ -729,7 +729,9 @@ class TestKojiBuilder:
         ),
     )
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
-    def test_get_filtered_rpms_on_self_dep(self, ClientSession, br_filtered_rpms, expected):
+    def test_get_filtered_rpms_on_self_dep(
+        self, ClientSession, br_filtered_rpms, expected, db_session
+    ):
         session = ClientSession.return_value
         session.listTaggedRPMS.return_value = (
             [
@@ -774,7 +776,7 @@ class TestKojiBuilder:
             ],
         )
         reuse_component_init_data()
-        current_module = module_build_service.models.ModuleBuild.query.get(3)
+        current_module = module_build_service.models.ModuleBuild.get_by_id(db_session, 3)
         rv = KojiModuleBuilder._get_filtered_rpms_on_self_dep(current_module, br_filtered_rpms)
         assert set(rv) == set(expected)
         session.assert_not_called()

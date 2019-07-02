@@ -29,9 +29,9 @@ from shutil import copyfile
 from datetime import datetime, timedelta
 from random import randint
 import hashlib
-from module_build_service.utils import to_text_type
 
 import module_build_service.messaging
+import module_build_service.scheduler.consumer
 import module_build_service.scheduler.handlers.repos
 import module_build_service.utils
 from module_build_service.errors import Forbidden
@@ -43,14 +43,15 @@ from werkzeug.datastructures import FileStorage
 import kobo
 import pytest
 
-from tests import app, reuse_component_init_data, clean_database
 import json
 import itertools
 
 from module_build_service.builder.base import GenericBuilder
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
-import module_build_service.scheduler.consumer
 from module_build_service.messaging import MBSModule
+from tests import (
+    app, reuse_component_init_data, clean_database, read_staged_data, staged_data_filename
+)
 
 base_dir = dirname(dirname(__file__))
 
@@ -81,9 +82,7 @@ class FakeSCM(object):
     def checkout(self, temp_dir):
         self.sourcedir = path.join(temp_dir, self.name)
         mkdir(self.sourcedir)
-        base_dir = path.abspath(path.dirname(__file__))
-        copyfile(
-            path.join(base_dir, "..", "staged_data", self.mmd_filename), self.get_module_yaml())
+        copyfile(staged_data_filename(self.mmd_filename), self.get_module_yaml())
 
         return self.sourcedir
 
@@ -578,9 +577,8 @@ class TestBuild(BaseTestBuild):
     ):
         FakeSCM(mocked_scm, "testmodule", "testmodule.yaml")
 
-        testmodule = os.path.join(base_dir, "staged_data", "testmodule.yaml")
-        with open(testmodule) as f:
-            yaml = to_text_type(f.read())
+        testmodule_filename = staged_data_filename("testmodule.yaml")
+        yaml = read_staged_data("testmodule")
 
         with patch.object(
             module_build_service.config.Config,
@@ -591,7 +589,7 @@ class TestBuild(BaseTestBuild):
             rv = self.client.post(
                 "/module-build-service/1/module-builds/",
                 content_type="multipart/form-data",
-                data={"yaml": (testmodule, yaml)},
+                data={"yaml": (testmodule_filename, yaml)},
             )
             data = json.loads(rv.data)
             assert data["status"] == 403
@@ -604,7 +602,6 @@ class TestBuild(BaseTestBuild):
     ):
         FakeSCM(
             mocked_scm, "testmodule", "testmodule.yaml", "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
-        testmodule = os.path.join(base_dir, "staged_data", "testmodule.yaml")
 
         with patch.object(
             module_build_service.config.Config,
@@ -612,7 +609,7 @@ class TestBuild(BaseTestBuild):
             new_callable=PropertyMock,
             return_value=True,
         ):
-            with open(testmodule, "rb") as f:
+            with open(staged_data_filename("testmodule.yaml"), "rb") as f:
                 yaml_file = FileStorage(f)
                 rv = self.client.post(
                     "/module-build-service/1/module-builds/",
@@ -1123,11 +1120,7 @@ class TestBuild(BaseTestBuild):
         build_one.runtime_context = "9c690d0e"
         build_one.context = "9c690d0e"
         build_one.state = models.BUILD_STATES["failed"]
-        current_dir = os.path.dirname(__file__)
-        formatted_testmodule_yml_path = os.path.join(
-            current_dir, "..", "staged_data", "formatted_testmodule.yaml")
-        with open(formatted_testmodule_yml_path, "r") as f:
-            build_one.modulemd = to_text_type(f.read())
+        build_one.modulemd = read_staged_data("formatted_testmodule")
         build_one.koji_tag = "module-testmodule-master-20180205135154-9c690d0e"
         build_one.scmurl = "https://src.stg.fedoraproject.org/modules/testmodule.git?#7fea453"
         build_one.batch = 2
@@ -1266,11 +1259,7 @@ class TestBuild(BaseTestBuild):
         # this is not calculated by real but just a value to
         # match the calculated context from expanded test mmd
         build_one.context = "9c690d0e"
-        current_dir = os.path.dirname(__file__)
-        formatted_testmodule_yml_path = os.path.join(
-            current_dir, "..", "staged_data", "formatted_testmodule.yaml")
-        with open(formatted_testmodule_yml_path, "r") as f:
-            build_one.modulemd = to_text_type(f.read())
+        build_one.modulemd = read_staged_data("formatted_testmodule")
         build_one.koji_tag = "module-testmodule-master-20180205135154-6ef9a711"
         build_one.scmurl = "https://src.stg.fedoraproject.org/modules/testmodule.git?#7fea453"
         build_one.batch = 2
@@ -1661,7 +1650,7 @@ class TestBuild(BaseTestBuild):
 
         # Simulate a random repo regen message that MBS didn't expect
         cleanup_moksha()
-        module = db_session.query(models.ModuleBuild).get(module_build_id)
+        module = models.ModuleBuild.get_by_id(db_session, module_build_id)
         msgs = [
             module_build_service.messaging.KojiRepoChange(
                 msg_id="a faked internal message", repo_tag=module.koji_tag + "-build"
@@ -1684,8 +1673,8 @@ class TestBuild(BaseTestBuild):
         Test that when a build is submitted with a buildrequire without a Koji tag,
         MBS doesn't supply it as a dependency to the builder.
         """
-        metadata_mmd = module_build_service.utils.load_mmd_file(
-            path.join(base_dir, "staged_data", "build_metadata_module.yaml")
+        metadata_mmd = module_build_service.utils.load_mmd(
+            read_staged_data("build_metadata_module")
         )
         module_build_service.utils.import_mmd(db.session, metadata_mmd)
 
@@ -1744,7 +1733,7 @@ class TestLocalBuild(BaseTestBuild):
     @patch(
         "module_build_service.config.Config.mock_resultsdir",
         new_callable=PropertyMock,
-        return_value=path.join(base_dir, "staged_data", "local_builds"),
+        return_value=staged_data_filename('local_builds'),
     )
     def test_submit_build_local_dependency(
         self, resultsdir, mocked_scm, mocked_get_user, conf_system, hmsc, db_session

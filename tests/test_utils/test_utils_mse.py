@@ -18,15 +18,13 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import os
-
 from mock import patch, PropertyMock
 import pytest
 
 import module_build_service.utils
 from module_build_service import Modulemd
 from module_build_service.errors import StreamAmbigous
-from tests import db, clean_database, make_module, init_data, base_dir
+from tests import db, clean_database, make_module, init_data, read_staged_data
 
 
 class TestUtilsModuleStreamExpansion:
@@ -407,8 +405,7 @@ class TestUtilsModuleStreamExpansion:
     def test__get_base_module_mmds(self):
         """Ensure the correct results are returned without duplicates."""
         init_data(data_size=1, multiple_stream_versions=True)
-        mmd = module_build_service.utils.load_mmd_file(
-            os.path.join(base_dir, "staged_data", "testmodule_v2.yaml"))
+        mmd = module_build_service.utils.load_mmd(read_staged_data("testmodule_v2.yaml"))
         deps = mmd.get_dependencies()[0]
         new_deps = Modulemd.Dependencies()
         for stream in deps.get_runtime_streams("platform"):
@@ -432,8 +429,7 @@ class TestUtilsModuleStreamExpansion:
     def test__get_base_module_mmds_virtual_streams(self, virtual_streams, db_session):
         """Ensure the correct results are returned without duplicates."""
         init_data(data_size=1, multiple_stream_versions=True)
-        mmd = module_build_service.utils.load_mmd_file(
-            os.path.join(base_dir, "staged_data", "testmodule_v2.yaml"))
+        mmd = module_build_service.utils.load_mmd(read_staged_data("testmodule_v2"))
         deps = mmd.get_dependencies()[0]
         new_deps = Modulemd.Dependencies()
         for stream in deps.get_runtime_streams("platform"):
@@ -465,8 +461,7 @@ class TestUtilsModuleStreamExpansion:
     def test__get_base_module_mmds_virtual_streams_only_major_versions(self, cfg):
         """Ensure the correct results are returned without duplicates."""
         init_data(data_size=1, multiple_stream_versions=["foo28", "foo29", "foo30"])
-        mmd = module_build_service.utils.load_mmd_file(
-            os.path.join(base_dir, "staged_data", "testmodule_v2.yaml"))
+        mmd = module_build_service.utils.load_mmd(read_staged_data("testmodule_v2"))
         deps = mmd.get_dependencies()[0]
         new_deps = Modulemd.Dependencies()
         for stream in deps.get_runtime_streams("platform"):

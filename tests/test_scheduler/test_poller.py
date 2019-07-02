@@ -442,28 +442,29 @@ class TestPoller:
         # Ensure we did *not* process any of the non-waiting builds.
         assert consumer.incoming.qsize() == 0
 
-    def test_cleanup_stale_failed_builds(self, create_builder, global_consumer, dbg):
+    def test_cleanup_stale_failed_builds(self, create_builder, global_consumer, dbg, db_session):
         """ Test that one of the two module builds gets to the garbage state when running
         cleanup_stale_failed_builds.
         """
         builder = mock.MagicMock()
         create_builder.return_value = builder
-        module_build_one = models.ModuleBuild.query.get(2)
-        module_build_two = models.ModuleBuild.query.get(3)
+
+        module_build_one = models.ModuleBuild.get_by_id(db_session, 2)
         module_build_one.state = models.BUILD_STATES["failed"]
         module_build_one.time_modified = datetime.utcnow() - timedelta(
             days=conf.cleanup_failed_builds_time + 1)
+
+        module_build_two = models.ModuleBuild.get_by_id(db_session, 3)
         module_build_two.time_modified = datetime.utcnow()
         module_build_two.state = models.BUILD_STATES["failed"]
-        failed_component = models.ComponentBuild.query.filter_by(
+
+        failed_component = db_session.query(models.ComponentBuild).filter_by(
             package="tangerine", module_id=3).one()
         failed_component.state = koji.BUILD_STATES["FAILED"]
         failed_component.tagged = False
         failed_component.tagged_in_final = False
-        db.session.add(failed_component)
-        db.session.add(module_build_one)
-        db.session.add(module_build_two)
-        db.session.commit()
+
+        db_session.commit()
 
         consumer = mock.MagicMock()
         consumer.incoming = queue.Queue()
@@ -473,8 +474,8 @@ class TestPoller:
 
         # Ensure the queue is empty before we start
         assert consumer.incoming.qsize() == 0
-        poller.cleanup_stale_failed_builds(conf, db.session)
-        db.session.refresh(module_build_two)
+        poller.cleanup_stale_failed_builds(conf, db_session)
+        db_session.refresh(module_build_two)
         # Make sure module_build_one was transitioned to garbage
         assert module_build_one.state == models.BUILD_STATES["garbage"]
         state_reason = (
@@ -496,25 +497,27 @@ class TestPoller:
             "module-build-macros-0.1-1.module+0+d027b723",
         ])
 
-    def test_cleanup_stale_failed_builds_no_components(self, create_builder, global_consumer, dbg):
+    def test_cleanup_stale_failed_builds_no_components(
+        self, create_builder, global_consumer, dbg, db_session
+    ):
         """ Test that a module build without any components built gets to the garbage state when
         running cleanup_stale_failed_builds.
         """
-        module_build_one = models.ModuleBuild.query.get(1)
-        module_build_two = models.ModuleBuild.query.get(2)
+        module_build_one = models.ModuleBuild.get_by_id(db_session, 1)
         module_build_one.state = models.BUILD_STATES["failed"]
         module_build_one.time_modified = datetime.utcnow()
+
+        module_build_two = models.ModuleBuild.get_by_id(db_session, 2)
         module_build_two.state = models.BUILD_STATES["failed"]
         module_build_two.time_modified = datetime.utcnow() - timedelta(
             days=conf.cleanup_failed_builds_time + 1)
         module_build_two.koji_tag = None
         module_build_two.cg_build_koji_tag = None
+
         for c in module_build_two.component_builds:
             c.state = None
-            db.session.add(c)
-        db.session.add(module_build_one)
-        db.session.add(module_build_two)
-        db.session.commit()
+
+        db_session.commit()
 
         consumer = mock.MagicMock()
         consumer.incoming = queue.Queue()
@@ -524,8 +527,8 @@ class TestPoller:
 
         # Ensure the queue is empty before we start
         assert consumer.incoming.qsize() == 0
-        poller.cleanup_stale_failed_builds(conf, db.session)
-        db.session.refresh(module_build_two)
+        poller.cleanup_stale_failed_builds(conf, db_session)
+        db_session.refresh(module_build_two)
         # Make sure module_build_two was transitioned to garbage
         assert module_build_two.state == models.BUILD_STATES["garbage"]
         state_reason = (
@@ -541,24 +544,26 @@ class TestPoller:
     @pytest.mark.parametrize(
         "test_state", [models.BUILD_STATES[state] for state in conf.cleanup_stuck_builds_states]
     )
-    def test_cancel_stuck_module_builds(self, create_builder, global_consumer, dbg, test_state):
+    def test_cancel_stuck_module_builds(
+        self, create_builder, global_consumer, dbg, test_state, db_session
+    ):
 
-        module_build1 = models.ModuleBuild.query.get(1)
+        module_build1 = models.ModuleBuild.get_by_id(db_session, 1)
         module_build1.state = test_state
         under_thresh = conf.cleanup_stuck_builds_time - 1
         module_build1.time_modified = datetime.utcnow() - timedelta(
             days=under_thresh, hours=23, minutes=59)
 
-        module_build2 = models.ModuleBuild.query.get(2)
+        module_build2 = models.ModuleBuild.get_by_id(db_session, 2)
         module_build2.state = test_state
         module_build2.time_modified = datetime.utcnow() - timedelta(
             days=conf.cleanup_stuck_builds_time)
 
-        module_build2 = models.ModuleBuild.query.get(3)
+        module_build2 = models.ModuleBuild.get_by_id(db_session, 3)
         module_build2.state = test_state
         module_build2.time_modified = datetime.utcnow()
 
-        db.session.commit()
+        db_session.commit()
 
         consumer = mock.MagicMock()
         consumer.incoming = queue.Queue()
@@ -568,9 +573,9 @@ class TestPoller:
 
         assert consumer.incoming.qsize() == 0
 
-        poller.cancel_stuck_module_builds(conf, db.session)
+        poller.cancel_stuck_module_builds(conf, db_session)
 
-        module = models.ModuleBuild.query.filter_by(state=4).all()
+        module = db_session.query(models.ModuleBuild).filter_by(state=4).all()
         assert len(module) == 1
         assert module[0].id == 2
 
@@ -634,18 +639,20 @@ class TestPoller:
 
     @pytest.mark.parametrize("greenwave_result", [True, False])
     @patch("module_build_service.utils.greenwave.Greenwave.check_gating")
-    def test_poll_greenwave(self, mock_gw, create_builder, global_consumer, dbg, greenwave_result):
+    def test_poll_greenwave(
+        self, mock_gw, create_builder, global_consumer, dbg, greenwave_result, db_session
+    ):
 
-        module_build1 = models.ModuleBuild.query.get(1)
+        module_build1 = models.ModuleBuild.get_by_id(db_session, 1)
         module_build1.state = models.BUILD_STATES["ready"]
 
-        module_build2 = models.ModuleBuild.query.get(2)
+        module_build2 = models.ModuleBuild.get_by_id(db_session, 2)
         module_build2.state = models.BUILD_STATES["done"]
 
-        module_build2 = models.ModuleBuild.query.get(3)
+        module_build2 = models.ModuleBuild.get_by_id(db_session, 3)
         module_build2.state = models.BUILD_STATES["init"]
 
-        db.session.commit()
+        db_session.commit()
 
         consumer = mock.MagicMock()
         consumer.incoming = queue.Queue()

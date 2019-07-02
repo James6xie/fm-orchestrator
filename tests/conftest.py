@@ -24,19 +24,19 @@ import pytest
 
 from module_build_service import conf
 from module_build_service.models import make_session
-from module_build_service.utils.general import load_mmd_file, mmd_to_str
-
+from module_build_service.utils.general import mmd_to_str, load_mmd
+from tests import read_staged_data
 
 BASE_DIR = os.path.dirname(__file__)
 STAGED_DATA_DIR = os.path.join(BASE_DIR, "staged_data")
 
-_mmd = load_mmd_file(os.path.join(STAGED_DATA_DIR, "platform.yaml"))
+_mmd = load_mmd(read_staged_data("platform"))
 PLATFORM_MODULEMD = mmd_to_str(_mmd)
 
-_mmd2 = load_mmd_file(os.path.join(STAGED_DATA_DIR, "formatted_testmodule.yaml"))
+_mmd2 = load_mmd(read_staged_data("formatted_testmodule"))
 TESTMODULE_MODULEMD = mmd_to_str(_mmd2)
 
-_mmd3 = load_mmd_file(os.path.join(STAGED_DATA_DIR, "formatted_testmodule.yaml"))
+_mmd3 = load_mmd(read_staged_data("formatted_testmodule"))
 _mmd3.set_context("c2c572ed")
 TESTMODULE_MODULEMD_SECOND_CONTEXT = mmd_to_str(_mmd3)
 
