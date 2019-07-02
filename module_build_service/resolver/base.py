@@ -99,6 +99,10 @@ class GenericResolver(six.with_metaclass(ABCMeta)):
         return False
 
     @abstractmethod
+    def get_module(self, name, stream, version, context, state="ready", strict=False):
+        raise NotImplementedError()
+
+    @abstractmethod
     def get_module_count(self, **kwargs):
         raise NotImplementedError()
 

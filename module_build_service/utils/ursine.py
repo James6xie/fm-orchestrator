@@ -279,7 +279,7 @@ def find_module_built_rpms(modules_nsvc):
 
     for nsvc in modules_nsvc:
         name, stream, version, context = nsvc.split(":")
-        module = resolver._get_module(name, stream, version, context, strict=True)
+        module = resolver.get_module(name, stream, version, context, strict=True)
         rpms = koji_session.listTaggedRPMS(module["koji_tag"], latest=True)[0]
         built_rpms.extend(kobo.rpmlib.make_nvr(rpm, force_epoch=True) for rpm in rpms)
 

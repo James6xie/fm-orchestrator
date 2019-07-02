@@ -42,7 +42,7 @@ class DBResolver(GenericResolver):
     def __init__(self, config):
         self.config = config
 
-    def _get_module(
+    def get_module(
         self, name, stream, version, context, state=models.BUILD_STATES["ready"], strict=False
     ):
         with models.make_session(self.config) as session:
@@ -114,7 +114,7 @@ class DBResolver(GenericResolver):
         :return: List of Modulemd metadata instances matching the query
         """
         if version and context:
-            mmd = self._get_module(name, stream, version, context, strict=strict)
+            mmd = self.get_module(name, stream, version, context, strict=strict)
             if mmd is None:
                 return
             return [load_mmd(mmd["modulemd"])]

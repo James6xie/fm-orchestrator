@@ -121,7 +121,7 @@ class MBSResolver(GenericResolver):
         else:
             return modules
 
-    def _get_module(self, name, stream, version, context, state="ready", strict=False):
+    def get_module(self, name, stream, version, context, state="ready", strict=False):
         rv = self._get_modules(name, stream, version, context, state, strict)
         if rv:
             return rv[0]
@@ -335,7 +335,7 @@ class MBSResolver(GenericResolver):
         if mmd:
             queried_mmd = mmd
         else:
-            queried_module = self._get_module(name, stream, version, context, strict=strict)
+            queried_module = self.get_module(name, stream, version, context, strict=strict)
             yaml = queried_module["modulemd"]
             queried_mmd = load_mmd(yaml)
 
@@ -419,7 +419,7 @@ class MBSResolver(GenericResolver):
             commit_hash = None
             version = None
             filtered_rpms = []
-            module = self._get_module(
+            module = self.get_module(
                 module_name, module_stream, module_version, module_context, strict=True
             )
             if module.get("modulemd"):

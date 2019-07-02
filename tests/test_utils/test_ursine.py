@@ -307,7 +307,7 @@ class TestRecordStreamCollisionModules:
             }["{}:{}:{}:{}".format(name, stream, version, context)]
 
         resolver = resolver_create.return_value
-        resolver._get_module.side_effect = mock_get_module
+        resolver.get_module.side_effect = mock_get_module
 
         def mock_listTaggedRPMS(tag, latest):
             return {
