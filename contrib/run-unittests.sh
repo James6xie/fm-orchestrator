@@ -64,6 +64,15 @@ if [ -n "$with_pgsql" ]; then
             -d \
             $postgres_image
     )
+
+    # Waiting for postgres container to start completely in case tests start too fast.
+    while true
+    do
+        docker exec $db_bg_container psql -U postgres -c '\dp' $db_name >/dev/null 2>&1
+        if [ $? == 0 ]; then
+            break
+        fi
+    done
 fi
 
 (cd "$source_dir" && docker run "${container_opts[@]}" $test_image "$@")
