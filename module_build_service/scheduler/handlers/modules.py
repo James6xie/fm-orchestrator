@@ -39,6 +39,7 @@ from module_build_service.utils import (
 from module_build_service.errors import UnprocessableEntity, Forbidden, ValidationError
 from module_build_service.utils.ursine import handle_stream_collision_modules
 from module_build_service.utils.greenwave import greenwave
+from module_build_service.scheduler.default_modules import add_default_modules
 
 from requests.exceptions import ConnectionError
 from module_build_service.utils import mmd_to_str
@@ -163,6 +164,7 @@ def init(config, session, msg):
     failure_reason = "unspec"
     try:
         mmd = build.mmd()
+        add_default_modules(session, mmd)
         record_module_build_arches(mmd, build, session)
         record_component_builds(mmd, build, session=session)
         # The ursine.handle_stream_collision_modules is Koji specific.

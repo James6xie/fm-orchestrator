@@ -72,6 +72,10 @@ Custom fields in xmd:
   module in the disttag of the RPMS being built. If the stream is not the appropriate value, then
   this can be overridden with a custom value using this property. This value can't contain a dash,
   since that is an invalid character in the disttag.
+- ``default_modules_url`` -  the URL to the list of modules, in the format of ``name:stream``
+  separated by new lines, to include as default modules for any module that buildrequires this
+  module. Any default modules with conflicting streams will be ignored as well as any default module
+  not found in the MBS database. This field only applies to base modules.
 
 
 Virtual Streams
