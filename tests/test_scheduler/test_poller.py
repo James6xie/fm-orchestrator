@@ -105,6 +105,60 @@ class TestPoller:
 
         assert len(start_build_component.mock_calls) == expected_build_calls
 
+    @pytest.mark.parametrize('task_state, expect_start_build_component', (
+        (None, True),  # Indicates a newRepo task has not been triggered yet.
+        (koji.TASK_STATES["CLOSED"], True),
+        (koji.TASK_STATES["OPEN"], False),
+    ))
+    @patch("module_build_service.utils.batches.start_build_component")
+    def test_process_paused_module_builds_with_new_repo_task(
+        self, start_build_component, create_builder, global_consumer, dbg, task_state,
+        expect_start_build_component
+    ):
+        """
+        Tests general use-case of process_paused_module_builds.
+        """
+        consumer = mock.MagicMock()
+        consumer.incoming = queue.Queue()
+        global_consumer.return_value = consumer
+
+        builder = mock.MagicMock()
+        create_builder.return_value = builder
+
+        # Change the batch to 2, so the module build is in state where
+        # it is not building anything, but the state is "build".
+        module_build = models.ModuleBuild.query.get(3)
+        module_build.batch = 2
+        module_build.time_modified = datetime.utcnow() - timedelta(days=5)
+        if task_state:
+            koji_session = mock.MagicMock()
+            koji_session.getTaskInfo.return_value = {"state": task_state}
+            builder.koji_session = koji_session
+            module_build.new_repo_task_id = 123
+        db.session.commit()
+
+        # Poll :)
+        hub = mock.MagicMock()
+        poller = MBSProducer(hub)
+        poller.poll()
+
+        # Refresh our module_build object.
+        module_build = models.ModuleBuild.query.get(3)
+        db.session.refresh(module_build)
+
+        if expect_start_build_component:
+            expected_state = koji.BUILD_STATES["BUILDING"]
+            expected_build_calls = 2
+        else:
+            expected_state = None
+            expected_build_calls = 0
+
+        components = module_build.current_batch()
+        for component in components:
+            assert component.state == expected_state
+
+        assert len(start_build_component.mock_calls) == expected_build_calls
+
     @patch.dict("sys.modules", krbV=mock.MagicMock())
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
     def test_trigger_new_repo_when_failed(
@@ -178,7 +232,7 @@ class TestPoller:
         db.session.refresh(module_build)
 
         assert not koji_session.newRepo.called
-        assert module_build.new_repo_task_id == 0
+        assert module_build.new_repo_task_id == 123456
 
     def test_process_paused_module_builds_waiting_for_repo(
         self, create_builder, global_consumer, dbg

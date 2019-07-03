@@ -275,19 +275,16 @@ class MBSProducer(PollingProducer):
             # then no possible event will start off new component builds.
             # But do not try to start new builds when we are waiting for the
             # repo-regen.
-            if (
-                not module_build.current_batch(koji.BUILD_STATES["BUILDING"])
-                and not module_build.new_repo_task_id
-            ):
-                log.info("  Processing the paused module build %r", module_build)
+            if not module_build.current_batch(koji.BUILD_STATES["BUILDING"]):
                 # Initialize the builder...
                 builder = GenericBuilder.create_from_module(session, module_build, config)
-
-                further_work = module_build_service.utils.start_next_batch_build(
-                    config, module_build, session, builder)
-                for event in further_work:
-                    log.info("  Scheduling faked event %r" % event)
-                    module_build_service.scheduler.consumer.work_queue_put(event)
+                if _has_missed_new_repo_message(module_build, builder.koji_session):
+                    log.info("  Processing the paused module build %r", module_build)
+                    further_work = module_build_service.utils.start_next_batch_build(
+                        config, module_build, session, builder)
+                    for event in further_work:
+                        log.info("  Scheduling faked event %r" % event)
+                        module_build_service.scheduler.consumer.work_queue_put(event)
 
             # Check if we have met the threshold.
             if module_build_service.utils.at_concurrent_component_threshold(config, session):
@@ -319,8 +316,6 @@ class MBSProducer(PollingProducer):
                 )
                 taginfo = koji_session.getTag(module_build.koji_tag + "-build")
                 module_build.new_repo_task_id = koji_session.newRepo(taginfo["name"])
-            else:
-                module_build.new_repo_task_id = 0
 
         session.commit()
 
@@ -496,3 +491,18 @@ class MBSProducer(PollingProducer):
                     build.state_reason += " (Error occured while querying Greenwave)"
                 build.time_modified = datetime.utcnow()
             session.commit()
+
+
+def _has_missed_new_repo_message(module_build, koji_session):
+    """
+    Returns whether or not a new repo message has probably been missed.
+    """
+    if not module_build.new_repo_task_id:
+        # A newRepo task has incorrectly not been requested. Treat it as a missed
+        # message so module build can recover.
+        return True
+    log.debug(
+        'Checking status of newRepo task "%d" for %s', module_build.new_repo_task_id, module_build)
+    task_info = koji_session.getTaskInfo(module_build.new_repo_task_id)
+    # Other final sates, FAILED and CANCELED, are handled by retrigger_new_repo_on_failure
+    return task_info["state"] == koji.TASK_STATES["CLOSED"]

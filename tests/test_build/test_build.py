@@ -116,6 +116,7 @@ class FakeModuleBuilder(GenericBuilder):
     on_buildroot_add_artifacts_cb = None
     on_tag_artifacts_cb = None
     on_buildroot_add_repos_cb = None
+    on_get_task_info_cb = None
 
     @module_build_service.utils.validate_koji_tag("tag_name")
     def __init__(self, owner, module, config, tag_name, components):
@@ -237,6 +238,8 @@ class FakeModuleBuilder(GenericBuilder):
             return 123
 
         session.newRepo = _newRepo
+        if self.on_get_task_info_cb:
+            session.getTaskInfo = self.on_get_task_info_cb
         return session
 
     @property
@@ -459,6 +462,10 @@ class TestBuild(BaseTestBuild):
         def on_tag_artifacts_cb(cls, artifacts, dest_tag=True):
             assert tag_groups.pop(0) == set(artifacts)
 
+        def on_get_task_info_cb(cls, task_id):
+            return {"state": koji.TASK_STATES["CLOSED"]}
+
+        FakeModuleBuilder.on_get_task_info_cb = on_get_task_info_cb
         FakeModuleBuilder.on_finalize_cb = on_finalize_cb
         FakeModuleBuilder.on_tag_artifacts_cb = on_tag_artifacts_cb
 

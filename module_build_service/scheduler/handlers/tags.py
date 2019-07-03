@@ -89,10 +89,16 @@ def tagged(config, session, msg):
             if c.state == koji.BUILD_STATES["BUILDING"] or not c.state
         ]
         if unbuilt_components:
-            repo_tag = builder.module_build_tag["name"]
-            log.info("All components in batch tagged, regenerating repo for tag %s", repo_tag)
-            task_id = builder.koji_session.newRepo(repo_tag)
-            module_build.new_repo_task_id = task_id
+            if not _is_new_repo_generating(module_build, builder.koji_session):
+                repo_tag = builder.module_build_tag["name"]
+                log.info("All components in batch tagged, regenerating repo for tag %s", repo_tag)
+                task_id = builder.koji_session.newRepo(repo_tag)
+                module_build.new_repo_task_id = task_id
+            else:
+                log.info(
+                    "newRepo task %s for %r already in progress, not starting another one",
+                    str(module_build.new_repo_task_id), module_build,
+                )
         else:
             # In case this is the last batch, we do not need to regenerate the
             # buildroot, because we will not build anything else in it. It
@@ -106,3 +112,18 @@ def tagged(config, session, msg):
         session.commit()
 
     return further_work
+
+
+def _is_new_repo_generating(module_build, koji_session):
+    """ Return whether or not a new repo is already being generated. """
+    if not module_build.new_repo_task_id:
+        return False
+
+    log.debug(
+        'Checking status of newRepo task "%d" for %s', module_build.new_repo_task_id, module_build)
+    task_info = koji_session.getTaskInfo(module_build.new_repo_task_id)
+
+    active_koji_states = [
+        koji.TASK_STATES["FREE"], koji.TASK_STATES["OPEN"], koji.TASK_STATES["ASSIGNED"]]
+
+    return task_info["state"] in active_koji_states
