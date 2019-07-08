@@ -161,7 +161,7 @@ class TestPoller:
 
     @patch.dict("sys.modules", krbV=mock.MagicMock())
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
-    def test_trigger_new_repo_when_failed(
+    def test_retrigger_new_repo_on_failure(
         self, ClientSession, create_builder, global_consumer, dbg
     ):
         """

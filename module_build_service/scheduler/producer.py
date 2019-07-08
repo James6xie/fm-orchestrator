@@ -50,7 +50,7 @@ class MBSProducer(PollingProducer):
                 self.process_open_component_builds(session)
                 self.fail_lost_builds(session)
                 self.process_paused_module_builds(conf, session)
-                self.trigger_new_repo_when_stalled(conf, session)
+                self.retrigger_new_repo_on_failure(conf, session)
                 self.delete_old_koji_targets(conf, session)
                 self.cleanup_stale_failed_builds(conf, session)
                 self.sync_koji_build_tags(conf, session)
@@ -290,11 +290,13 @@ class MBSProducer(PollingProducer):
             if module_build_service.utils.at_concurrent_component_threshold(config, session):
                 break
 
-    def trigger_new_repo_when_stalled(self, config, session):
+    def retrigger_new_repo_on_failure(self, config, session):
         """
-        Sometimes the Koji repo regeneration stays in "init" state without
-        doing anything and our module build stucks. In case the module build
-        gets stuck on that, we trigger newRepo again to rebuild it.
+        Retrigger failed new repo tasks for module builds in the build state.
+
+        The newRepo task may fail for various reasons outside the scope of MBS.
+        This method will detect this scenario and retrigger the newRepo task
+        if needed to avoid the module build from being stuck in the "build" state.
         """
         if config.system != "koji":
             return
@@ -504,5 +506,5 @@ def _has_missed_new_repo_message(module_build, koji_session):
     log.debug(
         'Checking status of newRepo task "%d" for %s', module_build.new_repo_task_id, module_build)
     task_info = koji_session.getTaskInfo(module_build.new_repo_task_id)
-    # Other final sates, FAILED and CANCELED, are handled by retrigger_new_repo_on_failure
+    # Other final states, FAILED and CANCELED, are handled by retrigger_new_repo_on_failure
     return task_info["state"] == koji.TASK_STATES["CLOSED"]
