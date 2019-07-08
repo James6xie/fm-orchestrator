@@ -29,6 +29,7 @@ import os
 import pkg_resources
 import re
 import sys
+import tempfile
 
 from six import string_types
 
@@ -146,7 +147,11 @@ class Config(object):
             "desc": "Default dist-tag prefix for built modules.",
         },
         "polling_interval": {"type": int, "default": 0, "desc": "Polling interval, in seconds."},
-        "cache_dir": {"type": Path, "default": "~/modulebuild/cache", "desc": "Cache directory"},
+        "cache_dir": {
+            "type": Path,
+            "default": os.path.join(tempfile.gettempdir(), "mbs"),
+            "desc": "Cache directory"
+        },
         "mbs_url": {
             "type": str,
             "default": "https://mbs.fedoraproject.org/module-build-service/1/module-builds/",

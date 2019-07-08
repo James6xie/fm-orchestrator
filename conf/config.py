@@ -90,8 +90,6 @@ class BaseConfiguration(object):
     # Disable Client Authorization
     NO_AUTH = False
 
-    CACHE_DIR = "~/modulebuild/cache"
-
 
 class TestConfiguration(BaseConfiguration):
     BUILD_LOGS_DIR = "/tmp"
@@ -134,6 +132,7 @@ class ProdConfiguration(BaseConfiguration):
 
 
 class LocalBuildConfiguration(BaseConfiguration):
+    CACHE_DIR = "~/modulebuild/cache"
     LOG_LEVEL = "debug"
     MESSAGING = "in_memory"
 
