@@ -82,6 +82,7 @@ BUILD_STATES = {
 }
 
 INVERSE_BUILD_STATES = {v: k for k, v in BUILD_STATES.items()}
+FAILED_STATES = (BUILD_STATES["failed"], BUILD_STATES["garbage"])
 
 
 def _utc_datetime_to_iso(datetime_object):

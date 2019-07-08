@@ -181,7 +181,9 @@ class KojiModuleBuilder(GenericBuilder):
         self.koji_session = self.get_session(config)
         self.arches = [arch.name for arch in self.module.arches]
 
-        if not self.arches:
+        # Allow KojiModuleBuilder to be initialized if no arches are set but the module is in
+        # a failed set. This will allow the clean up of old module builds.
+        if not self.arches and module.state not in models.FAILED_STATES:
             raise ValueError("No arches specified in module build.")
 
         # These eventually get populated by calling _connect and __prep is set to True
