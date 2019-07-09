@@ -340,7 +340,7 @@ def get_mmds_required_by_module_recursively(
         mmds.setdefault(ns, [])
         mmds[ns].append(base_module)
 
-    # The currently submitted module build must be build only against "ready" base modules,
+    # The currently submitted module build must be built only against "ready" base modules,
     # but its dependencies might have been built against some old platform which is already
     # EOL ("garbage" state). In order to find such old module builds, we need to include
     # also EOL platform streams.

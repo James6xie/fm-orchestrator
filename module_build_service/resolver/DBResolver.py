@@ -86,14 +86,7 @@ class DBResolver(GenericResolver):
             if module:
                 return load_mmd(module.modulemd)
 
-    def get_module_modulemds(
-        self,
-        name,
-        stream,
-        version=None,
-        context=None,
-        strict=False,
-    ):
+    def get_module_modulemds(self, name, stream, version=None, context=None, strict=False):
         """
         Gets the module modulemds from the resolver.
         :param name: a string of the module's name
@@ -149,20 +142,18 @@ class DBResolver(GenericResolver):
         """
         builds = []
         with models.make_session(self.config) as session:
+            stream_version = None
             if stream_version_lte:
                 stream_in_xyz_format = len(str(models.ModuleBuild.get_stream_version(
                     stream, right_pad=False))) >= 5
-                if not stream_in_xyz_format:
+                if stream_in_xyz_format:
+                    stream_version = models.ModuleBuild.get_stream_version(stream)
+                else:
                     log.warning(
-                        "Cannot get compatible base modules, because stream_version_let is used, "
+                        "Cannot get compatible base modules, because stream_version_lte is used, "
                         "but stream %r is not in x.y.z format." % stream)
-                    return []
-                stream_version = models.ModuleBuild.get_stream_version(stream)
-                builds = models.ModuleBuild.get_last_builds_in_stream_version_lte(
-                    session, name, stream_version, virtual_streams, states)
-            else:
-                builds = models.ModuleBuild.get_last_builds_in_stream_version_lte(
-                    session, name, None, virtual_streams, states)
+            builds = models.ModuleBuild.get_last_builds_in_stream_version_lte(
+                session, name, stream_version, virtual_streams, states)
 
             return [build.mmd() for build in builds]
 
