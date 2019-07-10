@@ -28,6 +28,7 @@ data:
           stream: f28
           version: '3'
           context: '00000000'
+          koji_tag: 'module-f28-build'
       commit: 65a7721ee4eff44d2a63fb8f3a8da6e944ab7f4d
       requires:
         platform:

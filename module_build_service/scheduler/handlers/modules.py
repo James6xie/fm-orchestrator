@@ -164,7 +164,8 @@ def init(config, session, msg):
     failure_reason = "unspec"
     try:
         mmd = build.mmd()
-        add_default_modules(session, mmd)
+        arches = [arch.name for arch in build.arches]
+        add_default_modules(session, mmd, arches)
         record_module_build_arches(mmd, build, session)
         record_component_builds(mmd, build, session=session)
         # The ursine.handle_stream_collision_modules is Koji specific.
