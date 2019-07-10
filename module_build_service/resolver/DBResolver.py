@@ -86,16 +86,7 @@ class DBResolver(GenericResolver):
             if module:
                 return load_mmd(module.modulemd)
 
-    def get_module_modulemds(
-        self,
-        name,
-        stream,
-        version=None,
-        context=None,
-        strict=False,
-        stream_version_lte=False,
-        virtual_streams=None,
-    ):
+    def get_module_modulemds(self, name, stream, version=None, context=None, strict=False):
         """
         Gets the module modulemds from the resolver.
         :param name: a string of the module's name
@@ -106,11 +97,6 @@ class DBResolver(GenericResolver):
             be returned.
         :kwarg strict: Normally this function returns [] if no module can be
             found.  If strict=True, then a UnprocessableEntity is raised.
-        :kwarg stream_version_lte: If True and if the `stream` can be transformed to
-            "stream version", the returned list will include all the modules with stream version
-            less than or equal the stream version computed from `stream`.
-        :kwarg virtual_streams: a list of the virtual streams to filter on. The filtering uses "or"
-            logic. When falsy, no filtering occurs.
         :return: List of Modulemd metadata instances matching the query
         """
         if version and context:
@@ -121,17 +107,7 @@ class DBResolver(GenericResolver):
 
         with models.make_session(self.config) as session:
             if not version and not context:
-                if stream_version_lte and (
-                    len(str(models.ModuleBuild.get_stream_version(stream, right_pad=False))) >= 5
-                ):
-                    stream_version = models.ModuleBuild.get_stream_version(stream)
-                    builds = models.ModuleBuild.get_last_builds_in_stream_version_lte(
-                        session, name, stream_version, virtual_streams)
-                elif not stream_version_lte and virtual_streams:
-                    builds = models.ModuleBuild.get_last_builds_in_stream_version_lte(
-                        session, name, None, virtual_streams)
-                else:
-                    builds = models.ModuleBuild.get_last_builds_in_stream(session, name, stream)
+                builds = models.ModuleBuild.get_last_builds_in_stream(session, name, stream)
             else:
                 raise NotImplementedError(
                     "This combination of name/stream/version/context is not implemented")
@@ -139,6 +115,46 @@ class DBResolver(GenericResolver):
             if not builds and strict:
                 raise UnprocessableEntity(
                     "Cannot find any module builds for %s:%s" % (name, stream))
+            return [build.mmd() for build in builds]
+
+    def get_compatible_base_module_modulemds(
+        self, name, stream, stream_version_lte, virtual_streams, states
+    ):
+        """
+        Returns the Modulemd metadata of base modules compatible with base module
+        defined by `name` and `stream`. The compatibility is found out using the
+        stream version in case the stream is in "x.y.z" format and is limited to
+        single major version of stream version.
+
+        If `virtual_streams` are defined, the compatibility is also extended to
+        all base module streams which share the same virtual stream.
+
+        :param name: Name of the base module.
+        :param stream: Stream of the base module.
+        :param stream_version_lte: If True, the compatible streams are limited
+             by the stream version computed from `stream`. If False, even the
+             modules with higher stream version are returned.
+        :param virtual_streams: List of virtual streams. If set, also modules
+            with incompatible stream version are returned in case they share
+            one of the virtual streams.
+        :param states: List of states the returned compatible modules should
+            be in.
+        """
+        builds = []
+        with models.make_session(self.config) as session:
+            stream_version = None
+            if stream_version_lte:
+                stream_in_xyz_format = len(str(models.ModuleBuild.get_stream_version(
+                    stream, right_pad=False))) >= 5
+                if stream_in_xyz_format:
+                    stream_version = models.ModuleBuild.get_stream_version(stream)
+                else:
+                    log.warning(
+                        "Cannot get compatible base modules, because stream_version_lte is used, "
+                        "but stream %r is not in x.y.z format." % stream)
+            builds = models.ModuleBuild.get_last_builds_in_stream_version_lte(
+                session, name, stream_version, virtual_streams, states)
+
             return [build.mmd() for build in builds]
 
     def get_buildrequired_modulemds(self, name, stream, base_module_nsvc):

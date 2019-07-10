@@ -211,11 +211,12 @@ def _get_base_module_mmds(mmd):
     old versions of the base module based on the stream version.
 
     :param Modulemd mmd: Input modulemd metadata.
-    :rtype: list of Modulemd
-    :return: List of MMDs of base modules buildrequired by `mmd`.
+    :rtype: dict with lists of Modulemd
+    :return: Dict with "ready" or "garbage" state name as a key and list of MMDs of base modules
+        buildrequired by `mmd` as a value.
     """
     seen = set()
-    ret = []
+    ret = {"ready": [], "garbage": []}
 
     resolver = module_build_service.resolver.system_resolver
     for deps in mmd.get_dependencies():
@@ -258,30 +259,34 @@ def _get_base_module_mmds(mmd):
                 # `stream_mmd`.
                 if not virtual_streams:
                     seen.add(ns)
-                    ret.append(stream_mmd)
+                    ret["ready"].append(stream_mmd)
                     continue
 
                 virtual_streams = xmd["mbs"]["virtual_streams"]
 
                 if conf.allow_only_compatible_base_modules:
                     stream_version_lte = True
+                    states = ["ready"]
                 else:
                     stream_version_lte = False
+                    states = ["ready", "garbage"]
 
-                mmds = resolver.get_module_modulemds(
-                    name, stream, stream_version_lte=stream_version_lte,
-                    virtual_streams=virtual_streams)
-                ret_chunk = []
-                # Add the returned mmds to the `seen` set to avoid querying those individually if
-                # they are part of the buildrequire streams for this base module
-                for mmd_ in mmds:
-                    mmd_ns = ":".join([mmd_.get_module_name(), mmd_.get_stream_name()])
-                    # An extra precaution to ensure there are no duplicates in the event the sorting
-                    # above wasn't flawless
-                    if mmd_ns not in seen:
-                        ret_chunk.append(mmd_)
-                        seen.add(mmd_ns)
-                ret += ret_chunk
+                for state in states:
+                    mmds = resolver.get_compatible_base_module_modulemds(
+                        name, stream, stream_version_lte, virtual_streams,
+                        [models.BUILD_STATES[state]])
+                    ret_chunk = []
+                    # Add the returned mmds to the `seen` set to avoid querying those
+                    # individually if they are part of the buildrequire streams for this
+                    # base module.
+                    for mmd_ in mmds:
+                        mmd_ns = ":".join([mmd_.get_module_name(), mmd_.get_stream_name()])
+                        # An extra precaution to ensure there are no duplicates in the event the
+                        # sorting above wasn't flawless
+                        if mmd_ns not in seen:
+                            ret_chunk.append(mmd_)
+                            seen.add(mmd_ns)
+                    ret[state] += ret_chunk
                 # Just in case it was queried for but MBS didn't find it
                 seen.add(ns)
             break
@@ -322,7 +327,7 @@ def get_mmds_required_by_module_recursively(
 
     # Get the MMDs of all compatible base modules based on the buildrequires.
     base_module_mmds = _get_base_module_mmds(mmd)
-    if not base_module_mmds:
+    if not base_module_mmds["ready"]:
         base_module_choices = " or ".join(conf.base_module_names)
         raise UnprocessableEntity(
             "None of the base module ({}) streams in the buildrequires section could be found"
@@ -330,16 +335,22 @@ def get_mmds_required_by_module_recursively(
         )
 
     # Add base modules to `mmds`.
-    for base_module in base_module_mmds:
+    for base_module in base_module_mmds["ready"]:
         ns = ":".join([base_module.get_module_name(), base_module.get_stream_name()])
         mmds.setdefault(ns, [])
         mmds[ns].append(base_module)
+
+    # The currently submitted module build must be built only against "ready" base modules,
+    # but its dependencies might have been built against some old platform which is already
+    # EOL ("garbage" state). In order to find such old module builds, we need to include
+    # also EOL platform streams.
+    all_base_module_mmds = base_module_mmds["ready"] + base_module_mmds["garbage"]
 
     # Get all the buildrequires of the module of interest.
     for deps in mmd.get_dependencies():
         deps_dict = deps_to_dict(deps, 'buildtime')
         mmds = _get_mmds_from_requires(
-            deps_dict, mmds, False, default_streams, raise_if_stream_ambigous, base_module_mmds)
+            deps_dict, mmds, False, default_streams, raise_if_stream_ambigous, all_base_module_mmds)
 
     # Now get the requires of buildrequires recursively.
     for mmd_key in list(mmds.keys()):
@@ -352,7 +363,7 @@ def get_mmds_required_by_module_recursively(
                     True,
                     default_streams,
                     raise_if_stream_ambigous,
-                    base_module_mmds,
+                    all_base_module_mmds,
                 )
 
     # Make single list from dict of lists.

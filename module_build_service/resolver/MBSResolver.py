@@ -46,7 +46,7 @@ class MBSResolver(GenericResolver):
         self.mbs_prod_url = config.mbs_url
         self._generic_error = "Failed to query MBS with query %r returned HTTP status %s"
 
-    def _query_from_nsvc(self, name, stream, version=None, context=None, state="ready"):
+    def _query_from_nsvc(self, name, stream, version=None, context=None, states=None):
         """
         Generates dict with MBS params query.
 
@@ -55,10 +55,11 @@ class MBSResolver(GenericResolver):
         :param str version/int: Version of the module to query.
         :param str context: Context of the module to query.
         """
+        states = states or ["ready"]
         query = {
             "name": name,
             "stream": stream,
-            "state": state,
+            "state": states,
             "verbose": True,
             "order_desc_by": "version",
         }
@@ -69,7 +70,7 @@ class MBSResolver(GenericResolver):
         return query
 
     def _get_modules(
-        self, name, stream, version=None, context=None, state="ready", strict=False, **kwargs
+        self, name, stream, version=None, context=None, states=None, strict=False, **kwargs
     ):
         """Query and return modules from MBS with specific info
 
@@ -85,7 +86,7 @@ class MBSResolver(GenericResolver):
         :rtype: list[dict]
         :raises UnprocessableEntity: if no modules are found and ``strict`` is True.
         """
-        query = self._query_from_nsvc(name, stream, version, context, state)
+        query = self._query_from_nsvc(name, stream, version, context, states)
         query["page"] = 1
         query["per_page"] = 10
         query.update(kwargs)
@@ -118,8 +119,8 @@ class MBSResolver(GenericResolver):
         else:
             return modules
 
-    def get_module(self, name, stream, version, context, state="ready", strict=False):
-        rv = self._get_modules(name, stream, version, context, state, strict)
+    def get_module(self, name, stream, version, context, states=None, strict=False):
+        rv = self._get_modules(name, stream, version, context, states, strict)
         if rv:
             return rv[0]
 
@@ -173,6 +174,7 @@ class MBSResolver(GenericResolver):
         strict=False,
         stream_version_lte=False,
         virtual_streams=None,
+        states=None,
     ):
         """
         Gets the module modulemds from the resolver.
@@ -207,7 +209,8 @@ class MBSResolver(GenericResolver):
         if virtual_streams:
             extra_args["virtual_stream"] = virtual_streams
 
-        modules = self._get_modules(name, stream, version, context, strict=strict, **extra_args)
+        modules = self._get_modules(name, stream, version, context, strict=strict, states=states,
+                                    **extra_args)
         if not modules:
             return []
 
@@ -225,6 +228,33 @@ class MBSResolver(GenericResolver):
 
             mmds.append(load_mmd(yaml))
         return mmds
+
+    def get_compatible_base_module_modulemds(
+        self, name, stream, stream_version_lte, virtual_streams, states
+    ):
+        """
+        Returns the Modulemd metadata of base modules compatible with base module
+        defined by `name` and `stream`. The compatibility is found out using the
+        stream version in case the stream is in "x.y.z" format and is limited to
+        single major version of stream version.
+
+        If `virtual_streams` are defined, the compatibility is also extended to
+        all base module streams which share the same virtual stream.
+
+        :param name: Name of the base module.
+        :param stream: Stream of the base module.
+        :param stream_version_lte: If True, the compatible streams are limited
+             by the stream version computed from `stream`. If False, even the
+             modules with higher stream version are returned.
+        :param virtual_streams: List of virtual streams. If set, also modules
+            with incompatible stream version are returned in case they share
+            one of the virtual streams.
+        :param states: List of states the returned compatible modules should
+            be in.
+        """
+        return self.get_module_modulemds(
+            name, stream, stream_version_lte=stream_version_lte, virtual_streams=virtual_streams,
+            states=states)
 
     def get_buildrequired_modulemds(self, name, stream, base_module_nsvc):
         """

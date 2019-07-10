@@ -22,7 +22,7 @@ from mock import patch, PropertyMock
 import pytest
 
 import module_build_service.utils
-from module_build_service import Modulemd
+from module_build_service import Modulemd, models
 from module_build_service.errors import StreamAmbigous
 from tests import db, clean_database, make_module, init_data, read_staged_data
 
@@ -418,10 +418,10 @@ class TestUtilsModuleStreamExpansion:
         mmds = module_build_service.utils.mse._get_base_module_mmds(mmd)
         expected = set(["platform:f29.0.0", "platform:f29.1.0", "platform:f29.2.0"])
         # Verify no duplicates were returned before doing set operations
-        assert len(mmds) == len(expected)
+        assert len(mmds["ready"]) == len(expected)
         # Verify the expected ones were returned
         actual = set()
-        for mmd_ in mmds:
+        for mmd_ in mmds["ready"]:
             actual.add("{}:{}".format(mmd_.get_module_name(), mmd_.get_stream_name()))
         assert actual == expected
 
@@ -447,10 +447,10 @@ class TestUtilsModuleStreamExpansion:
         else:
             expected = set(["platform:f29.0.0", "platform:f29.1.0", "platform:f29.2.0"])
         # Verify no duplicates were returned before doing set operations
-        assert len(mmds) == len(expected)
+        assert len(mmds["ready"]) == len(expected)
         # Verify the expected ones were returned
         actual = set()
-        for mmd_ in mmds:
+        for mmd_ in mmds["ready"]:
             actual.add("{}:{}".format(mmd_.get_module_name(), mmd_.get_stream_name()))
         assert actual == expected
 
@@ -461,6 +461,13 @@ class TestUtilsModuleStreamExpansion:
     def test__get_base_module_mmds_virtual_streams_only_major_versions(self, cfg):
         """Ensure the correct results are returned without duplicates."""
         init_data(data_size=1, multiple_stream_versions=["foo28", "foo29", "foo30"])
+
+        # Mark platform:foo28 as garbage to test that it is still considered as compatible.
+        platform = models.ModuleBuild.query.filter_by(name="platform", stream="foo28").first()
+        platform.state = "garbage"
+        db.session.add(platform)
+        db.session.commit()
+
         mmd = module_build_service.utils.load_mmd(read_staged_data("testmodule_v2"))
         deps = mmd.get_dependencies()[0]
         new_deps = Modulemd.Dependencies()
@@ -471,12 +478,16 @@ class TestUtilsModuleStreamExpansion:
         mmd.add_dependencies(new_deps)
 
         mmds = module_build_service.utils.mse._get_base_module_mmds(mmd)
-        expected = set(["platform:foo28", "platform:foo29", "platform:foo30"])
+        expected = {}
+        expected["ready"] = set(["platform:foo29", "platform:foo30"])
+        expected["garbage"] = set(["platform:foo28"])
 
         # Verify no duplicates were returned before doing set operations
         assert len(mmds) == len(expected)
-        # Verify the expected ones were returned
-        actual = set()
-        for mmd_ in mmds:
-            actual.add("{}:{}".format(mmd_.get_module_name(), mmd_.get_stream_name()))
-        assert actual == expected
+        for k in expected.keys():
+            assert len(mmds[k]) == len(expected[k])
+            # Verify the expected ones were returned
+            actual = set()
+            for mmd_ in mmds[k]:
+                actual.add("{}:{}".format(mmd_.get_module_name(), mmd_.get_stream_name()))
+            assert actual == expected[k]

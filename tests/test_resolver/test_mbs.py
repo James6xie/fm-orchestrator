@@ -73,7 +73,7 @@ class TestMBSModule:
             "order_desc_by": "version",
             "page": 1,
             "per_page": 10,
-            "state": "ready",
+            "state": ["ready"],
             "virtual_stream": ["f28"],
         }
         mock_session.get.assert_called_once_with(mbs_url, params=expected_query)
@@ -129,7 +129,7 @@ class TestMBSModule:
             "order_desc_by": "version",
             "page": 1,
             "per_page": 10,
-            "state": "ready",
+            "state": ["ready"],
         }
         mock_session.get.assert_called_once_with(mbs_url, params=expected_query)
         assert nsvcs == expected
@@ -187,7 +187,7 @@ class TestMBSModule:
                 "order_desc_by": "version",
                 "page": 1,
                 "per_page": 10,
-                "state": "ready",
+                "state": ["ready"],
             },
             {
                 "name": "platform",
@@ -198,7 +198,7 @@ class TestMBSModule:
                 "order_desc_by": "version",
                 "page": 1,
                 "per_page": 10,
-                "state": "ready",
+                "state": ["ready"],
             },
         ]
 
@@ -260,7 +260,7 @@ class TestMBSModule:
             "order_desc_by": "version",
             "page": 1,
             "per_page": 10,
-            "state": "ready",
+            "state": ["ready"],
         }
         mock_session.get.assert_called_once_with(mbs_url, params=expected_query)
         assert set(result) == expected
@@ -336,7 +336,7 @@ class TestMBSModule:
             "order_desc_by": "version",
             "page": 1,
             "per_page": 10,
-            "state": "ready",
+            "state": ["ready"],
         }
 
         mock_session.get.assert_called_once_with(mbs_url, params=expected_query)
