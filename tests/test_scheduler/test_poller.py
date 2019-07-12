@@ -87,7 +87,6 @@ class TestPoller:
         poller.poll()
 
         # Refresh our module_build object.
-        module_build = models.ModuleBuild.query.filter_by(id=3).one()
         db.session.refresh(module_build)
 
         # If fresh is set, we expect the poller to not touch the module build since it's been less
@@ -143,7 +142,6 @@ class TestPoller:
         poller.poll()
 
         # Refresh our module_build object.
-        module_build = models.ModuleBuild.query.get(3)
         db.session.refresh(module_build)
 
         if expect_start_build_component:
@@ -228,7 +226,6 @@ class TestPoller:
         poller.poll()
 
         # Refresh our module_build object.
-        module_build = models.ModuleBuild.query.filter_by(id=3).one()
         db.session.refresh(module_build)
 
         assert not koji_session.newRepo.called
@@ -261,7 +258,6 @@ class TestPoller:
         poller.poll()
 
         # Refresh our module_build object.
-        module_build = models.ModuleBuild.query.filter_by(id=3).one()
         db.session.refresh(module_build)
 
         # Components should not be in building state
