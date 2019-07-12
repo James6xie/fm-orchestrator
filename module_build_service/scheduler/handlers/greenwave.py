@@ -26,7 +26,7 @@ from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
 from module_build_service.models import ModuleBuild, BUILD_STATES
 
 
-def get_corresponding_module_build(session, nvr):
+def get_corresponding_module_build(db_session, nvr):
     """Find corresponding module build from database and return
 
     :param session: the SQLAlchemy database session object.
@@ -49,16 +49,16 @@ def get_corresponding_module_build(session, nvr):
         # handling Greenwave event.
         return None
 
-    return ModuleBuild.get_by_id(session, module_build_id)
+    return ModuleBuild.get_by_id(db_session, module_build_id)
 
 
-def decision_update(config, session, msg):
+def decision_update(config, db_session, msg):
     """Move module build to ready or failed according to Greenwave result
 
     :param config: the config object returned from function :func:`init_config`,
         which is loaded from configuration file.
     :type config: :class:`Config`
-    :param session: the SQLAlchemy database session object.
+    :param db_session: the SQLAlchemy database session object.
     :param msg: the message object representing a message received from topic
         ``greenwave.decision.update``.
     :type msg: :class:`GreenwaveDecisionUpdate`
@@ -89,7 +89,7 @@ def decision_update(config, session, msg):
         )
         return
 
-    build = get_corresponding_module_build(session, module_build_nvr)
+    build = get_corresponding_module_build(db_session, module_build_nvr)
 
     if build is None:
         log.debug(
@@ -98,6 +98,7 @@ def decision_update(config, session, msg):
 
     if build.state == BUILD_STATES["done"]:
         build.transition(
+            db_session,
             conf,
             BUILD_STATES["ready"],
             state_reason="Module build {} has satisfied Greenwave policies.".format(
@@ -112,4 +113,4 @@ def decision_update(config, session, msg):
             msg.decision_context,
         )
 
-    session.commit()
+    db_session.commit()

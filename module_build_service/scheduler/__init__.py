@@ -44,7 +44,7 @@ def main(initial_messages, stop_condition):
     )
 
 
-def make_simple_stop_condition(session):
+def make_simple_stop_condition(db_session):
     """ Return a simple stop_condition callable.
 
     Intended to be used with the main() function here in manage.py and tests.
@@ -58,7 +58,7 @@ def make_simple_stop_condition(session):
 
         # Grab the latest module build.
         module = (
-            session.query(module_build_service.models.ModuleBuild)
+            db_session.query(module_build_service.models.ModuleBuild)
             .order_by(module_build_service.models.ModuleBuild.id.desc())
             .first()
         )

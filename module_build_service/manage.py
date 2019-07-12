@@ -141,60 +141,63 @@ def build_module_locally(
             raise ValueError(
                 "Please set RESOLVER to 'mbs' in your configuration for local builds.")
 
-    with app.app_context():
-        conf.set_item("system", "mock")
-        conf.set_item("base_module_repofiles", platform_repofiles)
+    conf.set_item("system", "mock")
+    conf.set_item("base_module_repofiles", platform_repofiles)
 
-        # Use our own local SQLite3 database.
-        confdir = os.path.abspath(os.getcwd())
-        dbdir = \
-            os.path.abspath(os.path.join(confdir, "..")) if confdir.endswith("conf") else confdir
-        dbpath = "/{0}".format(os.path.join(dbdir, ".mbs_local_build.db"))
-        dburi = "sqlite://" + dbpath
-        app.config["SQLALCHEMY_DATABASE_URI"] = dburi
-        conf.set_item("sqlalchemy_database_uri", dburi)
-        if os.path.exists(dbpath):
-            os.remove(dbpath)
+    # Use our own local SQLite3 database.
+    confdir = os.path.abspath(os.getcwd())
+    dbdir = \
+        os.path.abspath(os.path.join(confdir, "..")) if confdir.endswith("conf") else confdir
+    dbpath = "/{0}".format(os.path.join(dbdir, ".mbs_local_build.db"))
+    dburi = "sqlite://" + dbpath
+    app.config["SQLALCHEMY_DATABASE_URI"] = dburi
+    conf.set_item("sqlalchemy_database_uri", dburi)
+    if os.path.exists(dbpath):
+        os.remove(dbpath)
 
-        db.create_all()
+    db.create_all()
+
+    params = {}
+    params["local_build"] = True
+    params["default_streams"] = {}
+    for ns in default_streams:
+        n, s = ns.split(":")
+        params["default_streams"][n] = s
+    if srpms:
+        params["srpms"] = srpms
+
+    username = getpass.getuser()
+    if not yaml_file or not yaml_file.endswith(".yaml"):
+        raise IOError("Provided modulemd file is not a yaml file.")
+
+    yaml_file_path = os.path.abspath(yaml_file)
+
+    with models.make_db_session(conf) as db_session:
         if offline:
-            import_builds_from_local_dnf_repos(platform_id)
-        load_local_builds(local_build_nsvs)
+            import_builds_from_local_dnf_repos(db_session, platform_id)
+        load_local_builds(db_session, local_build_nsvs)
 
-        params = {}
-        params["local_build"] = True
-        params["default_streams"] = {}
-        for ns in default_streams:
-            n, s = ns.split(":")
-            params["default_streams"][n] = s
-        if srpms:
-            params["srpms"] = srpms
-
-        username = getpass.getuser()
-        if not yaml_file or not yaml_file.endswith(".yaml"):
-            raise IOError("Provided modulemd file is not a yaml file.")
-
-        yaml_file_path = os.path.abspath(yaml_file)
         with open(yaml_file_path) as fd:
             filename = os.path.basename(yaml_file)
             handle = FileStorage(fd)
             handle.filename = filename
             try:
                 modules_list = submit_module_build_from_yaml(
-                    username, handle, params, stream=str(stream), skiptests=skiptests
+                    db_session, username, handle, params,
+                    stream=str(stream), skiptests=skiptests
                 )
             except StreamAmbigous as e:
                 logging.error(str(e))
                 logging.error("Use '-s module_name:module_stream' to choose the stream")
                 return
 
-        stop = module_build_service.scheduler.make_simple_stop_condition(db.session)
+        stop = module_build_service.scheduler.make_simple_stop_condition(db_session)
 
-        # Run the consumer until stop_condition returns True
-        module_build_service.scheduler.main([], stop)
+    # Run the consumer until stop_condition returns True
+    module_build_service.scheduler.main([], stop)
 
-        if any(module.state == models.BUILD_STATES["failed"] for module in modules_list):
-            raise RuntimeError("Module build failed")
+    if any(module.state == models.BUILD_STATES["failed"] for module in modules_list):
+        raise RuntimeError("Module build failed")
 
 
 @manager.option(
@@ -225,27 +228,29 @@ def retire(identifier, confirm=False):
     if len(parts) >= 4:
         filter_by_kwargs["context"] = parts[3]
 
-    # Find module builds to retire
-    module_builds = db.session.query(models.ModuleBuild).filter_by(**filter_by_kwargs).all()
+    with models.make_db_session(conf) as db_session:
+        # Find module builds to retire
+        module_builds = db_session.query(models.ModuleBuild).filter_by(**filter_by_kwargs).all()
 
-    if not module_builds:
-        logging.info("No module builds found.")
-        return
+        if not module_builds:
+            logging.info("No module builds found.")
+            return
 
-    logging.info("Found %d module builds:", len(module_builds))
-    for build in module_builds:
-        logging.info("\t%s", ":".join((build.name, build.stream, build.version, build.context)))
+        logging.info("Found %d module builds:", len(module_builds))
+        for build in module_builds:
+            logging.info("\t%s", ":".join((build.name, build.stream, build.version, build.context)))
 
-    # Prompt for confirmation
-    is_confirmed = confirm or prompt_bool("Retire {} module builds?".format(len(module_builds)))
-    if not is_confirmed:
-        logging.info("Module builds were NOT retired.")
-        return
+        # Prompt for confirmation
+        is_confirmed = confirm or prompt_bool("Retire {} module builds?".format(len(module_builds)))
+        if not is_confirmed:
+            logging.info("Module builds were NOT retired.")
+            return
 
-    # Retire module builds
-    for build in module_builds:
-        build.transition(conf, models.BUILD_STATES["garbage"], "Module build retired")
-    db.session.commit()
+        # Retire module builds
+        for build in module_builds:
+            build.transition(
+                db_session, conf, models.BUILD_STATES["garbage"], "Module build retired")
+
     logging.info("Module builds retired.")
 
 

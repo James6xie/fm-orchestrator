@@ -37,6 +37,7 @@ from module_build_service import conf, log
 import module_build_service.resolver
 import module_build_service.scm
 import module_build_service.utils
+from module_build_service.resolver import GenericResolver
 from module_build_service.utils import create_dogpile_key_generator_func
 
 
@@ -100,8 +101,9 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
         GenericBuilder.backends[backend_class.backend] = backend_class
 
     @classmethod
-    def create(cls, owner, module, backend, config, **extra):
+    def create(cls, db_session, owner, module, backend, config, **extra):
         """
+        :param db_session: SQLAlchemy session object.
         :param owner: a string representing who kicked off the builds
         :param module: module_build_service.models.ModuleBuild instance.
         :param backend: a string representing backend e.g. 'koji'
@@ -111,7 +113,7 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
         and are implementation-dependent.
         """
         # check if the backend is within allowed backends for the used resolver
-        resolver = module_build_service.resolver.system_resolver
+        resolver = GenericResolver.create(db_session, conf)
         if not resolver.is_builder_compatible(backend):
             raise ValueError(
                 "Builder backend '{}' is not compatible with resolver backend '{}'. Check your "
@@ -120,17 +122,17 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
 
         if backend in GenericBuilder.backends:
             return GenericBuilder.backends[backend](
-                owner=owner, module=module, config=config, **extra)
+                db_session=db_session, owner=owner, module=module, config=config, **extra)
         else:
             raise ValueError("Builder backend='%s' not recognized" % backend)
 
     @classmethod
-    def create_from_module(cls, session, module, config, buildroot_connect=True):
+    def create_from_module(cls, db_session, module, config, buildroot_connect=True):
         """
         Creates new GenericBuilder instance based on the data from module
         and config and connects it to buildroot.
 
-        :param session: SQLAlchemy databa session.
+        :param db_session: SQLAlchemy database session.
         :param module: module_build_service.models.ModuleBuild instance.
         :param config: module_build_service.config.Config instance.
         :kwarg buildroot_connect: a boolean that determines if the builder should run
@@ -138,6 +140,7 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
         """
         components = [c.package for c in module.component_builds]
         builder = GenericBuilder.create(
+            db_session,
             module.owner,
             module,
             config.system,
@@ -146,7 +149,7 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
             components=components,
         )
         if buildroot_connect is True:
-            groups = GenericBuilder.default_buildroot_groups(session, module)
+            groups = GenericBuilder.default_buildroot_groups(db_session, module)
             builder.buildroot_connect(groups)
         return builder
 
@@ -305,10 +308,10 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
     @classmethod
     @module_build_service.utils.retry(wait_on=(ConnectionError))
     @default_buildroot_groups_cache.cache_on_arguments()
-    def default_buildroot_groups(cls, session, module):
+    def default_buildroot_groups(cls, db_session, module):
         try:
             mmd = module.mmd()
-            resolver = module_build_service.resolver.system_resolver
+            resolver = GenericResolver.create(db_session, conf)
 
             # Resolve default buildroot groups using the MBS, but only for
             # non-local modules.
@@ -317,8 +320,9 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
         except ValueError:
             reason = "Failed to gather buildroot groups from SCM."
             log.exception(reason)
-            module.transition(conf, state="failed", state_reason=reason, failure_type="user")
-            session.commit()
+            module.transition(
+                db_session, conf, state="failed", state_reason=reason, failure_type="user")
+            db_session.commit()
             raise
         return groups
 

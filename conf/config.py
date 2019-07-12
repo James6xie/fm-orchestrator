@@ -96,7 +96,8 @@ class TestConfiguration(BaseConfiguration):
     BUILD_LOGS_NAME_FORMAT = "build-{id}.log"
     LOG_BACKEND = "console"
     LOG_LEVEL = "debug"
-    SQLALCHEMY_DATABASE_URI = environ.get("DATABASE_URI", "sqlite://")
+    SQLALCHEMY_DATABASE_URI = environ.get(
+        "DATABASE_URI", "sqlite:///{0}".format(path.join(dbdir, "mbstest.db")))
     DEBUG = True
     MESSAGING = "in_memory"
     PDC_URL = "https://pdc.fedoraproject.org/rest_api/v1"

@@ -27,60 +27,58 @@ from mock import patch, PropertyMock
 import pytest
 
 import module_build_service.resolver as mbs_resolver
-from module_build_service import app, conf, db, models, utils, Modulemd
+from module_build_service import models, utils, Modulemd
 from module_build_service.utils import import_mmd, mmd_to_str, load_mmd
 from module_build_service.models import ModuleBuild
 import tests
 
 
-base_dir = os.path.join(os.path.dirname(__file__), "..")
-
-
+@pytest.mark.usefixtures("reuse_component_init_data")
 class TestDBModule:
-    def setup_method(self):
-        tests.reuse_component_init_data()
 
-    def test_get_buildrequired_modulemds(self):
+    def test_get_buildrequired_modulemds(self, db_session):
         mmd = load_mmd(tests.read_staged_data("platform"))
         mmd = mmd.copy(mmd.get_module_name(), "f30.1.3")
-        with models.make_session(conf) as db_session:
-            import_mmd(db_session, mmd)
-            platform_f300103 = db_session.query(ModuleBuild).filter_by(stream="f30.1.3").one()
-            mmd = tests.make_module(db_session,
-                                    "testmodule:master:20170109091357:123",
-                                    store_to_db=False)
-            build = ModuleBuild(
-                name="testmodule",
-                stream="master",
-                version=20170109091357,
-                state=5,
-                build_context="dd4de1c346dcf09ce77d38cd4e75094ec1c08ec3",
-                runtime_context="ec4de1c346dcf09ce77d38cd4e75094ec1c08ef7",
-                context="7c29193d",
-                koji_tag="module-testmodule-master-20170109091357-7c29193d",
-                scmurl="https://src.stg.fedoraproject.org/modules/testmodule.git?#ff1ea79",
-                batch=3,
-                owner="Dr. Pepper",
-                time_submitted=datetime(2018, 11, 15, 16, 8, 18),
-                time_modified=datetime(2018, 11, 15, 16, 19, 35),
-                rebuild_strategy="changed-and-after",
-                modulemd=mmd_to_str(mmd),
-            )
-            build.buildrequires.append(platform_f300103)
-            db_session.add(build)
-            db_session.commit()
 
-            platform_nsvc = platform_f300103.mmd().get_nsvc()
+        import_mmd(db_session, mmd)
+        platform_f300103 = db_session.query(ModuleBuild).filter_by(stream="f30.1.3").one()
+        mmd = tests.make_module(db_session,
+                                "testmodule:master:20170109091357:123",
+                                store_to_db=False)
+        build = ModuleBuild(
+            name="testmodule",
+            stream="master",
+            version=20170109091357,
+            state=5,
+            build_context="dd4de1c346dcf09ce77d38cd4e75094ec1c08ec3",
+            runtime_context="ec4de1c346dcf09ce77d38cd4e75094ec1c08ef7",
+            context="7c29193d",
+            koji_tag="module-testmodule-master-20170109091357-7c29193d",
+            scmurl="https://src.stg.fedoraproject.org/modules/testmodule.git?#ff1ea79",
+            batch=3,
+            owner="Dr. Pepper",
+            time_submitted=datetime(2018, 11, 15, 16, 8, 18),
+            time_modified=datetime(2018, 11, 15, 16, 19, 35),
+            rebuild_strategy="changed-and-after",
+            modulemd=mmd_to_str(mmd),
+        )
+        build.buildrequires.append(platform_f300103)
+        db_session.add(build)
+        db_session.commit()
 
-        resolver = mbs_resolver.GenericResolver.create(tests.conf, backend="db")
+        platform_nsvc = platform_f300103.mmd().get_nsvc()
+
+        resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="db")
         result = resolver.get_buildrequired_modulemds("testmodule", "master", platform_nsvc)
         nsvcs = set([m.get_nsvc() for m in result])
         assert nsvcs == set(["testmodule:master:20170109091357:123"])
 
     @pytest.mark.parametrize("stream_versions", [False, True])
-    def test_get_compatible_base_module_modulemds_stream_versions(self, stream_versions):
+    def test_get_compatible_base_module_modulemds_stream_versions(
+        self, stream_versions, db_session
+    ):
         tests.init_data(1, multiple_stream_versions=True)
-        resolver = mbs_resolver.GenericResolver.create(tests.conf, backend="db")
+        resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="db")
         result = resolver.get_compatible_base_module_modulemds(
             "platform", "f29.1.0", stream_version_lte=stream_versions, virtual_streams=["f29"],
             states=[models.BUILD_STATES["ready"]])
@@ -109,7 +107,7 @@ class TestDBModule:
             mmd.set_xmd(xmd)
             module.modulemd = mmd_to_str(mmd)
             db_session.commit()
-        resolver = mbs_resolver.GenericResolver.create(tests.conf, backend="db")
+        resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="db")
         result = resolver.get_module_build_dependencies(
             "testmodule", "master", "20170109091357", "78e4a6fd").keys()
         assert set(result) == expected
@@ -142,7 +140,7 @@ class TestDBModule:
 
         db_session.commit()
 
-        resolver = mbs_resolver.GenericResolver.create(tests.conf, backend="db")
+        resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="db")
         result = resolver.get_module_build_dependencies(
             "testmodule2", "master", "20180123171545", "c40c156c").keys()
         assert set(result) == set(["module-f28-build"])
@@ -155,25 +153,26 @@ class TestDBModule:
         new_callable=PropertyMock,
         return_value=tests.staged_data_filename("local_builds"),
     )
-    def test_get_module_build_dependencies_recursive_requires(self, resultdir, conf_system):
+    def test_get_module_build_dependencies_recursive_requires(
+        self, resultdir, conf_system, db_session
+    ):
         """
         Tests that it returns the requires of the buildrequires recursively
         """
-        with app.app_context():
-            utils.load_local_builds(["platform", "parent", "child", "testmodule"])
+        utils.load_local_builds(db_session, ["platform", "parent", "child", "testmodule"])
 
-            build = models.ModuleBuild.local_modules(db.session, "child", "master")
-            resolver = mbs_resolver.GenericResolver.create(tests.conf, backend="db")
-            result = resolver.get_module_build_dependencies(mmd=build[0].mmd()).keys()
+        build = models.ModuleBuild.local_modules(db_session, "child", "master")
+        resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="db")
+        result = resolver.get_module_build_dependencies(mmd=build[0].mmd()).keys()
 
-            local_path = tests.staged_data_filename("local_builds")
+        local_path = tests.staged_data_filename("local_builds")
 
-            expected = [os.path.join(local_path, "module-parent-master-20170816080815/results")]
-            assert set(result) == set(expected)
+        expected = [os.path.join(local_path, "module-parent-master-20170816080815/results")]
+        assert set(result) == set(expected)
 
     def test_resolve_requires(self, db_session):
         build = models.ModuleBuild.get_by_id(db_session, 2)
-        resolver = mbs_resolver.GenericResolver.create(tests.conf, backend="db")
+        resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="db")
         result = resolver.resolve_requires(
             [":".join([build.name, build.stream, build.version, build.context])]
         )
@@ -193,7 +192,7 @@ class TestDBModule:
         Tests that the profiles get resolved recursively
         """
         mmd = models.ModuleBuild.get_by_id(db_session, 2).mmd()
-        resolver = mbs_resolver.GenericResolver.create(tests.conf, backend="db")
+        resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="db")
         result = resolver.resolve_profiles(mmd, ("buildroot", "srpm-buildroot"))
         expected = {
             "buildroot": set([
@@ -246,26 +245,26 @@ class TestDBModule:
         """
         Test that profiles get resolved recursively on local builds
         """
-        utils.load_local_builds(["platform"])
+        utils.load_local_builds(db_session, ["platform"])
         mmd = models.ModuleBuild.get_by_id(db_session, 2).mmd()
-        resolver = mbs_resolver.GenericResolver.create(tests.conf, backend="mbs")
+        resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="mbs")
         result = resolver.resolve_profiles(mmd, ("buildroot", "srpm-buildroot"))
         expected = {"buildroot": set(["foo"]), "srpm-buildroot": set(["bar"])}
         assert result == expected
 
-    def test_get_latest_with_virtual_stream(self):
+    def test_get_latest_with_virtual_stream(self, db_session):
         tests.init_data(1, multiple_stream_versions=True)
-        resolver = mbs_resolver.GenericResolver.create(tests.conf, backend="db")
+        resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="db")
         mmd = resolver.get_latest_with_virtual_stream("platform", "f29")
         assert mmd
         assert mmd.get_stream_name() == "f29.2.0"
 
-    def test_get_latest_with_virtual_stream_none(self):
-        resolver = mbs_resolver.GenericResolver.create(tests.conf, backend="db")
+    def test_get_latest_with_virtual_stream_none(self, db_session):
+        resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="db")
         mmd = resolver.get_latest_with_virtual_stream("platform", "doesnotexist")
         assert not mmd
 
-    def test_get_module_count(self):
-        resolver = mbs_resolver.GenericResolver.create(tests.conf, backend="db")
+    def test_get_module_count(self, db_session):
+        resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="db")
         count = resolver.get_module_count(name="platform", stream="f28")
         assert count == 1

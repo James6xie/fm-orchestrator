@@ -33,13 +33,13 @@ import module_build_service.messaging
 import module_build_service.scheduler.handlers.repos
 import module_build_service.models
 import module_build_service.builder
-from module_build_service import Modulemd, db
+from module_build_service import Modulemd
 from module_build_service.utils.general import mmd_to_str
 
 import pytest
 from mock import patch, MagicMock
 
-from tests import conf, init_data, reuse_component_init_data, clean_database, make_module
+from tests import conf, init_data, clean_database, make_module
 
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
 
@@ -109,7 +109,6 @@ class TestKojiBuilder:
         self.config = mock.Mock()
         self.config.koji_profile = conf.koji_profile
         self.config.koji_repository_url = conf.koji_repository_url
-        self.module = module_build_service.models.ModuleBuild.query.filter_by(id=2).one()
 
         self.p_read_config = patch(
             "koji.read_config",
@@ -139,9 +138,12 @@ class TestKojiBuilder:
     def test_recover_orphaned_artifact_when_tagged(self, db_session):
         """ Test recover_orphaned_artifact when the artifact is found and tagged in both tags
         """
+        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
+
         builder = FakeKojiModuleBuilder(
-            owner=self.module.owner,
-            module=self.module,
+            db_session=db_session,
+            owner=module_build.owner,
+            module=module_build,
             config=conf,
             tag_name="module-foo",
             components=[],
@@ -184,9 +186,12 @@ class TestKojiBuilder:
     def test_recover_orphaned_artifact_when_untagged(self, db_session):
         """ Tests recover_orphaned_artifact when the build is found but untagged
         """
+        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
+
         builder = FakeKojiModuleBuilder(
-            owner=self.module.owner,
-            module=self.module,
+            db_session=db_session,
+            owner=module_build.owner,
+            module=module_build,
             config=conf,
             tag_name="module-foo",
             components=[],
@@ -227,9 +232,12 @@ class TestKojiBuilder:
     def test_recover_orphaned_artifact_when_nothing_exists(self, db_session):
         """ Test recover_orphaned_artifact when the build is not found
         """
+        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
+
         builder = FakeKojiModuleBuilder(
-            owner=self.module.owner,
-            module=self.module,
+            db_session=db_session,
+            owner=module_build.owner,
+            module=module_build,
             config=conf,
             tag_name="module-foo",
             components=[],
@@ -255,13 +263,15 @@ class TestKojiBuilder:
         assert builder.koji_session.tagBuild.call_count == 0
 
     @patch("koji.util")
-    def test_buildroot_ready(self, mocked_kojiutil):
+    def test_buildroot_ready(self, mocked_kojiutil, db_session):
+        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
 
         attrs = {"checkForBuilds.return_value": None, "checkForBuilds.side_effect": IOError}
         mocked_kojiutil.configure_mock(**attrs)
         fake_kmb = FakeKojiModuleBuilder(
-            owner=self.module.owner,
-            module=self.module,
+            db_session=db_session,
+            owner=module_build.owner,
+            module=module_build,
             config=conf,
             tag_name="module-nginx-1.2",
             components=[],
@@ -273,21 +283,25 @@ class TestKojiBuilder:
         assert mocked_kojiutil.checkForBuilds.call_count == 3
 
     @pytest.mark.parametrize("blocklist", [False, True])
-    def test_tagging_already_tagged_artifacts(self, blocklist):
+    def test_tagging_already_tagged_artifacts(self, blocklist, db_session):
         """
         Tests that buildroot_add_artifacts and tag_artifacts do not try to
         tag already tagged artifacts
         """
+        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
+
         if blocklist:
-            mmd = self.module.mmd()
+            mmd = module_build.mmd()
             xmd = mmd.get_xmd()
             xmd["mbs_options"] = {"blocked_packages": ["foo", "bar", "new"]}
             mmd.set_xmd(xmd)
-            self.module.modulemd = mmd_to_str(mmd)
+            module_build.modulemd = mmd_to_str(mmd)
+            db_session.commit()
 
         builder = FakeKojiModuleBuilder(
-            owner=self.module.owner,
-            module=self.module,
+            db_session=db_session,
+            owner=module_build.owner,
+            module=module_build,
             config=conf,
             tag_name="module-nginx-1.2",
             components=[],
@@ -328,10 +342,12 @@ class TestKojiBuilder:
 
     @patch.object(FakeKojiModuleBuilder, "get_session")
     @patch.object(FakeKojiModuleBuilder, "_get_tagged_nvrs")
-    def test_untagged_artifacts(self, mock_get_tagged_nvrs, mock_get_session):
+    def test_untagged_artifacts(self, mock_get_tagged_nvrs, mock_get_session, db_session):
         """
         Tests that only tagged artifacts will be untagged
         """
+        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
+
         mock_session = mock.Mock()
         mock_session.getTag.side_effect = [
             {"name": "foobar", "id": 1},
@@ -340,8 +356,9 @@ class TestKojiBuilder:
         mock_get_session.return_value = mock_session
         mock_get_tagged_nvrs.side_effect = [["foo", "bar"], ["foo"]]
         builder = FakeKojiModuleBuilder(
-            owner=self.module.owner,
-            module=self.module,
+            db_session=db_session,
+            owner=module_build.owner,
+            module=module_build,
             config=conf,
             tag_name="module-foo",
             components=[],
@@ -471,45 +488,51 @@ class TestKojiBuilder:
     @pytest.mark.parametrize("custom_whitelist", [False, True])
     @pytest.mark.parametrize("repo_include_all", [False, True])
     def test_buildroot_connect(
-        self, custom_whitelist, blocklist, repo_include_all
+        self, custom_whitelist, blocklist, repo_include_all, db_session
     ):
+        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
+
         if blocklist:
-            mmd = self.module.mmd()
+            mmd = module_build.mmd()
             xmd = mmd.get_xmd()
             xmd["mbs_options"] = {"blocked_packages": ["foo", "nginx"]}
             mmd.set_xmd(xmd)
-            self.module.modulemd = mmd_to_str(mmd)
+            module_build.modulemd = mmd_to_str(mmd)
+            db_session.commit()
 
         if custom_whitelist:
-            mmd = self.module.mmd()
+            mmd = module_build.mmd()
             opts = Modulemd.Buildopts()
             opts.add_rpm_to_whitelist("custom1")
             opts.add_rpm_to_whitelist("custom2")
             mmd.set_buildopts(opts)
-            self.module.modulemd = mmd_to_str(mmd)
+            module_build.modulemd = mmd_to_str(mmd)
         else:
             # Set some irrelevant buildopts options to test that KojiModuleBuilder
             # is not confused by this.
-            mmd = self.module.mmd()
+            mmd = module_build.mmd()
             opts = Modulemd.Buildopts()
             opts.set_rpm_macros("%my_macro 1")
             mmd.set_buildopts(opts)
-            self.module.modulemd = mmd_to_str(mmd)
+            module_build.modulemd = mmd_to_str(mmd)
+        db_session.commit()
 
         if repo_include_all is False:
-            mmd = self.module.mmd()
+            mmd = module_build.mmd()
             xmd = mmd.get_xmd()
             mbs_options = xmd["mbs_options"] if "mbs_options" in xmd.keys() else {}
             mbs_options["repo_include_all"] = False
             xmd["mbs_options"] = mbs_options
             mmd.set_xmd(xmd)
-            self.module.modulemd = mmd_to_str(mmd)
+            module_build.modulemd = mmd_to_str(mmd)
+            db_session.commit()
 
-        self.module.arches.append(module_build_service.models.ModuleArch(name="i686"))
+        module_build.arches.append(module_build_service.models.ModuleArch(name="i686"))
 
         builder = FakeKojiModuleBuilder(
-            owner=self.module.owner,
-            module=self.module,
+            db_session=db_session,
+            owner=module_build.owner,
+            module=module_build,
             config=conf,
             tag_name="module-foo",
             components=["nginx"],
@@ -577,17 +600,21 @@ class TestKojiBuilder:
         assert session.editTag2.mock_calls == expected_calls
 
     @pytest.mark.parametrize("blocklist", [False, True])
-    def test_buildroot_connect_create_tag(self, blocklist):
+    def test_buildroot_connect_create_tag(self, blocklist, db_session):
+        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
+
         if blocklist:
-            mmd = self.module.mmd()
+            mmd = module_build.mmd()
             xmd = mmd.get_xmd()
             xmd["mbs_options"] = {"blocked_packages": ["foo", "nginx"]}
             mmd.set_xmd(xmd)
-            self.module.modulemd = mmd_to_str(mmd)
+            module_build.modulemd = mmd_to_str(mmd)
+            db_session.commit()
 
         builder = FakeKojiModuleBuilder(
-            owner=self.module.owner,
-            module=self.module,
+            db_session=db_session,
+            owner=module_build.owner,
+            module=module_build,
             config=conf,
             tag_name="module-foo",
             components=["nginx"],
@@ -610,13 +637,17 @@ class TestKojiBuilder:
         assert session.packageListBlock.mock_calls == expected_calls
 
     @pytest.mark.parametrize("scratch", [False, True])
-    def test_buildroot_connect_create_target(self, scratch):
+    def test_buildroot_connect_create_target(self, scratch, db_session):
+        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
+
         if scratch:
-            self.module.scratch = scratch
+            module_build.scratch = scratch
+            db_session.commit()
 
         builder = FakeKojiModuleBuilder(
-            owner=self.module.owner,
-            module=self.module,
+            db_session=db_session,
+            owner=module_build.owner,
+            module=module_build,
             config=conf,
             tag_name="module-foo",
             components=["nginx"],
@@ -641,7 +672,7 @@ class TestKojiBuilder:
         assert session.createBuildTarget.mock_calls == expected_calls
 
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
-    def test_get_built_rpms_in_module_build(self, ClientSession):
+    def test_get_built_rpms_in_module_build(self, ClientSession, db_session):
         session = ClientSession.return_value
         session.listTaggedRPMS.return_value = (
             [
@@ -679,20 +710,23 @@ class TestKojiBuilder:
             [],
         )
 
+        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
+
         # Module builds generated by init_data uses generic modulemd file and
         # the module's name/stream/version/context does not have to match it.
         # But for this test, we need it to match.
-        mmd = self.module.mmd()
-        self.module.name = mmd.get_module_name()
-        self.module.stream = mmd.get_stream_name()
-        self.module.version = mmd.get_version()
-        self.module.context = mmd.get_context()
-        db.session.commit()
+        mmd = module_build.mmd()
+        module_build.name = mmd.get_module_name()
+        module_build.stream = mmd.get_stream_name()
+        module_build.version = mmd.get_version()
+        module_build.context = mmd.get_context()
+        db_session.commit()
 
         ret = KojiModuleBuilder.get_built_rpms_in_module_build(mmd)
         assert set(ret) == set(["bar-2:1.30-4.el8+1308+551bfa71", "tar-2:1.30-4.el8+1308+551bfa71"])
         session.assert_not_called()
 
+    @pytest.mark.usefixtures("reuse_component_init_data")
     @pytest.mark.parametrize(
         "br_filtered_rpms,expected",
         (
@@ -775,7 +809,6 @@ class TestKojiBuilder:
                 },
             ],
         )
-        reuse_component_init_data()
         current_module = module_build_service.models.ModuleBuild.get_by_id(db_session, 3)
         rv = KojiModuleBuilder._get_filtered_rpms_on_self_dep(current_module, br_filtered_rpms)
         assert set(rv) == set(expected)
@@ -785,8 +818,9 @@ class TestKojiBuilder:
         "cg_enabled,cg_devel_enabled", [(False, False), (True, False), (True, True)]
     )
     @mock.patch("module_build_service.builder.KojiModuleBuilder.KojiContentGenerator")
-    def test_finalize(self, mock_koji_cg_cls, cg_enabled, cg_devel_enabled):
-        self.module.state = 2
+    def test_finalize(self, mock_koji_cg_cls, cg_enabled, cg_devel_enabled, db_session):
+        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
+        module_build.state = 2
         with patch(
             "module_build_service.config.Config.koji_enable_content_generator",
             new_callable=mock.PropertyMock,
@@ -798,8 +832,9 @@ class TestKojiBuilder:
                 return_value=cg_devel_enabled,
             ):
                 builder = FakeKojiModuleBuilder(
-                    owner=self.module.owner,
-                    module=self.module,
+                    db_session=db_session,
+                    owner=module_build.owner,
+                    module=module_build,
                     config=conf,
                     tag_name="module-nginx-1.2",
                     components=[],
@@ -825,17 +860,19 @@ class TestKojiBuilder:
 
     @patch.dict("sys.modules", krbV=MagicMock())
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
-    def test_ensure_builder_use_a_logged_in_koji_session(self, ClientSession):
-        builder = KojiModuleBuilder("owner", self.module, conf, "module-tag", [])
+    def test_ensure_builder_use_a_logged_in_koji_session(self, ClientSession, db_session):
+        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
+        builder = KojiModuleBuilder(db_session, "owner", module_build, conf, "module-tag", [])
         builder.koji_session.krb_login.assert_called_once()
 
     @patch.dict("sys.modules", krbV=MagicMock())
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
-    def test_get_module_build_arches(self, ClientSession):
+    def test_get_module_build_arches(self, ClientSession, db_session):
+        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
         arches = "x86_64 i686 ppc64le aarch64 s390x"
         session = ClientSession.return_value
         session.getTag.return_value = {"arches": arches}
-        ret = KojiModuleBuilder.get_module_build_arches(self.module)
+        ret = KojiModuleBuilder.get_module_build_arches(module_build)
         assert " ".join(ret) == arches
 
 

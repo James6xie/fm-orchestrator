@@ -8,7 +8,7 @@ from textwrap import dedent
 import kobo.rpmlib
 
 from module_build_service import conf
-from module_build_service.models import ModuleBuild, ComponentBuild, make_session
+from module_build_service.models import ModuleBuild, ComponentBuild
 from module_build_service.builder.MockModuleBuilder import MockModuleBuilder
 from module_build_service.utils import import_fake_base_module, mmd_to_str, load_mmd
 from tests import clean_database, make_module, read_staged_data
@@ -23,7 +23,7 @@ class TestMockModuleBuilder:
         clean_database()
         shutil.rmtree(self.resultdir)
 
-    def _create_module_with_filters(self, session, batch, state):
+    def _create_module_with_filters(self, db_session, batch, state):
         mmd = load_mmd(read_staged_data("testmodule-with-filters"))
         # Set the name and stream
         mmd = mmd.copy("mbs-testmodule", "test")
@@ -63,7 +63,7 @@ class TestMockModuleBuilder:
             }
         })
         module = ModuleBuild.create(
-            session,
+            db_session,
             conf,
             name="mbs-testmodule",
             stream="test",
@@ -74,8 +74,8 @@ class TestMockModuleBuilder:
         )
         module.koji_tag = "module-mbs-testmodule-test-20171027111452"
         module.batch = batch
-        session.add(module)
-        session.commit()
+        db_session.add(module)
+        db_session.commit()
 
         comp_builds = [
             {
@@ -105,86 +105,82 @@ class TestMockModuleBuilder:
         ]
 
         for build in comp_builds:
-            session.add(ComponentBuild(**build))
-        session.commit()
+            db_session.add(ComponentBuild(**build))
+        db_session.commit()
 
         return module
 
     @mock.patch("module_build_service.conf.system", new="mock")
-    def test_createrepo_filter_last_batch(self, *args):
-        with make_session(conf) as session:
-            module = self._create_module_with_filters(session, 3, koji.BUILD_STATES["COMPLETE"])
+    def test_createrepo_filter_last_batch(self, db_session):
+        module = self._create_module_with_filters(db_session, 3, koji.BUILD_STATES["COMPLETE"])
 
-            builder = MockModuleBuilder(
-                "mcurlej", module, conf, module.koji_tag, module.component_builds
-            )
-            builder.resultsdir = self.resultdir
-            rpms = [
-                "ed-1.14.1-4.module+24957a32.x86_64.rpm",
-                "mksh-56b-1.module+24957a32.x86_64.rpm",
-                "module-build-macros-0.1-1.module+24957a32.noarch.rpm",
-            ]
-            rpm_qf_output = dedent("""\
-                ed 0 1.14.1 4.module+24957a32 x86_64
-                mksh 0 56b-1 module+24957a32 x86_64
-                module-build-macros 0 0.1 1.module+24957a32 noarch
-            """)
-            with mock.patch("os.listdir", return_value=rpms):
-                with mock.patch("subprocess.check_output", return_value=rpm_qf_output):
-                    builder._createrepo()
-
-            with open(os.path.join(self.resultdir, "pkglist"), "r") as fd:
-                pkglist = fd.read().strip()
-                rpm_names = [kobo.rpmlib.parse_nvr(rpm)["name"] for rpm in pkglist.split("\n")]
-                assert "ed" not in rpm_names
-
-    @mock.patch("module_build_service.conf.system", new="mock")
-    def test_createrepo_not_last_batch(self):
-        with make_session(conf) as session:
-            module = self._create_module_with_filters(session, 2, koji.BUILD_STATES["COMPLETE"])
-
-            builder = MockModuleBuilder(
-                "mcurlej", module, conf, module.koji_tag, module.component_builds
-            )
-            builder.resultsdir = self.resultdir
-            rpms = [
-                "ed-1.14.1-4.module+24957a32.x86_64.rpm",
-                "mksh-56b-1.module+24957a32.x86_64.rpm",
-            ]
-            rpm_qf_output = dedent("""\
-                ed 0 1.14.1 4.module+24957a32 x86_64
-                mksh 0 56b-1 module+24957a32 x86_64
-            """)
-            with mock.patch("os.listdir", return_value=rpms):
-                with mock.patch("subprocess.check_output", return_value=rpm_qf_output):
-                    builder._createrepo()
-
-            with open(os.path.join(self.resultdir, "pkglist"), "r") as fd:
-                pkglist = fd.read().strip()
-                rpm_names = [kobo.rpmlib.parse_nvr(rpm)["name"] for rpm in pkglist.split("\n")]
-                assert "ed" in rpm_names
-
-    @mock.patch("module_build_service.conf.system", new="mock")
-    def test_createrepo_empty_rmp_list(self, *args):
-        with make_session(conf) as session:
-            module = self._create_module_with_filters(session, 3, koji.BUILD_STATES["COMPLETE"])
-
-            builder = MockModuleBuilder(
-                "mcurlej", module, conf, module.koji_tag, module.component_builds)
-            builder.resultsdir = self.resultdir
-            rpms = []
-            with mock.patch("os.listdir", return_value=rpms):
+        builder = MockModuleBuilder(
+            db_session, "mcurlej", module, conf, module.koji_tag, module.component_builds
+        )
+        builder.resultsdir = self.resultdir
+        rpms = [
+            "ed-1.14.1-4.module+24957a32.x86_64.rpm",
+            "mksh-56b-1.module+24957a32.x86_64.rpm",
+            "module-build-macros-0.1-1.module+24957a32.noarch.rpm",
+        ]
+        rpm_qf_output = dedent("""\
+            ed 0 1.14.1 4.module+24957a32 x86_64
+            mksh 0 56b-1 module+24957a32 x86_64
+            module-build-macros 0 0.1 1.module+24957a32 noarch
+        """)
+        with mock.patch("os.listdir", return_value=rpms):
+            with mock.patch("subprocess.check_output", return_value=rpm_qf_output):
                 builder._createrepo()
 
-            with open(os.path.join(self.resultdir, "pkglist"), "r") as fd:
-                pkglist = fd.read().strip()
-                assert not pkglist
+        with open(os.path.join(self.resultdir, "pkglist"), "r") as fd:
+            pkglist = fd.read().strip()
+            rpm_names = [kobo.rpmlib.parse_nvr(rpm)["name"] for rpm in pkglist.split("\n")]
+            assert "ed" not in rpm_names
+
+    @mock.patch("module_build_service.conf.system", new="mock")
+    def test_createrepo_not_last_batch(self, db_session):
+        module = self._create_module_with_filters(db_session, 2, koji.BUILD_STATES["COMPLETE"])
+
+        builder = MockModuleBuilder(
+            db_session, "mcurlej", module, conf, module.koji_tag, module.component_builds
+        )
+        builder.resultsdir = self.resultdir
+        rpms = [
+            "ed-1.14.1-4.module+24957a32.x86_64.rpm",
+            "mksh-56b-1.module+24957a32.x86_64.rpm",
+        ]
+        rpm_qf_output = dedent("""\
+            ed 0 1.14.1 4.module+24957a32 x86_64
+            mksh 0 56b-1 module+24957a32 x86_64
+        """)
+        with mock.patch("os.listdir", return_value=rpms):
+            with mock.patch("subprocess.check_output", return_value=rpm_qf_output):
+                builder._createrepo()
+
+        with open(os.path.join(self.resultdir, "pkglist"), "r") as fd:
+            pkglist = fd.read().strip()
+            rpm_names = [kobo.rpmlib.parse_nvr(rpm)["name"] for rpm in pkglist.split("\n")]
+            assert "ed" in rpm_names
+
+    @mock.patch("module_build_service.conf.system", new="mock")
+    def test_createrepo_empty_rmp_list(self, db_session):
+        module = self._create_module_with_filters(db_session, 3, koji.BUILD_STATES["COMPLETE"])
+
+        builder = MockModuleBuilder(
+            db_session, "mcurlej", module, conf, module.koji_tag, module.component_builds)
+        builder.resultsdir = self.resultdir
+        rpms = []
+        with mock.patch("os.listdir", return_value=rpms):
+            builder._createrepo()
+
+        with open(os.path.join(self.resultdir, "pkglist"), "r") as fd:
+            pkglist = fd.read().strip()
+            assert not pkglist
 
 
 class TestMockModuleBuilderAddRepos:
     def setup_method(self, test_method):
         clean_database(add_platform_module=False)
-        import_fake_base_module("platform:f29:1:000000")
 
     @mock.patch("module_build_service.conf.system", new="mock")
     @mock.patch(
@@ -203,6 +199,8 @@ class TestMockModuleBuilderAddRepos:
     def test_buildroot_add_repos(
         self, write_config, load_config, patched_open, base_module_repofiles, db_session
     ):
+        import_fake_base_module(db_session, "platform:f29:1:000000")
+
         platform = ModuleBuild.get_last_build_in_stream(db_session, "platform", "f29")
         foo = make_module(
             db_session, "foo:1:1:1", {"platform": ["f29"]}, {"platform": ["f29"]})
@@ -215,7 +213,7 @@ class TestMockModuleBuilderAddRepos:
             mock.mock_open(read_data="[fake]\nrepofile 3\n").return_value,
         ]
 
-        builder = MockModuleBuilder("user", app, conf, "module-app", [])
+        builder = MockModuleBuilder(db_session, "user", app, conf, "module-app", [])
 
         dependencies = {
             "repofile://": [platform.mmd()],

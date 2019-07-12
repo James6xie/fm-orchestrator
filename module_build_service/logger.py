@@ -100,21 +100,21 @@ class ModuleBuildLogs(object):
         self.build_logs_name_format = build_logs_name_format
         self.level = level
 
-    def path(self, build):
+    def path(self, db_session, build):
         """
         Returns the full path to build log of module with id `build_id`.
         """
-        path = os.path.join(self.build_logs_dir, self.name(build))
+        path = os.path.join(self.build_logs_dir, self.name(db_session, build))
         return path
 
-    def name(self, build):
+    def name(self, db_session, build):
         """
         Returns the filename for a module build
         """
-        name = self.build_logs_name_format.format(**build.json())
+        name = self.build_logs_name_format.format(**build.json(db_session))
         return name
 
-    def start(self, build):
+    def start(self, db_session, build):
         """
         Starts logging build log for module with `build_id` id.
         """
@@ -125,7 +125,7 @@ class ModuleBuildLogs(object):
             return
 
         # Create and add ModuleBuildFileHandler.
-        handler = ModuleBuildFileHandler(build.id, self.path(build))
+        handler = ModuleBuildFileHandler(build.id, self.path(db_session, build))
         handler.setLevel(self.level)
         handler.setFormatter(logging.Formatter(log_format, None))
         log = logging.getLogger()

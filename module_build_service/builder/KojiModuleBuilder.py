@@ -161,13 +161,15 @@ class KojiModuleBuilder(GenericBuilder):
     region = dogpile.cache.make_region().configure("dogpile.cache.memory")
 
     @module_build_service.utils.validate_koji_tag("tag_name")
-    def __init__(self, owner, module, config, tag_name, components):
+    def __init__(self, db_session, owner, module, config, tag_name, components):
         """
+        :param db_session: SQLAlchemy session object.
         :param owner: a string representing who kicked off the builds
         :param module: module_build_service.models.ModuleBuild instance.
         :param config: module_build_service.config.Config instance
         :param tag_name: name of tag for given module
         """
+        self.db_session = db_session
         self.owner = owner
         self.module_str = module.name
         self.module = module
@@ -248,7 +250,7 @@ class KojiModuleBuilder(GenericBuilder):
         """
         # filtered_rpms will contain the NVRs of non-reusable component's RPMs
         filtered_rpms = list(set(filtered_rpms_of_dep))
-        with models.make_session(conf) as db_session:
+        with models.make_db_session(conf) as db_session:
             # Get a module build that can be reused, which will likely be the
             # build dep that is used since it relies on itself
             reusable_module = get_reusable_module(db_session, module_build)
@@ -739,7 +741,7 @@ class KojiModuleBuilder(GenericBuilder):
             # If the build cannot be found in the tags, it may be untagged as a result
             # of some earlier inconsistent situation. Let's find the task_info
             # based on the list of untagged builds
-            release = module_build_service.utils.get_rpm_release(self.module)
+            release = module_build_service.utils.get_rpm_release(self.db_session, self.module)
             untagged = self.koji_session.untaggedBuilds(name=component_build.package)
             for untagged_build in untagged:
                 if untagged_build["release"].endswith(release):
@@ -1272,7 +1274,7 @@ class KojiModuleBuilder(GenericBuilder):
         :param Modulemd mmd: Modulemd to get the built RPMs from.
         :return: list of NVRs
         """
-        with models.make_session(conf) as db_session:
+        with models.make_db_session(conf) as db_session:
             build = models.ModuleBuild.get_build_from_nsvc(
                 db_session,
                 mmd.get_module_name(),

@@ -52,7 +52,7 @@ class GenericResolver(six.with_metaclass(ABCMeta)):
         GenericResolver.backends[backend_class.backend] = backend_class
 
     @classmethod
-    def create(cls, config, backend=None, **extra):
+    def create(cls, db_session, config, backend=None, **extra):
         """Factory method to create a resolver object
 
         :param config: MBS config object.
@@ -71,7 +71,7 @@ class GenericResolver(six.with_metaclass(ABCMeta)):
             backend = conf.resolver
 
         if backend in GenericResolver.backends:
-            return GenericResolver.backends[backend](config, **extra)
+            return GenericResolver.backends[backend](db_session, config, **extra)
         else:
             raise ValueError("Resolver backend='%s' not recognized" % backend)
 

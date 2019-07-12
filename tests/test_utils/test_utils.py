@@ -32,10 +32,8 @@ import module_build_service.scm
 from module_build_service import models, conf
 from module_build_service.errors import ProgrammingError, ValidationError, UnprocessableEntity
 from module_build_service.utils.general import load_mmd
+from module_build_service.utils.submit import format_mmd
 from tests import (
-    reuse_component_init_data,
-    db,
-    reuse_shared_userspace_init_data,
     clean_database,
     init_data,
     scheduler_init_data,
@@ -92,34 +90,33 @@ class FakeSCM(object):
         return commit_hash + sha1_hash[len(commit_hash):]
 
 
+@pytest.mark.usefixtures("reuse_component_init_data")
 class TestUtilsComponentReuse:
-    def setup_method(self, test_method):
-        reuse_component_init_data()
-
-    def teardown_method(self, test_method):
-        clean_database()
+    #
+    # def teardown_method(self, test_method):
+    #     clean_database()
 
     @pytest.mark.parametrize(
         "changed_component", ["perl-List-Compare", "perl-Tangerine", "tangerine", None]
     )
-    def test_get_reusable_component_different_component(self, changed_component):
-        second_module_build = models.ModuleBuild.query.filter_by(id=3).one()
+    def test_get_reusable_component_different_component(self, changed_component, db_session):
+        second_module_build = models.ModuleBuild.get_by_id(db_session, 3)
         if changed_component:
             mmd = second_module_build.mmd()
             mmd.get_rpm_component("tangerine").set_ref("00ea1da4192a2030f9ae023de3b3143ed647bbab")
             second_module_build.modulemd = mmd_to_str(mmd)
-            second_module_changed_component = models.ComponentBuild.query.filter_by(
+            second_module_changed_component = db_session.query(models.ComponentBuild).filter_by(
                 package=changed_component, module_id=3).one()
             second_module_changed_component.ref = "00ea1da4192a2030f9ae023de3b3143ed647bbab"
-            db.session.add(second_module_changed_component)
-            db.session.commit()
+            db_session.add(second_module_changed_component)
+            db_session.commit()
 
         plc_rv = module_build_service.utils.get_reusable_component(
-            db.session, second_module_build, "perl-List-Compare")
+            db_session, second_module_build, "perl-List-Compare")
         pt_rv = module_build_service.utils.get_reusable_component(
-            db.session, second_module_build, "perl-Tangerine")
+            db_session, second_module_build, "perl-Tangerine")
         tangerine_rv = module_build_service.utils.get_reusable_component(
-            db.session, second_module_build, "tangerine")
+            db_session, second_module_build, "tangerine")
 
         if changed_component == "perl-List-Compare":
             # perl-Tangerine can be reused even though a component in its batch has changed
@@ -143,53 +140,61 @@ class TestUtilsComponentReuse:
             assert pt_rv.package == "perl-Tangerine"
             assert tangerine_rv.package == "tangerine"
 
-    def test_get_reusable_component_different_rpm_macros(self):
-        second_module_build = models.ModuleBuild.query.filter_by(id=3).one()
+    def test_get_reusable_component_different_rpm_macros(self, db_session):
+        second_module_build = models.ModuleBuild.get_by_id(db_session, 3)
         mmd = second_module_build.mmd()
         buildopts = Modulemd.Buildopts()
         buildopts.set_rpm_macros("%my_macro 1")
         mmd.set_buildopts(buildopts)
         second_module_build.modulemd = mmd_to_str(mmd)
-        db.session.commit()
+        db_session.commit()
 
         plc_rv = module_build_service.utils.get_reusable_component(
-            db.session, second_module_build, "perl-List-Compare")
+            db_session, second_module_build, "perl-List-Compare")
         assert plc_rv is None
 
         pt_rv = module_build_service.utils.get_reusable_component(
-            db.session, second_module_build, "perl-Tangerine")
+            db_session, second_module_build, "perl-Tangerine")
         assert pt_rv is None
 
     @pytest.mark.parametrize("set_current_arch", [True, False])
     @pytest.mark.parametrize("set_database_arch", [True, False])
-    def test_get_reusable_component_different_arches(self, set_database_arch, set_current_arch):
-        second_module_build = models.ModuleBuild.query.filter_by(id=3).one()
+    def test_get_reusable_component_different_arches(
+        self, set_database_arch, set_current_arch, db_session
+    ):
+        second_module_build = models.ModuleBuild.get_by_id(db_session, 3)
+
         if set_current_arch:  # set architecture for current build
             mmd = second_module_build.mmd()
             component = mmd.get_rpm_component("tangerine")
             component.reset_arches()
             component.add_restricted_arch("i686")
             second_module_build.modulemd = mmd_to_str(mmd)
+            db_session.commit()
+
         if set_database_arch:  # set architecture for build in database
-            second_module_changed_component = models.ComponentBuild.query.filter_by(
+            second_module_changed_component = db_session.query(models.ComponentBuild).filter_by(
                 package="tangerine", module_id=2).one()
             mmd = second_module_changed_component.module_build.mmd()
             component = mmd.get_rpm_component("tangerine")
             component.reset_arches()
             component.add_restricted_arch("i686")
             second_module_changed_component.module_build.modulemd = mmd_to_str(mmd)
-            db.session.add(second_module_changed_component)
-            db.session.commit()
+            db_session.commit()
 
         tangerine = module_build_service.utils.get_reusable_component(
-            db.session, second_module_build, "tangerine")
+            db_session, second_module_build, "tangerine")
         assert bool(tangerine is None) != bool(set_current_arch == set_database_arch)
 
     @pytest.mark.parametrize("rebuild_strategy", models.ModuleBuild.rebuild_strategies.keys())
-    def test_get_reusable_component_different_buildrequires_hash(self, rebuild_strategy):
-        first_module_build = models.ModuleBuild.query.filter_by(id=2).one()
+    def test_get_reusable_component_different_buildrequires_hash(
+        self, rebuild_strategy, db_session
+    ):
+        first_module_build = models.ModuleBuild.get_by_id(db_session, 2)
         first_module_build.rebuild_strategy = rebuild_strategy
-        second_module_build = models.ModuleBuild.query.filter_by(id=3).one()
+        db_session.commit()
+
+        second_module_build = models.ModuleBuild.get_by_id(db_session, 3)
         mmd = second_module_build.mmd()
         xmd = mmd.get_xmd()
         xmd["mbs"]["buildrequires"]["platform"]["ref"] = "da39a3ee5e6b4b0d3255bfef95601890afd80709"
@@ -197,14 +202,14 @@ class TestUtilsComponentReuse:
         second_module_build.modulemd = mmd_to_str(mmd)
         second_module_build.ref_build_context = "37c6c57bedf4305ef41249c1794760b5cb8fad17"
         second_module_build.rebuild_strategy = rebuild_strategy
-        db.session.commit()
+        db_session.commit()
 
         plc_rv = module_build_service.utils.get_reusable_component(
-            db.session, second_module_build, "perl-List-Compare")
+            db_session, second_module_build, "perl-List-Compare")
         pt_rv = module_build_service.utils.get_reusable_component(
-            db.session, second_module_build, "perl-Tangerine")
+            db_session, second_module_build, "perl-Tangerine")
         tangerine_rv = module_build_service.utils.get_reusable_component(
-            db.session, second_module_build, "tangerine")
+            db_session, second_module_build, "tangerine")
 
         if rebuild_strategy == "only-changed":
             assert plc_rv is not None
@@ -216,10 +221,14 @@ class TestUtilsComponentReuse:
             assert tangerine_rv is None
 
     @pytest.mark.parametrize("rebuild_strategy", models.ModuleBuild.rebuild_strategies.keys())
-    def test_get_reusable_component_different_buildrequires_stream(self, rebuild_strategy):
-        first_module_build = models.ModuleBuild.query.filter_by(id=2).one()
+    def test_get_reusable_component_different_buildrequires_stream(
+        self, rebuild_strategy, db_session
+    ):
+        first_module_build = models.ModuleBuild.get_by_id(db_session, 2)
         first_module_build.rebuild_strategy = rebuild_strategy
-        second_module_build = models.ModuleBuild.query.filter_by(id=3).one()
+        db_session.commit()
+
+        second_module_build = models.ModuleBuild.get_by_id(db_session, 3)
         mmd = second_module_build.mmd()
         xmd = mmd.get_xmd()
         xmd["mbs"]["buildrequires"]["platform"]["stream"] = "different"
@@ -227,21 +236,21 @@ class TestUtilsComponentReuse:
         second_module_build.modulemd = mmd_to_str(mmd)
         second_module_build.build_context = "37c6c57bedf4305ef41249c1794760b5cb8fad17"
         second_module_build.rebuild_strategy = rebuild_strategy
-        db.session.commit()
+        db_session.commit()
 
         plc_rv = module_build_service.utils.get_reusable_component(
-            db.session, second_module_build, "perl-List-Compare")
+            db_session, second_module_build, "perl-List-Compare")
         pt_rv = module_build_service.utils.get_reusable_component(
-            db.session, second_module_build, "perl-Tangerine")
+            db_session, second_module_build, "perl-Tangerine")
         tangerine_rv = module_build_service.utils.get_reusable_component(
-            db.session, second_module_build, "tangerine")
+            db_session, second_module_build, "tangerine")
 
         assert plc_rv is None
         assert pt_rv is None
         assert tangerine_rv is None
 
-    def test_get_reusable_component_different_buildrequires(self):
-        second_module_build = models.ModuleBuild.query.filter_by(id=3).one()
+    def test_get_reusable_component_different_buildrequires(self, db_session):
+        second_module_build = models.ModuleBuild.get_by_id(db_session, 3)
         mmd = second_module_build.mmd()
         mmd.get_dependencies()[0].add_buildtime_stream("some_module", "master")
         xmd = mmd.get_xmd()
@@ -255,22 +264,22 @@ class TestUtilsComponentReuse:
         mmd.set_xmd(xmd)
         second_module_build.modulemd = mmd_to_str(mmd)
         second_module_build.ref_build_context = "37c6c57bedf4305ef41249c1794760b5cb8fad17"
-        db.session.commit()
+        db_session.commit()
 
         plc_rv = module_build_service.utils.get_reusable_component(
-            db.session, second_module_build, "perl-List-Compare")
+            db_session, second_module_build, "perl-List-Compare")
         assert plc_rv is None
 
         pt_rv = module_build_service.utils.get_reusable_component(
-            db.session, second_module_build, "perl-Tangerine")
+            db_session, second_module_build, "perl-Tangerine")
         assert pt_rv is None
 
         tangerine_rv = module_build_service.utils.get_reusable_component(
-            db.session, second_module_build, "tangerine")
+            db_session, second_module_build, "tangerine")
         assert tangerine_rv is None
 
     @patch("module_build_service.utils.submit.submit_module_build")
-    def test_submit_module_build_from_yaml_with_skiptests(self, mock_submit):
+    def test_submit_module_build_from_yaml_with_skiptests(self, mock_submit, db_session):
         """
         Tests local module build from a yaml file with the skiptests option
 
@@ -279,7 +288,7 @@ class TestUtilsComponentReuse:
                 inspect if it was called with correct arguments
         """
         module_dir = tempfile.mkdtemp()
-        module = models.ModuleBuild.query.filter_by(id=3).one()
+        module = models.ModuleBuild.get_by_id(db_session, 3)
         mmd = module.mmd()
         modulemd_yaml = mmd_to_str(mmd)
         modulemd_file_path = path.join(module_dir, "testmodule.yaml")
@@ -293,10 +302,10 @@ class TestUtilsComponentReuse:
         with open(modulemd_file_path, "rb") as fd:
             handle = FileStorage(fd)
             module_build_service.utils.submit_module_build_from_yaml(
-                username, handle, {}, stream=stream, skiptests=True)
+                db_session, username, handle, {}, stream=stream, skiptests=True)
             mock_submit_args = mock_submit.call_args[0]
-            username_arg = mock_submit_args[0]
-            mmd_arg = mock_submit_args[1]
+            username_arg = mock_submit_args[1]
+            mmd_arg = mock_submit_args[2]
             assert mmd_arg.get_stream_name() == stream
             assert "\n\n%__spec_check_pre exit 0\n" in mmd_arg.get_buildopts().get_rpm_macros()
             assert username_arg == username
@@ -311,22 +320,22 @@ class TestUtils:
         clean_database()
 
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
-    def test_get_build_arches(self, ClientSession):
+    def test_get_build_arches(self, ClientSession, db_session):
         session = ClientSession.return_value
         session.getTag.return_value = {"arches": "ppc64le"}
         mmd = load_mmd(read_staged_data("formatted_testmodule"))
-        r = module_build_service.utils.get_build_arches(mmd, conf)
+        r = module_build_service.utils.get_build_arches(db_session, mmd, conf)
         assert r == ["ppc64le"]
 
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
-    def test_get_build_arches_no_arch_set(self, ClientSession):
+    def test_get_build_arches_no_arch_set(self, ClientSession, db_session):
         """
         When no architecture is set in Koji tag, fallback to conf.arches.
         """
         session = ClientSession.return_value
         session.getTag.return_value = {"arches": ""}
         mmd = load_mmd(read_staged_data("formatted_testmodule"))
-        r = module_build_service.utils.get_build_arches(mmd, conf)
+        r = module_build_service.utils.get_build_arches(db_session, mmd, conf)
         assert set(r) == set(conf.arches)
 
     @patch(
@@ -334,17 +343,17 @@ class TestUtils:
         new_callable=mock.PropertyMock,
         return_value=["testmodule"],
     )
-    def test_get_build_arches_koji_tag_arches(self, cfg):
+    def test_get_build_arches_koji_tag_arches(self, cfg, db_session):
         mmd = load_mmd(read_staged_data("formatted_testmodule"))
         xmd = mmd.get_xmd()
         xmd["mbs"]["koji_tag_arches"] = ["ppc64", "ppc64le"]
         mmd.set_xmd(xmd)
 
-        r = module_build_service.utils.get_build_arches(mmd, conf)
+        r = module_build_service.utils.get_build_arches(db_session, mmd, conf)
         assert r == ["ppc64", "ppc64le"]
 
     @patch.object(conf, "base_module_arches", new={"platform:xx": ["x86_64", "i686"]})
-    def test_get_build_arches_base_module_override(self):
+    def test_get_build_arches_base_module_override(self, db_session):
         mmd = load_mmd(read_staged_data("formatted_testmodule"))
         xmd = mmd.get_xmd()
         mbs_options = xmd["mbs"] if "mbs" in xmd.keys() else {}
@@ -352,11 +361,11 @@ class TestUtils:
         xmd["mbs"] = mbs_options
         mmd.set_xmd(xmd)
 
-        r = module_build_service.utils.get_build_arches(mmd, conf)
+        r = module_build_service.utils.get_build_arches(db_session, mmd, conf)
         assert r == ["x86_64", "i686"]
 
     @pytest.mark.parametrize("context", ["c1", None])
-    def test_import_mmd_contexts(self, context):
+    def test_import_mmd_contexts(self, context, db_session):
         mmd = load_mmd(read_staged_data("formatted_testmodule"))
         mmd.set_context(context)
 
@@ -364,7 +373,7 @@ class TestUtils:
         xmd["mbs"]["koji_tag"] = "foo"
         mmd.set_xmd(xmd)
 
-        build, msgs = module_build_service.utils.import_mmd(db.session, mmd)
+        build, msgs = module_build_service.utils.import_mmd(db_session, mmd)
 
         mmd_context = build.mmd().get_context()
         if context:
@@ -374,16 +383,16 @@ class TestUtils:
             assert mmd_context == models.DEFAULT_MODULE_CONTEXT
             assert build.context == models.DEFAULT_MODULE_CONTEXT
 
-    def test_import_mmd_multiple_dependencies(self):
+    def test_import_mmd_multiple_dependencies(self, db_session):
         mmd = load_mmd(read_staged_data("formatted_testmodule"))
         mmd.add_dependencies(mmd.get_dependencies()[0].copy())
 
         expected_error = "The imported module's dependencies list should contain just one element"
         with pytest.raises(UnprocessableEntity) as e:
-            module_build_service.utils.import_mmd(db.session, mmd)
+            module_build_service.utils.import_mmd(db_session, mmd)
             assert str(e.value) == expected_error
 
-    def test_import_mmd_no_xmd_buildrequires(self):
+    def test_import_mmd_no_xmd_buildrequires(self, db_session):
         mmd = load_mmd(read_staged_data("formatted_testmodule"))
         xmd = mmd.get_xmd()
         del xmd["mbs"]["buildrequires"]
@@ -394,10 +403,10 @@ class TestUtils:
             'xmd["mbs"]["buildrequires"] dictionary is missing entries'
         )
         with pytest.raises(UnprocessableEntity) as e:
-            module_build_service.utils.import_mmd(db.session, mmd)
+            module_build_service.utils.import_mmd(db_session, mmd)
             assert str(e.value) == expected_error
 
-    def test_import_mmd_minimal_xmd_from_local_repository(self):
+    def test_import_mmd_minimal_xmd_from_local_repository(self, db_session):
         mmd = load_mmd(read_staged_data("formatted_testmodule"))
         xmd = mmd.get_xmd()
         xmd["mbs"] = {}
@@ -406,7 +415,7 @@ class TestUtils:
         xmd["mbs"]["commit"] = "unknown"
         mmd.set_xmd(xmd)
 
-        build, msgs = module_build_service.utils.import_mmd(db.session, mmd, False)
+        build, msgs = module_build_service.utils.import_mmd(db_session, mmd, False)
         assert build.name == mmd.get_module_name()
 
     @pytest.mark.parametrize(
@@ -420,7 +429,7 @@ class TestUtils:
             ("f-28", "fedora-28", "The disttag_marking cannot contain a dash"),
         ),
     )
-    def test_import_mmd_base_module(self, stream, disttag_marking, error_msg):
+    def test_import_mmd_base_module(self, stream, disttag_marking, error_msg, db_session):
         clean_database(add_platform_module=False)
         mmd = load_mmd(read_staged_data("platform"))
         mmd = mmd.copy(mmd.get_module_name(), stream)
@@ -432,25 +441,25 @@ class TestUtils:
 
         if error_msg:
             with pytest.raises(UnprocessableEntity, match=error_msg):
-                module_build_service.utils.import_mmd(db.session, mmd)
+                module_build_service.utils.import_mmd(db_session, mmd)
         else:
-            module_build_service.utils.import_mmd(db.session, mmd)
+            module_build_service.utils.import_mmd(db_session, mmd)
 
     def test_get_rpm_release_mse(self, db_session):
         init_data(contexts=True)
 
         build_one = models.ModuleBuild.get_by_id(db_session, 2)
-        release_one = module_build_service.utils.get_rpm_release(build_one)
+        release_one = module_build_service.utils.get_rpm_release(db_session, build_one)
         assert release_one == "module+2+b8645bbb"
 
         build_two = models.ModuleBuild.get_by_id(db_session, 3)
-        release_two = module_build_service.utils.get_rpm_release(build_two)
+        release_two = module_build_service.utils.get_rpm_release(db_session, build_two)
         assert release_two == "module+2+17e35784"
 
     def test_get_rpm_release_platform_stream(self, db_session):
         scheduler_init_data(db_session, 1)
         build_one = models.ModuleBuild.get_by_id(db_session, 2)
-        release = module_build_service.utils.get_rpm_release(build_one)
+        release = module_build_service.utils.get_rpm_release(db_session, build_one)
         assert release == "module+f28+2+814cfa39"
 
     def test_get_rpm_release_platform_stream_override(self, db_session):
@@ -471,7 +480,7 @@ class TestUtils:
         db_session.commit()
 
         build_one = models.ModuleBuild.get_by_id(db_session, 2)
-        release = module_build_service.utils.get_rpm_release(build_one)
+        release = module_build_service.utils.get_rpm_release(db_session, build_one)
         assert release == "module+fedora28+2+814cfa39"
 
     @patch(
@@ -505,24 +514,24 @@ class TestUtils:
         db_session.add(build_one)
         db_session.commit()
 
-        release = module_build_service.utils.get_rpm_release(build_one)
+        release = module_build_service.utils.get_rpm_release(db_session, build_one)
         assert release == "module+product12+2+814cfa39"
 
     def test_get_rpm_release_mse_scratch(self, db_session):
         init_data(contexts=True, scratch=True)
 
         build_one = models.ModuleBuild.get_by_id(db_session, 2)
-        release_one = module_build_service.utils.get_rpm_release(build_one)
+        release_one = module_build_service.utils.get_rpm_release(db_session, build_one)
         assert release_one == "scrmod+2+b8645bbb"
 
         build_two = models.ModuleBuild.get_by_id(db_session, 3)
-        release_two = module_build_service.utils.get_rpm_release(build_two)
+        release_two = module_build_service.utils.get_rpm_release(db_session, build_two)
         assert release_two == "scrmod+2+17e35784"
 
     def test_get_rpm_release_platform_stream_scratch(self, db_session):
         scheduler_init_data(db_session, 1, scratch=True)
         build_one = models.ModuleBuild.get_by_id(db_session, 2)
-        release = module_build_service.utils.get_rpm_release(build_one)
+        release = module_build_service.utils.get_rpm_release(db_session, build_one)
         assert release == "scrmod+f28+2+814cfa39"
 
     @patch("module_build_service.utils.submit.get_build_arches")
@@ -596,6 +605,7 @@ class TestUtils:
         mmd_xmd = mmd.get_xmd()
         assert mmd_xmd == xmd
 
+    @pytest.mark.usefixtures("reuse_shared_userspace_init_data")
     def test_get_reusable_component_shared_userspace_ordering(self, db_session):
         """
         For modules with lot of components per batch, there is big chance that
@@ -603,9 +613,8 @@ class TestUtils:
         current `new_module`. In this case, reuse code should still be able to
         reuse the components.
         """
-        reuse_shared_userspace_init_data()
         new_module = models.ModuleBuild.get_by_id(db_session, 3)
-        rv = module_build_service.utils.get_reusable_component(db.session, new_module, "llvm")
+        rv = module_build_service.utils.get_reusable_component(db_session, new_module, "llvm")
         assert rv.package == "llvm"
 
     def test_validate_koji_tag_wrong_tag_arg_during_programming(self):
@@ -714,85 +723,91 @@ class TestUtils:
             assert str(cm.value).endswith(" No value provided.") is True
 
     @patch("module_build_service.scm.SCM")
-    def test_record_component_builds_duplicate_components(self, mocked_scm):
-        with app.app_context():
-            clean_database()
-            mocked_scm.return_value.commit = "620ec77321b2ea7b0d67d82992dda3e1d67055b4"
-            mocked_scm.return_value.get_latest.side_effect = [
-                "4ceea43add2366d8b8c5a622a2fb563b625b9abf",
-                "fbed359411a1baa08d4a88e0d12d426fbf8f602c",
-            ]
+    def test_record_component_builds_duplicate_components(self, mocked_scm, db_session):
+        clean_database()
 
-            mmd = load_mmd(read_staged_data("testmodule"))
-            mmd = mmd.copy("testmodule-variant", "master")
-            module_build = module_build_service.models.ModuleBuild()
-            module_build.name = "testmodule-variant"
-            module_build.stream = "master"
-            module_build.version = 20170109091357
-            module_build.state = models.BUILD_STATES["init"]
-            module_build.scmurl = \
-                "https://src.stg.fedoraproject.org/modules/testmodule.git?#ff1ea79"
-            module_build.batch = 1
-            module_build.owner = "Tom Brady"
-            module_build.time_submitted = datetime(2017, 2, 15, 16, 8, 18)
-            module_build.time_modified = datetime(2017, 2, 15, 16, 19, 35)
-            module_build.rebuild_strategy = "changed-and-after"
-            module_build.modulemd = mmd_to_str(mmd)
-            db.session.add(module_build)
-            db.session.commit()
-            # Rename the the modulemd to include
-            mmd = mmd.copy("testmodule")
-            # Remove perl-Tangerine and tangerine from the modulemd to include so only one
-            # component conflicts
-            mmd.remove_rpm_component("perl-Tangerine")
-            mmd.remove_rpm_component("tangerine")
+        # Mock for format_mmd to get components' latest ref
+        mocked_scm.return_value.commit = "620ec77321b2ea7b0d67d82992dda3e1d67055b4"
+        mocked_scm.return_value.get_latest.side_effect = [
+            "4ceea43add2366d8b8c5a622a2fb563b625b9abf",
+            "fbed359411a1baa08d4a88e0d12d426fbf8f602c",
+        ]
 
-            error_msg = (
-                'The included module "testmodule" in "testmodule-variant" have '
-                "the following conflicting components: perl-List-Compare"
-            )
-            with pytest.raises(UnprocessableEntity) as e:
-                module_build_service.utils.record_component_builds(
-                    mmd, module_build, main_mmd=module_build.mmd())
+        mmd = load_mmd(read_staged_data("testmodule"))
+        mmd = mmd.copy("testmodule-variant", "master")
+        module_build = module_build_service.models.ModuleBuild()
+        module_build.name = "testmodule-variant"
+        module_build.stream = "master"
+        module_build.version = 20170109091357
+        module_build.state = models.BUILD_STATES["init"]
+        module_build.scmurl = \
+            "https://src.stg.fedoraproject.org/modules/testmodule.git?#ff1ea79"
+        module_build.batch = 1
+        module_build.owner = "Tom Brady"
+        module_build.time_submitted = datetime(2017, 2, 15, 16, 8, 18)
+        module_build.time_modified = datetime(2017, 2, 15, 16, 19, 35)
+        module_build.rebuild_strategy = "changed-and-after"
+        module_build.modulemd = mmd_to_str(mmd)
+        db_session.add(module_build)
+        db_session.commit()
+        # Rename the the modulemd to include
+        mmd = mmd.copy("testmodule")
+        # Remove perl-Tangerine and tangerine from the modulemd to include so only one
+        # component conflicts
+        mmd.remove_rpm_component("perl-Tangerine")
+        mmd.remove_rpm_component("tangerine")
 
-            assert str(e.value) == error_msg
+        error_msg = (
+            'The included module "testmodule" in "testmodule-variant" have '
+            "the following conflicting components: perl-List-Compare"
+        )
+        format_mmd(mmd, module_build.scmurl)
+        with pytest.raises(UnprocessableEntity) as e:
+            module_build_service.utils.record_component_builds(
+                db_session, mmd, module_build, main_mmd=module_build.mmd())
+
+        assert str(e.value) == error_msg
 
     @patch("module_build_service.scm.SCM")
-    def test_record_component_builds_set_weight(self, mocked_scm):
-        with app.app_context():
-            clean_database()
-            mocked_scm.return_value.commit = "620ec77321b2ea7b0d67d82992dda3e1d67055b4"
-            mocked_scm.return_value.get_latest.side_effect = [
-                "4ceea43add2366d8b8c5a622a2fb563b625b9abf",
-                "fbed359411a1baa08d4a88e0d12d426fbf8f602c",
-                "dbed259411a1baa08d4a88e0d12d426fbf8f6037",
-            ]
+    def test_record_component_builds_set_weight(self, mocked_scm, db_session):
+        clean_database()
 
-            mmd = load_mmd(read_staged_data("testmodule"))
-            # Set the module name and stream
-            mmd = mmd.copy("testmodule", "master")
-            module_build = module_build_service.models.ModuleBuild()
-            module_build.name = "testmodule"
-            module_build.stream = "master"
-            module_build.version = 20170109091357
-            module_build.state = models.BUILD_STATES["init"]
-            module_build.scmurl = \
-                "https://src.stg.fedoraproject.org/modules/testmodule.git?#ff1ea79"
-            module_build.batch = 1
-            module_build.owner = "Tom Brady"
-            module_build.time_submitted = datetime(2017, 2, 15, 16, 8, 18)
-            module_build.time_modified = datetime(2017, 2, 15, 16, 19, 35)
-            module_build.rebuild_strategy = "changed-and-after"
-            module_build.modulemd = mmd_to_str(mmd)
-            db.session.add(module_build)
-            db.session.commit()
+        # Mock for format_mmd to get components' latest ref
+        mocked_scm.return_value.commit = "620ec77321b2ea7b0d67d82992dda3e1d67055b4"
+        mocked_scm.return_value.get_latest.side_effect = [
+            "4ceea43add2366d8b8c5a622a2fb563b625b9abf",
+            "fbed359411a1baa08d4a88e0d12d426fbf8f602c",
+            "dbed259411a1baa08d4a88e0d12d426fbf8f6037",
+        ]
 
-            module_build_service.utils.record_component_builds(mmd, module_build)
+        mmd = load_mmd(read_staged_data("testmodule"))
+        # Set the module name and stream
+        mmd = mmd.copy("testmodule", "master")
 
-            assert module_build.state == models.BUILD_STATES["init"]
-            db.session.refresh(module_build)
-            for c in module_build.component_builds:
-                assert c.weight == 1.5
+        module_build = module_build_service.models.ModuleBuild()
+        module_build.name = "testmodule"
+        module_build.stream = "master"
+        module_build.version = 20170109091357
+        module_build.state = models.BUILD_STATES["init"]
+        module_build.scmurl = \
+            "https://src.stg.fedoraproject.org/modules/testmodule.git?#ff1ea79"
+        module_build.batch = 1
+        module_build.owner = "Tom Brady"
+        module_build.time_submitted = datetime(2017, 2, 15, 16, 8, 18)
+        module_build.time_modified = datetime(2017, 2, 15, 16, 19, 35)
+        module_build.rebuild_strategy = "changed-and-after"
+        module_build.modulemd = mmd_to_str(mmd)
+
+        db_session.add(module_build)
+        db_session.commit()
+
+        format_mmd(mmd, module_build.scmurl)
+        module_build_service.utils.record_component_builds(db_session, mmd, module_build)
+
+        assert module_build.state == models.BUILD_STATES["init"]
+        db_session.refresh(module_build)
+        for c in module_build.component_builds:
+            assert c.weight == 1.5
 
     @patch("module_build_service.scm.SCM")
     def test_format_mmd_arches(self, mocked_scm):
@@ -911,18 +926,17 @@ class TestUtils:
         assert v == 7000120180205135154
 
     @patch("module_build_service.utils.mse.generate_expanded_mmds")
-    def test_submit_build_new_mse_build(self, generate_expanded_mmds):
+    def test_submit_build_new_mse_build(self, generate_expanded_mmds, db_session):
         """
         Tests that finished build can be resubmitted in case the resubmitted
         build adds new MSE build (it means there are new expanded
         buildrequires).
         """
-        with models.make_session(conf) as db_session:
-            build = make_module(db_session, "foo:stream:0:c1", {}, {})
-            assert build.state == models.BUILD_STATES["ready"]
+        build = make_module(db_session, "foo:stream:0:c1", {}, {})
+        assert build.state == models.BUILD_STATES["ready"]
 
-            mmd1 = build.mmd()
-            mmd2 = build.mmd()
+        mmd1 = build.mmd()
+        mmd2 = build.mmd()
 
         mmd2.set_context("c2")
         generate_expanded_mmds.return_value = [mmd1, mmd2]
@@ -930,12 +944,12 @@ class TestUtils:
         mmd1_copy = mmd1.copy()
         mmd1_copy.set_xmd({})
 
-        builds = module_build_service.utils.submit_module_build("foo", mmd1_copy, {})
+        builds = module_build_service.utils.submit_module_build(db_session, "foo", mmd1_copy, {})
         ret = {b.mmd().get_context(): b.state for b in builds}
         assert ret == {"c1": models.BUILD_STATES["ready"], "c2": models.BUILD_STATES["init"]}
 
-        assert builds[0].siblings == [builds[1].id]
-        assert builds[1].siblings == [builds[0].id]
+        assert builds[0].siblings(db_session) == [builds[1].id]
+        assert builds[1].siblings(db_session) == [builds[0].id]
 
 
 class DummyModuleBuilder(GenericBuilder):
@@ -949,7 +963,8 @@ class DummyModuleBuilder(GenericBuilder):
     TAGGED_COMPONENTS = []
 
     @module_build_service.utils.validate_koji_tag("tag_name")
-    def __init__(self, owner, module, config, tag_name, components):
+    def __init__(self, db_session, owner, module, config, tag_name, components):
+        self.db_session = db_session
         self.module_str = module
         self.tag_name = tag_name
         self.config = config
@@ -1009,21 +1024,21 @@ class DummyModuleBuilder(GenericBuilder):
         pass
 
 
+@pytest.mark.usefixtures("reuse_component_init_data")
 @patch(
     "module_build_service.builder.GenericBuilder.default_buildroot_groups",
     return_value={"build": [], "srpm-build": []},
 )
 class TestBatches:
     def setup_method(self, test_method):
-        reuse_component_init_data()
         GenericBuilder.register_backend_class(DummyModuleBuilder)
 
     def teardown_method(self, test_method):
-        clean_database()
+        # clean_database()
         DummyModuleBuilder.TAGGED_COMPONENTS = []
         GenericBuilder.register_backend_class(KojiModuleBuilder)
 
-    def test_start_next_batch_build_reuse(self, default_buildroot_groups):
+    def test_start_next_batch_build_reuse(self, default_buildroot_groups, db_session):
         """
         Tests that start_next_batch_build:
            1) Increments module.batch.
@@ -1033,12 +1048,12 @@ class TestBatches:
            5) Handling the further_work messages lead to proper tagging of
               reused components.
         """
-        module_build = models.ModuleBuild.query.filter_by(id=3).one()
+        module_build = models.ModuleBuild.get_by_id(db_session, 3)
         module_build.batch = 1
 
         builder = mock.MagicMock()
         further_work = module_build_service.utils.start_next_batch_build(
-            conf, module_build, db.session, builder)
+            conf, module_build, db_session, builder)
 
         # Batch number should increase.
         assert module_build.batch == 2
@@ -1050,14 +1065,14 @@ class TestBatches:
         for msg in further_work:
             if type(msg) == module_build_service.messaging.KojiBuildChange:
                 assert msg.build_new_state == koji.BUILD_STATES["COMPLETE"]
-                component_build = models.ComponentBuild.from_component_event(db.session, msg)
+                component_build = models.ComponentBuild.from_component_event(db_session, msg)
                 assert component_build.state == koji.BUILD_STATES["BUILDING"]
 
         # When we handle these KojiBuildChange messages, MBS should tag all
         # the components just once.
         for msg in further_work:
             if type(msg) == module_build_service.messaging.KojiBuildChange:
-                module_build_service.scheduler.handlers.components.complete(conf, db.session, msg)
+                module_build_service.scheduler.handlers.components.complete(conf, db_session, msg)
 
         # Since we have reused all the components in the batch, there should
         # be fake KojiRepoChange message.
@@ -1067,7 +1082,9 @@ class TestBatches:
         assert len(DummyModuleBuilder.TAGGED_COMPONENTS) == 2
 
     @patch("module_build_service.utils.batches.start_build_component")
-    def test_start_next_batch_build_reuse_some(self, mock_sbc, default_buildroot_groups):
+    def test_start_next_batch_build_reuse_some(
+        self, mock_sbc, default_buildroot_groups, db_session
+    ):
         """
         Tests that start_next_batch_build:
            1) Increments module.batch.
@@ -1077,16 +1094,16 @@ class TestBatches:
            5) Handling the further_work messages lead to proper tagging of
               reused components.
         """
-        module_build = models.ModuleBuild.query.filter_by(id=3).one()
+        module_build = models.ModuleBuild.get_by_id(db_session, 3)
         module_build.batch = 1
-        plc_component = models.ComponentBuild.query.filter_by(
+        plc_component = db_session.query(models.ComponentBuild).filter_by(
             module_id=3, package="perl-List-Compare").one()
         plc_component.ref = "5ceea46add2366d8b8c5a623a2fb563b625b9abd"
 
         builder = mock.MagicMock()
         builder.recover_orphaned_artifact.return_value = []
         further_work = module_build_service.utils.start_next_batch_build(
-            conf, module_build, db.session, builder)
+            conf, module_build, db_session, builder)
 
         # Batch number should increase.
         assert module_build.batch == 2
@@ -1098,7 +1115,7 @@ class TestBatches:
         # to BUILDING, so KojiBuildChange message handler handles the change
         # properly.
         assert further_work[0].build_new_state == koji.BUILD_STATES["COMPLETE"]
-        component_build = models.ComponentBuild.from_component_event(db.session, further_work[0])
+        component_build = models.ComponentBuild.from_component_event(db_session, further_work[0])
         assert component_build.state == koji.BUILD_STATES["BUILDING"]
         assert component_build.package == "perl-Tangerine"
         assert component_build.reused_component_id is not None
@@ -1114,20 +1131,20 @@ class TestBatches:
         return_value="all",
     )
     def test_start_next_batch_build_rebuild_strategy_all(
-        self, mock_rm, mock_sbc, default_buildroot_groups
+        self, mock_rm, mock_sbc, default_buildroot_groups, db_session
     ):
         """
         Tests that start_next_batch_build can't reuse any components in the batch because the
         rebuild method is set to "all".
         """
-        module_build = models.ModuleBuild.query.filter_by(id=3).one()
+        module_build = models.ModuleBuild.get_by_id(db_session, 3)
         module_build.rebuild_strategy = "all"
         module_build.batch = 1
 
         builder = mock.MagicMock()
         builder.recover_orphaned_artifact.return_value = []
         further_work = module_build_service.utils.start_next_batch_build(
-            conf, module_build, db.session, builder)
+            conf, module_build, db_session, builder)
 
         # Batch number should increase.
         assert module_build.batch == 2
@@ -1136,7 +1153,7 @@ class TestBatches:
         # Make sure that both components in the batch were submitted
         assert len(mock_sbc.mock_calls) == 2
 
-    def test_start_build_component_failed_state(self, default_buildroot_groups):
+    def test_start_build_component_failed_state(self, default_buildroot_groups, db_session):
         """
         Tests whether exception occured while building sets the state to failed
         """
@@ -1144,7 +1161,7 @@ class TestBatches:
         builder.build.side_effect = Exception("Something have gone terribly wrong")
         component = mock.MagicMock()
 
-        module_build_service.utils.batches.start_build_component(builder, component)
+        module_build_service.utils.batches.start_build_component(db_session, builder, component)
 
         assert component.state == koji.BUILD_STATES["FAILED"]
 
@@ -1155,7 +1172,7 @@ class TestBatches:
         return_value="only-changed",
     )
     def test_start_next_batch_build_rebuild_strategy_only_changed(
-        self, mock_rm, mock_sbc, default_buildroot_groups
+        self, mock_rm, mock_sbc, default_buildroot_groups, db_session
     ):
         """
         Tests that start_next_batch_build reuses all unchanged components in the batch because the
@@ -1163,18 +1180,18 @@ class TestBatches:
         2, and even though the other component in batch 2 changed and was rebuilt, the component
         in batch 3 can be reused.
         """
-        module_build = models.ModuleBuild.query.filter_by(id=3).one()
+        module_build = models.ModuleBuild.get_by_id(db_session, 3)
         module_build.rebuild_strategy = "only-changed"
         module_build.batch = 1
         # perl-List-Compare changed
-        plc_component = models.ComponentBuild.query.filter_by(
+        plc_component = db_session.query(models.ComponentBuild).filter_by(
             module_id=3, package="perl-List-Compare").one()
         plc_component.ref = "5ceea46add2366d8b8c5a623a2fb563b625b9abd"
 
         builder = mock.MagicMock()
         builder.recover_orphaned_artifact.return_value = []
         further_work = module_build_service.utils.start_next_batch_build(
-            conf, module_build, db.session, builder)
+            conf, module_build, db_session, builder)
 
         # Batch number should increase
         assert module_build.batch == 2
@@ -1186,7 +1203,7 @@ class TestBatches:
         # to BUILDING, so KojiBuildChange message handler handles the change
         # properly.
         assert further_work[0].build_new_state == koji.BUILD_STATES["COMPLETE"]
-        component_build = models.ComponentBuild.from_component_event(db.session, further_work[0])
+        component_build = models.ComponentBuild.from_component_event(db_session, further_work[0])
         assert component_build.state == koji.BUILD_STATES["BUILDING"]
         assert component_build.package == "perl-Tangerine"
         assert component_build.reused_component_id is not None
@@ -1198,35 +1215,37 @@ class TestBatches:
 
         # Complete the build
         plc_component.state = koji.BUILD_STATES["COMPLETE"]
-        pt_component = models.ComponentBuild.query.filter_by(
+        pt_component = db_session.query(models.ComponentBuild).filter_by(
             module_id=3, package="perl-Tangerine").one()
         pt_component.state = koji.BUILD_STATES["COMPLETE"]
 
         # Start the next build batch
         further_work = module_build_service.utils.start_next_batch_build(
-            conf, module_build, db.session, builder)
+            conf, module_build, db_session, builder)
         # Batch number should increase
         assert module_build.batch == 3
         # Verify that tangerine was reused even though perl-Tangerine was rebuilt in the previous
         # batch
         assert further_work[0].build_new_state == koji.BUILD_STATES["COMPLETE"]
-        component_build = models.ComponentBuild.from_component_event(db.session, further_work[0])
+        component_build = models.ComponentBuild.from_component_event(db_session, further_work[0])
         assert component_build.state == koji.BUILD_STATES["BUILDING"]
         assert component_build.package == "tangerine"
         assert component_build.reused_component_id is not None
         mock_sbc.assert_not_called()
 
     @patch("module_build_service.utils.batches.start_build_component")
-    def test_start_next_batch_build_smart_scheduling(self, mock_sbc, default_buildroot_groups):
+    def test_start_next_batch_build_smart_scheduling(
+        self, mock_sbc, default_buildroot_groups, db_session
+    ):
         """
         Tests that components with the longest build time will be scheduled first
         """
-        module_build = models.ModuleBuild.query.filter_by(id=3).one()
+        module_build = models.ModuleBuild.get_by_id(db_session, 3)
         module_build.batch = 1
-        pt_component = models.ComponentBuild.query.filter_by(
+        pt_component = db_session.query(models.ComponentBuild).filter_by(
             module_id=3, package="perl-Tangerine").one()
         pt_component.ref = "6ceea46add2366d8b8c5a623b2fb563b625bfabe"
-        plc_component = models.ComponentBuild.query.filter_by(
+        plc_component = db_session.query(models.ComponentBuild).filter_by(
             module_id=3, package="perl-List-Compare").one()
         plc_component.ref = "5ceea46add2366d8b8c5a623a2fb563b625b9abd"
 
@@ -1238,7 +1257,7 @@ class TestBatches:
         builder = mock.MagicMock()
         builder.recover_orphaned_artifact.return_value = []
         further_work = module_build_service.utils.start_next_batch_build(
-            conf, module_build, db.session, builder)
+            conf, module_build, db_session, builder)
 
         # Batch number should increase.
         assert module_build.batch == 2
@@ -1252,26 +1271,29 @@ class TestBatches:
         assert plc_component.reused_component_id is None
 
         # Test the order of the scheduling
-        expected_calls = [mock.call(builder, plc_component), mock.call(builder, pt_component)]
+        expected_calls = [
+            mock.call(db_session, builder, plc_component),
+            mock.call(db_session, builder, pt_component)
+        ]
         assert mock_sbc.mock_calls == expected_calls
 
     @patch("module_build_service.utils.batches.start_build_component")
-    def test_start_next_batch_continue(self, mock_sbc, default_buildroot_groups):
+    def test_start_next_batch_continue(self, mock_sbc, default_buildroot_groups, db_session):
         """
         Tests that start_next_batch_build does not start new batch when
         there are unbuilt components in the current one.
         """
-        module_build = models.ModuleBuild.query.filter_by(id=3).one()
+        module_build = models.ModuleBuild.get_by_id(db_session, 3)
         module_build.batch = 2
 
         # The component was reused when the batch first started
         building_component = module_build.current_batch()[0]
         building_component.state = koji.BUILD_STATES["BUILDING"]
-        db.session.commit()
+        db_session.commit()
 
         builder = mock.MagicMock()
         further_work = module_build_service.utils.start_next_batch_build(
-            conf, module_build, db.session, builder)
+            conf, module_build, db_session, builder)
 
         # Batch number should not increase.
         assert module_build.batch == 2
@@ -1280,12 +1302,12 @@ class TestBatches:
         # No further work should be returned
         assert len(further_work) == 0
 
-    def test_start_next_batch_build_repo_building(self, default_buildroot_groups):
+    def test_start_next_batch_build_repo_building(self, default_buildroot_groups, db_session):
         """
         Test that start_next_batch_build does not start new batch when
         builder.buildroot_ready() returns False.
         """
-        module_build = models.ModuleBuild.query.filter_by(id=3).one()
+        module_build = models.ModuleBuild.get_by_id(db_session, 3)
         module_build.batch = 1
 
         builder = mock.MagicMock()
@@ -1310,60 +1332,57 @@ class TestLocalBuilds:
     def teardown_method(self):
         clean_database()
 
-    def test_load_local_builds_name(self, conf_system, conf_resultsdir):
-        with app.app_context():
-            module_build_service.utils.load_local_builds("testmodule")
-            local_modules = models.ModuleBuild.local_modules(db.session)
+    def test_load_local_builds_name(self, conf_system, conf_resultsdir, db_session):
+        module_build_service.utils.load_local_builds(db_session, "testmodule")
+        local_modules = models.ModuleBuild.local_modules(db_session)
 
-            assert len(local_modules) == 1
-            assert local_modules[0].koji_tag.endswith(
-                "/module-testmodule-master-20170816080816/results")
+        assert len(local_modules) == 1
+        assert local_modules[0].koji_tag.endswith(
+            "/module-testmodule-master-20170816080816/results")
 
-    def test_load_local_builds_name_stream(self, conf_system, conf_resultsdir):
-        with app.app_context():
-            module_build_service.utils.load_local_builds("testmodule:master")
-            local_modules = models.ModuleBuild.local_modules(db.session)
+    def test_load_local_builds_name_stream(self, conf_system, conf_resultsdir, db_session):
+        module_build_service.utils.load_local_builds(db_session, "testmodule:master")
+        local_modules = models.ModuleBuild.local_modules(db_session)
 
-            assert len(local_modules) == 1
-            assert local_modules[0].koji_tag.endswith(
-                "/module-testmodule-master-20170816080816/results")
+        assert len(local_modules) == 1
+        assert local_modules[0].koji_tag.endswith(
+            "/module-testmodule-master-20170816080816/results")
 
-    def test_load_local_builds_name_stream_non_existing(self, conf_system, conf_resultsdir):
-        with app.app_context():
-            with pytest.raises(RuntimeError):
-                module_build_service.utils.load_local_builds("testmodule:x")
-                models.ModuleBuild.local_modules(db.session)
+    def test_load_local_builds_name_stream_non_existing(
+        self, conf_system, conf_resultsdir, db_session
+    ):
+        with pytest.raises(RuntimeError):
+            module_build_service.utils.load_local_builds(db_session, "testmodule:x")
+            models.ModuleBuild.local_modules(db_session)
 
-    def test_load_local_builds_name_stream_version(self, conf_system, conf_resultsdir):
-        with app.app_context():
-            module_build_service.utils.load_local_builds("testmodule:master:20170816080815")
-            local_modules = models.ModuleBuild.local_modules(db.session)
+    def test_load_local_builds_name_stream_version(self, conf_system, conf_resultsdir, db_session):
+        module_build_service.utils.load_local_builds(db_session, "testmodule:master:20170816080815")
+        local_modules = models.ModuleBuild.local_modules(db_session)
 
-            assert len(local_modules) == 1
-            assert local_modules[0].koji_tag.endswith(
-                "/module-testmodule-master-20170816080815/results")
+        assert len(local_modules) == 1
+        assert local_modules[0].koji_tag.endswith(
+            "/module-testmodule-master-20170816080815/results")
 
-    def test_load_local_builds_name_stream_version_non_existing(self, conf_system, conf_resultsdir):
-        with app.app_context():
-            with pytest.raises(RuntimeError):
-                module_build_service.utils.load_local_builds("testmodule:master:123")
-                models.ModuleBuild.local_modules(db.session)
+    def test_load_local_builds_name_stream_version_non_existing(
+        self, conf_system, conf_resultsdir, db_session
+    ):
+        with pytest.raises(RuntimeError):
+            module_build_service.utils.load_local_builds(db_session, "testmodule:master:123")
+            models.ModuleBuild.local_modules(db_session)
 
-    def test_load_local_builds_platform(self, conf_system, conf_resultsdir):
-        with app.app_context():
-            module_build_service.utils.load_local_builds("platform")
-            local_modules = models.ModuleBuild.local_modules(db.session)
+    def test_load_local_builds_platform(self, conf_system, conf_resultsdir, db_session):
+        module_build_service.utils.load_local_builds(db_session, "platform")
+        local_modules = models.ModuleBuild.local_modules(db_session)
 
-            assert len(local_modules) == 1
-            assert local_modules[0].koji_tag.endswith("/module-platform-f28-3/results")
+        assert len(local_modules) == 1
+        assert local_modules[0].koji_tag.endswith("/module-platform-f28-3/results")
 
-    def test_load_local_builds_platform_f28(self, conf_system, conf_resultsdir):
-        with app.app_context():
-            module_build_service.utils.load_local_builds("platform:f28")
-            local_modules = models.ModuleBuild.local_modules(db.session)
+    def test_load_local_builds_platform_f28(self, conf_system, conf_resultsdir, db_session):
+        module_build_service.utils.load_local_builds(db_session, "platform:f28")
+        local_modules = models.ModuleBuild.local_modules(db_session)
 
-            assert len(local_modules) == 1
-            assert local_modules[0].koji_tag.endswith("/module-platform-f28-3/results")
+        assert len(local_modules) == 1
+        assert local_modules[0].koji_tag.endswith("/module-platform-f28-3/results")
 
 
 class TestOfflineLocalBuilds:
@@ -1373,10 +1392,10 @@ class TestOfflineLocalBuilds:
     def teardown_method(self):
         clean_database()
 
-    def test_import_fake_base_module(self):
-        module_build_service.utils.import_fake_base_module("platform:foo:1:000000")
+    def test_import_fake_base_module(self, db_session):
+        module_build_service.utils.import_fake_base_module(db_session, "platform:foo:1:000000")
         module_build = models.ModuleBuild.get_build_from_nsvc(
-            db.session, "platform", "foo", 1, "000000")
+            db_session, "platform", "foo", 1, "000000")
         assert module_build
 
         mmd = module_build.mmd()
@@ -1394,7 +1413,7 @@ class TestOfflineLocalBuilds:
         assert set(mmd.get_profile_names()) == set(["buildroot", "srpm-buildroot"])
 
     @patch("module_build_service.utils.general.open", create=True, new_callable=mock.mock_open)
-    def test_import_builds_from_local_dnf_repos(self, patched_open):
+    def test_import_builds_from_local_dnf_repos(self, patched_open, db_session):
         with patch("dnf.Base") as dnf_base:
             repo = mock.MagicMock()
             repo.repofile = "/etc/yum.repos.d/foo.repo"
@@ -1404,27 +1423,28 @@ class TestOfflineLocalBuilds:
             base.repos = {"reponame": repo}
             patched_open.return_value.readlines.return_value = ("FOO=bar", "PLATFORM_ID=platform:x")
 
-            module_build_service.utils.import_builds_from_local_dnf_repos()
+            module_build_service.utils.import_builds_from_local_dnf_repos(db_session)
 
             base.read_all_repos.assert_called_once()
             repo.load.assert_called_once()
             repo.get_metadata_content.assert_called_once_with("modules")
 
             module_build = models.ModuleBuild.get_build_from_nsvc(
-                db.session, "testmodule", "master", 20180205135154, "9c690d0e")
+                db_session, "testmodule", "master", 20180205135154, "9c690d0e")
             assert module_build
             assert module_build.koji_tag == "repofile:///etc/yum.repos.d/foo.repo"
 
             module_build = models.ModuleBuild.get_build_from_nsvc(
-                db.session, "platform", "x", 1, "000000")
+                db_session, "platform", "x", 1, "000000")
             assert module_build
 
-    def test_import_builds_from_local_dnf_repos_platform_id(self):
+    def test_import_builds_from_local_dnf_repos_platform_id(self, db_session):
         with patch("dnf.Base"):
-            module_build_service.utils.import_builds_from_local_dnf_repos(platform_id="platform:y")
+            module_build_service.utils.import_builds_from_local_dnf_repos(
+                db_session, platform_id="platform:y")
 
             module_build = models.ModuleBuild.get_build_from_nsvc(
-                db.session, "platform", "y", 1, "000000")
+                db_session, "platform", "y", 1, "000000")
             assert module_build
 
 
@@ -1436,34 +1456,34 @@ class TestUtilsModuleReuse:
     def teardown_method(self, test_method):
         clean_database()
 
-    def test_get_reusable_module_when_reused_module_not_set(self):
-        module = models.ModuleBuild.query.filter_by(
+    def test_get_reusable_module_when_reused_module_not_set(self, db_session):
+        module = db_session.query(models.ModuleBuild).filter_by(
             name="nginx").order_by(models.ModuleBuild.id.desc()).first()
         module.state = models.BUILD_STATES["build"]
-        db.session.commit()
+        db_session.commit()
 
         assert not module.reused_module
 
         reusable_module = module_build_service.utils.get_reusable_module(
-            db.session, module)
+            db_session, module)
 
         assert module.reused_module
         assert reusable_module.id == module.reused_module_id
 
-    def test_get_reusable_module_when_reused_module_already_set(self):
-        modules = models.ModuleBuild.query.filter_by(
+    def test_get_reusable_module_when_reused_module_already_set(self, db_session):
+        modules = db_session.query(models.ModuleBuild).filter_by(
             name="nginx").order_by(models.ModuleBuild.id.desc()).limit(2).all()
         build_module = modules[0]
         reused_module = modules[1]
         build_module.state = models.BUILD_STATES["build"]
         build_module.reused_module_id = reused_module.id
-        db.session.commit()
+        db_session.commit()
 
         assert build_module.reused_module
         assert reused_module == build_module.reused_module
 
         reusable_module = module_build_service.utils.get_reusable_module(
-            db.session, build_module)
+            db_session, build_module)
 
         assert build_module.reused_module
         assert reusable_module.id == build_module.reused_module_id

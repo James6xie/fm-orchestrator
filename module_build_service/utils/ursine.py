@@ -24,7 +24,7 @@
 import re
 
 from module_build_service import conf, log
-from module_build_service.resolver import system_resolver
+from module_build_service.resolver import GenericResolver
 
 
 """
@@ -107,7 +107,7 @@ def find_module_koji_tags(koji_session, build_tag):
     ]
 
 
-def get_modulemds_from_ursine_content(tag):
+def get_modulemds_from_ursine_content(db_session, tag):
     """Get all modules metadata which were added to ursine content
 
     Ursine content is the tag inheritance managed by Ursa-Major by adding
@@ -124,12 +124,15 @@ def get_modulemds_from_ursine_content(tag):
     So, this function is to find out all module koji_tags from the build tag
     and return corresponding module metadata.
 
+    :param db_session: SQLAlchemy database session.
     :param str tag: a base module's koji_tag.
     :return: list of module metadata. Empty list will be returned if no ursine
         modules metadata is found.
     :rtype: list[Modulemd.Module]
     """
     from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
+
+    resolver = GenericResolver.create(db_session, conf)
 
     koji_session = KojiModuleBuilder.get_session(conf, login=False)
     repos = koji_session.getExternalRepoList(tag)
@@ -141,7 +144,7 @@ def get_modulemds_from_ursine_content(tag):
     for tag in build_tags:
         koji_tags = find_module_koji_tags(koji_session, tag)
         for koji_tag in koji_tags:
-            md = system_resolver.get_modulemd_by_koji_tag(koji_tag)
+            md = resolver.get_modulemd_by_koji_tag(koji_tag)
             if md:
                 modulemds.append(md)
             else:
@@ -149,11 +152,12 @@ def get_modulemds_from_ursine_content(tag):
     return modulemds
 
 
-def find_stream_collision_modules(buildrequired_modules, koji_tag):
+def find_stream_collision_modules(db_session, buildrequired_modules, koji_tag):
     """
     Find buildrequired modules that are part of the ursine content represented
     by the koji_tag but with a different stream.
 
+    :param db_session: SQLAlchemy database session.
     :param dict buildrequired_modules: a mapping of buildrequires, which is just
         the ``xmd/mbs/buildrequires``. This mapping is used to determine if a module
         found from ursine content is a buildrequire with different stream.
@@ -164,7 +168,7 @@ def find_stream_collision_modules(buildrequired_modules, koji_tag):
         found, an empty list is returned.
     :rtype: list[str]
     """
-    ursine_modulemds = get_modulemds_from_ursine_content(koji_tag)
+    ursine_modulemds = get_modulemds_from_ursine_content(db_session, koji_tag)
     if not ursine_modulemds:
         log.debug("No module metadata is found from ursine content.")
         return []
@@ -193,7 +197,7 @@ def find_stream_collision_modules(buildrequired_modules, koji_tag):
     return collision_modules
 
 
-def handle_stream_collision_modules(mmd):
+def handle_stream_collision_modules(db_session, mmd):
     """
     Find out modules from ursine content and record those that are buildrequire
     module but have different stream. And finally, record built RPMs of these
@@ -212,6 +216,7 @@ def handle_stream_collision_modules(mmd):
     which is a list of NSVC strings. Each of them is the module added to ursine
     content by Ursa-Major.
 
+    :param db_session: SQLAlchemy database session.
     :param mmd: a module's metadata which will be built.
     :type mmd: Modulemd.Module
     """
@@ -243,13 +248,14 @@ def handle_stream_collision_modules(mmd):
             )
             continue
 
-        modules_nsvc = find_stream_collision_modules(buildrequires, base_module_info["koji_tag"])
+        modules_nsvc = find_stream_collision_modules(
+            db_session, buildrequires, base_module_info["koji_tag"])
 
         if modules_nsvc:
             # Save modules NSVC for later use in subsequent event handlers to
             # log readable messages.
             base_module_info["stream_collision_modules"] = modules_nsvc
-            base_module_info["ursine_rpms"] = find_module_built_rpms(modules_nsvc)
+            base_module_info["ursine_rpms"] = find_module_built_rpms(db_session, modules_nsvc)
         else:
             log.info("No stream collision module is found against base module %s.", module_name)
             # Always set in order to mark it as handled already.
@@ -259,9 +265,10 @@ def handle_stream_collision_modules(mmd):
     mmd.set_xmd(xmd)
 
 
-def find_module_built_rpms(modules_nsvc):
+def find_module_built_rpms(db_session, modules_nsvc):
     """Find out built RPMs of given modules
 
+    :param db_session: SQLAlchemy database session.
     :param modules_nsvc: a list of modules' NSVC to find out built RPMs for
         each of them.
     :type modules_nsvc: list[str]
@@ -269,10 +276,9 @@ def find_module_built_rpms(modules_nsvc):
     :rtype: list[str]
     """
     import kobo.rpmlib
-    from module_build_service.resolver import GenericResolver
     from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
 
-    resolver = GenericResolver.create(conf)
+    resolver = GenericResolver.create(db_session, conf)
 
     built_rpms = []
     koji_session = KojiModuleBuilder.get_session(conf, login=False)

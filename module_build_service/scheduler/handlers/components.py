@@ -34,11 +34,11 @@ from module_build_service import models, log, messaging
 logging.basicConfig(level=logging.DEBUG)
 
 
-def _finalize(config, session, msg, state):
+def _finalize(config, db_session, msg, state):
     """ Called whenever a koji build completes or fails. """
 
     # First, find our ModuleBuild associated with this component, if any.
-    component_build = models.ComponentBuild.from_component_event(session, msg)
+    component_build = models.ComponentBuild.from_component_event(db_session, msg)
     try:
         nvr = "{}-{}-{}".format(msg.build_name, msg.build_version, msg.build_release)
     except KeyError:
@@ -61,19 +61,20 @@ def _finalize(config, session, msg, state):
     component_build.state = state
     component_build.nvr = nvr
     component_build.state_reason = state_reason
-    session.commit()
+    db_session.commit()
 
     parent = component_build.module_build
 
     # If the macro build failed, then the module is doomed.
     if component_build.package == "module-build-macros" and state != koji.BUILD_STATES["COMPLETE"]:
         parent.transition(
+            db_session,
             config,
             state=models.BUILD_STATES["failed"],
             state_reason=state_reason,
             failure_type="user",
         )
-        session.commit()
+        db_session.commit()
         return
 
     further_work = []
@@ -96,7 +97,7 @@ def _finalize(config, session, msg, state):
         ]
 
         builder = module_build_service.builder.GenericBuilder.create_from_module(
-            session, parent, config
+            db_session, parent, config
         )
 
         if failed_components_in_batch:
@@ -107,12 +108,13 @@ def _finalize(config, session, msg, state):
             state_reason = "Component(s) {} failed to build.".format(
                 ", ".join(c.package for c in failed_components_in_batch))
             parent.transition(
+                db_session,
                 config,
                 state=models.BUILD_STATES["failed"],
                 state_reason=state_reason,
                 failure_type="user",
             )
-            session.commit()
+            db_session.commit()
             return []
         elif not built_components_in_batch:
             # If there are no successfully built components in a batch, there is nothing to tag.
@@ -148,7 +150,7 @@ def _finalize(config, session, msg, state):
             if component_nvrs_to_tag_in_dest:
                 builder.tag_artifacts(component_nvrs_to_tag_in_dest)
 
-        session.commit()
+        db_session.commit()
     elif any([c.state != koji.BUILD_STATES["BUILDING"] for c in unbuilt_components_in_batch]):
         # We are not in the middle of the batch building and
         # we have some unbuilt components in this batch. We might hit the
@@ -157,19 +159,19 @@ def _finalize(config, session, msg, state):
         # build, try to call continue_batch_build again so in case we hit the
         # threshold previously, we will submit another build from this batch.
         builder = module_build_service.builder.GenericBuilder.create_from_module(
-            session, parent, config)
+            db_session, parent, config)
         further_work += module_build_service.utils.continue_batch_build(
-            config, parent, session, builder)
+            config, parent, db_session, builder)
     return further_work
 
 
-def complete(config, session, msg):
-    return _finalize(config, session, msg, state=koji.BUILD_STATES["COMPLETE"])
+def complete(config, db_session, msg):
+    return _finalize(config, db_session, msg, state=koji.BUILD_STATES["COMPLETE"])
 
 
-def failed(config, session, msg):
-    return _finalize(config, session, msg, state=koji.BUILD_STATES["FAILED"])
+def failed(config, db_session, msg):
+    return _finalize(config, db_session, msg, state=koji.BUILD_STATES["FAILED"])
 
 
-def canceled(config, session, msg):
-    return _finalize(config, session, msg, state=koji.BUILD_STATES["CANCELED"])
+def canceled(config, db_session, msg):
+    return _finalize(config, db_session, msg, state=koji.BUILD_STATES["CANCELED"])

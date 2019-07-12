@@ -35,13 +35,13 @@ from datetime import datetime
 
 import sqlalchemy
 import kobo.rpmlib
-from flask import has_app_context
 from sqlalchemy import func, and_
 from sqlalchemy.orm import lazyload
 from sqlalchemy.orm import validates, scoped_session, sessionmaker, load_only
+from sqlalchemy.pool import NullPool
 
 import module_build_service.messaging
-from module_build_service import db, log, get_url_for, app, conf
+from module_build_service import db, log, get_url_for, conf
 from module_build_service.errors import UnprocessableEntity
 
 DEFAULT_MODULE_CONTEXT = "00000000"
@@ -107,57 +107,109 @@ def _dummy_context_mgr():
     yield None
 
 
-def _setup_event_listeners(session):
+def _setup_event_listeners(db_session):
     """
     Starts listening for events related to database session.
     """
-    if not sqlalchemy.event.contains(session, "before_commit", session_before_commit_handlers):
-        sqlalchemy.event.listen(session, "before_commit", session_before_commit_handlers)
+    if not sqlalchemy.event.contains(db_session, "before_commit", session_before_commit_handlers):
+        sqlalchemy.event.listen(db_session, "before_commit", session_before_commit_handlers)
 
     # initialize DB event listeners from the monitor module
     from module_build_service.monitor import db_hook_event_listeners
 
-    db_hook_event_listeners(session.bind.engine)
+    db_hook_event_listeners(db_session.bind.engine)
+
+
+def apply_engine_options(conf):
+    options = {
+        "configuration": {"sqlalchemy.url": conf.sqlalchemy_database_uri},
+    }
+    if conf.sqlalchemy_database_uri.startswith("sqlite://"):
+        options.update({
+            # For local module build, MBS is actually a multi-threaded
+            # application. The command submitting a module build runs in its
+            # own thread, and the backend build workflow, implemented as a
+            # fedmsg consumer on top of fedmsg-hub, runs in separate threads.
+            # So, disable this option in order to allow accessing data which
+            # was written from another thread.
+            "connect_args": {'check_same_thread': False},
+
+            # Both local module build and running tests requires a file-based
+            # SQLite database, we do not use a connection pool for these two
+            # scenario.
+            "poolclass": NullPool,
+        })
+    else:
+        # TODO - we could use ZopeTransactionExtension() here some day for
+        # improved safety on the backend.
+        pool_options = {}
+
+        # Apply pool options SQLALCHEMY_* set in MBS config.
+        # Abbrev sa stands for SQLAlchemy.
+        def apply_mbs_option(mbs_config_key, sa_config_key):
+            value = getattr(conf, mbs_config_key, None)
+            if value is not None:
+                pool_options[sa_config_key] = value
+
+        apply_mbs_option("sqlalchemy_pool_size", "pool_size")
+        apply_mbs_option("sqlalchemy_pool_timeout", "pool_timeout")
+        apply_mbs_option("sqlalchemy_pool_recycle", "pool_recycle")
+        apply_mbs_option("sqlalchemy_max_overflow", "max_overflow")
+
+        options.update(pool_options)
+
+    return options
+
+
+def create_sa_session(conf):
+    """Create a SQLAlchemy session object"""
+    engine_opts = apply_engine_options(conf)
+    engine = sqlalchemy.engine_from_config(**engine_opts)
+    session = scoped_session(sessionmaker(bind=engine))()
+    return session
 
 
 @contextlib.contextmanager
-def make_session(conf):
+def make_db_session(conf):
+    """Yields new SQLAlchemy database session.
+
+    MBS is actually a multiple threads application consisting of several
+    components. For a deployment instance, the REST API (implemented by Flask)
+    and build workflow (implemented as a fedmsg-hub consumer), which run in
+    different threads. For building a module locally, MBS runs in a similar
+    scenario, the CLI submits module build and then the build workflow starts
+    in its own thread.
+
+    The code of REST API uses session object managed by Flask-SQLAlchemy, and
+    other components use a plain SQLAlchemy session object created by this
+    function.
+
+    To support building a module both remotely and locally, this function
+    handles a session for both SQLite and PostgreSQL. For the scenario working
+    with SQLite, check_same_thread must be set to False so that queries are
+    allowed to access data created inside other threads.
+
+    **Note that**: MBS uses ``autocommit=False`` mode.
     """
-    Yields new SQLAlchemy database sesssion.
-    """
+    session = create_sa_session(conf)
+    _setup_event_listeners(session)
 
-    # Do not use scoped_session in case we are using in-memory database,
-    # because we want to use the same session across all threads to be able
-    # to use the same in-memory database in tests.
-    if conf.sqlalchemy_database_uri == "sqlite://":
-        _setup_event_listeners(db.session)
-        yield db.session
-        db.session.commit()
-        return
+    try:
+        # TODO: maybe this could be rewritten in an alternative way to allow
+        #       the caller to pass a flag back to indicate if all transactions
+        #       are handled already by itself, then it is not necessary to call
+        #       following commit unconditionally.
+        yield session
 
-    # Needs to be set to create app_context.
-    if not has_app_context() and ("SERVER_NAME" not in app.config or not app.config["SERVER_NAME"]):
-        app.config["SERVER_NAME"] = "localhost"
-
-    # If there is no app_context, we have to create one before creating
-    # the session. If we would create app_context after the session (this
-    # happens in get_url_for() method), new concurrent session would be
-    # created and this would lead to "database is locked" error for SQLite.
-    with app.app_context() if not has_app_context() else _dummy_context_mgr():
-        # TODO - we could use ZopeTransactionExtension() here some day for
-        # improved safety on the backend.
-        engine = sqlalchemy.engine_from_config({"sqlalchemy.url": conf.sqlalchemy_database_uri})
-        session = scoped_session(sessionmaker(bind=engine))()
-        _setup_event_listeners(session)
-        try:
-            yield session
-            session.commit()
-        except Exception:
-            # This is a no-op if no transaction is in progress.
-            session.rollback()
-            raise
-        finally:
-            session.close()
+        # Always commit whatever there is opening transaction.
+        # FIXME: Would it be a performance issue from the database side?
+        session.commit()
+    except Exception:
+        # This is a no-op if no transaction is in progress.
+        session.rollback()
+        raise
+    finally:
+        session.close()
 
 
 class MBSBase(db.Model):
@@ -296,26 +348,26 @@ class ModuleBuild(MBSBase):
             ]
 
     @staticmethod
-    def get_by_id(session, module_build_id):
+    def get_by_id(db_session, module_build_id):
         """Find out a module build by id and return
 
-        :param session: SQLAlchemy database session object.
+        :param db_session: SQLAlchemy database session object.
         :param int module_build_id: the module build id to find out.
         :return: the found module build. None is returned if no module build
             with specified id in database.
         :rtype: :class:`ModuleBuild`
         """
-        return session.query(ModuleBuild).filter(ModuleBuild.id == module_build_id).first()
+        return db_session.query(ModuleBuild).filter(ModuleBuild.id == module_build_id).first()
 
     @staticmethod
-    def get_last_build_in_all_streams(session, name):
+    def get_last_build_in_all_streams(db_session, name):
         """
         Returns list of all latest ModuleBuilds in "ready" state for all
         streams for given module `name`.
         """
         # Prepare the subquery to find out all unique name:stream records.
         subq = (
-            session.query(
+            db_session.query(
                 func.max(ModuleBuild.id).label("maxid"),
                 func.max(sqlalchemy.cast(ModuleBuild.version, db.BigInteger)),
             )
@@ -325,14 +377,15 @@ class ModuleBuild(MBSBase):
         )
 
         # Use the subquery to actually return all the columns for its results.
-        query = session.query(ModuleBuild).join(subq, and_(ModuleBuild.id == subq.c.maxid))
+        query = db_session.query(ModuleBuild).join(
+            subq, and_(ModuleBuild.id == subq.c.maxid))
         return query.all()
 
     @staticmethod
-    def _get_last_builds_in_stream_query(session, name, stream, **kwargs):
+    def _get_last_builds_in_stream_query(db_session, name, stream, **kwargs):
         # Prepare the subquery to find out all unique name:stream records.
         subq = (
-            session.query(
+            db_session.query(
                 func.max(sqlalchemy.cast(ModuleBuild.version, db.BigInteger)).label("maxversion")
             )
             .filter_by(name=name, state=BUILD_STATES["ready"], stream=stream, **kwargs)
@@ -340,7 +393,7 @@ class ModuleBuild(MBSBase):
         )
 
         # Use the subquery to actually return all the columns for its results.
-        query = session.query(ModuleBuild).join(
+        query = db_session.query(ModuleBuild).join(
             subq,
             and_(
                 ModuleBuild.name == name,
@@ -351,11 +404,11 @@ class ModuleBuild(MBSBase):
         return query
 
     @staticmethod
-    def get_last_builds_in_stream(session, name, stream, virtual_streams=None, **kwargs):
+    def get_last_builds_in_stream(db_session, name, stream, virtual_streams=None, **kwargs):
         """
         Returns the latest builds in "ready" state for given name:stream.
 
-        :param session: SQLAlchemy session.
+        :param db_session: SQLAlchemy session.
         :param str name: Name of the module to search builds for.
         :param str stream: Stream of the module to search builds for.
         :param list virtual_streams: a list of the virtual streams to filter on. The filtering uses
@@ -366,56 +419,57 @@ class ModuleBuild(MBSBase):
         """
         # Prepare the subquery to find out all unique name:stream records.
 
-        query = ModuleBuild._get_last_builds_in_stream_query(session, name, stream, **kwargs)
-        query = ModuleBuild._add_virtual_streams_filter(session, query, virtual_streams)
+        query = ModuleBuild._get_last_builds_in_stream_query(db_session, name, stream, **kwargs)
+        query = ModuleBuild._add_virtual_streams_filter(db_session, query, virtual_streams)
         return query.all()
 
     @staticmethod
-    def get_last_build_in_stream(session, name, stream, **kwargs):
+    def get_last_build_in_stream(db_session, name, stream, **kwargs):
         """
         Returns the latest build in "ready" state for given name:stream.
 
-        :param session: SQLAlchemy session.
+        :param db_session: SQLAlchemy session.
         :param str name: Name of the module to search builds for.
         :param str stream: Stream of the module to search builds for.
         :param dict kwargs: Key/value pairs passed to SQLAlchmey filter_by method
             allowing to set additional filter for results.
         """
-        return ModuleBuild._get_last_builds_in_stream_query(session, name, stream, **kwargs).first()
+        return ModuleBuild._get_last_builds_in_stream_query(
+            db_session, name, stream, **kwargs).first()
 
     @staticmethod
-    def get_build_from_nsvc(session, name, stream, version, context, **kwargs):
+    def get_build_from_nsvc(db_session, name, stream, version, context, **kwargs):
         """
         Returns build defined by NSVC. Optional kwargs are passed to SQLAlchemy
         filter_by method.
         """
         return (
-            session.query(ModuleBuild)
+            db_session.query(ModuleBuild)
             .filter_by(name=name, stream=stream, version=str(version), context=context, **kwargs)
             .first()
         )
 
     @staticmethod
-    def get_scratch_builds_from_nsvc(session, name, stream, version, context, **kwargs):
+    def get_scratch_builds_from_nsvc(db_session, name, stream, version, context, **kwargs):
         """
         Returns all scratch builds defined by NSVC. This is done by using the supplied `context`
         as a match prefix. Optional kwargs are passed to SQLAlchemy filter_by method.
         """
         return (
-            session.query(ModuleBuild)
+            db_session.query(ModuleBuild)
             .filter_by(name=name, stream=stream, version=str(version), scratch=True, **kwargs)
             .filter(ModuleBuild.context.like(context + "%"))
             .all()
         )
 
     @staticmethod
-    def _add_stream_version_lte_filter(session, query, stream_version):
+    def _add_stream_version_lte_filter(db_session, query, stream_version):
         """
         Adds a less than or equal to filter for stream versions based on x.y.z versioning.
 
         In essence, the filter does `XX0000 <= stream_version <= XXYYZZ`
 
-        :param session: a SQLAlchemy session
+        :param db_session: a SQLAlchemy session
         :param query: a SQLAlchemy query to add the filtering to
         :param int stream_version: the stream version to filter on
         :return: the query with the added stream version filter
@@ -430,11 +484,11 @@ class ModuleBuild(MBSBase):
             ModuleBuild.stream_version >= min_stream_version)
 
     @staticmethod
-    def _add_virtual_streams_filter(session, query, virtual_streams):
+    def _add_virtual_streams_filter(db_session, query, virtual_streams):
         """
         Adds a filter on ModuleBuild.virtual_streams to an existing query.
 
-        :param session: a SQLAlchemy session
+        :param db_session: a SQLAlchemy session
         :param query: a SQLAlchemy query to add the filtering to
         :param list virtual_streams: a list of the virtual streams to filter on. The filtering uses
             "or" logic. When falsy, no filtering occurs.
@@ -447,7 +501,7 @@ class ModuleBuild(MBSBase):
         # streams. Using distinct is necessary since a module build may contain multiple virtual
         # streams that are desired.
         modules_with_virtual_streams = (
-            session.query(ModuleBuild)
+            db_session.query(ModuleBuild)
             .join(VirtualStream, ModuleBuild.virtual_streams)
             .filter(VirtualStream.name.in_(virtual_streams))
             .order_by(ModuleBuild.id)
@@ -461,7 +515,7 @@ class ModuleBuild(MBSBase):
 
     @staticmethod
     def get_last_builds_in_stream_version_lte(
-            session, name, stream_version=None, virtual_streams=None, states=None):
+            db_session, name, stream_version=None, virtual_streams=None, states=None):
         """
         Returns the latest builds in "ready" state for given name:stream limited by
         `stream_version`. The `stream_version` is int generated by `get_stream_version(...)`
@@ -469,7 +523,7 @@ class ModuleBuild(MBSBase):
         The builds returned by this method are limited by stream_version XX.YY.ZZ like this:
             "XX0000 <= build.stream_version <= XXYYZZ".
 
-        :param session: SQLAlchemy session.
+        :param db_session: SQLAlchemy session.
         :param str name: Name of the module to search builds for.
         :param int stream_version: Maximum stream_version to search builds for. When None,
             the stream_version is not limited.
@@ -478,14 +532,14 @@ class ModuleBuild(MBSBase):
         """
         states = states or [BUILD_STATES["ready"]]
         query = (
-            session.query(ModuleBuild)
+            db_session.query(ModuleBuild)
             .filter(ModuleBuild.name == name)
             .filter(ModuleBuild.state.in_(states))
             .order_by(sqlalchemy.cast(ModuleBuild.version, db.BigInteger).desc())
         )
 
-        query = ModuleBuild._add_stream_version_lte_filter(session, query, stream_version)
-        query = ModuleBuild._add_virtual_streams_filter(session, query, virtual_streams)
+        query = ModuleBuild._add_stream_version_lte_filter(db_session, query, stream_version)
+        query = ModuleBuild._add_virtual_streams_filter(db_session, query, virtual_streams)
 
         builds = query.all()
 
@@ -510,20 +564,20 @@ class ModuleBuild(MBSBase):
         return ret
 
     @staticmethod
-    def get_module_count(session, **kwargs):
+    def get_module_count(db_session, **kwargs):
         """
         Determine the number of modules that match the provided filter.
 
-        :param session: SQLAlchemy session
+        :param db_session: SQLAlchemy session
         :return: the number of modules that match the provided filter
         :rtype: int
         """
-        return session.query(func.count(ModuleBuild.id)).filter_by(**kwargs).scalar()
+        return db_session.query(func.count(ModuleBuild.id)).filter_by(**kwargs).scalar()
 
     @staticmethod
-    def get_build_by_koji_tag(session, tag):
+    def get_build_by_koji_tag(db_session, tag):
         """Get build by its koji_tag"""
-        return session.query(ModuleBuild).filter_by(koji_tag=tag).first()
+        return db_session.query(ModuleBuild).filter_by(koji_tag=tag).first()
 
     def mmd(self):
         from module_build_service.utils import load_mmd
@@ -559,9 +613,9 @@ class ModuleBuild(MBSBase):
         return rebuild_strategy
 
     @classmethod
-    def from_module_event(cls, session, event):
+    def from_module_event(cls, db_session, event):
         if type(event) == module_build_service.messaging.MBSModule:
-            return session.query(cls).filter(cls.id == event.module_build_id).first()
+            return db_session.query(cls).filter(cls.id == event.module_build_id).first()
         else:
             raise ValueError("%r is not a module message." % type(event).__name__)
 
@@ -628,15 +682,16 @@ class ModuleBuild(MBSBase):
 
         return tuple(rv)
 
-    @property
-    def siblings(self):
-        query = (
-            self.query.filter_by(
-                name=self.name, stream=self.stream, version=self.version, scratch=self.scratch)
-            .options(load_only("id"))
-            .filter(ModuleBuild.id != self.id)
-        )
-        return [build.id for build in query.all()]
+    def siblings(self, db_session):
+        query = db_session.query(ModuleBuild).filter(
+            ModuleBuild.name == self.name,
+            ModuleBuild.stream == self.stream,
+            ModuleBuild.version == self.version,
+            ModuleBuild.scratch == self.scratch,
+            ModuleBuild.id != self.id,
+        ).options(load_only("id"))
+        siblings_ids = [build.id for build in query.all()]
+        return siblings_ids
 
     @property
     def nvr(self):
@@ -653,7 +708,7 @@ class ModuleBuild(MBSBase):
     @classmethod
     def create(
         cls,
-        session,
+        db_session,
         conf,
         name,
         stream,
@@ -691,21 +746,23 @@ class ModuleBuild(MBSBase):
         module.module_builds_trace.append(mbt)
 
         # Record the base modules this module buildrequires
-        for base_module in module.get_buildrequired_base_modules(session):
+        for base_module in module.get_buildrequired_base_modules(db_session):
             module.buildrequires.append(base_module)
 
-        session.add(module)
-        session.commit()
+        db_session.add(module)
+        db_session.commit()
+
         if publish_msg:
             module_build_service.messaging.publish(
                 service="mbs",
                 topic="module.state.change",
-                msg=module.json(show_tasks=False),  # Note the state is "init" here...
+                msg=module.json(db_session, show_tasks=False),  # Note the state is "init" here...
                 conf=conf,
             )
+
         return module
 
-    def transition(self, conf, state, state_reason=None, failure_type="unspec"):
+    def transition(self, db_session, conf, state, state_reason=None, failure_type="unspec"):
         """Record that a build has transitioned state.
 
         The history of state transitions are recorded in model
@@ -713,6 +770,7 @@ class ModuleBuild(MBSBase):
         from ``build`` to ``done``, message will be sent to configured message
         bus.
 
+        :param db_session: SQLAlchemy session object.
         :param conf: MBS config object returned from function :func:`init_config`
             which contains loaded configs.
         :type conf: :class:`Config`
@@ -746,12 +804,12 @@ class ModuleBuild(MBSBase):
             module_build_service.messaging.publish(
                 service="mbs",
                 topic="module.state.change",
-                msg=self.json(show_tasks=False),
+                msg=self.json(db_session, show_tasks=False),
                 conf=conf,
             )
 
     @classmethod
-    def local_modules(cls, session, name=None, stream=None):
+    def local_modules(cls, db_session, name=None, stream=None):
         """
         Returns list of local module builds added by
         utils.load_local_builds(...). When `name` or `stream` is set,
@@ -769,7 +827,7 @@ class ModuleBuild(MBSBase):
             filters["name"] = name
         if stream:
             filters["stream"] = stream
-        local_modules = session.query(ModuleBuild).filter_by(**filters).all()
+        local_modules = db_session.query(ModuleBuild).filter_by(**filters).all()
         if not local_modules:
             return []
 
@@ -779,11 +837,18 @@ class ModuleBuild(MBSBase):
         return local_modules
 
     @classmethod
-    def by_state(cls, session, state):
-        return session.query(ModuleBuild).filter_by(state=BUILD_STATES[state]).all()
+    def by_state(cls, db_session, state):
+        """Get module builds by state
+
+        :param db_session: SQLAlchemy session object.
+        :param str state: state name. Refer to key names of ``models.BUILD_STATES``.
+        :return: a list of module builds in the specified state.
+        :rtype: list[:class:`ModuleBuild`]
+        """
+        return db_session.query(ModuleBuild).filter_by(state=BUILD_STATES[state]).all()
 
     @classmethod
-    def from_repo_done_event(cls, session, event):
+    def from_repo_done_event(cls, db_session, event):
         """ Find the ModuleBuilds in our database that should be in-flight...
         ... for a given koji tag.
 
@@ -794,7 +859,7 @@ class ModuleBuild(MBSBase):
         else:
             tag = event.repo_tag
         query = (
-            session.query(cls)
+            db_session.query(cls)
             .filter(cls.koji_tag == tag)
             .filter(cls.state == BUILD_STATES["build"])
         )
@@ -806,10 +871,10 @@ class ModuleBuild(MBSBase):
         return query.first()
 
     @classmethod
-    def from_tag_change_event(cls, session, event):
+    def from_tag_change_event(cls, db_session, event):
         tag = event.tag[:-6] if event.tag.endswith("-build") else event.tag
         query = (
-            session.query(cls)
+            db_session.query(cls)
             .filter(cls.koji_tag == tag)
             .filter(cls.state == BUILD_STATES["build"])
         )
@@ -836,7 +901,7 @@ class ModuleBuild(MBSBase):
             rv["scratch"] = self.scratch
         return rv
 
-    def json(self, show_tasks=True):
+    def json(self, db_session, show_tasks=True):
         mmd = self.mmd()
         xmd = mmd.get_xmd()
         buildrequires = xmd.get("mbs", {}).get("buildrequires", {})
@@ -848,7 +913,7 @@ class ModuleBuild(MBSBase):
             "rebuild_strategy": self.rebuild_strategy,
             "scmurl": self.scmurl,
             "srpms": json.loads(self.srpms or "[]"),
-            "siblings": self.siblings,
+            "siblings": self.siblings(db_session),
             "state_reason": self.state_reason,
             "time_completed": _utc_datetime_to_iso(self.time_completed),
             "time_modified": _utc_datetime_to_iso(self.time_modified),
@@ -856,10 +921,10 @@ class ModuleBuild(MBSBase):
             "buildrequires": buildrequires,
         })
         if show_tasks:
-            rv["tasks"] = self.tasks()
+            rv["tasks"] = self.tasks(db_session)
         return rv
 
-    def extended_json(self, show_state_url=False, api_version=1):
+    def extended_json(self, db_session, show_state_url=False, api_version=1):
         """
         :kwarg show_state_url: this will determine if `get_url_for` should be run to determine
         what the `state_url` is. This should be set to `False` when extended_json is called from
@@ -867,7 +932,7 @@ class ModuleBuild(MBSBase):
         SQLAlchemy sessions.
         :kwarg api_version: the API version to use when building the state URL
         """
-        rv = self.json(show_tasks=True)
+        rv = self.json(db_session, show_tasks=True)
         state_url = None
         if show_state_url:
             state_url = get_url_for("module_build", api_version=api_version, id=self.id)
@@ -886,7 +951,7 @@ class ModuleBuild(MBSBase):
                     "state_name": INVERSE_BUILD_STATES[record.state],
                     "reason": record.state_reason,
                 }
-                for record in self.state_trace(self.id)
+                for record in self.state_trace(db_session, self.id)
             ],
             "state_url": state_url,
             "stream_version": self.stream_version,
@@ -896,14 +961,14 @@ class ModuleBuild(MBSBase):
 
         return rv
 
-    def tasks(self):
+    def tasks(self, db_session):
         """
         :return: dictionary containing the tasks associated with the build
         """
         tasks = dict()
         if self.id and self.state != "init":
             for build in (
-                ComponentBuild.query.filter_by(module_id=self.id)
+                db_session.query(ComponentBuild).filter_by(module_id=self.id)
                 .options(lazyload("module_build"))
                 .all()
             ):
@@ -919,9 +984,9 @@ class ModuleBuild(MBSBase):
 
         return tasks
 
-    def state_trace(self, module_id):
+    def state_trace(self, db_session, module_id):
         return (
-            ModuleBuildTrace.query.filter_by(module_id=module_id)
+            db_session.query(ModuleBuildTrace).filter_by(module_id=module_id)
             .order_by(ModuleBuildTrace.state_time)
             .all()
         )
@@ -973,11 +1038,11 @@ class ModuleBuild(MBSBase):
 
             return result
 
-    def get_buildrequired_base_modules(self, session):
+    def get_buildrequired_base_modules(self, db_session):
         """
         Find the base modules in the modulemd's xmd section.
 
-        :param session: the SQLAlchemy database session to use to query
+        :param db_session: the SQLAlchemy database session to use to query
         :return: a list of ModuleBuild objects of the base modules that are buildrequired with the
             ordering in conf.base_module_names preserved
         :rtype: list
@@ -994,7 +1059,7 @@ class ModuleBuild(MBSBase):
             if not bm_dict:
                 continue
             base_module = self.get_build_from_nsvc(
-                session, bm, bm_dict["stream"], bm_dict["version"], bm_dict["context"]
+                db_session, bm, bm_dict["stream"], bm_dict["version"], bm_dict["context"]
             )
             if not base_module:
                 log.error(
@@ -1056,7 +1121,7 @@ class ModuleBuildTrace(MBSBase):
 
     module_build = db.relationship("ModuleBuild", backref="module_builds_trace", lazy=False)
 
-    def json(self):
+    def json(self, db_session):
         retval = {
             "id": self.id,
             "module_id": self.module_id,
@@ -1113,35 +1178,36 @@ class ComponentBuild(MBSBase):
     weight = db.Column(db.Float, default=0)
 
     @classmethod
-    def from_component_event(cls, session, event):
+    def from_component_event(cls, db_session, event):
         if isinstance(event, module_build_service.messaging.KojiBuildChange):
             if event.module_build_id:
                 return (
-                    session.query(cls)
+                    db_session.query(cls)
                     .filter_by(task_id=event.task_id, module_id=event.module_build_id)
                     .one()
                 )
             else:
-                return session.query(cls).filter(cls.task_id == event.task_id).first()
+                return db_session.query(cls).filter(cls.task_id == event.task_id).first()
         else:
             raise ValueError("%r is not a koji message." % event["topic"])
 
     @classmethod
-    def from_component_name(cls, session, component_name, module_id):
-        return session.query(cls).filter_by(package=component_name, module_id=module_id).first()
+    def from_component_name(cls, db_session, component_name, module_id):
+        return db_session.query(cls).filter_by(package=component_name, module_id=module_id).first()
 
     @classmethod
-    def from_component_nvr(cls, session, nvr, module_id):
-        return session.query(cls).filter_by(nvr=nvr, module_id=module_id).first()
+    def from_component_nvr(cls, db_session, nvr, module_id):
+        return db_session.query(cls).filter_by(nvr=nvr, module_id=module_id).first()
 
-    def state_trace(self, component_id):
+    def state_trace(self, db_session, component_id):
+        # FIXME: remove argument component_id, just use self.id
         return (
-            ComponentBuildTrace.query.filter_by(component_id=component_id)
+            db_session.query(ComponentBuildTrace).filter_by(component_id=component_id)
             .order_by(ComponentBuildTrace.state_time)
             .all()
         )
 
-    def json(self):
+    def json(self, db_session):
         retval = {
             "id": self.id,
             "package": self.package,
@@ -1164,7 +1230,7 @@ class ComponentBuild(MBSBase):
 
         return retval
 
-    def extended_json(self, show_state_url=False, api_version=1):
+    def extended_json(self, db_session, show_state_url=False, api_version=1):
         """
         :kwarg show_state_url: this will determine if `get_url_for` should be run to determine
         what the `state_url` is. This should be set to `False` when extended_json is called from
@@ -1172,7 +1238,7 @@ class ComponentBuild(MBSBase):
         SQLAlchemy sessions.
         :kwarg api_version: the API version to use when building the state URL
         """
-        json = self.json()
+        json = self.json(db_session)
         state_url = None
         if show_state_url:
             state_url = get_url_for("component_build", api_version=api_version, id=self.id)
@@ -1185,7 +1251,7 @@ class ComponentBuild(MBSBase):
                     "state_name": INVERSE_BUILD_STATES[record.state],
                     "reason": record.state_reason,
                 }
-                for record in self.state_trace(self.id)
+                for record in self.state_trace(db_session, self.id)
             ],
             "state_url": state_url,
         })
@@ -1216,7 +1282,7 @@ class ComponentBuildTrace(MBSBase):
         "ComponentBuild", backref="component_builds_trace", lazy=False
     )
 
-    def json(self):
+    def json(self, db_session):
         retval = {
             "id": self.id,
             "component_id": self.component_id,
@@ -1259,7 +1325,7 @@ def session_before_commit_handlers(session):
 
 @sqlalchemy.event.listens_for(ModuleBuild, "before_insert")
 @sqlalchemy.event.listens_for(ModuleBuild, "before_update")
-def new_and_update_module_handler(mapper, session, target):
+def new_and_update_module_handler(mapper, db_session, target):
     # Only modify time_modified if it wasn't explicitly set
     if not db.inspect(target).get_history("time_modified", True).has_changes():
         target.time_modified = datetime.utcnow()

@@ -28,7 +28,7 @@
 import logging
 import kobo.rpmlib
 
-from module_build_service import db, conf
+from module_build_service import conf
 from module_build_service import models
 from module_build_service.errors import UnprocessableEntity
 from module_build_service.resolver.base import GenericResolver
@@ -42,7 +42,8 @@ class MBSResolver(GenericResolver):
 
     backend = "mbs"
 
-    def __init__(self, config):
+    def __init__(self, db_session, config):
+        self.db_session = db_session
         self.mbs_prod_url = config.mbs_url
         self._generic_error = "Failed to query MBS with query %r returned HTTP status %s"
 
@@ -195,7 +196,7 @@ class MBSResolver(GenericResolver):
         """
         yaml = None
 
-        local_modules = models.ModuleBuild.local_modules(db.session, name, stream)
+        local_modules = models.ModuleBuild.local_modules(self.db_session, name, stream)
         if local_modules:
             return [m.mmd() for m in local_modules]
 
@@ -291,7 +292,7 @@ class MBSResolver(GenericResolver):
             results[key] = set()
         for module_name, module_info in mmd.get_xmd()["mbs"]["buildrequires"].items():
             local_modules = models.ModuleBuild.local_modules(
-                db.session, module_name, module_info["stream"])
+                self.db_session, module_name, module_info["stream"])
             if local_modules:
                 local_module = local_modules[0]
                 log.info("Using local module %r to resolve profiles.", local_module)
@@ -375,7 +376,8 @@ class MBSResolver(GenericResolver):
         buildrequires = queried_mmd.get_xmd()["mbs"]["buildrequires"]
         # Queue up the next tier of deps that we should look at..
         for name, details in buildrequires.items():
-            local_modules = models.ModuleBuild.local_modules(db.session, name, details["stream"])
+            local_modules = models.ModuleBuild.local_modules(
+                self.db_session, name, details["stream"])
             if local_modules:
                 for m in local_modules:
                     # If the buildrequire is a meta-data only module with no Koji tag set, then just
@@ -426,7 +428,8 @@ class MBSResolver(GenericResolver):
                     "Only N:S or N:S:V:C is accepted by resolve_requires, got %s" % nsvc)
             # Try to find out module dependency in the local module builds
             # added by utils.load_local_builds(...).
-            local_modules = models.ModuleBuild.local_modules(db.session, module_name, module_stream)
+            local_modules = models.ModuleBuild.local_modules(
+                self.db_session, module_name, module_stream)
             if local_modules:
                 local_build = local_modules[0]
                 new_requires[module_name] = {
@@ -488,7 +491,7 @@ class MBSResolver(GenericResolver):
             # If the module is a base module, then import it in the database so that entries in
             # the module_builds_to_module_buildrequires table can be created later on
             if module_name in conf.base_module_names:
-                import_mmd(db.session, mmd)
+                import_mmd(self.db_session, mmd)
 
         return new_requires
 

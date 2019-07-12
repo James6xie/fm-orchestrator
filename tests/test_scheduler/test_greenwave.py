@@ -25,7 +25,7 @@ import pytest
 from mock import call, patch, Mock
 from sqlalchemy import func
 
-from module_build_service import conf, db
+from module_build_service import conf
 from module_build_service.models import BUILD_STATES, ModuleBuild
 from module_build_service.scheduler.consumer import MBSConsumer
 from module_build_service.scheduler.handlers.greenwave import get_corresponding_module_build
@@ -40,10 +40,10 @@ class TestGetCorrespondingModuleBuild:
         clean_database()
 
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
-    def test_module_build_nvr_does_not_exist_in_koji(self, ClientSession):
+    def test_module_build_nvr_does_not_exist_in_koji(self, ClientSession, db_session):
         ClientSession.return_value.getBuild.return_value = None
 
-        assert get_corresponding_module_build(db.session, "n-v-r") is None
+        assert get_corresponding_module_build(db_session, "n-v-r") is None
 
     @pytest.mark.parametrize(
         "build_info",
@@ -57,32 +57,34 @@ class TestGetCorrespondingModuleBuild:
         ],
     )
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
-    def test_cannot_find_module_build_id_from_build_info(self, ClientSession, build_info):
+    def test_cannot_find_module_build_id_from_build_info(
+        self, ClientSession, build_info, db_session
+    ):
         ClientSession.return_value.getBuild.return_value = build_info
 
-        assert get_corresponding_module_build(db.session, "n-v-r") is None
+        assert get_corresponding_module_build(db_session, "n-v-r") is None
 
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
-    def test_corresponding_module_build_id_does_not_exist_in_db(self, ClientSession):
-        fake_module_build_id, = db.session.query(func.max(ModuleBuild.id)).first()
+    def test_corresponding_module_build_id_does_not_exist_in_db(self, ClientSession, db_session):
+        fake_module_build_id, = db_session.query(func.max(ModuleBuild.id)).first()
 
         ClientSession.return_value.getBuild.return_value = {
             "extra": {"typeinfo": {"module": {"module_build_service_id": fake_module_build_id + 1}}}
         }
 
-        assert get_corresponding_module_build(db.session, "n-v-r") is None
+        assert get_corresponding_module_build(db_session, "n-v-r") is None
 
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
-    def test_find_the_module_build(self, ClientSession):
+    def test_find_the_module_build(self, ClientSession, db_session):
         expected_module_build = (
-            db.session.query(ModuleBuild).filter(ModuleBuild.name == "platform").first()
+            db_session.query(ModuleBuild).filter(ModuleBuild.name == "platform").first()
         )
 
         ClientSession.return_value.getBuild.return_value = {
             "extra": {"typeinfo": {"module": {"module_build_service_id": expected_module_build.id}}}
         }
 
-        build = get_corresponding_module_build(db.session, "n-v-r")
+        build = get_corresponding_module_build(db_session, "n-v-r")
 
         assert expected_module_build.id == build.id
         assert expected_module_build.name == build.name
@@ -92,9 +94,9 @@ class TestDecisionUpdateHandler:
     """Test handler decision_update"""
 
     @patch("module_build_service.scheduler.handlers.greenwave.log")
-    def test_decision_context_is_not_match(self, log):
+    def test_decision_context_is_not_match(self, log, db_session):
         msg = Mock(msg_id="msg-id-1", decision_context="bodhi_update_push_testing")
-        decision_update(conf, db.session, msg)
+        decision_update(conf, db_session, msg)
         log.debug.assert_called_once_with(
             'Skip Greenwave message %s as MBS only handles messages with the decision context "%s"',
             "msg-id-1",
@@ -102,14 +104,14 @@ class TestDecisionUpdateHandler:
         )
 
     @patch("module_build_service.scheduler.handlers.greenwave.log")
-    def test_not_satisfy_policies(self, log):
+    def test_not_satisfy_policies(self, log, db_session):
         msg = Mock(
             msg_id="msg-id-1",
             decision_context="test_dec_context",
             policies_satisfied=False,
             subject_identifier="pkg-0.1-1.c1",
         )
-        decision_update(conf, db.session, msg)
+        decision_update(conf, db_session, msg)
         log.debug.assert_called_once_with(
             "Skip to handle module build %s because it has not satisfied Greenwave policies.",
             msg.subject_identifier,
@@ -117,21 +119,21 @@ class TestDecisionUpdateHandler:
 
     @patch("module_build_service.messaging.publish")
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
-    def test_transform_from_done_to_ready(self, ClientSession, publish):
+    def test_transform_from_done_to_ready(self, ClientSession, publish, db_session):
         clean_database()
 
         # This build should be queried and transformed to ready state
-        module_build = make_module(db.session, "pkg:0.1:1:c1", requires_list={"platform": "el8"})
+        module_build = make_module(db_session, "pkg:0.1:1:c1", requires_list={"platform": "el8"})
         module_build.transition(
-            conf, BUILD_STATES["done"], "Move to done directly for running test."
+            db_session, conf, BUILD_STATES["done"], "Move to done directly for running test."
         )
-        db.session.commit()
+        db_session.commit()
 
         # Assert this call below
         first_publish_call = call(
             service="mbs",
             topic="module.state.change",
-            msg=module_build.json(show_tasks=False),
+            msg=module_build.json(db_session, show_tasks=False),
             conf=conf,
         )
 
@@ -153,9 +155,7 @@ class TestDecisionUpdateHandler:
         consumer.consume(msg)
 
         # Load module build again to check its state is moved correctly
-        module_build = (
-            db.session.query(ModuleBuild).filter(ModuleBuild.id == module_build.id).first())
-
+        db_session.refresh(module_build)
         assert BUILD_STATES["ready"] == module_build.state
 
         publish.assert_has_calls([
@@ -163,7 +163,7 @@ class TestDecisionUpdateHandler:
             call(
                 service="mbs",
                 topic="module.state.change",
-                msg=module_build.json(show_tasks=False),
+                msg=module_build.json(db_session, show_tasks=False),
                 conf=conf,
             ),
         ])

@@ -20,27 +20,22 @@
 #
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
-import os
+import pytest
 from datetime import datetime
 
 import module_build_service.resolver as mbs_resolver
-from module_build_service import db
 from module_build_service.utils.general import import_mmd, mmd_to_str, load_mmd
 from module_build_service.models import ModuleBuild
 import tests
 
 
-base_dir = os.path.join(os.path.dirname(__file__), "..")
-
-
+@pytest.mark.usefixtures("reuse_component_init_data")
 class TestLocalResolverModule:
-    def setup_method(self):
-        tests.reuse_component_init_data()
 
-    def test_get_buildrequired_modulemds(self):
+    def test_get_buildrequired_modulemds(self, db_session):
         mmd = load_mmd(tests.read_staged_data("platform"))
         mmd = mmd.copy(mmd.get_module_name(), "f8")
-        import_mmd(db.session, mmd)
+        import_mmd(db_session, mmd)
         platform_f8 = ModuleBuild.query.filter_by(stream="f8").one()
         mmd = mmd.copy("testmodule", "master")
         mmd.set_version(20170109091357)
@@ -62,10 +57,10 @@ class TestLocalResolverModule:
             rebuild_strategy="changed-and-after",
             modulemd=mmd_to_str(mmd),
         )
-        db.session.add(build)
-        db.session.commit()
+        db_session.add(build)
+        db_session.commit()
 
-        resolver = mbs_resolver.GenericResolver.create(tests.conf, backend="local")
+        resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="local")
         result = resolver.get_buildrequired_modulemds(
             "testmodule", "master", platform_f8.mmd().get_nsvc())
         nsvcs = set([m.get_nsvc() for m in result])

@@ -97,7 +97,8 @@ class MockModuleBuilder(GenericBuilder):
         raise IOError("None of {} yum config files found.".format(conf.yum_config_file))
 
     @module_build_service.utils.validate_koji_tag("tag_name")
-    def __init__(self, owner, module, config, tag_name, components):
+    def __init__(self, db_session, owner, module, config, tag_name, components):
+        self.db_session = db_session
         self.module_str = module.name
         self.module = module
         self.tag_name = tag_name
@@ -582,7 +583,7 @@ class MockModuleBuilder(GenericBuilder):
         :param Modulemd mmd: Modulemd to get the built RPMs from.
         :return: list of NVRs
         """
-        with models.make_session(conf) as db_session:
+        with models.make_db_session(conf) as db_session:
             build = models.ModuleBuild.get_build_from_nsvc(
                 db_session,
                 mmd.get_module_name(),

@@ -290,9 +290,11 @@ def validate_koji_tag(tag_arg_names, pre="", post="-", dict_key="name"):
     return validation_decorator
 
 
-def get_rpm_release(module_build):
+def get_rpm_release(db_session, module_build):
     """
     Generates the dist tag for the specified module
+
+    :param db_session: SQLAlchemy session object.
     :param module_build: a models.ModuleBuild object
     :return: a string of the module's dist tag
     """
@@ -307,7 +309,7 @@ def get_rpm_release(module_build):
     # We need to share the same auto-incrementing index in dist tag between all MSE builds.
     # We can achieve that by using the lowest build ID of all the MSE siblings including
     # this module build.
-    mse_build_ids = module_build.siblings + [module_build.id or 0]
+    mse_build_ids = module_build.siblings(db_session) + [module_build.id or 0]
     mse_build_ids.sort()
     index = mse_build_ids[0]
     try:
@@ -331,30 +333,29 @@ def get_rpm_release(module_build):
             if not module_in_xmd:
                 continue
 
-            with models.make_session(conf) as session:
-                module_obj = models.ModuleBuild.get_build_from_nsvc(
-                    session,
-                    module,
-                    module_in_xmd["stream"],
-                    module_in_xmd["version"],
-                    module_in_xmd["context"],
-                )
-                if not module_obj:
-                    continue
+            module_obj = models.ModuleBuild.get_build_from_nsvc(
+                db_session,
+                module,
+                module_in_xmd["stream"],
+                module_in_xmd["version"],
+                module_in_xmd["context"],
+            )
+            if not module_obj:
+                continue
 
-                try:
-                    marking = module_obj.mmd().get_xmd()["mbs"]["disttag_marking"]
-                # We must check for a KeyError because a Variant object doesn't support the `get`
-                # method
-                except KeyError:
-                    if module not in conf.base_module_names:
-                        continue
-                    # If we've made it past all the modules in
-                    # conf.allowed_privileged_module_names, and the base module doesn't have
-                    # the disttag_marking set, then default to the stream of the first base module
-                    marking = module_obj.stream
-                br_module_marking = marking + "+"
-                break
+            try:
+                marking = module_obj.mmd().get_xmd()["mbs"]["disttag_marking"]
+            # We must check for a KeyError because a Variant object doesn't support the `get`
+            # method
+            except KeyError:
+                if module not in conf.base_module_names:
+                    continue
+                # If we've made it past all the modules in
+                # conf.allowed_privileged_module_names, and the base module doesn't have
+                # the disttag_marking set, then default to the stream of the first base module
+                marking = module_obj.stream
+            br_module_marking = marking + "+"
+            break
         else:
             log.warning(
                 "Module build {0} does not buildrequire a base module ({1})".format(
@@ -400,7 +401,7 @@ def create_dogpile_key_generator_func(skip_first_n_args=0):
     return key_generator
 
 
-def import_mmd(session, mmd, check_buildrequires=True):
+def import_mmd(db_session, mmd, check_buildrequires=True):
     """
     Imports new module build defined by `mmd` to MBS database using `session`.
     If it already exists, it is updated.
@@ -410,6 +411,7 @@ def import_mmd(session, mmd, check_buildrequires=True):
     The ModuleBuild.rebuild_strategy is set to "all".
     The ModuleBuild.owner is set to "mbs_import".
 
+    :param db_session: SQLAlchemy session object.
     :param bool check_buildrequires: When True, checks that the buildrequires defined in the MMD
         have matching records in the `mmd["xmd"]["mbs"]["buildrequires"]` and also fills in
         the `ModuleBuild.buildrequires` according to this data.
@@ -492,7 +494,7 @@ def import_mmd(session, mmd, check_buildrequires=True):
         log.warning("'koji_tag' is not set in xmd['mbs'] for module {}".format(nsvc))
 
     # Get the ModuleBuild from DB.
-    build = models.ModuleBuild.get_build_from_nsvc(session, name, stream, version, context)
+    build = models.ModuleBuild.get_build_from_nsvc(db_session, name, stream, version, context)
     if build:
         msg = "Updating existing module build {}.".format(nsvc)
         log.info(msg)
@@ -517,25 +519,25 @@ def import_mmd(session, mmd, check_buildrequires=True):
 
     # Record the base modules this module buildrequires
     if check_buildrequires:
-        for base_module in build.get_buildrequired_base_modules(session):
+        for base_module in build.get_buildrequired_base_modules(db_session):
             if base_module not in build.buildrequires:
                 build.buildrequires.append(base_module)
 
-    session.add(build)
-    session.commit()
+    db_session.add(build)
+    db_session.commit()
 
     for virtual_stream in virtual_streams:
-        vs_obj = session.query(models.VirtualStream).filter_by(name=virtual_stream).first()
+        vs_obj = db_session.query(models.VirtualStream).filter_by(name=virtual_stream).first()
         if not vs_obj:
             vs_obj = models.VirtualStream(name=virtual_stream)
-            session.add(vs_obj)
-            session.commit()
+            db_session.add(vs_obj)
+            db_session.commit()
 
         if vs_obj not in build.virtual_streams:
             build.virtual_streams.append(vs_obj)
-            session.add(build)
+            db_session.add(build)
 
-    session.commit()
+    db_session.commit()
 
     msg = "Module {} imported".format(nsvc)
     log.info(msg)
@@ -544,10 +546,11 @@ def import_mmd(session, mmd, check_buildrequires=True):
     return build, msgs
 
 
-def import_fake_base_module(nsvc):
+def import_fake_base_module(db_session, nsvc):
     """
     Creates and imports new fake base module to be used with offline local builds.
 
+    :param db_session: SQLAlchemy session object.
     :param str nsvc: name:stream:version:context of a module.
     """
     name, stream, version, context = nsvc.split(":")
@@ -579,8 +582,7 @@ def import_fake_base_module(nsvc):
     xmd_mbs["koji_tag"] = "repofile://"
     mmd.set_xmd(xmd)
 
-    with models.make_session(conf) as session:
-        import_mmd(session, mmd, False)
+    import_mmd(db_session, mmd, False)
 
 
 def get_local_releasever():
@@ -594,13 +596,14 @@ def get_local_releasever():
     return dnf_base.conf.releasever
 
 
-def import_builds_from_local_dnf_repos(platform_id=None):
+def import_builds_from_local_dnf_repos(db_session, platform_id=None):
     """
     Imports the module builds from all available local repositories to MBS DB.
 
     This is used when building modules locally without any access to MBS infra.
     This method also generates and imports the base module according to /etc/os-release.
 
+    :param db_session: SQLAlchemy session object.
     :param str platform_id: The `name:stream` of a fake platform module to generate in this
         method. When not set, the /etc/os-release is parsed to get the PLATFORM_ID.
     """
@@ -612,30 +615,29 @@ def import_builds_from_local_dnf_repos(platform_id=None):
     dnf_base.read_all_repos()
 
     log.info("Importing available modules to MBS local database.")
-    with models.make_session(conf) as session:
-        for repo in dnf_base.repos.values():
-            try:
-                repo.load()
-            except Exception as e:
-                log.warning(str(e))
-                continue
-            mmd_data = repo.get_metadata_content("modules")
-            mmd_index = Modulemd.ModuleIndex.new()
-            ret, _ = mmd_index.update_from_string(mmd_data, True)
-            if not ret:
-                log.warning("Loading the repo '%s' failed", repo.name)
-                continue
+    for repo in dnf_base.repos.values():
+        try:
+            repo.load()
+        except Exception as e:
+            log.warning(str(e))
+            continue
+        mmd_data = repo.get_metadata_content("modules")
+        mmd_index = Modulemd.ModuleIndex.new()
+        ret, _ = mmd_index.update_from_string(mmd_data, True)
+        if not ret:
+            log.warning("Loading the repo '%s' failed", repo.name)
+            continue
 
-            for module_name in mmd_index.get_module_names():
-                for mmd in mmd_index.get_module(module_name).get_all_streams():
-                    xmd = mmd.get_xmd()
-                    xmd["mbs"] = {}
-                    xmd["mbs"]["koji_tag"] = "repofile://" + repo.repofile
-                    xmd["mbs"]["mse"] = True
-                    xmd["mbs"]["commit"] = "unknown"
-                    mmd.set_xmd(xmd)
+        for module_name in mmd_index.get_module_names():
+            for mmd in mmd_index.get_module(module_name).get_all_streams():
+                xmd = mmd.get_xmd()
+                xmd["mbs"] = {}
+                xmd["mbs"]["koji_tag"] = "repofile://" + repo.repofile
+                xmd["mbs"]["mse"] = True
+                xmd["mbs"]["commit"] = "unknown"
+                mmd.set_xmd(xmd)
 
-                    import_mmd(session, mmd, False)
+                import_mmd(db_session, mmd, False)
 
     if not platform_id:
         # Parse the /etc/os-release to find out the local platform:stream.
@@ -650,7 +652,7 @@ def import_builds_from_local_dnf_repos(platform_id=None):
     # Create the fake platform:stream:1:000000 module to fulfill the
     # dependencies for local offline build and also to define the
     # srpm-buildroot and buildroot.
-    import_fake_base_module("%s:1:000000" % platform_id)
+    import_fake_base_module(db_session, "%s:1:000000" % platform_id)
 
 
 def get_mmd_from_scm(url):
@@ -667,10 +669,11 @@ def get_mmd_from_scm(url):
     return mmd
 
 
-def get_build_arches(mmd, config):
+def get_build_arches(db_session, mmd, config):
     """
     Returns the list of architectures for which the module `mmd` should be built.
 
+    :param db_session: SQLAlchemy session object.
     :param mmd: Module MetaData
     :param config: config (module_build_service.config.Config instance)
     :return list of architectures
@@ -713,28 +716,27 @@ def get_build_arches(mmd, config):
         # Looping through all the privileged modules that are allowed to set koji tag arches
         # and the base modules to see what the koji tag arches should be. Doing it this way
         # preserves the order in the configurations.
-        with models.make_session(conf) as session:
-            for module in conf.allowed_privileged_module_names + conf.base_module_names:
-                module_in_xmd = buildrequires.get(module)
+        for module in conf.allowed_privileged_module_names + conf.base_module_names:
+            module_in_xmd = buildrequires.get(module)
 
-                if not module_in_xmd:
-                    continue
+            if not module_in_xmd:
+                continue
 
-                module_obj = models.ModuleBuild.get_build_from_nsvc(
-                    session,
-                    module,
-                    module_in_xmd["stream"],
-                    module_in_xmd["version"],
-                    module_in_xmd["context"],
-                )
-                if not module_obj:
-                    continue
-                arches = module_build_service.builder.GenericBuilder.get_module_build_arches(
-                    module_obj)
-                if arches:
-                    log.info("Setting build arches of %s to %r based on the buildrequired "
-                             "module %r." % (nsvc, arches, module_obj))
-                    return arches
+            module_obj = models.ModuleBuild.get_build_from_nsvc(
+                db_session,
+                module,
+                module_in_xmd["stream"],
+                module_in_xmd["version"],
+                module_in_xmd["context"],
+            )
+            if not module_obj:
+                continue
+            arches = module_build_service.builder.GenericBuilder.get_module_build_arches(
+                module_obj)
+            if arches:
+                log.info("Setting build arches of %s to %r based on the buildrequired "
+                         "module %r." % (nsvc, arches, module_obj))
+                return arches
 
     # As a last resort, return just the preconfigured list of arches.
     arches = config.arches

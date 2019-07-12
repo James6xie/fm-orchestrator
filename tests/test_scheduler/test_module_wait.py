@@ -27,7 +27,7 @@ import module_build_service.scheduler.handlers.modules
 import os
 import koji
 import pytest
-from tests import conf, db, scheduler_init_data, read_staged_data
+from tests import conf, scheduler_init_data, read_staged_data
 import module_build_service.resolver
 from module_build_service import build_logs, Modulemd
 from module_build_service.utils.general import load_mmd
@@ -44,7 +44,8 @@ class TestModuleWait:
 
     def teardown_method(self, test_method):
         try:
-            path = build_logs.path(1)
+            with module_build_service.models.make_db_session(conf) as db_session:
+                path = build_logs.path(db_session, 1)
             os.remove(path)
         except Exception:
             pass
@@ -79,8 +80,8 @@ class TestModuleWait:
 
         msg = module_build_service.messaging.MBSModule(
             msg_id=None, module_build_id=1, module_build_state="some state")
-        with patch.object(module_build_service.resolver, "system_resolver"):
-            self.fn(config=self.config, session=self.session, msg=msg)
+        with patch("module_build_service.resolver.GenericResolver.create"):
+            self.fn(config=self.config, db_session=self.session, msg=msg)
 
     @patch(
         "module_build_service.builder.GenericBuilder.default_buildroot_groups",
@@ -115,20 +116,19 @@ class TestModuleWait:
         resolver.backend = "db"
         resolver.get_module_tag.return_value = "module-testmodule-master-20170109091357"
 
-        with patch.object(module_build_service.resolver, "system_resolver", new=resolver):
-            msg = module_build_service.messaging.MBSModule(
-                msg_id=None, module_build_id=2, module_build_state="some state")
-            module_build_service.scheduler.handlers.modules.wait(
-                config=conf, session=db_session, msg=msg)
-            koji_session.newRepo.assert_called_once_with("module-123-build")
+        generic_resolver.create.return_value = resolver
+        msg = module_build_service.messaging.MBSModule(
+            msg_id=None, module_build_id=2, module_build_state="some state")
+
+        module_build_service.scheduler.handlers.modules.wait(
+            config=conf, db_session=db_session, msg=msg)
+
+        koji_session.newRepo.assert_called_once_with("module-123-build")
 
         # When module-build-macros is reused, it still has to appear only
         # once in database.
-        builds_count = (
-            db.session.query(ComponentBuild)
-            .filter_by(package="module-build-macros", module_id=2)
-            .count()
-        )
+        builds_count = db_session.query(ComponentBuild).filter_by(
+            package="module-build-macros", module_id=2).count()
         assert builds_count == 1
 
     @patch(
@@ -164,12 +164,14 @@ class TestModuleWait:
         resolver.backend = "db"
         resolver.get_module_tag.return_value = "module-testmodule-master-20170109091357"
 
-        with patch.object(module_build_service.resolver, "system_resolver", new=resolver):
-            msg = module_build_service.messaging.MBSModule(
-                msg_id=None, module_build_id=2, module_build_state="some state")
-            module_build_service.scheduler.handlers.modules.wait(
-                config=conf, session=db_session, msg=msg)
-            assert koji_session.newRepo.called
+        generic_resolver.create.return_value = resolver
+        msg = module_build_service.messaging.MBSModule(
+            msg_id=None, module_build_id=2, module_build_state="some state")
+
+        module_build_service.scheduler.handlers.modules.wait(
+            config=conf, db_session=db_session, msg=msg)
+
+        assert koji_session.newRepo.called
 
     @patch(
         "module_build_service.builder.GenericBuilder.default_buildroot_groups",
@@ -209,13 +211,15 @@ class TestModuleWait:
             "module-bootstrap-tag": [base_mmd]
         }
 
-        with patch.object(module_build_service.resolver, "system_resolver", new=resolver):
-            msg = module_build_service.messaging.MBSModule(
-                msg_id=None, module_build_id=2, module_build_state="some state")
-            module_build_service.scheduler.handlers.modules.wait(
-                config=conf, session=db_session, msg=msg)
-            module_build = ModuleBuild.query.filter_by(id=2).one()
-            assert module_build.cg_build_koji_tag == "modular-updates-candidate"
+        generic_resolver.create.return_value = resolver
+        msg = module_build_service.messaging.MBSModule(
+            msg_id=None, module_build_id=2, module_build_state="some state")
+
+        module_build_service.scheduler.handlers.modules.wait(
+            config=conf, db_session=db_session, msg=msg)
+
+        module_build = ModuleBuild.get_by_id(db_session, 2)
+        assert module_build.cg_build_koji_tag == "modular-updates-candidate"
 
     @pytest.mark.parametrize(
         "koji_cg_tag_build,expected_cg_koji_build_tag",
@@ -280,12 +284,12 @@ class TestModuleWait:
             "koji_cg_tag_build",
             new=koji_cg_tag_build,
         ):
-            with patch.object(module_build_service.resolver, "system_resolver", new=resolver):
-                msg = module_build_service.messaging.MBSModule(
-                    msg_id=None, module_build_id=2, module_build_state="some state"
-                )
-                module_build_service.scheduler.handlers.modules.wait(
-                    config=conf, session=db_session, msg=msg
-                )
-                module_build = ModuleBuild.query.filter_by(id=2).one()
-                assert module_build.cg_build_koji_tag == expected_cg_koji_build_tag
+            generic_resolver.create.return_value = resolver
+            msg = module_build_service.messaging.MBSModule(
+                msg_id=None, module_build_id=2, module_build_state="some state"
+            )
+            module_build_service.scheduler.handlers.modules.wait(
+                config=conf, db_session=db_session, msg=msg
+            )
+            module_build = ModuleBuild.get_by_id(db_session, 2)
+            assert module_build.cg_build_koji_tag == expected_cg_koji_build_tag

@@ -69,26 +69,26 @@ def test_standalone_metrics_server():
 
 @mock.patch("module_build_service.monitor.builder_failed_counter.labels")
 @mock.patch("module_build_service.monitor.builder_success_counter.inc")
-def test_monitor_state_changing_success(succ_cnt, failed_cnt):
+def test_monitor_state_changing_success(succ_cnt, failed_cnt, db_session):
     conf = mbs_config.Config(TestConfiguration)
-    with models.make_session(conf) as db_session:
-        b = make_module(db_session, "pkg:0.1:1:c1", requires_list={"platform": "el8"})
-        b.transition(conf, models.BUILD_STATES["wait"])
-        b.transition(conf, models.BUILD_STATES["build"])
-        b.transition(conf, models.BUILD_STATES["done"])
+    b = make_module(db_session, "pkg:0.1:1:c1", requires_list={"platform": "el8"})
+    b.transition(db_session, conf, models.BUILD_STATES["wait"])
+    b.transition(db_session, conf, models.BUILD_STATES["build"])
+    b.transition(db_session, conf, models.BUILD_STATES["done"])
+    db_session.commit()
     succ_cnt.assert_called_once()
     failed_cnt.assert_not_called()
 
 
 @mock.patch("module_build_service.monitor.builder_failed_counter.labels")
 @mock.patch("module_build_service.monitor.builder_success_counter.inc")
-def test_monitor_state_changing_failure(succ_cnt, failed_cnt):
+def test_monitor_state_changing_failure(succ_cnt, failed_cnt, db_session):
     failure_type = "user"
     conf = mbs_config.Config(TestConfiguration)
-    with models.make_session(conf) as db_session:
-        b = make_module(db_session, "pkg:0.1:1:c1", requires_list={"platform": "el8"})
-        b.transition(conf, models.BUILD_STATES["wait"])
-        b.transition(conf, models.BUILD_STATES["build"])
-        b.transition(conf, models.BUILD_STATES["failed"], failure_type=failure_type)
+    b = make_module(db_session, "pkg:0.1:1:c1", requires_list={"platform": "el8"})
+    b.transition(db_session, conf, models.BUILD_STATES["wait"])
+    b.transition(db_session, conf, models.BUILD_STATES["build"])
+    b.transition(db_session, conf, models.BUILD_STATES["failed"], failure_type=failure_type)
+    db_session.commit()
     succ_cnt.assert_not_called()
     failed_cnt.assert_called_once_with(reason=failure_type)

@@ -22,7 +22,7 @@ import re
 import pytest
 from mock import patch
 from module_build_service import models, conf
-from tests import reuse_component_init_data, db, clean_database
+from tests import clean_database
 import mock
 import koji
 from module_build_service.scheduler.producer import MBSProducer
@@ -31,6 +31,7 @@ import six.moves.queue as queue
 from datetime import datetime, timedelta
 
 
+@pytest.mark.usefixtures("reuse_component_init_data")
 @patch(
     "module_build_service.builder.GenericBuilder.default_buildroot_groups",
     return_value={"build": [], "srpm-build": []},
@@ -39,8 +40,6 @@ from datetime import datetime, timedelta
 @patch("module_build_service.builder.GenericBuilder.create_from_module")
 class TestPoller:
     def setup_method(self, test_method):
-        reuse_component_init_data()
-
         self.p_read_config = patch(
             "koji.read_config",
             return_value={
@@ -58,7 +57,7 @@ class TestPoller:
     @pytest.mark.parametrize("fresh", [True, False])
     @patch("module_build_service.utils.batches.start_build_component")
     def test_process_paused_module_builds(
-        self, start_build_component, create_builder, global_consumer, dbg, fresh
+        self, start_build_component, create_builder, global_consumer, dbg, fresh, db_session
     ):
         """
         Tests general use-case of process_paused_module_builds.
@@ -72,14 +71,14 @@ class TestPoller:
 
         # Change the batch to 2, so the module build is in state where
         # it is not building anything, but the state is "build".
-        module_build = models.ModuleBuild.query.get(3)
+        module_build = models.ModuleBuild.get_by_id(db_session, 3)
         module_build.batch = 2
         # If fresh is set, then we simulate that activity just occurred 2 minutes ago on the build
         if fresh:
             module_build.time_modified = datetime.utcnow() - timedelta(minutes=2)
         else:
             module_build.time_modified = datetime.utcnow() - timedelta(days=5)
-        db.session.commit()
+        db_session.commit()
 
         # Poll :)
         hub = mock.MagicMock()
@@ -87,7 +86,7 @@ class TestPoller:
         poller.poll()
 
         # Refresh our module_build object.
-        module_build = models.ModuleBuild.query.get(3)
+        db_session.refresh(module_build)
 
         # If fresh is set, we expect the poller to not touch the module build since it's been less
         # than 10 minutes of inactivity
@@ -112,7 +111,7 @@ class TestPoller:
     @patch("module_build_service.utils.batches.start_build_component")
     def test_process_paused_module_builds_with_new_repo_task(
         self, start_build_component, create_builder, global_consumer, dbg, task_state,
-        expect_start_build_component
+        expect_start_build_component, db_session
     ):
         """
         Tests general use-case of process_paused_module_builds.
@@ -126,7 +125,7 @@ class TestPoller:
 
         # Change the batch to 2, so the module build is in state where
         # it is not building anything, but the state is "build".
-        module_build = models.ModuleBuild.query.get(3)
+        module_build = models.ModuleBuild.get_by_id(db_session, 3)
         module_build.batch = 2
         module_build.time_modified = datetime.utcnow() - timedelta(days=5)
         if task_state:
@@ -134,7 +133,7 @@ class TestPoller:
             koji_session.getTaskInfo.return_value = {"state": task_state}
             builder.koji_session = koji_session
             module_build.new_repo_task_id = 123
-        db.session.commit()
+        db_session.commit()
 
         # Poll :)
         hub = mock.MagicMock()
@@ -142,7 +141,7 @@ class TestPoller:
         poller.poll()
 
         # Refresh our module_build object.
-        module_build = models.ModuleBuild.query.get(3)
+        db_session.refresh(module_build)
 
         if expect_start_build_component:
             expected_state = koji.BUILD_STATES["BUILDING"]
@@ -160,7 +159,7 @@ class TestPoller:
     @patch.dict("sys.modules", krbV=mock.MagicMock())
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
     def test_retrigger_new_repo_on_failure(
-        self, ClientSession, create_builder, global_consumer, dbg
+        self, ClientSession, create_builder, global_consumer, dbg, db_session
     ):
         """
         Tests that we call koji_sesion.newRepo when newRepo task failed.
@@ -180,10 +179,10 @@ class TestPoller:
 
         # Change the batch to 2, so the module build is in state where
         # it is not building anything, but the state is "build".
-        module_build = models.ModuleBuild.query.get(3)
+        module_build = models.ModuleBuild.get_by_id(db_session, 3)
         module_build.batch = 2
         module_build.new_repo_task_id = 123456
-        db.session.commit()
+        db_session.commit()
 
         hub = mock.MagicMock()
         poller = MBSProducer(hub)
@@ -195,7 +194,7 @@ class TestPoller:
     @patch.dict("sys.modules", krbV=mock.MagicMock())
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
     def test_trigger_new_repo_when_succeeded(
-        self, ClientSession, create_builder, global_consumer, dbg
+        self, ClientSession, create_builder, global_consumer, dbg, db_session
     ):
         """
         Tests that we do not call koji_sesion.newRepo when newRepo task
@@ -216,23 +215,23 @@ class TestPoller:
 
         # Change the batch to 2, so the module build is in state where
         # it is not building anything, but the state is "build".
-        module_build = models.ModuleBuild.query.get(3)
+        module_build = models.ModuleBuild.get_by_id(db_session, 3)
         module_build.batch = 2
         module_build.new_repo_task_id = 123456
-        db.session.commit()
+        db_session.commit()
 
         hub = mock.MagicMock()
         poller = MBSProducer(hub)
         poller.poll()
 
         # Refresh our module_build object.
-        module_build = models.ModuleBuild.query.get(3)
+        db_session.refresh(module_build)
 
         assert not koji_session.newRepo.called
         assert module_build.new_repo_task_id == 123456
 
     def test_process_paused_module_builds_waiting_for_repo(
-        self, create_builder, global_consumer, dbg
+        self, create_builder, global_consumer, dbg, db_session
     ):
         """
         Tests that process_paused_module_builds does not start new batch
@@ -247,10 +246,10 @@ class TestPoller:
 
         # Change the batch to 2, so the module build is in state where
         # it is not building anything, but the state is "build".
-        module_build = models.ModuleBuild.query.get(3)
+        module_build = models.ModuleBuild.get_by_id(db_session, 3)
         module_build.batch = 2
         module_build.new_repo_task_id = 123456
-        db.session.commit()
+        db_session.commit()
 
         # Poll :)
         hub = mock.MagicMock()
@@ -258,7 +257,7 @@ class TestPoller:
         poller.poll()
 
         # Refresh our module_build object.
-        module_build = models.ModuleBuild.query.get(3)
+        db_session.refresh(module_build)
 
         # Components should not be in building state
         components = module_build.current_batch()
@@ -268,7 +267,7 @@ class TestPoller:
     @patch.dict("sys.modules", krbV=mock.MagicMock())
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
     def test_old_build_targets_are_not_associated_with_any_module_builds(
-        self, ClientSession, create_builder, global_consumer, dbg
+        self, ClientSession, create_builder, global_consumer, dbg, db_session
     ):
         consumer = mock.MagicMock()
         consumer.incoming = queue.Queue()
@@ -283,16 +282,16 @@ class TestPoller:
 
         hub = mock.MagicMock()
         poller = MBSProducer(hub)
-        poller.delete_old_koji_targets(conf, db.session)
+        poller.delete_old_koji_targets(conf, db_session)
 
         koji_session.deleteBuildTarget.assert_not_called()
 
     @patch.dict("sys.modules", krbV=mock.MagicMock())
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
     def test_dont_delete_base_module_build_target(
-        self, ClientSession, create_builder, global_consumer, dbg
+        self, ClientSession, create_builder, global_consumer, dbg, db_session
     ):
-        module_build = models.ModuleBuild.query.get(3)
+        module_build = models.ModuleBuild.get_by_id(db_session, 3)
 
         koji_session = ClientSession.return_value
         # No created module build has any of these tags.
@@ -308,16 +307,16 @@ class TestPoller:
 
             hub = mock.MagicMock()
             poller = MBSProducer(hub)
-            poller.delete_old_koji_targets(conf, db.session)
+            poller.delete_old_koji_targets(conf, db_session)
 
             koji_session.deleteBuildTarget.assert_not_called()
 
     @patch.dict("sys.modules", krbV=mock.MagicMock())
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
     def test_dont_delete_build_target_for_unfinished_module_builds(
-        self, ClientSession, create_builder, global_consumer, dbg
+        self, ClientSession, create_builder, global_consumer, dbg, db_session
     ):
-        module_build = models.ModuleBuild.query.get(3)
+        module_build = models.ModuleBuild.get_by_id(db_session, 3)
 
         koji_session = ClientSession.return_value
         # No created module build has any of these tags.
@@ -331,31 +330,32 @@ class TestPoller:
         # should not be deleted.
         for state in ["init", "wait", "build"]:
             module_build.state = state
-            db.session.commit()
+            db_session.commit()
 
             hub = mock.MagicMock()
             poller = MBSProducer(hub)
-            poller.delete_old_koji_targets(conf, db.session)
+            poller.delete_old_koji_targets(conf, db_session)
 
             koji_session.deleteBuildTarget.assert_not_called()
 
     @patch.dict("sys.modules", krbV=mock.MagicMock())
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
     def test_only_delete_build_target_with_allowed_koji_tag_prefix(
-        self, ClientSession, create_builder, global_consumer, dbg
+        self, ClientSession, create_builder, global_consumer, dbg, db_session
     ):
-        module_build_2 = models.ModuleBuild.query.filter_by(id=2).one()
-        module_build_3 = models.ModuleBuild.query.filter_by(id=3).one()
-
+        module_build_2 = models.ModuleBuild.get_by_id(db_session, 2)
         # Only module build 1's build target should be deleted.
         module_build_2.koji_tag = "module-tag1"
         module_build_2.state = models.BUILD_STATES["done"]
         # Ensure to exceed the koji_target_delete_time easily later for deletion
         module_build_2.time_completed = datetime.utcnow() - timedelta(hours=24)
+
+        module_build_3 = models.ModuleBuild.get_by_id(db_session, 3)
         module_build_3.koji_tag = "f28"
-        db.session.commit()
-        db.session.refresh(module_build_2)
-        db.session.refresh(module_build_3)
+
+        db_session.commit()
+        db_session.refresh(module_build_2)
+        db_session.refresh(module_build_3)
 
         koji_session = ClientSession.return_value
         # No created module build has any of these tags.
@@ -372,7 +372,7 @@ class TestPoller:
             with patch.object(conf, "koji_target_delete_time", new=60):
                 hub = mock.MagicMock()
                 poller = MBSProducer(hub)
-                poller.delete_old_koji_targets(conf, db.session)
+                poller.delete_old_koji_targets(conf, db_session)
 
             koji_session.deleteBuildTarget.assert_called_once_with(1)
             koji_session.krb_login.assert_called_once()
@@ -380,17 +380,17 @@ class TestPoller:
     @patch.dict("sys.modules", krbV=mock.MagicMock())
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
     def test_cant_delete_build_target_if_not_reach_delete_time(
-        self, ClientSession, create_builder, global_consumer, dbg
+        self, ClientSession, create_builder, global_consumer, dbg, db_session
     ):
-        module_build_2 = models.ModuleBuild.query.filter_by(id=2).one()
-
+        module_build_2 = models.ModuleBuild.get_by_id(db_session, 2)
         # Only module build 1's build target should be deleted.
         module_build_2.koji_tag = "module-tag1"
         module_build_2.state = models.BUILD_STATES["done"]
         # Ensure to exceed the koji_target_delete_time easily later for deletion
         module_build_2.time_completed = datetime.utcnow() - timedelta(minutes=5)
-        db.session.commit()
-        db.session.refresh(module_build_2)
+
+        db_session.commit()
+        db_session.refresh(module_build_2)
 
         koji_session = ClientSession.return_value
         # No created module build has any of these tags.
@@ -407,12 +407,14 @@ class TestPoller:
             # enough for test.
             hub = mock.MagicMock()
             poller = MBSProducer(hub)
-            poller.delete_old_koji_targets(conf, db.session)
+            poller.delete_old_koji_targets(conf, db_session)
 
             koji_session.deleteBuildTarget.assert_not_called()
 
     @pytest.mark.parametrize("state", ["init", "wait"])
-    def test_process_waiting_module_build(self, create_builder, global_consumer, dbg, state):
+    def test_process_waiting_module_build(
+        self, create_builder, global_consumer, dbg, state, db_session
+    ):
         """ Test that processing old waiting module builds works. """
 
         consumer = mock.MagicMock()
@@ -424,27 +426,29 @@ class TestPoller:
 
         # Change the batch to 2, so the module build is in state where
         # it is not building anything, but the state is "build".
-        module_build = models.ModuleBuild.query.get(3)
+        module_build = models.ModuleBuild.get_by_id(db_session, 3)
         module_build.state = models.BUILD_STATES[state]
         original = datetime.utcnow() - timedelta(minutes=11)
         module_build.time_modified = original
-        db.session.commit()
-        db.session.refresh(module_build)
+
+        db_session.commit()
+        db_session.refresh(module_build)
 
         # Ensure the queue is empty before we start.
         assert consumer.incoming.qsize() == 0
 
         # Poll :)
-        poller.process_waiting_module_builds(db.session)
+        poller.process_waiting_module_builds(db_session)
 
         assert consumer.incoming.qsize() == 1
-        module_build = models.ModuleBuild.query.get(3)
+
+        db_session.refresh(module_build)
         # ensure the time_modified was changed.
         assert module_build.time_modified > original
 
     @pytest.mark.parametrize("state", ["init", "wait"])
     def test_process_waiting_module_build_not_old_enough(
-        self, create_builder, global_consumer, dbg, state
+        self, create_builder, global_consumer, dbg, state, db_session
     ):
         """ Test that we do not process young waiting builds. """
 
@@ -457,23 +461,26 @@ class TestPoller:
 
         # Change the batch to 2, so the module build is in state where
         # it is not building anything, but the state is "build".
-        module_build = models.ModuleBuild.query.get(3)
+        module_build = models.ModuleBuild.get_by_id(db_session, 3)
         module_build.state = models.BUILD_STATES[state]
         original = datetime.utcnow() - timedelta(minutes=9)
         module_build.time_modified = original
-        db.session.commit()
-        db.session.refresh(module_build)
+
+        db_session.commit()
+        db_session.refresh(module_build)
 
         # Ensure the queue is empty before we start.
         assert consumer.incoming.qsize() == 0
 
         # Poll :)
-        poller.process_waiting_module_builds(db.session)
+        poller.process_waiting_module_builds(db_session)
 
         # Ensure we did *not* process the 9 minute-old build.
         assert consumer.incoming.qsize() == 0
 
-    def test_process_waiting_module_build_none_found(self, create_builder, global_consumer, dbg):
+    def test_process_waiting_module_build_none_found(
+        self, create_builder, global_consumer, dbg, db_session
+    ):
         """ Test nothing happens when no module builds are waiting. """
 
         consumer = mock.MagicMock()
@@ -487,7 +494,7 @@ class TestPoller:
         assert consumer.incoming.qsize() == 0
 
         # Poll :)
-        poller.process_waiting_module_builds(db.session)
+        poller.process_waiting_module_builds(db_session)
 
         # Ensure we did *not* process any of the non-waiting builds.
         assert consumer.incoming.qsize() == 0
@@ -634,21 +641,23 @@ class TestPoller:
     @pytest.mark.parametrize("btime", (True, False))
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
     def test_sync_koji_build_tags(
-        self, ClientSession, create_builder, global_consumer, dbg, tagged, tagged_in_final, btime
+        self, ClientSession, create_builder, global_consumer, dbg, tagged, tagged_in_final, btime,
+        db_session
     ):
-        module_build_2 = models.ModuleBuild.query.filter_by(id=2).one()
-
+        module_build_2 = models.ModuleBuild.get_by_id(db_session, 2)
         # Only module build 1's build target should be deleted.
         module_build_2.koji_tag = "module-tag1"
         module_build_2.state = models.BUILD_STATES["build"]
         if btime:
             module_build_2.time_modified = datetime.utcnow() - timedelta(minutes=12)
+
         c = module_build_2.current_batch()[0]
         c.state = koji.BUILD_STATES["COMPLETE"]
         c.tagged_in_final = False
         c.tagged = False
-        db.session.commit()
-        db.session.refresh(module_build_2)
+
+        db_session.commit()
+        db_session.refresh(module_build_2)
 
         koji_session = ClientSession.return_value
         # No created module build has any of these tags.
@@ -668,7 +677,9 @@ class TestPoller:
         poller = MBSProducer(hub)
 
         assert consumer.incoming.qsize() == 0
-        poller.sync_koji_build_tags(conf, db.session)
+
+        poller.sync_koji_build_tags(conf, db_session)
+
         assert consumer.incoming.qsize() == len(ret)
 
         expected_msg_tags = []
@@ -714,18 +725,18 @@ class TestPoller:
 
         mock_gw.return_value = greenwave_result
 
-        poller.poll_greenwave(conf, db.session)
+        poller.poll_greenwave(conf, db_session)
 
         mock_gw.assert_called_once()
-        module = models.ModuleBuild.query.filter_by(state=models.BUILD_STATES["ready"]).all()
+        modules = models.ModuleBuild.by_state(db_session, "ready")
 
         if greenwave_result:
-            assert len(module) == 2
-            assert set([m.id for m in module]) == {1, 2}
+            assert len(modules) == 2
+            assert set([m.id for m in modules]) == {1, 2}
         else:
-            assert len(module) == 1
-            assert module[0].id == 1
-            module = models.ModuleBuild.query.filter_by(state=models.BUILD_STATES["done"]).all()
-            assert len(module) == 1
-            assert module[0].id == 2
-            assert re.match("Gating failed.*", module[0].state_reason)
+            assert len(modules) == 1
+            assert modules[0].id == 1
+            modules = models.ModuleBuild.by_state(db_session, "done")
+            assert len(modules) == 1
+            assert modules[0].id == 2
+            assert re.match("Gating failed.*", modules[0].state_reason)

@@ -74,14 +74,14 @@ def reuse_component(component, previous_component_build, change_state_now=False)
     ]
 
 
-def get_reusable_module(session, module):
+def get_reusable_module(db_session, module):
     """
     Returns previous module build of the module `module` in case it can be
     used as a source module to get the components to reuse from.
 
     In case there is no such module, returns None.
 
-    :param session: SQLAlchemy database session
+    :param db_session: SQLAlchemy database session
     :param module: the ModuleBuild object of module being built.
     :return: ModuleBuild object which can be used for component reuse.
     """
@@ -92,7 +92,7 @@ def get_reusable_module(session, module):
     mmd = module.mmd()
     # Find the latest module that is in the done or ready state
     previous_module_build = (
-        session.query(models.ModuleBuild)
+        db_session.query(models.ModuleBuild)
         .filter_by(name=mmd.get_module_name())
         .filter_by(stream=mmd.get_stream_name())
         .filter_by(state=models.BUILD_STATES["ready"])
@@ -115,12 +115,12 @@ def get_reusable_module(session, module):
         return None
 
     module.reused_module_id = previous_module_build.id
-    session.commit()
+    db_session.commit()
 
     return previous_module_build
 
 
-def attempt_to_reuse_all_components(builder, session, module):
+def attempt_to_reuse_all_components(builder, db_session, module):
     """
     Tries to reuse all the components in a build. The components are also
     tagged to the tags using the `builder`.
@@ -129,7 +129,7 @@ def attempt_to_reuse_all_components(builder, session, module):
     False is returned, no component has been reused.
     """
 
-    previous_module_build = get_reusable_module(session, module)
+    previous_module_build = get_reusable_module(db_session, module)
     if not previous_module_build:
         return False
 
@@ -145,7 +145,7 @@ def attempt_to_reuse_all_components(builder, session, module):
         if c.package == "module-build-macros":
             continue
         component_to_reuse = get_reusable_component(
-            session,
+            db_session,
             module,
             c.package,
             previous_module_build=previous_module_build,
@@ -177,7 +177,7 @@ def attempt_to_reuse_all_components(builder, session, module):
     return True
 
 
-def get_reusable_components(session, module, component_names, previous_module_build=None):
+def get_reusable_components(db_session, module, component_names, previous_module_build=None):
     """
     Returns the list of ComponentBuild instances belonging to previous module
     build which can be reused in the build of module `module`.
@@ -188,7 +188,7 @@ def get_reusable_components(session, module, component_names, previous_module_bu
     In case some component cannot be reused, None is used instead of a
     ComponentBuild instance in the returned list.
 
-    :param session: SQLAlchemy database session
+    :param db_session: SQLAlchemy database session
     :param module: the ModuleBuild object of module being built.
     :param component_names: List of component names to be reused.
     :kwarg previous_module_build: the ModuleBuild instance of a module build
@@ -202,7 +202,7 @@ def get_reusable_components(session, module, component_names, previous_module_bu
         return [None] * len(component_names)
 
     if not previous_module_build:
-        previous_module_build = get_reusable_module(session, module)
+        previous_module_build = get_reusable_module(db_session, module)
     if not previous_module_build:
         return [None] * len(component_names)
 
@@ -213,19 +213,19 @@ def get_reusable_components(session, module, component_names, previous_module_bu
     for component_name in component_names:
         ret.append(
             get_reusable_component(
-                session, module, component_name, previous_module_build, mmd, old_mmd)
+                db_session, module, component_name, previous_module_build, mmd, old_mmd)
         )
 
     return ret
 
 
 def get_reusable_component(
-    session, module, component_name, previous_module_build=None, mmd=None, old_mmd=None
+    db_session, module, component_name, previous_module_build=None, mmd=None, old_mmd=None
 ):
     """
     Returns the component (RPM) build of a module that can be reused
     instead of needing to rebuild it
-    :param session: SQLAlchemy database session
+    :param db_session: SQLAlchemy database session
     :param module: the ModuleBuild object of module being built with a formatted
         mmd
     :param component_name: the name of the component (RPM) that you'd like to
@@ -256,7 +256,7 @@ def get_reusable_component(
         return None
 
     if not previous_module_build:
-        previous_module_build = get_reusable_module(session, module)
+        previous_module_build = get_reusable_module(db_session, module)
         if not previous_module_build:
             return None
 
@@ -269,7 +269,7 @@ def get_reusable_component(
     # or the ref is missing, something has gone wrong and the component cannot
     # be reused
     new_module_build_component = models.ComponentBuild.from_component_name(
-        session, component_name, module.id)
+        db_session, component_name, module.id)
     if (
         not new_module_build_component
         or not new_module_build_component.batch
@@ -279,7 +279,7 @@ def get_reusable_component(
         return None
 
     prev_module_build_component = models.ComponentBuild.from_component_name(
-        session, component_name, previous_module_build.id
+        db_session, component_name, previous_module_build.id
     )
     # If the component to reuse for some reason was not found in the database,
     # or the ref is missing, something has gone wrong and the component cannot
@@ -375,7 +375,7 @@ def get_reusable_component(
             log.info("Cannot re-use. Architectures are different for package: %s." % pkg_name)
             return None
 
-    reusable_component = models.ComponentBuild.query.filter_by(
+    reusable_component = db_session.query(models.ComponentBuild).filter_by(
         package=component_name, module_id=previous_module_build.id).one()
     log.debug("Found reusable component!")
     return reusable_component

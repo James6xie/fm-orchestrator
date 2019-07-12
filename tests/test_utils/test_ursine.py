@@ -20,7 +20,6 @@
 from mock import patch, Mock
 
 from module_build_service import conf
-from module_build_service.models import make_session
 from module_build_service.utils import ursine
 from tests import make_module, clean_database
 
@@ -130,28 +129,28 @@ class TestGetModulemdsFromUrsineContent:
         clean_database()
 
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
-    def test_return_empty_if_no_ursine_build_tag_is_found(self, ClientSession):
-        session = ClientSession.return_value
+    def test_return_empty_if_no_ursine_build_tag_is_found(self, ClientSession, db_session):
+        koji_session = ClientSession.return_value
 
         # No module koji_tag in ursine content yet. This will result in empty
         # ursine modulemds is returned.
-        session.getFullInheritance.return_value = [{"name": "tag-1.0-build"}]
-        session.getExternalRepoList.return_value = [{
+        koji_session.getFullInheritance.return_value = [{"name": "tag-1.0-build"}]
+        koji_session.getExternalRepoList.return_value = [{
             "external_repo_name": "tag-1.0-external-repo",
             "url": "http://example.com/repos/tag-4-build/latest/$arch/",
         }]
 
-        modulemds = ursine.get_modulemds_from_ursine_content("tag")
+        modulemds = ursine.get_modulemds_from_ursine_content(db_session, "tag")
         assert [] == modulemds
 
     @patch.object(conf, "koji_tag_prefixes", new=["module"])
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
-    def test_get_modulemds(self, ClientSession):
-        session = ClientSession.return_value
+    def test_get_modulemds(self, ClientSession, db_session):
+        koji_session = ClientSession.return_value
 
         # Ensure to to get build tag for further query of ursine content.
         # For this test, the build tag is tag-4-build
-        session.getExternalRepoList.return_value = [{
+        koji_session.getExternalRepoList.return_value = [{
             "external_repo_name": "tag-1.0-external-repo",
             "url": "http://example.com/repos/tag-4-build/latest/$arch/",
         }]
@@ -169,7 +168,7 @@ class TestGetModulemdsFromUrsineContent:
                 ]
             raise ValueError("{} is not handled by test.".format(tag))
 
-        session.getFullInheritance.side_effect = mock_getFullInheritance
+        koji_session.getFullInheritance.side_effect = mock_getFullInheritance
 
         # Defaults to DB resolver, so create fake module builds and store them
         # into database to ensure they can be queried.
@@ -181,25 +180,24 @@ class TestGetModulemdsFromUrsineContent:
         # From the behavior of following code, the reason of the error is
         # mixing use of db.session and make_session, the latter one is called
         # from function ``get_modulemds_from_ursine_content``.
-        with make_session(conf) as db_session:
-            mmd_name1s2020c = make_module(
-                db_session,
-                "name1:s:2020:c", xmd={"mbs": {"koji_tag": "module-name1-s-2020-c"}})
-            mmd_name2s2021c = make_module(
-                db_session,
-                "name2:s:2021:c", xmd={"mbs": {"koji_tag": "module-name2-s-2021-c"}})
+        mmd_name1s2020c = make_module(
+            db_session,
+            "name1:s:2020:c", xmd={"mbs": {"koji_tag": "module-name1-s-2020-c"}})
+        mmd_name2s2021c = make_module(
+            db_session,
+            "name2:s:2021:c", xmd={"mbs": {"koji_tag": "module-name2-s-2021-c"}})
 
-            koji_tag = "tag"  # It's ok to use arbitrary tag name.
-            with patch.object(conf, "koji_external_repo_url_prefix", new="http://example.com/"):
-                modulemds = ursine.get_modulemds_from_ursine_content(koji_tag)
+        koji_tag = "tag"  # It's ok to use arbitrary tag name.
+        with patch.object(conf, "koji_external_repo_url_prefix", new="http://example.com/"):
+            modulemds = ursine.get_modulemds_from_ursine_content(db_session, koji_tag)
 
-            test_nsvcs = [item.get_nsvc() for item in modulemds]
-            test_nsvcs.sort()
+        test_nsvcs = [item.get_nsvc() for item in modulemds]
+        test_nsvcs.sort()
 
-            expected_nsvcs = [mmd_name1s2020c.mmd().get_nsvc(), mmd_name2s2021c.mmd().get_nsvc()]
-            expected_nsvcs.sort()
+        expected_nsvcs = [mmd_name1s2020c.mmd().get_nsvc(), mmd_name2s2021c.mmd().get_nsvc()]
+        expected_nsvcs.sort()
 
-        session.getExternalRepoList.assert_called_once_with(koji_tag)
+        koji_session.getExternalRepoList.assert_called_once_with(koji_tag)
         assert expected_nsvcs == test_nsvcs
 
 
@@ -216,7 +214,7 @@ class TestRecordStreamCollisionModules:
         original_xmd = fake_mmd.get_xmd()
 
         with patch.object(ursine, "log") as log:
-            ursine.handle_stream_collision_modules(fake_mmd)
+            ursine.handle_stream_collision_modules(db_session, fake_mmd)
             assert 2 == log.info.call_count
             find_stream_collision_modules.assert_not_called()
 
@@ -241,7 +239,7 @@ class TestRecordStreamCollisionModules:
         get_modulemds_from_ursine_content.return_value = []
 
         with patch.object(ursine, "log") as log:
-            ursine.handle_stream_collision_modules(fake_mmd)
+            ursine.handle_stream_collision_modules(db_session, fake_mmd)
             assert 2 == log.info.call_count
 
         # Ensure stream_collision_modules is set.
@@ -272,7 +270,7 @@ class TestRecordStreamCollisionModules:
         }
         fake_mmd = make_module(db_session, "name1:s:2020:c", xmd=xmd, store_to_db=False)
 
-        def mock_get_ursine_modulemds(koji_tag):
+        def mock_get_ursine_modulemds(db_session, koji_tag):
             if koji_tag == "module-rhel-8.0-build":
                 return [
                     # This is the one
@@ -325,7 +323,7 @@ class TestRecordStreamCollisionModules:
         koji_session = ClientSession.return_value
         koji_session.listTaggedRPMS.side_effect = mock_listTaggedRPMS
 
-        ursine.handle_stream_collision_modules(fake_mmd)
+        ursine.handle_stream_collision_modules(db_session, fake_mmd)
 
         xmd = fake_mmd.get_xmd()
         buildrequires = xmd["mbs"]["buildrequires"]
@@ -346,9 +344,11 @@ class TestFindStreamCollisionModules:
     """Test ursine.find_stream_collision_modules"""
 
     @patch("module_build_service.utils.ursine.get_modulemds_from_ursine_content")
-    def test_no_modulemds_found_from_ursine_content(self, get_modulemds_from_ursine_content):
+    def test_no_modulemds_found_from_ursine_content(
+        self, get_modulemds_from_ursine_content, db_session
+    ):
         get_modulemds_from_ursine_content.return_value = []
-        assert not ursine.find_stream_collision_modules({}, "koji_tag")
+        assert not ursine.find_stream_collision_modules(db_session, {}, "koji_tag")
 
     @patch("module_build_service.utils.ursine.get_modulemds_from_ursine_content")
     def test_no_collisions_found(self, get_modulemds_from_ursine_content, db_session):
@@ -358,7 +358,8 @@ class TestFindStreamCollisionModules:
             make_module(db_session, "modules:2:1:c2", store_to_db=False),
             make_module(db_session, "modulet:3:1:c3", store_to_db=False),
         ]
-        assert [] == ursine.find_stream_collision_modules(xmd_mbs_buildrequires, "koji_tag")
+        assert [] == ursine.find_stream_collision_modules(
+            db_session, xmd_mbs_buildrequires, "koji_tag")
 
     @patch("module_build_service.utils.ursine.get_modulemds_from_ursine_content")
     def test_collision_modules_are_found(self, get_modulemds_from_ursine_content, db_session):
@@ -370,5 +371,6 @@ class TestFindStreamCollisionModules:
         ]
         get_modulemds_from_ursine_content.return_value = fake_modules
 
-        modules = ursine.find_stream_collision_modules(xmd_mbs_buildrequires, "koji_tag")
+        modules = ursine.find_stream_collision_modules(
+            db_session, xmd_mbs_buildrequires, "koji_tag")
         assert [fake_modules[1].get_nsvc()] == modules

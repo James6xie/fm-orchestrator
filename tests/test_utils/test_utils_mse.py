@@ -24,7 +24,7 @@ import pytest
 import module_build_service.utils
 from module_build_service import Modulemd, models
 from module_build_service.errors import StreamAmbigous
-from tests import db, clean_database, make_module, init_data, read_staged_data
+from tests import clean_database, make_module, init_data, read_staged_data
 
 
 class TestUtilsModuleStreamExpansion:
@@ -34,19 +34,17 @@ class TestUtilsModuleStreamExpansion:
     def teardown_method(self, test_method):
         clean_database()
 
-    def _get_mmds_required_by_module_recursively(self, module_build):
+    def _get_mmds_required_by_module_recursively(self, module_build, db_session):
         """
         Convenience wrapper around get_mmds_required_by_module_recursively
         returning the list with nsvc strings of modules returned by this the wrapped
         method.
         """
         mmd = module_build.mmd()
-        module_build_service.utils.expand_mse_streams(db.session, mmd)
-        modules = module_build_service.utils.get_mmds_required_by_module_recursively(mmd)
-        nsvcs = [
-            m.get_nsvc()
-            for m in modules
-        ]
+        module_build_service.utils.expand_mse_streams(db_session, mmd)
+        modules = module_build_service.utils.get_mmds_required_by_module_recursively(
+            db_session, mmd)
+        nsvcs = [m.get_nsvc() for m in modules]
         return nsvcs
 
     def _generate_default_modules(self, db_session):
@@ -164,10 +162,10 @@ class TestUtilsModuleStreamExpansion:
         if stream_ambigous:
             with pytest.raises(StreamAmbigous):
                 module_build_service.utils.generate_expanded_mmds(
-                    db.session, module_build.mmd(), raise_if_stream_ambigous=True)
+                    db_session, module_build.mmd(), raise_if_stream_ambigous=True)
         else:
             module_build_service.utils.generate_expanded_mmds(
-                db.session, module_build.mmd(), raise_if_stream_ambigous=True)
+                db_session, module_build.mmd(), raise_if_stream_ambigous=True)
 
         # Check that if stream is ambigous and we define the stream, it does not raise
         # an exception.
@@ -177,13 +175,13 @@ class TestUtilsModuleStreamExpansion:
                 name, stream = ns.split(":")
                 default_streams[name] = stream
             module_build_service.utils.generate_expanded_mmds(
-                db.session,
+                db_session,
                 module_build.mmd(),
                 raise_if_stream_ambigous=True,
                 default_streams=default_streams,
             )
 
-        mmds = module_build_service.utils.generate_expanded_mmds(db.session, module_build.mmd())
+        mmds = module_build_service.utils.generate_expanded_mmds(db_session, module_build.mmd())
 
         buildrequires_per_mmd_xmd = set()
         buildrequires_per_mmd_buildrequires = set()
@@ -322,7 +320,7 @@ class TestUtilsModuleStreamExpansion:
     def test_get_required_modules_simple(self, requires, build_requires, expected, db_session):
         module_build = make_module(db_session, "app:1:0:c1", requires, build_requires)
         self._generate_default_modules(db_session)
-        nsvcs = self._get_mmds_required_by_module_recursively(module_build)
+        nsvcs = self._get_mmds_required_by_module_recursively(module_build, db_session)
         assert set(nsvcs) == set(expected)
 
     def _generate_default_modules_recursion(self, db_session):
@@ -367,7 +365,7 @@ class TestUtilsModuleStreamExpansion:
     def test_get_required_modules_recursion(self, requires, build_requires, expected, db_session):
         module_build = make_module(db_session, "app:1:0:c1", requires, build_requires)
         self._generate_default_modules_recursion(db_session)
-        nsvcs = self._get_mmds_required_by_module_recursively(module_build)
+        nsvcs = self._get_mmds_required_by_module_recursively(module_build, db_session)
         assert set(nsvcs) == set(expected)
 
     def _generate_default_modules_modules_multiple_stream_versions(self, db_session):
@@ -399,10 +397,10 @@ class TestUtilsModuleStreamExpansion:
     ):
         module_build = make_module(db_session, "app:1:0:c1", requires, build_requires)
         self._generate_default_modules_modules_multiple_stream_versions(db_session)
-        nsvcs = self._get_mmds_required_by_module_recursively(module_build)
+        nsvcs = self._get_mmds_required_by_module_recursively(module_build, db_session)
         assert set(nsvcs) == set(expected)
 
-    def test__get_base_module_mmds(self):
+    def test__get_base_module_mmds(self, db_session):
         """Ensure the correct results are returned without duplicates."""
         init_data(data_size=1, multiple_stream_versions=True)
         mmd = module_build_service.utils.load_mmd(read_staged_data("testmodule_v2.yaml"))
@@ -415,7 +413,7 @@ class TestUtilsModuleStreamExpansion:
         mmd.remove_dependencies(deps)
         mmd.add_dependencies(new_deps)
 
-        mmds = module_build_service.utils.mse._get_base_module_mmds(mmd)
+        mmds = module_build_service.utils.mse._get_base_module_mmds(db_session, mmd)
         expected = set(["platform:f29.0.0", "platform:f29.1.0", "platform:f29.2.0"])
         # Verify no duplicates were returned before doing set operations
         assert len(mmds["ready"]) == len(expected)
@@ -440,7 +438,7 @@ class TestUtilsModuleStreamExpansion:
 
         make_module(db_session, "platform:lp29.1.1:12:c11", {}, {}, virtual_streams=virtual_streams)
 
-        mmds = module_build_service.utils.mse._get_base_module_mmds(mmd)
+        mmds = module_build_service.utils.mse._get_base_module_mmds(db_session, mmd)
         if virtual_streams == ["f29"]:
             expected = set(
                 ["platform:f29.0.0", "platform:f29.1.0", "platform:f29.2.0", "platform:lp29.1.1"])
@@ -458,15 +456,16 @@ class TestUtilsModuleStreamExpansion:
         "module_build_service.config.Config.allow_only_compatible_base_modules",
         new_callable=PropertyMock, return_value=False
     )
-    def test__get_base_module_mmds_virtual_streams_only_major_versions(self, cfg):
+    def test__get_base_module_mmds_virtual_streams_only_major_versions(self, cfg, db_session):
         """Ensure the correct results are returned without duplicates."""
         init_data(data_size=1, multiple_stream_versions=["foo28", "foo29", "foo30"])
 
         # Mark platform:foo28 as garbage to test that it is still considered as compatible.
-        platform = models.ModuleBuild.query.filter_by(name="platform", stream="foo28").first()
+        platform = db_session.query(models.ModuleBuild).filter_by(
+            name="platform", stream="foo28").first()
         platform.state = "garbage"
-        db.session.add(platform)
-        db.session.commit()
+        db_session.add(platform)
+        db_session.commit()
 
         mmd = module_build_service.utils.load_mmd(read_staged_data("testmodule_v2"))
         deps = mmd.get_dependencies()[0]
@@ -477,7 +476,7 @@ class TestUtilsModuleStreamExpansion:
         mmd.remove_dependencies(deps)
         mmd.add_dependencies(new_deps)
 
-        mmds = module_build_service.utils.mse._get_base_module_mmds(mmd)
+        mmds = module_build_service.utils.mse._get_base_module_mmds(db_session, mmd)
         expected = {}
         expected["ready"] = set(["platform:foo29", "platform:foo30"])
         expected["garbage"] = set(["platform:foo28"])

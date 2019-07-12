@@ -42,7 +42,7 @@ from six import text_type
 import koji
 import pungi.arch
 
-from module_build_service import conf, log, build_logs, Modulemd
+from module_build_service import conf, log, build_logs, models, Modulemd
 from module_build_service.scm import SCM
 from module_build_service.utils import to_text_type, load_mmd, mmd_to_str
 
@@ -789,7 +789,8 @@ class KojiContentGenerator(object):
 
         log_path = os.path.join(prepdir, "build.log")
         try:
-            source = build_logs.path(self.module)
+            with models.make_db_session(conf) as db_session:
+                source = build_logs.path(db_session, self.module)
             log.info("Moving logs from %r to %r" % (source, log_path))
             shutil.copy(source, log_path)
         except IOError as e:

@@ -35,7 +35,7 @@ import module_build_service.scheduler.consumer
 import module_build_service.scheduler.handlers.repos
 import module_build_service.utils
 from module_build_service.errors import Forbidden
-from module_build_service import db, models, conf, build_logs
+from module_build_service import models, conf, build_logs
 from module_build_service.scheduler import make_simple_stop_condition
 
 from mock import patch, PropertyMock, Mock
@@ -50,7 +50,7 @@ from module_build_service.builder.base import GenericBuilder
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
 from module_build_service.messaging import MBSModule
 from tests import (
-    app, reuse_component_init_data, clean_database, read_staged_data, staged_data_filename
+    app, clean_database, read_staged_data, staged_data_filename
 )
 
 base_dir = dirname(dirname(__file__))
@@ -119,7 +119,8 @@ class FakeModuleBuilder(GenericBuilder):
     on_get_task_info_cb = None
 
     @module_build_service.utils.validate_koji_tag("tag_name")
-    def __init__(self, owner, module, config, tag_name, components):
+    def __init__(self, db_session, owner, module, config, tag_name, components):
+        self.db_session = db_session
         self.module_str = module
         self.tag_name = tag_name
         self.config = config
@@ -227,7 +228,9 @@ class FakeModuleBuilder(GenericBuilder):
             for nvr in artifacts:
                 # tag_artifacts received a list of NVRs, but the tag message expects the
                 # component name
-                artifact = models.ComponentBuild.query.filter_by(nvr=nvr).first().package
+                from sqlalchemy.orm import load_only
+                artifact = self.db_session.query(models.ComponentBuild).filter_by(
+                    nvr=nvr).options(load_only("package")).first().package
                 self._send_tag(artifact, nvr, dest_tag=dest_tag)
 
     @property
@@ -304,7 +307,8 @@ class FakeModuleBuilder(GenericBuilder):
     def recover_orphaned_artifact(self, component_build):
         msgs = []
         if self.INSTANT_COMPLETE:
-            disttag = module_build_service.utils.get_rpm_release(component_build.module_build)
+            disttag = module_build_service.utils.get_rpm_release(
+                self.db_session, component_build.module_build)
             # We don't know the version or release, so just use a random one here
             nvr = "{0}-1.0-1.{1}".format(component_build.package, disttag)
             component_build.state = koji.BUILD_STATES["COMPLETE"]
@@ -418,22 +422,27 @@ class TestBuild(BaseTestBuild):
 
         FakeModuleBuilder.on_get_task_info_cb = on_get_task_info_cb
 
+        self.p_check_gating = patch(
+            "module_build_service.utils.greenwave.Greenwave.check_gating",
+            return_value=True)
+        self.mock_check_gating = self.p_check_gating.start()
+
     def teardown_method(self, test_method):
+        self.p_check_gating.stop()
         FakeModuleBuilder.reset()
         cleanup_moksha()
         for i in range(20):
             try:
-                os.remove(build_logs.path(i))
+                with models.make_db_session(conf) as db_session:
+                    os.remove(build_logs.path(db_session, i))
             except Exception:
                 pass
 
     @pytest.mark.parametrize("mmd_version", [1, 2])
-    @patch("module_build_service.utils.greenwave.Greenwave.check_gating", return_value=True)
     @patch("module_build_service.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build(
-        self, mocked_scm, mocked_get_user, mocked_greenwave, conf_system, dbg,
-        hmsc, mmd_version, db_session
+        self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc, mmd_version, db_session
     ):
         """
         Tests the build of testmodule.yaml using FakeModuleBuilder which
@@ -458,9 +467,10 @@ class TestBuild(BaseTestBuild):
         module_build_id = data["id"]
 
         # Check that components are tagged after the batch is built.
-        tag_groups = []
-        tag_groups.append(set(["perl-Tangerine-1-1", "perl-List-Compare-1-1"]))
-        tag_groups.append(set(["tangerine-1-1"]))
+        tag_groups = [
+            set(["perl-Tangerine-1-1", "perl-List-Compare-1-1"]),
+            set(["tangerine-1-1"]),
+        ]
 
         def on_finalize_cb(cls, succeeded):
             assert succeeded is True
@@ -473,10 +483,11 @@ class TestBuild(BaseTestBuild):
 
         # Check that the components are added to buildroot after the batch
         # is built.
-        buildroot_groups = []
-        buildroot_groups.append(set(["module-build-macros-1-1"]))
-        buildroot_groups.append(set(["perl-Tangerine-1-1", "perl-List-Compare-1-1"]))
-        buildroot_groups.append(set(["tangerine-1-1"]))
+        buildroot_groups = [
+            set(["module-build-macros-1-1"]),
+            set(["perl-Tangerine-1-1", "perl-List-Compare-1-1"]),
+            set(["tangerine-1-1"]),
+        ]
 
         def on_buildroot_add_artifacts_cb(cls, artifacts, install):
             assert buildroot_groups.pop(0) == set(artifacts)
@@ -487,7 +498,8 @@ class TestBuild(BaseTestBuild):
 
         # All components should be built and module itself should be in "done"
         # or "ready" state.
-        for build in models.ComponentBuild.query.filter_by(module_id=module_build_id).all():
+        for build in db_session.query(models.ComponentBuild).filter_by(
+                module_id=module_build_id).all():
             assert build.state == koji.BUILD_STATES["COMPLETE"]
             assert build.module_build.state in [
                 models.BUILD_STATES["done"],
@@ -497,7 +509,7 @@ class TestBuild(BaseTestBuild):
         # All components has to be tagged, so tag_groups and buildroot_groups are empty...
         assert tag_groups == []
         assert buildroot_groups == []
-        module_build = models.ModuleBuild.query.get(module_build_id)
+        module_build = models.ModuleBuild.get_by_id(db_session, module_build_id)
         assert module_build.module_builds_trace[0].state == models.BUILD_STATES["init"]
         assert module_build.module_builds_trace[1].state == models.BUILD_STATES["wait"]
         assert module_build.module_builds_trace[2].state == models.BUILD_STATES["build"]
@@ -506,17 +518,15 @@ class TestBuild(BaseTestBuild):
         assert len(module_build.module_builds_trace) == 5
 
     @pytest.mark.parametrize("gating_result", (True, False))
-    @patch("module_build_service.utils.greenwave.Greenwave.check_gating")
     @patch("module_build_service.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_no_components(
-        self, mocked_scm, mocked_get_user, mocked_greenwave, conf_system, dbg,
-        hmsc, gating_result, db_session
+        self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc, gating_result, db_session
     ):
         """
         Tests the build of a module with no components
         """
-        mocked_greenwave.return_value = gating_result
+        self.mock_check_gating.return_value = gating_result
         FakeSCM(
             mocked_scm,
             "python3",
@@ -537,7 +547,7 @@ class TestBuild(BaseTestBuild):
 
         self.run_scheduler(db_session)
 
-        module_build = models.ModuleBuild.query.filter_by(id=module_build_id).one()
+        module_build = models.ModuleBuild.get_by_id(db_session, module_build_id)
         # Make sure no component builds were registered
         assert len(module_build.component_builds) == 0
         # Make sure the build is done
@@ -626,11 +636,13 @@ class TestBuild(BaseTestBuild):
                     data={"yaml": yaml_file},
                 )
             data = json.loads(rv.data)
-            assert data["id"] == 2
+            module_build_id = data["id"]
+            assert module_build_id == 2
 
         self.run_scheduler(db_session)
 
-        assert models.ModuleBuild.query.first().state == models.BUILD_STATES["ready"]
+        module_build = models.ModuleBuild.get_by_id(db_session, module_build_id)
+        assert module_build.state == models.BUILD_STATES["ready"]
 
     @patch("module_build_service.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
@@ -684,7 +696,7 @@ class TestBuild(BaseTestBuild):
         # Because we did not finished single component build and canceled the
         # module build, all components and even the module itself should be in
         # failed state with state_reason se to cancellation message.
-        for build in models.ComponentBuild.query.filter_by(module_id=module_build_id).all():
+        for build in models.ModuleBuild.get_by_id(db_session, module_build_id).component_builds:
             assert build.state == koji.BUILD_STATES["FAILED"]
             assert build.state_reason == "Canceled by Homer J. Simpson."
             assert build.module_build.state == models.BUILD_STATES["failed"]
@@ -723,7 +735,7 @@ class TestBuild(BaseTestBuild):
 
         # All components should be built and module itself should be in "done"
         # or "ready" state.
-        for build in models.ComponentBuild.query.filter_by(module_id=module_build_id).all():
+        for build in models.ModuleBuild.get_by_id(db_session, module_build_id).component_builds:
             assert build.state == koji.BUILD_STATES["COMPLETE"]
             assert build.module_build.state in [
                 models.BUILD_STATES["done"],
@@ -778,7 +790,7 @@ class TestBuild(BaseTestBuild):
 
         # All components should be built and module itself should be in "done"
         # or "ready" state.
-        for build in models.ComponentBuild.query.filter_by(module_id=module_build_id).all():
+        for build in models.ModuleBuild.get_by_id(db_session, module_build_id).component_builds:
             assert build.state == koji.BUILD_STATES["COMPLETE"]
             # When this fails, it can mean that num_concurrent_builds
             # threshold has been met.
@@ -901,7 +913,7 @@ class TestBuild(BaseTestBuild):
 
         self.run_scheduler(db_session)
 
-        for c in models.ComponentBuild.query.filter_by(module_id=module_build_id).all():
+        for c in models.ModuleBuild.get_by_id(db_session, module_build_id).component_builds:
             # perl-Tangerine is expected to fail as configured in on_build_cb.
             if c.package == "perl-Tangerine":
                 assert c.state == koji.BUILD_STATES["FAILED"]
@@ -961,7 +973,7 @@ class TestBuild(BaseTestBuild):
 
         self.run_scheduler(db_session)
 
-        for c in models.ComponentBuild.query.filter_by(module_id=module_build_id).all():
+        for c in models.ModuleBuild.get_by_id(db_session, module_build_id).component_builds:
             # perl-Tangerine is expected to fail as configured in on_build_cb.
             if c.package == "module-build-macros":
                 assert c.state == koji.BUILD_STATES["COMPLETE"]
@@ -980,6 +992,7 @@ class TestBuild(BaseTestBuild):
             # there were failed components in batch 2.
             assert c.module_build.batch == 2
 
+    @pytest.mark.usefixtures("reuse_component_init_data")
     @patch("module_build_service.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_reuse_all(
@@ -989,8 +1002,6 @@ class TestBuild(BaseTestBuild):
         Tests that we do not try building module-build-macros when reusing all
         components in a module build.
         """
-        reuse_component_init_data()
-
         def on_build_cb(cls, artifact_name, source):
             raise ValueError("All components should be reused, not build.")
 
@@ -1024,7 +1035,9 @@ class TestBuild(BaseTestBuild):
 
         FakeModuleBuilder.on_buildroot_add_artifacts_cb = on_buildroot_add_artifacts_cb
 
-        self.run_scheduler(db_session, msgs=[MBSModule("local module build", 3, 1)])
+        # Create a dedicated database session for scheduler to avoid hang
+        with models.make_db_session(conf) as scheduler_db_session:
+            self.run_scheduler(scheduler_db_session, msgs=[MBSModule("local module build", 3, 1)])
 
         reused_component_ids = {
             "module-build-macros": None,
@@ -1035,7 +1048,7 @@ class TestBuild(BaseTestBuild):
 
         # All components should be built and module itself should be in "done"
         # or "ready" state.
-        for build in models.ComponentBuild.query.filter_by(module_id=3).all():
+        for build in models.ModuleBuild.get_by_id(db_session, 3).component_builds:
             assert build.state == koji.BUILD_STATES["COMPLETE"]
             assert build.module_build.state in [
                 models.BUILD_STATES["done"],
@@ -1043,6 +1056,7 @@ class TestBuild(BaseTestBuild):
             ]
             assert build.reused_component_id == reused_component_ids[build.package]
 
+    @pytest.mark.usefixtures("reuse_component_init_data")
     @patch("module_build_service.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_reuse_all_without_build_macros(
@@ -1052,16 +1066,20 @@ class TestBuild(BaseTestBuild):
         Tests that we can reuse components even when the reused module does
         not have module-build-macros component.
         """
-        reuse_component_init_data()
+        # Firstly, remove all existing module-build-macros component builds
 
-        db_session.query(models.ComponentBuild).filter_by(package="module-build-macros").delete()
-        assert (
-            0 == db_session.query(models.ComponentBuild)
-                           .filter_by(package="module-build-macros")
-                           .count()
-        )
-
+        macros_cb_query = db_session.query(models.ComponentBuild).filter_by(
+            package="module-build-macros")
+        db_session.query(models.ComponentBuildTrace).filter(
+            models.ComponentBuildTrace.component_id.in_(
+                [cb.id for cb in macros_cb_query.all()]
+            )
+        ).delete(synchronize_session=False)
+        macros_cb_query.delete(synchronize_session=False)
         db_session.commit()
+
+        # Just ensure the success of removal
+        assert 0 == macros_cb_query.count()
 
         def on_build_cb(cls, artifact_name, source):
             raise ValueError("All components should be reused, not build.")
@@ -1096,11 +1114,12 @@ class TestBuild(BaseTestBuild):
 
         FakeModuleBuilder.on_buildroot_add_artifacts_cb = on_buildroot_add_artifacts_cb
 
-        self.run_scheduler(db_session, msgs=[MBSModule("local module build", 3, 1)])
+        with models.make_db_session(conf) as scheduler_db_session:
+            self.run_scheduler(scheduler_db_session, msgs=[MBSModule("local module build", 3, 1)])
 
         # All components should be built and module itself should be in "done"
         # or "ready" state.
-        for build in db_session.query(models.ComponentBuild).filter_by(module_id=3).all():
+        for build in models.ModuleBuild.get_by_id(db_session, 3).component_builds:
             assert build.state == koji.BUILD_STATES["COMPLETE"]
             assert build.module_build.state in [
                 models.BUILD_STATES["done"],
@@ -1137,6 +1156,10 @@ class TestBuild(BaseTestBuild):
         build_one.time_submitted = submitted_time
         build_one.time_modified = now
         build_one.rebuild_strategy = "changed-and-after"
+
+        db_session.add(build_one)
+        db_session.commit()
+
         # It went from init, to wait, to build, and then failed
         mbt_one = models.ModuleBuildTrace(
             state_time=submitted_time, state=models.BUILD_STATES["init"]
@@ -1152,55 +1175,53 @@ class TestBuild(BaseTestBuild):
         build_one.module_builds_trace.append(mbt_two)
         build_one.module_builds_trace.append(mbt_three)
         build_one.module_builds_trace.append(mbt_four)
-        # Successful component
-        component_one = models.ComponentBuild()
-        component_one.package = "perl-Tangerine"
-        component_one.format = "rpms"
-        component_one.scmurl = "https://src.stg.fedoraproject.org/rpms/perl-Tangerine.git?#master"
-        component_one.state = koji.BUILD_STATES["COMPLETE"]
-        component_one.nvr = "perl-Tangerine-0:0.22-2.module+0+d027b723"
-        component_one.batch = 2
-        component_one.module_id = 2
-        component_one.ref = "7e96446223f1ad84a26c7cf23d6591cd9f6326c6"
-        component_one.tagged = True
-        component_one.tagged_in_final = True
-        # Failed component
-        component_two = models.ComponentBuild()
-        component_two.package = "perl-List-Compare"
-        component_two.format = "rpms"
-        component_two.scmurl = \
-            "https://src.stg.fedoraproject.org/rpms/perl-List-Compare.git?#master"
-        component_two.state = koji.BUILD_STATES["FAILED"]
-        component_two.batch = 2
-        component_two.module_id = 2
-        # Component that isn't started yet
-        component_three = models.ComponentBuild()
-        component_three.package = "tangerine"
-        component_three.format = "rpms"
-        component_three.scmurl = "https://src.stg.fedoraproject.org/rpms/tangerine.git?#master"
-        component_three.batch = 3
-        component_three.module_id = 2
-        # module-build-macros
-        component_four = models.ComponentBuild()
-        component_four.package = "module-build-macros"
-        component_four.format = "rpms"
-        component_four.state = koji.BUILD_STATES["COMPLETE"]
-        component_four.scmurl = (
-            "/tmp/module_build_service-build-macrosqr4AWH/SRPMS/module-build-macros-0.1-1."
-            "module_testmodule_master_20170109091357.src.rpm"
-        )
-        component_four.batch = 1
-        component_four.module_id = 2
-        component_four.tagged = True
-        component_four.build_time_only = True
 
-        db.session.add(build_one)
-        db.session.add(component_one)
-        db.session.add(component_two)
-        db.session.add(component_three)
-        db.session.add(component_four)
-        db.session.commit()
-        db.session.expire_all()
+        db_session.commit()
+
+        # Successful component
+        db_session.add_all([
+            models.ComponentBuild(
+                module_id=build_one.id,
+                package="perl-Tangerine",
+                format="rpms",
+                scmurl="https://src.stg.fedoraproject.org/rpms/perl-Tangerine.git?#master",
+                state=koji.BUILD_STATES["COMPLETE"],
+                nvr="perl-Tangerine-0:0.22-2.module+0+d027b723",
+                batch=2,
+                ref="7e96446223f1ad84a26c7cf23d6591cd9f6326c6",
+                tagged=True,
+                tagged_in_final=True),
+            # Failed component
+            models.ComponentBuild(
+                module_id=build_one.id,
+                package="perl-List-Compare",
+                format="rpms",
+                scmurl="https://src.stg.fedoraproject.org/rpms/perl-List-Compare.git?#master",
+                state=koji.BUILD_STATES["FAILED"],
+                batch=2),
+            # Component that isn't started yet
+            models.ComponentBuild(
+                module_id=build_one.id,
+                package="tangerine",
+                format="rpms",
+                scmurl="https://src.stg.fedoraproject.org/rpms/tangerine.git?#master",
+                batch=3),
+            # module-build-macros
+            models.ComponentBuild(
+                module_id=build_one.id,
+                package="module-build-macros",
+                format="rpms",
+                state=koji.BUILD_STATES["COMPLETE"],
+                scmurl=(
+                    "/tmp/module_build_service-build-macrosqr4AWH/SRPMS/module-build-macros-0.1-1."
+                    "module_testmodule_master_20170109091357.src.rpm"
+                ),
+                batch=1,
+                tagged=True,
+                build_time_only=True),
+        ])
+        db_session.commit()
+        db_session.expire_all()
 
         FakeSCM(
             mocked_scm, "testmodule", "testmodule.yaml", "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
@@ -1216,28 +1237,27 @@ class TestBuild(BaseTestBuild):
 
         data = json.loads(rv.data)
         module_build_id = data["id"]
-        module_build = models.ModuleBuild.query.filter_by(id=module_build_id).one()
+        module_build = models.ModuleBuild.get_by_id(db_session, module_build_id)
         components = (
-            models.ComponentBuild
-                  .query
-                  .filter_by(module_id=module_build_id, batch=2)
-                  .order_by(models.ComponentBuild.id)
-                  .all()
+            db_session.query(models.ComponentBuild)
+            .filter_by(module_id=module_build_id, batch=2)
+            .order_by(models.ComponentBuild.id)
+            .all()
         )
         # Make sure the build went from failed to wait
         assert module_build.state == models.BUILD_STATES["wait"]
         assert module_build.state_reason == "Resubmitted by Homer J. Simpson"
         # Make sure the state was reset on the failed component
         assert components[1].state is None
-        db.session.expire_all()
+        db_session.expire_all()
 
         # Run the backend
-        self.run_scheduler(db_session)
+        with models.make_db_session(conf) as scheduler_db_session:
+            self.run_scheduler(scheduler_db_session)
 
         # All components should be built and module itself should be in "done"
         # or "ready" state.
-        for build in models.ComponentBuild.query.filter_by(
-                module_id=module_build_id).all():
+        for build in module_build.component_builds:
             assert build.state == koji.BUILD_STATES["COMPLETE"]
             assert build.module_build.state in [
                 models.BUILD_STATES["done"],
@@ -1256,6 +1276,7 @@ class TestBuild(BaseTestBuild):
         FakeModuleBuilder.INSTANT_COMPLETE = True
         now = datetime.utcnow()
         submitted_time = now - timedelta(minutes=3)
+
         # Create a module in the failed state
         build_one = models.ModuleBuild()
         build_one.name = "testmodule"
@@ -1276,6 +1297,9 @@ class TestBuild(BaseTestBuild):
         build_one.time_submitted = submitted_time
         build_one.time_modified = now
         build_one.rebuild_strategy = "changed-and-after"
+        db_session.add(build_one)
+        db_session.commit()
+
         # It went from init, to wait, to build, and then failed
         mbt_one = models.ModuleBuildTrace(
             state_time=submitted_time, state=models.BUILD_STATES["init"])
@@ -1288,46 +1312,45 @@ class TestBuild(BaseTestBuild):
         build_one.module_builds_trace.append(mbt_two)
         build_one.module_builds_trace.append(mbt_three)
         build_one.module_builds_trace.append(mbt_four)
-        # Components that haven't started yet
-        component_one = models.ComponentBuild()
-        component_one.package = "perl-Tangerine"
-        component_one.format = "rpms"
-        component_one.scmurl = "https://src.stg.fedoraproject.org/rpms/perl-Tangerine.git?#master"
-        component_one.batch = 2
-        component_one.module_id = 2
-        component_two = models.ComponentBuild()
-        component_two.package = "perl-List-Compare"
-        component_two.format = "rpms"
-        component_two.scmurl = \
-            "https://src.stg.fedoraproject.org/rpms/perl-List-Compare.git?#master"
-        component_two.batch = 2
-        component_two.module_id = 2
-        component_three = models.ComponentBuild()
-        component_three.package = "tangerine"
-        component_three.format = "rpms"
-        component_three.scmurl = "https://src.stg.fedoraproject.org/rpms/tangerine.git?#master"
-        component_three.batch = 3
-        component_three.module_id = 2
-        # Failed module-build-macros
-        component_four = models.ComponentBuild()
-        component_four.package = "module-build-macros"
-        component_four.format = "rpms"
-        component_four.state = koji.BUILD_STATES["FAILED"]
-        component_four.scmurl = (
-            "/tmp/module_build_service-build-macrosqr4AWH/SRPMS/module-build-macros-0.1-1."
-            "module_testmodule_master_20180205135154.src.rpm"
-        )
-        component_four.batch = 1
-        component_four.module_id = 2
-        component_four.build_time_only = True
 
-        db.session.add(build_one)
-        db.session.add(component_one)
-        db.session.add(component_two)
-        db.session.add(component_three)
-        db.session.add(component_four)
-        db.session.commit()
-        db.session.expire_all()
+        db_session.commit()
+        db_session.expire_all()
+
+        # Components that haven't started yet
+        db_session.add_all([
+            models.ComponentBuild(
+                module_id=build_one.id,
+                package="perl-Tangerine",
+                format="rpms",
+                scmurl="https://src.stg.fedoraproject.org/rpms/perl-Tangerine.git?#master",
+                batch=2),
+            models.ComponentBuild(
+                module_id=build_one.id,
+                package="perl-List-Compare",
+                format="rpms",
+                scmurl="https://src.stg.fedoraproject.org/rpms/perl-List-Compare.git?#master",
+                batch=2),
+            models.ComponentBuild(
+                module_id=build_one.id,
+                package="tangerine",
+                format="rpms",
+                scmurl="https://src.stg.fedoraproject.org/rpms/tangerine.git?#master",
+                batch=3),
+            # Failed module-build-macros
+            models.ComponentBuild(
+                module_id=build_one.id,
+                package="module-build-macros",
+                format="rpms",
+                state=koji.BUILD_STATES["FAILED"],
+                scmurl=(
+                    "/tmp/module_build_service-build-macrosqr4AWH/SRPMS/module-build-macros-0.1-1."
+                    "module_testmodule_master_20180205135154.src.rpm"
+                ),
+                batch=1,
+                build_time_only=True)
+        ])
+
+        db_session.commit()
 
         FakeSCM(mocked_scm, "testmodule", "testmodule.yaml", "7fea453")
         # Resubmit the failed module
@@ -1342,21 +1365,22 @@ class TestBuild(BaseTestBuild):
 
         data = json.loads(rv.data)
         module_build_id = data["id"]
-        module_build = models.ModuleBuild.query.filter_by(id=module_build_id).one()
+        module_build = models.ModuleBuild.get_by_id(db_session, module_build_id)
         # Make sure the build went from failed to wait
         assert module_build.state == models.BUILD_STATES["wait"]
         assert module_build.state_reason == "Resubmitted by Homer J. Simpson"
         # Make sure the state was reset on the failed component
         for c in module_build.component_builds:
             assert c.state is None
-        db.session.expire_all()
+        db_session.expire_all()
 
         # Run the backend
-        self.run_scheduler(db_session)
+        with models.make_db_session(conf) as scheduler_db_session:
+            self.run_scheduler(scheduler_db_session)
 
         # All components should be built and module itself should be in "done"
         # or "ready" state.
-        for build in models.ComponentBuild.query.filter_by(module_id=module_build_id).all():
+        for build in models.ModuleBuild.get_by_id(db_session, module_build_id).component_builds:
             assert build.state == koji.BUILD_STATES["COMPLETE"]
             assert build.module_build.state in [
                 models.BUILD_STATES["done"],
@@ -1374,7 +1398,7 @@ class TestBuild(BaseTestBuild):
         FakeSCM(
             mocked_scm, "testmodule", "testmodule.yaml", "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
 
-        with patch("module_build_service.utils.submit.format_mmd") as mock_format_mmd:
+        with patch("module_build_service.scheduler.handlers.modules.format_mmd") as mock_format_mmd:
             mock_format_mmd.side_effect = Forbidden("Custom component repositories aren't allowed.")
             rv = self.client.post(
                 "/module-build-service/1/module-builds/",
@@ -1389,7 +1413,7 @@ class TestBuild(BaseTestBuild):
             cleanup_moksha()
 
         module_build_id = json.loads(rv.data)["id"]
-        module_build = models.ModuleBuild.query.filter_by(id=module_build_id).one()
+        module_build = models.ModuleBuild.get_by_id(db_session, module_build_id)
         assert module_build.state == models.BUILD_STATES["failed"]
         assert module_build.state_reason == "Custom component repositories aren't allowed."
         assert len(module_build.module_builds_trace) == 2
@@ -1397,7 +1421,7 @@ class TestBuild(BaseTestBuild):
         assert module_build.module_builds_trace[1].state == models.BUILD_STATES["failed"]
 
         # Resubmit the failed module
-        rv = self.client.post(
+        self.client.post(
             "/module-build-service/1/module-builds/",
             data=json.dumps({
                 "branch": "master",
@@ -1410,7 +1434,8 @@ class TestBuild(BaseTestBuild):
 
         module_build = models.ModuleBuild.query.filter_by(id=module_build_id).one()
         components = (
-            models.ComponentBuild.query.filter_by(module_id=module_build_id, batch=2)
+            db_session.query(models.ComponentBuild)
+            .filter_by(module_id=module_build_id, batch=2)
             .order_by(models.ComponentBuild.id)
             .all()
         )
@@ -1419,25 +1444,24 @@ class TestBuild(BaseTestBuild):
         assert module_build.state_reason == "Resubmitted by Homer J. Simpson"
         # Make sure there are no components
         assert components == []
-        db.session.expire_all()
+        db_session.expire_all()
 
         # Run the backend again
         self.run_scheduler(db_session)
 
         # All components should be built and module itself should be in "done"
         # or "ready" state.
-        for build in models.ComponentBuild.query.filter_by(module_id=module_build_id).all():
+        for build in models.ModuleBuild.get_by_id(db_session, module_build_id).component_builds:
             assert build.state == koji.BUILD_STATES["COMPLETE"]
             assert build.module_build.state in [
                 models.BUILD_STATES["done"],
                 models.BUILD_STATES["ready"],
             ]
 
-    @patch("module_build_service.utils.greenwave.Greenwave.check_gating", return_value=True)
     @patch("module_build_service.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_resume_init_fail(
-        self, mocked_scm, mocked_get_user, mock_greenwave, conf_system, dbg, hmsc, db_session
+        self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc, db_session
     ):
         """
         Tests that resuming the build fails when the build is in init state
@@ -1665,18 +1689,17 @@ class TestBuild(BaseTestBuild):
                 msg_id="a faked internal message", repo_tag=module.koji_tag + "-build"
             )
         ]
-        db.session.expire_all()
+        db_session.expire_all()
         # Stop after processing the seeded message
         self.run_scheduler(db_session, msgs, lambda message: True)
         # Make sure the module build didn't fail so that the poller can resume it later
-        module = db_session.query(models.ModuleBuild).get(module_build_id)
+        module = models.ModuleBuild.get_by_id(db_session, module_build_id)
         assert module.state == models.BUILD_STATES["build"]
 
-    @patch("module_build_service.utils.greenwave.Greenwave.check_gating", return_value=True)
     @patch("module_build_service.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_br_metadata_only_module(
-        self, mocked_scm, mocked_get_user, mock_greenwave, conf_system, dbg, hmsc, db_session
+        self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc, db_session
     ):
         """
         Test that when a build is submitted with a buildrequire without a Koji tag,
@@ -1685,7 +1708,7 @@ class TestBuild(BaseTestBuild):
         metadata_mmd = module_build_service.utils.load_mmd(
             read_staged_data("build_metadata_module")
         )
-        module_build_service.utils.import_mmd(db.session, metadata_mmd)
+        module_build_service.utils.import_mmd(db_session, metadata_mmd)
 
         FakeSCM(
             mocked_scm,
@@ -1712,7 +1735,7 @@ class TestBuild(BaseTestBuild):
         FakeModuleBuilder.on_buildroot_add_repos_cb = on_buildroot_add_repos_cb
         self.run_scheduler(db_session)
 
-        module = db_session.query(models.ModuleBuild).get(module_build_id)
+        module = models.ModuleBuild.get_by_id(db_session, module_build_id)
         assert module.state == models.BUILD_STATES["ready"]
 
 
@@ -1732,7 +1755,8 @@ class TestLocalBuild(BaseTestBuild):
         cleanup_moksha()
         for i in range(20):
             try:
-                os.remove(build_logs.path(i))
+                with models.make_db_session(conf) as db_session:
+                    os.remove(build_logs.path(db_session, i))
             except Exception:
                 pass
 
@@ -1750,8 +1774,7 @@ class TestLocalBuild(BaseTestBuild):
         """
         Tests local module build dependency.
         """
-        # with app.app_context():
-        module_build_service.utils.load_local_builds(["platform"])
+        module_build_service.utils.load_local_builds(db_session, ["platform"])
         FakeSCM(
             mocked_scm,
             "testmodule",
@@ -1779,7 +1802,7 @@ class TestLocalBuild(BaseTestBuild):
 
         # All components should be built and module itself should be in "done"
         # or "ready" state.
-        for build in models.ComponentBuild.query.filter_by(module_id=module_build_id).all():
+        for build in models.ModuleBuild.get_by_id(db_session, module_build_id).component_builds:
             assert build.state == koji.BUILD_STATES["COMPLETE"]
             assert build.module_build.state in [
                 models.BUILD_STATES["done"],

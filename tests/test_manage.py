@@ -18,20 +18,15 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 import pytest
-from mock import patch, mock_open, ANY
+from mock import patch, mock_open, ANY, Mock
 
-from module_build_service import app, conf
+from module_build_service import app
 from module_build_service.manage import retire, build_module_locally
-from module_build_service.models import BUILD_STATES, ModuleBuild, make_session
-from tests.test_models import clean_database, init_data
+from module_build_service.models import BUILD_STATES, ModuleBuild
 
 
+@pytest.mark.usefixtures("model_tests_init_data")
 class TestMBSManage:
-    def setup_method(self, test_method):
-        init_data()
-
-    def teardown_method(self, test_method):
-        clean_database(False, False)
 
     @pytest.mark.parametrize(
         ("identifier", "is_valid"),
@@ -64,34 +59,33 @@ class TestMBSManage:
         ),
     )
     @patch("module_build_service.manage.prompt_bool")
-    def test_retire_build(self, prompt_bool, overrides, identifier, changed_count):
+    def test_retire_build(self, prompt_bool, overrides, identifier, changed_count, db_session):
         prompt_bool.return_value = True
 
-        with make_session(conf) as session:
-            module_builds = session.query(ModuleBuild).filter_by(state=BUILD_STATES["ready"]).all()
-            # Verify our assumption of the amount of ModuleBuilds in database
-            assert len(module_builds) == 3
+        module_builds = db_session.query(ModuleBuild).filter_by(state=BUILD_STATES["ready"]).all()
+        # Verify our assumption of the amount of ModuleBuilds in database
+        assert len(module_builds) == 3
 
-            for x, build in enumerate(module_builds):
-                build.name = "spam"
-                build.stream = "eggs"
-                build.version = "ham"
-                build.context = str(x)
+        for x, build in enumerate(module_builds):
+            build.name = "spam"
+            build.stream = "eggs"
+            build.version = "ham"
+            build.context = str(x)
 
-            for attr, value in overrides.items():
-                setattr(module_builds[0], attr, value)
+        for attr, value in overrides.items():
+            setattr(module_builds[0], attr, value)
 
-            session.commit()
+        db_session.commit()
 
-            retire(identifier)
-            retired_module_builds = (
-                session.query(ModuleBuild).filter_by(state=BUILD_STATES["garbage"]).all()
-            )
+        retire(identifier)
+        retired_module_builds = (
+            db_session.query(ModuleBuild).filter_by(state=BUILD_STATES["garbage"]).all()
+        )
 
-            assert len(retired_module_builds) == changed_count
-            for x in range(changed_count):
-                assert retired_module_builds[x].id == module_builds[x].id
-                assert retired_module_builds[x].state == BUILD_STATES["garbage"]
+        assert len(retired_module_builds) == changed_count
+        for x in range(changed_count):
+            assert retired_module_builds[x].id == module_builds[x].id
+            assert retired_module_builds[x].state == BUILD_STATES["garbage"]
 
     @pytest.mark.parametrize(
         ("confirm_prompt", "confirm_arg", "confirm_expected"),
@@ -104,25 +98,24 @@ class TestMBSManage:
     )
     @patch("module_build_service.manage.prompt_bool")
     def test_retire_build_confirm_prompt(
-        self, prompt_bool, confirm_prompt, confirm_arg, confirm_expected
+        self, prompt_bool, confirm_prompt, confirm_arg, confirm_expected, db_session
     ):
         prompt_bool.return_value = confirm_prompt
 
-        with make_session(conf) as session:
-            module_builds = session.query(ModuleBuild).filter_by(state=BUILD_STATES["ready"]).all()
-            # Verify our assumption of the amount of ModuleBuilds in database
-            assert len(module_builds) == 3
+        module_builds = db_session.query(ModuleBuild).filter_by(state=BUILD_STATES["ready"]).all()
+        # Verify our assumption of the amount of ModuleBuilds in database
+        assert len(module_builds) == 3
 
-            for x, build in enumerate(module_builds):
-                build.name = "spam"
-                build.stream = "eggs"
+        for x, build in enumerate(module_builds):
+            build.name = "spam"
+            build.stream = "eggs"
 
-            session.commit()
+        db_session.commit()
 
-            retire("spam:eggs", confirm_arg)
-            retired_module_builds = (
-                session.query(ModuleBuild).filter_by(state=BUILD_STATES["garbage"]).all()
-            )
+        retire("spam:eggs", confirm_arg)
+        retired_module_builds = (
+            db_session.query(ModuleBuild).filter_by(state=BUILD_STATES["garbage"]).all()
+        )
 
         expected_changed_count = 3 if confirm_expected else 0
         assert len(retired_module_builds) == expected_changed_count
@@ -131,8 +124,13 @@ class TestMBSManage:
     @patch("module_build_service.manage.submit_module_build_from_yaml")
     @patch("module_build_service.scheduler.main")
     @patch("module_build_service.manage.conf.set_item")
+    @patch("module_build_service.models.make_db_session")
     def test_build_module_locally_set_stream(
-            self, conf_set_item, main, submit_module_build_from_yaml, patched_open):
+        self, make_db_session, conf_set_item, main, submit_module_build_from_yaml, patched_open
+    ):
+        mock_db_session = Mock()
+        make_db_session.return_value.__enter__.return_value = mock_db_session
+
         # build_module_locally changes database uri to a local SQLite database file.
         # Restore the uri to original one in order to not impact the database
         # session in subsequent tests.
@@ -144,5 +142,7 @@ class TestMBSManage:
             app.config['SQLALCHEMY_DATABASE_URI'] = original_db_uri
 
         submit_module_build_from_yaml.assert_called_once_with(
-            ANY, ANY, {"default_streams": {"platform": "el8"}, "local_build": True},
+            mock_db_session, ANY, ANY, {
+                "default_streams": {"platform": "el8"}, "local_build": True
+            },
             skiptests=False, stream="foo")

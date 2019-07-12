@@ -60,16 +60,16 @@ class TestLogger:
         MBSConsumer.current_module_build_id = None
         shutil.rmtree(self.base)
 
-    def test_module_build_logs(self):
+    def test_module_build_logs(self, db_session):
         """
         Tests that ModuleBuildLogs is logging properly to build log file.
         """
-        build = models.ModuleBuild.query.filter_by(id=2).one()
+        build = models.ModuleBuild.get_by_id(db_session, 2)
 
         # Initialize logging, get the build log path and remove it to
         # ensure we are not using some garbage from previous failed test.
-        self.build_log.start(build)
-        path = self.build_log.path(build)
+        self.build_log.start(db_session, build)
+        path = self.build_log.path(db_session, build)
         assert path[len(self.base):] == "/build-2.log"
         if os.path.exists(path):
             os.unlink(path)
@@ -86,7 +86,7 @@ class TestLogger:
         # Try logging with current_module_build_id set to 2 and then to 2.
         # Only messages with current_module_build_id set to 2 should appear in
         # the log.
-        self.build_log.start(build)
+        self.build_log.start(db_session, build)
         MBSConsumer.current_module_build_id = 1
         log.debug("ignore this test msg1")
         log.info("ignore this test msg1")
@@ -119,13 +119,13 @@ class TestLogger:
             data = f.read()
             assert data.find("ignore this test msg3") == -1
 
-    def test_module_build_logs_name_format(self):
-        build = models.ModuleBuild.query.filter_by(id=2).one()
+    def test_module_build_logs_name_format(self, db_session):
+        build = models.ModuleBuild.get_by_id(db_session, 2)
 
         log1 = ModuleBuildLogs("/some/path", "build-{id}.log")
-        assert log1.name(build) == "build-2.log"
-        assert log1.path(build) == "/some/path/build-2.log"
+        assert log1.name(db_session, build) == "build-2.log"
+        assert log1.path(db_session, build) == "/some/path/build-2.log"
 
         log2 = ModuleBuildLogs("/some/path", "build-{name}-{stream}-{version}.log")
-        assert log2.name(build) == "build-nginx-1-2.log"
-        assert log2.path(build) == "/some/path/build-nginx-1-2.log"
+        assert log2.name(db_session, build) == "build-nginx-1-2.log"
+        assert log2.path(db_session, build) == "/some/path/build-nginx-1-2.log"

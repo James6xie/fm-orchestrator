@@ -71,7 +71,8 @@ class TestBuild:
 
         # Ensure that there is no build log from other tests
         try:
-            file_path = build_logs.path(self.cg.module)
+            with models.make_db_session(conf) as db_session:
+                file_path = build_logs.path(db_session, self.cg.module)
             os.remove(file_path)
         except OSError:
             pass
@@ -88,7 +89,8 @@ class TestBuild:
         import moksha.hub.reactor  # noqa
 
         try:
-            file_path = build_logs.path(self.cg.module)
+            with models.make_db_session(conf) as db_session:
+                file_path = build_logs.path(db_session, self.cg.module)
             os.remove(file_path)
         except OSError:
             pass
@@ -135,7 +137,8 @@ class TestBuild:
             expected_output = json.load(expected_output_file)
 
         # create the build.log
-        build_logs.start(self.cg.module)
+        with models.make_db_session(conf) as db_session:
+            build_logs.start(db_session, self.cg.module)
         build_logs.stop(self.cg.module)
 
         self.cg.devel = devel

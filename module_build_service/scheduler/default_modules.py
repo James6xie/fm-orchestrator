@@ -30,8 +30,8 @@ from module_build_service.builder.KojiModuleBuilder import (
     koji_retrying_multicall_map, KojiModuleBuilder,
 )
 from module_build_service.errors import UnprocessableEntity
+from module_build_service.resolver.base import GenericResolver
 from module_build_service.utils.request_utils import requests_session
-from module_build_service.resolver import system_resolver as resolver
 
 
 def add_default_modules(db_session, mmd, arches):
@@ -130,6 +130,7 @@ def add_default_modules(db_session, mmd, arches):
                 # Only one default module is processed at a time in resolve_requires so that we
                 # are aware of which modules are not in the database, and can add those that are as
                 # buildrequires.
+                resolver = GenericResolver.create(db_session, conf)
                 resolved = resolver.resolve_requires([default_module])
             except UnprocessableEntity:
                 log.warning(

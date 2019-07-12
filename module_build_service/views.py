@@ -119,6 +119,9 @@ class AbstractQueryableBuildAPI(MethodView):
             elif short_flag == "true" or short_flag == "1":
                 if hasattr(p_query.items[0], "short_json"):
                     json_func_name = "short_json"
+            if json_func_name == "json" or json_func_name == "extended_json":
+                # Only ModuleBuild.json and ModuleBuild.extended_json has argument db_session
+                json_func_kwargs["db_session"] = db.session
             json_data["items"] = [
                 getattr(item, json_func_name)(**json_func_kwargs) for item in p_query.items
             ]
@@ -135,6 +138,9 @@ class AbstractQueryableBuildAPI(MethodView):
                 elif short_flag == "true" or short_flag == "1":
                     if getattr(instance, "short_json", None):
                         json_func_name = "short_json"
+                if json_func_name == "json" or json_func_name == "extended_json":
+                    # Only ModuleBuild.json and ModuleBuild.extended_json has argument db_session
+                    json_func_kwargs["db_session"] = db.session
                 return jsonify(getattr(instance, json_func_name)(**json_func_kwargs)), 200
             else:
                 raise NotFound("No such %s found." % self.kind)
@@ -177,9 +183,9 @@ class ModuleBuildAPI(AbstractQueryableBuildAPI):
         modules = handler.post()
         if api_version == 1:
             # Only show the first module build for backwards-compatibility
-            rv = modules[0].extended_json(True, api_version)
+            rv = modules[0].extended_json(db.session, True, api_version)
         else:
-            rv = [module.extended_json(True, api_version) for module in modules]
+            rv = [module.extended_json(db.session, True, api_version) for module in modules]
         return jsonify(rv), 201
 
     @validate_api_version()
@@ -217,14 +223,15 @@ class ModuleBuildAPI(AbstractQueryableBuildAPI):
             raise Forbidden("You can't cancel a failed module")
 
         if r["state"] == "failed" or r["state"] == str(models.BUILD_STATES["failed"]):
-            module.transition(conf, models.BUILD_STATES["failed"], "Canceled by %s." % username)
+            module.transition(
+                db.session, conf, models.BUILD_STATES["failed"], "Canceled by %s." % username)
         else:
             log.error('The provided state change of "{}" is not supported'.format(r["state"]))
             raise ValidationError("The provided state change is not supported")
         db.session.add(module)
         db.session.commit()
 
-        return jsonify(module.extended_json(True, api_version)), 200
+        return jsonify(module.extended_json(db.session, True, api_version)), 200
 
 
 class AboutAPI(MethodView):
@@ -291,7 +298,10 @@ class ImportModuleAPI(MethodView):
 
         mmd = get_mmd_from_scm(handler.data["scmurl"])
         build, messages = import_mmd(db.session, mmd)
-        json_data = {"module": build.json(show_tasks=False), "messages": messages}
+        json_data = {
+            "module": build.json(db.session, show_tasks=False),
+            "messages": messages
+        }
 
         # return 201 Created if we reach this point
         return jsonify(json_data), 201
@@ -442,7 +452,8 @@ class SCMHandler(BaseHandler):
             self.validate_optional_params()
 
     def post(self):
-        return submit_module_build_from_scm(self.username, self.data, allow_local_url=False)
+        return submit_module_build_from_scm(
+            db.session, self.username, self.data, allow_local_url=False)
 
 
 class YAMLFileHandler(BaseHandler):
@@ -467,7 +478,8 @@ class YAMLFileHandler(BaseHandler):
                 handle.filename = self.data["module_name"]
         else:
             handle = request.files["yaml"]
-        return submit_module_build_from_yaml(self.username, handle, self.data)
+        return submit_module_build_from_yaml(
+            db.session, self.username, handle, self.data)
 
 
 def _dict_from_request(request):

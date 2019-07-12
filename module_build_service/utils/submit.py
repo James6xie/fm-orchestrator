@@ -38,7 +38,7 @@ import requests
 from gi.repository import GLib
 
 import module_build_service.scm
-from module_build_service import conf, db, log, models, Modulemd
+from module_build_service import conf, log, models, Modulemd
 from module_build_service.errors import ValidationError, UnprocessableEntity, Forbidden, Conflict
 from module_build_service.utils import (
     to_text_type, deps_to_dict, mmd_to_str, load_mmd, load_mmd_file,
@@ -46,29 +46,29 @@ from module_build_service.utils import (
 )
 
 
-def record_module_build_arches(mmd, build, session):
+def record_module_build_arches(mmd, build, db_session):
     """
     Finds out the list of build arches against which the ModuleBuld `build` should be built
     and records them to `build.arches`.
 
     :param Modulemd mmd: The MMD file associated with a ModuleBuild.
     :param ModuleBuild build: The ModuleBuild.
-    :param session: Database session.
+    :param db_session: Database session.
     """
-    arches = get_build_arches(mmd, conf)
+    arches = get_build_arches(db_session, mmd, conf)
     for arch in arches:
-        arch_obj = session.query(models.ModuleArch).filter_by(name=arch).first()
+        arch_obj = db_session.query(models.ModuleArch).filter_by(name=arch).first()
         if not arch_obj:
             arch_obj = models.ModuleArch(name=arch)
-            session.add(arch_obj)
-            session.commit()
+            db_session.add(arch_obj)
+            db_session.commit()
 
         if arch_obj not in build.arches:
             build.arches.append(arch_obj)
-            session.add(build)
+            db_session.add(build)
 
 
-def record_filtered_rpms(mmd):
+def record_filtered_rpms(db_session, mmd):
     """Record filtered RPMs that should not be installed into buildroot
 
     These RPMs are filtered:
@@ -76,6 +76,7 @@ def record_filtered_rpms(mmd):
     * Reads the mmd["xmd"]["buildrequires"] and extends it with "filtered_rpms"
       list containing the NVRs of filtered RPMs in a buildrequired module.
 
+    :param db_session: SQLAlchemy session object.
     :param Modulemd mmd: Modulemd that will be built next.
     :rtype: Modulemd.Module
     :return: Modulemd extended with the "filtered_rpms" in XMD section.
@@ -84,7 +85,7 @@ def record_filtered_rpms(mmd):
     from module_build_service.builder import GenericBuilder
     from module_build_service.resolver import GenericResolver
 
-    resolver = GenericResolver.create(conf)
+    resolver = GenericResolver.create(db_session, conf)
     builder = GenericBuilder.backends[conf.system]
 
     new_buildrequires = {}
@@ -141,7 +142,7 @@ def _scm_get_latest(pkg):
     return {"pkg_name": pkg.get_name(), "pkg_ref": pkgref, "error": None}
 
 
-def format_mmd(mmd, scmurl, module=None, session=None):
+def format_mmd(mmd, scmurl, module=None, db_session=None):
     """
     Prepares the modulemd for the MBS. This does things such as replacing the
     branches of components with commit hashes and adding metadata in the xmd
@@ -150,7 +151,7 @@ def format_mmd(mmd, scmurl, module=None, session=None):
     :param scmurl: the url to the modulemd
     :param module: When specified together with `session`, the time_modified
         of a module is updated regularly in case this method takes lot of time.
-    :param session: Database session to update the `module`.
+    :param db_session: Database session to update the `module`.
     """
     # Import it here, because SCM uses utils methods and fails to import
     # them because of dep-chain.
@@ -241,9 +242,9 @@ def format_mmd(mmd, scmurl, module=None, session=None):
             # that module is stuck in "init" state and it would send fake "init" message.
             while not async_result.ready():
                 async_result.wait(60)
-                if module and session:
+                if module and db_session:
                     module.time_modified = datetime.utcnow()
-                    session.commit()
+                    db_session.commit()
             pkg_dicts = async_result.get()
         finally:
             pool.close()
@@ -418,17 +419,10 @@ def get_module_srpm_overrides(module):
 
 
 def record_component_builds(
-    mmd, module, initial_batch=1, previous_buildorder=None, main_mmd=None, session=None
+    db_session, mmd, module, initial_batch=1, previous_buildorder=None, main_mmd=None
 ):
     # Imported here to allow import of utils in GenericBuilder.
     import module_build_service.builder
-
-    if not session:
-        session = db.session
-
-    # Format the modulemd by putting in defaults and replacing streams that
-    # are branches with commit hashes
-    format_mmd(mmd, module.scmurl, module, session)
 
     # When main_mmd is set, merge the metadata from this mmd to main_mmd,
     # otherwise our current mmd is main_mmd.
@@ -494,8 +488,9 @@ def record_component_builds(
             # It is OK to whitelist all URLs here, because the validity
             # of every URL have been already checked in format_mmd(...).
             included_mmd = _fetch_mmd(full_url, whitelist_url=True)[0]
+            format_mmd(included_mmd, module.scmurl, module, db_session)
             batch = record_component_builds(
-                included_mmd, module, batch, previous_buildorder, main_mmd, session=session)
+                db_session, included_mmd, module, batch, previous_buildorder, main_mmd)
             continue
 
         package = component.get_name()
@@ -509,7 +504,7 @@ def record_component_builds(
 
         # Skip the ComponentBuild if it already exists in database. This can happen
         # in case of module build resubmition.
-        existing_build = models.ComponentBuild.from_component_name(db.session, package, module.id)
+        existing_build = models.ComponentBuild.from_component_name(db_session, package, module.id)
         if existing_build:
             # Check that the existing build has the same most important attributes.
             # This should never be a problem, but it's good to be defensive here so
@@ -534,12 +529,14 @@ def record_component_builds(
             ref=component_ref,
             weight=rpm_weights[package],
         )
-        session.add(build)
+        db_session.add(build)
 
     return batch
 
 
-def submit_module_build_from_yaml(username, handle, params, stream=None, skiptests=False):
+def submit_module_build_from_yaml(
+    db_session, username, handle, params, stream=None, skiptests=False
+):
     yaml_file = to_text_type(handle.read())
     mmd = load_mmd(yaml_file)
     dt = datetime.utcfromtimestamp(int(time.time()))
@@ -562,13 +559,13 @@ def submit_module_build_from_yaml(username, handle, params, stream=None, skiptes
         macros = buildopts.get_rpm_macros() or ""
         buildopts.set_rpm_macros(macros + "\n\n%__spec_check_pre exit 0\n")
         mmd.set_buildopts(buildopts)
-    return submit_module_build(username, mmd, params)
+    return submit_module_build(db_session, username, mmd, params)
 
 
 _url_check_re = re.compile(r"^[^:/]+:.*$")
 
 
-def submit_module_build_from_scm(username, params, allow_local_url=False):
+def submit_module_build_from_scm(db_session, username, params, allow_local_url=False):
     url = params["scmurl"]
     branch = params["branch"]
     # Translate local paths into file:// URL
@@ -578,7 +575,7 @@ def submit_module_build_from_scm(username, params, allow_local_url=False):
         url = "file://" + url
     mmd, scm = _fetch_mmd(url, branch, allow_local_url)
 
-    return submit_module_build(username, mmd, params)
+    return submit_module_build(db_session, username, mmd, params)
 
 
 def _apply_dep_overrides(mmd, params):
@@ -685,7 +682,7 @@ def _apply_dep_overrides(mmd, params):
             )
 
 
-def _modify_buildtime_streams(mmd, new_streams_func):
+def _modify_buildtime_streams(db_session, mmd, new_streams_func):
     """
     Modify buildtime streams using the input new_streams_func.
 
@@ -702,7 +699,7 @@ def _modify_buildtime_streams(mmd, new_streams_func):
         new_dep = Modulemd.Dependencies()
 
         for name, streams in brs.items():
-            new_streams = new_streams_func(name, streams)
+            new_streams = new_streams_func(db_session, name, streams)
             if streams != new_streams:
                 overridden = True
 
@@ -726,7 +723,7 @@ def _modify_buildtime_streams(mmd, new_streams_func):
             mmd.add_dependencies(new_dep)
 
 
-def resolve_base_module_virtual_streams(name, streams):
+def resolve_base_module_virtual_streams(db_session, name, streams):
     """
     Resolve any base module virtual streams and return a copy of `streams` with the resolved values.
 
@@ -735,7 +732,8 @@ def resolve_base_module_virtual_streams(name, streams):
     :return: the resolved streams
     :rtype: list
     """
-    from module_build_service.resolver import system_resolver
+    from module_build_service.resolver import GenericResolver
+    resolver = GenericResolver.create(db_session, conf)
 
     if name not in conf.base_module_names:
         return streams
@@ -749,7 +747,7 @@ def resolve_base_module_virtual_streams(name, streams):
 
         # Check if the base module stream is available
         log.debug('Checking to see if the base module "%s:%s" is available', name, stream)
-        if system_resolver.get_module_count(name=name, stream=stream) > 0:
+        if resolver.get_module_count(name=name, stream=stream) > 0:
             continue
 
         # If the base module stream is not available, check if there's a virtual stream
@@ -757,7 +755,7 @@ def resolve_base_module_virtual_streams(name, streams):
             'Checking to see if there is a base module "%s" with the virtual stream "%s"',
             name, stream,
         )
-        base_module_mmd = system_resolver.get_latest_with_virtual_stream(
+        base_module_mmd = resolver.get_latest_with_virtual_stream(
             name=name, virtual_stream=stream
         )
         if not base_module_mmd:
@@ -780,7 +778,7 @@ def resolve_base_module_virtual_streams(name, streams):
     return new_streams
 
 
-def _process_support_streams(mmd, params):
+def _process_support_streams(db_session, mmd, params):
     """
     Check if any buildrequired base modules require a support stream suffix.
 
@@ -803,7 +801,7 @@ def _process_support_streams(mmd, params):
 
     buildrequire_overrides = params.get("buildrequire_overrides", {})
 
-    def new_streams_func(name, streams):
+    def new_streams_func(db_session, name, streams):
         if name not in conf.base_module_names:
             log.debug("The module %s is not a base module. Skipping the release date check.", name)
             return streams
@@ -896,13 +894,14 @@ def _process_support_streams(mmd, params):
 
         return new_streams
 
-    _modify_buildtime_streams(mmd, new_streams_func)
+    _modify_buildtime_streams(db_session, mmd, new_streams_func)
 
 
-def submit_module_build(username, mmd, params):
+def submit_module_build(db_session, username, mmd, params):
     """
     Submits new module build.
 
+    :param db_session: SQLAlchemy session object.
     :param str username: Username of the build's owner.
     :param Modulemd.ModuleStream mmd: Modulemd defining the build.
     :param dict params: the API parameters passed in by the user
@@ -931,10 +930,10 @@ def submit_module_build(username, mmd, params):
     if "default_streams" in params:
         default_streams = params["default_streams"]
     _apply_dep_overrides(mmd, params)
-    _modify_buildtime_streams(mmd, resolve_base_module_virtual_streams)
-    _process_support_streams(mmd, params)
+    _modify_buildtime_streams(db_session, mmd, resolve_base_module_virtual_streams)
+    _process_support_streams(db_session, mmd, params)
 
-    mmds = generate_expanded_mmds(db.session, mmd, raise_if_stream_ambigous, default_streams)
+    mmds = generate_expanded_mmds(db_session, mmd, raise_if_stream_ambigous, default_streams)
     if not mmds:
         raise ValidationError(
             "No dependency combination was satisfied. Please verify the "
@@ -954,7 +953,7 @@ def submit_module_build(username, mmd, params):
         nsvc = mmd.get_nsvc()
 
         log.debug("Checking whether module build already exists: %s.", nsvc)
-        module = models.ModuleBuild.get_build_from_nsvc(db.session, *nsvc.split(":"))
+        module = models.ModuleBuild.get_build_from_nsvc(db_session, *nsvc.split(":"))
         if module and not params.get("scratch", False):
             if module.state != models.BUILD_STATES["failed"]:
                 log.info(
@@ -977,7 +976,7 @@ def submit_module_build(username, mmd, params):
                 if component.state and component.state != koji.BUILD_STATES["COMPLETE"]:
                     component.state = None
                     component.state_reason = None
-                    db.session.add(component)
+                    db_session.add(component)
             module.username = username
             prev_state = module.previous_non_failed_state
             if prev_state == models.BUILD_STATES["init"]:
@@ -985,7 +984,7 @@ def submit_module_build(username, mmd, params):
             else:
                 transition_to = models.BUILD_STATES["wait"]
                 module.batch = 0
-            module.transition(conf, transition_to, "Resubmitted by %s" % username)
+            module.transition(db_session, conf, transition_to, "Resubmitted by %s" % username)
             log.info("Resumed existing module build in previous state %s" % module.state)
         else:
             # make NSVC unique for every scratch build
@@ -993,7 +992,7 @@ def submit_module_build(username, mmd, params):
             if params.get("scratch", False):
                 log.debug("Checking for existing scratch module builds by NSVC")
                 scrmods = models.ModuleBuild.get_scratch_builds_from_nsvc(
-                    db.session, *nsvc.split(":"))
+                    db_session, *nsvc.split(":"))
                 scrmod_contexts = [scrmod.context for scrmod in scrmods]
                 log.debug(
                     "Found %d previous scratch module build context(s): %s",
@@ -1005,7 +1004,7 @@ def submit_module_build(username, mmd, params):
 
             log.debug("Creating new module build")
             module = models.ModuleBuild.create(
-                db.session,
+                db_session,
                 conf,
                 name=mmd.get_module_name(),
                 stream=mmd.get_stream_name(),
@@ -1027,8 +1026,8 @@ def submit_module_build(username, mmd, params):
             module.context += context_suffix
 
         all_modules_skipped = False
-        db.session.add(module)
-        db.session.commit()
+        db_session.add(module)
+        db_session.commit()
         modules.append(module)
         log.info('The user "%s" submitted the build "%s"', username, nsvc)
 
@@ -1135,19 +1134,17 @@ def _fetch_mmd(url, branch=None, allow_local_url=False, whitelist_url=False, man
     return mmd, scm
 
 
-def load_local_builds(local_build_nsvs, session=None):
+def load_local_builds(db_session, local_build_nsvs):
     """
     Loads previously finished local module builds from conf.mock_resultsdir
     and imports them to database.
 
+    :param db_session: SQLAlchemy session object.
     :param local_build_nsvs: List of NSV separated by ':' defining the modules
         to load from the mock_resultsdir.
     """
     if not local_build_nsvs:
         return
-
-    if not session:
-        session = db.session
 
     if type(local_build_nsvs) != list:
         local_build_nsvs = [local_build_nsvs]
@@ -1206,7 +1203,7 @@ def load_local_builds(local_build_nsvs, session=None):
 
         # Create ModuleBuild in database.
         module = models.ModuleBuild.create(
-            session,
+            db_session,
             conf,
             name=mmd.get_module_name(),
             stream=mmd.get_stream_name(),
@@ -1219,7 +1216,7 @@ def load_local_builds(local_build_nsvs, session=None):
         )
         module.koji_tag = path
         module.state = models.BUILD_STATES["ready"]
-        session.commit()
+        db_session.commit()
 
         if (
             found_build[0] != module.name

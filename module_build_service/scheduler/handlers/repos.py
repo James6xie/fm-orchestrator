@@ -33,7 +33,7 @@ from module_build_service.utils import start_next_batch_build
 logging.basicConfig(level=logging.DEBUG)
 
 
-def done(config, session, msg):
+def done(config, db_session, msg):
     """ Called whenever koji rebuilds a repo, any repo. """
 
     # First, find our ModuleBuild associated with this repo, if any.
@@ -42,7 +42,7 @@ def done(config, session, msg):
         log.debug("Tag %r does not end with '-build' suffix, ignoring" % tag)
         return
     tag = tag[:-6] if tag.endswith("-build") else tag
-    module_build = models.ModuleBuild.from_repo_done_event(session, msg)
+    module_build = models.ModuleBuild.from_repo_done_event(db_session, msg)
     if not module_build:
         log.debug("No module build found associated with koji tag %r" % tag)
         return
@@ -99,15 +99,16 @@ def done(config, session, msg):
         state_reason = "Component(s) {} failed to build.".format(
             ", ".join(c.package for c in current_batch if c.state in failed_states))
         module_build.transition(
-            config, models.BUILD_STATES["failed"], state_reason, failure_type="infra")
-        session.commit()
+            db_session, config, models.BUILD_STATES["failed"], state_reason, failure_type="infra")
+        db_session.commit()
         log.warning("Odd!  All components in batch failed for %r." % module_build)
         return
 
     groups = module_build_service.builder.GenericBuilder.default_buildroot_groups(
-        session, module_build)
+        db_session, module_build)
 
     builder = module_build_service.builder.GenericBuilder.create(
+        db_session,
         module_build.owner,
         module_build,
         config.system,
@@ -141,7 +142,7 @@ def done(config, session, msg):
 
         # Try to start next batch build, because there are still unbuilt
         # components in a module.
-        further_work += start_next_batch_build(config, module_build, session, builder)
+        further_work += start_next_batch_build(config, module_build, db_session, builder)
 
     else:
         if has_failed_components:
@@ -151,6 +152,7 @@ def done(config, session, msg):
                 )
             )
             module_build.transition(
+                db_session,
                 config,
                 state=models.BUILD_STATES["failed"],
                 state_reason=state_reason,
@@ -161,7 +163,7 @@ def done(config, session, msg):
             module_build.time_completed = datetime.utcnow()
             builder.finalize(succeeded=True)
 
-            module_build.transition(config, state=models.BUILD_STATES["done"])
-        session.commit()
+            module_build.transition(db_session, config, state=models.BUILD_STATES["done"])
+        db_session.commit()
 
     return further_work

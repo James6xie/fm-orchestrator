@@ -36,7 +36,7 @@ import pytest
 import re
 import sqlalchemy
 
-from tests import app, init_data, clean_database, reuse_component_init_data, staged_data_filename
+from tests import app, init_data, clean_database, staged_data_filename
 from tests import read_staged_data
 from tests.test_scm import base_dir as scm_base_dir
 from module_build_service.errors import UnprocessableEntity
@@ -65,6 +65,7 @@ class FakeSCM(object):
         commit=None,
         checkout_raise=False,
         get_latest_raise=False,
+        get_latest_error=None,
         branch="master",
     ):
         """
@@ -96,8 +97,8 @@ class FakeSCM(object):
         self.mocked_scm.return_value.name = self.name
         self.mocked_scm.return_value.commit = self.commit
         if get_latest_raise:
-            self.mocked_scm.return_value.get_latest.side_effect = UnprocessableEntity(
-                "Failed to get_latest commit")
+            self.mocked_scm.return_value.get_latest.side_effect = \
+                get_latest_error or UnprocessableEntity("Failed to get_latest commit")
         else:
             self.mocked_scm.return_value.get_latest = self.get_latest
         self.mocked_scm.return_value.repository_root = "https://src.stg.fedoraproject.org/modules/"
@@ -245,8 +246,8 @@ class TestViews:
         assert data["version"] == "2"
         assert data["virtual_streams"] == []
 
+    @pytest.mark.usefixtures("reuse_component_init_data")
     def test_query_build_with_br_verbose_mode(self):
-        reuse_component_init_data()
         rv = self.client.get("/module-build-service/1/module-builds/2?verbose=true")
         data = json.loads(rv.data)
         assert data["base_module_buildrequires"] == [{
@@ -464,6 +465,7 @@ class TestViews:
                 for key, part in zip(nsvc_keys, nsvc_parts):
                     assert item[key] == part
 
+    @pytest.mark.usefixtures("reuse_component_init_data")
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
     def test_query_builds_with_binary_rpm(self, ClientSession):
         """
@@ -471,7 +473,6 @@ class TestViews:
         which contain the rpm.
         """
         # update database with builds which contain koji tags.
-        reuse_component_init_data()
         mock_rpm_md = {"build_id": 1065871}
         mock_tags = [
             {"name": "module-testmodule-master-20170219191323-c40c156c"},
@@ -827,8 +828,8 @@ class TestViews:
         }
         assert error == expected
 
+    @pytest.mark.usefixtures("reuse_component_init_data")
     def test_query_base_module_br_filters(self):
-        reuse_component_init_data()
         mmd = load_mmd(read_staged_data("platform"))
         mmd = mmd.copy(mmd.get_module_name(), "f30.1.3")
         import_mmd(db.session, mmd)

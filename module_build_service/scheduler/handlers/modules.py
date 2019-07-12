@@ -34,12 +34,13 @@ from module_build_service.utils import (
     get_rpm_release,
     generate_koji_tag,
     record_filtered_rpms,
-    record_module_build_arches,
+    record_module_build_arches
 )
 from module_build_service.errors import UnprocessableEntity, Forbidden, ValidationError
-from module_build_service.utils.ursine import handle_stream_collision_modules
 from module_build_service.utils.greenwave import greenwave
 from module_build_service.scheduler.default_modules import add_default_modules
+from module_build_service.utils.submit import format_mmd
+from module_build_service.utils.ursine import handle_stream_collision_modules
 
 from requests.exceptions import ConnectionError
 from module_build_service.utils import mmd_to_str
@@ -58,7 +59,7 @@ def get_artifact_from_srpm(srpm_path):
     return os.path.basename(srpm_path).replace(".src.rpm", "")
 
 
-def failed(config, session, msg):
+def failed(config, db_session, msg):
     """
     Called whenever a module enters the 'failed' state.
 
@@ -66,13 +67,12 @@ def failed(config, session, msg):
     and stop the building.
     """
 
-    build = models.ModuleBuild.from_module_event(session, msg)
+    build = models.ModuleBuild.from_module_event(db_session, msg)
 
-    module_info = build.json()
-    if module_info["state"] != msg.module_build_state:
+    if build.state != msg.module_build_state:
         log.warning(
             "Note that retrieved module state %r doesn't match message module state %r",
-            module_info["state"], msg.module_build_state,
+            build.state, msg.module_build_state,
         )
         # This is ok.. it's a race condition we can ignore.
         pass
@@ -84,7 +84,7 @@ def failed(config, session, msg):
 
     if build.koji_tag:
         builder = module_build_service.builder.GenericBuilder.create_from_module(
-            session, build, config)
+            db_session, build, config)
 
         if build.new_repo_task_id:
             builder.cancel_build(build.new_repo_task_id)
@@ -94,7 +94,7 @@ def failed(config, session, msg):
                 builder.cancel_build(component.task_id)
             component.state = koji.BUILD_STATES["FAILED"]
             component.state_reason = build.state_reason
-            session.add(component)
+            db_session.add(component)
 
         # Tell the external buildsystem to wrap up
         builder.finalize(succeeded=False)
@@ -103,21 +103,22 @@ def failed(config, session, msg):
         if not build.state_reason:
             reason = "Missing koji tag. Assuming previously failed module lookup."
             log.error(reason)
-            build.transition(config, state="failed", state_reason=reason, failure_type="infra")
-            session.commit()
+            build.transition(
+                db_session, config, state="failed", state_reason=reason, failure_type="infra")
+            db_session.commit()
             return
 
     # Don't transition it again if it's already been transitioned
     if build.state != models.BUILD_STATES["failed"]:
-        build.transition(config, state="failed", failure_type="user")
+        build.transition(db_session, config, state="failed", failure_type="user")
 
-    session.commit()
+    db_session.commit()
 
     build_logs.stop(build)
     module_build_service.builder.GenericBuilder.clear_cache(build)
 
 
-def done(config, session, msg):
+def done(config, db_session, msg):
     """Called whenever a module enters the 'done' state.
 
     We currently don't do anything useful, so moving to ready.
@@ -125,12 +126,11 @@ def done(config, session, msg):
     Otherwise the done -> ready state should happen when all
     dependent modules were re-built, at least that's the current plan.
     """
-    build = models.ModuleBuild.from_module_event(session, msg)
-    module_info = build.json()
-    if module_info["state"] != msg.module_build_state:
+    build = models.ModuleBuild.from_module_event(db_session, msg)
+    if build.state != msg.module_build_state:
         log.warning(
             "Note that retrieved module state %r doesn't match message module state %r",
-            module_info["state"], msg.module_build_state,
+            build.state, msg.module_build_state,
         )
         # This is ok.. it's a race condition we can ignore.
         pass
@@ -138,24 +138,24 @@ def done(config, session, msg):
     # Scratch builds stay in 'done' state
     if not build.scratch:
         if greenwave is None or greenwave.check_gating(build):
-            build.transition(config, state="ready")
+            build.transition(db_session, config, state="ready")
         else:
             build.state_reason = "Gating failed"
             if greenwave.error_occurred:
                 build.state_reason += " (Error occured while querying Greenwave)"
             build.time_modified = datetime.utcnow()
-        session.commit()
+        db_session.commit()
 
     build_logs.stop(build)
     module_build_service.builder.GenericBuilder.clear_cache(build)
 
 
-def init(config, session, msg):
+def init(config, db_session, msg):
     """ Called whenever a module enters the 'init' state."""
     # Sleep for a few seconds to make sure the module in the database is committed
     # TODO: Remove this once messaging is implemented in SQLAlchemy hooks
     for i in range(3):
-        build = models.ModuleBuild.from_module_event(session, msg)
+        build = models.ModuleBuild.from_module_event(db_session, msg)
         if build:
             break
         time.sleep(1)
@@ -165,15 +165,21 @@ def init(config, session, msg):
     try:
         mmd = build.mmd()
         arches = [arch.name for arch in build.arches]
-        add_default_modules(session, mmd, arches)
-        record_module_build_arches(mmd, build, session)
-        record_component_builds(mmd, build, session=session)
+        add_default_modules(db_session, mmd, arches)
+        record_module_build_arches(mmd, build, db_session)
+
+        # Format the modulemd by putting in defaults and replacing streams that
+        # are branches with commit hashes
+        format_mmd(mmd, build.scmurl, build, db_session)
+        record_component_builds(db_session, mmd, build)
+
         # The ursine.handle_stream_collision_modules is Koji specific.
         if conf.system in ["koji", "test"]:
-            handle_stream_collision_modules(mmd)
-        mmd = record_filtered_rpms(mmd)
+            handle_stream_collision_modules(db_session, mmd)
+
+        mmd = record_filtered_rpms(db_session, mmd)
         build.modulemd = mmd_to_str(mmd)
-        build.transition(conf, models.BUILD_STATES["wait"])
+        build.transition(db_session, conf, models.BUILD_STATES["wait"])
     # Catch custom exceptions that we can expose to the user
     except (UnprocessableEntity, Forbidden, ValidationError, RuntimeError) as e:
         log.exception(str(e))
@@ -188,13 +194,14 @@ def init(config, session, msg):
         error_msg = "An unknown error occurred while validating the modulemd"
         failure_reason = "user"
     else:
-        session.add(build)
-        session.commit()
+        db_session.add(build)
+        db_session.commit()
     finally:
         if error_msg:
             # Rollback changes underway
-            session.rollback()
+            db_session.rollback()
             build.transition(
+                db_session,
                 conf,
                 models.BUILD_STATES["failed"],
                 state_reason=error_msg,
@@ -227,16 +234,17 @@ def generate_module_build_koji_tag(build):
 @module_build_service.utils.retry(
     interval=10, timeout=120, wait_on=(ValueError, RuntimeError, ConnectionError)
 )
-def get_module_build_dependencies(build):
+def get_module_build_dependencies(db_session, build):
     """Used by wait handler to get module's build dependencies
 
+    :param db_session: SQLAlchemy session object.
     :param build: a module build.
     :type build: :class:`ModuleBuild`
     :return: the value returned from :meth:`get_module_build_dependencies`
         according to the configured resolver.
     :rtype: dict[str, Modulemd.Module]
     """
-    resolver = module_build_service.resolver.system_resolver
+    resolver = module_build_service.resolver.GenericResolver.create(db_session, conf)
     if conf.system in ["koji", "test"]:
         # For Koji backend, query for the module we are going to
         # build to get the koji_tag and deps from it.
@@ -283,7 +291,7 @@ def get_content_generator_build_koji_tag(module_deps):
         return conf.koji_cg_default_build_tag
 
 
-def wait(config, session, msg):
+def wait(config, db_session, msg):
     """ Called whenever a module enters the 'wait' state.
 
     We transition to this state shortly after a modulebuild is first requested.
@@ -298,14 +306,14 @@ def wait(config, session, msg):
     # See https://pagure.io/fm-orchestrator/issue/386
     @module_build_service.utils.retry(interval=10, timeout=120, wait_on=RuntimeError)
     def _get_build_containing_xmd_for_mbs():
-        build = models.ModuleBuild.from_module_event(session, msg)
+        build = models.ModuleBuild.from_module_event(db_session, msg)
         if "mbs" in build.mmd().get_xmd():
             return build
-        session.expire(build)
+        db_session.expire(build)
         raise RuntimeError("{!r} doesn't contain xmd information for MBS.".format(build))
 
     build = _get_build_containing_xmd_for_mbs()
-    build_logs.start(build)
+    build_logs.start(db_session, build)
 
     log.info("Found build=%r from message" % build)
     log.info("%r", build.modulemd)
@@ -319,12 +327,13 @@ def wait(config, session, msg):
         pass
 
     try:
-        build_deps = get_module_build_dependencies(build)
+        build_deps = get_module_build_dependencies(db_session, build)
     except ValueError:
         reason = "Failed to get module info from MBS. Max retries reached."
         log.exception(reason)
-        build.transition(config, state="failed", state_reason=reason, failure_type="infra")
-        session.commit()
+        build.transition(
+            db_session, config, state="failed", state_reason=reason, failure_type="infra")
+        db_session.commit()
         raise
 
     tag = generate_module_build_koji_tag(build)
@@ -349,7 +358,8 @@ def wait(config, session, msg):
             "It is disabled to tag module build during importing into Koji by Content Generator.")
         log.debug("Skip to assign Content Generator build koji tag to module build.")
 
-    builder = module_build_service.builder.GenericBuilder.create_from_module(session, build, config)
+    builder = module_build_service.builder.GenericBuilder.create_from_module(
+        db_session, build, config)
 
     log.debug(
         "Adding dependencies %s into buildroot for module %s:%s:%s",
@@ -359,9 +369,9 @@ def wait(config, session, msg):
 
     if not build.component_builds:
         log.info("There are no components in module %r, skipping build" % build)
-        build.transition(config, state="build")
-        session.add(build)
-        session.commit()
+        build.transition(db_session, config, state="build")
+        db_session.add(build)
+        db_session.commit()
         # Return a KojiRepoChange message so that the build can be transitioned to done
         # in the repos handler
         return [
@@ -371,22 +381,24 @@ def wait(config, session, msg):
 
     # If all components in module build will be reused, we don't have to build
     # module-build-macros, because there won't be any build done.
-    if attempt_to_reuse_all_components(builder, session, build):
+    if attempt_to_reuse_all_components(builder, db_session, build):
         log.info("All components have been reused for module %r, skipping build" % build)
-        build.transition(config, state="build")
-        session.add(build)
-        session.commit()
+        build.transition(db_session, config, state="build")
+        db_session.add(build)
+        db_session.commit()
         return []
 
     log.debug("Starting build batch 1")
     build.batch = 1
-    session.commit()
+    db_session.commit()
 
     artifact_name = "module-build-macros"
 
-    component_build = models.ComponentBuild.from_component_name(session, artifact_name, build.id)
+    component_build = models.ComponentBuild.from_component_name(db_session, artifact_name, build.id)
     further_work = []
-    srpm = builder.get_disttag_srpm(disttag=".%s" % get_rpm_release(build), module_build=build)
+    srpm = builder.get_disttag_srpm(
+        disttag=".%s" % get_rpm_release(db_session, build),
+        module_build=build)
     if not component_build:
         component_build = models.ComponentBuild(
             module_id=build.id,
@@ -396,10 +408,10 @@ def wait(config, session, msg):
             batch=1,
             build_time_only=True,
         )
-        session.add(component_build)
+        db_session.add(component_build)
         # Commit and refresh so that the SQLAlchemy relationships are available
-        session.commit()
-        session.refresh(component_build)
+        db_session.commit()
+        db_session.refresh(component_build)
         msgs = builder.recover_orphaned_artifact(component_build)
         if msgs:
             log.info("Found an existing module-build-macros build")
@@ -426,17 +438,17 @@ def wait(config, session, msg):
             component_build.reason = reason
             component_build.nvr = nvr
 
-    session.add(component_build)
-    build.transition(config, state="build")
-    session.add(build)
-    session.commit()
+    db_session.add(component_build)
+    build.transition(db_session, config, state="build")
+    db_session.add(build)
+    db_session.commit()
 
     # We always have to regenerate the repository.
     if config.system == "koji":
         log.info("Regenerating the repository")
         task_id = builder.koji_session.newRepo(builder.module_build_tag["name"])
         build.new_repo_task_id = task_id
-        session.commit()
+        db_session.commit()
     else:
         further_work.append(
             module_build_service.messaging.KojiRepoChange(

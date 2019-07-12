@@ -31,20 +31,20 @@ from module_build_service import models, log, messaging
 logging.basicConfig(level=logging.DEBUG)
 
 
-def tagged(config, session, msg):
+def tagged(config, db_session, msg):
     """ Called whenever koji tags a build to tag. """
     if config.system not in ("koji", "test"):
         return []
 
     # Find our ModuleBuild associated with this tagged artifact.
     tag = msg.tag
-    module_build = models.ModuleBuild.from_tag_change_event(session, msg)
+    module_build = models.ModuleBuild.from_tag_change_event(db_session, msg)
     if not module_build:
         log.debug("No module build found associated with koji tag %r" % tag)
         return
 
     # Find tagged component.
-    component = models.ComponentBuild.from_component_nvr(session, msg.nvr, module_build.id)
+    component = models.ComponentBuild.from_component_nvr(db_session, msg.nvr, module_build.id)
     if not component:
         log.error("No component %s in module %r", msg.nvr, module_build)
         return
@@ -56,7 +56,7 @@ def tagged(config, session, msg):
         component.tagged = True
     else:
         component.tagged_in_final = True
-    session.commit()
+    db_session.commit()
 
     unbuilt_components_in_batch = [
         c for c in module_build.current_batch()
@@ -82,7 +82,7 @@ def tagged(config, session, msg):
     # If all components are tagged, start newRepo task.
     if not untagged_components:
         builder = module_build_service.builder.GenericBuilder.create_from_module(
-            session, module_build, config)
+            db_session, module_build, config)
 
         unbuilt_components = [
             c for c in module_build.component_builds
@@ -109,7 +109,7 @@ def tagged(config, session, msg):
                 messaging.KojiRepoChange(
                     "components::_finalize: fake msg", builder.module_build_tag["name"])
             ]
-        session.commit()
+        db_session.commit()
 
     return further_work
 

@@ -105,7 +105,7 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
 
         # These are our main lookup tables for figuring out what to run in
         # response to what messaging events.
-        self.NO_OP = NO_OP = lambda config, session, msg: True
+        self.NO_OP = NO_OP = lambda config, db_session, msg: True
         self.on_build_change = {
             koji.BUILD_STATES["BUILDING"]: NO_OP,
             koji.BUILD_STATES[
@@ -165,8 +165,8 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
 
         # Primary work is done here.
         try:
-            with models.make_session(conf) as session:
-                self.process_message(session, msg)
+            with models.make_db_session(conf) as db_session:
+                self.process_message(db_session, msg)
             monitor.messaging_rx_processed_ok_counter.inc()
         except sqlalchemy.exc.OperationalError as error:
             monitor.messaging_rx_failed_counter.inc()
@@ -205,7 +205,7 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
 
         all_fns = list(self.on_build_change.items()) + list(self.on_module_change.items())
         for key, callback in all_fns:
-            expected = ["config", "session", "msg"]
+            expected = ["config", "db_session", "msg"]
             if six.PY2:
                 argspec = inspect.getargspec(callback)[0]
             else:
@@ -214,28 +214,28 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
                 raise ValueError(
                     "Callback %r, state %r has argspec %r!=%r" % (callback, key, argspec, expected))
 
-    def process_message(self, session, msg):
+    def process_message(self, db_session, msg):
         # set module build to None and let's populate it later
         build = None
 
         # Choose a handler for this message
         if isinstance(msg, module_build_service.messaging.KojiBuildChange):
             handler = self.on_build_change[msg.build_new_state]
-            build = models.ComponentBuild.from_component_event(session, msg)
+            build = models.ComponentBuild.from_component_event(db_session, msg)
             if build:
                 build = build.module_build
         elif type(msg) == module_build_service.messaging.KojiRepoChange:
             handler = self.on_repo_change
-            build = models.ModuleBuild.from_repo_done_event(session, msg)
+            build = models.ModuleBuild.from_repo_done_event(db_session, msg)
         elif type(msg) == module_build_service.messaging.KojiTagChange:
             handler = self.on_tag_change
-            build = models.ModuleBuild.from_tag_change_event(session, msg)
+            build = models.ModuleBuild.from_tag_change_event(db_session, msg)
         elif type(msg) == module_build_service.messaging.MBSModule:
             handler = self.on_module_change[module_build_state_from_msg(msg)]
-            build = models.ModuleBuild.from_module_event(session, msg)
+            build = models.ModuleBuild.from_module_event(db_session, msg)
         elif type(msg) == module_build_service.messaging.GreenwaveDecisionUpdate:
             handler = self.on_decision_update
-            build = greenwave.get_corresponding_module_build(session, msg.subject_identifier)
+            build = greenwave.get_corresponding_module_build(db_session, msg.subject_identifier)
         else:
             return
 
@@ -253,20 +253,21 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
             log.info("Calling %s" % idx)
             further_work = []
             try:
-                further_work = handler(conf, session, msg) or []
+                further_work = handler(conf, db_session, msg) or []
             except Exception as e:
                 msg = "Could not process message handler. See the traceback."
                 log.exception(msg)
-                session.rollback()
+                db_session.rollback()
                 if build:
-                    session.refresh(build)
+                    db_session.refresh(build)
                     build.transition(
+                        db_session,
                         conf,
                         state=models.BUILD_STATES["failed"],
                         state_reason=str(e),
                         failure_type="infra",
                     )
-                    session.commit()
+                    db_session.commit()
 
             log.debug("Done with %s" % idx)
 
