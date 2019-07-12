@@ -32,7 +32,7 @@ import re
 import subprocess
 import threading
 
-from module_build_service import conf, log
+from module_build_service import conf, log, Modulemd
 import module_build_service.scm
 import module_build_service.utils
 import module_build_service.scheduler
@@ -231,7 +231,10 @@ class MockModuleBuilder(GenericBuilder):
         # ...and inject modules.yaml there if asked.
         if include_module_yaml:
             mmd_path = os.path.join(path, "modules.yaml")
-            m1_mmd.dump(mmd_path)
+            mmd_index = Modulemd.ModuleIndex.new()
+            mmd_index.add_module_stream(m1_mmd)
+            with open(mmd_path, "w") as f:
+                f.write(mmd_index.dump_to_string())
             execute_cmd(["/usr/bin/modifyrepo_c", "--mdtype=modules", mmd_path, repodata_path])
 
     def _add_repo(self, name, baseurl, extra=""):
