@@ -79,7 +79,7 @@ class Greenwave(object):
 
         log.debug(
             'Query to Greenwave (%s) result: status=%d, content="%s"',
-            (kwargs["url"], response.status_code, resp_json)
+            kwargs["url"], response.status_code, resp_json
         )
 
         if response.status_code == 200:
