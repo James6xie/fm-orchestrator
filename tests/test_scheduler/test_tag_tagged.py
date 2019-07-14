@@ -333,8 +333,8 @@ class TestTagTagged:
         module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 3)
         module_build.batch = 2
 
-        mbm = db_session.query(module_build_service.models.ComponentBuild).filter_by(
-            module_id=3, package="module-build-macros").one()
+        mbm = module_build_service.models.ComponentBuild.from_component_name(
+            db_session, "module-build-macros", 3)
         mbm.tagged = False
 
         for c in module_build.current_batch():

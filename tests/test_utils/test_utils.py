@@ -105,8 +105,9 @@ class TestUtilsComponentReuse:
             mmd = second_module_build.mmd()
             mmd.get_rpm_component("tangerine").set_ref("00ea1da4192a2030f9ae023de3b3143ed647bbab")
             second_module_build.modulemd = mmd_to_str(mmd)
-            second_module_changed_component = db_session.query(models.ComponentBuild).filter_by(
-                package=changed_component, module_id=3).one()
+
+            second_module_changed_component = models.ComponentBuild.from_component_name(
+                db_session, changed_component, second_module_build.id)
             second_module_changed_component.ref = "00ea1da4192a2030f9ae023de3b3143ed647bbab"
             db_session.add(second_module_changed_component)
             db_session.commit()
@@ -173,8 +174,8 @@ class TestUtilsComponentReuse:
             db_session.commit()
 
         if set_database_arch:  # set architecture for build in database
-            second_module_changed_component = db_session.query(models.ComponentBuild).filter_by(
-                package="tangerine", module_id=2).one()
+            second_module_changed_component = models.ComponentBuild.from_component_name(
+                db_session, "tangerine", 2)
             mmd = second_module_changed_component.module_build.mmd()
             component = mmd.get_rpm_component("tangerine")
             component.reset_arches()
@@ -1096,12 +1097,13 @@ class TestBatches:
         """
         module_build = models.ModuleBuild.get_by_id(db_session, 3)
         module_build.batch = 1
-        plc_component = db_session.query(models.ComponentBuild).filter_by(
-            module_id=3, package="perl-List-Compare").one()
+        plc_component = models.ComponentBuild.from_component_name(
+            db_session, "perl-List-Compare", 3)
         plc_component.ref = "5ceea46add2366d8b8c5a623a2fb563b625b9abd"
 
         builder = mock.MagicMock()
         builder.recover_orphaned_artifact.return_value = []
+
         further_work = module_build_service.utils.start_next_batch_build(
             conf, module_build, db_session, builder)
 
@@ -1184,8 +1186,8 @@ class TestBatches:
         module_build.rebuild_strategy = "only-changed"
         module_build.batch = 1
         # perl-List-Compare changed
-        plc_component = db_session.query(models.ComponentBuild).filter_by(
-            module_id=3, package="perl-List-Compare").one()
+        plc_component = models.ComponentBuild.from_component_name(
+            db_session, "perl-List-Compare", 3)
         plc_component.ref = "5ceea46add2366d8b8c5a623a2fb563b625b9abd"
 
         builder = mock.MagicMock()
@@ -1215,8 +1217,8 @@ class TestBatches:
 
         # Complete the build
         plc_component.state = koji.BUILD_STATES["COMPLETE"]
-        pt_component = db_session.query(models.ComponentBuild).filter_by(
-            module_id=3, package="perl-Tangerine").one()
+        pt_component = models.ComponentBuild.from_component_name(
+            db_session, "perl-Tangerine", 3)
         pt_component.state = koji.BUILD_STATES["COMPLETE"]
 
         # Start the next build batch
@@ -1242,11 +1244,11 @@ class TestBatches:
         """
         module_build = models.ModuleBuild.get_by_id(db_session, 3)
         module_build.batch = 1
-        pt_component = db_session.query(models.ComponentBuild).filter_by(
-            module_id=3, package="perl-Tangerine").one()
+        pt_component = models.ComponentBuild.from_component_name(
+            db_session, "perl-Tangerine", 3)
         pt_component.ref = "6ceea46add2366d8b8c5a623b2fb563b625bfabe"
-        plc_component = db_session.query(models.ComponentBuild).filter_by(
-            module_id=3, package="perl-List-Compare").one()
+        plc_component = models.ComponentBuild.from_component_name(
+            db_session, "perl-List-Compare", 3)
         plc_component.ref = "5ceea46add2366d8b8c5a623a2fb563b625b9abd"
 
         # Components are by default built by component id. To find out that weight is respected,
