@@ -119,23 +119,23 @@ Options:
 - ``buildrequire_overrides`` - the buildrequires to override the modulemd with. The overrides must
   be to existing buildrequires on the modulemd. The expected format is
   ``{'platform': ['f28', 'f29']}``.
-- ``require_overrides`` - the requires to override the modulemd with. The overrides must be to
-  existing requires on the modulemd. The expected format is ``{'platform': ['f28', 'f29']}``.
-- ``scratch`` - a boolean indicating if a scratch module build should be performed.
-  Only allowed to be ``True`` if the MBS setting ``MODULES_ALLOW_SCRATCH`` is ``True``.
-- ``yaml`` - a string of the input file when submitting a YAML modulemd file directly in a
-  ``multipart/form-data`` request. Only allowed if ``scratch`` is ``True`` or if the MBS
-  setting ``YAML_SUBMIT_ALLOWED`` is ``True``. The basename of the file will be used as
-  the module name.
 - ``modulemd`` - a string for submitting a YAML modulemd file as a parameter in the JSON data as
   an alternative to sending it in a ``multipart/form-data`` request. Only allowed if
   ``scratch`` is ``True`` or if the MBS setting ``YAML_SUBMIT_ALLOWED`` is ``True``.
 - ``module_name`` - a string to use as the module name if a scratch build is requested and the
   YAML modulemd is submitted using the ``modulemd`` parameter.
-- ``srpms`` - an optional list of Koji upload URLs of SRPMs to include in a module scratch build.
-  Only allowed if ``scratch`` is ``True``.
 - ``rebuild_strategy`` - a string of the desired rebuild strategy (affects what components get
   rebuilt). For the available options, please look at the "Rebuild Strategies" section below.
+- ``require_overrides`` - the requires to override the modulemd with. The overrides must be to
+  existing requires on the modulemd. The expected format is ``{'platform': ['f28', 'f29']}``.
+- ``scratch`` - a boolean indicating if a scratch module build should be performed.
+  Only allowed to be ``True`` if the MBS setting ``MODULES_ALLOW_SCRATCH`` is ``True``.
+- ``srpms`` - an optional list of Koji upload URLs of SRPMs to include in a module scratch build.
+  Only allowed if ``scratch`` is ``True``.
+- ``yaml`` - a string of the input file when submitting a YAML modulemd file directly in a
+  ``multipart/form-data`` request. Only allowed if ``scratch`` is ``True`` or if the MBS
+  setting ``YAML_SUBMIT_ALLOWED`` is ``True``. The basename of the file will be used as
+  the module name.
 
 
 Module build state query
