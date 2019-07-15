@@ -515,8 +515,10 @@ def record_component_builds(
                 or existing_build.ref != component_ref
             ):
                 raise ValidationError(
-                    "Module build %s already exists in database, but its attributes "
-                    " are different from resubmitted one." % component.get_module_name()
+                    "Component build %s of module build %s (id: %d) already "
+                    "exists in database, but its attributes are different from"
+                    " resubmitted one." % (
+                        component.get_name(), module.name, module.id)
                 )
             continue
 

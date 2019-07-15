@@ -811,6 +811,55 @@ class TestUtils:
             assert c.weight == 1.5
 
     @patch("module_build_service.scm.SCM")
+    def test_record_component_builds_component_exists_already(self, mocked_scm, db_session):
+        clean_database()
+        mocked_scm.return_value.commit = "620ec77321b2ea7b0d67d82992dda3e1d67055b4"
+        mocked_scm.return_value.get_latest.side_effect = [
+            "4ceea43add2366d8b8c5a622a2fb563b625b9abf",
+            "fbed359411a1baa08d4a88e0d12d426fbf8f602c",
+            "dbed259411a1baa08d4a88e0d12d426fbf8f6037",
+
+            "4ceea43add2366d8b8c5a622a2fb563b625b9abf",
+            # To simulate that when a module is resubmitted, some ref of
+            # its components is changed, which will cause MBS stops
+            # recording component to database and raise an error.
+            "abcdefg",
+            "dbed259411a1baa08d4a88e0d12d426fbf8f6037",
+        ]
+
+        original_mmd = load_mmd(read_staged_data("testmodule"))
+
+        # Set the module name and stream
+        mmd = original_mmd.copy("testmodule", "master")
+        module_build = module_build_service.models.ModuleBuild()
+        module_build.name = "testmodule"
+        module_build.stream = "master"
+        module_build.version = 20170109091357
+        module_build.state = models.BUILD_STATES["init"]
+        module_build.scmurl = \
+            "https://src.stg.fedoraproject.org/modules/testmodule.git?#ff1ea79"
+        module_build.batch = 1
+        module_build.owner = "Tom Brady"
+        module_build.time_submitted = datetime(2017, 2, 15, 16, 8, 18)
+        module_build.time_modified = datetime(2017, 2, 15, 16, 19, 35)
+        module_build.rebuild_strategy = "changed-and-after"
+        module_build.modulemd = mmd_to_str(mmd)
+        db_session.add(module_build)
+        db_session.commit()
+
+        format_mmd(mmd, module_build.scmurl)
+        module_build_service.utils.record_component_builds(db_session, mmd, module_build)
+
+        mmd = original_mmd.copy("testmodule", "master")
+
+        from module_build_service.errors import ValidationError
+        with pytest.raises(
+                ValidationError,
+                match=r"Component build .+ of module build .+ already exists in database"):
+            format_mmd(mmd, module_build.scmurl)
+            module_build_service.utils.record_component_builds(db_session, mmd, module_build)
+
+    @patch("module_build_service.scm.SCM")
     def test_format_mmd_arches(self, mocked_scm):
         with app.app_context():
             clean_database()
