@@ -87,7 +87,7 @@ class TestPoller:
         poller.poll()
 
         # Refresh our module_build object.
-        db.session.refresh(module_build)
+        module_build = models.ModuleBuild.query.filter_by(id=3).one()
 
         # If fresh is set, we expect the poller to not touch the module build since it's been less
         # than 10 minutes of inactivity
@@ -142,7 +142,7 @@ class TestPoller:
         poller.poll()
 
         # Refresh our module_build object.
-        db.session.refresh(module_build)
+        module_build = models.ModuleBuild.query.get(3)
 
         if expect_start_build_component:
             expected_state = koji.BUILD_STATES["BUILDING"]
@@ -226,7 +226,7 @@ class TestPoller:
         poller.poll()
 
         # Refresh our module_build object.
-        db.session.refresh(module_build)
+        module_build = models.ModuleBuild.query.filter_by(id=3).one()
 
         assert not koji_session.newRepo.called
         assert module_build.new_repo_task_id == 123456
@@ -258,7 +258,7 @@ class TestPoller:
         poller.poll()
 
         # Refresh our module_build object.
-        db.session.refresh(module_build)
+        module_build = models.ModuleBuild.query.filter_by(id=3).one()
 
         # Components should not be in building state
         components = module_build.current_batch()
