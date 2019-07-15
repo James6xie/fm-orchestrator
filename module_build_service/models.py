@@ -276,6 +276,7 @@ class ModuleBuild(MBSBase):
         "VirtualStream", secondary=module_builds_to_virtual_streams, back_populates="module_builds")
     reused_module_id = db.Column(db.Integer, db.ForeignKey("module_builds.id"))
     reused_module = db.relationship("ModuleBuild", remote_side="ModuleBuild.id")
+    log_messages = db.relationship("LogMessage", backref="module_build", lazy="dynamic")
 
     # List of arches against which the module is built.
     # NOTE: It is not filled for imported modules, because imported module builds have not been
@@ -965,6 +966,17 @@ class ModuleBuild(MBSBase):
 
         return rv
 
+    def log_message(self, session, message):
+        log.info(message)
+        log_msg = LogMessage(
+            component_build_id=None,
+            module_build_id=self.id,
+            message=message,
+            time_created=datetime.utcnow(),
+        )
+        session.add(log_msg)
+        session.commit()
+
     def tasks(self, db_session):
         """
         :return: dictionary containing the tasks associated with the build
@@ -1176,6 +1188,7 @@ class ComponentBuild(MBSBase):
     module_id = db.Column(db.Integer, db.ForeignKey("module_builds.id"), nullable=False)
     module_build = db.relationship("ModuleBuild", backref="component_builds", lazy=False)
     reused_component_id = db.Column(db.Integer, db.ForeignKey("component_builds.id"))
+    log_messages = db.relationship("LogMessage", backref="component_build", lazy="dynamic")
 
     # Weight defines the complexity of the component build as calculated by the builder's
     # get_build_weights function
@@ -1261,6 +1274,18 @@ class ComponentBuild(MBSBase):
 
         return json
 
+    def log_message(self, session, message):
+        log.info(message)
+        log_msg = LogMessage(
+            component_build_id=self.id,
+            module_build_id=self.module_id,
+            message=message,
+            time_created=datetime.utcnow(),
+        )
+
+        session.add(log_msg)
+        session.commit()
+
     def __repr__(self):
         return "<ComponentBuild %s, %r, state: %r, task_id: %r, batch: %r, state_reason: %s>" % (
             self.package,
@@ -1308,6 +1333,36 @@ class ComponentBuildTrace(MBSBase):
             self.state,
             self.state_reason,
             self.task_id,
+        )
+
+
+class LogMessage(MBSBase):
+    __tablename__ = "log_messages"
+    id = db.Column(db.Integer, primary_key=True)
+    component_build_id = db.Column(db.Integer, db.ForeignKey("component_builds.id"), nullable=True)
+    module_build_id = db.Column(db.Integer, db.ForeignKey("module_builds.id"), nullable=False)
+    message = db.Column(db.String, nullable=False)
+    time_created = db.Column(db.DateTime, nullable=False)
+
+    def json(self):
+        retval = {
+            "id": self.id,
+            "time_created": _utc_datetime_to_iso(self.time_created),
+            "message": self.message,
+        }
+
+        return retval
+
+    def __repr__(self):
+        return (
+            "<LogMessage %s, component_build_id: %s, module_build_id: %r, message: %s,"
+            " time_created: %s>"
+        ) % (
+            self.id,
+            self.component_build_id,
+            self.module_build_id,
+            self.message,
+            self.time_created,
         )
 
 

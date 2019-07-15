@@ -2741,3 +2741,39 @@ class TestViews:
             'You cannot specify the parameter "reuse_components_from" when the "rebuild_strategy" '
             'parameter is set to "all"'
         )
+
+
+class TestLogMessageViews:
+
+    def setup_method(self, test_method):
+        self.client = app.test_client()
+        init_data(2)
+        self.module_id = 2
+        self.component_id = 1
+        self.module_build = db.session.query(ModuleBuild).filter_by(id=self.module_id).first()
+        self.module_build.log_message(db.session, "Build-1 msg")
+        self.module_build.log_message(db.session, "Build-2 msg")
+        self.component_build = self.module_build.component_builds[0]
+        self.component_build.log_message(db.session, "Component-1 msg")
+
+    def test_view_log_messages_for_module_builds(self):
+        url = "/module-build-service/1/module-builds/{module_id}/messages".format(
+            module_id=self.module_id)
+        res = self.client.get(url)
+
+        json_res = str(res.data)
+
+        assert "Build-1" in json_res
+        assert "Build-2" in json_res
+        assert "Component-1" in json_res
+
+    def test_view_log_messages_for_component_builds(self):
+        url = "/module-build-service/1/component-builds/{component_id}/messages".format(
+            component_id=self.component_id)
+        res = self.client.get(url)
+
+        json_res = str(res.data)
+
+        assert "Build-1" not in json_res
+        assert "Build-2" not in json_res
+        assert "Component-1" in json_res

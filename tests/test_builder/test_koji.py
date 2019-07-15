@@ -867,7 +867,8 @@ class TestKojiBuilder:
             ],
         )
         current_module = module_build_service.models.ModuleBuild.get_by_id(db_session, 3)
-        rv = KojiModuleBuilder._get_filtered_rpms_on_self_dep(current_module, br_filtered_rpms)
+        with patch.object(module_build_service.models.ModuleBuild, 'log_message'):
+            rv = KojiModuleBuilder._get_filtered_rpms_on_self_dep(current_module, br_filtered_rpms)
         assert set(rv) == set(expected)
         session.assert_not_called()
 

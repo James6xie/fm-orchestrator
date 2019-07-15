@@ -85,6 +85,14 @@ api_routes = {
         "url": "/module-build-service/<int:api_version>/import-module/",
         "options": {"methods": ["POST"]},
     },
+    "log_messages_module_build": {
+        "url": "/module-build-service/<int:api_version>/module-builds/<int:id>/messages",
+        "options": {"methods": ["GET"], "defaults": {"model": models.ModuleBuild}},
+    },
+    "log_messages_component_build": {
+        "url": "/module-build-service/<int:api_version>/component-builds/<int:id>/messages",
+        "options": {"methods": ["GET"], "defaults": {"model": models.ComponentBuild}},
+    },
 }
 
 
@@ -307,6 +315,30 @@ class ImportModuleAPI(MethodView):
         return jsonify(json_data), 201
 
 
+class LogMessageAPI(MethodView):
+
+    @validate_api_version()
+    def get(self, api_version, id, model):
+
+        if not model:
+            raise ValidationError("Model is not set for this log messages endpoint")
+
+        query = model.query.filter_by(id=id).first().log_messages.order_by(
+            models.LogMessage.time_created.desc())
+
+        page = request.args.get("page", 1, type=int)
+        per_page = request.args.get("per_page", 10, type=int)
+        p_query = query.paginate(page, per_page, False)
+
+        request_args = {"id": id}
+        json_data = {"meta": pagination_metadata(p_query, api_version, request_args)}
+        json_data["messages"] = [
+            getattr(message, "json")() for message in p_query.items
+        ]
+
+        return jsonify(json_data), 200
+
+
 class BaseHandler(object):
     valid_params = set([
         "branch",
@@ -501,6 +533,7 @@ def register_api():
     about_view = AboutAPI.as_view("about")
     rebuild_strategies_view = RebuildStrategies.as_view("rebuild_strategies")
     import_module = ImportModuleAPI.as_view("import_module")
+    log_message = LogMessageAPI.as_view("log_messages")
     for key, val in api_routes.items():
         if key.startswith("component_build"):
             app.add_url_rule(val["url"], endpoint=key, view_func=component_view, **val["options"])
@@ -514,6 +547,8 @@ def register_api():
             )
         elif key == "import_module":
             app.add_url_rule(val["url"], endpoint=key, view_func=import_module, **val["options"])
+        elif key.startswith("log_message"):
+            app.add_url_rule(val["url"], endpoint=key, view_func=log_message, **val["options"])
         else:
             raise NotImplementedError("Unhandled api key.")
 
