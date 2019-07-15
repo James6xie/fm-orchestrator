@@ -128,6 +128,8 @@ Options:
   rebuilt). For the available options, please look at the "Rebuild Strategies" section below.
 - ``require_overrides`` - the requires to override the modulemd with. The overrides must be to
   existing requires on the modulemd. The expected format is ``{'platform': ['f28', 'f29']}``.
+- ``reuse_components_from`` - the ID or NSVC of the module build to reuse components from. If it's
+  not set, MBS will try to find a compatible module build to reuse components from.
 - ``scratch`` - a boolean indicating if a scratch module build should be performed.
   Only allowed to be ``True`` if the MBS setting ``MODULES_ALLOW_SCRATCH`` is ``True``.
 - ``srpms`` - an optional list of Koji upload URLs of SRPMs to include in a module scratch build.
@@ -357,6 +359,7 @@ parameters::
           "modulemd": "...."
           "name": "testmodule",
           "owner": "mprahl",
+          "reused_module_id": 121,
           "scmurl": "https://src.fedoraproject.org/modules/testmodule.git?#86d9cfe53d20118d863ae051641fc3784d91d981",
           "state": 5,
           "state_name": "ready",
@@ -479,6 +482,7 @@ parameters include:
 - ``new_repo_task_id``
 - ``owner``
 - ``rebuild_strategy``
+- ``reuse_components_from`` - the compatible module that was used for component reuse
 - ``scmurl``
 - ``state`` - Can be the state name or the state ID e.g. ``state=done``. This
   parameter can be given multiple times, in which case or-ing will be used.

@@ -1014,6 +1014,7 @@ def submit_module_build(username, mmd, params):
                 scmurl=params.get("scmurl"),
                 username=username,
                 rebuild_strategy=params.get("rebuild_strategy"),
+                reused_module_id=params.get("reuse_components_from"),
                 scratch=params.get("scratch"),
                 srpms=params.get("srpms"),
             )

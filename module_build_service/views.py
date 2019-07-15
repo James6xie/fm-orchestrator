@@ -305,6 +305,7 @@ class BaseHandler(object):
         "module_name",
         "owner",
         "rebuild_strategy",
+        "reuse_components_from",
         "require_overrides",
         "scmurl",
         "scratch",
@@ -381,6 +382,40 @@ class BaseHandler(object):
 
         self._validate_dep_overrides_format("buildrequire_overrides")
         self._validate_dep_overrides_format("require_overrides")
+
+        if "reuse_components_from" in self.data:
+            if "rebuild_strategy" in self.data and self.data["rebuild_strategy"] == "all":
+                raise ValidationError(
+                    'You cannot specify the parameter "reuse_components_from" when the '
+                    '"rebuild_strategy" parameter is set to "all"'
+                )
+
+            invalid_identifier_msg = (
+                'The parameter "reuse_components_from" contains an invalid module identifier')
+
+            if isinstance(self.data["reuse_components_from"], int):
+                reuse_module = models.ModuleBuild.get_by_id(
+                    db.session, self.data["reuse_components_from"])
+            elif isinstance(self.data["reuse_components_from"], string_types):
+                try:
+                    n, s, v, c = self.data["reuse_components_from"].split(":")
+                except ValueError:
+                    raise ValidationError(invalid_identifier_msg)
+                reuse_module = models.ModuleBuild.get_build_from_nsvc(db.session, n, s, v, c)
+            else:
+                raise ValidationError(invalid_identifier_msg)
+
+            if not reuse_module:
+                raise ValidationError(
+                    'The module in the parameter "reuse_components_from" could not be found')
+
+            if reuse_module.state != models.BUILD_STATES["ready"]:
+                raise ValidationError(
+                    'The module in the parameter "reuse_components_from" must be in the ready state'
+                )
+
+            # Normalize the value so that it simplifies any code that uses this value
+            self.data["reuse_components_from"] = reuse_module.id
 
 
 class SCMHandler(BaseHandler):

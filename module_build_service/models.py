@@ -877,6 +877,7 @@ class ModuleBuild(MBSBase):
             "build_context": self.build_context,
             "modulemd": self.modulemd,
             "ref_build_context": self.ref_build_context,
+            "reused_module_id": self.reused_module_id,
             "runtime_context": self.runtime_context,
             "state_trace": [
                 {

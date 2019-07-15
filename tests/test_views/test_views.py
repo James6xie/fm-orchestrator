@@ -31,6 +31,7 @@ from os import path, mkdir
 from os.path import basename, dirname, splitext
 from requests.utils import quote
 import hashlib
+import koji
 import pytest
 import re
 import sqlalchemy
@@ -39,7 +40,7 @@ from tests import app, init_data, clean_database, reuse_component_init_data, sta
 from tests import read_staged_data
 from tests.test_scm import base_dir as scm_base_dir
 from module_build_service.errors import UnprocessableEntity
-from module_build_service.models import ModuleBuild
+from module_build_service.models import ModuleBuild, BUILD_STATES
 from module_build_service import db, version
 import module_build_service.config as mbs_config
 import module_build_service.scheduler.handlers.modules
@@ -207,6 +208,7 @@ class TestViews:
         assert data["name"] == "nginx"
         assert data["owner"] == "Moe Szyslak"
         assert data["rebuild_strategy"] == "changed-and-after"
+        assert data["reused_module_id"] is None
         assert data["scmurl"] == \
             "git://pkgs.domain.local/modules/nginx?#ba95886c7a443b36a9ce31abda1f9bef22f2f8c9"
         assert data["scratch"] is False
@@ -2592,3 +2594,112 @@ class TestViews:
             mock_get.assert_called_once_with(expected_url, timeout=15)
         else:
             mock_get.assert_not_called()
+
+    @pytest.mark.parametrize("reuse_components_from", (7, "testmodule:4.3.43:7:00000000"))
+    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.scm.SCM")
+    def test_submit_build_reuse_components_from(
+        self, mocked_scm, mocked_get_user, reuse_components_from,
+    ):
+        """Test a build submission using the reuse_components_from parameter."""
+        module_to_reuse = db.session.query(ModuleBuild).get(7)
+        module_to_reuse.state = BUILD_STATES["ready"]
+        for c in module_to_reuse.component_builds:
+            c.state = koji.BUILD_STATES["COMPLETE"]
+        db.session.commit()
+
+        FakeSCM(
+            mocked_scm, "testmodule", "testmodule.yaml", "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
+        rv = self.client.post(
+            "/module-build-service/1/module-builds/",
+            data=json.dumps({
+                "branch": "master",
+                "reuse_components_from": reuse_components_from,
+                "scmurl": (
+                    "https://src.stg.fedoraproject.org/modules/testmodule.git?"
+                    "#68931c90de214d9d13feefbd35246a81b6cb8d49"
+                ),
+            }),
+        )
+        data = json.loads(rv.data)
+        assert data["reused_module_id"] == 7
+
+    @pytest.mark.parametrize(
+        "reuse_components_from, expected_error",
+        (
+            (
+                "testmodule:4.3.43:7",
+                'The parameter "reuse_components_from" contains an invalid module identifier',
+            ),
+            (
+                {},
+                'The parameter "reuse_components_from" contains an invalid module identifier',
+            ),
+            (
+                912312312,
+                'The module in the parameter "reuse_components_from" could not be found',
+            ),
+            (
+                7,
+                'The module in the parameter "reuse_components_from" must be in the ready state',
+            )
+        )
+    )
+    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.scm.SCM")
+    def test_submit_build_reuse_components_from_errors(
+        self, mocked_scm, mocked_get_user, reuse_components_from, expected_error,
+    ):
+        """
+        Test a build submission using an invalid value for the reuse_components_from parameter.
+        """
+        FakeSCM(
+            mocked_scm, "testmodule", "testmodule.yaml", "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
+        rv = self.client.post(
+            "/module-build-service/1/module-builds/",
+            data=json.dumps({
+                "branch": "master",
+                "reuse_components_from": reuse_components_from,
+                "scmurl": (
+                    "https://src.stg.fedoraproject.org/modules/testmodule.git?"
+                    "#68931c90de214d9d13feefbd35246a81b6cb8d49"
+                ),
+            }),
+        )
+        data = json.loads(rv.data)
+        assert rv.status_code == 400
+        assert data["message"] == expected_error
+
+    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.scm.SCM")
+    @patch(
+        "module_build_service.config.Config.rebuild_strategy_allow_override",
+        new_callable=PropertyMock,
+        return_value=True,
+    )
+    def test_submit_build_reuse_components_rebuild_strategy_all(
+        self, mock_rsao, mocked_scm, mocked_get_user,
+    ):
+        """
+        Test a build submission using reuse_components_from and the rebuild_strategy of all.
+        """
+        FakeSCM(
+            mocked_scm, "testmodule", "testmodule.yaml", "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
+        rv = self.client.post(
+            "/module-build-service/1/module-builds/",
+            data=json.dumps({
+                "branch": "master",
+                "rebuild_strategy": "all",
+                "reuse_components_from": 7,
+                "scmurl": (
+                    "https://src.stg.fedoraproject.org/modules/testmodule.git?"
+                    "#68931c90de214d9d13feefbd35246a81b6cb8d49"
+                ),
+            }),
+        )
+        data = json.loads(rv.data)
+        assert rv.status_code == 400
+        assert data["message"] == (
+            'You cannot specify the parameter "reuse_components_from" when the "rebuild_strategy" '
+            'parameter is set to "all"'
+        )

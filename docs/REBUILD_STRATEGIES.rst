@@ -75,6 +75,9 @@ module with the following requirements:
 Additionally, if the rebuild strategy for the module being built is ``changed-and-after``, then the
 module to reuse components from will have a rebuild strategy of ``changed-and-after`` or ``all``.
 
+If the user wants to specify the compatible module, they can use the ``reuse_components_from``
+parameter.
+
 
 How the Rebuild Strategies Work
 ===============================
