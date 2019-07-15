@@ -72,7 +72,7 @@ class TestPoller:
 
         # Change the batch to 2, so the module build is in state where
         # it is not building anything, but the state is "build".
-        module_build = models.ModuleBuild.query.filter_by(id=3).one()
+        module_build = models.ModuleBuild.query.get(3)
         module_build.batch = 2
         # If fresh is set, then we simulate that activity just occurred 2 minutes ago on the build
         if fresh:
@@ -87,7 +87,7 @@ class TestPoller:
         poller.poll()
 
         # Refresh our module_build object.
-        module_build = models.ModuleBuild.query.filter_by(id=3).one()
+        module_build = models.ModuleBuild.query.get(3)
 
         # If fresh is set, we expect the poller to not touch the module build since it's been less
         # than 10 minutes of inactivity
@@ -180,7 +180,7 @@ class TestPoller:
 
         # Change the batch to 2, so the module build is in state where
         # it is not building anything, but the state is "build".
-        module_build = models.ModuleBuild.query.filter_by(id=3).one()
+        module_build = models.ModuleBuild.query.get(3)
         module_build.batch = 2
         module_build.new_repo_task_id = 123456
         db.session.commit()
@@ -216,7 +216,7 @@ class TestPoller:
 
         # Change the batch to 2, so the module build is in state where
         # it is not building anything, but the state is "build".
-        module_build = models.ModuleBuild.query.filter_by(id=3).one()
+        module_build = models.ModuleBuild.query.get(3)
         module_build.batch = 2
         module_build.new_repo_task_id = 123456
         db.session.commit()
@@ -226,7 +226,7 @@ class TestPoller:
         poller.poll()
 
         # Refresh our module_build object.
-        module_build = models.ModuleBuild.query.filter_by(id=3).one()
+        module_build = models.ModuleBuild.query.get(3)
 
         assert not koji_session.newRepo.called
         assert module_build.new_repo_task_id == 123456
@@ -247,7 +247,7 @@ class TestPoller:
 
         # Change the batch to 2, so the module build is in state where
         # it is not building anything, but the state is "build".
-        module_build = models.ModuleBuild.query.filter_by(id=3).one()
+        module_build = models.ModuleBuild.query.get(3)
         module_build.batch = 2
         module_build.new_repo_task_id = 123456
         db.session.commit()
@@ -258,7 +258,7 @@ class TestPoller:
         poller.poll()
 
         # Refresh our module_build object.
-        module_build = models.ModuleBuild.query.filter_by(id=3).one()
+        module_build = models.ModuleBuild.query.get(3)
 
         # Components should not be in building state
         components = module_build.current_batch()
@@ -292,7 +292,7 @@ class TestPoller:
     def test_dont_delete_base_module_build_target(
         self, ClientSession, create_builder, global_consumer, dbg
     ):
-        module_build = models.ModuleBuild.query.filter_by(id=3).one()
+        module_build = models.ModuleBuild.query.get(3)
 
         koji_session = ClientSession.return_value
         # No created module build has any of these tags.
@@ -317,7 +317,7 @@ class TestPoller:
     def test_dont_delete_build_target_for_unfinished_module_builds(
         self, ClientSession, create_builder, global_consumer, dbg
     ):
-        module_build = models.ModuleBuild.query.filter_by(id=3).one()
+        module_build = models.ModuleBuild.query.get(3)
 
         koji_session = ClientSession.return_value
         # No created module build has any of these tags.
@@ -424,7 +424,7 @@ class TestPoller:
 
         # Change the batch to 2, so the module build is in state where
         # it is not building anything, but the state is "build".
-        module_build = models.ModuleBuild.query.filter_by(id=3).one()
+        module_build = models.ModuleBuild.query.get(3)
         module_build.state = models.BUILD_STATES[state]
         original = datetime.utcnow() - timedelta(minutes=11)
         module_build.time_modified = original
@@ -438,7 +438,7 @@ class TestPoller:
         poller.process_waiting_module_builds(db.session)
 
         assert consumer.incoming.qsize() == 1
-        module_build = models.ModuleBuild.query.filter_by(id=3).one()
+        module_build = models.ModuleBuild.query.get(3)
         # ensure the time_modified was changed.
         assert module_build.time_modified > original
 
@@ -457,7 +457,7 @@ class TestPoller:
 
         # Change the batch to 2, so the module build is in state where
         # it is not building anything, but the state is "build".
-        module_build = models.ModuleBuild.query.filter_by(id=3).one()
+        module_build = models.ModuleBuild.query.get(3)
         module_build.state = models.BUILD_STATES[state]
         original = datetime.utcnow() - timedelta(minutes=9)
         module_build.time_modified = original
