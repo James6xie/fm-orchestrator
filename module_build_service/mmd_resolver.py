@@ -235,12 +235,12 @@ class MMDResolver(object):
         # and so on. We therefore need to convert the stream and version of base module to
         # integer representation and add "module($name:$stream) = $stream_based_version"
         # to Provides.
-        version = ModuleBuild.get_stream_version(mmd.get_stream_name(), right_pad=False)
-        if version:
+        stream_version = ModuleBuild.get_stream_version(mmd.get_stream_name(), right_pad=False)
+        if stream_version:
             dep = self.pool.Dep(
                 "module(%s:%s)" % (mmd.get_module_name(), mmd.get_stream_name())
             ).Rel(
-                solv.REL_EQ, self.pool.Dep(str(version))
+                solv.REL_EQ, self.pool.Dep(str(stream_version))
             )
             solvable.add_deparray(solv.SOLVABLE_PROVIDES, dep)
 
@@ -249,6 +249,7 @@ class MMDResolver(object):
         if not xmd.get("mbs", {}).get("virtual_streams"):
             return
 
+        version = stream_version or mmd.get_version()
         # For each virtual stream, add
         # "module($name:$stream) = $virtual_stream_based_version" provide.
         for stream in xmd["mbs"]["virtual_streams"]:
