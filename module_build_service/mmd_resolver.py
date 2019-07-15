@@ -306,8 +306,6 @@ class MMDResolver(object):
             for dep in mmd.get_dependencies()
         ]
 
-        base_module_stream_overrides = self._get_base_module_stream_overrides(mmd)
-
         # Each solvable object has name, version, architecture and list of
         # provides/requires/conflicts which defines its relations with other solvables.
         # You can imagine solvable as a single RPM.
@@ -340,6 +338,7 @@ class MMDResolver(object):
 
             self._add_base_module_provides(solvable, mmd)
 
+            base_module_stream_overrides = self._get_base_module_stream_overrides(mmd)
             # Fill in the "Requires" of this module, so we can track its dependencies
             # on other modules.
             requires = self._deps2reqs(
@@ -403,7 +402,7 @@ class MMDResolver(object):
                 solvable.evr = str(v)
                 solvable.arch = "src"
 
-                requires = self._deps2reqs([normalized_deps[c]], base_module_stream_overrides)
+                requires = self._deps2reqs([normalized_deps[c]])
                 log.debug("Adding module %s with requires: %r", solvable.name, requires)
                 solvable.add_deparray(solv.SOLVABLE_REQUIRES, requires)
 
