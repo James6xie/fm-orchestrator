@@ -43,11 +43,15 @@ db_bg_container=
 if [ -n "$enable_py3" ]; then
     test_image="${image_ns}/mbs-test-fedora"
     test_container_name="${test_container_name}-py3"
+    db_container_name="${db_container_name}-py3"
 else
     test_image="${image_ns}/mbs-test-centos"
 fi
 
-test_container_name="${test_container_name}-$(date +"%H%M%S")"
+now=$(date +"%H%M%S")
+db_container_name="${db_container_name}-$now"
+test_container_name="${test_container_name}-$now"
+
 container_opts=(--rm -v "${volume_mount}" --name "$test_container_name")
 
 if [ -z "$no_tty" ]; then
@@ -61,7 +65,7 @@ if [ -n "$with_pgsql" ]; then
     # Setting this password makes it possible to get into database container
     # and check the data.
     db_bg_container=$(
-        docker run --rm --name $db_container_name \
+        docker run --rm --name "$db_container_name" \
             -e POSTGRES_PASSWORD=$db_password \
             -e POSTGRES_DB=$db_name \
             -d \
