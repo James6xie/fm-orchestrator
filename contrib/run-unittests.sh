@@ -31,6 +31,7 @@ done
 
 image_ns=quay.io/factory2
 postgres_image="postgres:9.5.17"
+test_container_name="mbs-test"
 db_container_name="mbs-test-db"
 source_dir="$(realpath "$(dirname "$0")/..")"
 volume_mount="${source_dir}:/src:Z"
@@ -41,11 +42,13 @@ db_bg_container=
 
 if [ -n "$enable_py3" ]; then
     test_image="${image_ns}/mbs-test-fedora"
+    test_container_name="${test_container_name}-py3"
 else
     test_image="${image_ns}/mbs-test-centos"
 fi
 
-container_opts=(--rm -v "${volume_mount}" --name mbs-test)
+test_container_name="${test_container_name}-$(date +"%H%M%S")"
+container_opts=(--rm -v "${volume_mount}" --name "$test_container_name")
 
 if [ -z "$no_tty" ]; then
     container_opts+=(-i -t)
@@ -68,8 +71,7 @@ if [ -n "$with_pgsql" ]; then
     # Waiting for postgres container to start completely in case tests start too fast.
     while true
     do
-        docker exec $db_bg_container psql -U postgres -c '\dp' $db_name >/dev/null 2>&1
-        if [ $? == 0 ]; then
+        if docker exec "$db_bg_container" psql -U postgres -c '\dp' $db_name >/dev/null 2>&1; then
             break
         fi
     done
