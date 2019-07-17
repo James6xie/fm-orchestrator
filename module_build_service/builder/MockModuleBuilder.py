@@ -32,7 +32,7 @@ import re
 import subprocess
 import threading
 
-from module_build_service import conf, log, Modulemd
+from module_build_service import conf, log
 import module_build_service.scm
 import module_build_service.utils
 import module_build_service.scheduler
@@ -45,6 +45,7 @@ from module_build_service.builder.utils import (
     find_srpm,
     get_koji_config,
 )
+from module_build_service.utils.general import mmd_to_str
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
 
 from module_build_service import models
@@ -231,10 +232,8 @@ class MockModuleBuilder(GenericBuilder):
         # ...and inject modules.yaml there if asked.
         if include_module_yaml:
             mmd_path = os.path.join(path, "modules.yaml")
-            mmd_index = Modulemd.ModuleIndex.new()
-            mmd_index.add_module_stream(m1_mmd)
             with open(mmd_path, "w") as f:
-                f.write(mmd_index.dump_to_string())
+                f.write(mmd_to_str(m1_mmd))
             execute_cmd(["/usr/bin/modifyrepo_c", "--mdtype=modules", mmd_path, repodata_path])
 
     def _add_repo(self, name, baseurl, extra=""):
