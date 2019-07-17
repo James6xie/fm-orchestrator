@@ -134,6 +134,7 @@ class FakeModuleBuilder(GenericBuilder):
         FakeModuleBuilder.on_buildroot_add_artifacts_cb = None
         FakeModuleBuilder.on_tag_artifacts_cb = None
         FakeModuleBuilder.on_buildroot_add_repos_cb = None
+        FakeModuleBuilder.on_get_task_info_cb = None
         FakeModuleBuilder.DEFAULT_GROUPS = None
         FakeModuleBuilder.backend = "test"
 
@@ -412,6 +413,11 @@ class TestBuild(BaseTestBuild):
         self.client = app.test_client()
         clean_database()
 
+        def on_get_task_info_cb(cls, task_id):
+            return {"state": koji.TASK_STATES["CLOSED"]}
+
+        FakeModuleBuilder.on_get_task_info_cb = on_get_task_info_cb
+
     def teardown_method(self, test_method):
         FakeModuleBuilder.reset()
         cleanup_moksha()
@@ -462,10 +468,6 @@ class TestBuild(BaseTestBuild):
         def on_tag_artifacts_cb(cls, artifacts, dest_tag=True):
             assert tag_groups.pop(0) == set(artifacts)
 
-        def on_get_task_info_cb(cls, task_id):
-            return {"state": koji.TASK_STATES["CLOSED"]}
-
-        FakeModuleBuilder.on_get_task_info_cb = on_get_task_info_cb
         FakeModuleBuilder.on_finalize_cb = on_finalize_cb
         FakeModuleBuilder.on_tag_artifacts_cb = on_tag_artifacts_cb
 
