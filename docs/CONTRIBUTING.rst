@@ -1,6 +1,9 @@
 Running Tests
 =============
 
+Inside Container
+----------------
+
 Since MBS requires Python dependencies that aren't available using PyPi (e.g.
 libsolv bindings), there are container images (based on CentOS and Fedora) that
 can be used to run the code analysis and unit tests.
@@ -37,6 +40,18 @@ the path of each test must start with ``/src/``. For example::
         /src/tests/test_utils/ \
         /src/tests/test_mmd_resolver.py \
         /src/tests/test_builder/test_koji.py::TestKojiBuilder::test_tag_to_repo
+
+Inside Vagrant machine
+----------------------
+
+You can run tests with either SQLite or PostgreSQL as well. The former is default.
+
+To start to run tests with SQLite, you could simply run ``py.test`` or ``tox``.
+
+To start to run tests with PostgreSQL, set environment variable
+``DATABASE_URI`` before running ``py.test`` or ``tox``::
+
+    export DATABASE_URI=postgresql+psycopg2://postgres:@127.0.0.1/mbstest
 
 Style Guide
 ===========

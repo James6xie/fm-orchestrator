@@ -80,6 +80,46 @@ $make_devenv = <<DEVENV
   fi
 DEVENV
 
+$config_pgsql = <<PGSQL
+dnf install -y postgresql postgresql-server python2-psycopg2
+
+pg_hba_conf=/var/lib/pgsql/data/pg_hba.conf
+
+if [[ ! -e "$pg_hba_conf" ]]; then
+  postgresql-setup --initdb
+fi
+
+systemctl start postgresql
+systemctl enable postgresql
+
+cp "$pg_hba_conf" "${pg_hba_conf}.orig"
+
+# Allow to connect to PostgreSQL without password
+if ! grep "host all all 127.0.0.1/32 trust" "$pg_hba_conf" >/dev/null; then
+  echo "host all all 127.0.0.1/32 trust" > "$pg_hba_conf"
+fi
+
+# Avoid SQL query statement being truncated in pg_stat_activity, which is
+# convenient for debugging.
+pg_conf=/var/lib/pgsql/data/postgresql.conf
+if ! grep "track_activity_query_size = 4096" "$pg_conf" >/dev/null; then
+  echo "track_activity_query_size = 4096" >> "$pg_conf"
+fi
+
+# Restart to apply configuration changes
+systemctl restart postgresql
+
+psql -U postgres -h 127.0.0.1 -c "DROP DATABASE IF EXISTS mbstest"
+psql -U postgres -h 127.0.0.1 -c "CREATE DATABASE mbstest"
+
+bashrc=/home/vagrant/.bashrc
+
+echo "******** Run Tests with PostgreSQL ********"
+echo "Set this environment variable to test with PostgreSQL"
+echo "export DATABASE_URI=postgresql+psycopg2://postgres:@127.0.0.1/mbstest"
+echo
+PGSQL
+
 $script_services = <<SCRIPT_SERVICES
     bin_dir=~/devenv/bin
     cd /opt/module_build_service
@@ -98,6 +138,7 @@ Vagrant.configure("2") do |config|
   config.vm.network "forwarded_port", guest_ip: "0.0.0.0", guest: 13747, host: 13747
   config.vm.provision "shell", inline: $script
   config.vm.provision "shell", inline: "usermod -a -G mock vagrant"
+  config.vm.provision "shell", inline: $config_pgsql
   config.vm.provision "shell", inline: $make_devenv, privileged: false
   config.vm.provision "shell", inline: $script_services, privileged: false, run: "always"
   config.vm.provider "libvirt" do |v, override|
