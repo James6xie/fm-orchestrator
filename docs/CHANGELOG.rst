@@ -1,6 +1,16 @@
 Change Log
 ==========
 
+v2.25.0
+-------
+* Add support for "default modules" (Ursa-Prime)
+* Allow modules built against an EoL platform to be used as a build dependency
+* Allow the poller to clean up module builds without arches
+* Default the cache directory to "/tmp/mbs" instead of under the home directory
+* Do not start a Koji newRepo task if one is in progress
+* Support base modules with virtual streams and no stream version
+* Allow specifying a specific module build to reuse components from
+
 v2.24.0
 -------
 * Allow configuring the number of parallel submissions to Koji
