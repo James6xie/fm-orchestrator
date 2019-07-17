@@ -10,17 +10,16 @@ v2.25.0
 * Do not start a Koji newRepo task if one is in progress
 * Support base modules with virtual streams and no stream version
 * Allow specifying a specific module build to reuse components from
+* Fix a bug that prevented local module builds from completing after the libmodulemd v2 migration
+
 
 v2.24.0
 -------
 * Allow configuring the number of parallel submissions to Koji
 * Add state_reason on a Greenwave failure
 * Module builds now remember what module they reused for building
-* Add additional documentation about rebuild strategies
-* Move the Rebuild Strategies documentation to a separate file
 * Fix type error preventing inclusion of custom SRPMs when running on F31/Rawhide
 * Fix decoding issue with ``kobo.rpmlib.get_header_field()``
-* Minor fixes to ``_get_filtered_rpms_on_self_dep``
 
 
 v2.23.0
