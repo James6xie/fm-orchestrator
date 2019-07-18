@@ -1199,10 +1199,9 @@ class ComponentBuild(MBSBase):
     def from_component_nvr(cls, db_session, nvr, module_id):
         return db_session.query(cls).filter_by(nvr=nvr, module_id=module_id).first()
 
-    def state_trace(self, db_session, component_id):
-        # FIXME: remove argument component_id, just use self.id
+    def state_trace(self, db_session):
         return (
-            db_session.query(ComponentBuildTrace).filter_by(component_id=component_id)
+            db_session.query(ComponentBuildTrace).filter_by(component_id=self.id)
             .order_by(ComponentBuildTrace.state_time)
             .all()
         )
@@ -1251,7 +1250,7 @@ class ComponentBuild(MBSBase):
                     "state_name": INVERSE_BUILD_STATES[record.state],
                     "reason": record.state_reason,
                 }
-                for record in self.state_trace(db_session, self.id)
+                for record in self.state_trace(db_session)
             ],
             "state_url": state_url,
         })
