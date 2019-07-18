@@ -207,7 +207,7 @@ def _get_mmds_from_requires(
     return mmds
 
 
-def _get_base_module_mmds(db_session, mmd):
+def get_base_module_mmds(db_session, mmd):
     """
     Returns list of MMDs of base modules buildrequired by `mmd` including the compatible
     old versions of the base module based on the stream version.
@@ -329,7 +329,7 @@ def get_mmds_required_by_module_recursively(
     mmds = {}
 
     # Get the MMDs of all compatible base modules based on the buildrequires.
-    base_module_mmds = _get_base_module_mmds(db_session, mmd)
+    base_module_mmds = get_base_module_mmds(db_session, mmd)
     if not base_module_mmds["ready"]:
         base_module_choices = " or ".join(conf.base_module_names)
         raise UnprocessableEntity(
@@ -526,7 +526,7 @@ def generate_expanded_mmds(db_session, mmd, raise_if_stream_ambigous=False, defa
         mmd_copy.set_xmd(xmd)
 
         # Now we have all the info to actually compute context of this module.
-        _, _, _, context = models.ModuleBuild.contexts_from_mmd(mmd_to_str(mmd_copy))
+        context = models.ModuleBuild.contexts_from_mmd(mmd_to_str(mmd_copy)).context
         mmd_copy.set_context(context)
 
         mmds.append(mmd_copy)

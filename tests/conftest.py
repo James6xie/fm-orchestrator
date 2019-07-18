@@ -129,6 +129,9 @@ def reuse_component_init_data(db_session):
     xmd["mbs"]["commit"] = "ff1ea79fc952143efeed1851aa0aa006559239ba"
     mmd.set_xmd(xmd)
     build_one.modulemd = mmd_to_str(mmd)
+    build_one.build_context = module_build_service.models.ModuleBuild.contexts_from_mmd(
+        build_one.modulemd
+    ).build_context
 
     db_session.add(build_one)
     db_session.commit()
@@ -226,6 +229,9 @@ def reuse_component_init_data(db_session):
     xmd["mbs"]["commit"] = "55f4a0a2e6cc255c88712a905157ab39315b8fd8"
     mmd.set_xmd(xmd)
     build_two.modulemd = mmd_to_str(mmd)
+    build_two.build_context = module_build_service.models.ModuleBuild.contexts_from_mmd(
+        build_two.modulemd
+    ).build_context
 
     db_session.add(build_two)
     db_session.commit()
@@ -305,6 +311,15 @@ def reuse_shared_userspace_init_data(db_session):
         rebuild_strategy="changed-and-after",
     )
 
+    xmd = mmd.get_xmd()
+    xmd["mbs"]["scmurl"] = module_build.scmurl
+    xmd["mbs"]["commit"] = "55f4a0a2e6cc255c88712a905157ab39315b8fd8"
+    mmd.set_xmd(xmd)
+    module_build.modulemd = mmd_to_str(mmd)
+    module_build.build_context = module_build_service.models.ModuleBuild.contexts_from_mmd(
+        module_build.modulemd
+    ).build_context
+
     components = [
         mmd.get_rpm_component(rpm)
         for rpm in mmd.get_rpm_component_names()
@@ -357,6 +372,15 @@ def reuse_shared_userspace_init_data(db_session):
         time_completed=datetime(2017, 2, 15, 16, 19, 35),
         rebuild_strategy="changed-and-after",
     )
+
+    xmd = mmd2.get_xmd()
+    xmd["mbs"]["scmurl"] = module_build.scmurl
+    xmd["mbs"]["commit"] = "55f4a0a2e6cc255c88712a905157ab39315b8fd8"
+    mmd2.set_xmd(xmd)
+    module_build.modulemd = mmd_to_str(mmd2)
+    module_build.build_context = module_build_service.models.ModuleBuild.contexts_from_mmd(
+        module_build.modulemd
+    ).build_context
 
     components2 = [
         mmd2.get_rpm_component(rpm)

@@ -503,7 +503,7 @@ class TestUtilsModuleStreamExpansion:
         mmd.remove_dependencies(deps)
         mmd.add_dependencies(new_deps)
 
-        mmds = module_build_service.utils.mse._get_base_module_mmds(db_session, mmd)
+        mmds = module_build_service.utils.mse.get_base_module_mmds(db_session, mmd)
         expected = set(["platform:f29.0.0", "platform:f29.1.0", "platform:f29.2.0"])
         # Verify no duplicates were returned before doing set operations
         assert len(mmds["ready"]) == len(expected)
@@ -530,7 +530,7 @@ class TestUtilsModuleStreamExpansion:
             "platform:lp29.1.1:12:c11",
             db_session=db_session, virtual_streams=virtual_streams)
 
-        mmds = module_build_service.utils.mse._get_base_module_mmds(db_session, mmd)
+        mmds = module_build_service.utils.mse.get_base_module_mmds(db_session, mmd)
         if virtual_streams == ["f29"]:
             expected = set(
                 ["platform:f29.0.0", "platform:f29.1.0", "platform:f29.2.0", "platform:lp29.1.1"])
@@ -568,7 +568,7 @@ class TestUtilsModuleStreamExpansion:
         mmd.remove_dependencies(deps)
         mmd.add_dependencies(new_deps)
 
-        mmds = module_build_service.utils.mse._get_base_module_mmds(db_session, mmd)
+        mmds = module_build_service.utils.mse.get_base_module_mmds(db_session, mmd)
         expected = {}
         expected["ready"] = set(["platform:foo29", "platform:foo30"])
         expected["garbage"] = set(["platform:foo28"])

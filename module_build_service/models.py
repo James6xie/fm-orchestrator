@@ -30,7 +30,7 @@ import contextlib
 import hashlib
 import json
 import re
-from collections import OrderedDict
+from collections import OrderedDict, namedtuple
 from datetime import datetime
 
 import sqlalchemy
@@ -83,6 +83,9 @@ BUILD_STATES = {
 
 INVERSE_BUILD_STATES = {v: k for k, v in BUILD_STATES.items()}
 FAILED_STATES = (BUILD_STATES["failed"], BUILD_STATES["garbage"])
+
+
+Contexts = namedtuple("Contexts", "ref_build_context build_context runtime_context context")
 
 
 def _utc_datetime_to_iso(datetime_object):
@@ -619,8 +622,8 @@ class ModuleBuild(MBSBase):
         else:
             raise ValueError("%r is not a module message." % type(event).__name__)
 
-    @staticmethod
-    def contexts_from_mmd(mmd_str):
+    @classmethod
+    def contexts_from_mmd(cls, mmd_str):
         """
         Returns tuple (ref_build_context, build_context, runtime_context, context)
         with hashes:
@@ -630,8 +633,8 @@ class ModuleBuild(MBSBase):
             - context - Hash of combined hashes of build_context and runtime_context.
 
         :param str mmd_str: String with Modulemd metadata.
-        :rtype: tuple of strings
-        :return: Tuple with build_context, strem_build_context, runtime_context and
+        :rtype: Contexts
+        :return: Named tuple with build_context, strem_build_context, runtime_context and
                  context hashes.
         """
         from module_build_service.utils.general import load_mmd
@@ -640,47 +643,81 @@ class ModuleBuild(MBSBase):
             mmd = load_mmd(mmd_str)
         except UnprocessableEntity:
             raise ValueError("Invalid modulemd")
-        mbs_xmd = mmd.get_xmd().get("mbs", {})
-        rv = []
+        mbs_xmd_buildrequires = mmd.get_xmd()["mbs"]["buildrequires"]
+        mmd_deps = mmd.get_dependencies()
 
+        build_context = cls.calculate_build_context(mbs_xmd_buildrequires)
+        runtime_context = cls.calculate_runtime_context(mmd_deps)
+
+        return Contexts(
+            cls.calculate_ref_build_context(mbs_xmd_buildrequires),
+            build_context,
+            runtime_context,
+            cls.calculate_module_context(build_context, runtime_context)
+        )
+
+    @staticmethod
+    def calculate_ref_build_context(mbs_xmd_buildrequires):
+        """
+        Returns the hash of commit hashes of expanded buildrequires.
+        :param mbs_xmd_buildrequires: xmd["mbs"]["buildrequires"] from Modulemd
+        :rtype: str
+        :return: ref_build_context hash
+        """
         # Get the buildrequires from the XMD section, because it contains
         # all the buildrequires as we resolved them using dependency resolver.
-        if "buildrequires" not in mbs_xmd:
-            raise ValueError("The module's modulemd hasn't been formatted by MBS")
         mmd_formatted_buildrequires = {
-            dep: info["ref"] for dep, info in mbs_xmd["buildrequires"].items()
+            dep: info["ref"] for dep, info in mbs_xmd_buildrequires.items()
         }
         property_json = json.dumps(OrderedDict(sorted(mmd_formatted_buildrequires.items())))
-        rv.append(hashlib.sha1(property_json.encode("utf-8")).hexdigest())
+        return hashlib.sha1(property_json.encode("utf-8")).hexdigest()
 
-        # Get the streams of buildrequires and hash it.
+    @staticmethod
+    def calculate_build_context(mbs_xmd_buildrequires):
+        """
+        Returns the hash of stream names of expanded buildrequires
+        :param mbs_xmd_buildrequires: xmd["mbs"]["buildrequires"] from Modulemd
+        :rtype: str
+        :return: build_context hash
+        """
         mmd_formatted_buildrequires = {
-            dep: info["stream"] for dep, info in mbs_xmd["buildrequires"].items()
+            dep: info["stream"] for dep, info in mbs_xmd_buildrequires.items()
         }
         property_json = json.dumps(OrderedDict(sorted(mmd_formatted_buildrequires.items())))
-        build_context = hashlib.sha1(property_json.encode("utf-8")).hexdigest()
-        rv.append(build_context)
+        return hashlib.sha1(property_json.encode("utf-8")).hexdigest()
 
-        # Get the requires from the real "dependencies" section in MMD.
+    @staticmethod
+    def calculate_runtime_context(mmd_dependencies):
+        """
+        Returns the hash of stream names of expanded runtime requires
+        :param mmd_dependencies: dependencies from Modulemd
+        :rtype: str
+        :return: runtime_context hash
+        """
         mmd_requires = {}
-        for deps in mmd.get_dependencies():
+        for deps in mmd_dependencies:
             for name in deps.get_runtime_modules():
                 streams = deps.get_runtime_streams(name)
-                if name not in mmd_requires:
-                    mmd_requires[name] = set()
-                mmd_requires[name] = mmd_requires[name].union(streams)
+                mmd_requires[name] = mmd_requires.get(name, set()).union(streams)
 
         # Sort the streams for each module name and also sort the module names.
         mmd_requires = {dep: sorted(list(streams)) for dep, streams in mmd_requires.items()}
         property_json = json.dumps(OrderedDict(sorted(mmd_requires.items())))
-        runtime_context = hashlib.sha1(property_json.encode("utf-8")).hexdigest()
-        rv.append(runtime_context)
+        return hashlib.sha1(property_json.encode("utf-8")).hexdigest()
 
+    @staticmethod
+    def calculate_module_context(build_context, runtime_context):
+        """
+        Returns the hash of combined hashes of build_context and runtime_context
+        :param build_context: hash returned by calculate_build_context
+        :type build_context: str
+        :param runtime_context: hash returned by calculate_runtime_context
+        :type runtime_context: str
+        :rtype: str
+        :return: module context hash
+        """
         combined_hashes = "{0}:{1}".format(build_context, runtime_context)
-        context = hashlib.sha1(combined_hashes.encode("utf-8")).hexdigest()[:8]
-        rv.append(context)
-
-        return tuple(rv)
+        return hashlib.sha1(combined_hashes.encode("utf-8")).hexdigest()[:8]
 
     def siblings(self, db_session):
         query = db_session.query(ModuleBuild).filter(

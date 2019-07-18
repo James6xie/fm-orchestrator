@@ -26,6 +26,7 @@ import kobo.rpmlib
 
 import module_build_service.messaging
 from module_build_service import log, models, conf
+from module_build_service.utils.mse import get_base_module_mmds
 
 
 def reuse_component(component, previous_component_build, change_state_now=False):
@@ -90,24 +91,40 @@ def get_reusable_module(db_session, module):
         return module.reused_module
 
     mmd = module.mmd()
-    # Find the latest module that is in the done or ready state
-    previous_module_build = (
-        db_session.query(models.ModuleBuild)
-        .filter_by(name=mmd.get_module_name())
-        .filter_by(stream=mmd.get_stream_name())
-        .filter_by(state=models.BUILD_STATES["ready"])
-        .filter(models.ModuleBuild.scmurl.isnot(None))
-        .filter_by(build_context=module.build_context)
-        .order_by(models.ModuleBuild.time_completed.desc())
-    )
-    # If we are rebuilding with the "changed-and-after" option, then we can't reuse
-    # components from modules that were built more liberally
-    if module.rebuild_strategy == "changed-and-after":
-        previous_module_build = previous_module_build.filter(
-            models.ModuleBuild.rebuild_strategy.in_(["all", "changed-and-after"]))
-        previous_module_build = previous_module_build.filter_by(
-            ref_build_context=module.ref_build_context)
-    previous_module_build = previous_module_build.first()
+    previous_module_build = None
+
+    base_mmds = get_base_module_mmds(db_session, mmd)["ready"]
+    for base_mmd in base_mmds:
+        mbs_xmd = mmd.get_xmd()["mbs"]
+        if base_mmd.get_module_name() not in mbs_xmd["buildrequires"]:
+            continue
+        mbs_xmd["buildrequires"][base_mmd.get_module_name()]["stream"] \
+            = base_mmd.get_stream_name()
+        build_context = module.calculate_build_context(mbs_xmd["buildrequires"])
+        # Find the latest module that is in the ready state
+        previous_module_build = (
+            db_session.query(models.ModuleBuild)
+                      .filter_by(name=mmd.get_module_name())
+                      .filter_by(stream=mmd.get_stream_name())
+                      .filter_by(state=models.BUILD_STATES["ready"])
+                      .filter(models.ModuleBuild.scmurl.isnot(None))
+                      .filter_by(build_context=build_context)
+                      .order_by(models.ModuleBuild.time_completed.desc()))
+
+        # If we are rebuilding with the "changed-and-after" option, then we can't reuse
+        # components from modules that were built more liberally
+        if module.rebuild_strategy == "changed-and-after":
+            previous_module_build = previous_module_build.filter(
+                models.ModuleBuild.rebuild_strategy.in_(["all", "changed-and-after"])
+            )
+            previous_module_build = previous_module_build.filter_by(
+                ref_build_context=module.ref_build_context
+            )
+        previous_module_build = previous_module_build.first()
+
+        if previous_module_build:
+            break
+
     # The component can't be reused if there isn't a previous build in the done
     # or ready state
     if not previous_module_build:

@@ -233,9 +233,18 @@ class TestUtilsComponentReuse:
         mmd = second_module_build.mmd()
         xmd = mmd.get_xmd()
         xmd["mbs"]["buildrequires"]["platform"]["stream"] = "different"
+        deps = Modulemd.Dependencies()
+        deps.add_buildtime_stream("platform", "different")
+        deps.add_runtime_stream("platform", "different")
+        mmd.clear_dependencies()
+        mmd.add_dependencies(deps)
+
         mmd.set_xmd(xmd)
         second_module_build.modulemd = mmd_to_str(mmd)
-        second_module_build.build_context = "37c6c57bedf4305ef41249c1794760b5cb8fad17"
+        second_module_build.build_context = \
+            module_build_service.models.ModuleBuild.contexts_from_mmd(
+                second_module_build.modulemd
+            ).build_context
         second_module_build.rebuild_strategy = rebuild_strategy
         db_session.commit()
 
@@ -614,8 +623,11 @@ class TestUtils:
         current `new_module`. In this case, reuse code should still be able to
         reuse the components.
         """
+        old_module = models.ModuleBuild.get_by_id(db_session, 2)
         new_module = models.ModuleBuild.get_by_id(db_session, 3)
-        rv = module_build_service.utils.get_reusable_component(db_session, new_module, "llvm")
+        rv = module_build_service.utils.get_reusable_component(
+            db_session, new_module, "llvm", previous_module_build=old_module
+        )
         assert rv.package == "llvm"
 
     def test_validate_koji_tag_wrong_tag_arg_during_programming(self):
@@ -1499,17 +1511,14 @@ class TestOfflineLocalBuilds:
             assert module_build
 
 
+@pytest.mark.usefixtures("reuse_component_init_data")
 class TestUtilsModuleReuse:
 
-    def setup_method(self, test_method):
-        init_data()
-
-    def teardown_method(self, test_method):
-        clean_database()
-
     def test_get_reusable_module_when_reused_module_not_set(self, db_session):
-        module = db_session.query(models.ModuleBuild).filter_by(
-            name="nginx").order_by(models.ModuleBuild.id.desc()).first()
+        module = db_session.query(models.ModuleBuild)\
+                           .filter_by(name="testmodule")\
+                           .order_by(models.ModuleBuild.id.desc())\
+                           .first()
         module.state = models.BUILD_STATES["build"]
         db_session.commit()
 
@@ -1522,8 +1531,10 @@ class TestUtilsModuleReuse:
         assert reusable_module.id == module.reused_module_id
 
     def test_get_reusable_module_when_reused_module_already_set(self, db_session):
-        modules = db_session.query(models.ModuleBuild).filter_by(
-            name="nginx").order_by(models.ModuleBuild.id.desc()).limit(2).all()
+        modules = db_session.query(models.ModuleBuild)\
+                            .filter_by(name="testmodule")\
+                            .order_by(models.ModuleBuild.id.desc())\
+                            .limit(2).all()
         build_module = modules[0]
         reused_module = modules[1]
         build_module.state = models.BUILD_STATES["build"]
