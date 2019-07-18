@@ -316,7 +316,7 @@ def wait(config, db_session, msg):
     build_logs.start(db_session, build)
 
     log.info("Found build=%r from message" % build)
-    log.info("%r", build.modulemd)
+    log.debug("%r", build.modulemd)
 
     if build.state != msg.module_build_state:
         log.warning(

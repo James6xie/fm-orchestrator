@@ -785,9 +785,10 @@ class ModuleBuild(MBSBase):
 
         from module_build_service.monitor import builder_success_counter, builder_failed_counter
 
-        if INVERSE_BUILD_STATES[self.state] in ["done", "failed"]:
+        new_state_name = INVERSE_BUILD_STATES[self.state]
+        if new_state_name in ["done", "failed"]:
             self.time_completed = now
-            if INVERSE_BUILD_STATES[self.state] == "done":
+            if new_state_name == "done":
                 builder_success_counter.inc()
             else:
                 builder_failed_counter.labels(reason=failure_type).inc()
@@ -799,7 +800,10 @@ class ModuleBuild(MBSBase):
         mbt = ModuleBuildTrace(state_time=now, state=self.state, state_reason=state_reason)
         self.module_builds_trace.append(mbt)
 
-        log.info("%r, state %r->%r" % (self, old_state, self.state))
+        log.info(
+            "State transition: %r -> %r, %r",
+            INVERSE_BUILD_STATES[old_state], new_state_name, self)
+
         if old_state != self.state:
             module_build_service.messaging.publish(
                 service="mbs",
