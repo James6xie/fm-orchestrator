@@ -90,6 +90,8 @@ objects:
       jenkinsPipelineStrategy:
         jenkinsfile: |-
           // Don't use external Jenkinsfile here, or Jenkins will also poll on that repo and branch
+          library identifier: 'c3i@master', changelog: false,
+            retriever: modernSCM([$class: 'GitSCMSource', remote: 'https://pagure.io/c3i-library.git'])
           pipeline {
             agent {
               kubernetes {
@@ -131,10 +133,12 @@ objects:
             environment {
               PIPELINE_NAMESPACE = readFile('/run/secrets/kubernetes.io/serviceaccount/namespace').trim()
               PAGURE_URL = "${PAGURE_URL}"
+              PAGURE_API = "${env.PAGURE_URL}/api/0"
+              PAGURE_REPO_NAME = "${PAGURE_REPO_NAME}"
               PAGURE_REPO_IS_FORK = "${PAGURE_REPO_IS_FORK}"
               PAGURE_POLLING_FOR_PR = "${PAGURE_POLLING_FOR_PR}"
-              PAGURE_REPO_HOME = "${env.PAGURE_URL}${env.PAGURE_REPO_IS_FORK == 'true' ? '/fork' : ''}/${PAGURE_REPO_NAME}"
-              GIT_URL = "${env.PAGURE_URL}/${env.PAGURE_REPO_IS_FORK == 'true' ? 'forks/' : ''}${PAGURE_REPO_NAME}.git"
+              PAGURE_REPO_HOME = "${env.PAGURE_URL}${env.PAGURE_REPO_IS_FORK == 'true' ? '/fork' : ''}/${env.PAGURE_REPO_NAME}"
+              GIT_URL = "${env.PAGURE_URL}/${env.PAGURE_REPO_IS_FORK == 'true' ? 'forks/' : ''}${env.PAGURE_REPO_NAME}.git"
               PREMERGE_JOB_NAME = "${PREMERGE_JOB_NAME}"
               POSTMERGE_JOB_NAME = "${POSTMERGE_JOB_NAME}"
             }
@@ -146,17 +150,24 @@ objects:
                   script {
                     // checking out the polled branch
                     def polledBranch = env.PAGURE_POLLING_FOR_PR == 'true' ? 'origin/pull/*/head' : "origin/${PAGURE_POLLED_BRANCH}"
-                    def scmVars = checkout([$class: 'GitSCM',
-                      branches: [[name: polledBranch]],
-                      userRemoteConfigs: [
-                        [
-                          name: 'origin',
-                          url: env.GIT_URL,
-                          refspec: '+refs/heads/*:refs/remotes/origin/* +refs/pull/*/head:refs/remotes/origin/pull/*/head',
+                    def srcRef = env.PAGURE_POLLING_FOR_PR == 'true' ? 'pull/*/head' : "heads/${PAGURE_POLLED_BRANCH}"
+                    def scmVars
+                    retry(5) {
+                      scmVars = checkout([$class: 'GitSCM',
+                        branches: [[name: polledBranch]],
+                        userRemoteConfigs: [
+                          [
+                            name: 'origin',
+                            url: env.GIT_URL,
+                            refspec: "+refs/${srcRef}:refs/remotes/${polledBranch}",
+                          ],
                         ],
-                      ],
-                      extensions: [[$class: 'CleanBeforeCheckout']],
-                    ])
+                        extensions: [
+                          [$class: 'CleanBeforeCheckout'],
+                          [$class: 'CloneOption', noTags: true, shallow: true, depth: 2, honorRefspec: true],
+                        ],
+                      ])
+                    }
                     env.MBS_GIT_COMMIT = scmVars.GIT_COMMIT
                     // setting build display name
                     def prefix = 'origin/'
@@ -169,12 +180,20 @@ objects:
                       currentBuild.description = """<a href="${env.PAGURE_REPO_HOME}/c/${env.MBS_GIT_COMMIT}">${currentBuild.displayName}</a>"""
                     } else if (env.PAGURE_POLLING_FOR_PR == 'true' && branch ==~ /^pull\/[0-9]+\/head$/) {
                       env.PR_NO = branch.split('/')[1]
-                      env.PR_URL = "${env.PAGURE_REPO_HOME}/pull-request/${env.PR_NO}"
-                      // To HTML syntax in build description, go to `Jenkins/Global Security/Markup Formatter` and select 'Safe HTML'.
-                      def pagureLink = """<a href="${env.PR_URL}">PR#${env.PR_NO}</a>"""
-                      echo "Building PR #${env.PR_NO}: ${env.PR_URL}"
-                      currentBuild.displayName = "PR#${env.PR_NO}"
-                      currentBuild.description = pagureLink
+                      def prInfo = withPagure {
+                        it.getPR(env.PR_NO)
+                      }
+                      if (prInfo.status == 'Open') {
+                        env.PR_URL = "${env.PAGURE_REPO_HOME}/pull-request/${env.PR_NO}"
+                        // To HTML syntax in build description, go to `Jenkins/Global Security/Markup Formatter` and select 'Safe HTML'.
+                        def pagureLink = """<a href="${env.PR_URL}">PR#${env.PR_NO}</a>"""
+                        echo "Building PR #${env.PR_NO}: ${env.PR_URL}"
+                        currentBuild.displayName = "PR#${env.PR_NO}"
+                        currentBuild.description = pagureLink
+                      } else {
+                        echo "Skipping PR#${env.PR_NO} because it is ${prInfo.status}"
+                        env.SKIP = 'true'
+                      }
                     } else { // This shouldn't happen.
                       error("Build is aborted due to unexpected polling trigger actions.")
                     }
@@ -188,17 +207,22 @@ objects:
                   }
                 }
                 steps {
-                  checkout([$class: 'GitSCM',
-                    branches: [[name: env.MBS_GIT_BRANCH]],
-                    userRemoteConfigs: [
-                      [
-                        name: 'origin',
-                        url: env.GIT_URL,
-                        refspec: '+refs/heads/*:refs/remotes/origin/* +refs/pull/*/head:refs/remotes/origin/pull/*/head',
+                  retry(5) {
+                    checkout([$class: 'GitSCM',
+                      branches: [[name: env.MBS_GIT_BRANCH]],
+                      userRemoteConfigs: [
+                        [
+                          name: 'origin',
+                          url: env.GIT_URL,
+                          refspec: "+refs/heads/${env.MBS_GIT_BRANCH}:refs/remotes/origin/${env.MBS_GIT_BRANCH}",
+                        ],
                       ],
-                    ],
-                    extensions: [[$class: 'CleanBeforeCheckout']],
-                  ])
+                      extensions: [
+                        [$class: 'CleanBeforeCheckout'],
+                        [$class: 'CloneOption', noTags: true, shallow: true, depth: 2, honorRefspec: true],
+                      ],
+                    ])
+                  }
                   script {
                     dir('openshift/integration/koji/pipelines') {
                       sh '''
@@ -209,6 +233,11 @@ objects:
                 }
               }
               stage('Build') {
+                when {
+                  not {
+                    environment name: 'SKIP', value: 'true'
+                  }
+                }
                 steps {
                   script {
                     openshift.withCluster() {
@@ -230,4 +259,11 @@ objects:
                 }
               }
             }
+          }
+          def withPagure(args=[:], cl) {
+            args.apiUrl = env.PAGURE_API
+            args.repo = env.PAGURE_REPO_NAME
+            args.isFork = env.PAGURE_REPO_IS_FORK == 'true'
+            def pagureClient = pagure.client(args)
+            return cl(pagureClient)
           }
