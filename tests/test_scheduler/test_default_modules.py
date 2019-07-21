@@ -29,7 +29,7 @@ import requests
 from module_build_service.models import ModuleBuild
 from module_build_service.scheduler import default_modules
 from module_build_service.utils.general import load_mmd, mmd_to_str
-from tests import clean_database, make_module, read_staged_data
+from tests import clean_database, make_module_in_db, read_staged_data
 
 
 @patch("module_build_service.scheduler.default_modules._handle_collisions")
@@ -39,8 +39,8 @@ def test_add_default_modules(mock_requests_session, mock_hc, db_session):
     Test that default modules present in the database are added, and the others are ignored.
     """
     clean_database()
-    make_module(db_session, "python:3:12345:1")
-    make_module(db_session, "nodejs:11:2345:2")
+    make_module_in_db("python:3:12345:1", db_session=db_session)
+    make_module_in_db("nodejs:11:2345:2", db_session=db_session)
     mmd = load_mmd(read_staged_data("formatted_testmodule.yaml"))
     xmd_brs = mmd.get_xmd()["mbs"]["buildrequires"]
     assert set(xmd_brs.keys()) == {"platform"}
@@ -112,8 +112,8 @@ def test_add_default_modules_request_failed(mock_requests_session, connection_er
     Test that an exception is raised when the request to get the default modules failed.
     """
     clean_database()
-    make_module(db_session, "python:3:12345:1")
-    make_module(db_session, "nodejs:11:2345:2")
+    make_module_in_db("python:3:12345:1", db_session=db_session)
+    make_module_in_db("nodejs:11:2345:2", db_session=db_session)
     mmd = load_mmd(read_staged_data("formatted_testmodule.yaml"))
     xmd_brs = mmd.get_xmd()["mbs"]["buildrequires"]
     assert set(xmd_brs.keys()) == {"platform"}

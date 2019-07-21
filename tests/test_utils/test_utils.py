@@ -37,7 +37,7 @@ from tests import (
     clean_database,
     init_data,
     scheduler_init_data,
-    make_module,
+    make_module_in_db,
     read_staged_data, staged_data_filename)
 import mock
 import koji
@@ -982,7 +982,7 @@ class TestUtils:
         build adds new MSE build (it means there are new expanded
         buildrequires).
         """
-        build = make_module(db_session, "foo:stream:0:c1", {}, {})
+        build = make_module_in_db("foo:stream:0:c1", db_session=db_session)
         assert build.state == models.BUILD_STATES["ready"]
 
         mmd1 = build.mmd()

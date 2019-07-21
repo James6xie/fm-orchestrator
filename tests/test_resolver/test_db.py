@@ -42,9 +42,7 @@ class TestDBModule:
 
         import_mmd(db_session, mmd)
         platform_f300103 = db_session.query(ModuleBuild).filter_by(stream="f30.1.3").one()
-        mmd = tests.make_module(db_session,
-                                "testmodule:master:20170109091357:123",
-                                store_to_db=False)
+        mmd = tests.make_module("testmodule:master:20170109091357:123")
         build = ModuleBuild(
             name="testmodule",
             stream="master",

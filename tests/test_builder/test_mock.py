@@ -11,7 +11,7 @@ from module_build_service import conf
 from module_build_service.models import ModuleBuild, ComponentBuild
 from module_build_service.builder.MockModuleBuilder import MockModuleBuilder
 from module_build_service.utils import import_fake_base_module, mmd_to_str, load_mmd
-from tests import clean_database, make_module, read_staged_data
+from tests import clean_database, make_module_in_db, read_staged_data
 
 
 class TestMockModuleBuilder:
@@ -202,10 +202,12 @@ class TestMockModuleBuilderAddRepos:
         import_fake_base_module(db_session, "platform:f29:1:000000")
 
         platform = ModuleBuild.get_last_build_in_stream(db_session, "platform", "f29")
-        foo = make_module(
-            db_session, "foo:1:1:1", {"platform": ["f29"]}, {"platform": ["f29"]})
-        app = make_module(
-            db_session, "app:1:1:1", {"platform": ["f29"]}, {"platform": ["f29"]})
+        module_deps = [{
+            "requires": {"platform": ["f29"]},
+            "buildrequires": {"platform": ["f29"]},
+        }]
+        foo = make_module_in_db("foo:1:1:1", module_deps, db_session=db_session)
+        app = make_module_in_db("app:1:1:1", module_deps, db_session=db_session)
 
         patched_open.side_effect = [
             mock.mock_open(read_data="[fake]\nrepofile 1\n").return_value,
