@@ -41,6 +41,46 @@ class MMDResolver(object):
     Resolves dependencies between Module metadata objects.
     """
 
+    def module_dep(self, name, stream=None, version=None, version_op=None):
+        """Create a libsolv Dependency
+
+        Dependency could be in following forms:
+
+        module(name)
+        module(name:stream)
+        module(name:stream) op version
+
+        :param str name: module name.
+        :param str stream: optional module stream. If specified, dependency
+            will be the 2nd form above.
+        :param str version: optional module version.
+        :param version_op: optional libsolv relational flag constant. If
+            specified, dependency will be the 3rd form above. Defaults to
+            ``solv.REL_EQ``.
+        :return: a libsolv Dependency object
+        """
+        if name and stream:
+            dep = self.pool.Dep("module({}:{})".format(name, stream))
+        else:
+            dep = self.pool.Dep("module({})".format(name))
+        if version:
+            dep = dep.Rel(version_op or solv.REL_EQ, self.pool.Dep(version))
+        return dep
+
+    def solvable_provides(self, solvable, name, stream=None, version=None, version_op=None):
+        """Add a Provides: dependency to a solvable
+
+        This is parallel to RPM-world ``Provides: perl(foo)`` or ``Requires: perl(foo)``.
+
+        Please refer to :meth:`module_dep` for detailed information of
+        arguments name, stream, version and version_op.
+
+        :param solvable: a solvable object the Provides dependency will be
+            added to.
+        """
+        dep = self.module_dep(name, stream, version, version_op)
+        solvable.add_deparray(solv.SOLVABLE_PROVIDES, dep)
+
     def __init__(self):
         self.pool = solv.Pool()
         self.pool.setarch("x86_64")
@@ -93,18 +133,6 @@ class MMDResolver(object):
         :rtype: solv.Dep
         :return: solv.Dep instance with dependencies in form libsolv accepts.
         """
-        pool = self.pool
-
-        # Every name:stream combination from dict in `deps` list is expressed as `solv.Dep`
-        # instance and is represented internally in solv with "module(name:stream)".
-        # This is parallel to RPM-world "Provides: perl(foo)" or "Requires: perl(foo)",
-        # but in this method, we are only constructing the condition after the "Provides:"
-        # or "Requires:".
-        # This method creates such solve.Dep.
-        stream_dep = lambda n, s: pool.Dep("module(%s:%s)" % (n, s))
-        versioned_stream_dep = lambda n, s, v, op: pool.Dep("module(%s:%s)" % (n, s)).Rel(
-            op, pool.Dep(str(v))
-        )
 
         # There are relations between modules in `deps`. For example:
         #   deps = [{'gtk': ['1'], 'foo': ['1']}]" means "gtk:1 and foo:1" are both required.
@@ -144,7 +172,8 @@ class MMDResolver(object):
                         stream_version_str = str(
                             ModuleBuild.get_stream_version(stream_for_version, right_pad=False))
                         if len(stream_version_str) < 5:
-                            req_pos = rel_or_dep(req_pos, solv.REL_OR, stream_dep(name, stream))
+                            req_pos = rel_or_dep(
+                                req_pos, solv.REL_OR, self.module_dep(name, stream))
                         else:
                             # The main reason why to use `exact_versions` is the case when
                             # adding deps for the input module we want to resolve. This module
@@ -176,13 +205,13 @@ class MMDResolver(object):
                             req_pos = rel_or_dep(
                                 req_pos,
                                 solv.REL_OR,
-                                versioned_stream_dep(name, stream, version, op),
+                                self.module_dep(name, stream, str(version), op)
                             )
                     else:
-                        req_pos = rel_or_dep(req_pos, solv.REL_OR, stream_dep(name, stream))
+                        req_pos = rel_or_dep(req_pos, solv.REL_OR, self.module_dep(name, stream))
 
                 # Generate the module(name) solv.Dep.
-                req = pool.Dep("module(%s)" % name)
+                req = self.module_dep(name)
 
                 if req_pos is not None:
                     req = req.Rel(solv.REL_WITH, req_pos)
@@ -217,12 +246,8 @@ class MMDResolver(object):
         # to Provides.
         stream_version = ModuleBuild.get_stream_version(mmd.get_stream_name(), right_pad=False)
         if stream_version:
-            dep = self.pool.Dep(
-                "module(%s:%s)" % (mmd.get_module_name(), mmd.get_stream_name())
-            ).Rel(
-                solv.REL_EQ, self.pool.Dep(str(stream_version))
-            )
-            solvable.add_deparray(solv.SOLVABLE_PROVIDES, dep)
+            self.solvable_provides(
+                solvable, mmd.get_module_name(), mmd.get_stream_name(), str(stream_version))
 
         xmd = mmd.get_xmd()
         # Return in case virtual_streams are not set for this mmd.
@@ -233,9 +258,7 @@ class MMDResolver(object):
         # For each virtual stream, add
         # "module($name:$stream) = $virtual_stream_based_version" provide.
         for stream in xmd["mbs"]["virtual_streams"]:
-            dep = self.pool.Dep("module(%s:%s)" % (mmd.get_module_name(), stream)).Rel(
-                solv.REL_EQ, self.pool.Dep(str(version)))
-            solvable.add_deparray(solv.SOLVABLE_PROVIDES, dep)
+            self.solvable_provides(solvable, mmd.get_module_name(), stream, str(version))
 
     def _get_base_module_stream_overrides(self, mmd):
         """
@@ -274,7 +297,6 @@ class MMDResolver(object):
         """
         n, s, v, c = \
             mmd.get_module_name(), mmd.get_stream_name(), mmd.get_version(), mmd.get_context()
-        pool = self.pool
 
         # Helper method to return the dependencies of `mmd` in the {name: [streams], ... form}.
         # The `dep_type` is either "runtime" or "buildtime" str depending on whether
@@ -309,13 +331,10 @@ class MMDResolver(object):
             # This is used for example to find the buildrequired module when
             # no particular stream is used - for example when buildrequiring
             # "gtk: []"
-            solvable.add_deparray(solv.SOLVABLE_PROVIDES, pool.Dep("module(%s)" % n))
+            self.solvable_provides(solvable, n)
             # Add "Provides: module(name:stream) = version", so we can find buildrequired
             # modules when "gtk:[1]" is used and also choose the latest version.
-            solvable.add_deparray(
-                solv.SOLVABLE_PROVIDES,
-                pool.Dep("module(%s:%s)" % (n, s)).Rel(solv.REL_EQ, pool.Dep(str(v))),
-            )
+            self.solvable_provides(solvable, n, s, str(v))
 
             self._add_base_module_provides(solvable, mmd)
 
@@ -336,7 +355,7 @@ class MMDResolver(object):
             #  - "gtk:1" requires "bar:2".
             # "bar:1" and "bar:2" cannot be installed in the same time and therefore
             # there need to be conflict defined between them.
-            solvable.add_deparray(solv.SOLVABLE_CONFLICTS, pool.Dep("module(%s)" % n))
+            solvable.add_deparray(solv.SOLVABLE_CONFLICTS, self.module_dep(n))
             solvables.append(solvable)
 
             # Add solvable to solvables list. Sorting is done later in the solve method.
