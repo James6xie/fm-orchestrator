@@ -126,8 +126,7 @@ class MMDResolver(object):
 
                 # The req_pos will store solv.Dep expression for "positive" requirements.
                 # That is the case of 'gtk': ['1', '2'].
-                # The req_neg will store negative requirements like 'gtk': ['-1', '-2'].
-                req_pos = req_neg = None
+                req_pos = None
 
                 # For each stream in `streams` for this dependency, generate the
                 # module(name:stream) solv.Dep and add REL_OR relations between them.
@@ -145,12 +144,7 @@ class MMDResolver(object):
                         stream_version_str = str(
                             ModuleBuild.get_stream_version(stream_for_version, right_pad=False))
                         if len(stream_version_str) < 5:
-                            if stream.startswith("-"):
-                                req_neg = rel_or_dep(
-                                    req_neg, solv.REL_OR, stream_dep(name, stream[1:])
-                                )
-                            else:
-                                req_pos = rel_or_dep(req_pos, solv.REL_OR, stream_dep(name, stream))
+                            req_pos = rel_or_dep(req_pos, solv.REL_OR, stream_dep(name, stream))
                         else:
                             # The main reason why to use `exact_versions` is the case when
                             # adding deps for the input module we want to resolve. This module
@@ -179,33 +173,19 @@ class MMDResolver(object):
                             version = ModuleBuild.get_stream_version(
                                 stream_for_version, right_pad=False
                             )
-                            if stream.startswith("-"):
-                                req_neg = rel_or_dep(
-                                    req_neg,
-                                    solv.REL_OR,
-                                    versioned_stream_dep(name, stream[1:], version, op),
-                                )
-                            else:
-                                req_pos = rel_or_dep(
-                                    req_pos,
-                                    solv.REL_OR,
-                                    versioned_stream_dep(name, stream, version, op),
-                                )
+                            req_pos = rel_or_dep(
+                                req_pos,
+                                solv.REL_OR,
+                                versioned_stream_dep(name, stream, version, op),
+                            )
                     else:
-                        if stream.startswith("-"):
-                            req_neg = rel_or_dep(req_neg, solv.REL_OR, stream_dep(name, stream[1:]))
-                        else:
-                            req_pos = rel_or_dep(req_pos, solv.REL_OR, stream_dep(name, stream))
+                        req_pos = rel_or_dep(req_pos, solv.REL_OR, stream_dep(name, stream))
 
                 # Generate the module(name) solv.Dep.
                 req = pool.Dep("module(%s)" % name)
 
-                # Use the REL_WITH for positive requirements and REL_WITHOUT for negative
-                # requirements.
                 if req_pos is not None:
                     req = req.Rel(solv.REL_WITH, req_pos)
-                elif req_neg is not None:
-                    req = req.Rel(solv.REL_WITHOUT, req_neg)
 
                 # And in the end use AND between the last name:[streams] and the current one.
                 require = rel_or_dep(require, solv.REL_AND, req)
