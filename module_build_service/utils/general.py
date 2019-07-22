@@ -655,20 +655,6 @@ def import_builds_from_local_dnf_repos(db_session, platform_id=None):
     import_fake_base_module(db_session, "%s:1:000000" % platform_id)
 
 
-def get_mmd_from_scm(url):
-    """
-    Provided an SCM URL, fetch mmd from the corresponding module YAML
-    file. If ref is specified within the URL, the mmd will be returned
-    as of the ref.
-    """
-    from module_build_service.utils.submit import _fetch_mmd
-
-    mmd, _ = _fetch_mmd(
-        url, branch=None, allow_local_url=False, whitelist_url=False, mandatory_checks=False)
-
-    return mmd
-
-
 def get_build_arches(db_session, mmd, config):
     """
     Returns the list of architectures for which the module `mmd` should be built.

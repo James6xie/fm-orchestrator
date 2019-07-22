@@ -35,17 +35,17 @@ from io import BytesIO
 
 from module_build_service import app, conf, log, models, db, version, api_version as max_api_version
 from module_build_service.utils import (
-    pagination_metadata,
-    filter_module_builds,
+    cors_header,
+    fetch_mmd,
     filter_component_builds,
+    filter_module_builds,
+    get_scm_url_re,
+    import_mmd,
+    pagination_metadata,
+    str_to_bool,
     submit_module_build_from_scm,
     submit_module_build_from_yaml,
-    get_scm_url_re,
-    cors_header,
     validate_api_version,
-    import_mmd,
-    get_mmd_from_scm,
-    str_to_bool,
 )
 from module_build_service.errors import ValidationError, Forbidden, NotFound, ProgrammingError
 from module_build_service.backports import jsonify
@@ -296,7 +296,7 @@ class ImportModuleAPI(MethodView):
         handler = SCMHandler(request)
         handler.validate(skip_branch=True, skip_optional_params=True)
 
-        mmd = get_mmd_from_scm(handler.data["scmurl"])
+        mmd, _ = fetch_mmd(handler.data["scmurl"], mandatory_checks=False)
         build, messages = import_mmd(db.session, mmd)
         json_data = {
             "module": build.json(db.session, show_tasks=False),

@@ -487,7 +487,7 @@ def record_component_builds(
             full_url = component.get_repository() + "?#" + component.get_ref()
             # It is OK to whitelist all URLs here, because the validity
             # of every URL have been already checked in format_mmd(...).
-            included_mmd = _fetch_mmd(full_url, whitelist_url=True)[0]
+            included_mmd = fetch_mmd(full_url, whitelist_url=True)[0]
             format_mmd(included_mmd, module.scmurl, module, db_session)
             batch = record_component_builds(
                 db_session, included_mmd, module, batch, previous_buildorder, main_mmd)
@@ -575,7 +575,7 @@ def submit_module_build_from_scm(db_session, username, params, allow_local_url=F
         log.info("'{}' is not a valid URL, assuming local path".format(url))
         url = os.path.abspath(url)
         url = "file://" + url
-    mmd, scm = _fetch_mmd(url, branch, allow_local_url)
+    mmd, scm = fetch_mmd(url, branch, allow_local_url)
 
     return submit_module_build(db_session, username, mmd, params)
 
@@ -1065,7 +1065,7 @@ def _is_eol_in_pdc(name, stream):
     return not results[0]["active"]
 
 
-def _fetch_mmd(url, branch=None, allow_local_url=False, whitelist_url=False, mandatory_checks=True):
+def fetch_mmd(url, branch=None, allow_local_url=False, whitelist_url=False, mandatory_checks=True):
     # Import it here, because SCM uses utils methods
     # and fails to import them because of dep-chain.
     import module_build_service.scm
