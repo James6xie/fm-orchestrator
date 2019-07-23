@@ -229,6 +229,63 @@ class TestKojiBuilder:
         assert component_build.state_reason == "Found existing build"
         builder.koji_session.tagBuild.assert_called_once_with(2, "foo-1.0-1.{0}".format(dist_tag))
 
+    def test_recover_orphaned_artifact_when_module_build_macros_untagged(self, db_session):
+        """ Tests recover_orphaned_artifact when module-build-macros is found but untagged
+        """
+        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
+
+        builder = FakeKojiModuleBuilder(
+            db_session=db_session,
+            owner=module_build.owner,
+            module=module_build,
+            config=conf,
+            tag_name="module-foo",
+            components=[],
+        )
+
+        builder.module_tag = {"name": "module-foo", "id": 1}
+        builder.module_build_tag = {"name": "module-foo-build", "id": 2}
+        dist_tag = "module+2+b8661ee4"
+        # Set listTagged to return test data
+        builder.koji_session.listTagged.side_effect = [[], [], []]
+        untagged = [
+            {"id": 9000,
+             "name": "module-build-macros",
+             "version": "1.0",
+             "release": "1.{0}".format(dist_tag)}
+        ]
+        builder.koji_session.untaggedBuilds.return_value = untagged
+        build_info = {"nvr": "module-build-macros-1.0-1.{0}".format(dist_tag),
+                      "task_id": 12345,
+                      "build_id": 91}
+        builder.koji_session.getBuild.return_value = build_info
+        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 4)
+        component_build = module_build.component_builds[1]
+        component_build.task_id = None
+        component_build.nvr = None
+        component_build.state = None
+
+        actual = builder.recover_orphaned_artifact(component_build)
+        assert len(actual) == 1
+        assert type(actual[0]) == module_build_service.messaging.KojiBuildChange
+        assert actual[0].build_id == 91
+        assert actual[0].task_id == 12345
+        assert actual[0].build_new_state == koji.BUILD_STATES["COMPLETE"]
+        assert actual[0].build_name == "module-build-macros"
+        assert actual[0].build_version == "1.0"
+        assert actual[0].build_release == "1.{0}".format(dist_tag)
+        assert actual[0].module_build_id == 4
+        assert component_build.state == koji.BUILD_STATES["COMPLETE"]
+        assert component_build.task_id == 12345
+        assert component_build.state_reason == "Found existing build"
+        builder.koji_session.tagBuild.assert_called_once_with(
+            2, "module-build-macros-1.0-1.{0}".format(dist_tag))
+        builder.koji_session.groupPackageListAdd.call_list
+        assert builder.koji_session.groupPackageListAdd.call_count == 2
+        builder.koji_session.groupPackageListAdd.assert_has_calls(
+            [mock.call(2, "srpm-build", "module-build-macros"),
+             mock.call(2, "build", "module-build-macros")])
+
     def test_recover_orphaned_artifact_when_nothing_exists(self, db_session):
         """ Test recover_orphaned_artifact when the build is not found
         """

@@ -778,6 +778,11 @@ class KojiModuleBuilder(GenericBuilder):
         component_tagged_in = []
         if build_tagged:
             component_tagged_in.append(self.module_build_tag["name"])
+        elif component_build.package == "module-build-macros":
+            # module-build-macros need to be added to
+            # "build" and "srpm-build" koji tag groups
+            self.buildroot_add_artifacts(
+                [component_build.nvr], install=component_build.build_time_only)
         else:
             # Tag it in the build tag if it's not there
             self.tag_artifacts([component_build.nvr], dest_tag=False)
