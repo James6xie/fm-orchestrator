@@ -25,7 +25,7 @@ import json
 from mock import patch, Mock
 import pytest
 from module_build_service.utils.greenwave import greenwave
-from tests import clean_database, make_module
+from tests import clean_database, make_module_in_db
 
 
 class TestGreenwaveQuery():
@@ -59,7 +59,12 @@ class TestGreenwaveQuery():
         response.status_code = resp_status
         mock_requests.post.return_value = response
 
-        fake_build = make_module(db_session, "pkg:0.1:1:c1", requires_list={"platform": "el8"})
+        fake_build = make_module_in_db(
+            "pkg:0.1:1:c1", [{
+                "requires": {"platform": ["el8"]},
+                "buildrequires": {"platform": ["el8"]},
+            }],
+            db_session=db_session)
         got_response = greenwave.query_decision(fake_build, prod_version="xxxx-8")
 
         assert got_response == resp_content
@@ -176,7 +181,12 @@ class TestGreenwaveQuery():
         mock_requests.get.return_value = responses[0]
         mock_requests.post.side_effect = responses[1:]
 
-        fake_build = make_module(db_session, "pkg:0.1:1:c1", requires_list={"platform": "el8"})
+        fake_build = make_module_in_db(
+            "pkg:0.1:1:c1", [{
+                "requires": {"platform": ["el8"]},
+                "buildrequires": {"platform": ["el8"]},
+            }],
+            db_session=db_session)
         result = greenwave.check_gating(fake_build)
 
         assert result == policies_satisfied

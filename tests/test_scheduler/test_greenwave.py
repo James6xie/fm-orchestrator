@@ -30,7 +30,7 @@ from module_build_service.models import BUILD_STATES, ModuleBuild
 from module_build_service.scheduler.consumer import MBSConsumer
 from module_build_service.scheduler.handlers.greenwave import get_corresponding_module_build
 from module_build_service.scheduler.handlers.greenwave import decision_update
-from tests import clean_database, make_module
+from tests import clean_database, make_module_in_db
 
 
 class TestGetCorrespondingModuleBuild:
@@ -123,7 +123,12 @@ class TestDecisionUpdateHandler:
         clean_database()
 
         # This build should be queried and transformed to ready state
-        module_build = make_module(db_session, "pkg:0.1:1:c1", requires_list={"platform": "el8"})
+        module_build = make_module_in_db(
+            "pkg:0.1:1:c1", [{
+                "requires": {"platform": ["el8"]},
+                "buildrequires": {"platform": ["el8"]},
+            }],
+            db_session=db_session)
         module_build.transition(
             db_session, conf, BUILD_STATES["done"], "Move to done directly for running test."
         )

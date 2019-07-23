@@ -26,8 +26,8 @@ from mock import patch
 from module_build_service import conf
 from module_build_service.models import ComponentBuild, ComponentBuildTrace, ModuleBuild
 from module_build_service.utils.general import mmd_to_str, load_mmd
-from tests import init_data as init_data_contexts, clean_database, make_module, read_staged_data
-from tests import module_build_from_modulemd
+from tests import init_data as init_data_contexts, clean_database, read_staged_data
+from tests import make_module_in_db, module_build_from_modulemd
 
 
 @pytest.mark.usefixtures("model_tests_init_data")
@@ -161,20 +161,27 @@ class TestModelsGetStreamsContexts:
         """
         clean_database(False)
 
-        make_module(
-            db_session, "platform:f29.1.0:10:old_version", {}, {}, virtual_streams=["f29"])
-        make_module(
-            db_session, "platform:f29.1.0:15:c11.another", {}, {}, virtual_streams=["f29"])
-        make_module(
-            db_session, "platform:f29.1.0:15:c11", {}, {}, virtual_streams=["f29"])
-        make_module(
-            db_session, "platform:f29.2.0:0:old_version", {}, {}, virtual_streams=["f29"])
-        make_module(
-            db_session, "platform:f29.2.0:1:c11", {}, {}, virtual_streams=["f29"])
-        make_module(
-            db_session, "platform:f29.3.0:15:old_version", {}, {}, virtual_streams=["f29"])
-        make_module(
-            db_session, "platform:f29.3.0:20:c11", {}, {}, virtual_streams=["f29"])
+        make_module_in_db(
+            "platform:f29.1.0:10:old_version",
+            db_session=db_session, virtual_streams=["f29"])
+        make_module_in_db(
+            "platform:f29.1.0:15:c11.another",
+            db_session=db_session, virtual_streams=["f29"])
+        make_module_in_db(
+            "platform:f29.1.0:15:c11",
+            db_session=db_session, virtual_streams=["f29"])
+        make_module_in_db(
+            "platform:f29.2.0:0:old_version",
+            db_session=db_session, virtual_streams=["f29"])
+        make_module_in_db(
+            "platform:f29.2.0:1:c11",
+            db_session=db_session, virtual_streams=["f29"])
+        make_module_in_db(
+            "platform:f29.3.0:15:old_version",
+            db_session=db_session, virtual_streams=["f29"])
+        make_module_in_db(
+            "platform:f29.3.0:20:c11",
+            db_session=db_session, virtual_streams=["f29"])
 
         builds = ModuleBuild.get_last_builds_in_stream_version_lte(
             db_session, "platform", 290200)
@@ -191,8 +198,8 @@ class TestModelsGetStreamsContexts:
 
     def test_get_module_count(self, db_session):
         clean_database(False)
-        make_module(db_session, "platform:f29.1.0:10:c11", {}, {})
-        make_module(db_session, "platform:f29.1.0:10:c12", {}, {})
+        make_module_in_db("platform:f29.1.0:10:c11", db_session=db_session)
+        make_module_in_db("platform:f29.1.0:10:c12", db_session=db_session)
 
         count = ModuleBuild.get_module_count(db_session, name="platform")
         db_session.commit()
@@ -201,12 +208,18 @@ class TestModelsGetStreamsContexts:
     def test_add_virtual_streams_filter(self, db_session):
         clean_database(False)
 
-        make_module(db_session, "platform:f29.1.0:10:c1", {}, {}, virtual_streams=["f29"])
-        make_module(db_session, "platform:f29.1.0:15:c1", {}, {}, virtual_streams=["f29"])
-        make_module(
-            db_session, "platform:f29.3.0:15:old_version", {}, {},
-            virtual_streams=["f28", "f29"])
-        make_module(db_session, "platform:f29.3.0:20:c11", {}, {}, virtual_streams=["f30"])
+        make_module_in_db(
+            "platform:f29.1.0:10:c1",
+            db_session=db_session, virtual_streams=["f29"])
+        make_module_in_db(
+            "platform:f29.1.0:15:c1",
+            db_session=db_session, virtual_streams=["f29"])
+        make_module_in_db(
+            "platform:f29.3.0:15:old_version",
+            db_session=db_session, virtual_streams=["f28", "f29"])
+        make_module_in_db(
+            "platform:f29.3.0:20:c11",
+            db_session=db_session, virtual_streams=["f30"])
 
         query = db_session.query(ModuleBuild).filter_by(name="platform")
         query = ModuleBuild._add_virtual_streams_filter(db_session, query, ["f28", "f29"])

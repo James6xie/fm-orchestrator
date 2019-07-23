@@ -380,7 +380,7 @@ class TestMBSModule:
                     "version": 1,
                     "context": "c1",
                     "modulemd": mmd_to_str(
-                        tests.make_module(db_session, "nodejs:10:1:c1", store_to_db=False),
+                        tests.make_module("nodejs:10:1:c1"),
                     ),
                 },
                 {
@@ -389,7 +389,7 @@ class TestMBSModule:
                     "version": 2,
                     "context": "c1",
                     "modulemd": mmd_to_str(
-                        tests.make_module(db_session, "nodejs:10:2:c1", store_to_db=False),
+                        tests.make_module("nodejs:10:2:c1"),
                     ),
                 },
             ],

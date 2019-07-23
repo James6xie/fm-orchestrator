@@ -39,7 +39,7 @@ from module_build_service.utils.general import mmd_to_str
 import pytest
 from mock import patch, MagicMock
 
-from tests import conf, init_data, clean_database, make_module
+from tests import conf, init_data, clean_database, make_module_in_db
 
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
 
@@ -979,10 +979,10 @@ class TestGetDistTagSRPM:
     @patch("tempfile.mkdtemp")
     @patch("module_build_service.builder.KojiModuleBuilder.execute_cmd")
     def _build_srpm(self, db_session, execute_cmd, mkdtemp):
-        module_build = make_module(
-            db_session,
+        module_build = make_module_in_db(
             "{name}:{stream}:{version}:{context}".format(**self.module_nsvc),
-            xmd=self.xmd)
+            xmd=self.xmd,
+            db_session=db_session)
 
         mkdtemp.return_value = self.tmp_srpm_build_dir
         return KojiModuleBuilder.get_disttag_srpm("disttag", module_build)

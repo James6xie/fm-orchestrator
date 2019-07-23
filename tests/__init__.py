@@ -20,6 +20,7 @@
 #
 # Written by Matt Prahl <mprahl@redhat.com
 
+import functools
 import os
 from datetime import datetime, timedelta
 from mock import patch
@@ -34,7 +35,8 @@ from module_build_service import db
 from module_build_service.utils import get_rpm_release, import_mmd, mmd_to_str
 from module_build_service.config import init_config
 from module_build_service.models import (
-    ModuleBuild, ComponentBuild, VirtualStream, make_db_session, BUILD_STATES,
+    ModuleBuild, ModuleArch, ComponentBuild, VirtualStream,
+    make_db_session, BUILD_STATES,
 )
 from module_build_service import Modulemd
 
@@ -448,14 +450,13 @@ def scheduler_init_data(db_session, tangerine_state=None, scratch=False):
 
 
 def make_module(
-    db_session,
     nsvc,
-    requires_list=None,
-    build_requires_list=None,
+    dependencies=None,
     base_module=None,
     filtered_rpms=None,
     xmd=None,
-    store_to_db=True,
+    db_session=None,
+    store_to_db=False,
     virtual_streams=None,
     arches=None,
 ):
@@ -463,27 +464,45 @@ def make_module(
     Creates new models.ModuleBuild defined by `nsvc` string with requires
     and buildrequires set according to ``requires_list`` and ``build_requires_list``.
 
-    :param db_session: SQLAlchemy database session.
     :param str nsvc: name:stream:version:context of a module.
-    :param list_of_dicts requires_list: List of dictionaries defining the
-        requires in the mmd requires field format.
-    :param list_of_dicts build_requires_list: List of dictionaries defining the
-        build_requires_list in the mmd build_requires_list field format.
+    :param dependencies: list of groups of dependencies (requires and buildrequires).
+        For example, [
+        {"requires": {"platform": ["f30"]}, "buildrequires": {"platform": ["f30"]}},
+        ...
+        ]
+    :type dependencies: list[dict]
+    :param base_module: a base module build required by the new module created.
+    :type base_module: :class:`ModuleBuild`
     :param filtered_rpms: list of filtered RPMs which are added to filter
         section in module metadata.
     :type filtered_rpms: list[str]
     :param dict xmd: a mapping representing XMD section in module metadata. A
         custom xmd could be passed for testing a particular scenario and some
         default key/value pairs are added if not present.
+    :param db_session: SQLAlchemy database session.
     :param bool store_to_db: whether to store created module metadata to the
-        database.
-    :param list virtual_streams: List of virtual streams provided by this module.
-    :param list arches: List of architectures this module is built against.
-        If set to None, ["x86_64"] is used as a default.
+        database. If set to True, ``db_session`` is required.
+    :param virtual_streams: List of virtual streams provided by this module.
+        If set, This requires ``db_session`` and ``store_to_db`` to be set to a
+        session object and True.
+    :type virtual_streams: list[str]
+    :param arches: List of architectures this module is built against. If set
+        to None, ``["x86_64"]`` is used as a default. If set, likewise
+        ``virtual_stream``.
+    :type arches: list[str]
     :return: New Module Build if set to store module metadata to database,
         otherwise the module metadata is returned.
     :rtype: ModuleBuild or Modulemd.Module
     """
+    if store_to_db:
+        assert db_session is not None
+    if base_module:
+        assert db_session is not None
+    if virtual_streams:
+        assert db_session and store_to_db
+    if arches:
+        assert db_session and store_to_db
+
     name, stream, version, context = nsvc.split(":")
     mmd = Modulemd.ModuleStreamV2.new(name, stream)
     mmd.set_version(int(version))
@@ -497,29 +516,30 @@ def make_module(
         for rpm in filtered_rpms:
             mmd.add_rpm_filter(rpm)
 
-    if requires_list is not None and build_requires_list is not None:
-        if not isinstance(requires_list, list):
-            requires_list = [requires_list]
-        if not isinstance(build_requires_list, list):
-            build_requires_list = [build_requires_list]
+    def _add_require(mmd_deps, require_type, name, streams):
+        assert isinstance(mmd_deps, Modulemd.Dependencies)
+        assert require_type in ("requires", "buildrequires")
+        assert isinstance(streams, (list, tuple))
 
-        for requires, build_requires in zip(requires_list, build_requires_list):
-            deps = Modulemd.Dependencies()
-            for req_name, req_streams in requires.items():
-                if req_streams == []:
-                    deps.set_empty_runtime_dependencies_for_module(req_name)
-                else:
-                    for req_stream in req_streams:
-                        deps.add_runtime_stream(req_name, req_stream)
+        if require_type == "requires":
+            add_stream = mmd_deps.add_runtime_stream
+            set_empty_deps = mmd_deps.set_empty_runtime_dependencies_for_module
+        else:
+            add_stream = mmd_deps.add_buildtime_stream
+            set_empty_deps = mmd_deps.set_empty_buildtime_dependencies_for_module
 
-            for req_name, req_streams in build_requires.items():
-                if req_streams == []:
-                    deps.set_empty_buildtime_dependencies_for_module(req_name)
-                else:
-                    for req_stream in req_streams:
-                        deps.add_buildtime_stream(req_name, req_stream)
+        for stream in streams:
+            add_stream(name, stream)
+        else:
+            set_empty_deps(name)
 
-            mmd.add_dependencies(deps)
+    for dep_group in dependencies or []:
+        mmd_deps = Modulemd.Dependencies()
+        # A deps could be {"platform": ["f30"], "python": []}
+        for require_type, deps in dep_group.items():
+            for req_name, req_streams in deps.items():
+                _add_require(mmd_deps, require_type, req_name, req_streams)
+        mmd.add_dependencies(mmd_deps)
 
     # Caller could pass whole xmd including mbs, but if something is missing,
     # default values are given here.
@@ -577,13 +597,10 @@ def make_module(
                 module_build.virtual_streams.append(vs_obj)
                 db_session.commit()
 
-    if arches is None:
-        arches = ["x86_64"]
-    for arch in arches:
-        arch_obj = db_session.query(module_build_service.models.ModuleArch).filter_by(
-            name=arch).first()
+    for arch in arches or ["x86_64"]:
+        arch_obj = db_session.query(ModuleArch).filter_by(name=arch).first()
         if not arch_obj:
-            arch_obj = module_build_service.models.ModuleArch(name=arch)
+            arch_obj = ModuleArch(name=arch)
             db_session.add(arch_obj)
             db_session.commit()
 
@@ -592,6 +609,9 @@ def make_module(
             db_session.commit()
 
     return module_build
+
+
+make_module_in_db = functools.partial(make_module, store_to_db=True)
 
 
 def module_build_from_modulemd(yaml):
