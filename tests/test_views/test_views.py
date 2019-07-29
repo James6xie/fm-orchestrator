@@ -36,17 +36,17 @@ import pytest
 import re
 import sqlalchemy
 
-from tests import app, init_data, clean_database, staged_data_filename
+from tests import app, init_data, clean_database, staged_data_filename, make_module_in_db
 from tests import read_staged_data
 from tests.test_scm import base_dir as scm_base_dir
 from module_build_service.errors import UnprocessableEntity
-from module_build_service.models import ModuleBuild, BUILD_STATES
+from module_build_service.models import ModuleBuild, BUILD_STATES, ComponentBuild
 from module_build_service import db, version
 import module_build_service.config as mbs_config
 import module_build_service.scheduler.handlers.modules
 from module_build_service.utils.general import (
-    import_mmd, mmd_to_str, load_mmd
-)
+    import_mmd, mmd_to_str, load_mmd,
+    get_rpm_release)
 
 
 user = ("Homer J. Simpson", set(["packager"]))
@@ -567,6 +567,43 @@ class TestViews:
         assert data["state_trace"][0]["state"] == 1
         assert data["state_trace"][0]["state_name"] == "wait"
         assert data["state_url"], "/module-build-service/1/component-builds/3"
+
+    def test_query_component_builds_trace_is_serialized_with_none_state(self, db_session):
+        # Beside the module builds and their component builds created already
+        # in setup_method, some new component builds with None state must be
+        # created for this test to ensure the extended_json works well to
+        # serialize component build trace correctly.
+
+        module_build = make_module_in_db(
+            "cool-module:10:201907291454:c1", db_session=db_session)
+        component_release = get_rpm_release(db_session, module_build)
+
+        # No state is set.
+        component_build = ComponentBuild(
+            package="nginx",
+            scmurl="git://pkgs.domain.local/rpms/nginx?"
+                   "#ga95886c8a443b36a9ce31abda1f9bed22f2f8c3",
+            format="rpms",
+            task_id=1000,
+            nvr="nginx-1.10.1-2.{0}".format(component_release),
+            batch=1,
+            module_id=module_build.id,
+            tagged=True,
+            tagged_in_final=True
+        )
+        db_session.add(component_build)
+        db_session.commit()
+
+        db_session.refresh(component_build)
+
+        rv = self.client.get("/module-build-service/1/component-builds/?verbose=true")
+        data = json.loads(rv.data)
+
+        component_builds = [
+            item for item in data["items"]
+            if item["id"] == component_build.id
+        ]
+        assert component_builds[0]["state_trace"][0]["state_name"] is None
 
     def test_query_component_builds_filter_format(self):
         rv = self.client.get("/module-build-service/1/component-builds/?format=rpms")

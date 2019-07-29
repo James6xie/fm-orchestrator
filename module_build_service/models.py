@@ -1251,7 +1251,7 @@ class ComponentBuild(MBSBase):
                 {
                     "time": _utc_datetime_to_iso(record.state_time),
                     "state": record.state,
-                    "state_name": INVERSE_BUILD_STATES[record.state],
+                    "state_name": INVERSE_BUILD_STATES.get(record.state),
                     "reason": record.state_reason,
                 }
                 for record in self.state_trace(db_session)
