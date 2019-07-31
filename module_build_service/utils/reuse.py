@@ -269,12 +269,19 @@ def get_reusable_component(
 
     # If the rebuild strategy is "all", that means that nothing can be reused
     if module.rebuild_strategy == "all":
-        log.info('Cannot re-use the component because the rebuild strategy is "all".')
+        message = ("Cannot reuse the component {component_name} because the module "
+                   "rebuild strategy is \"all\".").format(
+                       component_name=component_name)
+        module.log_message(db_session, message)
         return None
 
     if not previous_module_build:
         previous_module_build = get_reusable_module(db_session, module)
         if not previous_module_build:
+            message = ("Cannot reuse because no previous build of "
+                       "module {module_name} found!").format(
+                module_name=module.name)
+            module.log_message(db_session, message)
             return None
 
     if not mmd:
@@ -292,7 +299,9 @@ def get_reusable_component(
         or not new_module_build_component.batch
         or not new_module_build_component.ref
     ):
-        log.info("Cannot re-use.  New component not found in the db.")
+        message = ("Cannot reuse the component {} because it can't be found in the "
+                   "database").format(component_name)
+        module.log_message(db_session, message)
         return None
 
     prev_module_build_component = models.ComponentBuild.from_component_name(
@@ -306,13 +315,17 @@ def get_reusable_component(
         or not prev_module_build_component.batch
         or not prev_module_build_component.ref
     ):
-        log.info("Cannot re-use.  Previous component not found in the db.")
+        message = ("Cannot reuse the component {} because a previous build of "
+                   "it can't be found in the database").format(component_name)
+        new_module_build_component.log_message(db_session, message)
         return None
 
     # Make sure the ref for the component that is trying to be reused
     # hasn't changed since the last build
     if prev_module_build_component.ref != new_module_build_component.ref:
-        log.info("Cannot re-use.  Component commit hashes do not match.")
+        message = ("Cannot reuse the component because the commit hash changed"
+                   " since the last build")
+        new_module_build_component.log_message(db_session, message)
         return None
 
     # At this point we've determined that both module builds contain the component
@@ -321,7 +334,9 @@ def get_reusable_component(
         # Make sure the batch number for the component that is trying to be reused
         # hasn't changed since the last build
         if prev_module_build_component.batch != new_module_build_component.batch:
-            log.info("Cannot re-use.  Batch numbers do not match.")
+            message = ("Cannot reuse the component because it is being built in "
+                       "a different batch than in the compatible module build")
+            new_module_build_component.log_message(db_session, message)
             return None
 
         # If the mmd.buildopts.macros.rpms changed, we cannot reuse
@@ -338,7 +353,9 @@ def get_reusable_component(
             old_modulemd_macros = None
 
         if modulemd_macros != old_modulemd_macros:
-            log.info("Cannot re-use.  Old modulemd macros do not match the new.")
+            message = ("Cannot reuse the component because the modulemd's macros are"
+                       " different than those of the compatible module build")
+            new_module_build_component.log_message(db_session, message)
             return None
 
         # At this point we've determined that both module builds contain the component
@@ -380,16 +397,22 @@ def get_reusable_component(
         # If the previous batches don't have the same ordering and hashes, then the
         # component can't be reused
         if previous_module_build_components != new_module_build_components:
-            log.info("Cannot re-use.  Ordering or commit hashes of previous batches differ.")
+            message = ("Cannot reuse the component because a component in a previous"
+                       " batch has been rebuilt")
+            new_module_build_component.log_message(db_session, message)
             return None
 
     for pkg_name in mmd.get_rpm_component_names():
         pkg = mmd.get_rpm_component(pkg_name)
         if pkg_name not in old_mmd.get_rpm_component_names():
-            log.info("Cannot re-use. Package lists are different.")
+            message = ("Cannot reuse the component because a component was added or "
+                       "removed since the compatible module")
+            new_module_build_component.log_message(db_session, message)
             return None
         if set(pkg.get_arches()) != set(old_mmd.get_rpm_component(pkg_name).get_arches()):
-            log.info("Cannot re-use. Architectures are different for package: %s." % pkg_name)
+            message = ("Cannot reuse the component because the architectures for the package {}"
+                       " have changed since the compatible module build").format(pkg_name)
+            new_module_build_component.log_message(db_session, message)
             return None
 
     reusable_component = db_session.query(models.ComponentBuild).filter_by(
