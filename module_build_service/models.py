@@ -1093,7 +1093,7 @@ class ModuleBuild(MBSBase):
 
     def get_buildrequired_base_modules(self, db_session):
         """
-        Find the base modules in the modulemd's xmd section.
+        Find the base modules in the modulemd's xmd/mbs/buildrequires section.
 
         :param db_session: the SQLAlchemy database session to use to query
         :return: a list of ModuleBuild objects of the base modules that are buildrequired with the
@@ -1107,7 +1107,7 @@ class ModuleBuild(MBSBase):
             try:
                 bm_dict = xmd["mbs"]["buildrequires"].get(bm)
             except KeyError:
-                raise RuntimeError("The module's mmd is missing information in the xmd section")
+                raise RuntimeError("The module's mmd is missing xmd/mbs or xmd/mbs/buildrequires.")
 
             if not bm_dict:
                 continue
@@ -1139,6 +1139,40 @@ class ModuleBuild(MBSBase):
             self.state_reason,
         )
 
+    def update_virtual_streams(self, db_session, virtual_streams):
+        """Add and remove virtual streams to and from this build
+
+        If a virtual stream is only associated with this build, remove it from
+        database as well.
+
+        :param db_session: SQLAlchemy session object.
+        :param virtual_streams: list of virtual streams names used to update
+            this build's virtual streams.
+        :type virtual_streams: list[str]
+        """
+        orig_virtual_streams = set(item.name for item in self.virtual_streams)
+        new_virtual_streams = set(virtual_streams)
+
+        dropped_virtual_streams = orig_virtual_streams - new_virtual_streams
+        newly_added_virtual_streams = new_virtual_streams - orig_virtual_streams
+
+        for stream_name in newly_added_virtual_streams:
+            virtual_stream = VirtualStream.get_by_name(db_session, stream_name)
+            if not virtual_stream:
+                virtual_stream = VirtualStream(name=stream_name)
+            self.virtual_streams.append(virtual_stream)
+
+        for stream_name in dropped_virtual_streams:
+            virtual_stream = VirtualStream.get_by_name(db_session, stream_name)
+            only_associated_with_self = (
+                len(virtual_stream.module_builds) == 1
+                and virtual_stream.module_builds[0].id == self.id
+            )
+
+            self.virtual_streams.remove(virtual_stream)
+            if only_associated_with_self:
+                db_session.delete(virtual_stream)
+
 
 class VirtualStream(MBSBase):
     __tablename__ = "virtual_streams"
@@ -1150,6 +1184,10 @@ class VirtualStream(MBSBase):
 
     def __repr__(self):
         return "<VirtualStream id={} name={}>".format(self.id, self.name)
+
+    @classmethod
+    def get_by_name(cls, db_session, name):
+        return db_session.query(cls).filter_by(name=name).first()
 
 
 class ModuleArch(MBSBase):

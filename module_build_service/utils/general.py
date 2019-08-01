@@ -412,6 +412,8 @@ def import_mmd(db_session, mmd, check_buildrequires=True):
     The ModuleBuild.owner is set to "mbs_import".
 
     :param db_session: SQLAlchemy session object.
+    :param mmd: module metadata being imported into database.
+    :type mmd: Modulemd.ModuleStream
     :param bool check_buildrequires: When True, checks that the buildrequires defined in the MMD
         have matching records in the `mmd["xmd"]["mbs"]["buildrequires"]` and also fills in
         the `ModuleBuild.buildrequires` according to this data.
@@ -419,22 +421,43 @@ def import_mmd(db_session, mmd, check_buildrequires=True):
              log messages collected during import (list)
     :rtype: tuple
     """
+    xmd = mmd.get_xmd()
+    # Set some defaults in xmd["mbs"] if they're not provided by the user
+    if "mbs" not in xmd:
+        xmd["mbs"] = {"mse": True}
+
     if not mmd.get_context():
         mmd.set_context(models.DEFAULT_MODULE_CONTEXT)
+
+    # NSVC is used for logging purpose later.
+    nsvc = mmd.get_nsvc()
+    if nsvc is None:
+        msg = "Both the name and stream must be set for the modulemd being imported."
+        log.error(msg)
+        raise UnprocessableEntity(msg)
+
     name = mmd.get_module_name()
     stream = mmd.get_stream_name()
     version = str(mmd.get_version())
     context = mmd.get_context()
 
-    try:
-        disttag_marking = mmd.get_xmd()["mbs"]["disttag_marking"]
-    except (ValueError, KeyError):
-        disttag_marking = None
+    xmd_mbs = xmd["mbs"]
 
-    try:
-        virtual_streams = mmd.get_xmd()["mbs"]["virtual_streams"]
-    except (ValueError, KeyError):
-        virtual_streams = []
+    disttag_marking = xmd_mbs.get("disttag_marking")
+
+    # If it is a base module, then make sure the value that will be used in the RPM disttags
+    # doesn't contain a dash since a dash isn't allowed in the release field of the NVR
+    if name in conf.base_module_names:
+        if disttag_marking and "-" in disttag_marking:
+            msg = "The disttag_marking cannot contain a dash"
+            log.error(msg)
+            raise UnprocessableEntity(msg)
+        if not disttag_marking and "-" in stream:
+            msg = "The stream cannot contain a dash unless disttag_marking is set"
+            log.error(msg)
+            raise UnprocessableEntity(msg)
+
+    virtual_streams = xmd_mbs.get("virtual_streams", [])
 
     # Verify that the virtual streams are the correct type
     if virtual_streams and (
@@ -445,53 +468,33 @@ def import_mmd(db_session, mmd, check_buildrequires=True):
         log.error(msg)
         raise UnprocessableEntity(msg)
 
-    # If it is a base module, then make sure the value that will be used in the RPM disttags
-    # doesn't contain a dash since a dash isn't allowed in the release field of the NVR
-    if name in conf.base_module_names:
-        if disttag_marking and "-" in disttag_marking:
-            msg = "The disttag_marking cannot contain a dash"
-            log.error(msg)
-            raise UnprocessableEntity(msg)
-        elif not disttag_marking and "-" in stream:
-            msg = "The stream cannot contain a dash unless disttag_marking is set"
-            log.error(msg)
-            raise UnprocessableEntity(msg)
+    if check_buildrequires:
+        deps = mmd.get_dependencies()
+        if len(deps) > 1:
+            raise UnprocessableEntity(
+                "The imported module's dependencies list should contain just one element")
+
+        if "buildrequires" not in xmd_mbs:
+            # Always set buildrequires if it is not there, because
+            # get_buildrequired_base_modules requires xmd/mbs/buildrequires exists.
+            xmd_mbs["buildrequires"] = {}
+            mmd.set_xmd(xmd)
+
+        if len(deps) > 0:
+            brs = set(deps[0].get_buildtime_modules())
+            xmd_brs = set(xmd_mbs["buildrequires"].keys())
+            if brs - xmd_brs:
+                raise UnprocessableEntity(
+                    "The imported module buildrequires other modules, but the metadata in the "
+                    'xmd["mbs"]["buildrequires"] dictionary is missing entries'
+                )
+
+    if "koji_tag" not in xmd_mbs:
+        log.warning("'koji_tag' is not set in xmd['mbs'] for module {}".format(nsvc))
+        log.warning("koji_tag will be set to None for imported module build.")
 
     # Log messages collected during import
     msgs = []
-
-    # NSVC is used for logging purpose later.
-    try:
-        nsvc = ":".join([name, stream, version, context])
-    except TypeError:
-        msg = "Incomplete NSVC: {}:{}:{}:{}".format(name, stream, version, context)
-        log.error(msg)
-        raise UnprocessableEntity(msg)
-
-    if len(mmd.get_dependencies()) > 1:
-        raise UnprocessableEntity(
-            "The imported module's dependencies list should contain just one element")
-
-    xmd = mmd.get_xmd()
-    # Set some defaults in xmd["mbs"] if they're not provided by the user
-    if "mbs" not in xmd:
-        xmd["mbs"] = {"mse": True}
-
-    if check_buildrequires and mmd.get_dependencies():
-        brs = set(mmd.get_dependencies()[0].get_buildtime_modules())
-        xmd_brs = set(xmd["mbs"].get("buildrequires", {}).keys())
-        if brs - xmd_brs:
-            raise UnprocessableEntity(
-                "The imported module buildrequires other modules, but the metadata in the "
-                'xmd["mbs"]["buildrequires"] dictionary is missing entries'
-            )
-    elif "buildrequires" not in xmd["mbs"]:
-        xmd["mbs"]["buildrequires"] = {}
-        mmd.set_xmd(xmd)
-
-    koji_tag = xmd["mbs"].get("koji_tag")
-    if koji_tag is None:
-        log.warning("'koji_tag' is not set in xmd['mbs'] for module {}".format(nsvc))
 
     # Get the ModuleBuild from DB.
     build = models.ModuleBuild.get_build_from_nsvc(db_session, name, stream, version, context)
@@ -501,11 +504,12 @@ def import_mmd(db_session, mmd, check_buildrequires=True):
         msgs.append(msg)
     else:
         build = models.ModuleBuild()
+        db_session.add(build)
 
     build.name = name
     build.stream = stream
     build.version = version
-    build.koji_tag = koji_tag
+    build.koji_tag = xmd_mbs.get("koji_tag")
     build.state = models.BUILD_STATES["ready"]
     build.modulemd = mmd_to_str(mmd)
     build.context = context
@@ -523,19 +527,7 @@ def import_mmd(db_session, mmd, check_buildrequires=True):
             if base_module not in build.buildrequires:
                 build.buildrequires.append(base_module)
 
-    db_session.add(build)
-    db_session.commit()
-
-    for virtual_stream in virtual_streams:
-        vs_obj = db_session.query(models.VirtualStream).filter_by(name=virtual_stream).first()
-        if not vs_obj:
-            vs_obj = models.VirtualStream(name=virtual_stream)
-            db_session.add(vs_obj)
-            db_session.commit()
-
-        if vs_obj not in build.virtual_streams:
-            build.virtual_streams.append(vs_obj)
-            db_session.add(build)
+    build.update_virtual_streams(db_session, virtual_streams)
 
     db_session.commit()
 
