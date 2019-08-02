@@ -230,6 +230,16 @@ def validate_koji_tag(tag_arg_names, pre="", post="-", dict_key="name"):
         def wrapper(*args, **kwargs):
             call_args = inspect.getcallargs(function, *args, **kwargs)
 
+            # if module name is in allowed_privileged_module_names or base_module_names lists
+            # we don't have to validate it since they could use an arbitrary Koji tag
+            try:
+                if call_args['self'].module_str in \
+                        conf.allowed_privileged_module_names + conf.base_module_names:
+                    # skip validation
+                    return function(*args, **kwargs)
+            except (AttributeError, KeyError):
+                pass
+
             for tag_arg_name in tag_arg_names:
                 err_subject = "Koji tag validation:"
 

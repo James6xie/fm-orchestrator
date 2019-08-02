@@ -759,6 +759,20 @@ class TestUtils:
             validate_koji_tag_is_None(None)
             assert str(cm.value).endswith(" No value provided.") is True
 
+    @patch(
+        "module_build_service.config.Config.allowed_privileged_module_names",
+        new_callable=mock.PropertyMock,
+        return_value=["testmodule"],
+    )
+    def test_validate_koji_tag_previleged_module_name(self, conf_apmn):
+        @module_build_service.utils.validate_koji_tag("tag_arg")
+        def validate_koji_tag_priv_mod_name(self, tag_arg):
+            pass
+
+        builder = mock.MagicMock()
+        builder.module_str = 'testmodule'
+        validate_koji_tag_priv_mod_name(builder, "abc")
+
     @patch("module_build_service.scm.SCM")
     def test_record_component_builds_duplicate_components(self, mocked_scm, db_session):
         clean_database()
