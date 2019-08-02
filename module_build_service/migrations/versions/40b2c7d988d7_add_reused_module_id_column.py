@@ -16,7 +16,6 @@ import sqlalchemy as sa
 
 def upgrade():
     op.add_column('module_builds', sa.Column('reused_module_id', sa.Integer(), nullable=True))
-    sa.ForeignKeyConstraint(['reused_module_id'], ['module_builds.id'], ),
 
 
 def downgrade():
