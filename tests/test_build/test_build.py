@@ -1144,7 +1144,6 @@ class TestBuild(BaseTestBuild):
         build_one.stream = "master"
         build_one.version = "2820180205135154"
         build_one.build_context = "return_runtime_context"
-        build_one.ref_build_context = "return_runtime_context"
         build_one.runtime_context = "9c690d0e"
         build_one.context = "9c690d0e"
         build_one.state = models.BUILD_STATES["failed"]
@@ -1283,7 +1282,6 @@ class TestBuild(BaseTestBuild):
         build_one.stream = "master"
         build_one.version = "2820180205135154"
         build_one.build_context = "return_runtime_context"
-        build_one.ref_build_context = "return_runtime_context"
         build_one.runtime_context = "9c690d0e"
         build_one.state = models.BUILD_STATES["failed"]
         # this is not calculated by real but just a value to

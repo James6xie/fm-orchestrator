@@ -67,13 +67,8 @@ class TestModels:
         build = ModuleBuild.get_by_id(db_session, 1)
         db_session.commit()
         build.modulemd = read_staged_data("testmodule_dependencies")
-        (
-            build.ref_build_context,
-            build.build_context,
-            build.runtime_context,
-            build.context,
-        ) = ModuleBuild.contexts_from_mmd(build.modulemd)
-        assert build.ref_build_context == "f6e2aeec7576196241b9afa0b6b22acf2b6873d7"
+        build.build_context, build.runtime_context, build.context = \
+            ModuleBuild.contexts_from_mmd(build.modulemd)
         assert build.build_context == "089df24993c037e10174f3fa7342ab4dc191a4d4"
         assert build.runtime_context == "bbc84c7b817ab3dd54916c0bcd6c6bdf512f7f9c"
         assert build.context == "3ee22b28"

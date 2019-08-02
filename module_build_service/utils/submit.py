@@ -1019,12 +1019,8 @@ def submit_module_build(db_session, username, mmd, params):
                 scratch=params.get("scratch"),
                 srpms=params.get("srpms"),
             )
-            (
-                module.ref_build_context,
-                module.build_context,
-                module.runtime_context,
-                module.context,
-            ) = module.contexts_from_mmd(module.modulemd)
+            module.build_context, module.runtime_context, module.context = \
+                module.contexts_from_mmd(module.modulemd)
             module.context += context_suffix
 
         all_modules_skipped = False

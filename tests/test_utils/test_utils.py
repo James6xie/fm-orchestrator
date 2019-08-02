@@ -188,40 +188,6 @@ class TestUtilsComponentReuse:
         assert bool(tangerine is None) != bool(set_current_arch == set_database_arch)
 
     @pytest.mark.parametrize("rebuild_strategy", models.ModuleBuild.rebuild_strategies.keys())
-    def test_get_reusable_component_different_buildrequires_hash(
-        self, rebuild_strategy, db_session
-    ):
-        first_module_build = models.ModuleBuild.get_by_id(db_session, 2)
-        first_module_build.rebuild_strategy = rebuild_strategy
-        db_session.commit()
-
-        second_module_build = models.ModuleBuild.get_by_id(db_session, 3)
-        mmd = second_module_build.mmd()
-        xmd = mmd.get_xmd()
-        xmd["mbs"]["buildrequires"]["platform"]["ref"] = "da39a3ee5e6b4b0d3255bfef95601890afd80709"
-        mmd.set_xmd(xmd)
-        second_module_build.modulemd = mmd_to_str(mmd)
-        second_module_build.ref_build_context = "37c6c57bedf4305ef41249c1794760b5cb8fad17"
-        second_module_build.rebuild_strategy = rebuild_strategy
-        db_session.commit()
-
-        plc_rv = module_build_service.utils.get_reusable_component(
-            db_session, second_module_build, "perl-List-Compare")
-        pt_rv = module_build_service.utils.get_reusable_component(
-            db_session, second_module_build, "perl-Tangerine")
-        tangerine_rv = module_build_service.utils.get_reusable_component(
-            db_session, second_module_build, "tangerine")
-
-        if rebuild_strategy == "only-changed":
-            assert plc_rv is not None
-            assert pt_rv is not None
-            assert tangerine_rv is not None
-        else:
-            assert plc_rv is None
-            assert pt_rv is None
-            assert tangerine_rv is None
-
-    @pytest.mark.parametrize("rebuild_strategy", models.ModuleBuild.rebuild_strategies.keys())
     def test_get_reusable_component_different_buildrequires_stream(
         self, rebuild_strategy, db_session
     ):
@@ -273,7 +239,8 @@ class TestUtilsComponentReuse:
         }
         mmd.set_xmd(xmd)
         second_module_build.modulemd = mmd_to_str(mmd)
-        second_module_build.ref_build_context = "37c6c57bedf4305ef41249c1794760b5cb8fad17"
+        second_module_build.build_context = models.ModuleBuild.calculate_build_context(
+            xmd["mbs"]["buildrequires"])
         db_session.commit()
 
         plc_rv = module_build_service.utils.get_reusable_component(
