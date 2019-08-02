@@ -15,7 +15,8 @@ import sqlalchemy as sa
 
 
 def upgrade():
-    op.create_table("log_messages",
+    op.create_table(
+        "log_messages",
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("component_build_id", sa.Integer(), nullable=True),
         sa.Column("module_build_id", sa.Integer(), nullable=False),
