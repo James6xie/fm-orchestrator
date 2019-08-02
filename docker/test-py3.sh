@@ -24,7 +24,7 @@ done
 
 # Since tox seems to ignore `usedevelop` when we have `sitepackages` on, we have to run it manually
 python3 setup.py develop --no-deps
-/usr/bin/tox -e flake8,py3
+/usr/bin/tox -e flake8,py3 "$@"
 rv=$?
 
 # After running tox, we can revert back to the original files
