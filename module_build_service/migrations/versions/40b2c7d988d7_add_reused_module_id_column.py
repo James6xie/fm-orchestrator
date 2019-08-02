@@ -20,4 +20,5 @@ def upgrade():
 
 
 def downgrade():
-    op.drop_column('module_builds', 'reused_module_id')
+    with op.batch_alter_table('module_builds', schema=None) as batch_op:
+        batch_op.drop_column('reused_module_id')
