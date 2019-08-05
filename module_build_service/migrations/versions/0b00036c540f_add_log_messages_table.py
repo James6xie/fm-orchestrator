@@ -15,11 +15,13 @@ import sqlalchemy as sa
 
 
 def upgrade():
-    op.create_table("log_messages",
+    op.create_table(
+        "log_messages",
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("component_build_id", sa.Integer(), nullable=True),
         sa.Column("module_build_id", sa.Integer(), nullable=False),
         sa.Column("message", sa.String(), nullable=False),
+        sa.Column("time_created", sa.DateTime(), nullable=False),
         sa.ForeignKeyConstraint(["component_build_id"], ["component_builds.id"], ),
         sa.ForeignKeyConstraint(["module_build_id"], ["module_builds.id"], ),
         sa.PrimaryKeyConstraint("id"),
