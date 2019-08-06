@@ -2019,7 +2019,8 @@ class TestViews:
         data = json.loads(rv.data)
 
         assert data["error"] == "Unprocessable Entity"
-        assert data["message"] == "Incomplete NSVC: None:None:0:00000000"
+        expected_msg = "Both the name and stream must be set for the modulemd being imported."
+        assert data["message"] == expected_msg
 
     @pytest.mark.parametrize("api_version", [1, 2])
     @patch("module_build_service.auth.get_user", return_value=import_module_user)

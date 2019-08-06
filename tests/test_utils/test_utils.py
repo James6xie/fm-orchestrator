@@ -455,6 +455,63 @@ class TestUtils:
         else:
             module_build_service.utils.import_mmd(db_session, mmd)
 
+    def test_import_mmd_remove_dropped_virtual_streams(self, db_session):
+        mmd = load_mmd(read_staged_data("formatted_testmodule"))
+
+        # Add some virtual streams
+        xmd = mmd.get_xmd()
+        xmd["mbs"]["virtual_streams"] = ["f28", "f29", "f30"]
+        mmd.set_xmd(xmd)
+
+        # Import mmd into database to simulate the next step to reimport a module
+        module_build_service.utils.general.import_mmd(db_session, mmd)
+
+        # Now, remove some virtual streams from module metadata
+        xmd = mmd.get_xmd()
+        xmd["mbs"]["virtual_streams"] = ["f28", "f29"]  # Note that, f30 is removed
+        mmd.set_xmd(xmd)
+
+        # Test import modulemd again and the f30 should be removed from database.
+        module_build, _ = module_build_service.utils.general.import_mmd(db_session, mmd)
+
+        db_session.refresh(module_build)
+        assert ["f28", "f29"] == sorted(item.name for item in module_build.virtual_streams)
+        assert 0 == db_session.query(models.VirtualStream).filter_by(name="f30").count()
+
+    def test_import_mmd_dont_remove_dropped_virtual_streams_associated_with_other_modules(
+        self, db_session
+    ):
+        mmd = load_mmd(read_staged_data("formatted_testmodule"))
+        # Add some virtual streams to this module metadata
+        xmd = mmd.get_xmd()
+        xmd["mbs"]["virtual_streams"] = ["f28", "f29", "f30"]
+        mmd.set_xmd(xmd)
+        module_build_service.utils.general.import_mmd(db_session, mmd)
+
+        # Import another module which has overlapping virtual streams
+        another_mmd = load_mmd(read_staged_data("formatted_testmodule-more-components"))
+        # Add some virtual streams to this module metadata
+        xmd = another_mmd.get_xmd()
+        xmd["mbs"]["virtual_streams"] = ["f29", "f30"]
+        another_mmd.set_xmd(xmd)
+        another_module_build, _ = module_build_service.utils.general.import_mmd(
+            db_session, another_mmd)
+
+        # Now, remove f30 from mmd
+        xmd = mmd.get_xmd()
+        xmd["mbs"]["virtual_streams"] = ["f28", "f29"]
+        mmd.set_xmd(xmd)
+
+        # Reimport formatted_testmodule again
+        module_build, _ = module_build_service.utils.general.import_mmd(db_session, mmd)
+
+        db_session.refresh(module_build)
+        assert ["f28", "f29"] == sorted(item.name for item in module_build.virtual_streams)
+
+        # The overlapped f30 should be still there.
+        db_session.refresh(another_module_build)
+        assert ["f29", "f30"] == sorted(item.name for item in another_module_build.virtual_streams)
+
     def test_get_rpm_release_mse(self, db_session):
         init_data(contexts=True)
 
