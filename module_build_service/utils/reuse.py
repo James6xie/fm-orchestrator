@@ -117,9 +117,7 @@ def get_reusable_module(db_session, module):
             previous_module_build = previous_module_build.filter(
                 models.ModuleBuild.rebuild_strategy.in_(["all", "changed-and-after"])
             )
-            previous_module_build = previous_module_build.filter_by(
-                ref_build_context=module.ref_build_context
-            )
+
         previous_module_build = previous_module_build.first()
 
         if previous_module_build:

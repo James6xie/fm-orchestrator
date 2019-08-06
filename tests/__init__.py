@@ -210,7 +210,6 @@ def _populate_data(db_session, data_size=10, contexts=False, scratch=False):
                 unique_hash = hashlib.sha1(nsvc.encode('utf-8')).hexdigest()
                 build_one.build_context = unique_hash
                 build_one.runtime_context = unique_hash
-                build_one.ref_build_context = unique_hash
                 combined_hashes = "{0}:{1}".format(unique_hash, unique_hash)
                 build_one.context = hashlib.sha1(combined_hashes.encode("utf-8")).hexdigest()[:8]
 

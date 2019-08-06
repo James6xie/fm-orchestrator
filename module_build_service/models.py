@@ -85,7 +85,7 @@ INVERSE_BUILD_STATES = {v: k for k, v in BUILD_STATES.items()}
 FAILED_STATES = (BUILD_STATES["failed"], BUILD_STATES["garbage"])
 
 
-Contexts = namedtuple("Contexts", "ref_build_context build_context runtime_context context")
+Contexts = namedtuple("Contexts", "build_context runtime_context context")
 
 
 def _utc_datetime_to_iso(datetime_object):
@@ -255,7 +255,6 @@ class ModuleBuild(MBSBase):
     name = db.Column(db.String, nullable=False)
     stream = db.Column(db.String, nullable=False)
     version = db.Column(db.String, nullable=False)
-    ref_build_context = db.Column(db.String)
     build_context = db.Column(db.String)
     runtime_context = db.Column(db.String)
     context = db.Column(db.String, nullable=False, server_default=DEFAULT_MODULE_CONTEXT)
@@ -626,17 +625,15 @@ class ModuleBuild(MBSBase):
     @classmethod
     def contexts_from_mmd(cls, mmd_str):
         """
-        Returns tuple (ref_build_context, build_context, runtime_context, context)
+        Returns tuple (build_context, runtime_context, context)
         with hashes:
-            - ref_build_context - Hash of commit hashes of expanded buildrequires.
             - build_context - Hash of stream names of expanded buildrequires.
             - runtime_context - Hash of stream names of expanded runtime requires.
             - context - Hash of combined hashes of build_context and runtime_context.
 
         :param str mmd_str: String with Modulemd metadata.
         :rtype: Contexts
-        :return: Named tuple with build_context, strem_build_context, runtime_context and
-                 context hashes.
+        :return: Named tuple with build_context, runtime_context and context hashes.
         """
         from module_build_service.utils.general import load_mmd
 
@@ -651,27 +648,10 @@ class ModuleBuild(MBSBase):
         runtime_context = cls.calculate_runtime_context(mmd_deps)
 
         return Contexts(
-            cls.calculate_ref_build_context(mbs_xmd_buildrequires),
             build_context,
             runtime_context,
             cls.calculate_module_context(build_context, runtime_context)
         )
-
-    @staticmethod
-    def calculate_ref_build_context(mbs_xmd_buildrequires):
-        """
-        Returns the hash of commit hashes of expanded buildrequires.
-        :param mbs_xmd_buildrequires: xmd["mbs"]["buildrequires"] from Modulemd
-        :rtype: str
-        :return: ref_build_context hash
-        """
-        # Get the buildrequires from the XMD section, because it contains
-        # all the buildrequires as we resolved them using dependency resolver.
-        mmd_formatted_buildrequires = {
-            dep: info["ref"] for dep, info in mbs_xmd_buildrequires.items()
-        }
-        property_json = json.dumps(OrderedDict(sorted(mmd_formatted_buildrequires.items())))
-        return hashlib.sha1(property_json.encode("utf-8")).hexdigest()
 
     @staticmethod
     def calculate_build_context(mbs_xmd_buildrequires):
@@ -983,7 +963,6 @@ class ModuleBuild(MBSBase):
             "base_module_buildrequires": [br.short_json(True, False) for br in self.buildrequires],
             "build_context": self.build_context,
             "modulemd": self.modulemd,
-            "ref_build_context": self.ref_build_context,
             "reused_module_id": self.reused_module_id,
             "runtime_context": self.runtime_context,
             "state_trace": [
