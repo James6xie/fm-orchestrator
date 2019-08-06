@@ -447,7 +447,7 @@ class MMDResolver(object):
         self.pool.createwhatprovides()
 
         # "solvable to n:s:v:c"
-        s2nsvc = lambda s: "%s:%s" % (s.name, s.arch)
+        s2nsvca = lambda s: "%s:%s" % (s.name, s.arch)
         # "solvable to n:s"
         s2ns = lambda s: ":".join(s.name.split(":", 2)[:2])
 
@@ -474,7 +474,7 @@ class MMDResolver(object):
             elif len(requires) == 0:
                 # Return early in case the requires is empty, because it basically means
                 # the module has no buildrequires section.
-                return set([frozenset([s2nsvc(src)])])
+                return set([frozenset([s2nsvca(src)])])
 
             requires = requires[0]
             src_alternatives = alternatives[src] = collections.OrderedDict()
@@ -521,7 +521,7 @@ class MMDResolver(object):
                 # This will allow us to group alternatives for single NS in case of First
                 # policy and later return just the first alternative.
                 if policy == MMDResolverPolicy.All:
-                    kfunc = s2nsvc
+                    kfunc = s2nsvca
                 elif policy == MMDResolverPolicy.First:
                     kfunc = s2ns
                 # `key` contains tuple similar to "('gtk:1', 'foo:1')"
@@ -620,7 +620,7 @@ class MMDResolver(object):
 
         # Convert the solvables in alternatives to nsvc and return them as set of frozensets.
         return set(
-            frozenset(s2nsvc(s) for s in transactions[0])
+            frozenset(s2nsvca(s) for s in transactions[0])
             for src_alternatives in alternatives.values()
             for transactions in src_alternatives.values()
         )
