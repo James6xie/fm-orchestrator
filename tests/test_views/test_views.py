@@ -524,6 +524,12 @@ class TestViews:
         assert rv.status_code == 400
         assert results == expected_error
 
+    def test_query_builds_get_short_json_from_empty_list_of_builds(self):
+        rv = self.client.get("/module-build-service/1/module-builds/?name=pkgname&short=true")
+        data = json.loads(rv.data)
+        assert [] == data["items"]
+        assert 0 == data["meta"]["total"]
+
     def test_query_component_build(self):
         rv = self.client.get("/module-build-service/1/component-builds/1")
         data = json.loads(rv.data)

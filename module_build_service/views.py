@@ -125,7 +125,7 @@ class AbstractQueryableBuildAPI(MethodView):
                 json_func_kwargs["show_state_url"] = True
                 json_func_kwargs["api_version"] = api_version
             elif short_flag == "true" or short_flag == "1":
-                if hasattr(p_query.items[0], "short_json"):
+                if p_query.items and hasattr(p_query.items[0], "short_json"):
                     json_func_name = "short_json"
             if json_func_name == "json" or json_func_name == "extended_json":
                 # Only ModuleBuild.json and ModuleBuild.extended_json has argument db_session
