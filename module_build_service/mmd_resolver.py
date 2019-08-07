@@ -23,17 +23,11 @@
 # Written by Jan Kaluža <jkaluza@redhat.com>
 #            Igor Gnatenko <ignatenko@redhat.com>
 
-import enum
 import collections
 import itertools
 import solv
 from module_build_service import log, conf
 from module_build_service.models import ModuleBuild
-
-
-class MMDResolverPolicy(enum.Enum):
-    All = "all"  # All possible top-level combinations
-    First = "first"  # All possible top-level combinations (filtered by N:S, first picked)
 
 
 class MMDResolver(object):
@@ -415,27 +409,19 @@ class MMDResolver(object):
 
         return solvables
 
-    def solve(self, mmd, policy=MMDResolverPolicy.First):
+    def solve(self, mmd):
         """
         Solves dependencies of module defined by `mmd` object. Returns set
         containing frozensets with all the possible combinations which
         satisfied dependencies.
 
-        :param Modulemd mmd: Input modulemd which should have the `context` set
-            to None.
-        :param policy: Policy to use when the dependencies used in buildrequires
-            section are ambigous. For example, when the single buildrequired
-            module is gtk:1 and this gtk:1 module is built against both
-            platform:f28 and platform:f29, the policy influences the resolving
-            in following way:
+        ``solve`` uses a policy called "First" to resolve the dependencies.
+        That is, only single combination of buildrequires will be returned with
+        "gtk:1" and "platform:f28", because the input buildrequires section did
+        not mention any platform stream and therefore "first one" is used.
 
-            - MMDResolverPolicy.First: Only single combination of buildrequires
-              will be returned with "gtk:1" and "platform:f28", because the input
-              buildrequires section did not mention any platform stream and
-              therefore "first one" is used.
-            - MMDResolverPolicy.All: Two combinations of buildrequires will be returned,
-              one with "gtk:1" and "platform:f28", other with "gtk:1" and "platform:f29".
-
+        :param mmd: Input modulemd which should have the `context` set to None.
+        :type mmd: Modulemd.ModuleStream
         :return: set of frozensets of n:s:v:c of modules which satisfied the
             dependency solving.
         """
@@ -514,18 +500,14 @@ class MMDResolver(object):
                 log.debug("Testing %s with combination: %s", src, opt)
                 # We will be trying to solve all the combinations using all the NSVCs
                 # we have in pool, but as we said earlier, we don't want to return
-                # all of them when MMDResolverPolicy.First is used.
+                # all of them for the used resolve policy "First".
                 # We will achieve that by storing alternative combinations in `src_alternatives`
                 # with NSVC as key in case we want all of them and NS as a key when we want
                 # just First combination for given dependency.
                 # This will allow us to group alternatives for single NS in case of First
                 # policy and later return just the first alternative.
-                if policy == MMDResolverPolicy.All:
-                    kfunc = s2nsvca
-                elif policy == MMDResolverPolicy.First:
-                    kfunc = s2ns
                 # `key` contains tuple similar to "('gtk:1', 'foo:1')"
-                key = tuple(kfunc(s) for s in opt)
+                key = tuple(s2ns(s) for s in opt)
 
                 # Create the solving jobs.
                 # We need to say to libsolv that we want it to prefer modules from the combination
@@ -580,43 +562,40 @@ class MMDResolver(object):
                 else:
                     log.debug("  - ^ Not all favored solvables found in the result, skipping.")
 
-        # If the MMDResolverPolicy is First, we will check all the alternatives and keep
-        # just the "first" one.
-        if policy == MMDResolverPolicy.First:
-            # Prune
-            for transactions in alternatives.values():
-                for ns, trans in transactions.items():
-                    # Each transaction in trans lists all the possible working
-                    # combination of solvables. Our goal here is to find out the
-                    # transaction which installs the most latest Solvables - ideally
-                    # always the latest versions of the Solvables we have, but this might
-                    # not be always possible because of dependencies.
-                    #
-                    # We achieve that by generating sorted_trans list in follwing format:
-                    #   [[transaction_id, [solvable1_index, solvable2_index, ...]], [...], ...]
-                    #
-                    # The solvableN_index is a number saying how new the solvable is. We use
-                    # `self.solvables` to get that number and it is simply index
-                    # of the solvable in the particular self.solvables[name_stream] list.
-                    # The newest solvable has therefore index 0, the next newest solvable index 1
-                    # and so on.
-                    #
-                    # Then we simply sort the `sorted_trans` based on the sum of solvableN_index
-                    # which gives us the transaction with the most recent versions. This is
-                    # used as a solution.
-                    sorted_trans = []
-                    for i, t in enumerate(trans):
-                        idx = []
-                        for s in t:
-                            name_stream = s2ns(s)
-                            if name_stream not in self.solvables:
-                                continue
-                            index = self.solvables[name_stream].index(s)
-                            idx.append(index)
-                        sorted_trans.append([i, idx])
-                    sorted_trans.sort(key=lambda i: sum(i[1]))
-                    if sorted_trans:
-                        transactions[ns] = [trans[sorted_trans[0][0]]]
+        # We will check all the alternatives and keep just the "first" one.
+        for transactions in alternatives.values():
+            for ns, trans in transactions.items():
+                # Each transaction in trans lists all the possible working
+                # combination of solvables. Our goal here is to find out the
+                # transaction which installs the most latest Solvables - ideally
+                # always the latest versions of the Solvables we have, but this might
+                # not be always possible because of dependencies.
+                #
+                # We achieve that by generating sorted_trans list in follwing format:
+                #   [[transaction_id, [solvable1_index, solvable2_index, ...]], [...], ...]
+                #
+                # The solvableN_index is a number saying how new the solvable is. We use
+                # `self.solvables` to get that number and it is simply index
+                # of the solvable in the particular self.solvables[name_stream] list.
+                # The newest solvable has therefore index 0, the next newest solvable index 1
+                # and so on.
+                #
+                # Then we simply sort the `sorted_trans` based on the sum of solvableN_index
+                # which gives us the transaction with the most recent versions. This is
+                # used as a solution.
+                sorted_trans = []
+                for i, t in enumerate(trans):
+                    idx = []
+                    for s in t:
+                        name_stream = s2ns(s)
+                        if name_stream not in self.solvables:
+                            continue
+                        index = self.solvables[name_stream].index(s)
+                        idx.append(index)
+                    sorted_trans.append([i, idx])
+                sorted_trans.sort(key=lambda i: sum(i[1]))
+                if sorted_trans:
+                    transactions[ns] = [trans[sorted_trans[0][0]]]
 
         # Convert the solvables in alternatives to nsvc and return them as set of frozensets.
         return set(
