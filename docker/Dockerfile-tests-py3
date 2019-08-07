@@ -8,6 +8,7 @@ RUN dnf -y install \
     --setopt=tsflags=nodocs \
     git-core \
     createrepo_c \
+    rsync \
     python3-fedmsg \
     python3-kobo-rpmlib \
     python3-rpm \

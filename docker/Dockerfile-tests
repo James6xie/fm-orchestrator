@@ -11,6 +11,7 @@ RUN yum -y install \
     --setopt=tsflags=nodocs \
     bash \
     createrepo_c \
+    rsync \
     fedmsg \
     fedmsg-hub \
     gcc \
