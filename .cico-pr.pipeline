@@ -59,8 +59,14 @@ node('factory2'){
         }
 
         stage('Pull Container Images') {
-            onmyduffynode 'docker pull quay.io/factory2/mbs-test-centos'
-            onmyduffynode 'docker pull quay.io/factory2/mbs-test-fedora'
+            parallel {
+                stage('Pull quay.io/factory2/mbs-test-centos') {
+                    onmyduffynode 'docker pull quay.io/factory2/mbs-test-centos'
+                }
+                stage('Pull quay.io/factory2/mbs-test-fedora') {
+                    onmyduffynode 'docker pull quay.io/factory2/mbs-test-fedora'
+                }
+            }
         }
 
         stage('Run Test Suites') {
