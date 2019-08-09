@@ -525,9 +525,10 @@ def import_mmd(db_session, mmd, check_buildrequires=True):
     build.context = context
     build.owner = "mbs_import"
     build.rebuild_strategy = "all"
-    build.time_submitted = datetime.utcnow()
-    build.time_modified = datetime.utcnow()
-    build.time_completed = datetime.utcnow()
+    now = datetime.utcnow()
+    build.time_submitted = now
+    build.time_modified = now
+    build.time_completed = now
     if build.name in conf.base_module_names:
         build.stream_version = models.ModuleBuild.get_stream_version(stream)
 
