@@ -160,6 +160,9 @@ def init(config, db_session, msg):
             break
         time.sleep(1)
 
+    build_logs.start(db_session, build)
+    log.info("Start to handle %s which is in init state.", build.mmd().get_nsvc())
+
     error_msg = ""
     failure_reason = "unspec"
     try:
@@ -313,7 +316,6 @@ def wait(config, db_session, msg):
         raise RuntimeError("{!r} doesn't contain xmd information for MBS.".format(build))
 
     build = _get_build_containing_xmd_for_mbs()
-    build_logs.start(db_session, build)
 
     log.info("Found build=%r from message" % build)
     log.debug("%r", build.modulemd)
