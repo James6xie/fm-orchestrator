@@ -1,6 +1,17 @@
 Change Log
 ==========
 
+v2.26.0
+-------
+* Allow the poller to clean up module builds without arches.
+* Prevent overlapping RPMs from buildrequired base modules from being available when using
+  default modules.
+* Add an REST endpoint to display log messages.
+* Allow reusing components from builds built against compatible base module streams.
+* Serialize component build state trace correctly if state is unset.
+* Return empty result if short=true is specified on empty list of builds.
+
+
 v2.25.0
 -------
 * Add support for "default modules" (Ursa-Prime)
