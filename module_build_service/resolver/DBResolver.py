@@ -388,13 +388,25 @@ class DBResolver(GenericResolver):
 
             if module_version is None or module_context is None:
                 build = models.ModuleBuild.get_last_build_in_stream(
-                    self.db_session, module_name, module_stream)
+                    self.db_session, module_name, module_stream
+                )
             else:
                 build = models.ModuleBuild.get_build_from_nsvc(
-                    self.db_session, module_name, module_stream, module_version, module_context)
+                    self.db_session, module_name, module_stream, module_version, module_context
+                )
 
             if not build:
                 raise UnprocessableEntity("The module {} was not found".format(nsvc))
+
+            for sibling_id in build.siblings(self.db_session):
+                sibling_build = models.ModuleBuild.get_by_id(self.db_session, sibling_id)
+                if sibling_build.state not in (
+                        models.BUILD_STATES["ready"], models.BUILD_STATES["failed"]
+                ):
+                    raise UnprocessableEntity('Buildrequire {}-{}-{} is in "{}" state'.format(
+                        sibling_build.name, sibling_build.stream, sibling_build.version,
+                        models.INVERSE_BUILD_STATES[sibling_build.state]
+                    ))
 
             commit_hash = None
             mmd = build.mmd()

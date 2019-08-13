@@ -438,7 +438,8 @@ class ModuleBuild(MBSBase):
             allowing to set additional filter for results.
         """
         return ModuleBuild._get_last_builds_in_stream_query(
-            db_session, name, stream, **kwargs).first()
+            db_session, name, stream, **kwargs
+        ).first()
 
     @staticmethod
     def get_build_from_nsvc(db_session, name, stream, version, context, **kwargs):

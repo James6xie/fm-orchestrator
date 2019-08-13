@@ -30,6 +30,7 @@ import module_build_service.resolver as mbs_resolver
 from module_build_service import models, utils, Modulemd
 from module_build_service.utils import import_mmd, mmd_to_str, load_mmd
 from module_build_service.models import ModuleBuild
+from module_build_service.errors import UnprocessableEntity
 import tests
 
 
@@ -187,6 +188,41 @@ class TestDBModule:
                 "koji_tag": "module-testmodule-master-20170109091357-78e4a6fd",
             }
         }
+
+    def test_resolve_requires_exception(self, db_session):
+        build = models.ModuleBuild.get_by_id(db_session, 2)
+        resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="db")
+        with pytest.raises(UnprocessableEntity):
+            resolver.resolve_requires(
+                [":".join(["abcdefghi", build.stream, build.version, build.context])]
+            )
+
+    def test_resolve_requires_siblings(self, db_session):
+        tests.clean_database()
+        resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="db")
+        mmd = load_mmd(tests.read_staged_data("formatted_testmodule"))
+        for i in range(3):
+            build = tests.module_build_from_modulemd(mmd_to_str(mmd))
+            build.build_context = "f6e2aeec7576196241b9afa0b6b22acf2b6873d" + str(i)
+            build.runtime_context = "bbc84c7b817ab3dd54916c0bcd6c6bdf512f7f9c" + str(i)
+            build.state = models.BUILD_STATES["ready"]
+            db_session.add(build)
+        db_session.commit()
+
+        build_one = ModuleBuild.get_by_id(db_session, 2)
+        nsvc = ":".join([build_one.name, build_one.stream, build_one.version, build_one.context])
+        result = resolver.resolve_requires([nsvc])
+        assert result == {
+            "testmodule": {
+                "stream": build_one.stream,
+                "version": build_one.version,
+                "context": build_one.context,
+                "ref": "65a7721ee4eff44d2a63fb8f3a8da6e944ab7f4d",
+                "koji_tag": None
+            }
+        }
+
+        db_session.commit()
 
     def test_resolve_profiles(self, db_session):
         """
