@@ -24,6 +24,7 @@ import functools
 import os
 from datetime import datetime, timedelta
 from mock import patch
+from six import string_types
 import time
 import hashlib
 from traceback import extract_stack
@@ -633,3 +634,30 @@ def module_build_from_modulemd(yaml):
     build.time_completed = None
     build.rebuild_strategy = "changed-and-after"
     return build
+
+
+def time_assert(*args, **kwargs):
+    """
+    check if delta between times in args not exceeding max_delta (part of kwargs)
+    :param args: times to be compared
+    :param kwargs: arguments for comparing:
+               max_delta - value in seconds which shouldn't be exceeded (default: 2 sec, numeric)
+               format_str - if values in args are of type str it should be formated as this
+                            (default: '%Y-%m-%dT%H:%M:%SZ', str)
+    :return: true if all times are within the range
+    :rtype: bool
+    """
+    times_list = []
+    format_str = kwargs.get("format_str", "%Y-%m-%dT%H:%M:%SZ")
+    max_delta = kwargs.get("max_delta", 2)
+    for t in args:
+        if isinstance(t, string_types):
+            dt = datetime.strptime(t, format_str)
+        elif isinstance(t, datetime):
+            dt = t
+        else:
+            raise TypeError(
+                '"{}" is not supported for time_assert function'.format(type(t).__name__)
+            )
+        times_list.append(dt)
+    return bool(abs((max(times_list) - min(times_list)).total_seconds()) <= max_delta)

@@ -37,7 +37,7 @@ import re
 import sqlalchemy
 
 from tests import app, init_data, clean_database, staged_data_filename, make_module_in_db
-from tests import read_staged_data
+from tests import read_staged_data, time_assert
 from tests.test_scm import base_dir as scm_base_dir
 from module_build_service.errors import UnprocessableEntity
 from module_build_service.models import ModuleBuild, BUILD_STATES, ComponentBuild
@@ -1955,10 +1955,10 @@ class TestViews:
         assert data["module"]["state_name"] == "ready"
         assert data["module"]["scmurl"] is None
         assert data["module"]["component_builds"] == []
-        assert (
-            data["module"]["time_submitted"]
-            == data["module"]["time_modified"]
-            == data["module"]["time_completed"]
+        assert time_assert(
+            data["module"]["time_submitted"],
+            data["module"]["time_modified"],
+            data["module"]["time_completed"]
         )
         assert data["module"]["koji_tag"] == "mariadb-10.2-20180724000000-00000000"
         assert data["module"]["siblings"] == []
@@ -1996,10 +1996,10 @@ class TestViews:
         assert data["module"]["state_name"] == "ready"
         assert data["module"]["scmurl"] is None
         assert data["module"]["component_builds"] == []
-        assert (
-            data["module"]["time_submitted"]
-            == data["module"]["time_modified"]
-            == data["module"]["time_completed"]
+        assert time_assert(
+            data["module"]["time_submitted"],
+            data["module"]["time_modified"],
+            data["module"]["time_completed"]
         )
         assert data["module"]["koji_tag"] == "mariadb-10.2-20180724065109-00000000"
         assert data["module"]["siblings"] == []
