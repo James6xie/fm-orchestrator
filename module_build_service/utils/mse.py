@@ -105,7 +105,7 @@ def expand_mse_streams(db_session, mmd, default_streams=None, raise_if_stream_am
             new_streams = _expand_mse_streams(
                 db_session, name, streams, default_streams, raise_if_stream_ambigous)
 
-            if new_streams == []:
+            if not new_streams:
                 new_deps.set_empty_runtime_dependencies_for_module(name)
             else:
                 for stream in new_streams:
@@ -116,7 +116,7 @@ def expand_mse_streams(db_session, mmd, default_streams=None, raise_if_stream_am
             new_streams = _expand_mse_streams(
                 db_session, name, streams, default_streams, raise_if_stream_ambigous)
 
-            if new_streams == []:
+            if not new_streams:
                 new_deps.set_empty_buildtime_dependencies_for_module(name)
             else:
                 for stream in new_streams:
@@ -471,7 +471,7 @@ def generate_expanded_mmds(db_session, mmd, raise_if_stream_ambigous=False, defa
             if req_name not in deps_buildrequires:
                 # This require is not a buildrequire so just copy this runtime requirement to
                 # new_dep and don't touch buildrequires
-                if req_streams == []:
+                if not req_streams:
                     new_deps.set_empty_runtime_dependencies_for_module(req_name)
                 else:
                     for req_stream in req_streams:
@@ -479,7 +479,7 @@ def generate_expanded_mmds(db_session, mmd, raise_if_stream_ambigous=False, defa
             elif set(req_streams) != set(deps_buildrequires[req_name]):
                 # Streams in runtime section are not the same as in buildtime section,
                 # so just copy this runtime requirement to new_dep.
-                if req_streams == []:
+                if not req_streams:
                     new_deps.set_empty_runtime_dependencies_for_module(req_name)
                 else:
                     for req_stream in req_streams:

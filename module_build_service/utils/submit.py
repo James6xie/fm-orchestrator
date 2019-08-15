@@ -662,7 +662,7 @@ def _apply_dep_overrides(mmd, params):
                 else:
                     streams_to_add = reqs[name]
 
-                if streams_to_add == []:
+                if not streams_to_add:
                     add_empty_func(name)
                 else:
                     for stream in streams_to_add:
@@ -705,7 +705,7 @@ def _modify_buildtime_streams(db_session, mmd, new_streams_func):
             if streams != new_streams:
                 overridden = True
 
-            if new_streams == []:
+            if not new_streams:
                 new_dep.set_empty_buildtime_dependencies_for_module(name)
             else:
                 for stream in new_streams:
@@ -715,7 +715,7 @@ def _modify_buildtime_streams(db_session, mmd, new_streams_func):
             # Copy the runtime streams as is
             reqs = deps_to_dict(dep, "runtime")
             for name, streams in reqs.items():
-                if streams == []:
+                if not streams:
                     new_dep.set_empty_runtime_dependencies_for_module(name)
                 else:
                     for stream in streams:
