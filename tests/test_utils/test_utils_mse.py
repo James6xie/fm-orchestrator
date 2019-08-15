@@ -85,8 +85,8 @@ class TestUtilsModuleStreamExpansion:
             db_session=db_session)
         mmds = module_build_service.utils.generate_expanded_mmds(
             db_session, module_build.mmd())
-        contexts = set([mmd.get_context() for mmd in mmds])
-        assert set(["e1e005fb", "ce132a1e"]) == contexts
+        contexts = {mmd.get_context() for mmd in mmds}
+        assert {"e1e005fb", "ce132a1e"} == contexts
 
     @pytest.mark.parametrize(
         "module_deps,stream_ambigous,expected_xmd,expected_buildrequires",
@@ -97,13 +97,11 @@ class TestUtilsModuleStreamExpansion:
                     "buildrequires": {"platform": ["f28"], "gtk": ["1", "2"]},
                 }],
                 True,
-                set(
-                    [
-                        frozenset(["platform:f28:0:c10", "gtk:2:0:c4"]),
-                        frozenset(["platform:f28:0:c10", "gtk:1:0:c2"]),
-                    ]
-                ),
-                set([frozenset(["gtk:1", "platform:f28"]), frozenset(["gtk:2", "platform:f28"])]),
+                {
+                    frozenset(["platform:f28:0:c10", "gtk:2:0:c4"]),
+                    frozenset(["platform:f28:0:c10", "gtk:1:0:c2"])
+                },
+                {frozenset(["gtk:1", "platform:f28"]), frozenset(["gtk:2", "platform:f28"])},
             ),
             (
                 [{
@@ -111,18 +109,14 @@ class TestUtilsModuleStreamExpansion:
                     "buildrequires": {"platform": ["f28"], "foo": ["1"], "gtk": ["1", "2"]},
                 }],
                 True,
-                set(
-                    [
-                        frozenset(["foo:1:0:c2", "gtk:1:0:c2", "platform:f28:0:c10"]),
-                        frozenset(["foo:1:0:c2", "gtk:2:0:c4", "platform:f28:0:c10"]),
-                    ]
-                ),
-                set(
-                    [
-                        frozenset(["foo:1", "gtk:1", "platform:f28"]),
-                        frozenset(["foo:1", "gtk:2", "platform:f28"]),
-                    ]
-                ),
+                {
+                    frozenset(["foo:1:0:c2", "gtk:1:0:c2", "platform:f28:0:c10"]),
+                    frozenset(["foo:1:0:c2", "gtk:2:0:c4", "platform:f28:0:c10"]),
+                },
+                {
+                    frozenset(["foo:1", "gtk:1", "platform:f28"]),
+                    frozenset(["foo:1", "gtk:2", "platform:f28"]),
+                },
             ),
             (
                 [{
@@ -130,8 +124,8 @@ class TestUtilsModuleStreamExpansion:
                     "buildrequires": {"platform": ["f28"], "gtk": ["1"], "foo": ["1"]},
                 }],
                 False,
-                set([frozenset(["foo:1:0:c2", "gtk:1:0:c2", "platform:f28:0:c10"])]),
-                set([frozenset(["foo:1", "gtk:1", "platform:f28"])]),
+                {frozenset(["foo:1:0:c2", "gtk:1:0:c2", "platform:f28:0:c10"])},
+                {frozenset(["foo:1", "gtk:1", "platform:f28"])},
             ),
             (
                 [{
@@ -139,8 +133,8 @@ class TestUtilsModuleStreamExpansion:
                     "buildrequires": {"gtk": ["1"], "foo": ["1"], "platform": ["f28"]},
                 }],
                 False,
-                set([frozenset(["foo:1:0:c2", "gtk:1:0:c2", "platform:f28:0:c10"])]),
-                set([frozenset(["foo:1", "gtk:1", "platform:f28"])]),
+                {frozenset(["foo:1:0:c2", "gtk:1:0:c2", "platform:f28:0:c10"])},
+                {frozenset(["foo:1", "gtk:1", "platform:f28"])},
             ),
             (
                 [{
@@ -148,8 +142,8 @@ class TestUtilsModuleStreamExpansion:
                     "buildrequires": {"platform": ["f28"], "gtk": ["-2"], "foo": ["-2"]},
                 }],
                 True,
-                set([frozenset(["foo:1:0:c2", "gtk:1:0:c2", "platform:f28:0:c10"])]),
-                set([frozenset(["foo:1", "gtk:1", "platform:f28"])]),
+                {frozenset(["foo:1:0:c2", "gtk:1:0:c2", "platform:f28:0:c10"])},
+                {frozenset(["foo:1", "gtk:1", "platform:f28"])},
             ),
             (
                 [{
@@ -157,8 +151,8 @@ class TestUtilsModuleStreamExpansion:
                     "buildrequires": {"platform": ["f28"], "gtk": ["1"]},
                 }],
                 False,
-                set([frozenset(["gtk:1:0:c2", "platform:f28:0:c10"])]),
-                set([frozenset(["gtk:1", "platform:f28"])]),
+                {frozenset(["gtk:1:0:c2", "platform:f28:0:c10"])},
+                {frozenset(["gtk:1", "platform:f28"])},
             ),
             (
                 [{
@@ -166,8 +160,8 @@ class TestUtilsModuleStreamExpansion:
                     "buildrequires": {"platform": ["f28"], "gtk": ["1"]},
                 }],
                 True,
-                set([frozenset(["gtk:1:0:c2", "platform:f28:0:c10"])]),
-                set([frozenset(["gtk:1", "platform:f28"])]),
+                {frozenset(["gtk:1:0:c2", "platform:f28:0:c10"])},
+                {frozenset(["gtk:1", "platform:f28"])},
             ),
             (
                 [{
@@ -175,8 +169,8 @@ class TestUtilsModuleStreamExpansion:
                     "buildrequires": {"platform": ["f29"], "app": ["1"]},
                 }],
                 False,
-                set([frozenset(["app:1:0:c6", "platform:f29:0:c11"])]),
-                set([frozenset(["app:1", "platform:f29"])]),
+                {frozenset(["app:1:0:c6", "platform:f29:0:c11"])},
+                {frozenset(["app:1", "platform:f29"])},
             ),
         ],
     )
@@ -242,35 +236,35 @@ class TestUtilsModuleStreamExpansion:
                     "requires": {"gtk": ["1", "2"]},
                     "buildrequires": {"platform": [], "gtk": ["1", "2"]},
                 }],
-                set([frozenset(["gtk:1"]), frozenset(["gtk:2"])]),
+                {frozenset(["gtk:1"]), frozenset(["gtk:2"])},
             ),
             (
                 [{
                     "requires": {"gtk": ["1", "2"]},
                     "buildrequires": {"platform": [], "gtk": ["1"]},
                 }],
-                set([frozenset(["gtk:1", "gtk:2"])]),
+                {frozenset(["gtk:1", "gtk:2"])},
             ),
             (
                 [{
                     "requires": {"gtk": ["1"], "foo": ["1"]},
                     "buildrequires": {"platform": [], "gtk": ["1"], "foo": ["1"]},
                 }],
-                set([frozenset(["foo:1", "gtk:1"])]),
+                {frozenset(["foo:1", "gtk:1"])},
             ),
             (
                 [{
                     "requires": {"gtk": ["-2"], "foo": ["-2"]},
                     "buildrequires": {"platform": [], "gtk": ["-2"], "foo": ["-2"]},
                 }],
-                set([frozenset(["foo:1", "gtk:1"])]),
+                {frozenset(["foo:1", "gtk:1"])},
             ),
             (
                 [{
                     "requires": {"gtk": [], "foo": []},
                     "buildrequires": {"platform": [], "gtk": ["1"], "foo": ["1"]},
                 }],
-                set([frozenset([])]),
+                {frozenset([])},
             ),
         ],
     )
@@ -504,7 +498,7 @@ class TestUtilsModuleStreamExpansion:
         mmd.add_dependencies(new_deps)
 
         mmds = module_build_service.utils.mse.get_base_module_mmds(db_session, mmd)
-        expected = set(["platform:f29.0.0", "platform:f29.1.0", "platform:f29.2.0"])
+        expected = {"platform:f29.0.0", "platform:f29.1.0", "platform:f29.2.0"}
         # Verify no duplicates were returned before doing set operations
         assert len(mmds["ready"]) == len(expected)
         # Verify the expected ones were returned
@@ -532,10 +526,14 @@ class TestUtilsModuleStreamExpansion:
 
         mmds = module_build_service.utils.mse.get_base_module_mmds(db_session, mmd)
         if virtual_streams == ["f29"]:
-            expected = set(
-                ["platform:f29.0.0", "platform:f29.1.0", "platform:f29.2.0", "platform:lp29.1.1"])
+            expected = {
+                "platform:f29.0.0",
+                "platform:f29.1.0",
+                "platform:f29.2.0",
+                "platform:lp29.1.1"
+            }
         else:
-            expected = set(["platform:f29.0.0", "platform:f29.1.0", "platform:f29.2.0"])
+            expected = {"platform:f29.0.0", "platform:f29.1.0", "platform:f29.2.0"}
         # Verify no duplicates were returned before doing set operations
         assert len(mmds["ready"]) == len(expected)
         # Verify the expected ones were returned
@@ -570,8 +568,8 @@ class TestUtilsModuleStreamExpansion:
 
         mmds = module_build_service.utils.mse.get_base_module_mmds(db_session, mmd)
         expected = {}
-        expected["ready"] = set(["platform:foo29", "platform:foo30"])
-        expected["garbage"] = set(["platform:foo28"])
+        expected["ready"] = {"platform:foo29", "platform:foo30"}
+        expected["garbage"] = {"platform:foo28"}
 
         # Verify no duplicates were returned before doing set operations
         assert len(mmds) == len(expected)

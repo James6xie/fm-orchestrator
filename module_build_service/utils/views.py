@@ -228,14 +228,14 @@ def filter_module_builds(flask_request):
     :return: flask_sqlalchemy.Pagination
     """
     search_query = dict()
-    special_columns = set((
+    special_columns = {
         "time_submitted",
         "time_modified",
         "time_completed",
         "state",
         "stream_version_lte",
         "virtual_stream",
-    ))
+    }
     columns = models.ModuleBuild.__table__.columns.keys()
     for key in set(request.args.keys()) - special_columns:
         # Only filter on valid database columns but skip columns that are treated specially or

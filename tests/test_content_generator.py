@@ -609,19 +609,19 @@ class TestBuild:
 
         if not devel:
             # Only x86_64 packages should be filled in, because we requested x86_64 arch.
-            assert set(mmd.get_rpm_artifacts()) == set([
+            assert set(mmd.get_rpm_artifacts()) == {
                 "dhcp-12:4.3.5-5.module_2118aef6.src",
                 "dhcp-libs-12:4.3.5-5.module_2118aef6.x86_64",
                 "perl-Tangerine-12:4.3.5-5.module_2118aef6.src",
                 "perl-Tangerine-12:4.3.5-5.module_2118aef6.x86_64",
-            ])
+            }
         else:
             # The i686 packages are filtered out in normal packages, because multilib
             # is not enabled for them - therefore we want to include them in -devel.
-            assert set(mmd.get_rpm_artifacts()) == set([
+            assert set(mmd.get_rpm_artifacts()) == {
                 "dhcp-libs-12:4.3.5-5.module_2118aef6.i686",
                 "perl-Tangerine-12:4.3.5-5.module_2118aef6.i686",
-            ])
+            }
 
     def test_fill_in_rpms_exclusivearch(self):
         self._add_test_rpm(
@@ -646,8 +646,10 @@ class TestBuild:
 
         # Only dhcp-libs should be filled in, because perl-Tangerine has different
         # exclusivearch.
-        assert set(mmd.get_rpm_artifacts()) == set(
-            ["dhcp-12:4.3.5-5.module_2118aef6.src", "dhcp-libs-12:4.3.5-5.module_2118aef6.noarch"])
+        assert set(mmd.get_rpm_artifacts()) == {
+            "dhcp-12:4.3.5-5.module_2118aef6.src",
+            "dhcp-libs-12:4.3.5-5.module_2118aef6.noarch"
+        }
 
     def test_fill_in_rpms_excludearch(self):
         self._add_test_rpm(
@@ -671,10 +673,10 @@ class TestBuild:
         mmd = self.cg._fill_in_rpms_list(mmd, "x86_64")
 
         # Only perl-Tangerine should be filled in, because dhcp-libs is excluded from x86_64.
-        assert set(mmd.get_rpm_artifacts()) == set([
+        assert set(mmd.get_rpm_artifacts()) == {
             "perl-Tangerine-12:4.3.5-5.module_2118aef6.src",
             "perl-Tangerine-12:4.3.5-5.module_2118aef6.noarch",
-        ])
+        }
 
     @pytest.mark.parametrize("devel", (False, True))
     def test_fill_in_rpms_rpm_whitelist(self, devel):
@@ -722,17 +724,17 @@ class TestBuild:
         if not devel:
             # Only x86_64 dhcp-libs should be filled in, because only python27-dhcp is whitelisted
             # srpm name.
-            assert set(mmd.get_rpm_artifacts()) == set([
+            assert set(mmd.get_rpm_artifacts()) == {
                 "python27-dhcp-12:4.3.5-5.module_2118aef6.src",
                 "python27-dhcp-libs-12:4.3.5-5.module_2118aef6.x86_64",
-            ])
+            }
         else:
-            assert set(mmd.get_rpm_artifacts()) == set([
+            assert set(mmd.get_rpm_artifacts()) == {
                 "python27-dhcp-libs-12:4.3.5-5.module_2118aef6.i686",
                 "foo-perl-Tangerine-12:4.3.5-5.module_2118aef6.src",
                 "foo-perl-Tangerine-12:4.3.5-5.module_2118aef6.x86_64",
                 "foo-perl-Tangerine-12:4.3.5-5.module_2118aef6.i686",
-            ])
+            }
 
     @pytest.mark.parametrize("devel", (False, True))
     def test_fill_in_rpms_list_filters(self, devel):
@@ -797,14 +799,14 @@ class TestBuild:
 
         if not devel:
             # Only x86_64 perl-Tangerine should be filled in, because dhcp-libs is filtered out.
-            assert set(mmd.get_rpm_artifacts()) == set([
+            assert set(mmd.get_rpm_artifacts()) == {
                 "perl-Tangerine-12:4.3.5-5.module_2118aef6.src",
                 "perl-Tangerine-12:4.3.5-5.module_2118aef6.x86_64",
                 "perl-Tangerine-debuginfo-12:4.3.5-5.module_2118aef6.x86_64",
                 "perl-Tangerine-debugsource-12:4.3.5-5.module_2118aef6.x86_64",
-            ])
+            }
         else:
-            assert set(mmd.get_rpm_artifacts()) == set([
+            assert set(mmd.get_rpm_artifacts()) == {
                 "dhcp-12:4.3.5-5.module_2118aef6.src",
                 "dhcp-libs-12:4.3.5-5.module_2118aef6.x86_64",
                 "dhcp-libs-debuginfo-12:4.3.5-5.module_2118aef6.x86_64",
@@ -815,7 +817,7 @@ class TestBuild:
                 "perl-Tangerine-12:4.3.5-5.module_2118aef6.i686",
                 "perl-Tangerine-debuginfo-12:4.3.5-5.module_2118aef6.i686",
                 "perl-Tangerine-debugsource-12:4.3.5-5.module_2118aef6.i686",
-            ])
+            }
 
     @pytest.mark.parametrize("devel", (False, True))
     def test_fill_in_rpms_list_multilib(self, devel):
@@ -857,16 +859,17 @@ class TestBuild:
         if not devel:
             # Only i686 package for dhcp-libs should be added, because perl-Tangerine does not have
             # multilib set.
-            assert set(mmd.get_rpm_artifacts()) == set([
+            assert set(mmd.get_rpm_artifacts()) == {
                 "dhcp-libs-12:4.3.5-5.module_2118aef6.src",
                 "dhcp-libs-12:4.3.5-5.module_2118aef6.x86_64",
                 "dhcp-libs-12:4.3.5-5.module_2118aef6.i686",
                 "perl-Tangerine-12:4.3.5-5.module_2118aef6.src",
                 "perl-Tangerine-12:4.3.5-5.module_2118aef6.x86_64",
-            ])
+            }
         else:
-            assert set(mmd.get_rpm_artifacts()) == set(
-                ["perl-Tangerine-12:4.3.5-5.module_2118aef6.i686"])
+            assert set(mmd.get_rpm_artifacts()) == {
+                "perl-Tangerine-12:4.3.5-5.module_2118aef6.i686"
+            }
 
     @pytest.mark.parametrize(
         "licenses, expected",
@@ -925,12 +928,12 @@ class TestBuild:
         if not devel:
             # Only i686 package for dhcp-libs should be added, because perl-Tangerine does not have
             # multilib set. The "dhcp" SRPM should be also included.
-            assert set(mmd.get_rpm_artifacts()) == set([
+            assert set(mmd.get_rpm_artifacts()) == {
                 "dhcp-libs-12:4.3.5-5.module_2118aef6.noarch",
                 "dhcp-12:4.3.5-5.module_2118aef6.src",
-            ])
+            }
         else:
-            assert set(mmd.get_rpm_artifacts()) == set([])
+            assert set(mmd.get_rpm_artifacts()) == set()
 
     def test_sanitize_mmd(self):
         mmd = self.cg.module.mmd()
@@ -1017,11 +1020,12 @@ class TestBuild:
         mmd = self.cg.module.mmd()
         mmd = self.cg._fill_in_rpms_list(mmd, "x86_64")
 
-        assert set(mmd.get_rpm_artifacts()) == set([
+        assert set(mmd.get_rpm_artifacts()) == {
             'python-pymongo-debuginfo-3.6.1-9.module+f29.1.0+2993+d789589b.x86_64',
             'python3-pymongo-debuginfo-3.6.1-9.module+f29.1.0+2993+d789589b.x86_64',
             'python-pymongo-3.6.1-9.module+f29.1.0+2993+d789589b.src',
-            'python3-pymongo-3.6.1-9.module+f29.1.0+2993+d789589b.x86_64'])
+            'python3-pymongo-3.6.1-9.module+f29.1.0+2993+d789589b.x86_64'
+        }
 
     def test_fill_in_rpms_list_debuginfo_deps_psycopg2(self):
         """
@@ -1064,7 +1068,7 @@ class TestBuild:
         mmd = self.cg.module.mmd()
         mmd = self.cg._fill_in_rpms_list(mmd, "x86_64")
 
-        assert set(mmd.get_rpm_artifacts()) == set([
+        assert set(mmd.get_rpm_artifacts()) == {
             "python2-psycopg2-debuginfo-2.7.5-7.module+f29.0.0+2961+596d0223.x86_64",
             "python2-psycopg2-debug-debuginfo-2.7.5-7.module+f29.0.0+2961+596d0223.x86_64",
             "python-psycopg2-debugsource-2.7.5-7.module+f29.0.0+2961+596d0223.x86_64",
@@ -1072,7 +1076,8 @@ class TestBuild:
             "python2-psycopg2-tests-2.7.5-7.module+f29.0.0+2961+596d0223.x86_64",
             "python2-psycopg2-debug-2.7.5-7.module+f29.0.0+2961+596d0223.x86_64",
             "python2-psycopg2-2.7.5-7.module+f29.0.0+2961+596d0223.x86_64",
-            "python-psycopg2-2.7.5-7.module+f29.0.0+2961+596d0223.src"])
+            "python-psycopg2-2.7.5-7.module+f29.0.0+2961+596d0223.src"
+        }
 
     def test_fill_in_rpms_list_debugsource_for_non_srpm(self):
         self._add_test_rpm(
@@ -1090,10 +1095,11 @@ class TestBuild:
         mmd = self.cg.module.mmd()
         mmd = self.cg._fill_in_rpms_list(mmd, "x86_64")
 
-        assert set(mmd.get_rpm_artifacts()) == set([
+        assert set(mmd.get_rpm_artifacts()) == {
             "python2-psycopg2-debugsource-2.7.5-7.module+f29.0.0+2961+596d0223.x86_64",
             "python2-psycopg2-2.7.5-7.module+f29.0.0+2961+596d0223.x86_64",
-            "python-psycopg2-2.7.5-7.module+f29.0.0+2961+596d0223.src"])
+            "python-psycopg2-2.7.5-7.module+f29.0.0+2961+596d0223.src"
+        }
 
     def test_fill_in_rpms_list_debuginfo_deps_glibc(self):
         self._add_test_rpm(
@@ -1119,12 +1125,13 @@ class TestBuild:
         mmd = self.cg.module.mmd()
         mmd = self.cg._fill_in_rpms_list(mmd, "x86_64")
 
-        assert set(mmd.get_rpm_artifacts()) == set([
+        assert set(mmd.get_rpm_artifacts()) == {
             "glibc-common-2.29.9000-16.fc31.x86_64",
             "glibc-2.29.9000-16.fc31.src",
             "glibc-2.29.9000-16.fc31.x86_64",
             "glibc-debuginfo-common-2.29.9000-16.fc31.x86_64",
-            "glibc-debuginfo-2.29.9000-16.fc31.x86_64"])
+            "glibc-debuginfo-2.29.9000-16.fc31.x86_64"
+        }
 
     def test_fill_in_rpms_list_debuginfo_deps_kernel(self):
         self._add_test_rpm(
@@ -1146,11 +1153,12 @@ class TestBuild:
         mmd = self.cg.module.mmd()
         mmd = self.cg._fill_in_rpms_list(mmd, "aarch64")
 
-        assert set(mmd.get_rpm_artifacts()) == set([
+        assert set(mmd.get_rpm_artifacts()) == {
             "kernel-debuginfo-common-aarch64-5.0.9-301.fc30.aarch64",
             "kernel-5.0.9-301.fc30.src",
             "kernel-debuginfo-5.0.9-301.fc30.aarch64",
-            "kernel-5.0.9-301.fc30.aarch64"])
+            "kernel-5.0.9-301.fc30.aarch64"
+        }
 
     def test_fill_in_rpms_list_debugsource_not_included(self):
         self._add_test_rpm(
@@ -1171,4 +1179,4 @@ class TestBuild:
         mmd.add_rpm_filter("python2-psycopg2")
         mmd = self.cg._fill_in_rpms_list(mmd, "x86_64")
 
-        assert set(mmd.get_rpm_artifacts()) == set([])
+        assert set(mmd.get_rpm_artifacts()) == set()

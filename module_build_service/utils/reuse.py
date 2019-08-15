@@ -380,17 +380,17 @@ def get_reusable_component(
             if i == 0:
                 continue
 
-            new_module_build_components.append(set([
+            new_module_build_components.append({
                 (value.package, value.ref)
                 for value in new_component_builds
                 if value.batch == i + 1
-            ]))
+            })
 
-            previous_module_build_components.append(set([
+            previous_module_build_components.append({
                 (value.package, value.ref)
                 for value in prev_component_builds
                 if value.batch == i + 1
-            ]))
+            })
 
         # If the previous batches don't have the same ordering and hashes, then the
         # component can't be reused

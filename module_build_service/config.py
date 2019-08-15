@@ -254,7 +254,7 @@ class Config(object):
         },
         "allowed_groups": {
             "type": set,
-            "default": set(["packager"]),
+            "default": {"packager"},
             "desc": "The set of groups allowed to submit builds.",
         },
         "allowed_groups_to_import_module": {
@@ -383,7 +383,7 @@ class Config(object):
         "no_auth": {"type": bool, "default": False, "desc": "Disable client authentication."},
         "admin_groups": {
             "type": set,
-            "default": set([]),
+            "default": set(),
             "desc": "The set of groups allowed to manage MBS.",
         },
         "yum_config_file": {

@@ -228,4 +228,4 @@ class TestMockModuleBuilderAddRepos:
         assert "repofile 2" in builder.yum_conf
         assert "repofile 3" in builder.yum_conf
 
-        assert set(builder.enabled_modules) == set(["foo:1", "app:1"])
+        assert set(builder.enabled_modules) == {"foo:1", "app:1"}

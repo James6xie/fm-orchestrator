@@ -460,7 +460,7 @@ class MMDResolver(object):
             elif len(requires) == 0:
                 # Return early in case the requires is empty, because it basically means
                 # the module has no buildrequires section.
-                return set([frozenset([s2nsvca(src)])])
+                return {frozenset([s2nsvca(src)])}
 
             requires = requires[0]
             src_alternatives = alternatives[src] = collections.OrderedDict()

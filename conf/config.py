@@ -57,7 +57,7 @@ class BaseConfiguration(object):
     MODULES_ALLOW_REPOSITORY = False
     MODULES_ALLOW_SCRATCH = False
 
-    ALLOWED_GROUPS = set(["packager"])
+    ALLOWED_GROUPS = {"packager"}
 
     ALLOWED_GROUPS_TO_IMPORT_MODULE = set()
 
@@ -118,7 +118,7 @@ class TestConfiguration(BaseConfiguration):
     AUTH_METHOD = "oidc"
     RESOLVER = "db"
 
-    ALLOWED_GROUPS_TO_IMPORT_MODULE = set(["mbs-import-module"])
+    ALLOWED_GROUPS_TO_IMPORT_MODULE = {"mbs-import-module"}
 
     # Greenwave configuration
     GREENWAVE_URL = "https://greenwave.example.local/api/v1.0/"

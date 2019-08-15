@@ -55,7 +55,7 @@ from tests import (
 
 base_dir = dirname(dirname(__file__))
 
-user = ("Homer J. Simpson", set(["packager"]))
+user = ("Homer J. Simpson", {"packager"})
 
 
 class FakeSCM(object):
@@ -145,7 +145,7 @@ class FakeModuleBuilder(GenericBuilder):
 
     def buildroot_connect(self, groups):
         default_groups = FakeModuleBuilder.DEFAULT_GROUPS or {
-            "srpm-build": set([
+            "srpm-build": {
                 "shadow-utils",
                 "fedora-release",
                 "redhat-rpm-config",
@@ -153,8 +153,8 @@ class FakeModuleBuilder(GenericBuilder):
                 "fedpkg-minimal",
                 "gnupg2",
                 "bash",
-            ]),
-            "build": set([
+            },
+            "build": {
                 "unzip",
                 "fedora-release",
                 "tar",
@@ -179,7 +179,7 @@ class FakeModuleBuilder(GenericBuilder):
                 "rpm-build",
                 "gzip",
                 "gcc-c++",
-            ]),
+            },
         }
         if groups != default_groups:
             raise ValueError("Wrong groups in FakeModuleBuilder.buildroot_connect()")
@@ -371,7 +371,7 @@ class BaseTestBuild:
 @patch(
     "module_build_service.builder.GenericBuilder.default_buildroot_groups",
     return_value={
-        "srpm-build": set([
+        "srpm-build": {
             "shadow-utils",
             "fedora-release",
             "redhat-rpm-config",
@@ -379,8 +379,8 @@ class BaseTestBuild:
             "fedpkg-minimal",
             "gnupg2",
             "bash",
-        ]),
-        "build": set([
+        },
+        "build": {
             "unzip",
             "fedora-release",
             "tar",
@@ -405,7 +405,7 @@ class BaseTestBuild:
             "rpm-build",
             "gzip",
             "gcc-c++",
-        ]),
+        },
     },
 )
 class TestBuild(BaseTestBuild):
@@ -468,8 +468,8 @@ class TestBuild(BaseTestBuild):
 
         # Check that components are tagged after the batch is built.
         tag_groups = [
-            set(["perl-Tangerine-1-1", "perl-List-Compare-1-1"]),
-            set(["tangerine-1-1"]),
+            {"perl-Tangerine-1-1", "perl-List-Compare-1-1"},
+            {"tangerine-1-1"},
         ]
 
         def on_finalize_cb(cls, succeeded):
@@ -484,9 +484,9 @@ class TestBuild(BaseTestBuild):
         # Check that the components are added to buildroot after the batch
         # is built.
         buildroot_groups = [
-            set(["module-build-macros-1-1"]),
-            set(["perl-Tangerine-1-1", "perl-List-Compare-1-1"]),
-            set(["tangerine-1-1"]),
+            {"module-build-macros-1-1"},
+            {"perl-Tangerine-1-1", "perl-List-Compare-1-1"},
+            {"tangerine-1-1"},
         ]
 
         def on_buildroot_add_artifacts_cb(cls, artifacts, install):
@@ -1010,11 +1010,11 @@ class TestBuild(BaseTestBuild):
         # Check that components are tagged after the batch is built.
         tag_groups = []
         tag_groups.append(
-            set([
+            {
                 "perl-Tangerine-0.23-1.module+0+d027b723",
                 "perl-List-Compare-0.53-5.module+0+d027b723",
                 "tangerine-0.22-3.module+0+d027b723",
-            ])
+            }
         )
 
         def on_tag_artifacts_cb(cls, artifacts, dest_tag=True):
@@ -1024,11 +1024,11 @@ class TestBuild(BaseTestBuild):
         FakeModuleBuilder.on_tag_artifacts_cb = on_tag_artifacts_cb
 
         buildtag_groups = []
-        buildtag_groups.append(set([
+        buildtag_groups.append({
             "perl-Tangerine-0.23-1.module+0+d027b723",
             "perl-List-Compare-0.53-5.module+0+d027b723",
             "tangerine-0.22-3.module+0+d027b723",
-        ]))
+        })
 
         def on_buildroot_add_artifacts_cb(cls, artifacts, install):
             assert buildtag_groups.pop(0) == set(artifacts)
@@ -1089,11 +1089,11 @@ class TestBuild(BaseTestBuild):
         # Check that components are tagged after the batch is built.
         tag_groups = []
         tag_groups.append(
-            set([
+            {
                 "perl-Tangerine-0.23-1.module+0+d027b723",
                 "perl-List-Compare-0.53-5.module+0+d027b723",
                 "tangerine-0.22-3.module+0+d027b723",
-            ])
+            }
         )
 
         def on_tag_artifacts_cb(cls, artifacts, dest_tag=True):
@@ -1103,11 +1103,11 @@ class TestBuild(BaseTestBuild):
         FakeModuleBuilder.on_tag_artifacts_cb = on_tag_artifacts_cb
 
         buildtag_groups = []
-        buildtag_groups.append(set([
+        buildtag_groups.append({
             "perl-Tangerine-0.23-1.module+0+d027b723",
             "perl-List-Compare-0.53-5.module+0+d027b723",
             "tangerine-0.22-3.module+0+d027b723",
-        ]))
+        })
 
         def on_buildroot_add_artifacts_cb(cls, artifacts, install):
             assert buildtag_groups.pop(0) == set(artifacts)
@@ -1728,7 +1728,7 @@ class TestBuild(BaseTestBuild):
 
         def on_buildroot_add_repos_cb(cls, dependencies):
             # Make sure that the metadata module is not present since it doesn't have a Koji tag
-            assert set(dependencies.keys()) == set(["module-f28-build"])
+            assert set(dependencies.keys()) == {"module-f28-build"}
 
         FakeModuleBuilder.on_buildroot_add_repos_cb = on_buildroot_add_repos_cb
         self.run_scheduler(db_session)
@@ -1794,7 +1794,7 @@ class TestLocalBuild(BaseTestBuild):
 
         # Local base-runtime has changed profiles, so we can detect we use
         # the local one and not the main one.
-        FakeModuleBuilder.DEFAULT_GROUPS = {"srpm-build": set(["bar"]), "build": set(["foo"])}
+        FakeModuleBuilder.DEFAULT_GROUPS = {"srpm-build": {"bar"}, "build": {"foo"}}
 
         self.run_scheduler(db_session)
 

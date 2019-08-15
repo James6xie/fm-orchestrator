@@ -142,12 +142,12 @@ class TestModelsGetStreamsContexts:
     def test_get_last_builds_in_stream_version_lte(self, db_session):
         init_data_contexts(1, multiple_stream_versions=True)
         builds = ModuleBuild.get_last_builds_in_stream_version_lte(db_session, "platform", 290100)
-        builds = set([
+        builds = {
             "%s:%s:%s:%s" % (build.name, build.stream, str(build.version), build.context)
             for build in builds
-        ])
+        }
         db_session.commit()
-        assert builds == set(["platform:f29.0.0:3:00000000", "platform:f29.1.0:3:00000000"])
+        assert builds == {"platform:f29.0.0:3:00000000", "platform:f29.1.0:3:00000000"}
 
     def test_get_last_builds_in_stream_version_lte_different_versions(self, db_session):
         """
@@ -180,16 +180,16 @@ class TestModelsGetStreamsContexts:
 
         builds = ModuleBuild.get_last_builds_in_stream_version_lte(
             db_session, "platform", 290200)
-        builds = set([
+        builds = {
             "%s:%s:%s:%s" % (build.name, build.stream, str(build.version), build.context)
             for build in builds
-        ])
+        }
         db_session.commit()
-        assert builds == set([
+        assert builds == {
             "platform:f29.1.0:15:c11",
             "platform:f29.1.0:15:c11.another",
             "platform:f29.2.0:1:c11",
-        ])
+        }
 
     def test_get_module_count(self, db_session):
         clean_database(False)

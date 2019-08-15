@@ -181,11 +181,11 @@ def test_handle_collisions(mock_grft, mock_get_session):
 
     mock_get_session.assert_called_once()
     xmd_mbs = mmd.get_xmd()["mbs"]
-    assert set(xmd_mbs["ursine_rpms"]) == set([
+    assert set(xmd_mbs["ursine_rpms"]) == {
         "bash-0:4.4.19-7.el8.aarch64",
         "python2-tools-0:2.7.16-11.el8.aarch64",
         "python2-tools-0:2.7.16-11.el8.x86_64",
-    ])
+    }
     mock_grft.mock_calls == [
         call(
             mock_get_session.return_value,

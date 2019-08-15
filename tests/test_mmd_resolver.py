@@ -371,10 +371,10 @@ class TestMMDResolver:
         expanded = self.mmd_resolver.solve(app)
 
         # Build only against f28 and f29, because "gtk:3" is not built against f30.
-        expected = set([
+        expected = {
             frozenset(["gtk:3:0:c8:x86_64", "app:1:0:0:src", "platform:f28:0:c0:x86_64"]),
             frozenset(["gtk:3:0:c9:x86_64", "app:1:0:0:src", "platform:f29:0:c0:x86_64"]),
-        ])
+        }
 
         assert expanded == expected
 
@@ -395,8 +395,8 @@ class TestMMDResolver:
         app = self._make_mmd("app:1:0", {"platform": ["f28"], "foo": ["1"]})
         expanded = self.mmd_resolver.solve(app)
 
-        expected = set([
+        expected = {
             frozenset(["foo:1:0:c8:x86_64", "app:1:0:0:src", "platform:f28:0:c0:x86_64"]),
-        ])
+        }
 
         assert expanded == expected

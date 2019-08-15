@@ -68,8 +68,8 @@ class TestDBModule:
 
         resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="db")
         result = resolver.get_buildrequired_modulemds("testmodule", "master", platform_nsvc)
-        nsvcs = set([m.get_nsvc() for m in result])
-        assert nsvcs == set(["testmodule:master:20170109091357:123"])
+        nsvcs = {m.get_nsvc() for m in result}
+        assert nsvcs == {"testmodule:master:20170109091357:123"}
 
     @pytest.mark.parametrize("stream_versions", [False, True])
     def test_get_compatible_base_module_modulemds_stream_versions(
@@ -80,19 +80,22 @@ class TestDBModule:
         result = resolver.get_compatible_base_module_modulemds(
             "platform", "f29.1.0", stream_version_lte=stream_versions, virtual_streams=["f29"],
             states=[models.BUILD_STATES["ready"]])
-        nsvcs = set([mmd.get_nsvc() for mmd in result])
+        nsvcs = {mmd.get_nsvc() for mmd in result}
         if stream_versions:
-            assert nsvcs == set(["platform:f29.1.0:3:00000000", "platform:f29.0.0:3:00000000"])
+            assert nsvcs == {"platform:f29.1.0:3:00000000", "platform:f29.0.0:3:00000000"}
         else:
-            assert nsvcs == set(["platform:f29.1.0:3:00000000", "platform:f29.0.0:3:00000000",
-                                 "platform:f29.2.0:3:00000000"])
+            assert nsvcs == {
+                "platform:f29.1.0:3:00000000",
+                "platform:f29.0.0:3:00000000",
+                "platform:f29.2.0:3:00000000"
+            }
 
     @pytest.mark.parametrize("empty_buildrequires", [False, True])
     def test_get_module_build_dependencies(self, empty_buildrequires, db_session):
         """
         Tests that the buildrequires of testmodule are returned
         """
-        expected = set(["module-f28-build"])
+        expected = {"module-f28-build"}
         module = models.ModuleBuild.get_by_id(db_session, 2)
         if empty_buildrequires:
             expected = set()
@@ -141,7 +144,7 @@ class TestDBModule:
         resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="db")
         result = resolver.get_module_build_dependencies(
             "testmodule2", "master", "20180123171545", "c40c156c").keys()
-        assert set(result) == set(["module-f28-build"])
+        assert set(result) == {"module-f28-build"}
 
     @patch(
         "module_build_service.config.Config.system", new_callable=PropertyMock, return_value="test"
@@ -193,7 +196,7 @@ class TestDBModule:
         resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="db")
         result = resolver.resolve_profiles(mmd, ("buildroot", "srpm-buildroot"))
         expected = {
-            "buildroot": set([
+            "buildroot": {
                 "unzip",
                 "tar",
                 "cpio",
@@ -218,8 +221,8 @@ class TestDBModule:
                 "rpm-build",
                 "gzip",
                 "gcc-c++",
-            ]),
-            "srpm-buildroot": set([
+            },
+            "srpm-buildroot": {
                 "shadow-utils",
                 "redhat-rpm-config",
                 "rpm-build",
@@ -227,7 +230,7 @@ class TestDBModule:
                 "fedpkg-minimal",
                 "gnupg2",
                 "bash",
-            ]),
+            },
         }
         assert result == expected
 
@@ -247,7 +250,7 @@ class TestDBModule:
         mmd = models.ModuleBuild.get_by_id(db_session, 2).mmd()
         resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="mbs")
         result = resolver.resolve_profiles(mmd, ("buildroot", "srpm-buildroot"))
-        expected = {"buildroot": set(["foo"]), "srpm-buildroot": set(["bar"])}
+        expected = {"buildroot": {"foo"}, "srpm-buildroot": {"bar"}}
         assert result == expected
 
     def test_get_latest_with_virtual_stream(self, db_session):

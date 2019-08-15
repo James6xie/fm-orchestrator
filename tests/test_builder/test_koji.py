@@ -597,8 +597,8 @@ class TestKojiBuilder:
         session = builder.koji_session
 
         groups = OrderedDict()
-        groups["build"] = set(["unzip"])
-        groups["srpm-build"] = set(["fedora-release"])
+        groups["build"] = {"unzip"}
+        groups["srpm-build"] = {"fedora-release"}
         builder.buildroot_connect(groups)
 
         if custom_whitelist:
@@ -680,8 +680,8 @@ class TestKojiBuilder:
         FakeKojiModuleBuilder.tags = {}
 
         groups = OrderedDict()
-        groups["build"] = set(["unzip"])
-        groups["srpm-build"] = set(["fedora-release"])
+        groups["build"] = {"unzip"}
+        groups["srpm-build"] = {"fedora-release"}
         builder.buildroot_connect(groups)
 
         if blocklist:
@@ -714,8 +714,8 @@ class TestKojiBuilder:
         session.getBuildTarget.return_value = {}
 
         groups = OrderedDict()
-        groups["build"] = set(["unzip"])
-        groups["srpm-build"] = set(["fedora-release"])
+        groups["build"] = {"unzip"}
+        groups["srpm-build"] = {"fedora-release"}
         builder.buildroot_connect(groups)
 
         if scratch:
@@ -780,7 +780,7 @@ class TestKojiBuilder:
         db_session.commit()
 
         ret = KojiModuleBuilder.get_built_rpms_in_module_build(mmd)
-        assert set(ret) == set(["bar-2:1.30-4.el8+1308+551bfa71", "tar-2:1.30-4.el8+1308+551bfa71"])
+        assert set(ret) == {"bar-2:1.30-4.el8+1308+551bfa71", "tar-2:1.30-4.el8+1308+551bfa71"}
         session.assert_not_called()
 
     @pytest.mark.usefixtures("reuse_component_init_data")

@@ -576,7 +576,7 @@ class TestUtils:
         build.arches = []
         module_build_service.utils.record_module_build_arches(build.mmd(), build, db_session)
 
-        arches = set([arch.name for arch in build.arches])
+        arches = {arch.name for arch in build.arches}
         assert arches == set(get_build_arches.return_value)
 
     @pytest.mark.parametrize(
@@ -1511,7 +1511,7 @@ class TestOfflineLocalBuilds:
             }
         }
 
-        assert set(mmd.get_profile_names()) == set(["buildroot", "srpm-buildroot"])
+        assert set(mmd.get_profile_names()) == {"buildroot", "srpm-buildroot"}
 
     @patch("module_build_service.utils.general.open", create=True, new_callable=mock.mock_open)
     def test_import_builds_from_local_dnf_repos(self, patched_open, db_session):

@@ -340,7 +340,7 @@ class LogMessageAPI(MethodView):
 
 
 class BaseHandler(object):
-    valid_params = set([
+    valid_params = {
         "branch",
         "buildrequire_overrides",
         "modulemd",
@@ -352,7 +352,7 @@ class BaseHandler(object):
         "scmurl",
         "scratch",
         "srpms",
-    ])
+    }
 
     def __init__(self, request, data=None):
         self.username, self.groups = module_build_service.auth.get_user(request)

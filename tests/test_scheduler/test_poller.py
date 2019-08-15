@@ -732,7 +732,7 @@ class TestPoller:
 
         if greenwave_result:
             assert len(modules) == 2
-            assert set([m.id for m in modules]) == {1, 2}
+            assert {m.id for m in modules} == {1, 2}
         else:
             assert len(modules) == 1
             assert modules[0].id == 1

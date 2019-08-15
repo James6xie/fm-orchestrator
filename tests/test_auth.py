@@ -83,7 +83,7 @@ class TestAuthModule:
                     module_build_service.auth.get_user(request)
                 assert str(cm.value) == "OIDC token invalid or expired."
 
-    @pytest.mark.parametrize("allowed_users", (set(), set(["Joey Jo Jo Junior Shabadoo"])))
+    @pytest.mark.parametrize("allowed_users", (set(), {"Joey Jo Jo Junior Shabadoo"}))
     @patch.object(mbs_config.Config, "allowed_users", new_callable=PropertyMock)
     @patch("module_build_service.auth._get_token_info")
     @patch("module_build_service.auth._get_user_info")
@@ -261,7 +261,7 @@ class KerberosMockConfig(object):
 
 
 class TestAuthModuleKerberos:
-    @pytest.mark.parametrize("allowed_users", (set(), set(["mprahl"])))
+    @pytest.mark.parametrize("allowed_users", (set(), {"mprahl"}))
     @patch("kerberos.authGSSServerInit", return_value=(kerberos.AUTH_GSS_COMPLETE, object()))
     @patch("kerberos.authGSSServerStep", return_value=kerberos.AUTH_GSS_COMPLETE)
     @patch("kerberos.authGSSServerResponse", return_value="STOKEN")

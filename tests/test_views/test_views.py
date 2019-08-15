@@ -49,10 +49,10 @@ from module_build_service.utils.general import (
     get_rpm_release)
 
 
-user = ("Homer J. Simpson", set(["packager"]))
-other_user = ("some_other_user", set(["packager"]))
-anonymous_user = ("anonymous", set(["packager"]))
-import_module_user = ("Import M. King", set(["mbs-import-module"]))
+user = ("Homer J. Simpson", {"packager"})
+other_user = ("some_other_user", {"packager"})
+anonymous_user = ("anonymous", {"packager"})
+import_module_user = ("Import M. King", {"mbs-import-module"})
 base_dir = dirname(dirname(__file__))
 
 
@@ -788,7 +788,7 @@ class TestViews:
         elif virtual_streams == ("f28", "f29"):
             assert total == 4
             for module in data["items"]:
-                assert len(set(module["virtual_streams"]) - set(["f28", "f29"])) == 0
+                assert len(set(module["virtual_streams"]) - {"f28", "f29"}) == 0
         elif len(virtual_streams) == 0:
             assert total == 5
 
@@ -1294,7 +1294,7 @@ class TestViews:
         assert data["status"] == 403
         assert data["error"] == "Forbidden"
 
-    @patch("module_build_service.auth.get_user", return_value=("sammy", set(["packager"])))
+    @patch("module_build_service.auth.get_user", return_value=("sammy", {"packager"}))
     def test_cancel_build_unauthorized_not_owner(self, mocked_get_user):
         rv = self.client.patch(
             "/module-build-service/1/module-builds/7", data=json.dumps({"state": "failed"}))
@@ -1304,13 +1304,13 @@ class TestViews:
         assert data["error"] == "Forbidden"
 
     @patch(
-        "module_build_service.auth.get_user", return_value=("sammy", set(["packager", "mbs-admin"]))
+        "module_build_service.auth.get_user", return_value=("sammy", {"packager", "mbs-admin"})
     )
     def test_cancel_build_admin(self, mocked_get_user):
         with patch(
             "module_build_service.config.Config.admin_groups",
             new_callable=PropertyMock,
-            return_value=set(["mbs-admin"]),
+            return_value={"mbs-admin"},
         ):
             rv = self.client.patch(
                 "/module-build-service/1/module-builds/7", data=json.dumps({"state": "failed"}))
@@ -1319,12 +1319,12 @@ class TestViews:
             assert data["state"] == 4
             assert data["state_reason"] == "Canceled by sammy."
 
-    @patch("module_build_service.auth.get_user", return_value=("sammy", set(["packager"])))
+    @patch("module_build_service.auth.get_user", return_value=("sammy", {"packager"}))
     def test_cancel_build_no_admin(self, mocked_get_user):
         with patch(
             "module_build_service.config.Config.admin_groups",
             new_callable=PropertyMock,
-            return_value=set(["mbs-admin"]),
+            return_value={"mbs-admin"},
         ):
             rv = self.client.patch(
                 "/module-build-service/1/module-builds/7", data=json.dumps({"state": "failed"}))
@@ -1576,13 +1576,13 @@ class TestViews:
             json_input["buildrequire_overrides"] = {"platform": br_override_streams}
             expected_br = set(br_override_streams)
         else:
-            expected_br = set(["f29.0.0"])
+            expected_br = {"f29.0.0"}
 
         if req_override_streams:
             json_input["require_overrides"] = {"platform": req_override_streams}
             expected_req = set(req_override_streams)
         else:
-            expected_req = set(["f29.0.0"])
+            expected_req = {"f29.0.0"}
 
         rv = self.client.post(post_url, data=json.dumps(json_input))
         data = json.loads(rv.data)
@@ -1875,7 +1875,7 @@ class TestViews:
         assert data["error"] == "Forbidden"
         assert data["message"] == (
             "Homer J. Simpson is not in any of {0}, only {1}"
-            .format(set(["mbs-import-module"]), set(["packager"]))
+            .format({"mbs-import-module"}, {"packager"})
         )
 
     @pytest.mark.parametrize("api_version", [1, 2])

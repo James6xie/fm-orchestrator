@@ -63,6 +63,8 @@ class TestLocalResolverModule:
         resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="local")
         result = resolver.get_buildrequired_modulemds(
             "testmodule", "master", platform_f8.mmd().get_nsvc())
-        nsvcs = set([m.get_nsvc() for m in result])
-        assert nsvcs == set(
-            ["testmodule:master:20170109091357:9c690d0e", "testmodule:master:20170109091357:123"])
+        nsvcs = {m.get_nsvc() for m in result}
+        assert nsvcs == {
+            "testmodule:master:20170109091357:9c690d0e",
+            "testmodule:master:20170109091357:123"
+        }
