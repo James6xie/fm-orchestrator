@@ -640,6 +640,12 @@ class Config(object):
             "default": False,
             "desc": "Allow module scratch builds",
         },
+        "scratch_build_only_branches": {
+            "type": list,
+            "default": [],
+            "desc": "The list of regexes used to identify branches from which only the module "
+                    "scratch builds can be built",
+        },
         "product_pages_url": {
             "type": str,
             "default": "",

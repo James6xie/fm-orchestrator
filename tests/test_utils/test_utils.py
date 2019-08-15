@@ -38,6 +38,7 @@ from tests import (
     init_data,
     scheduler_init_data,
     make_module_in_db,
+    make_module,
     read_staged_data, staged_data_filename)
 import mock
 import koji
@@ -1050,6 +1051,31 @@ class TestUtils:
 
         assert builds[0].siblings(db_session) == [builds[1].id]
         assert builds[1].siblings(db_session) == [builds[0].id]
+
+    @patch("module_build_service.utils.mse.generate_expanded_mmds")
+    @patch(
+        "module_build_service.config.Config.scratch_build_only_branches",
+        new_callable=mock.PropertyMock,
+        return_value=["^private-.*"],
+    )
+    def test_submit_build_scratch_build_only_branches(
+            self, cfg, generate_expanded_mmds, db_session):
+        """
+        Tests the "scratch_build_only_branches" config option.
+        """
+        mmd = make_module("foo:stream:0:c1")
+        generate_expanded_mmds.return_value = [mmd]
+        # Create a copy of mmd1 without xmd.mbs, since that will cause validate_mmd to fail
+        mmd_copy = mmd.copy()
+        mmd_copy.set_xmd({})
+
+        with pytest.raises(ValidationError,
+                           match="Only scratch module builds can be build from this branch."):
+            module_build_service.utils.submit_module_build(
+                db_session, "foo", mmd_copy, {"branch": "private-foo"})
+
+        module_build_service.utils.submit_module_build(
+            db_session, "foo", mmd_copy, {"branch": "otherbranch"})
 
 
 class DummyModuleBuilder(GenericBuilder):
