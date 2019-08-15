@@ -931,14 +931,14 @@ class KojiModuleBuilder(GenericBuilder):
             if record_exists(parent["id"], inheritance_data):
                 continue
 
-            parent_data = {}
-            parent_data["parent_id"] = parent["id"]
-            parent_data["priority"] = priority
-            parent_data["maxdepth"] = None
-            parent_data["intransitive"] = False
-            parent_data["noconfig"] = False
-            parent_data["pkg_filter"] = ""
-            inheritance_data.append(parent_data)
+            inheritance_data.append({
+                "parent_id": parent["id"],
+                "priority": priority,
+                "maxdepth": None,
+                "intransitive": False,
+                "noconfig": False,
+                "pkg_filter": "",
+            })
             priority += 10
 
         if inheritance_data:

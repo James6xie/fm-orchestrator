@@ -46,16 +46,18 @@ import os
 import logging
 import inspect
 
-levels = {}
-levels["debug"] = logging.DEBUG
-levels["error"] = logging.ERROR
-levels["warning"] = logging.WARNING
-levels["info"] = logging.INFO
+levels = {
+    "debug": logging.DEBUG,
+    "error": logging.ERROR,
+    "warning": logging.WARNING,
+    "info": logging.INFO,
+}
 
-level_flags = {}
-level_flags["debug"] = levels["debug"]
-level_flags["verbose"] = levels["info"]
-level_flags["quiet"] = levels["error"]
+level_flags = {
+    "debug": levels["debug"],
+    "verbose": levels["info"],
+    "quiet": levels["error"],
+}
 
 
 log_format = "%(asctime)s - %(threadName)s - %(name)s - %(levelname)s - %(message)s"

@@ -157,12 +157,10 @@ def build_module_locally(
 
     db.create_all()
 
-    params = {}
-    params["local_build"] = True
-    params["default_streams"] = {}
-    for ns in default_streams:
-        n, s = ns.split(":")
-        params["default_streams"][n] = s
+    params = {
+        "local_build": True,
+        "default_streams": dict(ns.split(":") for ns in default_streams)
+    }
     if srpms:
         params["srpms"] = srpms
 
