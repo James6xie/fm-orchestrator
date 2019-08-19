@@ -1007,7 +1007,7 @@ def submit_module_build(db_session, username, mmd, params):
                 # In case the branch is defined, check whether user is allowed to submit
                 # non-scratch build from this branch. Note that the branch is always defined
                 # for official builds from SCM, because it is requested in views.py.
-                branch = params.get("branch", None)
+                branch = params.get("branch")
                 if branch:
                     for regex in conf.scratch_build_only_branches:
                         branch_search = re.search(regex, branch)
