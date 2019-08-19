@@ -482,7 +482,7 @@ class MBSProducer(PollingProducer):
 
         module_builds = (
             db_session.query(models.ModuleBuild)
-            .filter_by(state=models.BUILD_STATES["done"]).all()
+            .filter_by(state=models.BUILD_STATES["done"], scratch=False).all()
         )
 
         log.info("Checking Greenwave for %d builds", len(module_builds))
