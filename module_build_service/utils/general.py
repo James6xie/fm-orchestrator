@@ -27,6 +27,8 @@ import functools
 import inspect
 import hashlib
 import time
+import locale
+import contextlib
 from datetime import datetime
 from functools import partial
 
@@ -761,3 +763,10 @@ def mmd_to_str(mmd):
     index = Modulemd.ModuleIndex()
     index.add_module_stream(mmd)
     return to_text_type(index.dump_to_string())
+
+
+@contextlib.contextmanager
+def set_locale(*args, **kwargs):
+    saved = locale.setlocale(locale.LC_ALL)
+    yield locale.setlocale(*args, **kwargs)
+    locale.setlocale(locale.LC_ALL, saved)

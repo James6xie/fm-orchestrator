@@ -38,6 +38,7 @@ import kobo.rpmlib
 import threading
 import six.moves.xmlrpc_client as xmlrpclib
 import munch
+import locale
 from itertools import chain
 from OpenSSL.SSL import SysCallError
 import textwrap
@@ -51,7 +52,7 @@ from module_build_service.errors import ProgrammingError
 
 from module_build_service.builder.base import GenericBuilder
 from module_build_service.builder.KojiContentGenerator import KojiContentGenerator
-from module_build_service.utils import get_reusable_components, get_reusable_module
+from module_build_service.utils import get_reusable_components, get_reusable_module, set_locale
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -324,7 +325,8 @@ class KojiModuleBuilder(GenericBuilder):
         name = "module-build-macros"
         version = "0.1"
         release = "1"
-        today = datetime.date.today().strftime("%a %b %d %Y")
+        with set_locale(locale.LC_TIME, "en_US.utf8"):
+            today = datetime.date.today().strftime("%a %b %d %Y")
         mmd = module_build.mmd()
 
         # Generate "Conflicts: name = version-release". This is workaround for
