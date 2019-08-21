@@ -22,7 +22,7 @@ import re
 import pytest
 from mock import patch
 from module_build_service import models, conf
-from tests import clean_database
+from tests import clean_database, make_module_in_db
 import mock
 import koji
 from module_build_service.scheduler.producer import MBSProducer
@@ -710,8 +710,12 @@ class TestPoller:
         module_build2 = models.ModuleBuild.get_by_id(db_session, 2)
         module_build2.state = models.BUILD_STATES["done"]
 
-        module_build2 = models.ModuleBuild.get_by_id(db_session, 3)
-        module_build2.state = models.BUILD_STATES["init"]
+        module_build3 = models.ModuleBuild.get_by_id(db_session, 3)
+        module_build3.state = models.BUILD_STATES["init"]
+
+        module_build4 = make_module_in_db("foo:1:1:1", {}, db_session=db_session)
+        module_build4.state = models.BUILD_STATES["done"]
+        module_build4.scratch = True
 
         db_session.commit()
 
@@ -737,6 +741,10 @@ class TestPoller:
             assert len(modules) == 1
             assert modules[0].id == 1
             modules = models.ModuleBuild.by_state(db_session, "done")
-            assert len(modules) == 1
-            assert modules[0].id == 2
-            assert re.match("Gating failed.*", modules[0].state_reason)
+            assert len(modules) == 2
+            for module in modules:
+                assert module.id in [2, 4]
+                if module.id == 2:
+                    assert re.match("Gating failed.*", module.state_reason)
+                else:
+                    assert module.state_reason is None

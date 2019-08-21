@@ -1003,6 +1003,18 @@ def submit_module_build(db_session, username, mmd, params):
                 # append incrementing counter to context
                 context_suffix = "_" + str(len(scrmods) + 1)
                 mmd.set_context(mmd.get_context() + context_suffix)
+            else:
+                # In case the branch is defined, check whether user is allowed to submit
+                # non-scratch build from this branch. Note that the branch is always defined
+                # for official builds from SCM, because it is requested in views.py.
+                branch = params.get("branch")
+                if branch:
+                    for regex in conf.scratch_build_only_branches:
+                        branch_search = re.search(regex, branch)
+                        if branch_search:
+                            raise ValidationError(
+                                "Only scratch module builds can be build from this branch."
+                            )
 
             log.debug("Creating new module build")
             module = models.ModuleBuild.create(
