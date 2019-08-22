@@ -1070,7 +1070,7 @@ class TestUtils:
         mmd_copy.set_xmd({})
 
         with pytest.raises(ValidationError,
-                           match="Only scratch module builds can be build from this branch."):
+                           match="Only scratch module builds can be built from this branch."):
             module_build_service.utils.submit_module_build(
                 db_session, "foo", mmd_copy, {"branch": "private-foo"})
 

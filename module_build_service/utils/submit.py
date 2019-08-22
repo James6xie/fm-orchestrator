@@ -1013,7 +1013,7 @@ def submit_module_build(db_session, username, mmd, params):
                         branch_search = re.search(regex, branch)
                         if branch_search:
                             raise ValidationError(
-                                "Only scratch module builds can be build from this branch."
+                                "Only scratch module builds can be built from this branch."
                             )
 
             log.debug("Creating new module build")
