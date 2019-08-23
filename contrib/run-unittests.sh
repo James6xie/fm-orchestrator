@@ -48,6 +48,10 @@ else
     test_image="${image_ns}/mbs-test-centos"
 fi
 
+if [ -n "$with_pgsql" ]; then
+    test_container_name="${test_container_name}-pgsql"
+fi
+
 now=$(date +"%H%M%S")
 db_container_name="${db_container_name}-$now"
 test_container_name="${test_container_name}-$now"
