@@ -59,10 +59,12 @@ node('factory2'){
         }
 
         stage('Pull Container Images') {
-            parallel {
+            parallel centos: {
                 stage('Pull quay.io/factory2/mbs-test-centos') {
                     onmyduffynode 'docker pull quay.io/factory2/mbs-test-centos'
                 }
+            },
+            fedora: {
                 stage('Pull quay.io/factory2/mbs-test-fedora') {
                     onmyduffynode 'docker pull quay.io/factory2/mbs-test-fedora'
                 }
@@ -71,13 +73,17 @@ node('factory2'){
 
         stage('Run Test Suites') {
             timeout(30) {
-                parallel {
+                parallel py2_sqlite: {
                     stage('Test with Python 2 & SQLite') {
                         onmyduffynode '~/fm-orchestrator/contrib/run-unittests.sh --no-tty'
                     }
+                },
+                py3_sqlite: {
                     stage('Test with Python 3 & SQLite') {
                         onmyduffynode '~/fm-orchestrator/contrib/run-unittests.sh --py3 --no-tty'
                     }
+                },
+                py3_postgres: {
                     stage('Test with Python 3 & Postgresql') {
                         onmyduffynode '~/fm-orchestrator/contrib/run-unittests.sh --py3 --with-pgsql --no-tty'
                     }
