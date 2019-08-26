@@ -269,6 +269,12 @@ class MBSResolver(GenericResolver):
         :rtype: list
         :return: List of modulemd metadata.
         """
+        # If user used --add-local-build, we do actually not care about base_module_nsvc,
+        # because the user directly asked us to use that module.
+        local_modules = models.ModuleBuild.local_modules(self.db_session, name, stream)
+        if local_modules:
+            return [m.mmd() for m in local_modules]
+
         modules = self._get_modules(name, stream, strict=False, base_module_br=base_module_nsvc)
         return [load_mmd(module["modulemd"]) for module in modules]
 

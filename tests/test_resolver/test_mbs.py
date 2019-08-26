@@ -451,3 +451,28 @@ class TestMBSModule:
                 "virtual_stream": "virtualf28",
             },
         )
+
+    @patch(
+        "module_build_service.config.Config.system", new_callable=PropertyMock, return_value="test"
+    )
+    @patch(
+        "module_build_service.config.Config.mock_resultsdir",
+        new_callable=PropertyMock,
+        return_value=tests.staged_data_filename("local_builds")
+    )
+    def test_get_buildrequired_modulemds_local_builds(
+        self, local_builds, conf_system, db_session
+    ):
+        tests.clean_database()
+        with tests.app.app_context():
+            module_build_service.utils.load_local_builds(db_session, ["testmodule"])
+
+            resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="mbs")
+            result = resolver.get_buildrequired_modulemds(
+                "testmodule", "master", "platform:f28:1:00000000")
+            assert 1 == len(result)
+            mmd = result[0]
+            assert "testmodule" == mmd.get_module_name()
+            assert "master" == mmd.get_stream_name()
+            assert 20170816080816 == mmd.get_version()
+            assert "321" == mmd.get_context()
