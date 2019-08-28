@@ -94,6 +94,10 @@ def get_reusable_module(db_session, module):
     previous_module_build = None
 
     base_mmds = get_base_module_mmds(db_session, mmd)["ready"]
+    # Sort the base_mmds based on the stream version, higher version first.
+    base_mmds.sort(
+        key=lambda mmd: models.ModuleBuild.get_stream_version(mmd.get_stream_name(), False),
+        reverse=True)
     for base_mmd in base_mmds:
         mbs_xmd = mmd.get_xmd()["mbs"]
         if base_mmd.get_module_name() not in mbs_xmd["buildrequires"]:
