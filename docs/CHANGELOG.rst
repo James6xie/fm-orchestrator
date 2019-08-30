@@ -1,6 +1,19 @@
 Change Log
 ==========
 
+v2.27.0
+-------
+* Add "scratch_build_only_branches" configuration options to define the branches
+  from which only scratch builds can be submitted.
+* Do not check Greenwave gating status for scratch builds.
+* Fix invalid date in module-build-macros when building modules locally when non-US
+  locale is used.
+* Fix --add-local-build with MBS Resolver.
+* Fail the module build in case it buildrequires module build which does not have
+  all the MSE builds in failed or ready state.
+* Fix the issue in component reuse code when it could reuse components from module
+  build built against older version of base module.
+
 v2.26.0
 -------
 * Allow the poller to clean up module builds without arches.
