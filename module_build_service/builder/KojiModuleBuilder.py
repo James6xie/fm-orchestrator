@@ -617,37 +617,11 @@ class KojiModuleBuilder(GenericBuilder):
         :raises: error derived from ``koji.GenericError`` if any underlying
             Koji API fails.
         """
-        log.info("%r adding artifacts %r" % (self, artifacts))
-        build_tag = self._get_tag(self.module_build_tag)["id"]
-
-        xmd = self.mmd.get_xmd()
-        if "blocked_packages" in xmd.get("mbs_options", {}):
-            packages = [kobo.rpmlib.parse_nvr(nvr)["name"] for nvr in artifacts]
-            packages = [
-                package for package in packages
-                if package in xmd["mbs_options"]["blocked_packages"]
-            ]
-            if packages:
-                self._koji_unblock_packages(packages)
-
-        tagged_nvrs = self._get_tagged_nvrs(self.module_build_tag["name"])
-
-        self.koji_session.multicall = True
-        for nvr in artifacts:
-            if nvr in tagged_nvrs:
-                continue
-
-            log.info("%r tagging %r into %r" % (self, nvr, build_tag))
-            self.koji_session.tagBuild(build_tag, nvr)
-
-            if not install:
-                continue
-
-            for group in ("srpm-build", "build"):
-                name = kobo.rpmlib.parse_nvr(nvr)["name"]
-                log.info("%r adding %s to group %s" % (self, name, group))
-                self.koji_session.groupPackageListAdd(build_tag, group, name)
-        self.koji_session.multiCall(strict=True)
+        log.info("%r adding artifacts %r", self, artifacts)
+        self.unblock_artifacts(artifacts)
+        self.tag_artifacts(artifacts, dest_tag=False)
+        if install:
+            self.add_artifacts_to_groups(artifacts)
 
     def tag_artifacts(self, artifacts, dest_tag=True):
         """Tag the provided artifacts to the module tag
@@ -1084,12 +1058,35 @@ class KojiModuleBuilder(GenericBuilder):
         args = [[self.module_build_tag["name"], package] for package in packages]
         koji_multicall_map(self.koji_session, self.koji_session.packageListBlock, args)
 
-    def _koji_unblock_packages(self, packages):
+    def unblock_artifacts(self, artifacts):
         """
         Unblocks the `packages` for the module_build_tag.
         """
-        log.info("Unblocking packages in tag %s: %r", self.module_build_tag["name"], packages)
-        args = [[self.module_build_tag["name"], package] for package in packages]
+        xmd = self.mmd.get_xmd()
+
+        blocked_packages = xmd.get("mbs_options", {}).get("blocked_packages")
+
+        if blocked_packages is None:
+            log.debug("No blocked_packages is set under xmd/mbs_options. No "
+                      "package will be unblocked.")
+            return
+
+        if not blocked_packages:
+            log.debug("No package is listed in xmd/mbs_options/blocked_packages."
+                      " No package will be unblocked.")
+            return
+
+        packages = (kobo.rpmlib.parse_nvr(nvr)["name"] for nvr in artifacts)
+        packages = [package for package in packages if package in blocked_packages]
+
+        if not packages:
+            log.debug("None of %r is listed in xmd/mbs_options/blocked_packages."
+                      " No one will be unblocked.")
+            return
+
+        build_tag_name = self.module_build_tag["name"]
+        log.info("Unblocking packages in tag %s: %r", build_tag_name, packages)
+        args = [[build_tag_name, package] for package in packages]
         koji_multicall_map(self.koji_session, self.koji_session.packageListUnblock, args)
 
     @module_build_service.utils.validate_koji_tag(["build_tag", "dest_tag"])
@@ -1359,3 +1356,23 @@ class KojiModuleBuilder(GenericBuilder):
         if not tag["arches"]:
             return []
         return tag["arches"].split(" ")
+
+    def add_artifacts_to_groups(self, artifacts, groups=None):
+        """Add artifacts to groups
+
+        :param artifacts: list of NVRs to add to groups.
+        :type artifacts: list[str]
+        :param groups: list of groups to contain specified artifacts. Defaults
+            to srpm-build and build.
+        :type groups: list[str]
+        :raises: error derived from ``koji.GenericError`` if any
+            groupPackageListAdd call fails.
+        """
+        build_tag = self._get_tag(self.module_build_tag)["id"]
+        self.koji_session.multicall = True
+        for nvr in artifacts:
+            for group in groups or ("srpm-build", "build"):
+                name = kobo.rpmlib.parse_nvr(nvr)["name"]
+                log.info("%r adding %s to group %s", self, name, group)
+                self.koji_session.groupPackageListAdd(build_tag, group, name)
+        self.koji_session.multiCall(strict=True)
