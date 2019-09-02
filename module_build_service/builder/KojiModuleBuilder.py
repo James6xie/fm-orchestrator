@@ -601,11 +601,21 @@ class KojiModuleBuilder(GenericBuilder):
         return tagged_nvrs
 
     def buildroot_add_artifacts(self, artifacts, install=False):
-        """
-        :param artifacts - list of artifacts to add to buildroot
-        :param install=False - force install artifact (if it's not dragged in as dependency)
+        """Add list of artifacts to buildroot
+
+        If any artifact is listed as a blocked package, it will be unblocked.
+
+        Module build tag will be applied to artifacts.
 
         This method is safe to call multiple times.
+
+        :param artifacts: list of artifacts to add to buildroot. Each of them
+            is represented by a string NVR.
+        :type artifacts: list[str]
+        :kwarg bool install: force install artifact (if it's not dragged in as
+            dependency). Defaults to False.
+        :raises: error derived from ``koji.GenericError`` if any underlying
+            Koji API fails.
         """
         log.info("%r adding artifacts %r" % (self, artifacts))
         build_tag = self._get_tag(self.module_build_tag)["id"]
@@ -640,10 +650,13 @@ class KojiModuleBuilder(GenericBuilder):
         self.koji_session.multiCall(strict=True)
 
     def tag_artifacts(self, artifacts, dest_tag=True):
-        """ Tag the provided artifacts to the module tag
+        """Tag the provided artifacts to the module tag
+
         :param artifacts: a list of NVRs to tag
-        :kwarg dest_tag: a boolean determining if the destination or build tag should be used
-        :return: None
+        :kwarg bool dest_tag: a boolean determining if the destination or build tag
+            should be used. Default is True to apply the destination tag.
+        :raises: error derived from ``koji.GenericError`` if any tagBuild call
+            fails.
         """
         if dest_tag:
             tag = self._get_tag(self.module_tag)["id"]
@@ -664,7 +677,7 @@ class KojiModuleBuilder(GenericBuilder):
     def untag_artifacts(self, artifacts):
         """ Untag the provided artifacts from the module destination and build tag
         :param artifacts: a list of NVRs to untag
-        :return: None
+        :raises: error derived from ``koji.GenericError`` if any untagBuild call fails.
         """
         build_tag_name = self.tag_name + "-build"
         dest_tag = self._get_tag(self.tag_name, strict=False)
