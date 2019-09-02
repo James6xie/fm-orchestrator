@@ -115,6 +115,7 @@ def import_module(mmd_file):
 @manager.option("--srpm", action="append", default=[], dest="srpms", metavar="SRPM")
 @manager.option("--skiptests", action="store_true", dest="skiptests")
 @manager.option("--offline", action="store_true", dest="offline")
+@manager.option("-d", "--debug", action="store_true", dest="log_debug")
 @manager.option("-l", "--add-local-build", action="append", default=None, dest="local_build_nsvs")
 @manager.option("-s", "--set-stream", action="append", default=[], dest="default_streams")
 @manager.option(
@@ -131,9 +132,16 @@ def build_module_locally(
     offline=False,
     platform_repofiles=None,
     platform_id=None,
+    log_debug=False,
 ):
     """ Performs local module build using Mock
     """
+    # if debug is not specified, set log level of console to INFO
+    if not log_debug:
+        for handler in logging.getLogger().handlers:
+            if isinstance(handler, logging.StreamHandler):
+                handler.setLevel(logging.INFO)
+
     if "SERVER_NAME" not in app.config or not app.config["SERVER_NAME"]:
         app.config["SERVER_NAME"] = "localhost"
 
