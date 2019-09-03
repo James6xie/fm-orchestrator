@@ -24,6 +24,7 @@ class TestModels:
             nvr="before_models_committed-0.0.0-0.module_before_models_committed_0_0",
             batch=1,
             module_id=1,
+            buildonly=True,
         )
 
         db_session.add(component_build)

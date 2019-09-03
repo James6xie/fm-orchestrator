@@ -175,8 +175,6 @@ def format_mmd(mmd, scmurl, module=None, db_session=None):
                     "Custom component caches aren't allowed.  "
                     "%r bears cache %r" % (pkgname, pkg.get_cache())
                 )
-            if pkg.get_buildonly() is True:
-                raise ValidationError('The usage of "buildonly" is not yet supported')
             if pkg.get_buildafter():
                 raise ValidationError('The usage of "buildafter" is not yet supported')
             if not pkg.get_repository():
@@ -508,6 +506,7 @@ def record_component_builds(
             batch=batch,
             ref=component_ref,
             weight=rpm_weights[package],
+            buildonly=component.get_buildonly()
         )
         db_session.add(build)
 

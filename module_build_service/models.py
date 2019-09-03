@@ -1219,6 +1219,8 @@ class ComponentBuild(MBSBase):
     # True when this component build is build-time only (should be tagged only
     # to -build tag)
     build_time_only = db.Column(db.Boolean, default=False)
+    # True if buildonly is True in modulemd
+    buildonly = db.Column(db.Boolean, default=False)
 
     # A monotonically increasing integer that represents which batch or
     # iteration this *component* is currently in.  This relates to the owning

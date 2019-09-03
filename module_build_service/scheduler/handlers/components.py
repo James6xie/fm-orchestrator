@@ -3,11 +3,11 @@
 """ Handlers for koji component build events on the message bus. """
 
 import logging
-
+import koji
 import module_build_service.builder
 
-import koji
-
+from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
+from module_build_service.utils.general import mmd_to_str
 from module_build_service import models, log, messaging
 
 logging.basicConfig(level=logging.DEBUG)
@@ -55,6 +55,19 @@ def _finalize(config, db_session, msg, state):
         )
         db_session.commit()
         return
+
+    if (
+        component_build.buildonly
+        and config.system in ["koji", "test"]
+        and state == koji.BUILD_STATES["COMPLETE"]
+    ):
+        koji_session = KojiModuleBuilder.get_session(config)
+        rpms = koji_session.listBuildRPMs(component_build.nvr)
+        mmd = parent.mmd()
+        for artifact in rpms:
+            mmd.add_rpm_filter(artifact["name"])
+        parent.modulemd = mmd_to_str(mmd)
+        db_session.commit()
 
     further_work = []
 

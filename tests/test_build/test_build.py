@@ -18,7 +18,7 @@ from module_build_service.errors import Forbidden
 from module_build_service import models, conf, build_logs
 from module_build_service.scheduler import make_simple_stop_condition
 
-from mock import patch, PropertyMock, Mock
+from mock import patch, PropertyMock, Mock, MagicMock
 from werkzeug.datastructures import FileStorage
 import kobo
 import pytest
@@ -496,6 +496,74 @@ class TestBuild(BaseTestBuild):
         assert module_build.module_builds_trace[3].state == models.BUILD_STATES["done"]
         assert module_build.module_builds_trace[4].state == models.BUILD_STATES["ready"]
         assert len(module_build.module_builds_trace) == 5
+
+    @patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
+    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.scm.SCM")
+    def test_submit_build_buildonly(
+        self, mocked_scm, mocked_get_user, mocked_get_session, conf_system, dbg, hmsc, db_session
+    ):
+        def list_build_rpms(nvr):
+            assert nvr == "perl-List-Compare-1-1"
+            return [{"name": "perl-List-Compare"}]
+        koji_session = MagicMock()
+        koji_session.listBuildRPMs = list_build_rpms
+        mocked_get_session.return_value = koji_session
+
+        yaml_file = "testmodule_v2_buildonly.yaml"
+        FakeSCM(mocked_scm, "testmodule", yaml_file, "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
+
+        rv = self.client.post(
+            "/module-build-service/1/module-builds/",
+            data=json.dumps({
+                "branch": "master",
+                "scmurl": "https://src.stg.fedoraproject.org/modules/"
+                "testmodule.git?#620ec77321b2ea7b0d67d82992dda3e1d67055b4",
+            }),
+        )
+
+        data = json.loads(rv.data)
+        module_build_id = data["id"]
+
+        # Check that components are tagged after the batch is built.
+        tag_groups = [
+            {"perl-Tangerine-1-1", "perl-List-Compare-1-1"},
+            {"tangerine-1-1"},
+        ]
+
+        def on_finalize_cb(cls, succeeded):
+            assert succeeded is True
+
+        def on_tag_artifacts_cb(cls, artifacts, dest_tag=True):
+            assert tag_groups.pop(0) == set(artifacts)
+
+        FakeModuleBuilder.on_finalize_cb = on_finalize_cb
+        FakeModuleBuilder.on_tag_artifacts_cb = on_tag_artifacts_cb
+
+        # Check that the components are added to buildroot after the batch
+        # is built.
+        buildroot_groups = [
+            {"module-build-macros-1-1"},
+            {"perl-Tangerine-1-1", "perl-List-Compare-1-1"},
+            {"tangerine-1-1"},
+        ]
+
+        def on_buildroot_add_artifacts_cb(cls, artifacts, install):
+            assert buildroot_groups.pop(0) == set(artifacts)
+
+        FakeModuleBuilder.on_buildroot_add_artifacts_cb = on_buildroot_add_artifacts_cb
+
+        self.run_scheduler(db_session)
+
+        # All components should be built and module itself should be in "done"
+        # or "ready" state.
+        for build in db_session.query(models.ComponentBuild).filter_by(
+                module_id=module_build_id).all():
+            assert build.state == koji.BUILD_STATES["COMPLETE"]
+            assert build.module_build.state in [
+                models.BUILD_STATES["done"],
+                models.BUILD_STATES["ready"],
+            ]
 
     @pytest.mark.parametrize("gating_result", (True, False))
     @patch("module_build_service.auth.get_user", return_value=user)
