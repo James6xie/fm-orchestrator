@@ -160,6 +160,15 @@ def init(config, db_session, msg):
             break
         time.sleep(1)
 
+    # for MockModuleBuilder, set build logs dir to mock results dir
+    # before build_logs start
+    if conf.system == "mock":
+        build_tag_name = generate_module_build_koji_tag(build)
+        mock_resultsdir = os.path.join(conf.mock_resultsdir, build_tag_name)
+        if not os.path.exists(mock_resultsdir):
+            os.makedirs(mock_resultsdir)
+        build_logs.build_logs_dir = mock_resultsdir
+
     build_logs.start(db_session, build)
     log.info("Start to handle %s which is in init state.", build.mmd().get_nsvc())
 
