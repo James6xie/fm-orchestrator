@@ -38,7 +38,8 @@ from module_build_service.utils import (
 )
 from module_build_service.errors import UnprocessableEntity, Forbidden, ValidationError
 from module_build_service.utils.greenwave import greenwave
-from module_build_service.scheduler.default_modules import add_default_modules
+from module_build_service.scheduler.default_modules import (
+    add_default_modules, handle_collisions_with_base_module_rpms)
 from module_build_service.utils.submit import format_mmd
 from module_build_service.utils.ursine import handle_stream_collision_modules
 
@@ -177,7 +178,7 @@ def init(config, db_session, msg):
     try:
         mmd = build.mmd()
         arches = [arch.name for arch in build.arches]
-        add_default_modules(db_session, mmd, arches)
+        defaults_added = add_default_modules(db_session, mmd, arches)
         record_module_build_arches(mmd, build, db_session)
 
         # Format the modulemd by putting in defaults and replacing streams that
@@ -186,8 +187,15 @@ def init(config, db_session, msg):
         record_component_builds(db_session, mmd, build)
 
         # The ursine.handle_stream_collision_modules is Koji specific.
-        if conf.system in ["koji", "test"]:
+        # It is also run only when Ursa Prime is not enabled for the base
+        # module (`if not defaults_added`).
+        if conf.system in ["koji", "test"] and not defaults_added:
             handle_stream_collision_modules(db_session, mmd)
+
+        # Extends the xmd["mbs"]["ursine_rpms"] with RPMs from base module which conflict
+        # with the RPMs from module. We need to prefer modular RPMs over base module RPMs
+        # even if their NVR is lower.
+        handle_collisions_with_base_module_rpms(mmd, arches)
 
         mmd = record_filtered_rpms(db_session, mmd)
         build.modulemd = mmd_to_str(mmd)

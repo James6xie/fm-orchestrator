@@ -31,7 +31,7 @@ from module_build_service.utils.general import load_mmd, mmd_to_str
 from tests import clean_database, conf, make_module_in_db, read_staged_data
 
 
-@patch("module_build_service.scheduler.default_modules._handle_collisions")
+@patch("module_build_service.scheduler.default_modules.handle_collisions_with_base_module_rpms")
 @patch("module_build_service.scheduler.default_modules._get_default_modules")
 def test_add_default_modules(mock_get_dm, mock_hc, db_session):
     """
@@ -64,7 +64,7 @@ def test_add_default_modules(mock_get_dm, mock_hc, db_session):
         "python": "3",
         "ruby": "2.6",
     }
-    default_modules.add_default_modules(db_session, mmd, ["x86_64"])
+    defaults_added = default_modules.add_default_modules(db_session, mmd, ["x86_64"])
     # Make sure that the default modules were added. ruby:2.6 will be ignored since it's not in
     # the database
     assert set(mmd.get_xmd()["mbs"]["buildrequires"].keys()) == {"nodejs", "platform", "python"}
@@ -72,7 +72,8 @@ def test_add_default_modules(mock_get_dm, mock_hc, db_session):
         "f28",
         "https://pagure.io/releng/fedora-module-defaults.git",
     )
-    mock_hc.assert_called_once()
+    assert "ursine_rpms" not in mmd.get_xmd()["mbs"]
+    assert defaults_added is True
 
 
 @patch("module_build_service.scheduler.default_modules._get_default_modules")
@@ -221,17 +222,24 @@ def test_get_rawhide_version(mock_koji_builder):
     assert default_modules._get_rawhide_version() == "f32"
 
 
+@pytest.mark.parametrize("ursine_rpms", ([], ["httpd-0:2.4-5.el8.x86_64"]))
 @patch("module_build_service.scheduler.default_modules.KojiModuleBuilder.get_session")
 @patch("module_build_service.scheduler.default_modules._get_rpms_from_tags")
-def test_handle_collisions(mock_grft, mock_get_session):
+def test_handle_collisions_with_base_module_rpms(
+        mock_grft, mock_get_session, ursine_rpms):
     """
-    Test that _handle_collisions will add conflicts for NEVRAs in the modulemd.
+    Test that handle_collisions_with_base_module_rpms will add conflicts for NEVRAs in the
+    modulemd.
     """
     mmd = load_mmd(read_staged_data("formatted_testmodule.yaml"))
     xmd = mmd.get_xmd()
     xmd["mbs"]["buildrequires"]["platform"]["koji_tag"] = "module-el-build"
     xmd["mbs"]["buildrequires"]["python"] = {"koji_tag": "module-python27"}
     xmd["mbs"]["buildrequires"]["bash"] = {"koji_tag": "module-bash"}
+    if ursine_rpms:
+        # There might already be some ursine RPMs set from another methods.
+        # We must check they are not overwritten.
+        xmd["mbs"]["ursine_rpms"] = ursine_rpms
     mmd.set_xmd(xmd)
 
     bm_rpms = {
@@ -249,15 +257,15 @@ def test_handle_collisions(mock_grft, mock_get_session):
     }
     mock_grft.side_effect = [bm_rpms, non_bm_rpms]
 
-    default_modules._handle_collisions(mmd, ["aarch64", "x86_64"])
+    default_modules.handle_collisions_with_base_module_rpms(mmd, ["aarch64", "x86_64"])
 
     mock_get_session.assert_called_once()
     xmd_mbs = mmd.get_xmd()["mbs"]
-    assert set(xmd_mbs["ursine_rpms"]) == {
+    assert set(xmd_mbs["ursine_rpms"]) == set(ursine_rpms).union({
         "bash-0:4.4.19-7.el8.aarch64",
         "python2-tools-0:2.7.16-11.el8.aarch64",
         "python2-tools-0:2.7.16-11.el8.x86_64",
-    }
+    })
     mock_grft.mock_calls == [
         call(
             mock_get_session.return_value,

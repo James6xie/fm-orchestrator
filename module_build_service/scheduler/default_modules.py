@@ -124,14 +124,9 @@ def add_default_modules(db_session, mmd, arches):
             buildrequires.update(resolved)
             defaults_added = True
 
-    # For now, we only want to run _handle_collisions if default modules were added, otherwise
-    # still rely on the old approach of running ursine.handle_stream_collision_modules. This is
-    # done in the init handler.
     if defaults_added:
         mmd.set_xmd(xmd)
-        # For now, only handle collisions when defaults are used. In the future, this can be enabled
-        # for all module builds when Ursa-Major is no longer supported.
-        _handle_collisions(mmd, arches)
+    return defaults_added
 
 
 def _get_default_modules(stream, default_modules_scm_url):
@@ -208,7 +203,7 @@ def _get_rawhide_version():
         return build_target["build_tag_name"].partition("-build")[0]
 
 
-def _handle_collisions(mmd, arches):
+def handle_collisions_with_base_module_rpms(mmd, arches):
     """
     Find any RPMs in the buildrequired base modules that collide with the buildrequired modules.
 
@@ -269,10 +264,14 @@ def _handle_collisions(mmd, arches):
         if rpm_name in name_to_nevras:
             conflicts = conflicts | name_to_nevras[rpm_name]
 
-    # Setting these values will keep ursine.handle_stream_collision_modules from running.
-    # These values are handled in KojiModuleBuilder.get_disttag_srpm.
-    xmd["mbs"]["ursine_rpms"] = list(conflicts)
-    xmd["mbs"]["stream_collision_modules"] = []
+    if not conflicts:
+        return
+
+    # Append the conflicting NEVRAs to `ursine_rpms`, so the Conflicts are later generated for them
+    # in the KojiModuleBuilder.
+    if not xmd["mbs"].get("ursine_rpms"):
+        xmd["mbs"]["ursine_rpms"] = []
+    xmd["mbs"]["ursine_rpms"] = list(set(xmd["mbs"]["ursine_rpms"]).union(conflicts))
     mmd.set_xmd(xmd)
 
 

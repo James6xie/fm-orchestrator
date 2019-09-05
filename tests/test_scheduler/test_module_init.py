@@ -59,8 +59,11 @@ class TestModuleInit:
     )
     @patch("module_build_service.scm.SCM")
     @patch("module_build_service.scheduler.handlers.modules.handle_stream_collision_modules")
+    @patch(
+        "module_build_service.scheduler.handlers.modules.handle_collisions_with_base_module_rpms"
+    )
     @patch("module_build_service.utils.submit.get_build_arches", return_value=["x86_64"])
-    def init_basic(self, db_session, get_build_arches, rscm, mocked_scm, built_rpms):
+    def init_basic(self, db_session, get_build_arches, hcwbmr, rscm, mocked_scm, built_rpms):
         FakeSCM(
             mocked_scm,
             "testmodule",
@@ -102,6 +105,7 @@ class TestModuleInit:
             "foo-0:2.4.48-3.el8+1308+551bfa71",
             "bar-0:2.5.48-3.el8+1308+551bfa71",
         ]
+        hcwbmr.assert_called_once()
         return build
 
     def test_init_called_twice(self, db_session):
