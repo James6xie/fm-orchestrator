@@ -4,6 +4,7 @@ WORKDIR /build
 RUN yum -y update
 RUN yum -y install epel-release yum-utils
 RUN yum-config-manager --add-repo https://kojipkgs.fedoraproject.org/repos-dist/epel7Server-infra/latest/x86_64/
+# Replace the pinned libmodulemd RPMs with python2-libmodulemd2 after https://bodhi.fedoraproject.org/updates/FEDORA-EPEL-2019-e093131fa7
 RUN yum -y install \
     --nogpgcheck \
     --setopt=deltarpm=0 \
@@ -29,7 +30,8 @@ RUN yum -y install \
     python-futures \
     python-koji \
     python-ldap3 \
-    python2-libmodulemd \
+    https://kojipkgs.fedoraproject.org//packages/libmodulemd2/2.8.0/2.el7/x86_64/libmodulemd2-2.8.0-2.el7.x86_64.rpm \
+    https://kojipkgs.fedoraproject.org//packages/libmodulemd2/2.8.0/2.el7/x86_64/python2-libmodulemd2-2.8.0-2.el7.x86_64.rpm \
     python-mock \
     python-munch \
     python-pip \

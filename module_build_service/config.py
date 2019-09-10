@@ -671,6 +671,24 @@ class Config(object):
             "desc": "The number of threads when submitting component builds to an external build "
                     "system.",
         },
+        "default_modules_scm_url": {
+            "type": str,
+            "default": "https://pagure.io/releng/fedora-module-defaults.git",
+            "desc": "The SCM URL to the default modules repo, which will be used to determine "
+                    "which buildrequires to automatically include. This can be overridden with "
+                    "the xmd.mbs.default_modules_scm_url key in the base module's modulemd.",
+        },
+        "uses_rawhide": {
+            "type": bool,
+            "default": True,
+            "desc": "Denotes if the concept of rawhide exists in the infrastructure of this "
+                    "MBS deployment.",
+        },
+        "rawhide_branch": {
+            "type": str,
+            "default": "master",
+            "desc": "Denotes the branch used for rawhide.",
+        },
     }
 
     def __init__(self, conf_section_obj):

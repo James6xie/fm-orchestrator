@@ -20,18 +20,21 @@
 # SOFTWARE.
 import errno
 import os
+import tempfile
+import shutil
 
 import dnf
 import kobo.rpmlib
-import requests
+import koji
+import six.moves.xmlrpc_client as xmlrpclib
 
-from module_build_service import conf, log, models
+from module_build_service import conf, log, models, Modulemd, scm
 from module_build_service.builder.KojiModuleBuilder import (
     koji_retrying_multicall_map, KojiModuleBuilder,
 )
 from module_build_service.errors import UnprocessableEntity
 from module_build_service.resolver.base import GenericResolver
-from module_build_service.utils.request_utils import requests_session
+from module_build_service.utils import retry
 
 
 def add_default_modules(db_session, mmd, arches):
@@ -74,52 +77,28 @@ def add_default_modules(db_session, mmd, arches):
 
         bm_mmd = bm.mmd()
         bm_xmd = bm_mmd.get_xmd()
-        default_modules_url = bm_xmd.get("mbs", {}).get("default_modules_url")
-        if not default_modules_url:
-            log.debug("The base module %s does not have any default modules", bm_nsvc)
+        use_default_modules = bm_xmd.get("mbs", {}).get("use_default_modules", False)
+        default_modules_scm_url = bm_xmd.get("mbs", {}).get("default_modules_scm_url")
+        if not (use_default_modules or default_modules_scm_url):
+            log.info('The base module %s has no default modules', bm_mmd.get_nsvc())
             continue
 
-        try:
-            rv = requests_session.get(default_modules_url, timeout=10)
-        except requests.RequestException:
-            msg = (
-                "The connection failed when getting the default modules associated with {}"
-                .format(bm_nsvc)
-            )
-            log.exception(msg)
-            raise RuntimeError(msg)
-
-        if not rv.ok:
-            log.error(
-                "The request to get the default modules associated with %s failed with the status "
-                'code %d and error "%s"',
-                bm_nsvc, rv.status_code, rv.text,
-            )
-            raise RuntimeError(
-                "Failed to retrieve the default modules for {}".format(bm_mmd.get_nsvc())
-            )
-
-        default_modules = [m.strip() for m in rv.text.strip().split("\n")]
-        for default_module in default_modules:
-            try:
-                name, stream = default_module.split(":")
-            except ValueError:
-                log.error(
-                    'The default module "%s" from %s is in an invalid format',
-                    default_module, rv.url,
-                )
-                continue
-
+        # If the base module does not provide a default_modules_scm_url, use the default that is
+        # configured
+        default_modules_scm_url = default_modules_scm_url or conf.default_modules_scm_url
+        default_modules = _get_default_modules(bm.stream, default_modules_scm_url)
+        for name, stream in default_modules.items():
+            ns = "{}:{}".format(name, stream)
             if name in buildrequires:
                 conflicting_stream = buildrequires[name]["stream"]
                 if stream == conflicting_stream:
-                    log.info("The default module %s is already a buildrequire", default_module)
+                    log.info("The default module %s is already a buildrequire", ns)
                     continue
 
                 log.info(
                     "The default module %s will not be added as a buildrequire since %s:%s "
                     "is already a buildrequire",
-                    default_module, name, conflicting_stream,
+                    ns, name, conflicting_stream,
                 )
                 continue
 
@@ -131,12 +110,12 @@ def add_default_modules(db_session, mmd, arches):
                 # are aware of which modules are not in the database, and can add those that are as
                 # buildrequires.
                 resolver = GenericResolver.create(db_session, conf)
-                resolved = resolver.resolve_requires([default_module])
+                resolved = resolver.resolve_requires([ns])
             except UnprocessableEntity:
                 log.warning(
                     "The default module %s from %s is not in the database and couldn't be added as "
                     "a buildrequire",
-                    default_module, bm_nsvc
+                    ns, bm_nsvc,
                 )
                 continue
 
@@ -153,6 +132,80 @@ def add_default_modules(db_session, mmd, arches):
         # For now, only handle collisions when defaults are used. In the future, this can be enabled
         # for all module builds when Ursa-Major is no longer supported.
         _handle_collisions(mmd, arches)
+
+
+def _get_default_modules(stream, default_modules_scm_url):
+    """
+    Get the base module's default modules.
+
+    :param str stream: the stream of the base module
+    :param str default_modules_scm_url: the SCM URL to the default modules
+    :return: a dictionary where the keys are default module names and the values are default module
+        streams
+    :rtype: dict
+    :raise ValueError: if no default modules can be retrieved for that stream
+    """
+    scm_obj = scm.SCM(default_modules_scm_url)
+    temp_dir = tempfile.mkdtemp()
+    try:
+        log.debug("Cloning the default modules repo at %s", default_modules_scm_url)
+        scm_obj.clone(temp_dir)
+        log.debug("Checking out the branch %s", stream)
+        try:
+            scm_obj.checkout_ref(stream)
+        except UnprocessableEntity:
+            # If the checkout fails, try seeing if this is a rawhide build. In this case, the branch
+            # should actually be conf.rawhide_branch. The check to see if this is a rawhide build
+            # is done after the first checkout failure for performance reasons, since it avoids an
+            # unnecessary connection and query to Koji.
+            if conf.uses_rawhide:
+                log.debug(
+                    "Checking out the branch %s from the default modules repo failed. Trying to "
+                    "determine if this stream represents rawhide.",
+                    stream,
+                )
+                if _get_rawhide_version() == stream:
+                    log.debug(
+                        "The stream represents rawhide, will try checking out %s",
+                        conf.rawhide_branch,
+                    )
+                    # There's no try/except here because we want the outer except block to
+                    # catch this in the event the rawhide branch doesn't exist
+                    scm_obj.checkout_ref(conf.rawhide_branch)
+                else:
+                    # If it's not a rawhide build, then the branch should have existed
+                    raise
+            else:
+                # If it's not a rawhide build, then the branch should have existed
+                raise
+
+        idx = Modulemd.ModuleIndex.new()
+        idx.update_from_defaults_directory(
+            path=scm_obj.sourcedir,
+            overrides_path=os.path.join(scm_obj.sourcedir, "overrides"),
+            strict=True,
+        )
+        return idx.get_default_streams()
+    except:  # noqa: E722
+        msg = "Failed to retrieve the default modules"
+        log.exception(msg)
+        raise ValueError(msg)
+    finally:
+        shutil.rmtree(temp_dir)
+
+
+@retry(wait_on=(xmlrpclib.ProtocolError, koji.GenericError))
+def _get_rawhide_version():
+    """
+    Query Koji to find the rawhide version from the build target.
+
+    :return: the rawhide version (e.g. "f32")
+    :rtype: str
+    """
+    koji_session = KojiModuleBuilder.get_session(conf, login=False)
+    build_target = koji_session.getBuildTarget("rawhide")
+    if build_target:
+        return build_target["build_tag_name"].partition("-build")[0]
 
 
 def _handle_collisions(mmd, arches):

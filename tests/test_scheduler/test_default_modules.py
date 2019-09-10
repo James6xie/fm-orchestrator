@@ -19,22 +19,21 @@
 # SOFTWARE.
 from collections import namedtuple
 import errno
-import textwrap
 
 import dnf
-from mock import call, Mock, patch
+from mock import call, Mock, patch, PropertyMock
 import pytest
-import requests
 
+from module_build_service.errors import UnprocessableEntity
 from module_build_service.models import ModuleBuild
 from module_build_service.scheduler import default_modules
 from module_build_service.utils.general import load_mmd, mmd_to_str
-from tests import clean_database, make_module_in_db, read_staged_data
+from tests import clean_database, conf, make_module_in_db, read_staged_data
 
 
 @patch("module_build_service.scheduler.default_modules._handle_collisions")
-@patch("module_build_service.scheduler.default_modules.requests_session")
-def test_add_default_modules(mock_requests_session, mock_hc, db_session):
+@patch("module_build_service.scheduler.default_modules._get_default_modules")
+def test_add_default_modules(mock_get_dm, mock_hc, db_session):
     """
     Test that default modules present in the database are added, and the others are ignored.
     """
@@ -55,30 +54,29 @@ def test_add_default_modules(mock_requests_session, mock_hc, db_session):
     assert platform
     platform_mmd = platform.mmd()
     platform_xmd = mmd.get_xmd()
-    default_modules_url = "http://domain.local/default_modules.txt"
-    platform_xmd["mbs"]["default_modules_url"] = default_modules_url
+    platform_xmd["mbs"]["use_default_modules"] = True
     platform_mmd.set_xmd(platform_xmd)
     platform.modulemd = mmd_to_str(platform_mmd)
     db_session.commit()
 
-    mock_requests_session.get.return_value.ok = True
-    # Also ensure that if there's an invalid line, it's just ignored
-    mock_requests_session.get.return_value.text = textwrap.dedent("""\
-        nodejs:11
-        python:3
-        ruby:2.6
-        some invalid stuff
-    """)
+    mock_get_dm.return_value = {
+        "nodejs": "11",
+        "python": "3",
+        "ruby": "2.6",
+    }
     default_modules.add_default_modules(db_session, mmd, ["x86_64"])
     # Make sure that the default modules were added. ruby:2.6 will be ignored since it's not in
     # the database
     assert set(mmd.get_xmd()["mbs"]["buildrequires"].keys()) == {"nodejs", "platform", "python"}
-    mock_requests_session.get.assert_called_once_with(default_modules_url, timeout=10)
+    mock_get_dm.assert_called_once_with(
+        "f28",
+        "https://pagure.io/releng/fedora-module-defaults.git",
+    )
     mock_hc.assert_called_once()
 
 
-@patch("module_build_service.scheduler.default_modules.requests_session")
-def test_add_default_modules_not_linked(mock_requests_session, db_session):
+@patch("module_build_service.scheduler.default_modules._get_default_modules")
+def test_add_default_modules_not_linked(mock_get_dm, db_session):
     """
     Test that no default modules are added when they aren't linked from the base module.
     """
@@ -87,11 +85,10 @@ def test_add_default_modules_not_linked(mock_requests_session, db_session):
     assert set(mmd.get_xmd()["mbs"]["buildrequires"].keys()) == {"platform"}
     default_modules.add_default_modules(db_session, mmd, ["x86_64"])
     assert set(mmd.get_xmd()["mbs"]["buildrequires"].keys()) == {"platform"}
-    mock_requests_session.get.assert_not_called()
+    mock_get_dm.assert_not_called()
 
 
-@patch("module_build_service.scheduler.default_modules.requests_session")
-def test_add_default_modules_platform_not_available(mock_requests_session, db_session):
+def test_add_default_modules_platform_not_available(db_session):
     """
     Test that an exception is raised when the platform module that is buildrequired is missing.
 
@@ -105,11 +102,10 @@ def test_add_default_modules_platform_not_available(mock_requests_session, db_se
         default_modules.add_default_modules(db_session, mmd, ["x86_64"])
 
 
-@pytest.mark.parametrize("connection_error", (True, False))
-@patch("module_build_service.scheduler.default_modules.requests_session")
-def test_add_default_modules_request_failed(mock_requests_session, connection_error, db_session):
+@patch("module_build_service.scheduler.default_modules._get_default_modules")
+def test_add_default_modules_request_failed(mock_get_dm, db_session):
     """
-    Test that an exception is raised when the request to get the default modules failed.
+    Test that an exception is raised when the call to _get_default_modules failed.
     """
     clean_database()
     make_module_in_db("python:3:12345:1", db_session=db_session)
@@ -128,25 +124,101 @@ def test_add_default_modules_request_failed(mock_requests_session, connection_er
     assert platform
     platform_mmd = platform.mmd()
     platform_xmd = mmd.get_xmd()
-    default_modules_url = "http://domain.local/default_modules.txt"
-    platform_xmd["mbs"]["default_modules_url"] = default_modules_url
+    platform_xmd["mbs"]["use_default_modules"] = True
     platform_mmd.set_xmd(platform_xmd)
     platform.modulemd = mmd_to_str(platform_mmd)
     db_session.commit()
 
-    if connection_error:
-        mock_requests_session.get.side_effect = requests.ConnectionError("some error")
-        expected_error = (
-            "The connection failed when getting the default modules associated with "
-            "platform:f28:3:00000000"
+    expected_error = "some error"
+    mock_get_dm.side_effect = ValueError(expected_error)
+
+    with pytest.raises(ValueError, match=expected_error):
+        default_modules.add_default_modules(db_session, mmd, ["x86_64"])
+
+
+@pytest.mark.parametrize("is_rawhide", (True, False))
+@patch('shutil.rmtree')
+@patch('tempfile.mkdtemp')
+@patch("module_build_service.scheduler.default_modules.Modulemd.ModuleIndex.new")
+@patch("module_build_service.scheduler.default_modules.scm.SCM")
+@patch("module_build_service.scheduler.default_modules._get_rawhide_version")
+def test_get_default_modules(
+    mock_get_rawhide, mock_scm, mock_mmd_new, mock_mkdtemp, mock_rmtree, is_rawhide,
+):
+    """
+    Test that _get_default_modules returns the default modules.
+    """
+    mock_scm.return_value.sourcedir = "/some/path"
+    if is_rawhide:
+        mock_scm.return_value.checkout_ref.side_effect = [
+            UnprocessableEntity("invalid branch"),
+            None,
+        ]
+        mock_get_rawhide.return_value = "f32"
+
+    expected = {"nodejs": "11"}
+    mock_mmd_new.return_value.get_default_streams.return_value = expected
+
+    rv = default_modules._get_default_modules("f32", conf.default_modules_scm_url)
+
+    assert rv == expected
+    if is_rawhide:
+        mock_scm.return_value.checkout_ref.assert_has_calls(
+            [call("f32"), call(conf.rawhide_branch)]
         )
     else:
-        mock_requests_session.get.return_value.ok = False
-        mock_requests_session.get.return_value.text = "some error"
-        expected_error = "Failed to retrieve the default modules for platform:f28:3:00000000"
+        mock_scm.return_value.checkout_ref.assert_called_once_with("f32")
 
-    with pytest.raises(RuntimeError, match=expected_error):
-        default_modules.add_default_modules(db_session, mmd, ["x86_64"])
+
+@pytest.mark.parametrize("uses_rawhide", (True, False))
+@patch('shutil.rmtree')
+@patch('tempfile.mkdtemp')
+@patch(
+    "module_build_service.scheduler.default_modules.conf.uses_rawhide",
+    new_callable=PropertyMock,
+)
+@patch("module_build_service.scheduler.default_modules.Modulemd.ModuleIndex.new")
+@patch("module_build_service.scheduler.default_modules.scm.SCM")
+@patch("module_build_service.scheduler.default_modules._get_rawhide_version")
+def test_get_default_modules_invalid_branch(
+    mock_get_rawhide, mock_scm, mock_mmd_new, mock_uses_rawhide, mock_mkdtemp, mock_rmtree,
+    uses_rawhide,
+):
+    """
+    Test that _get_default_modules raises an exception with an invalid branch.
+    """
+    mock_uses_rawhide.return_value = uses_rawhide
+    mock_scm.return_value.sourcedir = "/some/path"
+    mock_scm.return_value.checkout_ref.side_effect = [
+        UnprocessableEntity("invalid branch"),
+        UnprocessableEntity("invalid branch"),
+    ]
+    if uses_rawhide:
+        mock_get_rawhide.return_value = "f32"
+    else:
+        mock_get_rawhide.return_value = "something_else"
+
+    with pytest.raises(ValueError, match="Failed to retrieve the default modules"):
+        default_modules._get_default_modules("f32", conf.default_modules_scm_url)
+
+    mock_mmd_new.assert_not_called()
+    if uses_rawhide:
+        mock_scm.return_value.checkout_ref.assert_has_calls(
+            [call("f32"), call(conf.rawhide_branch)],
+        )
+    else:
+        mock_scm.return_value.checkout_ref.assert_called_once_with("f32")
+
+
+@patch("module_build_service.scheduler.default_modules.KojiModuleBuilder")
+def test_get_rawhide_version(mock_koji_builder):
+    """
+    Test that _get_rawhide_version will return rawhide Fedora version.
+    """
+    mock_koji_builder.get_session.return_value.getBuildTarget.return_value = {
+        "build_tag_name": "f32-build",
+    }
+    assert default_modules._get_rawhide_version() == "f32"
 
 
 @patch("module_build_service.scheduler.default_modules.KojiModuleBuilder.get_session")

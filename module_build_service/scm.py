@@ -99,6 +99,7 @@ class SCM(object):
             self.commit = match.group("commit")
             self.branch = branch if branch else "master"
             self.version = None
+            self._cloned = False
         else:
             raise ValidationError("Unhandled SCM scheme: %s" % self.scheme)
 
@@ -158,6 +159,36 @@ class SCM(object):
     def _run(cmd, chdir=None, log_stdout=False):
         return SCM._run_without_retry(cmd, chdir, log_stdout)
 
+    def clone(self, scmdir):
+        """
+        Clone the repo from SCM.
+
+        :param str scmdir: the working directory
+        :raises UnprocessableEntity: if the clone fails
+        """
+        if self._cloned:
+            return
+
+        if not self.scheme == "git":
+            raise RuntimeError("clone: Unhandled SCM scheme.")
+
+        if not self.sourcedir:
+            self.sourcedir = os.path.join(scmdir, self.name)
+
+        module_clone_cmd = ["git", "clone", "-q", "--no-checkout", self.repository, self.sourcedir]
+        SCM._run(module_clone_cmd, chdir=scmdir)
+        self._cloned = True
+
+    def checkout_ref(self, ref):
+        """
+        Checkout the input reference.
+
+        :param str ref: the SCM reference (hash, branch, etc.) to check out
+        :raises UnprocessableEntity: if the checkout fails
+        """
+        module_checkout_cmd = ["git", "checkout", "-q", ref]
+        SCM._run(module_checkout_cmd, chdir=self.sourcedir)
+
     def checkout(self, scmdir):
         """Checkout the module from SCM.
 
@@ -167,17 +198,12 @@ class SCM(object):
         """
         # TODO: sanity check arguments
         if self.scheme == "git":
-            self.sourcedir = "%s/%s" % (scmdir, self.name)
+            if not self._cloned:
+                self.clone(scmdir)
 
-            module_clone_cmd = [
-                "git", "clone", "-q", "--no-checkout", self.repository, self.sourcedir
-            ]
-            module_checkout_cmd = ["git", "checkout", "-q", self.commit]
-            # perform checkouts
-            SCM._run(module_clone_cmd, chdir=scmdir)
             try:
-                SCM._run(module_checkout_cmd, chdir=self.sourcedir)
-            except RuntimeError as e:
+                self.checkout_ref(self.commit)
+            except UnprocessableEntity as e:
                 if (
                     e.message.endswith(' did not match any file(s) known to git.\\n"')
                     or "fatal: reference is not a tree: " in e.message
