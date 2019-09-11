@@ -163,10 +163,7 @@ class MBSProducer(PollingProducer):
             for module in stale_module_builds:
                 log.info("{0!r} is stale and is being cleaned up".format(module))
                 # Find completed artifacts in the stale build
-                artifacts = [
-                    c for c in module.component_builds
-                    if c.state == koji.BUILD_STATES["COMPLETE"]
-                ]
+                artifacts = [c for c in module.component_builds if c.is_completed]
                 # If there are no completed artifacts, then there is nothing to tag
                 if artifacts:
                     # Set buildroot_connect=False so it doesn't recreate the Koji target and etc.

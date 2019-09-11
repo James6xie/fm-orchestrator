@@ -78,11 +78,6 @@ def failed(config, db_session, msg):
         # This is ok.. it's a race condition we can ignore.
         pass
 
-    unbuilt_components = [
-        c for c in build.component_builds
-        if (c.state != koji.BUILD_STATES["COMPLETE"] and c.state != koji.BUILD_STATES["FAILED"])
-    ]
-
     if build.koji_tag:
         builder = module_build_service.builder.GenericBuilder.create_from_module(
             db_session, build, config)
@@ -90,7 +85,7 @@ def failed(config, db_session, msg):
         if build.new_repo_task_id:
             builder.cancel_build(build.new_repo_task_id)
 
-        for component in unbuilt_components:
+        for component in (c for c in build.component_builds if c.is_unbuilt):
             if component.task_id:
                 builder.cancel_build(component.task_id)
             component.state = koji.BUILD_STATES["FAILED"]
@@ -442,7 +437,7 @@ def wait(config, db_session, msg):
             component_build.state = state
             component_build.reason = reason
             component_build.nvr = nvr
-    elif component_build.state != koji.BUILD_STATES["COMPLETE"]:
+    elif not component_build.is_completed:
         # It's possible that the build succeeded in the builder but some other step failed which
         # caused module-build-macros to be marked as failed in MBS, so check to see if it exists
         # first

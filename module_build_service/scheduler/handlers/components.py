@@ -79,22 +79,17 @@ def _finalize(config, db_session, msg, state):
 
     further_work = []
 
+    parent_current_batch = parent.current_batch()
+
     # If there are no other components still building in a batch,
     # we can tag all successfully built components in the batch.
     unbuilt_components_in_batch = [
-        c for c in parent.current_batch()
-        if c.state == koji.BUILD_STATES["BUILDING"] or not c.state
+        c for c in parent_current_batch
+        if c.is_waiting_for_build or c.is_building
     ]
     if not unbuilt_components_in_batch:
-        failed_components_in_batch = [
-            c for c in parent.current_batch()
-            if (c.state in [koji.BUILD_STATES["FAILED"], koji.BUILD_STATES["CANCELED"]])
-        ]
-
-        built_components_in_batch = [
-            c for c in parent.current_batch()
-            if c.state == koji.BUILD_STATES["COMPLETE"]
-        ]
+        failed_components_in_batch = [c for c in parent_current_batch if c.is_unsuccessful]
+        built_components_in_batch = [c for c in parent_current_batch if c.is_completed]
 
         builder = module_build_service.builder.GenericBuilder.create_from_module(
             db_session, parent, config
@@ -151,7 +146,8 @@ def _finalize(config, db_session, msg, state):
                 builder.tag_artifacts(component_nvrs_to_tag_in_dest)
 
         db_session.commit()
-    elif any([c.state != koji.BUILD_STATES["BUILDING"] for c in unbuilt_components_in_batch]):
+
+    elif any(not c.is_building for c in unbuilt_components_in_batch):
         # We are not in the middle of the batch building and
         # we have some unbuilt components in this batch. We might hit the
         # concurrent builds threshold in previous call of continue_batch_build
@@ -162,6 +158,7 @@ def _finalize(config, db_session, msg, state):
             db_session, parent, config)
         further_work += module_build_service.utils.continue_batch_build(
             config, parent, db_session, builder)
+
     return further_work
 
 

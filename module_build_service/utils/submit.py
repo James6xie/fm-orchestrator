@@ -910,7 +910,6 @@ def submit_module_build(db_session, username, mmd, params):
     :rtype: list with ModuleBuild
     :return: List with submitted module builds.
     """
-    import koji  # Placed here to avoid py2/py3 conflicts...
     from .mse import generate_expanded_mmds
 
     log.debug(
@@ -975,7 +974,7 @@ def submit_module_build(db_session, username, mmd, params):
             log.debug("Resuming existing module build %r" % module)
             # Reset all component builds that didn't complete
             for component in module.component_builds:
-                if component.state is not None and component.state != koji.BUILD_STATES["COMPLETE"]:
+                if not component.is_waiting_for_build and not component.is_completed:
                     component.state = None
                     component.state_reason = None
                     db_session.add(component)

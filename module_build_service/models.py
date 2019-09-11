@@ -29,6 +29,7 @@
 import contextlib
 import hashlib
 import json
+import koji
 import re
 from collections import OrderedDict, namedtuple
 from datetime import datetime
@@ -1349,6 +1350,37 @@ class ComponentBuild(MBSBase):
             self.task_id,
             self.batch,
             self.state_reason,
+        )
+
+    @property
+    def is_completed(self):
+        return self.state == koji.BUILD_STATES["COMPLETE"]
+
+    @property
+    def is_building(self):
+        return self.state == koji.BUILD_STATES["BUILDING"]
+
+    @property
+    def is_failed(self):
+        return self.state == koji.BUILD_STATES["FAILED"]
+
+    @property
+    def is_waiting_for_build(self):
+        return self.state is None
+
+    @property
+    def is_unbuilt(self):
+        return self.is_waiting_for_build or self.is_building
+
+    @property
+    def is_tagged(self):
+        return self.tagged and (self.tagged_in_final or self.build_time_only)
+
+    @property
+    def is_unsuccessful(self):
+        return (
+            self.state == koji.BUILD_STATES["FAILED"]
+            or self.state == koji.BUILD_STATES["CANCELED"]
         )
 
 

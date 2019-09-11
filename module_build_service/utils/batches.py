@@ -93,7 +93,7 @@ def start_build_component(db_session, builder, c):
             db_session.commit()
         return
 
-    if not c.task_id and c.state == koji.BUILD_STATES["BUILDING"]:
+    if not c.task_id and c.is_building:
         c.state = koji.BUILD_STATES["FAILED"]
         c.state_reason = "Failed to build artifact %s: Builder did not return task ID" % (c.package)
         with BUILD_COMPONENT_DB_SESSION_LOCK:
@@ -116,13 +116,8 @@ def continue_batch_build(config, module, db_session, builder, components=None):
     # if none are provided then we just select everything that hasn't
     # successfully built yet or isn't currently being built.
     unbuilt_components = components or [
-        c for c in module.component_builds
-        if (
-            c.state != koji.BUILD_STATES["COMPLETE"]
-            and c.state != koji.BUILD_STATES["BUILDING"]
-            and c.state != koji.BUILD_STATES["FAILED"]
-            and c.batch == module.batch
-        )
+        c for c in module.current_batch()
+        if not c.is_completed and not c.is_building and not c.is_failed
     ]
 
     if not unbuilt_components:
@@ -141,7 +136,7 @@ def continue_batch_build(config, module, db_session, builder, components=None):
     # Check for builds that exist in the build system but MBS doesn't know about
     for component in unbuilt_components:
         # Only evaluate new components
-        if component.state is not None:
+        if not component.is_waiting_for_build:
             continue
         msgs = builder.recover_orphaned_artifact(component)
         further_work += msgs
@@ -149,7 +144,7 @@ def continue_batch_build(config, module, db_session, builder, components=None):
     for c in unbuilt_components:
         # If a previous build of the component was found, then the state will be marked as
         # COMPLETE so we should skip this
-        if c.state == koji.BUILD_STATES["COMPLETE"]:
+        if c.is_completed:
             continue
         # Check the concurrent build threshold.
         if at_concurrent_component_threshold(config, db_session):
@@ -189,47 +184,23 @@ def start_next_batch_build(config, module, db_session, builder, components=None)
 
     :return: a list of BaseMessage instances to be handled by the MBSConsumer.
     """
-    import koji  # Placed here to avoid py2/py3 conflicts...
 
-    # Check the status of the module build and current batch so we can
-    # later decide if we can start new batch or not.
-    has_unbuilt_components = False
-    has_unbuilt_components_in_batch = False
-    has_building_components_in_batch = False
-    has_failed_components = False
-    # This is used to determine if it's worth checking if a component can be reused
-    # later on in the code
-    all_reused_in_prev_batch = True
-    for c in module.component_builds:
-        if c.state in [None, koji.BUILD_STATES["BUILDING"]]:
-            has_unbuilt_components = True
-
-            if c.batch == module.batch:
-                if not c.state:
-                    has_unbuilt_components_in_batch = True
-                elif c.state == koji.BUILD_STATES["BUILDING"]:
-                    has_building_components_in_batch = True
-        elif c.state in [koji.BUILD_STATES["FAILED"], koji.BUILD_STATES["CANCELED"]]:
-            has_failed_components = True
-
-        if c.batch == module.batch and not c.reused_component_id:
-            all_reused_in_prev_batch = False
-
-    # Do not start new batch if there are no components to build.
-    if not has_unbuilt_components:
+    if not any(c.is_unbuilt for c in module.component_builds):
         log.debug(
             "Not starting new batch, there is no component to build for module %s" % module)
         return []
 
-    # Check that there is something to build in current batch before starting
+    current_batch = module.current_batch()
+
+    # Check that if there is something to build in current batch before starting
     # the new one. If there is, continue building current batch.
-    if has_unbuilt_components_in_batch:
+    if any(c.is_unbuilt for c in current_batch):
         log.info("Continuing building batch %d", module.batch)
         return continue_batch_build(config, module, db_session, builder, components)
 
     # Check that there are no components in BUILDING state in current batch.
     # If there are, wait until they are built.
-    if has_building_components_in_batch:
+    if any(c.is_building for c in current_batch):
         log.debug(
             "Not starting new batch, there are still components in "
             "BUILDING state in current batch for module %s",
@@ -239,7 +210,7 @@ def start_next_batch_build(config, module, db_session, builder, components=None)
 
     # Check that there are no failed components in this batch. If there are,
     # do not start the new batch.
-    if has_failed_components:
+    if any(c.is_unsuccessful for c in module.component_builds):
         log.info("Not starting new batch, there are failed components for module %s", module)
         return []
 
@@ -268,11 +239,16 @@ def start_next_batch_build(config, module, db_session, builder, components=None)
     # Find out if there is repo regeneration in progress for this module.
     # If there is, wait until the repo is regenerated before starting a new
     # batch.
-    artifacts = [c.nvr for c in module.current_batch()]
+    artifacts = [c.nvr for c in current_batch]
     if not builder.buildroot_ready(artifacts):
         log.info(
             "Not starting new batch, not all of %r are in the buildroot. Waiting." % artifacts)
         return []
+
+    # This is used to determine if it's worth checking if a component can be
+    # reused later on in the code
+    all_reused_in_prev_batch = all(
+        c.reused_component_id is not None for c in module.component_builds)
 
     # Although this variable isn't necessary, it is easier to read code later on with it
     prev_batch = module.batch
@@ -282,13 +258,8 @@ def start_next_batch_build(config, module, db_session, builder, components=None)
     # if none are provided then we just select everything that hasn't
     # successfully built yet or isn't currently being built.
     unbuilt_components = components or [
-        c for c in module.component_builds
-        if (
-            c.state != koji.BUILD_STATES["COMPLETE"]
-            and c.state != koji.BUILD_STATES["BUILDING"]
-            and c.state != koji.BUILD_STATES["FAILED"]
-            and c.batch == module.batch
-        )
+        c for c in module.current_batch()
+        if not c.is_completed and not c.is_building and not c.is_failed
     ]
 
     # If there are no components to build, skip the batch and start building

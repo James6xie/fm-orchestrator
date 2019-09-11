@@ -58,37 +58,21 @@ def tagged(config, db_session, msg):
         component.tagged_in_final = True
     db_session.commit()
 
-    unbuilt_components_in_batch = [
-        c for c in module_build.current_batch()
-        if c.state == koji.BUILD_STATES["BUILDING"] or not c.state
-    ]
-    if unbuilt_components_in_batch:
+    if any(c.is_unbuilt for c in module_build.current_batch()):
         log.info(
             "Not regenerating repo for tag %s, there are still building components in a batch",
             tag,
         )
         return []
 
-    # Get the list of untagged components in current/previous batches which
-    # have been built successfully.
-    untagged_components = [
-        c for c in module_build.up_to_current_batch()
-        if (not c.tagged or (not c.tagged_in_final and not c.build_time_only))
-        and c.state == koji.BUILD_STATES["COMPLETE"]
-    ]
-
     further_work = []
 
     # If all components are tagged, start newRepo task.
-    if not untagged_components:
+    if not any(c.is_completed and not c.is_tagged for c in module_build.up_to_current_batch()):
         builder = module_build_service.builder.GenericBuilder.create_from_module(
             db_session, module_build, config)
 
-        unbuilt_components = [
-            c for c in module_build.component_builds
-            if c.state == koji.BUILD_STATES["BUILDING"] or not c.state
-        ]
-        if unbuilt_components:
+        if any(c.is_unbuilt for c in module_build.component_builds):
             if not _is_new_repo_generating(module_build, builder.koji_session):
                 repo_tag = builder.module_build_tag["name"]
                 log.info("All components in batch tagged, regenerating repo for tag %s", repo_tag)

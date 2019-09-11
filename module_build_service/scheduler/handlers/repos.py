@@ -25,7 +25,6 @@
 
 import module_build_service.builder
 import logging
-import koji
 from datetime import datetime
 from module_build_service import models, log
 from module_build_service.utils import start_next_batch_build
@@ -54,41 +53,33 @@ def done(config, db_session, msg):
         log.info("Ignoring repo regen for already failed %r" % module_build)
         return
 
+    # If there are no components in this module build, then current_batch will be empty
+    if module_build.component_builds:
+        current_batch = module_build.current_batch()
+    else:
+        current_batch = []
+
     # Get the list of untagged components in current/previous batches which
     # have been built successfully
-    if config.system in ("koji", "test") and module_build.component_builds:
-        untagged_components = [
-            c for c in module_build.up_to_current_batch()
-            if (not c.tagged or (not c.tagged_in_final and not c.build_time_only))
-            and c.state == koji.BUILD_STATES["COMPLETE"]
-        ]
-        if untagged_components:
+    if config.system in ("koji", "test") and current_batch:
+        if any(c.is_completed and not c.is_tagged for c in module_build.up_to_current_batch()):
             log.info("Ignoring repo regen, because not all components are tagged.")
             return
-        if all([c.state is None for c in module_build.current_batch()]):
+        if all(c.is_waiting_for_build for c in current_batch):
             log.info("Ignoring repo regen because no components have started in the batch.")
             return
 
-    # If there are no components in this module build, then current_batch will be empty
-    if not module_build.component_builds:
-        current_batch = []
-    else:
-        current_batch = module_build.current_batch()
-
     # If any in the current batch are still running.. just wait.
-    running = [c.state == koji.BUILD_STATES["BUILDING"] for c in current_batch]
-    if any(running):
+    running = [c for c in current_batch if c.is_building]
+    if running:
         log.info(
-            "%r has %r of %r components still "
-            "building in this batch (%r total)"
-            % (module_build, len(running), len(current_batch), len(module_build.component_builds))
+            "%r has %r of %r components still building in this batch (%r total)",
+            module_build, len(running), len(current_batch), len(module_build.component_builds)
         )
         return
 
     # Assemble the list of all successful components in the batch.
-    good = [c for c in current_batch if c.state == koji.BUILD_STATES["COMPLETE"]]
-
-    failed_states = (koji.BUILD_STATES["FAILED"], koji.BUILD_STATES["CANCELED"])
+    good = [c for c in current_batch if c.is_completed]
 
     # If *none* of the components completed for this batch, then obviously the
     # module fails.  However!  We shouldn't reach this scenario.  There is
@@ -97,7 +88,7 @@ def done(config, db_session, msg):
     # valve.
     if module_build.component_builds and not good:
         state_reason = "Component(s) {} failed to build.".format(
-            ", ".join(c.package for c in current_batch if c.state in failed_states))
+            ", ".join(c.package for c in current_batch if c.is_unsuccessful))
         module_build.transition(
             db_session, config, models.BUILD_STATES["failed"], state_reason, failure_type="infra")
         db_session.commit()
@@ -127,9 +118,8 @@ def done(config, db_session, msg):
     # So now we can either start a new batch if there are still some to build
     # or, if everything is built successfully, then we can bless the module as
     # complete.
-    has_unbuilt_components = any(
-        c.state in [None, koji.BUILD_STATES["BUILDING"]] for c in module_build.component_builds)
-    has_failed_components = any(c.state in failed_states for c in module_build.component_builds)
+    has_unbuilt_components = any(c.is_unbuilt for c in module_build.component_builds)
+    has_failed_components = any(c.is_unsuccessful for c in module_build.component_builds)
 
     further_work = []
     if has_unbuilt_components and not has_failed_components:
@@ -148,7 +138,7 @@ def done(config, db_session, msg):
         if has_failed_components:
             state_reason = "Component(s) {} failed to build.".format(
                 ", ".join(
-                    c.package for c in module_build.component_builds if c.state in failed_states
+                    c.package for c in module_build.component_builds if c.is_unsuccessful
                 )
             )
             module_build.transition(
