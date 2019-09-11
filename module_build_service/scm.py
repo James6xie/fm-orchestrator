@@ -205,12 +205,12 @@ class SCM(object):
                 self.checkout_ref(self.commit)
             except UnprocessableEntity as e:
                 if (
-                    e.message.endswith(' did not match any file(s) known to git.\\n"')
-                    or "fatal: reference is not a tree: " in e.message
+                    str(e).endswith(' did not match any file(s) known to git.\\n"')
+                    or "fatal: reference is not a tree: " in str(e)
                 ):
                     raise UnprocessableEntity(
                         "checkout: The requested commit hash was not found within the repository. "
-                        "Perhaps you forgot to push. The original message was: %s" % e.message
+                        "Perhaps you forgot to push. The original message was: %s" % str(e)
                     )
                 raise
 
