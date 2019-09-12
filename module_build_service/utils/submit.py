@@ -30,7 +30,7 @@ import shutil
 import tempfile
 import os
 from multiprocessing.dummy import Pool as ThreadPool
-from datetime import datetime
+from datetime import date, datetime
 import copy
 
 import kobo.rpmlib
@@ -880,7 +880,7 @@ def _process_support_streams(db_session, mmd, params):
                 log.debug("A release date for the release %s could not be determined", pp_release)
                 continue
 
-            if datetime.strptime(ga_date, '%Y-%m-%d') > datetime.utcnow():
+            if datetime.strptime(ga_date, '%Y-%m-%d').date() > date.today():
                 log.debug(
                     "The release %s hasn't been released yet. Not adding a stream suffix.",
                     ga_date
