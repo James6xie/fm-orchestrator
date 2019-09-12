@@ -1616,15 +1616,17 @@ class TestUtilsModuleReuse:
         assert reusable_module.id == build_module.reused_module_id
         assert reusable_module.id == reused_module.id
 
+    @pytest.mark.parametrize('allow_ocbm', (True, False))
     @patch(
         "module_build_service.config.Config.allow_only_compatible_base_modules",
-        new_callable=mock.PropertyMock, return_value=False
+        new_callable=mock.PropertyMock,
     )
-    def test_get_reusable_module_use_latest_build(self, cfg, db_session):
+    def test_get_reusable_module_use_latest_build(self, cfg, db_session, allow_ocbm):
         """
         Test that the `get_reusable_module` tries to reuse the latest module in case when
-        multiple modules can be reused.
+        multiple modules can be reused allow_only_compatible_base_modules is True.
         """
+        cfg.return_value = allow_ocbm
         # Set "fedora" virtual stream to platform:f28.
         platform_f28 = db_session.query(models.ModuleBuild).filter_by(name="platform").one()
         mmd = platform_f28.mmd()
@@ -1646,7 +1648,7 @@ class TestUtilsModuleReuse:
         # stream version will be higher than the previous one. Also set its buildrequires
         # to platform:f29.
         latest_module = db_session.query(models.ModuleBuild).filter_by(
-            name="testmodule").filter_by(state=models.BUILD_STATES["ready"]).one()
+            name="testmodule", state=models.BUILD_STATES["ready"]).one()
         # This is used to clone the ModuleBuild SQLAlchemy object without recreating it from
         # scratch.
         db_session.expunge(latest_module)
@@ -1677,4 +1679,9 @@ class TestUtilsModuleReuse:
         reusable_module = module_build_service.utils.get_reusable_module(
             db_session, module)
 
-        assert reusable_module.id == latest_module.id
+        if allow_ocbm:
+            assert reusable_module.id == latest_module.id
+        else:
+            first_module = db_session.query(models.ModuleBuild).filter_by(
+                name="testmodule", state=models.BUILD_STATES["ready"]).first()
+            assert reusable_module.id == first_module.id
