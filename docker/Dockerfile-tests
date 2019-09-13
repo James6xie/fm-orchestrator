@@ -13,7 +13,6 @@ RUN yum -y install \
     --setopt=tsflags=nodocs \
     bash \
     createrepo_c \
-    rsync \
     fedmsg \
     fedmsg-hub \
     gcc \
@@ -25,6 +24,7 @@ RUN yum -y install \
     python-dnf \
     python-dogpile-cache \
     python-enum34 \
+    python-flake8 \
     python-flask \
     python-flask-migrate \
     python-flask-sqlalchemy \
@@ -32,23 +32,21 @@ RUN yum -y install \
     python-futures \
     python-koji \
     python-ldap3 \
-    python2-libmodulemd2 \
     python-mock \
     python-munch \
     python-pip \
     python-prometheus_client \
+    python-psycopg2 \
     python-requests \
     python-six \
     python-solv \
     python-sqlalchemy \
-    python2-pungi \
-    python-psycopg2 \
-    # Test-only dependencies
-    python-flake8 \
-    python-mock \
     python-tox \
-    rpm-build \
+    python2-libmodulemd2 \
     python2-pyyaml \
+    python2-pungi \
+    rpm-build \
+    rsync \
     && yum clean all
 # We currently require newer versions of these Python packages for the tests.
 # more-itertools is required by pytest, but versions 6.0.0 and up aren't Python 2 compatible
