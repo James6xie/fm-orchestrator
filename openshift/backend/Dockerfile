@@ -13,7 +13,7 @@ WORKDIR /src
 # TODO: Unpin the `python3-libmodulemd` RPM once MBS is released with libmodulemd v2
 RUN ${DNF_CMD} install \
       'dnf-command(builddep)' rpm-build rpmdevtools rpmlint \
-      python3-tox python3-pytest python3-mock python3-flake8 bandit python3-libmodulemd && \
+      python3-tox python3-pytest python3-pytest-cov python3-mock python3-flake8 bandit python3-libmodulemd && \
     ${DNF_CMD} builddep *.spec && \
     ${DNF_CMD} clean all
 RUN rpmdev-setuptree && \
