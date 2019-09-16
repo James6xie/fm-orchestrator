@@ -975,7 +975,7 @@ def submit_module_build(db_session, username, mmd, params):
             log.debug("Resuming existing module build %r" % module)
             # Reset all component builds that didn't complete
             for component in module.component_builds:
-                if component.state and component.state != koji.BUILD_STATES["COMPLETE"]:
+                if component.state is not None and component.state != koji.BUILD_STATES["COMPLETE"]:
                     component.state = None
                     component.state_reason = None
                     db_session.add(component)
