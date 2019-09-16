@@ -44,6 +44,7 @@ from module_build_service.models import ModuleBuild, BUILD_STATES, ComponentBuil
 from module_build_service import db, version
 import module_build_service.config as mbs_config
 import module_build_service.scheduler.handlers.modules
+import module_build_service.utils.submit
 from module_build_service.utils.general import (
     import_mmd, mmd_to_str, load_mmd,
     get_rpm_release)
@@ -2493,7 +2494,7 @@ class TestViews:
         assert dep.get_runtime_streams("platform") == ["el8"]
 
     @pytest.mark.parametrize(
-        "pp_url, pp_streams, get_rv, br_stream, br_override, expected_stream",
+        "pp_url, pp_streams, get_rv, br_stream, br_override, expected_stream, utcnow",
         (
             # Test a stream of a major release
             (
@@ -2503,6 +2504,7 @@ class TestViews:
                 "el8.0.0",
                 {},
                 "el8.0.0.z",
+                datetime(2019, 9, 16, 12, 00, 00, 0),
             ),
             # Test when the releases GA date is far in the future
             (
@@ -2512,6 +2514,17 @@ class TestViews:
                 "el8.0.0",
                 {},
                 "el8.0.0",
+                datetime(2019, 9, 16, 12, 00, 00, 0),
+            ),
+            # Test when the release's GA date is same day
+            (
+                "https://pp.domain.local/pp/",
+                {r"el.+": (".z", "rhel-{x}-{y}.{z}", "rhel-{x}-{y}")},
+                {"ga_date": "2019-09-16"},
+                "el8.0.0",
+                {},
+                "el8.0.0",
+                datetime(2019, 9, 16, 12, 00, 00, 0),
             ),
             # Test when product_pages_url isn't set
             (
@@ -2521,6 +2534,7 @@ class TestViews:
                 "el8.0.0",
                 {},
                 "el8.0.0",
+                datetime(2019, 9, 16, 12, 00, 00, 0),
             ),
             # Test when the release isn't found in Product Pages
             (
@@ -2530,6 +2544,7 @@ class TestViews:
                 "el8.0.0",
                 {},
                 "el8.0.0",
+                datetime(2019, 9, 16, 12, 00, 00, 0),
             ),
             # Test when a non-major release stream
             (
@@ -2539,6 +2554,7 @@ class TestViews:
                 "el8.2.1",
                 {},
                 "el8.2.1.z",
+                datetime(2019, 9, 16, 12, 00, 00, 0),
             ),
             # Test that when buildrequire overrides is set for platform, nothing changes
             (
@@ -2548,6 +2564,7 @@ class TestViews:
                 "el8.0.0",
                 {"platform": ["el8.0.0"]},
                 "el8.0.0",
+                datetime(2019, 9, 16, 12, 00, 00, 0),
             ),
             # Test when product_pages_module_streams is not set
             (
@@ -2557,6 +2574,7 @@ class TestViews:
                 "el8.0.0",
                 {},
                 "el8.0.0",
+                datetime(2019, 9, 16, 12, 00, 00, 0),
             ),
             # Test when there is no stream that matches the configured regexes
             (
@@ -2566,6 +2584,7 @@ class TestViews:
                 "el8.0.0",
                 {},
                 "el8.0.0",
+                datetime(2019, 9, 16, 12, 00, 00, 0),
             ),
             # Test when there is no configured special Product Pages template for major releases
             (
@@ -2575,8 +2594,13 @@ class TestViews:
                 "el8.0.0",
                 {},
                 "el8.0.0.z",
+                datetime(2019, 9, 16, 12, 00, 00, 0),
             ),
         ),
+    )
+    @patch(
+        "module_build_service.utils.submit.datetime",
+        new_callable=PropertyMock,
     )
     @patch(
         "module_build_service.config.Config.product_pages_url",
@@ -2590,14 +2614,17 @@ class TestViews:
     @patch("module_build_service.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_automatic_z_stream_detection(
-        self, mocked_scm, mocked_get_user, mock_get, mock_pp_streams, mock_pp_url, pp_url,
-        pp_streams, get_rv, br_stream, br_override, expected_stream,
+        self, mocked_scm, mocked_get_user, mock_get, mock_pp_streams, mock_pp_url, mock_datetime,
+        pp_url, pp_streams, get_rv, br_stream, br_override, expected_stream, utcnow,
     ):
         # Configure the Product Pages URL
         mock_pp_url.return_value = pp_url
         mock_pp_streams.return_value = pp_streams
         # Mock the Product Pages query
         mock_get.return_value.json.return_value = get_rv
+        # Mock the date
+        mock_datetime.strptime = datetime.strptime
+        mock_datetime.utcnow.return_value = utcnow
         mmd = load_mmd(read_staged_data("platform"))
         # Create the required platforms
         for stream in ("el8.0.0", "el8.0.0.z", "el8.2.1", "el8.2.1.z"):
