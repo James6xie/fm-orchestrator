@@ -1,6 +1,13 @@
 Change Log
 ==========
 
+v2.28.0
+-------
+* Do not ignore building components to reset state when submit an existing module build
+* Handle the conflicts between base module modular Koji tags everytime
+* Fix DetachedInstanceError on local builds
+* Fix an issue where components were reused from a module built with an incompatible platform
+
 v2.27.0
 -------
 * Add "scratch_build_only_branches" configuration options to define the branches
