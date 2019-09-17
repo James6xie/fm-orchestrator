@@ -188,7 +188,7 @@ def build_module_locally(
             handle = FileStorage(fd)
             handle.filename = filename
             try:
-                modules_list = submit_module_build_from_yaml(
+                module_builds = submit_module_build_from_yaml(
                     db_session, username, handle, params,
                     stream=str(stream), skiptests=skiptests
                 )
@@ -197,12 +197,20 @@ def build_module_locally(
                 logging.error("Use '-s module_name:module_stream' to choose the stream")
                 return
 
+            module_build_ids = [build.id for build in module_builds]
+
         stop = module_build_service.scheduler.make_simple_stop_condition(db_session)
 
     # Run the consumer until stop_condition returns True
     module_build_service.scheduler.main([], stop)
 
-    if any(module.state == models.BUILD_STATES["failed"] for module in modules_list):
+    with models.make_db_session(conf) as db_session:
+        has_failed_module = db_session.query(models.ModuleBuild).filter(
+            models.ModuleBuild.id.in_(module_build_ids),
+            models.ModuleBuild.state == models.BUILD_STATES["failed"],
+        ).count() > 0
+
+    if has_failed_module:
         raise RuntimeError("Module build failed")
 
 

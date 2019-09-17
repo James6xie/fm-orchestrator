@@ -18,11 +18,13 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 import pytest
-from mock import patch, mock_open, ANY, Mock
+from mock import patch
 
-from module_build_service import app
-from module_build_service.manage import retire, build_module_locally
+from module_build_service import app, models
+from module_build_service.manage import manager_wrapper, retire
 from module_build_service.models import BUILD_STATES, ModuleBuild
+from module_build_service.utils.general import deps_to_dict
+from tests import clean_database, staged_data_filename
 
 
 @pytest.mark.usefixtures("model_tests_init_data")
@@ -120,29 +122,56 @@ class TestMBSManage:
         expected_changed_count = 3 if confirm_expected else 0
         assert len(retired_module_builds) == expected_changed_count
 
-    @patch("module_build_service.manage.open", create=True, new_callable=mock_open)
-    @patch("module_build_service.manage.submit_module_build_from_yaml")
     @patch("module_build_service.scheduler.main")
     @patch("module_build_service.manage.conf.set_item")
-    @patch("module_build_service.models.make_db_session")
+    # Do not allow flask_script exits by itself because we have to assert
+    # something after the command finishes.
+    @patch("sys.exit")
+    # The consumer is not required to run actually, so it does not make sense
+    # to publish message after creating a module build.
+    @patch("module_build_service.messaging.publish")
     def test_build_module_locally_set_stream(
-        self, make_db_session, conf_set_item, main, submit_module_build_from_yaml, patched_open
+        self, publish, sys_exit, conf_set_item, main, db_session
     ):
-        mock_db_session = Mock()
-        make_db_session.return_value.__enter__.return_value = mock_db_session
+        clean_database()
+
+        cli_cmd = [
+            'mbs-manager', 'build_module_locally',
+            '--set-stream', 'platform:f28',
+            "--file", staged_data_filename('testmodule-local-build.yaml')
+        ]
 
         # build_module_locally changes database uri to a local SQLite database file.
         # Restore the uri to original one in order to not impact the database
         # session in subsequent tests.
         original_db_uri = app.config['SQLALCHEMY_DATABASE_URI']
         try:
-            build_module_locally(
-                yaml_file="./fake.yaml", default_streams=["platform:el8"], stream="foo")
+            # The local sqlite3 database created by function
+            # build_module_locally is useless for this test. Mock the
+            # db.create_call to stop to create that database file.
+            with patch('module_build_service.manage.db.create_all'):
+                with patch('sys.argv', new=cli_cmd):
+                    manager_wrapper()
         finally:
             app.config['SQLALCHEMY_DATABASE_URI'] = original_db_uri
 
-        submit_module_build_from_yaml.assert_called_once_with(
-            mock_db_session, ANY, ANY, {
-                "default_streams": {"platform": "el8"}, "local_build": True
-            },
-            skiptests=False, stream="foo")
+        # Since module_build_service.scheduler.main is mocked, MBS does not
+        # really build the testmodule for this test. Following lines assert the
+        # fact:
+        # Module testmodule-local-build is expanded and stored into database,
+        # and this build has buildrequires platform:f28 and requires
+        # platform:f28.
+        # Please note that, the f28 is specified from command line option
+        # --set-stream, which is the point this test tests.
+
+        builds = db_session.query(models.ModuleBuild).filter_by(
+            name='testmodule-local-build').all()
+        assert 1 == len(builds)
+
+        testmodule_build = builds[0]
+        mmd_deps = testmodule_build.mmd().get_dependencies()
+
+        deps_dict = deps_to_dict(mmd_deps[0], "buildtime")
+        assert ["f28"] == deps_dict["platform"]
+        deps_dict = deps_to_dict(mmd_deps[0], "runtime")
+        assert ["f28"] == deps_dict["platform"]
