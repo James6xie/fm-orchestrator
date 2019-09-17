@@ -136,24 +136,24 @@ class TestMBSManage:
         clean_database()
 
         cli_cmd = [
-            'mbs-manager', 'build_module_locally',
-            '--set-stream', 'platform:f28',
-            "--file", staged_data_filename('testmodule-local-build.yaml')
+            "mbs-manager", "build_module_locally",
+            "--set-stream", "platform:f28",
+            "--file", staged_data_filename("testmodule-local-build.yaml")
         ]
 
         # build_module_locally changes database uri to a local SQLite database file.
         # Restore the uri to original one in order to not impact the database
         # session in subsequent tests.
-        original_db_uri = app.config['SQLALCHEMY_DATABASE_URI']
+        original_db_uri = app.config["SQLALCHEMY_DATABASE_URI"]
         try:
             # The local sqlite3 database created by function
             # build_module_locally is useless for this test. Mock the
             # db.create_call to stop to create that database file.
-            with patch('module_build_service.manage.db.create_all'):
-                with patch('sys.argv', new=cli_cmd):
+            with patch("module_build_service.manage.db.create_all"):
+                with patch("sys.argv", new=cli_cmd):
                     manager_wrapper()
         finally:
-            app.config['SQLALCHEMY_DATABASE_URI'] = original_db_uri
+            app.config["SQLALCHEMY_DATABASE_URI"] = original_db_uri
 
         # Since module_build_service.scheduler.main is mocked, MBS does not
         # really build the testmodule for this test. Following lines assert the
@@ -165,7 +165,7 @@ class TestMBSManage:
         # --set-stream, which is the point this test tests.
 
         builds = db_session.query(models.ModuleBuild).filter_by(
-            name='testmodule-local-build').all()
+            name="testmodule-local-build").all()
         assert 1 == len(builds)
 
         testmodule_build = builds[0]

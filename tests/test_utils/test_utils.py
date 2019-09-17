@@ -1616,7 +1616,7 @@ class TestUtilsModuleReuse:
         assert reusable_module.id == build_module.reused_module_id
         assert reusable_module.id == reused_module.id
 
-    @pytest.mark.parametrize('allow_ocbm', (True, False))
+    @pytest.mark.parametrize("allow_ocbm", (True, False))
     @patch(
         "module_build_service.config.Config.allow_only_compatible_base_modules",
         new_callable=mock.PropertyMock,
