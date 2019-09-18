@@ -172,9 +172,9 @@ def init(config, db_session, msg):
     failure_reason = "unspec"
     try:
         mmd = build.mmd()
+        record_module_build_arches(mmd, build, db_session)
         arches = [arch.name for arch in build.arches]
         defaults_added = add_default_modules(db_session, mmd, arches)
-        record_module_build_arches(mmd, build, db_session)
 
         # Format the modulemd by putting in defaults and replacing streams that
         # are branches with commit hashes
