@@ -33,13 +33,13 @@ There are options to change the tests enviornment:
 For example, ``contrib/run-unittests.sh --py3 --with-pgsql``.
 
 You can specify the subset of tests to run inside the container as well. Tests
-specified from command-line are passed to ``py.test`` directly. Please note that,
-the path of each test must start with ``/src/``. For example::
+specified from the command-line are passed to ``py.test`` directly. Please note that,
+the path of each test must be a relative path. For example::
 
     contrib/run-unittests.sh \
-        /src/tests/test_utils/ \
-        /src/tests/test_mmd_resolver.py \
-        /src/tests/test_builder/test_koji.py::TestKojiBuilder::test_tag_to_repo
+        tests/test_utils/ \
+        tests/test_mmd_resolver.py \
+        tests/test_builder/test_koji.py::TestKojiBuilder::test_tag_to_repo
 
 Inside Vagrant machine
 ----------------------

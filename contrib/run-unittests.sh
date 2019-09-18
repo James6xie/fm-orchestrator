@@ -93,7 +93,12 @@ if [ -n "$with_pgsql" ]; then
     done
 fi
 
-(cd "$source_dir" && $docker run "${container_opts[@]}" $test_image "$@")
+tox_args=$@
+if [[ $tox_args == tests/* ]]; then
+    tox_args="/root/mbs/src/${tox_args}"
+fi
+
+(cd "$source_dir" && $docker run "${container_opts[@]}" $test_image "$tox_args")
 
 rv=$?
 
