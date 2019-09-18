@@ -241,7 +241,7 @@ def handle_collisions_with_base_module_rpms(mmd, arches):
         ", ".join(bm_tags),
     )
     koji_session = KojiModuleBuilder.get_session(conf, login=False)
-    bm_rpms = _get_rpms_from_tags(koji_session, bm_tags, arches)
+    bm_rpms = _get_rpms_from_tags(koji_session, list(bm_tags), arches)
     # The keys are base module RPM names and the values are sets of RPM NEVRAs with that name
     name_to_nevras = {}
     for bm_rpm in bm_rpms:
@@ -258,7 +258,7 @@ def handle_collisions_with_base_module_rpms(mmd, arches):
     # This will contain any NEVRAs of RPMs in the base module tag with the same name as those in the
     # buildrequired modules
     conflicts = set()
-    non_bm_rpms = _get_rpms_from_tags(koji_session, non_bm_tags, arches)
+    non_bm_rpms = _get_rpms_from_tags(koji_session, list(non_bm_tags), arches)
     for rpm in non_bm_rpms:
         rpm_name = kobo.rpmlib.parse_nvra(rpm)["name"]
         if rpm_name in name_to_nevras:
