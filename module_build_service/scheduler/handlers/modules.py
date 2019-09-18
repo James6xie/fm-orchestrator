@@ -187,9 +187,9 @@ def init(config, db_session, msg):
         if conf.system in ["koji", "test"] and not defaults_added:
             handle_stream_collision_modules(db_session, mmd)
 
-        # Extends the xmd["mbs"]["ursine_rpms"] with RPMs from base module which conflict
-        # with the RPMs from module. We need to prefer modular RPMs over base module RPMs
-        # even if their NVR is lower.
+        # Sets xmd["mbs"]["ursine_rpms"] with RPMs from the buildrequired base modules which
+        # conflict with the RPMs from other buildrequired modules. This is done to prefer modular
+        # RPMs over base module RPMs even if their NVR is lower.
         handle_collisions_with_base_module_rpms(mmd, arches)
 
         mmd = record_filtered_rpms(db_session, mmd)

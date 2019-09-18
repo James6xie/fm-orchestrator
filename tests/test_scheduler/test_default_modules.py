@@ -222,11 +222,9 @@ def test_get_rawhide_version(mock_koji_builder):
     assert default_modules._get_rawhide_version() == "f32"
 
 
-@pytest.mark.parametrize("ursine_rpms", ([], ["httpd-0:2.4-5.el8.x86_64"]))
 @patch("module_build_service.scheduler.default_modules.KojiModuleBuilder.get_session")
 @patch("module_build_service.scheduler.default_modules._get_rpms_from_tags")
-def test_handle_collisions_with_base_module_rpms(
-        mock_grft, mock_get_session, ursine_rpms):
+def test_handle_collisions_with_base_module_rpms(mock_grft, mock_get_session):
     """
     Test that handle_collisions_with_base_module_rpms will add conflicts for NEVRAs in the
     modulemd.
@@ -236,10 +234,6 @@ def test_handle_collisions_with_base_module_rpms(
     xmd["mbs"]["buildrequires"]["platform"]["koji_tag"] = "module-el-build"
     xmd["mbs"]["buildrequires"]["python"] = {"koji_tag": "module-python27"}
     xmd["mbs"]["buildrequires"]["bash"] = {"koji_tag": "module-bash"}
-    if ursine_rpms:
-        # There might already be some ursine RPMs set from another methods.
-        # We must check they are not overwritten.
-        xmd["mbs"]["ursine_rpms"] = ursine_rpms
     mmd.set_xmd(xmd)
 
     bm_rpms = {
@@ -261,11 +255,11 @@ def test_handle_collisions_with_base_module_rpms(
 
     mock_get_session.assert_called_once()
     xmd_mbs = mmd.get_xmd()["mbs"]
-    assert set(xmd_mbs["ursine_rpms"]) == set(ursine_rpms).union({
+    assert set(xmd_mbs["ursine_rpms"]) == {
         "bash-0:4.4.19-7.el8.aarch64",
         "python2-tools-0:2.7.16-11.el8.aarch64",
         "python2-tools-0:2.7.16-11.el8.x86_64",
-    })
+    }
     assert mock_grft.call_count == 2
     # We can't check the calls directly because the second argument is a set converted to a list,
     # so the order can't be determined ahead of time.

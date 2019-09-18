@@ -359,6 +359,18 @@ class KojiModuleBuilder(GenericBuilder):
                     )
                 )
 
+        # These are generated from handle_collisions_with_base_module_rpms and are different than
+        # the stream collision modules
+        ursine_rpms = mmd.get_xmd()["mbs"].get("ursine_rpms")
+        if ursine_rpms:
+            log.debug("Adding %d ursine RPM(s) to the conflicts", len(ursine_rpms))
+            filter_conflicts.append(
+                "\n# Filter out base module RPMs that overlap with the RPMs in the buildrequired "
+                "modules"
+            )
+            for ursine_rpm in ursine_rpms:
+                filter_conflicts.append(KojiModuleBuilder.format_conflicts_line(ursine_rpm))
+
         spec_content = textwrap.dedent("""
             %global dist {disttag}
             %global modularitylabel {module_name}:{module_stream}:{module_version}:{module_context}

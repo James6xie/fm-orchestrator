@@ -969,6 +969,7 @@ class TestGetDistTagSRPM:
                         "ursine_rpms": ["foo-0:1.0-1.fc28", "bar-0:2.0-1.fc28"],
                     },
                 },
+                "ursine_rpms": ["pizza-0:4.0-1.fc32", "spaghetti-0:3.0-1.fc32"],
                 "koji_tag": "module-{name}-{stream}-{version}-{context}".format(**self.module_nsvc),
             }
         }
@@ -1006,6 +1007,11 @@ class TestGetDistTagSRPM:
         with open(self.spec_file, "r") as f:
             content = f.read()
 
+        # Stream collision ursine RPMs
         assert "# modulefoo-s-v-c\n" in content
         for nevr in ["foo-0:1.0-1.fc28", "bar-0:2.0-1.fc28"]:
+            assert KojiModuleBuilder.format_conflicts_line(nevr) + "\n" in content
+
+        # Conflicting ursine RPMs
+        for nevr in ["pizza-0:4.0-1.fc32", "spaghetti-0:3.0-1.fc32"]:
             assert KojiModuleBuilder.format_conflicts_line(nevr) + "\n" in content

@@ -264,14 +264,9 @@ def handle_collisions_with_base_module_rpms(mmd, arches):
         if rpm_name in name_to_nevras:
             conflicts = conflicts | name_to_nevras[rpm_name]
 
-    if not conflicts:
-        return
-
-    # Append the conflicting NEVRAs to `ursine_rpms`, so the Conflicts are later generated for them
+    # Add the conflicting NEVRAs to `ursine_rpms` so the Conflicts are later generated for them
     # in the KojiModuleBuilder.
-    if not xmd["mbs"].get("ursine_rpms"):
-        xmd["mbs"]["ursine_rpms"] = []
-    xmd["mbs"]["ursine_rpms"] = list(set(xmd["mbs"]["ursine_rpms"]).union(conflicts))
+    xmd["mbs"]["ursine_rpms"] = list(conflicts)
     mmd.set_xmd(xmd)
 
 
