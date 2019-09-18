@@ -266,18 +266,18 @@ def test_handle_collisions_with_base_module_rpms(
         "python2-tools-0:2.7.16-11.el8.aarch64",
         "python2-tools-0:2.7.16-11.el8.x86_64",
     })
-    assert mock_grft.mock_calls == [
-        call(
-            mock_get_session.return_value,
-            {"module-el-build"},
-            ["aarch64", "x86_64"],
-        ),
-        call(
-            mock_get_session.return_value,
-            {"module-bash", "module-python27"},
-            ["aarch64", "x86_64"],
-        ),
-    ]
+    assert mock_grft.call_count == 2
+    # We can't check the calls directly because the second argument is a set converted to a list,
+    # so the order can't be determined ahead of time.
+    first_call = mock_grft.mock_calls[0][1]
+    assert first_call[0] == mock_get_session.return_value
+    assert first_call[1] == ["module-el-build"]
+    assert first_call[2] == ["aarch64", "x86_64"]
+
+    second_call = mock_grft.mock_calls[1][1]
+    assert second_call[0] == mock_get_session.return_value
+    assert set(second_call[1]) == {"module-bash", "module-python27"}
+    assert second_call[2] == ["aarch64", "x86_64"]
 
 
 @patch("module_build_service.scheduler.default_modules.koji_retrying_multicall_map")
