@@ -266,7 +266,7 @@ def test_handle_collisions_with_base_module_rpms(
         "python2-tools-0:2.7.16-11.el8.aarch64",
         "python2-tools-0:2.7.16-11.el8.x86_64",
     })
-    mock_grft.mock_calls == [
+    assert mock_grft.mock_calls == [
         call(
             mock_get_session.return_value,
             {"module-el-build"},
