@@ -22,10 +22,11 @@
 
 import json
 from datetime import datetime
+from functools import partial
 
 import module_build_service.scm
 
-from mock import patch, PropertyMock
+from mock import patch, PropertyMock, Mock
 from shutil import copyfile
 from os import path, mkdir
 from os.path import basename, dirname, splitext
@@ -2598,9 +2599,10 @@ class TestViews:
             ),
         ),
     )
-    @patch(
-        "module_build_service.utils.submit.datetime",
-        new_callable=PropertyMock,
+    @patch.object(
+        module_build_service.utils.submit,
+        "datetime",
+        new_callable=partial(Mock, wraps=datetime),
     )
     @patch(
         "module_build_service.config.Config.product_pages_url",
@@ -2623,7 +2625,6 @@ class TestViews:
         # Mock the Product Pages query
         mock_get.return_value.json.return_value = get_rv
         # Mock the date
-        mock_datetime.strptime = datetime.strptime
         mock_datetime.utcnow.return_value = utcnow
         mmd = load_mmd(read_staged_data("platform"))
         # Create the required platforms
