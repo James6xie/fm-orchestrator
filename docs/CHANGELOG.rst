@@ -1,6 +1,10 @@
 Change Log
 ==========
 
+v2.28.1
+-------
+* Fix the ``list_of_args and list_of_kwargs must be list or None`` error when building a module
+
 v2.28.0
 -------
 * Do not ignore building components to reset state when submit an existing module build
