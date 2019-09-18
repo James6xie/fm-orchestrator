@@ -18,12 +18,14 @@
 enable_py3=
 with_pgsql=
 no_tty=
+use_sudo=
 
 while (( "$#" )); do
     case "$1" in
         --py3) enable_py3=1 ;;
         --with-pgsql) with_pgsql=1 ;;
         --no-tty) no_tty=1 ;;
+        --sudo) use_sudo=1 ;;
         *) break ;;
     esac
     shift
@@ -51,6 +53,12 @@ fi
 if [ -n "$with_pgsql" ]; then
     test_container_name="${test_container_name}-pgsql"
 fi
+if [ -n "$use_sudo" ]; then
+    # use sudo for docker
+    docker="sudo /usr/bin/docker"
+else
+    docker="docker"
+fi
 
 now=$(date +"%H%M%S")
 db_container_name="${db_container_name}-$now"
@@ -69,7 +77,7 @@ if [ -n "$with_pgsql" ]; then
     # Setting this password makes it possible to get into database container
     # and check the data.
     db_bg_container=$(
-        docker run --rm --name "$db_container_name" \
+        $docker run --rm --name "$db_container_name" \
             -e POSTGRES_PASSWORD=$db_password \
             -e POSTGRES_DB=$db_name \
             -d \
@@ -79,16 +87,16 @@ if [ -n "$with_pgsql" ]; then
     # Waiting for postgres container to start completely in case tests start too fast.
     while true
     do
-        if docker exec "$db_bg_container" psql -U postgres -c '\dp' $db_name >/dev/null 2>&1; then
+        if $docker exec "$db_bg_container" psql -U postgres -c '\dp' $db_name >/dev/null 2>&1; then
             break
         fi
     done
 fi
 
-(cd "$source_dir" && docker run "${container_opts[@]}" $test_image "$@")
+(cd "$source_dir" && $docker run "${container_opts[@]}" $test_image "$@")
 
 rv=$?
 
-[ -n "$db_bg_container" ] && docker stop "$db_bg_container"
+[ -n "$db_bg_container" ] && $docker stop "$db_bg_container"
 exit $rv
 
