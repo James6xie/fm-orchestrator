@@ -122,38 +122,58 @@ class TestMBSManage:
         expected_changed_count = 3 if confirm_expected else 0
         assert len(retired_module_builds) == expected_changed_count
 
-    @patch("module_build_service.scheduler.main")
-    @patch("module_build_service.manage.conf.set_item")
-    # Do not allow flask_script exits by itself because we have to assert
-    # something after the command finishes.
-    @patch("sys.exit")
-    # The consumer is not required to run actually, so it does not make sense
-    # to publish message after creating a module build.
-    @patch("module_build_service.messaging.publish")
-    def test_build_module_locally_set_stream(
-        self, publish, sys_exit, conf_set_item, main, db_session
-    ):
+
+class TestCommandBuildModuleLocally:
+    """Test mbs-manager subcommand build_module_locally"""
+
+    def setup_method(self, test_method):
         clean_database()
 
+        # Do not allow flask_script exits by itself because we have to assert
+        # something after the command finishes.
+        self.sys_exit_patcher = patch("sys.exit")
+        self.mock_sys_exit = self.sys_exit_patcher.start()
+
+        # The consumer is not required to run actually, so it does not make
+        # sense to publish message after creating a module build.
+        self.publish_patcher = patch("module_build_service.messaging.publish")
+        self.mock_publish = self.publish_patcher.start()
+
+        # Don't allow conf.set_item call to modify conf actually inside command
+        self.set_item_patcher = patch("module_build_service.manage.conf.set_item")
+        self.mock_set_item = self.set_item_patcher.start()
+
+        # Avoid to create the local sqlite database for the command, which is
+        # useless for running tests here.
+        self.create_all_patcher = patch("module_build_service.manage.db.create_all")
+        self.mock_create_all = self.create_all_patcher.start()
+
+    def teardown_method(self, test_method):
+        self.create_all_patcher.stop()
+        self.mock_set_item.stop()
+        self.publish_patcher.stop()
+        self.sys_exit_patcher.stop()
+
+    def _run_manager_wrapper(self, cli_cmd):
+        # build_module_locally changes database uri to a local SQLite database file.
+        # Restore the uri to original one in order to not impact the database
+        # session in subsequent tests.
+        original_db_uri = app.config["SQLALCHEMY_DATABASE_URI"]
+        try:
+            with patch("sys.argv", new=cli_cmd):
+                manager_wrapper()
+        finally:
+            app.config["SQLALCHEMY_DATABASE_URI"] = original_db_uri
+
+    @patch("module_build_service.scheduler.main")
+    def test_set_stream(self, main, db_session):
         cli_cmd = [
             "mbs-manager", "build_module_locally",
             "--set-stream", "platform:f28",
             "--file", staged_data_filename("testmodule-local-build.yaml")
         ]
 
-        # build_module_locally changes database uri to a local SQLite database file.
-        # Restore the uri to original one in order to not impact the database
-        # session in subsequent tests.
-        original_db_uri = app.config["SQLALCHEMY_DATABASE_URI"]
-        try:
-            # The local sqlite3 database created by function
-            # build_module_locally is useless for this test. Mock the
-            # db.create_call to stop to create that database file.
-            with patch("module_build_service.manage.db.create_all"):
-                with patch("sys.argv", new=cli_cmd):
-                    manager_wrapper()
-        finally:
-            app.config["SQLALCHEMY_DATABASE_URI"] = original_db_uri
+        self._run_manager_wrapper(cli_cmd)
 
         # Since module_build_service.scheduler.main is mocked, MBS does not
         # really build the testmodule for this test. Following lines assert the
@@ -175,3 +195,39 @@ class TestMBSManage:
         assert ["f28"] == deps_dict["platform"]
         deps_dict = deps_to_dict(mmd_deps[0], "runtime")
         assert ["f28"] == deps_dict["platform"]
+
+    @patch("module_build_service.manage.logging")
+    def test_ambiguous_stream(self, logging):
+        cli_cmd = [
+            "mbs-manager", "build_module_locally",
+            "--file", staged_data_filename("testmodule-local-build.yaml")
+        ]
+
+        self._run_manager_wrapper(cli_cmd)
+
+        args, _ = logging.error.call_args_list[0]
+        assert "There are multiple streams to choose from for module platform." == args[0]
+        args, _ = logging.error.call_args_list[1]
+        assert "Use '-s module_name:module_stream' to choose the stream" == args[0]
+
+    def test_module_build_failed(self, db_session):
+        cli_cmd = [
+            "mbs-manager", "build_module_locally",
+            "--set-stream", "platform:f28",
+            "--file", staged_data_filename("testmodule-local-build.yaml")
+        ]
+
+        def main_side_effect(initial_messages, stop_condition):
+            build = db_session.query(models.ModuleBuild).filter(
+                models.ModuleBuild.name == "testmodule-local-build"
+            ).first()
+            build.state = models.BUILD_STATES["failed"]
+            db_session.commit()
+
+        # We don't run consumer actually, but it could be patched to mark some
+        # module build failed for test purpose.
+
+        with patch("module_build_service.scheduler.main",
+                   side_effect=main_side_effect):
+            with pytest.raises(RuntimeError, match="Module build failed"):
+                self._run_manager_wrapper(cli_cmd)
