@@ -1,6 +1,11 @@
 Change Log
 ==========
 
+v2.28.2
+-------
+* Fix a bug that caused the code that handles the conflicts in base module modular Koji tags to not run
+* Modifications to the stream when querying Product Pages are now on the GA date and not after
+
 v2.28.1
 -------
 * Fix the ``list_of_args and list_of_kwargs must be list or None`` error when building a module
