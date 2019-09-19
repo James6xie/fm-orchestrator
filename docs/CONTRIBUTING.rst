@@ -197,6 +197,33 @@ Prior to starting MBS, you can force development mode::
 
     $ export MODULE_BUILD_SERVICE_DEVELOPER_ENV=1
 
+Database Model Changes
+----------------------
+
+When making changes to any of the database models, a corresponding migration
+script must be created. To generate one, run the following::
+
+    # Stash any changes you may have
+    $ git stash
+    # Switch to the master branch
+    $ git checkout master
+    # Generate a database file with the current schema
+    $ MODULE_BUILD_SERVICE_DEVELOPER_ENV=1 mbs-manager upgradedb
+    # Switch back to your branch, if applicable
+    $ git checkout <my-branch>
+    # Restore your changes if they were previously stashed
+    $ git stash pop
+    # Finally, generate the migration script
+    $ MODULE_BUILD_SERVICE_DEVELOPER_ENV=1 mbs-manager db migrate
+
+These steps will generate a new file under ``module_build_service/migrations/versions/``.
+Rename the file to a meaningful value. For example::
+
+    $ mv a3afae7b01f8_.py a3afae7b01f8_add_spam_build.py
+
+Please, inspect the file for correctness and adjust it according to the style guide.
+This file should be part of the commit that is modifying the database model.
+
 PEP 8
 =====
 
