@@ -355,8 +355,11 @@ def _get_rpms_in_external_repo(repo_url, arches, cache_dir_name):
 
     # Add a separate repo for each architecture
     for arch in arches:
-        repo_name = "repo_{}".format(arch)
-        repo_arch_url = repo_url.replace("$arch", arch)
+        # Convert arch to canon_arch. This handles cases where Koji "i686" arch is mapped to
+        # "i386" when generating RPM repository.
+        canon_arch = koji.canonArch(arch)
+        repo_name = "repo_{}".format(canon_arch)
+        repo_arch_url = repo_url.replace("$arch", canon_arch)
         base.repos.add_new_repo(repo_name, dnf_conf, baseurl=[repo_arch_url])
         # Load one repo at a time instead of running `base.update_cache()` so that we know which
         # repo fails to load if one does

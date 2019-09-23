@@ -398,10 +398,12 @@ def test_get_rpms_in_external_repo(mock_makedirs, mock_dnf_base):
         RPM("aarch64", 0, "python", "1.el8", "3.7"),
         RPM("x86_64", 0, "python", "1.el8", "2.7"),
         RPM("x86_64", 0, "python", "1.el8", "3.7"),
+        RPM("i686", 0, "python", "1.el8", "2.7"),
+        RPM("i686", 0, "python", "1.el8", "3.7"),
     ]
 
     external_repo_url = "http://domain.local/repo/latest/$arch/"
-    arches = ["aarch64", "x86_64"]
+    arches = ["aarch64", "x86_64", "i686"]
     cache_dir_name = "module-el-build-12"
     rv = default_modules._get_rpms_in_external_repo(external_repo_url, arches, cache_dir_name)
 
@@ -410,8 +412,15 @@ def test_get_rpms_in_external_repo(mock_makedirs, mock_dnf_base):
         "python-0:3.7-1.el8.aarch64",
         "python-0:2.7-1.el8.x86_64",
         "python-0:3.7-1.el8.x86_64",
+        "python-0:2.7-1.el8.i686",
+        "python-0:3.7-1.el8.i686",
     }
     assert rv == expected
+
+    # Test that i686 is mapped to i386 using the koji.canonArch().
+    mock_dnf_base.return_value.repos.add_new_repo.assert_called_with(
+        'repo_i386', mock_dnf_base.return_value.conf,
+        baseurl=['http://domain.local/repo/latest/i386/'])
 
 
 def test_get_rpms_in_external_repo_invalid_repo_url():
