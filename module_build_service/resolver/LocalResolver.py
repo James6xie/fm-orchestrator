@@ -34,12 +34,12 @@ class LocalResolver(DBResolver):
 
     backend = "local"
 
-    def get_buildrequired_modulemds(self, name, stream, base_module_nsvc):
+    def get_buildrequired_modulemds(self, name, stream, base_module_mmd):
         """
         Returns modulemd metadata of all module builds with `name` and `stream`.
 
         For LocalResolver which is used only for Offline local builds,
-        the `base_module_nsvc` is ignored. Normally, the `base_module_nsvc is used
+        the `base_module_mmd` is ignored. Normally, the `base_module_mmd is used
         to filter out platform:streams which are not compatible with currently used
         stream version. But during offline local builds, we always have just single
         platform:stream derived from PLATFORM_ID in /etc/os-release.
@@ -50,7 +50,7 @@ class LocalResolver(DBResolver):
 
         :param str name: Name of module to return.
         :param str stream: Stream of module to return.
-        :param str base_module_nsvc: Ignored in LocalResolver.
+        :param Modulemd base_module_mmd: Ignored in LocalResolver.
         :rtype: list
         :return: List of modulemd metadata.
         """

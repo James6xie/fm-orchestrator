@@ -58,6 +58,7 @@ setup(
             "mbs = module_build_service.resolver.MBSResolver:MBSResolver",
             "db = module_build_service.resolver.DBResolver:DBResolver",
             "local = module_build_service.resolver.LocalResolver:LocalResolver",
+            "koji = module_build_service.resolver.KojiResolver:KojiResolver"
         ],
     },
     scripts=["client/mbs-cli"],
