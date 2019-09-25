@@ -39,7 +39,7 @@ def execute_cmd(args, stdout=None, stderr=None, cwd=None):
     if stderr and hasattr(stderr, "name"):
         out_log_msg += ", stderr log: %s" % stderr.name
 
-    log.info("Executing command: %s%s" % (args, out_log_msg))
+    log.info("Executing the command \"%s\"%s" % (" ".join(args), out_log_msg))
     proc = subprocess.Popen(args, stdout=stdout, stderr=stderr, cwd=cwd)
     out, err = proc.communicate()
 
