@@ -76,10 +76,12 @@ Custom fields in xmd:
   default modules are taken from the SCM repo configured in the ``default_modules_scm_url`` xmd
   field or in the MBS configuration ``default_modules_scm_url`` as a fallback. Any default modules
   with conflicting streams will be ignored as well as any default module not found in the MBS
-  database. This field only applies to base modules.
+  database. This field only applies to base modules. Takes a boolean value, defaulting to ``FALSE``
 - ``default_modules_scm_url`` - the SCM repo to find the default modules associated with the base
   module. If this is not specified, the MBS configuration ``default_modules_scm_url`` is used
-  instead. See the ``use_default_modules`` xmd field for more information.
+  instead. See the ``use_default_modules`` xmd field for more information. MBS will use the name
+  of the base module stream (or the ``rawhide_branch``) as the branch name from which to retrieve
+  the defaults information.
 
 
 Virtual Streams
