@@ -160,3 +160,11 @@ class KojiResolver(DBResolver):
             mmds.append(module.mmd())
 
         return mmds
+
+    def get_compatible_base_module_modulemds(self, *args, **kwargs):
+        """
+        For KojiResolver, this method returns always an empty list. The compatible modules are
+        defined by the Koji tag inheritance, so there is no need to find out the compatible
+        base modules on MBS side.
+        """
+        return []
