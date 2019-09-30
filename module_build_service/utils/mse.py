@@ -189,8 +189,7 @@ def _get_mmds_from_requires(
 
             if base_module_mmds:
                 for base_module_mmd in base_module_mmds:
-                    base_module_nsvc = base_module_mmd.get_nsvc()
-                    mmds[ns] += resolver.get_buildrequired_modulemds(name, stream, base_module_nsvc)
+                    mmds[ns] += resolver.get_buildrequired_modulemds(name, stream, base_module_mmd)
             else:
                 mmds[ns] = resolver.get_module_modulemds(name, stream, strict=True)
             added_mmds[ns] += mmds[ns]

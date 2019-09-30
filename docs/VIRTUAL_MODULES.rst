@@ -66,6 +66,9 @@ Custom fields in xmd:
 - ``koji_tag`` - this defines the Koji tag with the RPMs that are part of this module. For base
   modules this will likely be a tag representing a buildroot. If this is a metadata-only module,
   then this can be left unset.
+- ``koji_tag_with_modules`` - this defines the Koji tag with the module builds. These modules are
+  later used to fulfill the build requirements of modules built on against this module. This
+  option is used only when ``KojiResolver`` is enabled on the MBS server.
 - ``virtual_streams`` - the list of streams which groups multiple modules together. For more
   information on this field, see the ``Virtual Streams`` section below.
 - ``disttag_marking`` - if this module is a base module, then MBS will use the stream of the base

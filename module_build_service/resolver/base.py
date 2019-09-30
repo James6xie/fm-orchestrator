@@ -121,7 +121,7 @@ class GenericResolver(six.with_metaclass(ABCMeta)):
         raise NotImplementedError()
 
     @abstractmethod
-    def get_buildrequired_modulemds(self, name, stream, base_module_nsvc, strict=False):
+    def get_buildrequired_modulemds(self, name, stream, base_module_mmd, strict=False):
         raise NotImplementedError()
 
     @abstractmethod

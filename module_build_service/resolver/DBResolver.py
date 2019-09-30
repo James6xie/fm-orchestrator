@@ -155,19 +155,19 @@ class DBResolver(GenericResolver):
 
         return [build.mmd() for build in builds]
 
-    def get_buildrequired_modulemds(self, name, stream, base_module_nsvc):
+    def get_buildrequired_modulemds(self, name, stream, base_module_mmd):
         """
         Returns modulemd metadata of all module builds with `name` and `stream` buildrequiring
-        base module defined by `base_module_nsvc` NSVC.
+        base module defined by `base_module_mmd` NSVC.
 
         :param str name: Name of module to return.
         :param str stream: Stream of module to return.
-        :param str base_module_nsvc: NSVC of base module which must be buildrequired by returned
+        :param Modulemd base_module_mmd: NSVC of base module which must be buildrequired by returned
             modules.
         :rtype: list
         :return: List of modulemd metadata.
         """
-        log.debug("Looking for %s:%s buildrequiring %s", name, stream, base_module_nsvc)
+        log.debug("Looking for %s:%s buildrequiring %s", name, stream, base_module_mmd.get_nsvc())
         query = self.db_session.query(models.ModuleBuild)
         query = query.filter_by(name=name, stream=stream, state=models.BUILD_STATES["ready"])
 
@@ -182,8 +182,8 @@ class DBResolver(GenericResolver):
         query = query.join(mb_to_br, mb_to_br.c.module_id == models.ModuleBuild.id).join(
             module_br_alias, mb_to_br.c.module_buildrequire_id == module_br_alias.id)
 
-        # Get only modules buildrequiring particular base_module_nsvc
-        n, s, v, c = base_module_nsvc.split(":")
+        # Get only modules buildrequiring particular base_module_mmd
+        n, s, v, c = base_module_mmd.get_nsvc().split(":")
         query = query.filter(
             module_br_alias.name == n,
             module_br_alias.stream == s,
