@@ -121,10 +121,10 @@ def get_user_oidc(request):
 
     try:
         extended_data = _get_user_info(token)
-    except Exception as e:
-        error = "Cannot verify determine user groups:  %s" % str(e)
+    except Exception:
+        error = "OpenIDC auth error: Cannot determine the user's groups"
         log.exception(error)
-        raise Exception(error)
+        raise Unauthorized(error)
 
     username = data["username"]
     # If the user is part of the whitelist, then the group membership check is skipped
@@ -133,10 +133,10 @@ def get_user_oidc(request):
     else:
         try:
             groups = set(extended_data["groups"])
-        except Exception as e:
-            error = "Could not find groups in UserInfo from OIDC %s" % str(e)
-            log.exception(extended_data)
-            raise Exception(error)
+        except Exception:
+            error = "Could not find groups in UserInfo from OIDC"
+            log.exception("%s (extended_data: %s)", error, extended_data)
+            raise Unauthorized(error)
 
     return username, groups
 

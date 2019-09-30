@@ -3,6 +3,7 @@
 from os import path, environ
 
 import pytest
+import requests
 import mock
 from mock import patch, PropertyMock, Mock
 import kerberos
@@ -45,7 +46,7 @@ class TestAuthModule:
             mocked_get_token_info = {
                 "active": False,
                 "username": name,
-                "scope": ("openid https://id.fedoraproject.org/scope/groups mbs-scope"),
+                "scope": "openid https://id.fedoraproject.org/scope/groups mbs-scope"
             }
             get_token_info.return_value = mocked_get_token_info
 
@@ -62,6 +63,38 @@ class TestAuthModule:
                 with app.app_context():
                     module_build_service.auth.get_user(request)
                 assert str(cm.value) == "OIDC token invalid or expired."
+
+    @patch("module_build_service.auth._get_token_info")
+    @patch("module_build_service.auth._get_user_info")
+    def test_get_user_not_in_groups(self, get_user_info, get_token_info):
+        base_dir = path.abspath(path.dirname(__file__))
+        client_secrets = path.join(base_dir, "client_secrets.json")
+        with patch.dict(
+            "module_build_service.app.config",
+            {"OIDC_CLIENT_SECRETS": client_secrets, "OIDC_REQUIRED_SCOPE": "mbs-scope"},
+        ):
+            # https://www.youtube.com/watch?v=G-LtddOgUCE
+            name = "Joey Jo Jo Junior Shabadoo"
+            mocked_get_token_info = {
+                "active": True,
+                "username": name,
+                "scope": "openid https://id.fedoraproject.org/scope/groups mbs-scope"
+            }
+            get_token_info.return_value = mocked_get_token_info
+
+            get_user_info.side_effect = requests.Timeout("It happens...")
+
+            headers = {"authorization": "Bearer foobar"}
+            request = mock.MagicMock()
+            request.headers.return_value = mock.MagicMock(spec_set=dict)
+            request.headers.__getitem__.side_effect = headers.__getitem__
+            request.headers.__setitem__.side_effect = headers.__setitem__
+            request.headers.__contains__.side_effect = headers.__contains__
+
+            with pytest.raises(module_build_service.errors.Unauthorized) as cm:
+                with app.app_context():
+                    module_build_service.auth.get_user(request)
+                assert str(cm.value) == "OpenIDC auth error: Cannot determine the user's groups"
 
     @pytest.mark.parametrize("allowed_users", (set(), {"Joey Jo Jo Junior Shabadoo"}))
     @patch.object(mbs_config.Config, "allowed_users", new_callable=PropertyMock)
