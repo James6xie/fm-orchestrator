@@ -26,7 +26,7 @@ from datetime import datetime
 
 import module_build_service.resolver as mbs_resolver
 from module_build_service.utils.general import import_mmd, mmd_to_str, load_mmd
-from module_build_service.models import ModuleBuild
+from module_build_service.models import ModuleBuild, BUILD_STATES
 import tests
 
 
@@ -212,3 +212,12 @@ class TestLocalResolverModule:
         assert nvrs == {
             "testmodule-master-20170110091357.7c29193d",
             "testmodule-2-20180109091357.7c29193d"}
+
+    def test_get_compatible_base_module_modulemds(self, db_session):
+        tests.init_data(1, multiple_stream_versions=True)
+        resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="koji")
+        result = resolver.get_compatible_base_module_modulemds(
+            "platform", "f29.1.0", stream_version_lte=True, virtual_streams=["f29"],
+            states=[BUILD_STATES["ready"]])
+
+        assert len(result) == 0
