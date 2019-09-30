@@ -190,7 +190,15 @@ def init(config, db_session, msg):
         # Sets xmd["mbs"]["ursine_rpms"] with RPMs from the buildrequired base modules which
         # conflict with the RPMs from other buildrequired modules. This is done to prefer modular
         # RPMs over base module RPMs even if their NVR is lower.
-        handle_collisions_with_base_module_rpms(mmd, arches)
+        if conf.system in ("koji", "test"):
+            handle_collisions_with_base_module_rpms(mmd, arches)
+        else:
+            log.warning(
+                "The necessary conflicts could not be generated due to RHBZ#1693683. "
+                "Some RPMs from the base modules (%s) may end up being used over modular RPMs. "
+                "This may result in different behavior than a production build.",
+                ", ".join(conf.base_module_names)
+            )
 
         mmd = record_filtered_rpms(db_session, mmd)
         build.modulemd = mmd_to_str(mmd)
