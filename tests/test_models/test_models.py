@@ -67,11 +67,12 @@ class TestModels:
         build = ModuleBuild.get_by_id(db_session, 1)
         db_session.commit()
         build.modulemd = read_staged_data("testmodule_dependencies")
-        build.build_context, build.runtime_context, build.context = \
+        build.build_context, build.runtime_context, build.context, build.build_context_no_bms = \
             ModuleBuild.contexts_from_mmd(build.modulemd)
         assert build.build_context == "089df24993c037e10174f3fa7342ab4dc191a4d4"
         assert build.runtime_context == "bbc84c7b817ab3dd54916c0bcd6c6bdf512f7f9c"
         assert build.context == "3ee22b28"
+        assert build.build_context_no_bms == "089df24993c037e10174f3fa7342ab4dc191a4d4"
 
     def test_siblings_property(self, db_session):
         """ Tests that the siblings property returns the ID of all modules with

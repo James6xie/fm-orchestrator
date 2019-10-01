@@ -86,7 +86,8 @@ INVERSE_BUILD_STATES = {v: k for k, v in BUILD_STATES.items()}
 FAILED_STATES = (BUILD_STATES["failed"], BUILD_STATES["garbage"])
 
 
-Contexts = namedtuple("Contexts", "build_context runtime_context context")
+Contexts = namedtuple(
+    "Contexts", "build_context runtime_context context build_context_no_bms")
 
 
 def _utc_datetime_to_iso(datetime_object):
@@ -257,6 +258,7 @@ class ModuleBuild(MBSBase):
     stream = db.Column(db.String, nullable=False)
     version = db.Column(db.String, nullable=False)
     build_context = db.Column(db.String)
+    build_context_no_bms = db.Column(db.String)
     runtime_context = db.Column(db.String)
     context = db.Column(db.String, nullable=False, server_default=DEFAULT_MODULE_CONTEXT)
     state = db.Column(db.Integer, nullable=False)
@@ -647,24 +649,30 @@ class ModuleBuild(MBSBase):
         mmd_deps = mmd.get_dependencies()
 
         build_context = cls.calculate_build_context(mbs_xmd_buildrequires)
+        build_context_no_bms = cls.calculate_build_context(mbs_xmd_buildrequires, True)
         runtime_context = cls.calculate_runtime_context(mmd_deps)
 
         return Contexts(
             build_context,
             runtime_context,
-            cls.calculate_module_context(build_context, runtime_context)
+            cls.calculate_module_context(build_context, runtime_context),
+            build_context_no_bms
         )
 
     @staticmethod
-    def calculate_build_context(mbs_xmd_buildrequires):
+    def calculate_build_context(mbs_xmd_buildrequires, filter_base_modules=False):
         """
         Returns the hash of stream names of expanded buildrequires
         :param mbs_xmd_buildrequires: xmd["mbs"]["buildrequires"] from Modulemd
+        :param bool filter_base_modules: When True, base modules are not used to compute
+            the build context.
         :rtype: str
         :return: build_context hash
         """
+        deps_to_filter = conf.base_module_names if filter_base_modules else []
         mmd_formatted_buildrequires = {
             dep: info["stream"] for dep, info in mbs_xmd_buildrequires.items()
+            if dep not in deps_to_filter
         }
         property_json = json.dumps(OrderedDict(sorted(mmd_formatted_buildrequires.items())))
         return hashlib.sha1(property_json.encode("utf-8")).hexdigest()
