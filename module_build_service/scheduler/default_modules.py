@@ -350,6 +350,8 @@ def _get_rpms_in_external_repo(repo_url, arches, cache_dir_name):
 
     # Tell DNF to use the cache directory
     dnf_conf.cachedir = cache_location
+    # Don't skip repos that can't be synchronized
+    dnf_conf.skip_if_unavailable = False
     # Get rid of everything to be sure it's a blank slate. This doesn't delete the cached repo data.
     base.reset(repos=True, goal=True, sack=True)
 
@@ -361,14 +363,14 @@ def _get_rpms_in_external_repo(repo_url, arches, cache_dir_name):
         repo_name = "repo_{}".format(canon_arch)
         repo_arch_url = repo_url.replace("$arch", canon_arch)
         base.repos.add_new_repo(repo_name, dnf_conf, baseurl=[repo_arch_url])
-        # Load one repo at a time instead of running `base.update_cache()` so that we know which
-        # repo fails to load if one does
-        try:
-            base.repos[repo_name].load()
-        except dnf.exceptions.RepoError:
-            msg = "Failed to load the external repo {}".format(repo_arch_url)
-            log.exception(msg)
-            raise RuntimeError(msg)
+
+    try:
+        # Load the repos in parallel
+        base.update_cache()
+    except dnf.exceptions.RepoError:
+        msg = "Failed to load the external repos"
+        log.exception(msg)
+        raise RuntimeError(msg)
 
     base.fill_sack(load_system_repo=False)
 
