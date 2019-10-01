@@ -362,7 +362,9 @@ def _get_rpms_in_external_repo(repo_url, arches, cache_dir_name):
         canon_arch = koji.canonArch(arch)
         repo_name = "repo_{}".format(canon_arch)
         repo_arch_url = repo_url.replace("$arch", canon_arch)
-        base.repos.add_new_repo(repo_name, dnf_conf, baseurl=[repo_arch_url])
+        base.repos.add_new_repo(
+            repo_name, dnf_conf, baseurl=[repo_arch_url], minrate=conf.dnf_minrate,
+        )
 
     try:
         # Load the repos in parallel

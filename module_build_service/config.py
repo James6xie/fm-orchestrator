@@ -689,6 +689,13 @@ class Config(object):
             "default": "master",
             "desc": "Denotes the branch used for rawhide.",
         },
+        "dnf_minrate": {
+            "type": int,
+            "default": 1024 * 100,  # 100KB
+            "desc": "The minrate configuration on a DNF repo. This configuration will cause DNF to "
+                    "timeout loading a repo if the download speed is below minrate for the "
+                    "duration of the timeout."
+        }
     }
 
     def __init__(self, conf_section_obj):

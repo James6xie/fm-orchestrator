@@ -419,8 +419,11 @@ def test_get_rpms_in_external_repo(mock_makedirs, mock_dnf_base):
 
     # Test that i686 is mapped to i386 using the koji.canonArch().
     mock_dnf_base.return_value.repos.add_new_repo.assert_called_with(
-        'repo_i386', mock_dnf_base.return_value.conf,
-        baseurl=['http://domain.local/repo/latest/i386/'])
+        "repo_i386",
+        mock_dnf_base.return_value.conf,
+        baseurl=["http://domain.local/repo/latest/i386/"],
+        minrate=conf.dnf_minrate,
+    )
 
 
 def test_get_rpms_in_external_repo_invalid_repo_url():
