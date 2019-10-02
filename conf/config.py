@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# SPDX-License-Identifier: MIT
 from os import environ, path
 
 # FIXME: workaround for this moment till confdir, dbdir (installdir etc.) are

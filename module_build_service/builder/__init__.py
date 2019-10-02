@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# SPDX-License-Identifier: MIT
 import pkg_resources
 
 from module_build_service.builder.base import GenericBuilder

@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# SPDX-License-Identifier: MIT
 # flake8: noqa
 import base64
 import traceback
