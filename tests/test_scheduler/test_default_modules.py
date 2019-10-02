@@ -448,14 +448,11 @@ def test_get_rpms_in_external_repo_failed_to_load(mock_makedirs, mock_dnf_base):
         def add_new_repo(*args, **kwargs):
             pass
 
-    mock_repo = Mock()
-    mock_repo.load.side_effect = dnf.exceptions.RepoError("Failed")
-    mock_dnf_base.return_value.repos = FakeRepo(repo_aarch64=mock_repo)
-
+    mock_dnf_base.return_value.update_cache.side_effect = dnf.exceptions.RepoError("Failed")
     external_repo_url = "http://domain.local/repo/latest/$arch/"
     arches = ["aarch64", "x86_64"]
     cache_dir_name = "module-el-build-12"
-    expected = "Failed to load the external repo http://domain.local/repo/latest/aarch64/"
+    expected = "Failed to load the external repos"
     with pytest.raises(RuntimeError, match=expected):
         default_modules._get_rpms_in_external_repo(external_repo_url, arches, cache_dir_name)
 
