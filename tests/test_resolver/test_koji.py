@@ -98,7 +98,7 @@ class TestLocalResolverModule:
 
         assert result == []
         koji_session.listTagged.assert_called_with(
-            'foo-test', inherit=True, package='testmodule', type='module', event=123)
+            "foo-test", inherit=True, package="testmodule", type="module", event=123)
 
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
     def test_get_buildrequired_modulemds_multiple_streams(self, ClientSession, db_session):
@@ -107,12 +107,12 @@ class TestLocalResolverModule:
         # We will ask for testmodule:master, but there is also testmodule:2 in a tag.
         koji_session.listTagged.return_value = [
             {
-                'build_id': 123, 'name': 'testmodule', 'version': '2',
-                'release': '820181219174508.9edba152', 'tag_name': 'foo-test'
+                "build_id": 123, "name": "testmodule", "version": "2",
+                "release": "820181219174508.9edba152", "tag_name": "foo-test"
             },
             {
-                'build_id': 124, 'name': 'testmodule', 'version': 'master',
-                'release': '20170109091357.7c29193d', 'tag_name': 'foo-test'
+                "build_id": 124, "name": "testmodule", "version": "master",
+                "release": "20170109091357.7c29193d", "tag_name": "foo-test"
             }]
 
         self._create_test_modules(db_session)
@@ -131,12 +131,12 @@ class TestLocalResolverModule:
         # ValueError later.
         koji_session.listTagged.return_value = [
             {
-                'build_id': 123, 'name': 'testmodule', 'version': '2',
-                'release': '820181219174508.9edba152', 'tag_name': 'foo-test'
+                "build_id": 123, "name": "testmodule", "version": "2",
+                "release": "820181219174508.9edba152", "tag_name": "foo-test"
             },
             {
-                'build_id': 124, 'name': 'testmodule', 'version': 'master',
-                'release': '20170109091357.7c29193d', 'tag_name': 'foo-test'
+                "build_id": 124, "name": "testmodule", "version": "master",
+                "release": "20170109091357.7c29193d", "tag_name": "foo-test"
             }]
 
         self._create_test_modules(db_session)
@@ -156,20 +156,20 @@ class TestLocalResolverModule:
         # ValueError later.
         koji_session.listTagged.return_value = [
             {
-                'build_id': 124, 'name': 'testmodule', 'version': 'master',
-                'release': '20160110091357.7c29193d', 'tag_name': 'foo-test'
+                "build_id": 124, "name": "testmodule", "version": "master",
+                "release": "20160110091357.7c29193d", "tag_name": "foo-test"
             },
             {
-                'build_id': 124, 'name': 'testmodule', 'version': 'master',
-                'release': '20170109091357.7c29193d', 'tag_name': 'foo-test'
+                "build_id": 124, "name": "testmodule", "version": "master",
+                "release": "20170109091357.7c29193d", "tag_name": "foo-test"
             },
             {
-                'build_id': 124, 'name': 'testmodule', 'version': 'master',
-                'release': '20170109091357.7c29193e', 'tag_name': 'foo-test'
+                "build_id": 124, "name": "testmodule", "version": "master",
+                "release": "20170109091357.7c29193e", "tag_name": "foo-test"
             },
             {
-                'build_id': 124, 'name': 'testmodule', 'version': 'master',
-                'release': '20160109091357.7c29193d', 'tag_name': 'foo-test'
+                "build_id": 124, "name": "testmodule", "version": "master",
+                "release": "20160109091357.7c29193d", "tag_name": "foo-test"
             }]
 
         self._create_test_modules(db_session)
@@ -193,16 +193,16 @@ class TestLocalResolverModule:
 
         builds = [
             {
-                'build_id': 124, 'name': 'testmodule', 'version': 'master',
-                'release': '20170110091357.7c29193d', 'tag_name': 'foo-test'
+                "build_id": 124, "name": "testmodule", "version": "master",
+                "release": "20170110091357.7c29193d", "tag_name": "foo-test"
             },
             {
-                'build_id': 125, 'name': 'testmodule', 'version': 'master',
-                'release': '20180109091357.7c29193d', 'tag_name': 'foo-test-parent'
+                "build_id": 125, "name": "testmodule", "version": "master",
+                "release": "20180109091357.7c29193d", "tag_name": "foo-test-parent"
             },
             {
-                'build_id': 126, 'name': 'testmodule', 'version': '2',
-                'release': '20180109091357.7c29193d', 'tag_name': 'foo-test-parent'
+                "build_id": 126, "name": "testmodule", "version": "2",
+                "release": "20180109091357.7c29193d", "tag_name": "foo-test-parent"
             }]
 
         resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="koji")
