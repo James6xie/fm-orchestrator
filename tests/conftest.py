@@ -128,9 +128,9 @@ def reuse_component_init_data(db_session):
     xmd["mbs"]["commit"] = "ff1ea79fc952143efeed1851aa0aa006559239ba"
     mmd.set_xmd(xmd)
     build_one.modulemd = mmd_to_str(mmd)
-    build_one.build_context = module_build_service.models.ModuleBuild.contexts_from_mmd(
-        build_one.modulemd
-    ).build_context
+    contexts = module_build_service.models.ModuleBuild.contexts_from_mmd(build_one.modulemd)
+    build_one.build_context = contexts.build_context
+    build_one.build_context_no_bms = contexts.build_context_no_bms
 
     db_session.add(build_one)
     db_session.commit()
@@ -227,9 +227,9 @@ def reuse_component_init_data(db_session):
     xmd["mbs"]["commit"] = "55f4a0a2e6cc255c88712a905157ab39315b8fd8"
     mmd.set_xmd(xmd)
     build_two.modulemd = mmd_to_str(mmd)
-    build_two.build_context = module_build_service.models.ModuleBuild.contexts_from_mmd(
-        build_two.modulemd
-    ).build_context
+    contexts = module_build_service.models.ModuleBuild.contexts_from_mmd(build_two.modulemd)
+    build_two.build_context = contexts.build_context
+    build_two.build_context_no_bms = contexts.build_context_no_bms
 
     db_session.add(build_two)
     db_session.commit()

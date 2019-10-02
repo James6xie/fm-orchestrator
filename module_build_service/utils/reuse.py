@@ -27,6 +27,7 @@ import kobo.rpmlib
 import module_build_service.messaging
 from module_build_service import log, models, conf
 from module_build_service.utils.mse import get_base_module_mmds
+from module_build_service.resolver import GenericResolver
 
 
 def reuse_component(component, previous_component_build, change_state_now=False):
@@ -93,6 +94,22 @@ def get_reusable_module(db_session, module):
     mmd = module.mmd()
     previous_module_build = None
 
+    # The `base_mmds` will contain the list of base modules against which the possible modules
+    # to reuse are built. There are three options how these base modules are found:
+    #
+    # 1) The `conf.allow_only_compatible_base_modules` is False. This means that MBS should
+    #    not try to find any compatible base modules in its DB and simply use the buildrequired
+    #    base module as it is.
+    # 2) The `conf.allow_only_compatible_base_modules` is True and DBResolver is used. This means
+    #    that MBS should try to find the compatible modules using its database.
+    #    The `get_base_module_mmds` finds out the list of compatible modules and returns mmds of
+    #    all of them.
+    # 3) The `conf.allow_only_compatible_base_modules` is True and KojiResolver is used. This
+    #    means that MBS should *not* try to find any compatible base modules in its DB, but
+    #    instead just query Koji using KojiResolver later to find out the module to
+    #    reuse. The list of compatible base modules is defined by Koji tag inheritance directly
+    #    in Koji.
+    #    The `get_base_module_mmds` in this case returns just the buildrequired base module.
     if conf.allow_only_compatible_base_modules:
         log.debug("Checking for compatible base modules")
         base_mmds = get_base_module_mmds(db_session, mmd)["ready"]
@@ -108,21 +125,42 @@ def get_reusable_module(db_session, module):
                 base_mmds.append(br.mmd())
 
     for base_mmd in base_mmds:
-        mbs_xmd = mmd.get_xmd()["mbs"]
-        if base_mmd.get_module_name() not in mbs_xmd["buildrequires"]:
-            continue
-        mbs_xmd["buildrequires"][base_mmd.get_module_name()]["stream"] \
-            = base_mmd.get_stream_name()
-        build_context = module.calculate_build_context(mbs_xmd["buildrequires"])
-        # Find the latest module that is in the ready state
         previous_module_build = (
             db_session.query(models.ModuleBuild)
                       .filter_by(name=mmd.get_module_name())
                       .filter_by(stream=mmd.get_stream_name())
                       .filter_by(state=models.BUILD_STATES["ready"])
                       .filter(models.ModuleBuild.scmurl.isnot(None))
-                      .filter_by(build_context=build_context)
                       .order_by(models.ModuleBuild.time_completed.desc()))
+
+        koji_resolver_enabled = base_mmd.get_xmd().get("mbs", {}).get("koji_tag_with_modules")
+        if koji_resolver_enabled:
+            # Find ModuleBuilds tagged in the Koji tag using KojiResolver.
+            resolver = GenericResolver.create(db_session, conf, backend="koji")
+            possible_modules_to_reuse = resolver.get_buildrequired_modules(
+                module.name, module.stream, base_mmd)
+
+            # Limit the query to these modules.
+            possible_module_ids = [m.id for m in possible_modules_to_reuse]
+            previous_module_build = previous_module_build.filter(
+                models.ModuleBuild.id.in_(possible_module_ids))
+
+            # Limit the query to modules sharing the same `build_context_no_bms`. That means they
+            # have the same buildrequirements.
+            previous_module_build = previous_module_build.filter_by(
+                build_context_no_bms=module.build_context_no_bms)
+        else:
+            # Recompute the build_context with compatible base module stream.
+            mbs_xmd = mmd.get_xmd()["mbs"]
+            if base_mmd.get_module_name() not in mbs_xmd["buildrequires"]:
+                previous_module_build = None
+                continue
+            mbs_xmd["buildrequires"][base_mmd.get_module_name()]["stream"] \
+                = base_mmd.get_stream_name()
+            build_context = module.calculate_build_context(mbs_xmd["buildrequires"])
+
+            # Limit the query to find only modules sharing the same build_context.
+            previous_module_build = previous_module_build.filter_by(build_context=build_context)
 
         # If we are rebuilding with the "changed-and-after" option, then we can't reuse
         # components from modules that were built more liberally
