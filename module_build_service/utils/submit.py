@@ -880,7 +880,7 @@ def _process_support_streams(db_session, mmd, params):
                 log.debug("A release date for the release %s could not be determined", pp_release)
                 continue
 
-            if datetime.strptime(ga_date, '%Y-%m-%d').date() >= datetime.utcnow().date():
+            if datetime.strptime(ga_date, "%Y-%m-%d").date() >= datetime.utcnow().date():
                 log.debug(
                     "The release %s hasn't been released yet. Not adding a stream suffix.",
                     ga_date

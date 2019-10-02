@@ -138,8 +138,8 @@ def test_add_default_modules_request_failed(mock_get_dm, db_session):
 
 
 @pytest.mark.parametrize("is_rawhide", (True, False))
-@patch('shutil.rmtree')
-@patch('tempfile.mkdtemp')
+@patch("shutil.rmtree")
+@patch("tempfile.mkdtemp")
 @patch("module_build_service.scheduler.default_modules.Modulemd.ModuleIndex.new")
 @patch("module_build_service.scheduler.default_modules.scm.SCM")
 @patch("module_build_service.scheduler.default_modules._get_rawhide_version")
@@ -172,8 +172,8 @@ def test_get_default_modules(
 
 
 @pytest.mark.parametrize("uses_rawhide", (True, False))
-@patch('shutil.rmtree')
-@patch('tempfile.mkdtemp')
+@patch("shutil.rmtree")
+@patch("tempfile.mkdtemp")
 @patch(
     "module_build_service.scheduler.default_modules.conf.uses_rawhide",
     new_callable=PropertyMock,
