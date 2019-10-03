@@ -1,14 +1,14 @@
 """Add buildonly column
 
 Revision ID: 4d1e2e13e514
-Revises: 1817e62719f9
+Revises: a87264eeb49f
 Create Date: 2019-10-01 13:49:20.446641
 
 """
 
 # revision identifiers, used by Alembic.
 revision = '4d1e2e13e514'
-down_revision = '1817e62719f9'
+down_revision = 'a87264eeb49f'
 
 from alembic import op
 import sqlalchemy as sa
