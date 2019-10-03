@@ -59,24 +59,21 @@ class KojiResolver(DBResolver):
 
         return result
 
-    def get_buildrequired_modulemds(self, name, stream, base_module_mmd):
+    def get_buildrequired_modules(self, name, stream, base_module_mmd):
         """
-        Returns modulemd metadata of all module builds with `name` and `stream` which are tagged
+        Returns ModuleBuild objects of all module builds with `name` and `stream` which are tagged
         in the Koji tag defined in `base_module_mmd`.
 
         :param str name: Name of module to return.
         :param str stream: Stream of module to return.
         :param Modulemd base_module_mmd: Base module metadata.
-        :return list: List of modulemd metadata.
+        :return list: List of ModuleBuilds.
         """
         # Get the `koji_tag_with_modules`. If the `koji_tag_with_modules` is not configured for
         # the base module, fallback to DBResolver.
         tag = base_module_mmd.get_xmd().get("mbs", {}).get("koji_tag_with_modules")
         if not tag:
-            log.info(
-                "The %s does not define 'koji_tag_with_modules'. Falling back to DBResolver." % (
-                    base_module_mmd.get_nsvc()))
-            return DBResolver.get_buildrequired_modulemds(self, name, stream, base_module_mmd)
+            return []
 
         # Create KojiSession. We need to import here because of circular dependencies.
         from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
@@ -125,9 +122,8 @@ class KojiResolver(DBResolver):
                 latest_builds += list(nsv_builds)
                 break
 
-        # For each latest module build, find the matching ModuleBuild and store its modulemd
-        # in `mmds`.
-        mmds = []
+        # For each latest module build, find the matching ModuleBuild and store it into `ret`.
+        ret = []
         for build in latest_builds:
             version, context = build["release"].split(".")
             module = models.ModuleBuild.get_build_from_nsvc(
@@ -136,9 +132,29 @@ class KojiResolver(DBResolver):
                 raise ValueError(
                     "Module %s is tagged in the %s Koji tag, but does not exist "
                     "in MBS DB." % (":".join([name, stream, version, context]), tag))
-            mmds.append(module.mmd())
+            ret.append(module)
 
-        return mmds
+        return ret
+
+    def get_buildrequired_modulemds(self, name, stream, base_module_mmd):
+        """
+        Returns modulemd metadata of all module builds with `name` and `stream` which are tagged
+        in the Koji tag defined in `base_module_mmd`.
+
+        :param str name: Name of module to return.
+        :param str stream: Stream of module to return.
+        :param Modulemd base_module_mmd: Base module metadata.
+        :return list: List of modulemd metadata.
+        """
+        tag = base_module_mmd.get_xmd().get("mbs", {}).get("koji_tag_with_modules")
+        if not tag:
+            log.info(
+                "The %s does not define 'koji_tag_with_modules'. Falling back to DBResolver." %
+                (base_module_mmd.get_nsvc()))
+            return DBResolver.get_buildrequired_modulemds(self, name, stream, base_module_mmd)
+
+        modules = self.get_buildrequired_modules(name, stream, base_module_mmd)
+        return [module.mmd() for module in modules]
 
     def get_compatible_base_module_modulemds(self, *args, **kwargs):
         """

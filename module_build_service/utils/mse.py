@@ -229,6 +229,10 @@ def get_base_module_mmds(db_session, mmd):
                     continue
                 stream_mmd = mmds[0]
 
+                # Add the module to `seen` and `ret`.
+                seen.add(ns)
+                ret["ready"].append(stream_mmd)
+
                 # Get the list of compatible virtual streams.
                 xmd = stream_mmd.get_xmd()
                 virtual_streams = xmd.get("mbs", {}).get("virtual_streams")
@@ -237,8 +241,6 @@ def get_base_module_mmds(db_session, mmd):
                 # it is clear that there are no compatible streams, so return just this
                 # `stream_mmd`.
                 if not virtual_streams:
-                    seen.add(ns)
-                    ret["ready"].append(stream_mmd)
                     continue
 
                 virtual_streams = xmd["mbs"]["virtual_streams"]

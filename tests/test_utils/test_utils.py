@@ -1667,3 +1667,81 @@ class TestUtilsModuleReuse:
             first_module = db_session.query(models.ModuleBuild).filter_by(
                 name="testmodule", state=models.BUILD_STATES["ready"]).first()
             assert reusable_module.id == first_module.id
+
+    @pytest.mark.parametrize("allow_ocbm", (True, False))
+    @patch(
+        "module_build_service.config.Config.allow_only_compatible_base_modules",
+        new_callable=mock.PropertyMock,
+    )
+    @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
+    @patch(
+        "module_build_service.config.Config.resolver",
+        new_callable=mock.PropertyMock, return_value="koji"
+    )
+    def test_get_reusable_module_koji_resolver(
+            self, resolver, ClientSession, cfg, db_session, allow_ocbm):
+        """
+        Test that get_reusable_module works with KojiResolver.
+        """
+        cfg.return_value = allow_ocbm
+
+        # Mock the listTagged so the testmodule:master is listed as tagged in the
+        # module-fedora-27-build Koji tag.
+        koji_session = ClientSession.return_value
+        koji_session.listTagged.return_value = [
+            {
+                "build_id": 123, "name": "testmodule", "version": "master",
+                "release": "20170109091357.78e4a6fd", "tag_name": "module-fedora-27-build"
+            }]
+
+        # Mark platform:f28 as KojiResolver ready by defining "koji_tag_with_modules".
+        # Also define the "virtual_streams" to possibly confuse the get_reusable_module.
+        platform_f28 = db_session.query(models.ModuleBuild).filter_by(name="platform").one()
+        mmd = platform_f28.mmd()
+        xmd = mmd.get_xmd()
+        xmd["mbs"]["virtual_streams"] = ["fedora"]
+        xmd["mbs"]["koji_tag_with_modules"] = "module-fedora-27-build"
+        mmd.set_xmd(xmd)
+        platform_f28.modulemd = mmd_to_str(mmd)
+        platform_f28.update_virtual_streams(db_session, ["fedora"])
+
+        # Create platform:f27 without KojiResolver support.
+        mmd = load_mmd(read_staged_data("platform"))
+        mmd = mmd.copy("platform", "f27")
+        xmd = mmd.get_xmd()
+        xmd["mbs"]["virtual_streams"] = ["fedora"]
+        mmd.set_xmd(xmd)
+        platform_f27 = module_build_service.utils.import_mmd(db_session, mmd)[0]
+
+        # Change the reusable testmodule:master to buildrequire platform:f27.
+        latest_module = db_session.query(models.ModuleBuild).filter_by(
+            name="testmodule", state=models.BUILD_STATES["ready"]).one()
+        mmd = latest_module.mmd()
+        xmd = mmd.get_xmd()
+        xmd["mbs"]["buildrequires"]["platform"]["stream"] = "f27"
+        mmd.set_xmd(xmd)
+        latest_module.modulemd = mmd_to_str(mmd)
+        latest_module.buildrequires = [platform_f27]
+
+        # Recompute the build_context and ensure that `build_context` changed while
+        # `build_context_no_bms` did not change.
+        contexts = module_build_service.models.ModuleBuild.contexts_from_mmd(
+            latest_module.modulemd)
+
+        assert latest_module.build_context_no_bms == contexts.build_context_no_bms
+        assert latest_module.build_context != contexts.build_context
+
+        latest_module.build_context = contexts.build_context
+        latest_module.build_context_no_bms = contexts.build_context_no_bms
+        db_session.commit()
+
+        # Get the module we want to build.
+        module = db_session.query(models.ModuleBuild)\
+                           .filter_by(name="testmodule")\
+                           .filter_by(state=models.BUILD_STATES["build"])\
+                           .one()
+
+        reusable_module = module_build_service.utils.get_reusable_module(
+            db_session, module)
+
+        assert reusable_module.id == latest_module.id

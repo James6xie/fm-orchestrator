@@ -163,6 +163,29 @@ class TestLocalResolverModule:
             "testmodule:master:20170109091357:7c29193e"}
 
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
+    def test_get_buildrequired_modules(self, ClientSession, db_session):
+        koji_session = ClientSession.return_value
+
+        # We will ask for testmodule:master, but there is also testmodule:2 in a tag.
+        koji_session.listTagged.return_value = [
+            {
+                "build_id": 123, "name": "testmodule", "version": "2",
+                "release": "820181219174508.9edba152", "tag_name": "foo-test"
+            },
+            {
+                "build_id": 124, "name": "testmodule", "version": "master",
+                "release": "20170109091357.7c29193d", "tag_name": "foo-test"
+            }]
+
+        self._create_test_modules(db_session)
+        platform = db_session.query(ModuleBuild).filter_by(stream="f30.1.3").one()
+        resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="koji")
+        result = resolver.get_buildrequired_modules("testmodule", "master", platform.mmd())
+
+        nvrs = {m.nvr_string for m in result}
+        assert nvrs == {"testmodule-master-20170109091357.7c29193d"}
+
+    @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
     def test_filter_inherited(self, ClientSession, db_session):
         koji_session = ClientSession.return_value
 
