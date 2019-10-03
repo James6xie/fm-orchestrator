@@ -1,6 +1,10 @@
 Change Log
 ==========
 
+v2.29.1
+-------
+* Fix a fork in the database migration scripts
+
 v2.29.0
 -------
 * Add buildonly support (#1307)
