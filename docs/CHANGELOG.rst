@@ -1,6 +1,15 @@
 Change Log
 ==========
 
+v2.29.0
+-------
+* Add buildonly support (#1307)
+* Make the DNF minrate setting configurable when loading repos
+* Load the DNF repos in parallel to improve speed
+* Record the build_context without base modules
+* Convert arch to Koji's canon arch for default modules
+* Initial KojiResolver code
+
 v2.28.2
 -------
 * Fix a bug that caused the code that handles the conflicts in base module modular Koji tags to not run
