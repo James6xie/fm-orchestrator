@@ -8,14 +8,14 @@ import kobo.rpmlib
 from module_build_service import conf
 from module_build_service import models
 from module_build_service.errors import UnprocessableEntity
-from module_build_service.resolver.base import GenericResolver
+from module_build_service.resolver.KojiResolver import KojiResolver
 from module_build_service.utils.general import import_mmd, load_mmd
 from module_build_service.utils.request_utils import requests_session
 
 log = logging.getLogger()
 
 
-class MBSResolver(GenericResolver):
+class MBSResolver(KojiResolver):
 
     backend = "mbs"
 
@@ -234,7 +234,7 @@ class MBSResolver(GenericResolver):
             name, stream, stream_version_lte=stream_version_lte, virtual_streams=virtual_streams,
             states=states)
 
-    def get_buildrequired_modulemds(self, name, stream, base_module_nsvc):
+    def get_buildrequired_modulemds(self, name, stream, base_module_mmd):
         """
         Returns modulemd metadata of all module builds with `name` and `stream` buildrequiring
         base module defined by `base_module_nsvc` NSVC.
@@ -252,8 +252,21 @@ class MBSResolver(GenericResolver):
         if local_modules:
             return [m.mmd() for m in local_modules]
 
-        modules = self._get_modules(name, stream, strict=False, base_module_br=base_module_nsvc)
-        return [load_mmd(module["modulemd"]) for module in modules]
+        tag = base_module_mmd.get_xmd().get("mbs", {}).get("koji_tag_with_modules")
+        if tag:
+            # In case KojiResolver is enabled for this base module, ask Koji for list of
+            # Koji builds and then get the modulemd file from the MBS running in infra.
+            koji_builds = self.get_buildrequired_koji_builds(name, stream, base_module_mmd)
+            ret = []
+            for build in koji_builds:
+                version, context = build["release"].split(".")
+                ret += self.get_module_modulemds(name, stream, version, context, strict=True)
+
+            return ret
+        else:
+            modules = self._get_modules(
+                name, stream, strict=False, base_module_br=base_module_mmd.get_nsvc())
+            return [load_mmd(module["modulemd"]) for module in modules]
 
     def resolve_profiles(self, mmd, keys):
         """

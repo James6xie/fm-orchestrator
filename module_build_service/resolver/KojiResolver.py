@@ -59,15 +59,15 @@ class KojiResolver(DBResolver):
 
         return result
 
-    def get_buildrequired_modules(self, name, stream, base_module_mmd):
+    def get_buildrequired_koji_builds(self, name, stream, base_module_mmd):
         """
-        Returns ModuleBuild objects of all module builds with `name` and `stream` which are tagged
-        in the Koji tag defined in `base_module_mmd`.
+        Returns list of Koji build dicts of all module builds with `name` and `stream` which are
+        tagged in the Koji tag defined in `base_module_mmd`.
 
         :param str name: Name of module to return.
         :param str stream: Stream of module to return.
         :param Modulemd base_module_mmd: Base module metadata.
-        :return list: List of ModuleBuilds.
+        :return list: List of Koji build dicts.
         """
         # Get the `koji_tag_with_modules`. If the `koji_tag_with_modules` is not configured for
         # the base module, fallback to DBResolver.
@@ -121,6 +121,19 @@ class KojiResolver(DBResolver):
                     ns_builds, key=lambda x: x["release"].split(".")[0]):
                 latest_builds += list(nsv_builds)
                 break
+        return latest_builds
+
+    def get_buildrequired_modules(self, name, stream, base_module_mmd):
+        """
+        Returns ModuleBuild objects of all module builds with `name` and `stream` which are tagged
+        in the Koji tag defined in `base_module_mmd`.
+
+        :param str name: Name of module to return.
+        :param str stream: Stream of module to return.
+        :param Modulemd base_module_mmd: Base module metadata.
+        :return list: List of ModuleBuilds.
+        """
+        latest_builds = self.get_buildrequired_koji_builds(name, stream, base_module_mmd)
 
         # For each latest module build, find the matching ModuleBuild and store it into `ret`.
         ret = []
@@ -129,6 +142,7 @@ class KojiResolver(DBResolver):
             module = models.ModuleBuild.get_build_from_nsvc(
                 self.db_session, name, stream, version, context)
             if not module:
+                tag = base_module_mmd.get_xmd().get("mbs", {}).get("koji_tag_with_modules")
                 raise ValueError(
                     "Module %s is tagged in the %s Koji tag, but does not exist "
                     "in MBS DB." % (":".join([name, stream, version, context]), tag))
