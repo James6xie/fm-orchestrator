@@ -95,7 +95,7 @@ class DBResolver(GenericResolver):
         return [build.mmd() for build in builds]
 
     def get_compatible_base_module_modulemds(
-        self, name, stream, stream_version_lte, virtual_streams, states
+        self, base_module_mmd, stream_version_lte, virtual_streams, states
     ):
         """
         Returns the Modulemd metadata of base modules compatible with base module
@@ -106,8 +106,7 @@ class DBResolver(GenericResolver):
         If `virtual_streams` are defined, the compatibility is also extended to
         all base module streams which share the same virtual stream.
 
-        :param name: Name of the base module.
-        :param stream: Stream of the base module.
+        :param base_module_mmd: Modulemd medatada defining the input base module.
         :param stream_version_lte: If True, the compatible streams are limited
              by the stream version computed from `stream`. If False, even the
              modules with higher stream version are returned.
@@ -116,7 +115,10 @@ class DBResolver(GenericResolver):
             one of the virtual streams.
         :param states: List of states the returned compatible modules should
             be in.
+        :return list: List of Modulemd objects.
         """
+        name = base_module_mmd.get_module_name()
+        stream = base_module_mmd.get_stream_name()
         builds = []
         stream_version = None
         if stream_version_lte:

@@ -57,8 +57,10 @@ class TestDBModule:
     ):
         tests.init_data(1, multiple_stream_versions=True)
         resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="db")
+        platform = db_session.query(ModuleBuild).filter_by(name="platform", stream="f29.1.0").one()
+        platform_mmd = platform.mmd()
         result = resolver.get_compatible_base_module_modulemds(
-            "platform", "f29.1.0", stream_version_lte=stream_versions, virtual_streams=["f29"],
+            platform_mmd, stream_version_lte=stream_versions, virtual_streams=["f29"],
             states=[models.BUILD_STATES["ready"]])
         nsvcs = {mmd.get_nsvc() for mmd in result}
         if stream_versions:

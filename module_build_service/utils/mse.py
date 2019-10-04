@@ -243,8 +243,6 @@ def get_base_module_mmds(db_session, mmd):
                 if not virtual_streams:
                     continue
 
-                virtual_streams = xmd["mbs"]["virtual_streams"]
-
                 if conf.allow_only_compatible_base_modules:
                     stream_version_lte = True
                     states = ["ready"]
@@ -254,7 +252,7 @@ def get_base_module_mmds(db_session, mmd):
 
                 for state in states:
                     mmds = resolver.get_compatible_base_module_modulemds(
-                        name, stream, stream_version_lte, virtual_streams,
+                        stream_mmd, stream_version_lte, virtual_streams,
                         [models.BUILD_STATES[state]])
                     ret_chunk = []
                     # Add the returned mmds to the `seen` set to avoid querying those

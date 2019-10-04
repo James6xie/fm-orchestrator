@@ -170,10 +170,37 @@ class KojiResolver(DBResolver):
         modules = self.get_buildrequired_modules(name, stream, base_module_mmd)
         return [module.mmd() for module in modules]
 
-    def get_compatible_base_module_modulemds(self, *args, **kwargs):
+    def get_compatible_base_module_modulemds(
+            self, base_module_mmd, stream_version_lte, virtual_streams, states):
         """
-        For KojiResolver, this method returns always an empty list. The compatible modules are
+        Returns the Modulemd metadata of base modules compatible with base module
+        defined by `name` and `stream`.
+
+        For base module which enables KojiResolver feature in its XMD section, this
+        method always returns an empty list. The compatible modules are
         defined by the Koji tag inheritance, so there is no need to find out the compatible
         base modules on MBS side.
+
+        If the base module does not enable KojiResolver, the compatibility is determined
+        using DBResolver.
+
+        :param base_module_mmd: Modulemd medatada defining the input base module.
+        :param stream_version_lte: If True, the compatible streams are limited
+             by the stream version computed from `stream`. If False, even the
+             modules with higher stream version are returned.
+        :param virtual_streams: List of virtual streams. If set, also modules
+            with incompatible stream version are returned in case they share
+            one of the virtual streams.
+        :param states: List of states the returned compatible modules should
+            be in.
+        :return list: List of Modulemd objects.
         """
+        tag = base_module_mmd.get_xmd().get("mbs", {}).get("koji_tag_with_modules")
+        if not tag:
+            log.info(
+                "The %s does not define 'koji_tag_with_modules'. Falling back to DBResolver." %
+                (base_module_mmd.get_nsvc()))
+            return DBResolver.get_compatible_base_module_modulemds(
+                self, base_module_mmd, stream_version_lte, virtual_streams, states)
+
         return []

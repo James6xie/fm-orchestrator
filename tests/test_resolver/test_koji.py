@@ -216,11 +216,30 @@ class TestLocalResolverModule:
             "testmodule-master-20170110091357.7c29193d",
             "testmodule-2-20180109091357.7c29193d"}
 
+    def test_get_compatible_base_module_modulemds_fallback_to_dbresolver(self, db_session):
+        tests.init_data(1, multiple_stream_versions=True)
+        resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="koji")
+        platform = db_session.query(ModuleBuild).filter_by(name="platform", stream="f29.1.0").one()
+        platform_mmd = platform.mmd()
+        result = resolver.get_compatible_base_module_modulemds(
+            platform_mmd, stream_version_lte=True, virtual_streams=["f29"],
+            states=[BUILD_STATES["ready"]])
+
+        assert len(result) == 2
+
     def test_get_compatible_base_module_modulemds(self, db_session):
         tests.init_data(1, multiple_stream_versions=True)
         resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="koji")
+
+        platform = db_session.query(ModuleBuild).filter_by(name="platform", stream="f29.1.0").one()
+        platform_mmd = platform.mmd()
+        platform_xmd = platform_mmd.get_xmd()
+        platform_xmd["mbs"]["koji_tag_with_modules"] = "module-f29-build"
+        platform_mmd.set_xmd(platform_xmd)
+        platform.modulemd = mmd_to_str(platform_mmd)
+
         result = resolver.get_compatible_base_module_modulemds(
-            "platform", "f29.1.0", stream_version_lte=True, virtual_streams=["f29"],
+            platform_mmd, stream_version_lte=True, virtual_streams=["f29"],
             states=[BUILD_STATES["ready"]])
 
         assert len(result) == 0
