@@ -341,7 +341,8 @@ class TestMBSModule:
         request_session.get.return_value = Mock(ok=True)
         request_session.get.return_value.json.return_value = {"items": [], "meta": {"next": None}}
 
-        result = resolver.get_buildrequired_modulemds("nodejs", "10", "platform:el8:1:00000000")
+        platform = db_session.query(module_build_service.models.ModuleBuild).filter_by(id=1).one()
+        result = resolver.get_buildrequired_modulemds("nodejs", "10", platform.mmd())
         assert [] == result
 
     @patch("module_build_service.resolver.MBSResolver.requests_session")
@@ -372,7 +373,8 @@ class TestMBSModule:
             "meta": {"next": None},
         }
 
-        result = resolver.get_buildrequired_modulemds("nodejs", "10", "platform:el8:1:00000000")
+        platform = db_session.query(module_build_service.models.ModuleBuild).filter_by(id=1).one()
+        result = resolver.get_buildrequired_modulemds("nodejs", "10", platform.mmd())
 
         assert 1 == len(result)
         mmd = result[0]
@@ -458,3 +460,49 @@ class TestMBSModule:
             assert "master" == mmd.get_stream_name()
             assert 20170816080816 == mmd.get_version()
             assert "321" == mmd.get_context()
+
+    @patch("module_build_service.resolver.MBSResolver.requests_session")
+    def test_get_buildrequired_modulemds_kojiresolver(self, mock_session, db_session):
+        """
+        Test that MBSResolver uses KojiResolver as input when KojiResolver is enabled for
+        the base module.
+        """
+        mock_session.get.return_value = Mock(ok=True)
+        mock_session.get.return_value.json.return_value = {
+            "items": [
+                {
+                    "name": "nodejs",
+                    "stream": "10",
+                    "version": 2,
+                    "context": "c1",
+                    "modulemd": mmd_to_str(
+                        tests.make_module("nodejs:10:2:c1"),
+                    ),
+                },
+            ],
+            "meta": {"next": None},
+        }
+
+        resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="mbs")
+
+        platform = db_session.query(
+            module_build_service.models.ModuleBuild).filter_by(id=1).one()
+        platform_mmd = platform.mmd()
+        platform_xmd = platform_mmd.get_xmd()
+        platform_xmd["mbs"]["koji_tag_with_modules"] = "module-f29-build"
+        platform_mmd.set_xmd(platform_xmd)
+
+        with patch.object(
+                resolver, "get_buildrequired_koji_builds") as get_buildrequired_koji_builds:
+            get_buildrequired_koji_builds.return_value = [{
+                "build_id": 124, "name": "nodejs", "version": "10",
+                "release": "2.c1", "tag_name": "foo-test"}]
+            result = resolver.get_buildrequired_modulemds("nodejs", "10", platform_mmd)
+            get_buildrequired_koji_builds.assert_called_once()
+
+        assert 1 == len(result)
+        mmd = result[0]
+        assert "nodejs" == mmd.get_module_name()
+        assert "10" == mmd.get_stream_name()
+        assert 2 == mmd.get_version()
+        assert "c1" == mmd.get_context()
