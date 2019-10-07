@@ -243,3 +243,7 @@ class TestLocalResolverModule:
             states=[BUILD_STATES["ready"]])
 
         assert len(result) == 0
+
+    def test_supported_builders(self):
+        ret = mbs_resolver.KojiResolver.KojiResolver.supported_builders()
+        assert set(ret) == {"koji", "test", "testlocal"}

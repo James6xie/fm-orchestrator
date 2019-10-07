@@ -20,6 +20,7 @@ SUPPORTED_RESOLVERS = {
     "mbs": {"builders": ["mock"]},
     "db": {"builders": ["koji", "mock", "copr"]},
     "local": {"builders": ["mock"]},
+    "koji": {"builders": ["koji"]},
 }
 
 
