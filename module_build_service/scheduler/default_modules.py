@@ -84,22 +84,23 @@ def add_default_modules(db_session, mmd, arches):
                 )
                 continue
 
-            try:
-                # We are reusing resolve_requires instead of directly querying the database since it
-                # provides the exact format that is needed for mbs.xmd.buildrequires.
-                #
-                # Only one default module is processed at a time in resolve_requires so that we
-                # are aware of which modules are not in the database, and can add those that are as
-                # buildrequires.
-                resolver = GenericResolver.create(db_session, conf)
-                resolved = resolver.resolve_requires([ns])
-            except UnprocessableEntity:
+            # Query for the latest default module that was built against this base module
+            resolver = GenericResolver.create(db_session, conf)
+            default_module_mmds = resolver.get_buildrequired_modulemds(name, stream, bm_mmd)
+            if not default_module_mmds:
                 log.warning(
                     "The default module %s from %s is not in the database and couldn't be added as "
                     "a buildrequire",
                     ns, bm_nsvc,
                 )
                 continue
+            # Since a default module entry only has the name and stream, there's no way to know
+            # which context to pick from if multiple are present. In this case, just pick the first
+            # one, which is the latest version but potentially a random context.
+            default_module_mmd = default_module_mmds[0]
+            # Use resolve_requires since it provides the exact format that is needed for
+            # mbs.xmd.buildrequires
+            resolved = resolver.resolve_requires([default_module_mmd.get_nsvc()])
 
             nsvc = ":".join([name, stream, resolved[name]["version"], resolved[name]["context"]])
             log.info("Adding the default module %s as a buildrequire", nsvc)
