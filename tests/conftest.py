@@ -266,22 +266,27 @@ def reuse_component_init_data(db_session):
 
 @pytest.fixture()
 def reuse_shared_userspace_init_data(db_session):
-    clean_database()
-
     # Create shared-userspace-570, state is COMPLETE, all components
     # are properly built.
+    scmurl = "https://src.stg.fedoraproject.org/modules/testmodule.git?#7fea453"
     mmd = load_mmd(read_staged_data("shared-userspace-570"))
+    xmd = mmd.get_xmd()
+    xmd["mbs"]["scmurl"] = scmurl
+    xmd["mbs"]["commit"] = "55f4a0a2e6cc255c88712a905157ab39315b8fd8"
+    mmd.set_xmd(xmd)
 
     module_build = module_build_service.models.ModuleBuild(
         name=mmd.get_module_name(),
         stream=mmd.get_stream_name(),
         version=mmd.get_version(),
-        build_context="e046b867a400a06a3571f3c71142d497895fefbe",
+        build_context=module_build_service.models.ModuleBuild.calculate_build_context(
+            xmd["mbs"]["buildrequires"]
+        ),
         runtime_context="50dd3eb5dde600d072e45d4120e1548ce66bc94a",
         state=BUILD_STATES["ready"],
         modulemd=mmd_to_str(mmd),
         koji_tag="module-shared-userspace-f26-20170601141014-75f92abb",
-        scmurl="https://src.stg.fedoraproject.org/modules/testmodule.git?#7fea453",
+        scmurl=scmurl,
         batch=16,
         owner="Tom Brady",
         time_submitted=datetime(2017, 2, 15, 16, 8, 18),
@@ -290,15 +295,6 @@ def reuse_shared_userspace_init_data(db_session):
         rebuild_strategy="changed-and-after",
     )
 
-    xmd = mmd.get_xmd()
-    xmd["mbs"]["scmurl"] = module_build.scmurl
-    xmd["mbs"]["commit"] = "55f4a0a2e6cc255c88712a905157ab39315b8fd8"
-    mmd.set_xmd(xmd)
-    module_build.modulemd = mmd_to_str(mmd)
-    module_build.build_context = module_build_service.models.ModuleBuild.contexts_from_mmd(
-        module_build.modulemd
-    ).build_context
-
     components = [
         mmd.get_rpm_component(rpm)
         for rpm in mmd.get_rpm_component_names()
@@ -306,13 +302,14 @@ def reuse_shared_userspace_init_data(db_session):
     components.sort(key=lambda x: x.get_buildorder())
     previous_buildorder = None
     batch = 1
+    xmd_mbs_rpms = xmd["mbs"]["rpms"]
     for pkg in components:
         # Increment the batch number when buildorder increases.
         if previous_buildorder != pkg.get_buildorder():
             previous_buildorder = pkg.get_buildorder()
             batch += 1
 
-        pkgref = mmd.get_xmd()["mbs"]["rpms"][pkg.get_name()]["ref"]
+        pkgref = xmd_mbs_rpms[pkg.get_name()]["ref"]
         full_url = pkg.get_repository() + "?#" + pkgref
 
         module_build.component_builds.append(
@@ -332,18 +329,25 @@ def reuse_shared_userspace_init_data(db_session):
     db_session.commit()
 
     # Create shared-userspace-577, state is WAIT, no component built
+    scmurl = "https://src.stg.fedoraproject.org/modules/testmodule.git?#7fea453"
     mmd2 = load_mmd(read_staged_data("shared-userspace-577"))
+    xmd = mmd2.get_xmd()
+    xmd["mbs"]["scmurl"] = scmurl
+    xmd["mbs"]["commit"] = "55f4a0a2e6cc255c88712a905157ab39315b8fd8"
+    mmd2.set_xmd(xmd)
 
     module_build = module_build_service.models.ModuleBuild(
         name=mmd2.get_module_name(),
         stream=mmd2.get_stream_name(),
         version=mmd2.get_version(),
-        build_context="e046b867a400a06a3571f3c71142d497895fefbe",
+        build_context=module_build_service.models.ModuleBuild.calculate_build_context(
+            xmd["mbs"]["buildrequires"]
+        ),
         runtime_context="50dd3eb5dde600d072e45d4120e1548ce66bc94a",
         state=BUILD_STATES["done"],
         modulemd=mmd_to_str(mmd2),
         koji_tag="module-shared-userspace-f26-20170605091544-75f92abb",
-        scmurl="https://src.stg.fedoraproject.org/modules/testmodule.git?#7fea453",
+        scmurl=scmurl,
         batch=0,
         owner="Tom Brady",
         time_submitted=datetime(2017, 2, 15, 16, 8, 18),
@@ -351,15 +355,6 @@ def reuse_shared_userspace_init_data(db_session):
         time_completed=datetime(2017, 2, 15, 16, 19, 35),
         rebuild_strategy="changed-and-after",
     )
-
-    xmd = mmd2.get_xmd()
-    xmd["mbs"]["scmurl"] = module_build.scmurl
-    xmd["mbs"]["commit"] = "55f4a0a2e6cc255c88712a905157ab39315b8fd8"
-    mmd2.set_xmd(xmd)
-    module_build.modulemd = mmd_to_str(mmd2)
-    module_build.build_context = module_build_service.models.ModuleBuild.contexts_from_mmd(
-        module_build.modulemd
-    ).build_context
 
     components2 = [
         mmd2.get_rpm_component(rpm)
@@ -371,13 +366,14 @@ def reuse_shared_userspace_init_data(db_session):
     components2.sort(key=lambda x: x.get_buildorder())
     previous_buildorder = None
     batch = 1
+    xmd_mbs_rpms = mmd2.get_xmd()["mbs"]["rpms"]
     for pkg in components2:
         # Increment the batch number when buildorder increases.
         if previous_buildorder != pkg.get_buildorder():
             previous_buildorder = pkg.get_buildorder()
             batch += 1
 
-        pkgref = mmd2.get_xmd()["mbs"]["rpms"][pkg.get_name()]["ref"]
+        pkgref = xmd_mbs_rpms[pkg.get_name()]["ref"]
         full_url = pkg.get_repository() + "?#" + pkgref
 
         module_build.component_builds.append(
