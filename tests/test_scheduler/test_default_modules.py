@@ -21,8 +21,6 @@ def test_add_default_modules(mock_get_dm, mock_hc, db_session):
     Test that default modules present in the database are added, and the others are ignored.
     """
     clean_database()
-    make_module_in_db("python:3:12345:1", db_session=db_session)
-    make_module_in_db("nodejs:11:2345:2", db_session=db_session)
     mmd = load_mmd(read_staged_data("formatted_testmodule.yaml"))
     xmd_brs = mmd.get_xmd()["mbs"]["buildrequires"]
     assert set(xmd_brs.keys()) == {"platform"}
@@ -40,6 +38,9 @@ def test_add_default_modules(mock_get_dm, mock_hc, db_session):
     platform_xmd["mbs"]["use_default_modules"] = True
     platform_mmd.set_xmd(platform_xmd)
     platform.modulemd = mmd_to_str(platform_mmd)
+
+    make_module_in_db("python:3:12345:1", base_module=platform, db_session=db_session)
+    make_module_in_db("nodejs:11:2345:2", base_module=platform, db_session=db_session)
     db_session.commit()
 
     mock_get_dm.return_value = {
