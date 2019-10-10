@@ -7,7 +7,6 @@ dogpile.cache
 fedmsg
 funcsigs # Python2 only
 futures # Python 2 only
-kerberos
 kobo>=0.5.0
 koji
 ldap3

@@ -2,21 +2,11 @@
 # SPDX-License-Identifier: MIT
 """Auth system based on the client certificate and FAS account"""
 import json
-import os
-from socket import gethostname
 import ssl
 
 import requests
-import kerberos
-from flask import Response, g
+from flask import g
 
-# Starting with Flask 0.9, the _app_ctx_stack is the correct one,
-# before that we need to use the _request_ctx_stack.
-try:
-    from flask import _app_ctx_stack as stack
-except ImportError:
-    from flask import _request_ctx_stack as stack
-from werkzeug.exceptions import Unauthorized as FlaskUnauthorized
 from dogpile.cache import make_region
 
 from module_build_service.errors import Unauthorized, Forbidden
@@ -141,105 +131,20 @@ def get_user_oidc(request):
     return username, groups
 
 
-# Insired by https://pagure.io/waiverdb/blob/master/f/waiverdb/auth.py which was
-# inspired by https://github.com/mkomitee/flask-kerberos/blob/master/flask_kerberos.py
-class KerberosAuthenticate(object):
-    def __init__(self):
-        if conf.kerberos_http_host:
-            hostname = conf.kerberos_http_host
-        else:
-            hostname = gethostname()
-        self.service_name = "HTTP@{0}".format(hostname)
-
-        # If the config specifies a keytab to use, then override the KRB5_KTNAME
-        # environment variable
-        if conf.kerberos_keytab:
-            os.environ["KRB5_KTNAME"] = conf.kerberos_keytab
-
-        if "KRB5_KTNAME" in os.environ:
-            try:
-                principal = kerberos.getServerPrincipalDetails("HTTP", hostname)
-            except kerberos.KrbError as error:
-                raise Unauthorized('Kerberos: authentication failed with "{0}"'.format(str(error)))
-
-            log.debug('Kerberos: server is identifying as "{0}"'.format(principal))
-        else:
-            raise Unauthorized(
-                'Kerberos: set the config value of "KERBEROS_KEYTAB" or the '
-                'environment variable "KRB5_KTNAME" to your keytab file'
-            )
-
-    def _gssapi_authenticate(self, token):
-        """
-        Performs GSSAPI Negotiate Authentication
-        On success also stashes the server response token for mutual authentication
-        at the top of request context with the name kerberos_token, along with the
-        authenticated user principal with the name kerberos_user.
-        """
-        state = None
-        ctx = stack.top
-        try:
-            rc, state = kerberos.authGSSServerInit(self.service_name)
-            if rc != kerberos.AUTH_GSS_COMPLETE:
-                log.error("Kerberos: unable to initialize server context")
-                return None
-
-            rc = kerberos.authGSSServerStep(state, token)
-            if rc == kerberos.AUTH_GSS_COMPLETE:
-                log.debug("Kerberos: completed GSSAPI negotiation")
-                ctx.kerberos_token = kerberos.authGSSServerResponse(state)
-                ctx.kerberos_user = kerberos.authGSSServerUserName(state)
-                return rc
-            elif rc == kerberos.AUTH_GSS_CONTINUE:
-                log.debug("Kerberos: continuing GSSAPI negotiation")
-                return kerberos.AUTH_GSS_CONTINUE
-            else:
-                log.debug("Kerberos: unable to step server context")
-                return None
-        except kerberos.GSSError as error:
-            log.error("Kerberos: unable to authenticate: {0}".format(str(error)))
-            return None
-        finally:
-            if state:
-                kerberos.authGSSServerClean(state)
-
-    def process_request(self, token):
-        """
-        Authenticates the current request using Kerberos.
-        """
-        kerberos_user = None
-        kerberos_token = None
-        ctx = stack.top
-        rc = self._gssapi_authenticate(token)
-        if rc == kerberos.AUTH_GSS_COMPLETE:
-            kerberos_user = ctx.kerberos_user
-            kerberos_token = ctx.kerberos_token
-        elif rc != kerberos.AUTH_GSS_CONTINUE:
-            raise Forbidden("Invalid Kerberos ticket")
-
-        return kerberos_user, kerberos_token
-
-
 def get_user_kerberos(request):
-    user = None
-    if "Authorization" not in request.headers:
-        response = Response("Unauthorized", 401, {"WWW-Authenticate": "Negotiate"})
-        exc = FlaskUnauthorized()
-        # For some reason, certain versions of werkzeug raise an exception when passing `response`
-        # in the constructor. This is a work-around.
-        exc.response = response
-        raise exc
-    header = request.headers.get("Authorization")
-    token = "".join(header.strip().split()[1:])
-    user, kerberos_token = KerberosAuthenticate().process_request(token)
+    remote_user = request.environ.get("REMOTE_USER")
+    if not remote_user:
+        raise Unauthorized("REMOTE_USER is not properly set in the request.")
+
     # Remove the realm
-    user = user.split("@")[0]
+    username, _ = remote_user.split("@")
+
     # If the user is part of the whitelist, then the group membership check is skipped
-    if user in conf.allowed_users:
+    if username in conf.allowed_users:
         groups = []
     else:
-        groups = get_ldap_group_membership(user)
-    return user, set(groups)
+        groups = get_ldap_group_membership(username)
+    return username, set(groups)
 
 
 @region.cache_on_arguments()
