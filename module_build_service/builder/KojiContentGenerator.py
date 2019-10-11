@@ -752,8 +752,14 @@ class KojiContentGenerator(object):
         prepdir = tempfile.mkdtemp(prefix="koji-cg-import")
         mmd_path = os.path.join(prepdir, "modulemd.txt")
         log.info("Writing generic modulemd.yaml to %r" % mmd_path)
+        if self.devel:
+            mmd = self.module.mmd()
+            mmd = mmd.copy(mmd.get_module_name() + "-devel")
+            contents = mmd_to_str(mmd)
+        else:
+            contents = self.mmd
         with open(mmd_path, "w", encoding="utf-8") as mmd_f:
-            mmd_f.write(self.mmd)
+            mmd_f.write(contents)
 
         mmd_path = os.path.join(prepdir, "modulemd.src.txt")
         self._download_source_modulemd(self.module.mmd(), mmd_path)
