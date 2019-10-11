@@ -1694,6 +1694,9 @@ class TestUtilsModuleReuse:
                 "release": "20170109091357.78e4a6fd", "tag_name": "module-fedora-27-build"
             }]
 
+        koji_session.multiCall.return_value = [
+            [build] for build in koji_session.listTagged.return_value]
+
         # Mark platform:f28 as KojiResolver ready by defining "koji_tag_with_modules".
         # Also define the "virtual_streams" to possibly confuse the get_reusable_module.
         platform_f28 = db_session.query(models.ModuleBuild).filter_by(name="platform").one()

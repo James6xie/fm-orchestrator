@@ -59,6 +59,59 @@ class KojiResolver(DBResolver):
 
         return result
 
+    def _filter_based_on_real_stream_name(self, koji_session, module_builds, stream):
+        """
+        Query Koji for real stream name of each module and keep only those matching `stream`.
+
+        This needs to be done, because MBS stores the stream name in the "version" field in Koji,
+        but the "version" field cannot contain "-" character. Therefore MBS replaces all "-"
+        with "_". This makes it impossible to reconstruct the original stream name from the
+        "version" field.
+
+        We therefore need to ask for real original stream name here and filter out modules based
+        on this real stream name.
+
+        :param KojiSession koji_session: Koji session.
+        :param list module_builds: List of builds as returned by KojiSession.listTagged method.
+        :param str stream: The requested stream name.
+        :return list: Filtered list of builds.
+        """
+        # We need to import here because of circular dependencies.
+        from module_build_service.builder.KojiModuleBuilder import koji_multicall_map
+
+        # Return early if there are no module builds.
+        if not module_builds:
+            return []
+
+        # Prepare list of build ids to pass them to Koji multicall later.
+        build_ids = [b["build_id"] for b in module_builds]
+
+        # Get the Koji builds from Koji.
+        koji_builds = koji_multicall_map(koji_session, koji_session.getBuild, build_ids)
+        if not koji_builds:
+            raise RuntimeError("Error during Koji multicall when filtering KojiResolver builds.")
+
+        # Filter out modules with different stream in the Koji build metadata.
+        ret = []
+        for module_build, koji_build in zip(module_builds, koji_builds):
+            koji_build_stream = koji_build.get("extra", {}).get("typeinfo", {}).get("module", {}).\
+                get("stream")
+            if not koji_build_stream:
+                log.warning(
+                    "Not filtering out Koji build with id %d - it has no \"stream\" set in its "
+                    "metadata." % koji_build["build_id"])
+                ret.append(module_build)
+                continue
+
+            if koji_build_stream == stream:
+                ret.append(module_build)
+            else:
+                log.info(
+                    "Filtering out Koji build %d - its stream \"%s\" does not match the requested "
+                    "stream \"%s\"" % (koji_build["build_id"], stream, koji_build_stream))
+
+        return ret
+
     def get_buildrequired_koji_builds(self, name, stream, base_module_mmd):
         """
         Returns list of Koji build dicts of all module builds with `name` and `stream` which are
@@ -89,12 +142,22 @@ class KojiResolver(DBResolver):
         module_builds = koji_session.listTagged(
             tag, inherit=True, type="module", package=name, event=event["id"])
 
-        # Filter out different streams
+        # Filter out different streams. Note that the stream name in the b["version"] is
+        # normalized. This makes it impossible to find out its original value. We therefore
+        # filter out only completely different stream names here to reduce the `module_builds`
+        # dramatically, but the resulting `module_builds` list might still contain unwanted
+        # streams. We will get rid of them using the `_filter_based_on_real_stream_name` method
+        # later.
+        # Example of such streams: "fedora-30" and "fedora_30". They will both be normalized to
+        # "fedora_30".
         normalized_stream = stream.replace("-", "_")
         module_builds = [b for b in module_builds if b["version"] == normalized_stream]
 
         # Filter out builds inherited from non-top tag
         module_builds = self._filter_inherited(koji_session, module_builds, tag, event)
+
+        # Filter out modules based on the real stream name.
+        module_builds = self._filter_based_on_real_stream_name(koji_session, module_builds, stream)
 
         # Find the latest builds of all modules. This does the following:
         # - Sorts the module_builds descending by Koji NVR (which maps to NSV

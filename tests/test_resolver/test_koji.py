@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
 import pytest
-from mock import patch
+from mock import patch, MagicMock
 from datetime import datetime
 
 import module_build_service.resolver as mbs_resolver
@@ -70,6 +70,7 @@ class TestLocalResolverModule:
 
         # No package with such name tagged.
         koji_session.listTagged.return_value = []
+        koji_session.multiCall.return_value = [[]]
 
         self._create_test_modules(db_session)
         platform = db_session.query(ModuleBuild).filter_by(stream="f30.1.3").one()
@@ -95,6 +96,9 @@ class TestLocalResolverModule:
                 "release": "20170109091357.7c29193d", "tag_name": "foo-test"
             }]
 
+        koji_session.multiCall.return_value = [
+            [build] for build in koji_session.listTagged.return_value]
+
         self._create_test_modules(db_session)
         platform = db_session.query(ModuleBuild).filter_by(stream="f30.1.3").one()
         resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="koji")
@@ -118,6 +122,9 @@ class TestLocalResolverModule:
                 "build_id": 124, "name": "testmodule", "version": "master",
                 "release": "20170109091357.7c29193d", "tag_name": "foo-test"
             }]
+
+        koji_session.multiCall.return_value = [
+            [build] for build in koji_session.listTagged.return_value]
 
         self._create_test_modules(db_session)
         platform = db_session.query(ModuleBuild).filter_by(stream="f30.1.3").one()
@@ -152,6 +159,9 @@ class TestLocalResolverModule:
                 "release": "20160109091357.7c29193d", "tag_name": "foo-test"
             }]
 
+        koji_session.multiCall.return_value = [
+            [build] for build in koji_session.listTagged.return_value]
+
         self._create_test_modules(db_session)
         platform = db_session.query(ModuleBuild).filter_by(stream="f30.1.3").one()
         resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="koji")
@@ -176,6 +186,9 @@ class TestLocalResolverModule:
                 "build_id": 124, "name": "testmodule", "version": "master",
                 "release": "20170109091357.7c29193d", "tag_name": "foo-test"
             }]
+
+        koji_session.multiCall.return_value = [
+            [build] for build in koji_session.listTagged.return_value]
 
         self._create_test_modules(db_session)
         platform = db_session.query(ModuleBuild).filter_by(stream="f30.1.3").one()
@@ -215,6 +228,44 @@ class TestLocalResolverModule:
         assert nvrs == {
             "testmodule-master-20170110091357.7c29193d",
             "testmodule-2-20180109091357.7c29193d"}
+
+    @patch("module_build_service.builder.KojiModuleBuilder.koji_multicall_map")
+    def test_filter_based_on_real_stream_name(self, koji_multicall_map, db_session):
+        koji_session = MagicMock()
+        koji_multicall_map.return_value = [
+            {"build_id": 124, "extra": {"typeinfo": {"module": {"stream": "foo-test"}}}},
+            {"build_id": 125, "extra": {"typeinfo": {"module": {"stream": "foo_test"}}}},
+            {"build_id": 126, "extra": {"typeinfo": {"module": {"stream": "foo-test"}}}},
+            {"build_id": 127, "extra": {"typeinfo": {"module": {}}}},
+        ]
+
+        builds = [
+            {"build_id": 124, "name": "testmodule", "version": "foo_test"},
+            {"build_id": 125, "name": "testmodule", "version": "foo_test"},
+            {"build_id": 126, "name": "testmodule", "version": "foo_test"},
+            {"build_id": 127, "name": "testmodule", "version": "foo_test"},
+        ]
+
+        resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="koji")
+        new_builds = resolver._filter_based_on_real_stream_name(koji_session, builds, "foo-test")
+
+        build_ids = {b["build_id"] for b in new_builds}
+        assert build_ids == {124, 126, 127}
+
+    @patch("module_build_service.builder.KojiModuleBuilder.koji_multicall_map")
+    def test_filter_based_on_real_stream_name_multicall_error(
+            self, koji_multicall_map, db_session):
+        koji_session = MagicMock()
+        koji_multicall_map.return_value = None
+
+        builds = [
+            {"build_id": 124, "name": "testmodule", "version": "foo_test"},
+        ]
+
+        expected_error = "Error during Koji multicall when filtering KojiResolver builds."
+        resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="koji")
+        with pytest.raises(RuntimeError, match=expected_error):
+            resolver._filter_based_on_real_stream_name(koji_session, builds, "foo-test")
 
     def test_get_compatible_base_module_modulemds_fallback_to_dbresolver(self, db_session):
         tests.init_data(1, multiple_stream_versions=True)
