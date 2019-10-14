@@ -268,11 +268,6 @@ class KojiContentGenerator(object):
         ret = self.module.nvr
         if self.devel:
             ret["name"] += "-devel"
-            mmd = self.module.mmd()
-            mmd = mmd.copy(mmd.get_module_name() + "-devel")
-            modulemd_str = mmd_to_str(mmd)
-        else:
-            modulemd_str = self.module.modulemd
         ret[u"source"] = self.module.scmurl
         ret[u"start_time"] = calendar.timegm(self.module.time_submitted.utctimetuple())
         ret[u"end_time"] = calendar.timegm(self.module.time_completed.utctimetuple())
@@ -281,7 +276,7 @@ class KojiContentGenerator(object):
                 u"module": {
                     u"module_build_service_id": self.module.id,
                     u"content_koji_tag": self.module.koji_tag,
-                    u"modulemd_str": modulemd_str,
+                    u"modulemd_str": self._get_fixed_mmd(),
                     u"name": ret["name"],
                     u"stream": self.module.stream,
                     u"version": self.module.version,
@@ -331,6 +326,16 @@ class KojiContentGenerator(object):
             u"sigmd5": rpm["payloadhash"],
             u"type": u"rpm",
         }
+
+    def _get_fixed_mmd(self):
+        if self.devel:
+            mmd = self.module.mmd()
+            mmd = mmd.copy(mmd.get_module_name() + "-devel")
+            ret = mmd_to_str(mmd)
+        else:
+            ret = self.mmd
+
+        return ret
 
     def _get_arch_mmd_output(self, output_path, arch):
         """
@@ -757,14 +762,8 @@ class KojiContentGenerator(object):
         prepdir = tempfile.mkdtemp(prefix="koji-cg-import")
         mmd_path = os.path.join(prepdir, "modulemd.txt")
         log.info("Writing generic modulemd.yaml to %r" % mmd_path)
-        if self.devel:
-            mmd = self.module.mmd()
-            mmd = mmd.copy(mmd.get_module_name() + "-devel")
-            contents = mmd_to_str(mmd)
-        else:
-            contents = self.mmd
         with open(mmd_path, "w", encoding="utf-8") as mmd_f:
-            mmd_f.write(contents)
+            mmd_f.write(self._get_fixed_mmd())
 
         mmd_path = os.path.join(prepdir, "modulemd.src.txt")
         self._download_source_modulemd(self.module.mmd(), mmd_path)
