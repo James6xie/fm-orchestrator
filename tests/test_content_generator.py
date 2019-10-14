@@ -131,7 +131,10 @@ class TestBuild:
             # For devel, only check that the name has -devel suffix.
             assert ret["build"]["name"] == "nginx-devel"
             assert ret["build"]["extra"]["typeinfo"]["module"]["name"] == "nginx-devel"
-            assert "name: nginx-devel" in ret["build"]["extra"]["typeinfo"]["module"]["modulemd_str"]
+            mmd_str = ret["build"]["extra"]["typeinfo"]["module"]["modulemd_str"]
+            assert ("name: nginx-devel" in mmd_str)
+            with open("%s/modulemd.txt" % file_dir) as fo:
+                assert mmd_str == fo.read()
 
         # Ensure an anonymous Koji session works
         koji_session.krb_login.assert_not_called()
