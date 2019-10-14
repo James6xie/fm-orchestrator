@@ -268,6 +268,11 @@ class KojiContentGenerator(object):
         ret = self.module.nvr
         if self.devel:
             ret["name"] += "-devel"
+            mmd = self.module.mmd()
+            mmd = mmd.copy(mmd.get_module_name() + "-devel")
+            modulemd_str = mmd_to_str(mmd)
+        else:
+            modulemd_str = self.module.modulemd
         ret[u"source"] = self.module.scmurl
         ret[u"start_time"] = calendar.timegm(self.module.time_submitted.utctimetuple())
         ret[u"end_time"] = calendar.timegm(self.module.time_completed.utctimetuple())
@@ -276,7 +281,7 @@ class KojiContentGenerator(object):
                 u"module": {
                     u"module_build_service_id": self.module.id,
                     u"content_koji_tag": self.module.koji_tag,
-                    u"modulemd_str": self.module.modulemd,
+                    u"modulemd_str": modulemd_str,
                     u"name": ret["name"],
                     u"stream": self.module.stream,
                     u"version": self.module.version,
