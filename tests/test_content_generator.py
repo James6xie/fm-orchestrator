@@ -132,7 +132,7 @@ class TestBuild:
             assert ret["build"]["name"] == "nginx-devel"
             assert ret["build"]["extra"]["typeinfo"]["module"]["name"] == "nginx-devel"
             mmd_str = ret["build"]["extra"]["typeinfo"]["module"]["modulemd_str"]
-            assert ("name: nginx-devel" in mmd_str)
+            assert "name: nginx-devel" in mmd_str
             with open("%s/modulemd.txt" % file_dir) as fo:
                 assert mmd_str == fo.read()
 
