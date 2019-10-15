@@ -10,6 +10,9 @@
 # --py3: run tests inside mbs-test-fedora container with Python 3. If not
 #        set, tests will run in mbs-test-centos with Python 2 by default.
 # --with-pgsql: run tests with PostgreSQL, otherwise SQLite is used.
+# --no-tty: don't use tty for containers
+# --sudo: run docker via sudo
+# --no-pull: don't update docker images
 #
 # Please note that, both of them can have arbitrary value as long as one of
 # them is set. So, generally, it works by just setting to 1 or yes for
@@ -19,6 +22,7 @@ enable_py3=
 with_pgsql=
 no_tty=
 use_sudo=
+do_pull=1
 
 while (( "$#" )); do
     case "$1" in
@@ -26,6 +30,7 @@ while (( "$#" )); do
         --with-pgsql) with_pgsql=1 ;;
         --no-tty) no_tty=1 ;;
         --sudo) use_sudo=1 ;;
+        --no-pull) do_pull= ;;
         *) break ;;
     esac
     shift
@@ -76,6 +81,7 @@ if [ -n "$with_pgsql" ]; then
     # Database will be generated automatically by postgres container during launch.
     # Setting this password makes it possible to get into database container
     # and check the data.
+    [ -n "$do_pull" ] && $docker pull "$db_container_name"
     db_bg_container=$(
         $docker run --rm --name "$db_container_name" \
             -e POSTGRES_PASSWORD=$db_password \
@@ -98,6 +104,7 @@ if [[ $tox_args == tests/* ]]; then
     tox_args="/root/mbs/src/${tox_args}"
 fi
 
+[ -n "$do_pull" ] && $docker pull "$test_image"
 (cd "$source_dir" && $docker run "${container_opts[@]}" $test_image "$tox_args")
 
 rv=$?
