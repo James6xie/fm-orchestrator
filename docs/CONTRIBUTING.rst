@@ -29,6 +29,9 @@ There are options to change the tests enviornment:
 
 * ``--py3``: run tests with Python 3.
 * ``--with-pgsql``: run tests with PostgreSQL database.
+* ``--no-tty``: don't use tty for containers
+* ``--sudo``: run docker via sudo
+* ``--no-pull``: don't update docker images
 
 For example, ``contrib/run-unittests.sh --py3 --with-pgsql``.
 
