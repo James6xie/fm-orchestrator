@@ -11,8 +11,8 @@
 #        set, tests will run in mbs-test-centos with Python 2 by default.
 # --with-pgsql: run tests with PostgreSQL, otherwise SQLite is used.
 # --no-tty: don't use tty for containers
-# --sudo: run docker via sudo
-# --no-pull: don't update docker images
+# --sudo: run Docker via sudo
+# --no-pull: don't update Docker images
 #
 # Please note that, both of them can have arbitrary value as long as one of
 # them is set. So, generally, it works by just setting to 1 or yes for
@@ -81,7 +81,6 @@ if [ -n "$with_pgsql" ]; then
     # Database will be generated automatically by postgres container during launch.
     # Setting this password makes it possible to get into database container
     # and check the data.
-    [ -n "$do_pull" ] && $docker pull "$db_container_name"
     db_bg_container=$(
         $docker run --rm --name "$db_container_name" \
             -e POSTGRES_PASSWORD=$db_password \
