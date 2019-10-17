@@ -18,13 +18,13 @@ if (!params.CI_MESSAGE) {
   echo 'This build is not started by a CI message. Only configurations were done.'
   return
 }
-
+library identifier: 'c3i@master', changelog: false,
+  retriever: modernSCM([$class: 'GitSCMSource', remote: 'https://pagure.io/c3i-library.git'])
 def label = "jenkins-slave-${UUID.randomUUID().toString()}"
 podTemplate(
   cloud: "${params.JENKINS_AGENT_CLOUD_NAME}",
   label: label,
   serviceAccount: "${env.JENKINS_AGENT_SERVICE_ACCOUNT}",
-  defaultContainer: 'jnlp',
   yaml: """
     apiVersion: v1
     kind: Pod
@@ -55,6 +55,27 @@ podTemplate(
     """
 ) {
   node(label) {
+    stage('Allocate C3IaaS project') {
+      if (!(params.USE_C3IAAS == 'true' &&
+            params.C3IAAS_REQUEST_PROJECT_BUILD_CONFIG_NAMESPACE &&
+            params.C3IAAS_REQUEST_PROJECT_BUILD_CONFIG_NAME)) {
+        echo "Not configured to use C3IaaS"
+        return
+      }
+      env.PIPELINE_NAMESPACE = readFile("/run/secrets/kubernetes.io/serviceaccount/namespace").trim()
+      env.C3IAAS_NAMESPACE = "c3i-mbs-tr-${params.TRACKED_TAG}-${env.BUILD_NUMBER}"
+      echo "Requesting new OpenShift project ${env.C3IAAS_NAMESPACE}..."
+      openshift.withCluster() {
+        openshift.withProject(params.C3IAAS_REQUEST_PROJECT_BUILD_CONFIG_NAMESPACE) {
+          c3i.buildAndWait(script: this, objs: "bc/${params.C3IAAS_REQUEST_PROJECT_BUILD_CONFIG_NAME}",
+            '-e', "PROJECT_NAME=${env.C3IAAS_NAMESPACE}",
+            '-e', "ADMIN_GROUPS=system:serviceaccounts:${env.PIPELINE_NAMESPACE}",
+            '-e', "LIFETIME_IN_MINUTES=${params.C3IAAS_LIFETIME}"
+          )
+        }
+      }
+      echo "Allocated project ${env.C3IAAS_NAMESPACE}"
+    }
     stage('Trigger tests') {
       def message = readJSON text: params.CI_MESSAGE
       echo "Tag :${message.tag} is ${message.action} in ${message.repo}. New digest: ${message.digest}"
@@ -73,17 +94,15 @@ podTemplate(
       echo "Triggering a job to test if ${frontendImage} and ${backendImage} meet all criteria of desired tag"
       openshift.withCluster() {
         openshift.withProject(params.TEST_JOB_NAMESPACE) {
-          def testBcSelector = openshift.selector('bc', params.TEST_JOB_NAME)
-          def buildSelector = testBcSelector.startBuild(
+          def build = c3i.build(script: this, objs: "bc/${params.TEST_JOB_NAME}",
             '-e', "MBS_BACKEND_IMAGE=${backendImage}",
             '-e', "MBS_FRONTEND_IMAGE=${frontendImage}",
-            '-e', "TEST_IMAGES='${backendImage} ${frontendImage}'",
-            '-e', "IMAGE_IS_SCRATCH=false"
+            '-e', "TEST_IMAGES=${backendImage},${frontendImage}",
+            '-e', "IMAGE_IS_SCRATCH=false",
+            '-e', "TEST_NAMESPACE=${env.C3IAAS_NAMESPACE ?: ''}",
           )
-          buildSelector.watch {
-            return !(it.object().status.phase in ["New", "Pending"])
-          }
-          buildInfo = buildSelector.object()
+          c3i.waitForBuildStart(script: this, build: build)
+          buildInfo = build.object()
           echo "Build ${buildInfo.metadata.annotations['openshift.io/jenkins-build-uri'] ?: buildInfo.metadata.name} started."
         }
       }

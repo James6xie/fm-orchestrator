@@ -1,8 +1,8 @@
 // Submit a build to MBS and verify that it initializes Koji correctly
 
 def runTests() {
-  def clientcert = ca.get_ssl_cert("mbs-${TEST_ID}-koji-admin")
-  koji.setConfig("https://koji-${TEST_ID}-hub/kojihub", "https://koji-${TEST_ID}-hub/kojifiles",
+  def clientcert = ca.get_ssl_cert(env.KOJI_ADMIN)
+  koji.setConfig("https://${env.KOJI_SSL_HOST}/kojihub", "https://${env.KOJI_SSL_HOST}/kojifiles",
                  clientcert.cert, clientcert.key, ca.get_ca_cert().cert)
   def tags = koji.callMethod("listTags")
   if (!tags.any { it.name == "module-f28" }) {
@@ -14,11 +14,11 @@ def runTests() {
   def buildparams = """
         {"scmurl": "https://src.fedoraproject.org/modules/testmodule.git?#9c589780e1dd1698dc64dfa28d30014ad18cad32",
          "branch": "f28",
-         "owner":  "mbs-${TEST_ID}-koji-admin"}
+         "owner":  "${env.KOJI_ADMIN}"}
       """
   def resp = httpRequest(
         httpMode: "POST",
-        url: "https://mbs-${TEST_ID}-frontend/module-build-service/1/module-builds/",
+        url: "https://${env.MBS_SSL_HOST}/module-build-service/1/module-builds/",
         acceptType: "APPLICATION_JSON",
         contentType: "APPLICATION_JSON",
         requestBody: buildparams,
@@ -33,7 +33,7 @@ def runTests() {
   timeout(10) {
     waitUntil {
       resp = httpRequest(
-        url: "https://mbs-${TEST_ID}-frontend/module-build-service/1/module-builds/${buildinfo.id}",
+        url: "https://${env.MBS_SSL_HOST}/module-build-service/1/module-builds/${buildinfo.id}",
         ignoreSslErrors: true,
       )
       if (resp.status != 200) {
