@@ -171,7 +171,7 @@ def start_next_batch_build(config, module, db_session, builder, components=None)
 
     # Check that if there is something to build in current batch before starting
     # the new one. If there is, continue building current batch.
-    if any(c.is_unbuilt for c in current_batch):
+    if any(c.is_waiting_for_build for c in current_batch):
         log.info("Continuing building batch %d", module.batch)
         return continue_batch_build(config, module, db_session, builder, components)
 
