@@ -1,7 +1,6 @@
 // Use scripted syntax because CIBuildTrigger currently doesn't support the declarative syntax
 properties([
   buildDiscarder(logRotator(numToKeepStr: '10')),
-  disableConcurrentBuilds(),
   pipelineTriggers([
     // example: https://github.com/jenkinsci/jms-messaging-plugin/blob/9b9387c3a52f037ba0d019c2ebcf2a2796fc6397/src/test/java/com/redhat/jenkins/plugins/ci/integration/AmqMessagingPluginIntegrationTest.java
     [$class: 'CIBuildTrigger',

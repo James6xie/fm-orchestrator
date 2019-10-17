@@ -83,7 +83,7 @@ objects:
     labels:
       app: "${NAME}"
   spec:
-    runPolicy: "Serial"
+    runPolicy: "Parallel"
     completionDeadlineSeconds: 1800
     strategy:
       type: JenkinsPipeline
@@ -127,7 +127,6 @@ objects:
               timestamps()
               timeout(time: 60, unit: 'MINUTES')
               buildDiscarder(logRotator(numToKeepStr: '10'))
-              disableConcurrentBuilds()
               skipDefaultCheckout()
             }
             environment {

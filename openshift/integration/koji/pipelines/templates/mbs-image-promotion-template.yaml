@@ -85,7 +85,7 @@ objects:
     labels:
       app: "${NAME}"
   spec:
-    runPolicy: "Serial" # FIXME: Parallel is supported, but we have limited quota in UpShift.
+    runPolicy: "Parallel"
     completionDeadlineSeconds: 1800
     source:
       git:

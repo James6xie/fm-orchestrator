@@ -72,7 +72,7 @@ objects:
     labels:
       app: "${NAME}"
   spec:
-    runPolicy: "Serial"
+    runPolicy: "Parallel"
     completionDeadlineSeconds: 1800
     source:
       git:
