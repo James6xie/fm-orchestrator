@@ -47,9 +47,9 @@ node('factory2'){
 
         stage('Clone Test Suite') {
             timeout(time: 10, unit: 'MINUTES') {
-                onmyduffynode "GIT_TRACE=1 GIT_CURL_VERBOSE=1 git clone --single-branch --depth 1 https://pagure.io/fm-orchestrator.git"
+                onmyduffynode "GIT_TRACE=1 GIT_CURL_VERBOSE=1 git clone --single-branch https://pagure.io/fm-orchestrator.git"
                 onmyduffynode "cd fm-orchestrator && git remote add proposed \"${env.REPO}\""
-                onmyduffynode "cd fm-orchestrator && GIT_TRACE=1 GIT_CURL_VERBOSE=1 git fetch proposed"
+                onmyduffynode "cd fm-orchestrator && GIT_TRACE=1 GIT_CURL_VERBOSE=1 git fetch proposed \"${env.BRANCH}\""
                 onmyduffynode "cd fm-orchestrator && git checkout origin/master"
                 onmyduffynode "cd fm-orchestrator && git config --global user.email ci@centos.org"
                 onmyduffynode "cd fm-orchestrator && git config --global user.name CentOS CI"
