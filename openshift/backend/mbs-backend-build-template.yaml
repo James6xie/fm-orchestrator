@@ -57,7 +57,7 @@ objects:
       app: "${NAME}"
   spec:
     runPolicy: "Parallel"
-    completionDeadlineSeconds: 1800
+    completionDeadlineSeconds: 3600
     strategy:
       dockerStrategy:
         forcePull: true
