@@ -62,6 +62,8 @@ BUILD_STATES = {
 INVERSE_BUILD_STATES = {v: k for k, v in BUILD_STATES.items()}
 FAILED_STATES = (BUILD_STATES["failed"], BUILD_STATES["garbage"])
 
+STATE_TRANSITION_FAILURE_TYPES = ["unspec", "user", "infra"]
+
 
 Contexts = namedtuple(
     "Contexts", "build_context runtime_context context build_context_no_bms")
@@ -781,8 +783,11 @@ class ModuleBuild(MBSBase):
         :type conf: :class:`Config`
         :param int state: the state value to transition to. Refer to ``BUILD_STATES``.
         :param str state_reason: optional reason of why to transform to ``state``.
-        :param str failure_reason: optional failure type: 'unspec', 'user', 'infra'
+        :param str failure_type: optional failure type. Refer to constant
+            ``STATE_TRANSITION_FAILURE_TYPES`` for valid values.
         """
+        assert failure_type in STATE_TRANSITION_FAILURE_TYPES
+
         now = datetime.utcnow()
         old_state = self.state
         self.state = state
