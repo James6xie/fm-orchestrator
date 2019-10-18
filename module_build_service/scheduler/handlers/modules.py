@@ -79,13 +79,16 @@ def failed(config, db_session, msg):
             reason = "Missing koji tag. Assuming previously failed module lookup."
             log.error(reason)
             build.transition(
-                db_session, config, state="failed", state_reason=reason, failure_type="infra")
+                db_session, config,
+                state=models.BUILD_STATES["failed"],
+                state_reason=reason, failure_type="infra")
             db_session.commit()
             return
 
     # Don't transition it again if it's already been transitioned
     if build.state != models.BUILD_STATES["failed"]:
-        build.transition(db_session, config, state="failed", failure_type="user")
+        build.transition(
+            db_session, config, state=models.BUILD_STATES["failed"], failure_type="user")
 
     db_session.commit()
 
@@ -113,7 +116,7 @@ def done(config, db_session, msg):
     # Scratch builds stay in 'done' state
     if not build.scratch:
         if greenwave is None or greenwave.check_gating(build):
-            build.transition(db_session, config, state="ready")
+            build.transition(db_session, config, state=models.BUILD_STATES["ready"])
         else:
             build.state_reason = "Gating failed"
             if greenwave.error_occurred:
@@ -333,7 +336,9 @@ def wait(config, db_session, msg):
         reason = "Failed to get module info from MBS. Max retries reached."
         log.exception(reason)
         build.transition(
-            db_session, config, state="failed", state_reason=reason, failure_type="infra")
+            db_session, config,
+            state=models.BUILD_STATES["failed"],
+            state_reason=reason, failure_type="infra")
         db_session.commit()
         raise
 
@@ -370,7 +375,7 @@ def wait(config, db_session, msg):
 
     if not build.component_builds:
         log.info("There are no components in module %r, skipping build" % build)
-        build.transition(db_session, config, state="build")
+        build.transition(db_session, config, state=models.BUILD_STATES["build"])
         db_session.add(build)
         db_session.commit()
         # Return a KojiRepoChange message so that the build can be transitioned to done
@@ -384,7 +389,7 @@ def wait(config, db_session, msg):
     # module-build-macros, because there won't be any build done.
     if attempt_to_reuse_all_components(builder, db_session, build):
         log.info("All components have been reused for module %r, skipping build" % build)
-        build.transition(db_session, config, state="build")
+        build.transition(db_session, config, state=models.BUILD_STATES["build"])
         db_session.add(build)
         db_session.commit()
         return []
@@ -440,7 +445,7 @@ def wait(config, db_session, msg):
             component_build.nvr = nvr
 
     db_session.add(component_build)
-    build.transition(db_session, config, state="build")
+    build.transition(db_session, config, state=models.BUILD_STATES["build"])
     db_session.add(build)
     db_session.commit()
 

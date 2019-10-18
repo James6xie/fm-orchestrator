@@ -15,6 +15,7 @@ from module_build_service import conf, log
 import module_build_service.resolver
 import module_build_service.scm
 import module_build_service.utils
+from module_build_service.models import BUILD_STATES
 from module_build_service.resolver import GenericResolver
 from module_build_service.utils import create_dogpile_key_generator_func
 
@@ -299,7 +300,9 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
             reason = "Failed to gather buildroot groups from SCM."
             log.exception(reason)
             module.transition(
-                db_session, conf, state="failed", state_reason=reason, failure_type="user")
+                db_session, conf,
+                state=BUILD_STATES["failed"],
+                state_reason=reason, failure_type="user")
             db_session.commit()
             raise
         return groups
