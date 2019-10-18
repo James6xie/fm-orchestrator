@@ -1,5 +1,6 @@
 library identifier: 'c3i@master', changelog: false,
-  retriever: modernSCM([$class: "GitSCMSource", remote: "https://pagure.io/c3i-library.git"])
+  retriever: modernSCM([$class: 'GitSCMSource', remote: 'https://pagure.io/c3i-library.git'])
+def deployments
 pipeline {
   agent {
     kubernetes {
@@ -21,12 +22,6 @@ pipeline {
           image: "${params.JENKINS_AGENT_IMAGE}"
           imagePullPolicy: Always
           tty: true
-          env:
-          - name: REGISTRY_CREDENTIALS
-            valueFrom:
-              secretKeyRef:
-                name: "${params.CONTAINER_REGISTRY_CREDENTIALS}"
-                key: ".dockerconfigjson"
           resources:
             requests:
               memory: 512Mi
@@ -41,12 +36,11 @@ pipeline {
     timestamps()
     timeout(time: 60, unit: 'MINUTES')
     buildDiscarder(logRotator(numToKeepStr: '10'))
-    disableConcurrentBuilds()
     skipDefaultCheckout()
   }
   environment {
     // Jenkins BUILD_TAG could be too long (> 63 characters) for OpenShift to consume
-    TEST_ID = "${params.TEST_ID ?: 'jenkins-' + currentBuild.id + '-' + UUID.randomUUID().toString().substring(0,7)}"
+    TEST_ID = "${params.TEST_ID ?: UUID.randomUUID().toString().substring(0,7)}"
   }
   stages {
     stage('Prepare') {
@@ -54,44 +48,36 @@ pipeline {
         script {
           // Don't set ENVIRONMENT_LABEL in the environment block! Otherwise you will get 2 different UUIDs.
           env.ENVIRONMENT_LABEL = "test-${env.TEST_ID}"
-
-          def srcRef = params.MBS_GIT_REF.startsWith('pull/') ? params.MBS_GIT_REF : 'heads/master'
-          def localRef = params.MBS_GIT_REF.startsWith('pull/') ? params.MBS_GIT_REF : 'master'
-          def cloneDepth = params.MBS_GIT_REF.startsWith('pull/') ? 2 : 10
-          retry(5) {
-            // check out specified branch/commit
-            checkout([$class: 'GitSCM',
-              branches: [[name: params.MBS_GIT_REF]],
-              userRemoteConfigs: [
-                [
-                  name: 'origin',
-                  url: params.MBS_GIT_REPO,
-                  refspec: "+refs/${srcRef}:refs/remotes/origin/${localRef}",
-                ],
-              ],
-              extensions: [
-                [$class: 'CleanBeforeCheckout'],
-                [$class: 'CloneOption', noTags: true, shallow: true, depth: cloneDepth, honorRefspec: true],
-              ],
-            ])
-          }
-
+          // MBS_GIT_REF can be either a regular branch (in the heads/ namespace), a pull request
+          // branch (in the pull/ namespace), or a full 40-character sha1, which is assumed to
+          // exist on the master branch.
+          def branch = params.MBS_GIT_REF ==~ '[0-9a-f]{40}' ? 'master' : params.MBS_GIT_REF
+          c3i.clone(repo: params.MBS_GIT_REPO, branch: branch, rev: params.MBS_GIT_REF)
           // get current commit ID
           // FIXME: Due to a bug discribed in https://issues.jenkins-ci.org/browse/JENKINS-45489,
           // the return value of checkout() is unreliable.
           // Not working: env.MBS_GIT_COMMIT = scmVars.GIT_COMMIT
           env.MBS_GIT_COMMIT = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
-          echo "Running integration tests for ${params.MBS_GIT_REF}, commit=${env.MBS_GIT_COMMIT}"
-
-          currentBuild.displayName = "${params.MBS_GIT_REF}: ${env.MBS_GIT_COMMIT.take(7)}"
+          echo "Running integration tests for ${branch}, commit=${env.MBS_GIT_COMMIT}"
+          currentBuild.displayName = "${branch}: ${env.MBS_GIT_COMMIT.take(7)}"
         }
       }
     }
-    stage('Call cleanup routine') {
+    stage('Cleanup') {
+      when {
+        expression {
+          // Only run cleanup if we're running tests in the default namespace.
+          return !params.TEST_NAMESPACE
+        }
+      }
       steps {
         script {
-          // Cleanup all test environments that were created 1 hour ago in case of failures of previous cleanups.
-          c3i.cleanup('umb', 'koji', 'mbs')
+          openshift.withCluster() {
+            openshift.withProject() {
+              // Cleanup all test environments that were created 1 hour ago in case of failures of previous cleanups.
+              c3i.cleanup(script: this, 'umb', 'koji', 'mbs')
+            }
+          }
         }
       }
       post {
@@ -100,56 +86,146 @@ pipeline {
         }
       }
     }
-    stage('Call UMB deployer') {
+    stage('Route suffix') {
       steps {
         script {
-          def keystore = ca.get_keystore("umb-${TEST_ID}-broker", 'mbskeys')
-          def truststore = ca.get_truststore('mbstrust')
-          umb.deploy(env.TEST_ID, keystore, 'mbskeys', truststore, 'mbstrust',
-                     params.UMB_IMAGE)
+          openshift.withCluster() {
+            openshift.withProject(params.TEST_NAMESPACE) {
+              def testroute = openshift.create('route', 'edge', 'test',  '--service=test', '--port=8080')
+              def testhost = testroute.object().spec.host
+              // trim off the test- prefix
+              env.ROUTE_SUFFIX = testhost.drop(5)
+              testroute.delete()
+            }
+          }
         }
       }
       post {
+        success {
+          echo "Routes end with ${env.ROUTE_SUFFIX}"
+        }
+      }
+    }
+    stage('Generate CA') {
+      steps {
+        script {
+          ca.gen_ca()
+        }
+      }
+    }
+    stage('Deploy UMB') {
+      steps {
+        script {
+          openshift.withCluster() {
+            openshift.withProject(params.TEST_NAMESPACE) {
+              // The extact hostname doesn't matter, (as long as it resolves to the cluster) because traffic will
+              // be routed to the pod via the NodePort.
+              // However, the hostname we use to access the service must be a subjectAltName of the certificate
+              // being served by the service.
+              env.UMB_HOST = "umb-${TEST_ID}-${env.ROUTE_SUFFIX}"
+              ca.gen_ssl_cert("umb-${TEST_ID}-broker", env.UMB_HOST)
+              def keystore = ca.get_keystore("umb-${TEST_ID}-broker", 'mbskeys')
+              def truststore = ca.get_truststore('mbstrust')
+              deployments = umb.deploy(script: this, test_id: env.TEST_ID,
+                                       keystore_data: keystore, keystore_password: 'mbskeys',
+                                       truststore_data: truststore, truststore_password: 'mbstrust',
+                                       broker_image: params.UMB_IMAGE)
+              def ports = openshift.selector('service', "umb-${TEST_ID}-broker").object().spec.ports
+              env.UMB_AMQPS_PORT = ports.find { it.name == 'amqps' }.nodePort
+              env.UMB_STOMP_SSL_PORT = ports.find { it.name == 'stomp-ssl' }.nodePort
+            }
+          }
+        }
+      }
+      post {
+        success {
+          echo "UMB deployed: amqps: ${env.UMB_HOST}:${env.UMB_AMQPS_PORT} stomp-ssl: ${env.UMB_HOST}:${env.UMB_STOMP_SSL_PORT}"
+        }
         failure {
           echo "UMB deployment FAILED"
         }
       }
     }
-    stage('Call Koji deployer') {
+    stage('Deploy Koji') {
       steps {
         script {
-          koji.deploy(env.TEST_ID, ca.get_ca_cert(),
-                      ca.get_ssl_cert("koji-${TEST_ID}-hub"),
-                      "amqps://umb-${TEST_ID}-broker",
-                      ca.get_ssl_cert("koji-${TEST_ID}-msg"),
-                      "mbs-${TEST_ID}-koji-admin",
-                      params.KOJI_IMAGE)
+          openshift.withCluster() {
+            openshift.withProject(params.TEST_NAMESPACE) {
+              env.KOJI_SSL_HOST = "koji-${TEST_ID}-hub-${env.ROUTE_SUFFIX}"
+              def hubcert = ca.get_ssl_cert("koji-${TEST_ID}-hub", env.KOJI_SSL_HOST)
+              env.KOJI_ADMIN = "mbs-${TEST_ID}-koji-admin"
+              env.KOJI_MSG_CERT = "koji-${TEST_ID}-msg"
+              def deployed = koji.deploy(script: this, test_id: env.TEST_ID,
+                                         hubca: ca.get_ca_cert(), hubcert: hubcert,
+                                         brokerurl: "amqps://${env.UMB_HOST}:${env.UMB_AMQPS_PORT}",
+                                         brokercert: ca.get_ssl_cert(env.KOJI_MSG_CERT),
+                                         admin_user: env.KOJI_ADMIN,
+                                         hub_image: params.KOJI_IMAGE)
+              deployments = deployments.union(deployed)
+            }
+          }
         }
       }
       post {
+        success {
+          echo "Koji deployed: hub: https://${env.KOJI_SSL_HOST}/"
+        }
         failure {
           echo "Koji deployment FAILED"
         }
       }
     }
-    stage('Call MBS deployer') {
+    stage('Deploy MBS') {
       steps {
         script {
+          env.MBS_SSL_HOST = "mbs-${TEST_ID}-frontend-${env.ROUTE_SUFFIX}"
+          def frontendcert = ca.get_ssl_cert("mbs-${TEST_ID}-frontend", env.MBS_SSL_HOST)
           // Required for accessing src.fedoraproject.org
           def digicertca = readFile file: 'openshift/integration/koji/resources/certs/DigiCertHighAssuranceEVRootCA.pem'
           def cabundle = ca.get_ca_cert().cert + digicertca
           def msgcert = ca.get_ssl_cert("mbs-${TEST_ID}-msg")
-          def frontendcert = ca.get_ssl_cert("mbs-${TEST_ID}-frontend")
-          def kojicert = ca.get_ssl_cert("mbs-${TEST_ID}-koji-admin")
-          mbs.deploy(env.TEST_ID, kojicert, ca.get_ca_cert(), msgcert, frontendcert, ca.get_ca_cert(), cabundle,
-                     "https://koji-${TEST_ID}-hub",
-                     "umb-${TEST_ID}-broker:61612",
-                     params.MBS_BACKEND_IMAGE, params.MBS_FRONTEND_IMAGE)
+          def kojicert = ca.get_ssl_cert(env.KOJI_ADMIN)
+          openshift.withCluster() {
+            openshift.withProject(params.TEST_NAMESPACE) {
+              def deployed = mbs.deploy(script: this, test_id: env.TEST_ID,
+                                        kojicert: kojicert, kojica: ca.get_ca_cert(),
+                                        brokercert: msgcert,
+                                        frontendcert: frontendcert, frontendca: ca.get_ca_cert(),
+                                        cacerts: cabundle,
+                                        kojiurl: "https://${env.KOJI_SSL_HOST}",
+                                        stompuri: "${env.UMB_HOST}:${env.UMB_STOMP_SSL_PORT}",
+                                        backend_image: params.MBS_BACKEND_IMAGE,
+                                        frontend_image: params.MBS_FRONTEND_IMAGE)
+              deployments = deployments.union(deployed)
+            }
+          }
         }
       }
       post {
+        success {
+          echo "MBS deployed: frontend: https://${env.MBS_SSL_HOST}/"
+        }
         failure {
           echo "MBS deployment FAILED"
+        }
+      }
+    }
+    stage('Wait for deployments') {
+      steps {
+        script {
+          openshift.withCluster() {
+            openshift.withProject(params.TEST_NAMESPACE) {
+              c3i.waitForDeployment(script: this, objs: deployments)
+            }
+          }
+        }
+      }
+      post {
+        success {
+          echo "Deployments complete"
+        }
+        failure {
+          echo 'Deployments FAILED'
         }
       }
     }
@@ -177,10 +253,12 @@ pipeline {
             def test = load "openshift/integration/koji/pipelines/tests/${testcase}.groovy"
             test.runTests()
           }
-          echo "Tests complete"
         }
       }
       post {
+        success {
+          echo "All tests successful"
+        }
         failure {
           echo "Testcase ${env.CURRENT_TESTCASE} FAILED"
         }
@@ -190,32 +268,37 @@ pipeline {
   post {
     success {
       script {
-        params.TEST_IMAGES.split().each {
+        params.TEST_IMAGES.split(',').each {
           sendToResultsDB(it, 'passed')
         }
       }
     }
     failure {
       script {
-        params.TEST_IMAGES.split().each {
+        params.TEST_IMAGES.split(',').each {
           sendToResultsDB(it, 'failed')
         }
         openshift.withCluster() {
-          echo 'Getting logs from all deployments...'
-          def sel = openshift.selector('dc', ['environment': env.ENVIRONMENT_LABEL])
-          sel.logs('--tail=100')
+          openshift.withProject(params.TEST_NAMESPACE) {
+            if (deployments) {
+              echo 'Getting logs from all deployments...'
+              deployments.logs('--tail=100')
+            }
+          }
         }
       }
     }
     cleanup {
       script {
-        if (params.CLEANUP == 'true') {
+        if (params.CLEANUP == 'true' && !params.TEST_NAMESPACE) {
           openshift.withCluster() {
             /* Tear down everything we just created */
             echo 'Tearing down test resources...'
             openshift.selector('all,pvc,configmap,secret',
                                ['environment': env.ENVIRONMENT_LABEL]).delete('--ignore-not-found=true')
           }
+        } else {
+          echo 'Skipping cleanup'
         }
       }
     }

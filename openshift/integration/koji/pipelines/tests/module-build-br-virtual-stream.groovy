@@ -2,8 +2,8 @@
 import groovy.json.JsonOutput
 
 def runTests() {
-  def clientcert = ca.get_ssl_cert("mbs-${TEST_ID}-koji-admin")
-  koji.setConfig("https://koji-${TEST_ID}-hub/kojihub", "https://koji-${TEST_ID}-hub/kojifiles",
+  def clientcert = ca.get_ssl_cert(env.KOJI_ADMIN)
+  koji.setConfig("https://${env.KOJI_SSL_HOST}/kojihub", "https://${env.KOJI_SSL_HOST}/kojifiles",
                  clientcert.cert, clientcert.key, ca.get_ca_cert().cert)
   def tags = koji.callMethod("listTags")
   if (!tags.any { it.name == "module-f28" }) {
@@ -15,9 +15,9 @@ def runTests() {
   try {
     // There's currently no way to query whether a given user has CG access, so just add it
     // and hope no one else has already done it.
-    koji.runCmd("grant-cg-access", "mbs-${TEST_ID}-koji-admin", "module-build-service", "--new")
+    koji.runCmd("grant-cg-access", env.KOJI_ADMIN, "module-build-service", "--new")
   } catch (ex) {
-    echo "Granting cg-access to mbs-${TEST_ID}-koji-admin failed, assuming it was already provided in a previous test"
+    echo "Granting cg-access to ${env.KOJI_ADMIN} failed, assuming it was already provided in a previous test"
   }
 
   if (!koji.callMethod("listBTypes").any { it.name == "module" }) {
@@ -44,10 +44,10 @@ def runTests() {
       documentation: https://fedoraproject.org/wiki/Fedora_Packaging_Guidelines_for_Modules
   """
 
-  def buildparams = groovy.json.JsonOutput.toJson([modulemd: testmodule, owner: "mbs-${TEST_ID}-koji-admin"])
+  def buildparams = groovy.json.JsonOutput.toJson([modulemd: testmodule, owner: env.KOJI_ADMIN])
   def resp = httpRequest(
         httpMode: "POST",
-        url: "https://mbs-${TEST_ID}-frontend/module-build-service/1/module-builds/",
+        url: "https://${env.MBS_SSL_HOST}/module-build-service/1/module-builds/",
         acceptType: "APPLICATION_JSON",
         contentType: "APPLICATION_JSON",
         requestBody: buildparams,
@@ -61,7 +61,7 @@ def runTests() {
   timeout(10) {
     waitUntil {
       resp = httpRequest(
-        url: "https://mbs-${TEST_ID}-frontend/module-build-service/1/module-builds/${buildinfo.id}",
+        url: "https://${env.MBS_SSL_HOST}/module-build-service/1/module-builds/${buildinfo.id}",
         ignoreSslErrors: true,
       )
       if (resp.status != 200) {

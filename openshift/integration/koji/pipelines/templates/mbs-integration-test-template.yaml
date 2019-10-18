@@ -48,14 +48,15 @@ parameters:
   displayName: Container image for Jenkins slave pods
   required: true
   value: quay.io/factory2/mbs-jenkins-slave:latest
-- name: CONTAINER_REGISTRY_CREDENTIALS
-  displayName: Secret name of container registries used for pulling and pushing images
-  value: factory2-pipeline-registry-credentials
-  required: false
 - name: JENKINS_AGENT_CLOUD_NAME
   displayName: Name of OpenShift cloud in Jenkins master configuration
   required: true
   value: openshift
+- name: TEST_NAMESPACE
+  displayName: >-
+    Namespace where the Jenkins agent for this test will run, and where
+    test resources will be created.
+  required: false
 - name: ENVIRONMENT
   displayName: environment name (dev/stage/prod)
   required: true
@@ -98,7 +99,7 @@ objects:
     labels:
       app: "${NAME}"
   spec:
-    runPolicy: "Serial" # FIXME: Parallel is supported, but we have limited quota in UpShift.
+    runPolicy: "Parallel"
     completionDeadlineSeconds: 1800
     source:
       git:
@@ -126,12 +127,12 @@ objects:
           value: "true"
         - name: "TEST_ID"
           value: ""
-        - name: CONTAINER_REGISTRY_CREDENTIALS
-          value: "${CONTAINER_REGISTRY_CREDENTIALS}"
         - name: JENKINS_AGENT_IMAGE
           value: "${JENKINS_AGENT_IMAGE}"
         - name: JENKINS_AGENT_CLOUD_NAME
           value: "${JENKINS_AGENT_CLOUD_NAME}"
+        - name: TEST_NAMESPACE
+          value: "${TEST_NAMESPACE}"
         - name: ENVIRONMENT
           value: "${ENVIRONMENT}"
         - name: MESSAGING_PROVIDER

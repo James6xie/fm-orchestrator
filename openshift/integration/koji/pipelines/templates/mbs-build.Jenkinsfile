@@ -42,7 +42,6 @@ pipeline {
     timestamps()
     timeout(time: 120, unit: 'MINUTES')
     buildDiscarder(logRotator(numToKeepStr: '10'))
-    disableConcurrentBuilds()
     skipDefaultCheckout()
   }
   environment {
@@ -55,25 +54,7 @@ pipeline {
     stage('Prepare') {
       steps {
         script {
-          // check out specified branch/commit
-          def srcRef = env.MBS_GIT_REF.startsWith('pull/') ? env.MBS_GIT_REF : "heads/${env.MBS_GIT_REF}"
-          retry(5) {
-            checkout([$class: 'GitSCM',
-              branches: [[name: params.MBS_GIT_REF]],
-              userRemoteConfigs: [
-                [
-                  name: 'origin',
-                  url: params.MBS_GIT_REPO,
-                  refspec: "+refs/${srcRef}:refs/remotes/origin/${env.MBS_GIT_REF}",
-                ],
-              ],
-              extensions: [
-                [$class: 'CleanBeforeCheckout'],
-                [$class: 'CloneOption', noTags: true, shallow: true, depth: 2, honorRefspec: true],
-              ],
-            ])
-          }
-
+          c3i.clone(repo: params.MBS_GIT_REPO, branch: params.MBS_GIT_REF)
           // get current commit ID
           // FIXME: Due to a bug discribed in https://issues.jenkins-ci.org/browse/JENKINS-45489,
           // the return value of checkout() is unreliable.
@@ -167,6 +148,42 @@ pipeline {
 	}
       }
     }
+    stage('Allocate C3IaaS project') {
+      when {
+        expression {
+          return params.USE_C3IAAS == 'true' &&
+                 params.C3IAAS_REQUEST_PROJECT_BUILD_CONFIG_NAMESPACE &&
+                 params.C3IAAS_REQUEST_PROJECT_BUILD_CONFIG_NAME
+        }
+      }
+      steps {
+        script {
+          if (env.PR_NO) {
+            env.C3IAAS_NAMESPACE = "c3i-mbs-pr-${env.PR_NO}-git${env.MBS_GIT_COMMIT.take(8)}"
+          } else {
+            env.C3IAAS_NAMESPACE = "c3i-mbs-${params.MBS_GIT_REF}-git${env.MBS_GIT_COMMIT.take(8)}"
+          }
+          echo "Requesting new OpenShift project ${env.C3IAAS_NAMESPACE}..."
+          openshift.withCluster() {
+            openshift.withProject(params.C3IAAS_REQUEST_PROJECT_BUILD_CONFIG_NAMESPACE) {
+              c3i.buildAndWait(script: this, objs: "bc/${params.C3IAAS_REQUEST_PROJECT_BUILD_CONFIG_NAME}",
+                '-e', "PROJECT_NAME=${env.C3IAAS_NAMESPACE}",
+                '-e', "ADMIN_GROUPS=system:serviceaccounts:${PIPELINE_NAMESPACE}",
+                '-e', "LIFETIME_IN_MINUTES=${params.C3IAAS_LIFETIME}"
+              )
+            }
+          }
+        }
+      }
+      post {
+        success {
+          echo "Allocated project ${env.C3IAAS_NAMESPACE}"
+        }
+        failure {
+          echo "Failed to allocate ${env.C3IAAS_NAMESPACE} project"
+        }
+      }
+    }
     stage('Build backend image') {
       environment {
         BACKEND_BUILDCONFIG_ID = "mbs-backend-build-${currentBuild.id}-${UUID.randomUUID().toString().take(7)}"
@@ -174,33 +191,34 @@ pipeline {
       steps {
         script {
           openshift.withCluster() {
-            // OpenShift BuildConfig doesn't support specifying a tag name at build time.
-            // We have to create a new BuildConfig for each image build.
-            echo 'Creating a BuildConfig for mbs-backend build...'
-            def created = new Date().format("yyyy-MM-dd'T'HH:mm:ss'Z'", TimeZone.getTimeZone('UTC'))
-            def template = readYaml file: 'openshift/backend/mbs-backend-build-template.yaml'
-            def processed = openshift.process(template,
-              '-p', "NAME=${env.BACKEND_BUILDCONFIG_ID}",
-              '-p', "MBS_GIT_REPO=${params.MBS_GIT_REPO}",
-              // A pull-request branch, like pull/123/head, cannot be built with commit ID
-              // because refspec cannot be customized in an OpenShift build.
-              '-p', "MBS_GIT_REF=${env.PR_NO ? params.MBS_GIT_REF : env.MBS_GIT_COMMIT}",
-              '-p', "MBS_BACKEND_IMAGESTREAM_NAME=${params.MBS_BACKEND_IMAGESTREAM_NAME}",
-              '-p', "MBS_BACKEND_IMAGESTREAM_NAMESPACE=${env.PIPELINE_NAMESPACE}",
-              '-p', "MBS_IMAGE_TAG=${env.TEMP_TAG}",
-              '-p', "EXTRA_RPMS=${params.EXTRA_RPMS}",
-              '-p', "CREATED=${created}"
-            )
-            def buildname = c3i.buildAndWait(processed, '--from-dir=.')
-            def build = openshift.selector(buildname)
-            def ocpBuild = build.object()
-            env.BACKEND_IMAGE_DIGEST = ocpBuild.status.output.to.imageDigest
-            def ref = ocpBuild.status.outputDockerImageReference
-            def repo = ref.tokenize(':')[0..-2].join(':')
-            env.BACKEND_IMAGE_REPO = repo
-            env.BACKEND_IMAGE_REF = repo + '@' + env.BACKEND_IMAGE_DIGEST
-            env.BACKEND_IMAGE_TAG = env.TEMP_TAG
-            echo "Built image ${env.BACKEND_IMAGE_REF}, digest: ${env.BACKEND_IMAGE_DIGEST}, tag: ${env.BACKEND_IMAGE_TAG}"
+            openshift.withProject(env.C3IAAS_NAMESPACE ?: env.PIPELINE_NAMESPACE) {
+              // OpenShift BuildConfig doesn't support specifying a tag name at build time.
+              // We have to create a new BuildConfig for each image build.
+              echo 'Creating a BuildConfig for mbs-backend build...'
+              def created = new Date().format("yyyy-MM-dd'T'HH:mm:ss'Z'", TimeZone.getTimeZone('UTC'))
+              def template = readYaml file: 'openshift/backend/mbs-backend-build-template.yaml'
+              def processed = openshift.process(template,
+                '-p', "NAME=${env.BACKEND_BUILDCONFIG_ID}",
+                '-p', "MBS_GIT_REPO=${params.MBS_GIT_REPO}",
+                // A pull-request branch, like pull/123/head, cannot be built with commit ID
+                // because refspec cannot be customized in an OpenShift build.
+                '-p', "MBS_GIT_REF=${env.PR_NO ? params.MBS_GIT_REF : env.MBS_GIT_COMMIT}",
+                '-p', "MBS_BACKEND_IMAGESTREAM_NAME=${params.MBS_BACKEND_IMAGESTREAM_NAME}",
+                '-p', "MBS_BACKEND_IMAGESTREAM_NAMESPACE=${env.C3IAAS_NAMESPACE ?: env.PIPELINE_NAMESPACE}",
+                '-p', "MBS_IMAGE_TAG=${env.TEMP_TAG}",
+                '-p', "EXTRA_RPMS=${params.EXTRA_RPMS}",
+                '-p', "CREATED=${created}"
+              )
+              def build = c3i.buildAndWait(script: this, objs: processed, '--from-dir=.')
+              def ocpBuild = build.object()
+              env.BACKEND_IMAGE_DIGEST = ocpBuild.status.output.to.imageDigest
+              def ref = ocpBuild.status.outputDockerImageReference
+              def repo = ref.tokenize(':')[0..-2].join(':')
+              env.BACKEND_IMAGE_REPO = repo
+              env.BACKEND_IMAGE_REF = repo + '@' + env.BACKEND_IMAGE_DIGEST
+              env.BACKEND_IMAGE_TAG = env.TEMP_TAG
+              echo "Built image ${env.BACKEND_IMAGE_REF}, digest: ${env.BACKEND_IMAGE_DIGEST}, tag: ${env.BACKEND_IMAGE_TAG}"
+            }
           }
         }
       }
@@ -210,12 +228,14 @@ pipeline {
         }
         cleanup {
           script {
-            openshift.withCluster() {
-              echo 'Tearing down...'
-              openshift.selector('bc', [
-                'app': env.BACKEND_BUILDCONFIG_ID,
-                'template': 'mbs-backend-build-template',
-                ]).delete()
+            if (!env.C3IAAS_NAMESPACE) {
+              openshift.withCluster() {
+                echo 'Tearing down...'
+                openshift.selector('bc', [
+                  'app': env.BACKEND_BUILDCONFIG_ID,
+                  'template': 'mbs-backend-build-template',
+                  ]).delete()
+              }
             }
           }
         }
@@ -228,34 +248,35 @@ pipeline {
       steps {
         script {
           openshift.withCluster() {
-            // OpenShift BuildConfig doesn't support specifying a tag name at build time.
-            // We have to create a new BuildConfig for each image build.
-            echo 'Creating a BuildConfig for mbs-frontend build...'
-            def created = new Date().format("yyyy-MM-dd'T'HH:mm:ss'Z'", TimeZone.getTimeZone('UTC'))
-            def template = readYaml file: 'openshift/frontend/mbs-frontend-build-template.yaml'
-            def processed = openshift.process(template,
-              '-p', "NAME=${env.FRONTEND_BUILDCONFIG_ID}",
-              '-p', "MBS_GIT_REPO=${params.MBS_GIT_REPO}",
-              // A pull-request branch, like pull/123/head, cannot be built with commit ID
-              // because refspec cannot be customized in an OpenShift build.
-              '-p', "MBS_GIT_REF=${env.PR_NO ? params.MBS_GIT_REF : env.MBS_GIT_COMMIT}",
-              '-p', "MBS_FRONTEND_IMAGESTREAM_NAME=${params.MBS_FRONTEND_IMAGESTREAM_NAME}",
-              '-p', "MBS_FRONTEND_IMAGESTREAM_NAMESPACE=${env.PIPELINE_NAMESPACE}",
-              '-p', "MBS_IMAGE_TAG=${env.TEMP_TAG}",
-              '-p', "MBS_BACKEND_IMAGESTREAM_NAME=${params.MBS_BACKEND_IMAGESTREAM_NAME}",
-              '-p', "MBS_BACKEND_IMAGESTREAM_NAMESPACE=${env.PIPELINE_NAMESPACE}",
-              '-p', "CREATED=${created}"
-            )
-            def buildname = c3i.buildAndWait(processed, '--from-dir=.')
-            def build = openshift.selector(buildname)
-            def ocpBuild = build.object()
-            env.FRONTEND_IMAGE_DIGEST = ocpBuild.status.output.to.imageDigest
-            def ref = ocpBuild.status.outputDockerImageReference
-            def repo = ref.tokenize(':')[0..-2].join(':')
-            env.FRONTEND_IMAGE_REPO = repo
-            env.FRONTEND_IMAGE_REF = repo + '@' + env.FRONTEND_IMAGE_DIGEST
-            env.FRONTEND_IMAGE_TAG = env.TEMP_TAG
-            echo "Built image ${env.FRONTEND_IMAGE_REF}, digest: ${env.FRONTEND_IMAGE_DIGEST}, tag: ${env.FRONTEND_IMAGE_TAG}"
+            openshift.withProject(env.C3IAAS_NAMESPACE ?: env.PIPELINE_NAMESPACE) {
+              // OpenShift BuildConfig doesn't support specifying a tag name at build time.
+              // We have to create a new BuildConfig for each image build.
+              echo 'Creating a BuildConfig for mbs-frontend build...'
+              def created = new Date().format("yyyy-MM-dd'T'HH:mm:ss'Z'", TimeZone.getTimeZone('UTC'))
+              def template = readYaml file: 'openshift/frontend/mbs-frontend-build-template.yaml'
+              def processed = openshift.process(template,
+                '-p', "NAME=${env.FRONTEND_BUILDCONFIG_ID}",
+                '-p', "MBS_GIT_REPO=${params.MBS_GIT_REPO}",
+                // A pull-request branch, like pull/123/head, cannot be built with commit ID
+                // because refspec cannot be customized in an OpenShift build.
+                '-p', "MBS_GIT_REF=${env.PR_NO ? params.MBS_GIT_REF : env.MBS_GIT_COMMIT}",
+                '-p', "MBS_FRONTEND_IMAGESTREAM_NAME=${params.MBS_FRONTEND_IMAGESTREAM_NAME}",
+                '-p', "MBS_FRONTEND_IMAGESTREAM_NAMESPACE=${env.C3IAAS_NAMESPACE ?: env.PIPELINE_NAMESPACE}",
+                '-p', "MBS_IMAGE_TAG=${env.TEMP_TAG}",
+                '-p', "MBS_BACKEND_IMAGESTREAM_NAME=${params.MBS_BACKEND_IMAGESTREAM_NAME}",
+                '-p', "MBS_BACKEND_IMAGESTREAM_NAMESPACE=${env.C3IAAS_NAMESPACE ?: env.PIPELINE_NAMESPACE}",
+                '-p', "CREATED=${created}"
+              )
+              def build = c3i.buildAndWait(script: this, objs: processed, '--from-dir=.')
+              def ocpBuild = build.object()
+              env.FRONTEND_IMAGE_DIGEST = ocpBuild.status.output.to.imageDigest
+              def ref = ocpBuild.status.outputDockerImageReference
+              def repo = ref.tokenize(':')[0..-2].join(':')
+              env.FRONTEND_IMAGE_REPO = repo
+              env.FRONTEND_IMAGE_REF = repo + '@' + env.FRONTEND_IMAGE_DIGEST
+              env.FRONTEND_IMAGE_TAG = env.TEMP_TAG
+              echo "Built image ${env.FRONTEND_IMAGE_REF}, digest: ${env.FRONTEND_IMAGE_DIGEST}, tag: ${env.FRONTEND_IMAGE_TAG}"
+            }
           }
         }
       }
@@ -265,12 +286,14 @@ pipeline {
         }
         cleanup {
           script {
-            openshift.withCluster() {
-              echo 'Tearing down...'
-              openshift.selector('bc', [
-                'app': env.FRONTEND_BUILDCONFIG_ID,
-                'template': 'mbs-frontend-build-template',
-                ]).delete()
+            if (!env.C3IAAS_NAMESPACE) {
+              openshift.withCluster() {
+                echo 'Tearing down...'
+                openshift.selector('bc', [
+                  'app': env.FRONTEND_BUILDCONFIG_ID,
+                  'template': 'mbs-frontend-build-template',
+                  ]).delete()
+              }
             }
           }
         }
@@ -281,13 +304,15 @@ pipeline {
         script {
           openshift.withCluster() {
             openshift.withProject(params.MBS_INTEGRATION_TEST_BUILD_CONFIG_NAMESPACE) {
-              def build = c3i.buildAndWait("bc/${params.MBS_INTEGRATION_TEST_BUILD_CONFIG_NAME}",
+              def build = c3i.buildAndWait(script: this, objs: "bc/${params.MBS_INTEGRATION_TEST_BUILD_CONFIG_NAME}",
                   '-e', "MBS_GIT_REPO=${params.MBS_GIT_REPO}",
                   '-e', "MBS_GIT_REF=${env.PR_NO ? params.MBS_GIT_REF : env.MBS_GIT_COMMIT}",
                   '-e', "MBS_BACKEND_IMAGE=${env.BACKEND_IMAGE_REF}",
                   '-e', "MBS_FRONTEND_IMAGE=${env.FRONTEND_IMAGE_REF}",
-                  '-e', "TEST_IMAGES='${env.BACKEND_IMAGE_REF} ${env.FRONTEND_IMAGE_REF}'",
+                  '-e', "TEST_IMAGES=${env.BACKEND_IMAGE_REF},${env.FRONTEND_IMAGE_REF}",
                   '-e', "IMAGE_IS_SCRATCH=${params.MBS_GIT_REF != params.MBS_MAIN_BRANCH}",
+                  // If env.C3IAAS_NAMESPACE has not been defined, tests will be run in the current namespace
+                  '-e', "TEST_NAMESPACE=${env.C3IAAS_NAMESPACE ?: ''}",
                   '-e', "TESTCASES='${params.TESTCASES}'",
                   '-e', "CLEANUP=${params.CLEANUP}"
               )
@@ -377,7 +402,8 @@ pipeline {
       when {
         expression {
           return "${params.MBS_DEV_IMAGE_TAG}" && params.TAG_INTO_IMAGESTREAM == "true" &&
-            (params.FORCE_PUBLISH_IMAGE == "true" || params.MBS_GIT_REF == params.MBS_MAIN_BRANCH)
+            (params.FORCE_PUBLISH_IMAGE == "true" || params.MBS_GIT_REF == params.MBS_MAIN_BRANCH) &&
+            !env.C3IAAS_NAMESPACE
         }
       }
       steps {
@@ -408,7 +434,7 @@ pipeline {
   post {
     cleanup {
       script {
-        if (params.CLEANUP == 'true') {
+        if (params.CLEANUP == 'true' && !env.C3IAAS_NAMESPACE) {
           openshift.withCluster() {
             if (env.BACKEND_IMAGE_TAG) {
               echo "Removing tag ${env.BACKEND_IMAGE_TAG} from the ${params.MBS_BACKEND_IMAGESTREAM_NAME} ImageStream..."
@@ -494,7 +520,6 @@ pipeline {
     }
   }
 }
-@NonCPS
 def getPrNo(branch) {
   def prMatch = branch =~ /^(?:.+\/)?pull\/(\d+)\/head$/
   return prMatch ? prMatch[0][1] : ''

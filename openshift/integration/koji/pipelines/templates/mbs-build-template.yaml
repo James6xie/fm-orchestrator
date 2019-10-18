@@ -135,6 +135,24 @@ parameters:
     causes all available testcases to run. The value "skip" causes no testcases to be run.
   required: false
   value: ""
+- name: USE_C3IAAS
+  displayName: >-
+    Use C3I-as-a-Service to dynamically allocate a temporary OpenShift project for building
+    and testing.
+  required: true
+  value: "true"
+- name: C3IAAS_REQUEST_PROJECT_BUILD_CONFIG_NAMESPACE
+  displayName: The namespace where the C3I-as-a-Service project request BuildConfig has been defined
+  required: false
+  value: c3i
+- name: C3IAAS_REQUEST_PROJECT_BUILD_CONFIG_NAME
+  displayName: The name of the C3I-as-a-Service project request BuildConfig
+  required: false
+  value: c3iaas-request-project
+- name: C3IAAS_LIFETIME
+  displayName: The lifetime of the OpenShift project allocated by C3I-as-a-Service.
+  required: true
+  value: "120"
 - name: CLEANUP
   displayName: Cleanup objects after the pipeline is complete
   required: true
@@ -203,7 +221,7 @@ objects:
     labels:
       app: "${NAME}"
   spec:
-    runPolicy: "Serial"
+    runPolicy: "Parallel"
     completionDeadlineSeconds: 1800
     source:
       git:
@@ -267,6 +285,14 @@ objects:
           value: "${EXTRA_RPMS}"
         - name: TESTCASES
           value: "${TESTCASES}"
+        - name: USE_C3IAAS
+          value: "${USE_C3IAAS}"
+        - name: C3IAAS_REQUEST_PROJECT_BUILD_CONFIG_NAMESPACE
+          value: "${C3IAAS_REQUEST_PROJECT_BUILD_CONFIG_NAMESPACE}"
+        - name: C3IAAS_REQUEST_PROJECT_BUILD_CONFIG_NAME
+          value: "${C3IAAS_REQUEST_PROJECT_BUILD_CONFIG_NAME}"
+        - name: C3IAAS_LIFETIME
+          value: "${C3IAAS_LIFETIME}"
         - name: CLEANUP
           value: "${CLEANUP}"
         jenkinsfilePath: openshift/integration/koji/pipelines/templates/mbs-build.Jenkinsfile

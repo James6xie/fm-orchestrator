@@ -83,7 +83,7 @@ objects:
     labels:
       app: "${NAME}"
   spec:
-    runPolicy: "Serial"
+    runPolicy: "Parallel"
     completionDeadlineSeconds: 1800
     strategy:
       type: JenkinsPipeline
@@ -127,7 +127,6 @@ objects:
               timestamps()
               timeout(time: 60, unit: 'MINUTES')
               buildDiscarder(logRotator(numToKeepStr: '10'))
-              disableConcurrentBuilds()
               skipDefaultCheckout()
             }
             environment {
@@ -148,26 +147,10 @@ objects:
                 agent { label 'master' }
                 steps {
                   script {
-                    // checking out the polled branch
-                    def polledBranch = env.PAGURE_POLLING_FOR_PR == 'true' ? 'origin/pull/*/head' : "origin/${PAGURE_POLLED_BRANCH}"
-                    def srcRef = env.PAGURE_POLLING_FOR_PR == 'true' ? 'pull/*/head' : "heads/${PAGURE_POLLED_BRANCH}"
-                    def scmVars
-                    retry(5) {
-                      scmVars = checkout([$class: 'GitSCM',
-                        branches: [[name: polledBranch]],
-                        userRemoteConfigs: [
-                          [
-                            name: 'origin',
-                            url: env.GIT_URL,
-                            refspec: "+refs/${srcRef}:refs/remotes/${polledBranch}",
-                          ],
-                        ],
-                        extensions: [
-                          [$class: 'CleanBeforeCheckout'],
-                          [$class: 'CloneOption', noTags: true, shallow: true, depth: 2, honorRefspec: true],
-                        ],
-                      ])
-                    }
+                    def polled = env.PAGURE_POLLING_FOR_PR == 'true' ? 'pull/*/head' : "${PAGURE_POLLED_BRANCH}"
+                    // Need to prefix the rev with origin/ for pollSCM to work correctly
+                    def rev = "origin/${polled}"
+                    def scmVars = c3i.clone(repo: env.GIT_URL, branch: polled, rev: rev)
                     env.MBS_GIT_COMMIT = scmVars.GIT_COMMIT
                     // setting build display name
                     def prefix = 'origin/'
@@ -207,23 +190,8 @@ objects:
                   }
                 }
                 steps {
-                  retry(5) {
-                    checkout([$class: 'GitSCM',
-                      branches: [[name: env.MBS_GIT_BRANCH]],
-                      userRemoteConfigs: [
-                        [
-                          name: 'origin',
-                          url: env.GIT_URL,
-                          refspec: "+refs/heads/${env.MBS_GIT_BRANCH}:refs/remotes/origin/${env.MBS_GIT_BRANCH}",
-                        ],
-                      ],
-                      extensions: [
-                        [$class: 'CleanBeforeCheckout'],
-                        [$class: 'CloneOption', noTags: true, shallow: true, depth: 2, honorRefspec: true],
-                      ],
-                    ])
-                  }
                   script {
+                    c3i.clone(repo: env.GIT_URL, branch: env.MBS_GIT_BRANCH)
                     dir('openshift/integration/koji/pipelines') {
                       sh '''
                       make install JOBS_DIR="${PIPELINE_UPDATE_JOBS_DIR}"
@@ -241,15 +209,12 @@ objects:
                 steps {
                   script {
                     openshift.withCluster() {
-                      def bcSelector = openshift.selector('bc',
-                        env.PAGURE_POLLING_FOR_PR == 'true' ? env.PREMERGE_JOB_NAME : env.POSTMERGE_JOB_NAME)
                       echo 'Starting a MBS build run...'
-                      def devBuild = bcSelector.startBuild(
-                        '-e', "MBS_GIT_REF=${env.MBS_GIT_BRANCH}",
+                      def devBuild = c3i.build(script: this,
+                        objs: "bc/${env.PAGURE_POLLING_FOR_PR == 'true' ? env.PREMERGE_JOB_NAME : env.POSTMERGE_JOB_NAME}",
+                        '-e', "MBS_GIT_REF=${env.MBS_GIT_BRANCH}"
                       )
-                      devBuild.watch {
-                        return !(it.object().status.phase in ["New", "Pending"])
-                      }
+                      c3i.waitForBuildStart(script: this, build: devBuild)
                       def devBuildInfo = devBuild.object()
                       def downstreamBuildName = devBuildInfo.metadata.name
                       def downstreamBuildUrl = devBuildInfo.metadata.annotations['openshift.io/jenkins-build-uri']
