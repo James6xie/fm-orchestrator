@@ -276,7 +276,7 @@ class KojiContentGenerator(object):
                 u"module": {
                     u"module_build_service_id": self.module.id,
                     u"content_koji_tag": self.module.koji_tag,
-                    u"modulemd_str": self.module.modulemd,
+                    u"modulemd_str": self._get_fixed_mmd(),
                     u"name": ret["name"],
                     u"stream": self.module.stream,
                     u"version": self.module.version,
@@ -326,6 +326,16 @@ class KojiContentGenerator(object):
             u"sigmd5": rpm["payloadhash"],
             u"type": u"rpm",
         }
+
+    def _get_fixed_mmd(self):
+        if self.devel:
+            mmd = self.module.mmd()
+            mmd = mmd.copy(mmd.get_module_name() + "-devel")
+            ret = mmd_to_str(mmd)
+        else:
+            ret = self.mmd
+
+        return ret
 
     def _get_arch_mmd_output(self, output_path, arch):
         """
@@ -753,7 +763,7 @@ class KojiContentGenerator(object):
         mmd_path = os.path.join(prepdir, "modulemd.txt")
         log.info("Writing generic modulemd.yaml to %r" % mmd_path)
         with open(mmd_path, "w", encoding="utf-8") as mmd_f:
-            mmd_f.write(self.mmd)
+            mmd_f.write(self._get_fixed_mmd())
 
         mmd_path = os.path.join(prepdir, "modulemd.src.txt")
         self._download_source_modulemd(self.module.mmd(), mmd_path)
