@@ -23,3 +23,4 @@ tests/test_module_build_service.db-journal
 requirements.txt.orig
 mbstest.db
 htmlcov/
+test.env.yaml
