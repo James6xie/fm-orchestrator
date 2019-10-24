@@ -217,10 +217,10 @@ class TestAuthModule:
                     module_build_service.auth.get_user(request)
                 assert str(cm.value) == "OIDC_REQUIRED_SCOPE must be set in server config."
 
-    @pytest.mark.parametrize("remote_username", ["", None])
-    def test_get_user_kerberos_unauthorized(self, remote_username):
+    @pytest.mark.parametrize("remote_name", ["", None, "someone"])
+    def test_get_user_kerberos_unauthorized(self, remote_name):
         request = Mock()
-        request.environ.get.return_value = remote_username
+        request.environ.get.return_value = remote_name
 
         with pytest.raises(module_build_service.errors.Unauthorized):
             module_build_service.auth.get_user_kerberos(request)
