@@ -132,12 +132,20 @@ def get_user_oidc(request):
 
 
 def get_user_kerberos(request):
-    remote_user = request.environ.get("REMOTE_USER")
-    if not remote_user:
-        raise Unauthorized("REMOTE_USER is not properly set in the request.")
+    remote_name = request.environ.get("REMOTE_USER")
+    if not remote_name:
+        # When Kerberos authentication is enabled, MBS expects the
+        # authentication is done by a specific Apache module which sets
+        # REMOTE_USER properly.
+        raise Unauthorized("No REMOTE_USER is set.")
 
-    # Remove the realm
-    username, _ = remote_user.split("@")
+    try:
+        username, realm = remote_name.split("@")
+    except ValueError:
+        raise Unauthorized("Value of REMOTE_NAME is not in format username@REALM")
+
+    # Currently, MBS does not handle the realm to authorize user. Just keep it
+    # here for any possible further use.
 
     # If the user is part of the whitelist, then the group membership check is skipped
     if username in conf.allowed_users:
