@@ -37,7 +37,7 @@ RUN ${DNF_CMD} install -y \
     # Jenkins pipeline 'sh' steps seem to require ps
     procps-ng \
     # Tools to interface with our test instances
-    koji && \
+    koji krb5-workstation && \
     ${DNF_CMD} clean all
 
 # CA Certs

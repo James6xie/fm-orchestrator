@@ -25,7 +25,7 @@ LABEL \
 USER root
 
 RUN $DNF_CMD install \
-      nss_wrapper httpd mod_ssl python3-mod_wsgi && \
+      nss_wrapper httpd mod_ssl mod_auth_gssapi python3-mod_wsgi && \
     $DNF_CMD clean all
 
 RUN chmod a+rwx /run/httpd && \

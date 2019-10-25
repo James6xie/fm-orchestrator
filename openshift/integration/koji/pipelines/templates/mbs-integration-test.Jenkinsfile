@@ -75,7 +75,7 @@ pipeline {
           openshift.withCluster() {
             openshift.withProject() {
               // Cleanup all test environments that were created 1 hour ago in case of failures of previous cleanups.
-              c3i.cleanup(script: this, 'umb', 'koji', 'mbs')
+              c3i.cleanup(script: this, 'krb5', 'umb', 'koji', 'mbs')
             }
           }
         }
@@ -110,6 +110,46 @@ pipeline {
       steps {
         script {
           ca.gen_ca()
+        }
+      }
+    }
+    stage('Deploy KDC') {
+      when {
+        expression {
+          return params.USE_KRB5 == 'true'
+        }
+      }
+      steps {
+        script {
+          env.KRB5_DOMAIN = env.ROUTE_SUFFIX.split('\\.', 2).last()
+          env.KRB5_REALM = env.KRB5_DOMAIN.toUpperCase()
+          env.KRB5_ADMIN_PASSWORD = UUID.randomUUID().toString().take(12)
+          openshift.withCluster() {
+            openshift.withProject(params.TEST_NAMESPACE) {
+              def deployed = krb5.deploy(script: this, test_id: env.TEST_ID,
+                                         realm: env.KRB5_REALM, domain: env.KRB5_DOMAIN,
+                                         admin_password: env.KRB5_ADMIN_PASSWORD)
+              // Wait for the KDC to become available, to allow creation of
+              // principals and keytabs for subsequent deployments.
+              c3i.waitForDeployment(script: this, objs: deployed)
+              def ports = openshift.selector('service', "kerberos-${TEST_ID}").object().spec.ports
+              def kdcPort = ports.find { it.name == 'kdc-udp' }.nodePort
+              def adminPort = ports.find { it.name == 'admin' }.nodePort
+              def kpasswdPort = ports.find { it.name == 'kpasswd-udp' }.nodePort
+              def krb5Host = "krb5-${TEST_ID}-${env.ROUTE_SUFFIX}"
+              env.KRB5_KDC_HOST = "${krb5Host}:${kdcPort}"
+              env.KRB5_ADMIN_HOST = "${krb5Host}:${adminPort}"
+              env.KRB5_KPASSWD_HOST = "${krb5Host}:${kpasswdPort}"
+            }
+          }
+        }
+      }
+      post {
+        success {
+          echo "KDC deployed: REALM: ${env.KRB5_REALM} KDC: ${env.KRB5_KDC_HOST}"
+        }
+        failure {
+          echo "KDC deployment FAILED"
         }
       }
     }
@@ -185,6 +225,17 @@ pipeline {
           def cabundle = ca.get_ca_cert().cert + digicertca
           def msgcert = ca.get_ssl_cert("mbs-${TEST_ID}-msg")
           def kojicert = ca.get_ssl_cert(env.KOJI_ADMIN)
+          if (params.USE_KRB5 == 'true') {
+            def krbAdmin = krb5.adminClient()
+            def krbsvc = "HTTP/${env.MBS_SSL_HOST}"
+            krbAdmin.addService(krbsvc)
+            env.MBS_FRONTEND_KEYTAB = krbAdmin.getKeytab(krbsvc)
+            // Usernames between MBS and Koji need to be consistent,
+            // so use the Koji admin as the MBS user.
+            env.KRB5_PRINCIPAL = env.KOJI_ADMIN
+            env.KRB5_PASSWORD = UUID.randomUUID().toString().take(12)
+            krbAdmin.addPrincipal(env.KRB5_PRINCIPAL, env.KRB5_PASSWORD)
+          }
           openshift.withCluster() {
             openshift.withProject(params.TEST_NAMESPACE) {
               def deployed = mbs.deploy(script: this, test_id: env.TEST_ID,
@@ -192,6 +243,9 @@ pipeline {
                                         brokercert: msgcert,
                                         frontendcert: frontendcert, frontendca: ca.get_ca_cert(),
                                         cacerts: cabundle,
+                                        frontend_keytab: params.USE_KRB5 == 'true' ? env.MBS_FRONTEND_KEYTAB : '',
+                                        krb5_conf_configmap: params.USE_KRB5 == 'true' ? "krb5-${TEST_ID}-config" : '',
+                                        krb5_user: params.USE_KRB5 == 'true' ? env.KRB5_PRINCIPAL : '',
                                         kojiurl: "https://${env.KOJI_SSL_HOST}",
                                         stompuri: "${env.UMB_HOST}:${env.UMB_STOMP_SSL_PORT}",
                                         backend_image: params.MBS_BACKEND_IMAGE,
