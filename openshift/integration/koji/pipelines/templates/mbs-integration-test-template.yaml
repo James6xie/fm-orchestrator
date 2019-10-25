@@ -38,7 +38,7 @@ parameters:
 - name: UMB_IMAGE
   displayName: The UMB container image to be tested
   description: This field must be in repo:tag or repo@sha256 format
-  value: docker-registry.engineering.redhat.com/factory2/umb:latest
+  value: docker-registry.upshift.redhat.com/factory2/umb:latest
 - name: TEST_IMAGES
   displayName: Images being tested
   description: >-
