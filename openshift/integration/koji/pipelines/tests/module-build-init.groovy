@@ -11,31 +11,44 @@ def runTests() {
   if (!tags.any { it.name == "module-f28-build" }) {
     koji.addTag("module-f28-build", "--parent=module-f28", "--arches=x86_64")
   }
-  def buildparams = """
-        {"scmurl": "https://src.fedoraproject.org/modules/testmodule.git?#9c589780e1dd1698dc64dfa28d30014ad18cad32",
-         "branch": "f28",
-         "owner":  "${env.KOJI_ADMIN}"}
-      """
-  def resp = httpRequest(
-        httpMode: "POST",
-        url: "https://${env.MBS_SSL_HOST}/module-build-service/1/module-builds/",
-        acceptType: "APPLICATION_JSON",
-        contentType: "APPLICATION_JSON",
-        requestBody: buildparams,
-        ignoreSslErrors: true,
-      )
-  if (resp.status != 201) {
-    echo "Response code was ${resp.status}, output was ${resp.content}"
-    error "POST response code was ${resp.status}, not 201"
+  writeFile file: 'ca-cert.pem', text: ca.get_ca_cert().cert
+  def url = "https://${env.MBS_SSL_HOST}/module-build-service/1/module-builds/"
+  def curlargs = """
+    --cacert ca-cert.pem \
+    -H 'Content-Type: application/json' \
+    -H 'Accept: application/json' \
+    -d @buildparams.json \
+    -o response.json \
+    -w '%{http_code}'
+  """.trim()
+  def http_code, response
+  if (env.KRB5_REALM) {
+    writeFile file: 'buildparams.json', text: """
+      {"scmurl": "https://src.fedoraproject.org/modules/testmodule.git?#9c589780e1dd1698dc64dfa28d30014ad18cad32",
+       "branch": "f28"}
+    """
+    krb5.withKrb {
+      http_code = sh script: "curl --negotiate -u : $curlargs $url", returnStdout: true
+      response = readFile file: 'response.json'
+    }
+  } else {
+    writeFile file: 'buildparams.json', text: """
+      {"scmurl": "https://src.fedoraproject.org/modules/testmodule.git?#9c589780e1dd1698dc64dfa28d30014ad18cad32",
+       "branch": "f28",
+       "owner":  "${env.KOJI_ADMIN}"}
+    """
+    http_code = sh script: "curl $curlargs $url", returnStdout: true
+    response = readFile file: 'response.json'
   }
-  def buildinfo = readJSON(text: resp.content)
+  if (http_code != '201') {
+    echo "Response code was ${http_code}, output was ${response}"
+    error "POST response code was ${http_code}, not 201"
+  }
+  def buildinfo = readJSON(text: response)
   // Check that MBS has configured Koji correctly
   timeout(10) {
     waitUntil {
-      resp = httpRequest(
-        url: "https://${env.MBS_SSL_HOST}/module-build-service/1/module-builds/${buildinfo.id}",
-        ignoreSslErrors: true,
-      )
+      def resp = httpRequest url: "${url}${buildinfo.id}", ignoreSslErrors: true
       if (resp.status != 200) {
         echo "Response code was ${resp.status}, output was ${resp.content}"
         error "GET response code was ${resp.status}, not 200"
