@@ -195,9 +195,6 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
                     "Callback %r, state %r has argspec %r!=%r" % (callback, key, argspec, expected))
 
     def process_message(self, db_session, msg):
-        # set module build to None and let's populate it later
-        build = None
-
         # Choose a handler for this message
         if isinstance(msg, module_build_service.messaging.KojiBuildChange):
             handler = self.on_build_change[msg.build_new_state]
@@ -238,16 +235,15 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
                 msg = "Could not process message handler. See the traceback."
                 log.exception(msg)
                 db_session.rollback()
-                if build:
-                    db_session.refresh(build)
-                    build.transition(
-                        db_session,
-                        conf,
-                        state=models.BUILD_STATES["failed"],
-                        state_reason=str(e),
-                        failure_type="infra",
-                    )
-                    db_session.commit()
+                db_session.refresh(build)
+                build.transition(
+                    db_session,
+                    conf,
+                    state=models.BUILD_STATES["failed"],
+                    state_reason=str(e),
+                    failure_type="infra",
+                )
+                db_session.commit()
 
             log.debug("Done with %s" % idx)
 
