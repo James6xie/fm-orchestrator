@@ -19,6 +19,7 @@ from sqlalchemy.orm import validates, load_only
 import module_build_service.messaging
 from module_build_service import db, log, get_url_for, conf
 from module_build_service.errors import UnprocessableEntity
+from module_build_service.scheduler import events
 
 DEFAULT_MODULE_CONTEXT = "00000000"
 
@@ -484,7 +485,7 @@ class ModuleBuild(MBSBase):
 
     @classmethod
     def from_module_event(cls, db_session, event):
-        if type(event) == module_build_service.messaging.MBSModule:
+        if type(event) == events.MBSModule:
             return db_session.query(cls).filter(cls.id == event.module_build_id).first()
         else:
             raise ValueError("%r is not a module message." % type(event).__name__)
@@ -1128,7 +1129,7 @@ class ComponentBuild(MBSBase):
 
     @classmethod
     def from_component_event(cls, db_session, event):
-        if isinstance(event, module_build_service.messaging.KojiBuildChange):
+        if isinstance(event, events.KojiBuildChange):
             if event.module_build_id:
                 return (
                     db_session.query(cls)

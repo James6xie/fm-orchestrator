@@ -29,6 +29,7 @@ from module_build_service.errors import ProgrammingError
 
 from module_build_service.builder.base import GenericBuilder
 from module_build_service.builder.KojiContentGenerator import KojiContentGenerator
+from module_build_service.scheduler import events
 from module_build_service.utils import get_reusable_components, get_reusable_module, set_locale
 
 logging.basicConfig(level=logging.DEBUG)
@@ -741,7 +742,7 @@ class KojiModuleBuilder(GenericBuilder):
         nvr_dict = kobo.rpmlib.parse_nvr(component_build.nvr)
         # Trigger a completed build message
         further_work.append(
-            module_build_service.messaging.KojiBuildChange(
+            events.KojiBuildChange(
                 "recover_orphaned_artifact: fake message",
                 build["build_id"],
                 build["task_id"],
@@ -772,7 +773,7 @@ class KojiModuleBuilder(GenericBuilder):
                 "the tag handler".format(tag)
             )
             further_work.append(
-                module_build_service.messaging.KojiTagChange(
+                events.KojiTagChange(
                     "recover_orphaned_artifact: fake message",
                     tag,
                     component_build.package,

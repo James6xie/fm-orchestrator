@@ -4,8 +4,8 @@ import threading
 import concurrent.futures
 
 from module_build_service import conf, log, models
-import module_build_service.messaging
 from module_build_service.db_session import db_session
+from module_build_service.scheduler.events import KojiRepoChange
 from .reuse import get_reusable_components, reuse_component
 
 
@@ -275,8 +275,7 @@ def start_next_batch_build(config, module, builder, components=None):
     # message and return
     if components_reused and not unbuilt_components_after_reuse:
         further_work.append(
-            module_build_service.messaging.KojiRepoChange(
-                "start_build_batch: fake msg", builder.module_build_tag["name"])
+            KojiRepoChange("start_build_batch: fake msg", builder.module_build_tag["name"])
         )
         return further_work
 

@@ -9,6 +9,8 @@ import module_build_service.messaging
 import module_build_service.scheduler.handlers.repos
 import module_build_service.scheduler.handlers.tags
 import module_build_service.models
+
+from module_build_service.scheduler.events import KojiTagChange
 from tests import conf
 from module_build_service.db_session import db_session
 
@@ -24,7 +26,7 @@ class TestTagTagged:
         that we do nothing gracefully.
         """
         from_tag_change_event.return_value = None
-        msg = module_build_service.messaging.KojiTagChange(
+        msg = KojiTagChange(
             "no matches for this...", "2016-some-nonexistent-build", "artifact", "artifact-1.2-1")
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, msg=msg)
@@ -33,7 +35,7 @@ class TestTagTagged:
         """ Test that when a tag msg hits us and we have no match,
         that we do nothing gracefully.
         """
-        msg = module_build_service.messaging.KojiTagChange(
+        msg = KojiTagChange(
             "id",
             "module-testmodule-master-20170219191323-c40c156c-build",
             "artifact",
@@ -86,7 +88,7 @@ class TestTagTagged:
         db_session.commit()
 
         # Tag the first component to the buildroot.
-        msg = module_build_service.messaging.KojiTagChange(
+        msg = KojiTagChange(
             "id",
             "module-testmodule-master-20170219191323-c40c156c-build",
             "perl-Tangerine",
@@ -96,7 +98,7 @@ class TestTagTagged:
             config=conf, msg=msg
         )
         # Tag the first component to the final tag.
-        msg = module_build_service.messaging.KojiTagChange(
+        msg = KojiTagChange(
             "id",
             "module-testmodule-master-20170219191323-c40c156c",
             "perl-Tangerine",
@@ -111,7 +113,7 @@ class TestTagTagged:
         assert not koji_session.newRepo.called
 
         # Tag the second component to the buildroot.
-        msg = module_build_service.messaging.KojiTagChange(
+        msg = KojiTagChange(
             "id",
             "module-testmodule-master-20170219191323-c40c156c-build",
             "perl-List-Compare",
@@ -126,7 +128,7 @@ class TestTagTagged:
         assert not koji_session.newRepo.called
 
         # Tag the first component to the final tag.
-        msg = module_build_service.messaging.KojiTagChange(
+        msg = KojiTagChange(
             "id",
             "module-testmodule-master-20170219191323-c40c156c",
             "perl-List-Compare",
@@ -182,7 +184,7 @@ class TestTagTagged:
         db_session.commit()
 
         # Tag the perl-List-Compare component to the buildroot.
-        msg = module_build_service.messaging.KojiTagChange(
+        msg = KojiTagChange(
             "id",
             "module-testmodule-master-20170219191323-c40c156c-build",
             "perl-Tangerine",
@@ -191,7 +193,7 @@ class TestTagTagged:
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, msg=msg)
         # Tag the perl-List-Compare component to final tag.
-        msg = module_build_service.messaging.KojiTagChange(
+        msg = KojiTagChange(
             "id",
             "module-testmodule-master-20170219191323-c40c156c",
             "perl-Tangerine",
@@ -252,7 +254,7 @@ class TestTagTagged:
         db_session.commit()
 
         # Tag the perl-List-Compare component to the buildroot.
-        msg = module_build_service.messaging.KojiTagChange(
+        msg = KojiTagChange(
             "id",
             "module-testmodule-master-20170219191323-c40c156c-build",
             "perl-List-Compare",
@@ -262,7 +264,7 @@ class TestTagTagged:
             config=conf, msg=msg
         )
         # Tag the perl-List-Compare component to final tag.
-        msg = module_build_service.messaging.KojiTagChange(
+        msg = KojiTagChange(
             "id",
             "module-testmodule-master-20170219191323-c40c156c",
             "perl-List-Compare",
@@ -328,7 +330,7 @@ class TestTagTagged:
         db_session.commit()
 
         # Tag the first component to the buildroot.
-        msg = module_build_service.messaging.KojiTagChange(
+        msg = KojiTagChange(
             "id",
             "module-testmodule-master-20170219191323-c40c156c-build",
             "perl-Tangerine",
@@ -337,7 +339,7 @@ class TestTagTagged:
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, msg=msg)
         # Tag the first component to the final tag.
-        msg = module_build_service.messaging.KojiTagChange(
+        msg = KojiTagChange(
             "id",
             "module-testmodule-master-20170219191323-c40c156c",
             "perl-Tangerine",
@@ -351,7 +353,7 @@ class TestTagTagged:
         assert not koji_session.newRepo.called
 
         # Tag the second component to the buildroot.
-        msg = module_build_service.messaging.KojiTagChange(
+        msg = KojiTagChange(
             "id",
             "module-testmodule-master-20170219191323-c40c156c-build",
             "perl-List-Compare",
@@ -360,7 +362,7 @@ class TestTagTagged:
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, msg=msg)
         # Tag the second component to final tag.
-        msg = module_build_service.messaging.KojiTagChange(
+        msg = KojiTagChange(
             "id",
             "module-testmodule-master-20170219191323-c40c156c",
             "perl-List-Compare",
@@ -374,7 +376,7 @@ class TestTagTagged:
         assert not koji_session.newRepo.called
 
         # Tag the component from first batch to final tag.
-        msg = module_build_service.messaging.KojiTagChange(
+        msg = KojiTagChange(
             "id",
             "module-testmodule-master-20170219191323-c40c156c",
             "module-build-macros",
@@ -383,7 +385,7 @@ class TestTagTagged:
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, msg=msg)
         # Tag the component from first batch to the buildroot.
-        msg = module_build_service.messaging.KojiTagChange(
+        msg = KojiTagChange(
             "id",
             "module-testmodule-master-20170219191323-c40c156c-build",
             "module-build-macros",
@@ -455,7 +457,7 @@ class TestTagTagged:
         db_session.commit()
 
         # Tag the perl-Tangerine component to the buildroot.
-        msg = module_build_service.messaging.KojiTagChange(
+        msg = KojiTagChange(
             "id",
             "module-testmodule-master-20170219191323-c40c156c-build",
             "perl-Tangerine",
@@ -465,7 +467,7 @@ class TestTagTagged:
             config=conf, msg=msg)
         assert not koji_session.newRepo.called
         # Tag the perl-List-Compare component to the buildroot.
-        msg = module_build_service.messaging.KojiTagChange(
+        msg = KojiTagChange(
             "id",
             "module-testmodule-master-20170219191323-c40c156c-build",
             "perl-List-Compare",
@@ -474,7 +476,7 @@ class TestTagTagged:
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, msg=msg)
         # Tag the perl-List-Compare component to final tag.
-        msg = module_build_service.messaging.KojiTagChange(
+        msg = KojiTagChange(
             "id",
             "module-testmodule-master-20170219191323-c40c156c",
             "perl-List-Compare",
@@ -554,7 +556,7 @@ class TestTagTagged:
         db_session.commit()
 
         # Tag the first component to the buildroot.
-        msg = module_build_service.messaging.KojiTagChange(
+        msg = KojiTagChange(
             "id",
             "module-testmodule-master-20170219191323-c40c156c-build",
             "perl-Tangerine",
@@ -563,7 +565,7 @@ class TestTagTagged:
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, msg=msg)
         # Tag the first component to the final tag.
-        msg = module_build_service.messaging.KojiTagChange(
+        msg = KojiTagChange(
             "id",
             "module-testmodule-master-20170219191323-c40c156c",
             "perl-Tangerine",
@@ -572,7 +574,7 @@ class TestTagTagged:
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, msg=msg)
         # Tag the second component to the buildroot.
-        msg = module_build_service.messaging.KojiTagChange(
+        msg = KojiTagChange(
             "id",
             "module-testmodule-master-20170219191323-c40c156c-build",
             "perl-List-Compare",
@@ -581,7 +583,7 @@ class TestTagTagged:
         module_build_service.scheduler.handlers.tags.tagged(
             config=conf, msg=msg)
         # Tag the second component to the final tag.
-        msg = module_build_service.messaging.KojiTagChange(
+        msg = KojiTagChange(
             "id",
             "module-testmodule-master-20170219191323-c40c156c",
             "perl-List-Compare",

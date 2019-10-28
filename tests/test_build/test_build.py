@@ -17,7 +17,7 @@ import module_build_service.utils
 from module_build_service.errors import Forbidden
 from module_build_service import models, conf, build_logs
 from module_build_service.db_session import db_session
-from module_build_service.scheduler import make_simple_stop_condition
+from module_build_service.scheduler.local import make_simple_stop_condition
 
 from mock import patch, PropertyMock, Mock, MagicMock
 from werkzeug.datastructures import FileStorage
@@ -29,7 +29,7 @@ import itertools
 
 from module_build_service.builder.base import GenericBuilder
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
-from module_build_service.messaging import MBSModule
+from module_build_service.scheduler import events
 from tests import (
     app, clean_database, read_staged_data, staged_data_filename
 )
@@ -232,7 +232,7 @@ class FakeModuleBuilder(GenericBuilder):
         return {"name": self.tag_name + "-build"}
 
     def _send_repo_done(self):
-        msg = module_build_service.messaging.KojiRepoChange(
+        msg = events.KojiRepoChange(
             msg_id="a faked internal message", repo_tag=self.tag_name + "-build")
         module_build_service.scheduler.consumer.work_queue_put(msg)
 
@@ -241,14 +241,14 @@ class FakeModuleBuilder(GenericBuilder):
             tag = self.tag_name
         else:
             tag = self.tag_name + "-build"
-        msg = module_build_service.messaging.KojiTagChange(
+        msg = events.KojiTagChange(
             msg_id="a faked internal message", tag=tag, artifact=artifact, nvr=nvr)
         module_build_service.scheduler.consumer.work_queue_put(msg)
 
     def _send_build_change(self, state, name, build_id):
         # build_id=1 and task_id=1 are OK here, because we are building just
         # one RPM at the time.
-        msg = module_build_service.messaging.KojiBuildChange(
+        msg = events.KojiBuildChange(
             msg_id="a faked internal message",
             build_id=build_id,
             task_id=build_id,
@@ -299,7 +299,7 @@ class FakeModuleBuilder(GenericBuilder):
             nvr_dict = kobo.rpmlib.parse_nvr(component_build.nvr)
             # Send a message stating the build is complete
             msgs.append(
-                module_build_service.messaging.KojiBuildChange(
+                events.KojiBuildChange(
                     "recover_orphaned_artifact: fake message",
                     randint(1, 9999999),
                     component_build.task_id,
@@ -312,7 +312,7 @@ class FakeModuleBuilder(GenericBuilder):
             )
             # Send a message stating that the build was tagged in the build tag
             msgs.append(
-                module_build_service.messaging.KojiTagChange(
+                events.KojiTagChange(
                     "recover_orphaned_artifact: fake message",
                     component_build.module_build.koji_tag + "-build",
                     component_build.package,
@@ -339,7 +339,7 @@ def cleanup_moksha():
 class BaseTestBuild:
 
     def run_scheduler(self, msgs=None, stop_condition=None):
-        module_build_service.scheduler.main(
+        module_build_service.scheduler.local.main(
             msgs or [],
             stop_condition or make_simple_stop_condition()
         )
@@ -891,7 +891,7 @@ class TestBuild(BaseTestBuild):
             Stop the scheduler when the module is built or when we try to build
             more components than the num_concurrent_builds.
             """
-            main_stop = module_build_service.scheduler.make_simple_stop_condition()
+            main_stop = make_simple_stop_condition()
             num_building = (
                 db_session.query(models.ComponentBuild)
                 .filter_by(state=koji.BUILD_STATES["BUILDING"])
@@ -1092,7 +1092,7 @@ class TestBuild(BaseTestBuild):
         from module_build_service.db_session import db_session
 
         # Create a dedicated database session for scheduler to avoid hang
-        self.run_scheduler(msgs=[MBSModule("local module build", 3, 1)])
+        self.run_scheduler(msgs=[events.MBSModule("local module build", 3, 1)])
 
         reused_component_ids = {
             "module-build-macros": None,
@@ -1171,7 +1171,7 @@ class TestBuild(BaseTestBuild):
 
         FakeModuleBuilder.on_buildroot_add_artifacts_cb = on_buildroot_add_artifacts_cb
 
-        self.run_scheduler(msgs=[MBSModule("local module build", 3, 1)])
+        self.run_scheduler(msgs=[events.MBSModule("local module build", 3, 1)])
 
         # All components should be built and module itself should be in "done"
         # or "ready" state.
@@ -1742,7 +1742,7 @@ class TestBuild(BaseTestBuild):
         cleanup_moksha()
         module = models.ModuleBuild.get_by_id(db_session, module_build_id)
         msgs = [
-            module_build_service.messaging.KojiRepoChange(
+            events.KojiRepoChange(
                 msg_id="a faked internal message", repo_tag=module.koji_tag + "-build"
             )
         ]

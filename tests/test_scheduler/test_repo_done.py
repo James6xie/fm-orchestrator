@@ -7,6 +7,7 @@ import module_build_service.scheduler.handlers.repos
 import module_build_service.models
 from module_build_service.db_session import db_session
 from module_build_service.models import ComponentBuild
+from module_build_service.scheduler.events import KojiRepoChange
 from tests import conf, scheduler_init_data
 
 
@@ -19,7 +20,7 @@ class TestRepoDone:
         """
         scheduler_init_data()
         from_repo_done_event.return_value = None
-        msg = module_build_service.messaging.KojiRepoChange(
+        msg = KojiRepoChange(
             "no matches for this...", "2016-some-nonexistent-build")
         module_build_service.scheduler.handlers.repos.done(config=conf, msg=msg)
 
@@ -56,7 +57,7 @@ class TestRepoDone:
         get_session.return_value = mock.Mock(), "development"
         build_fn.return_value = 1234, 1, "", None
 
-        msg = module_build_service.messaging.KojiRepoChange(
+        msg = KojiRepoChange(
             "some_msg_id", "module-testmodule-master-20170109091357-7c29193d-build")
         module_build_service.scheduler.handlers.repos.done(config=conf, msg=msg)
         build_fn.assert_called_once_with(
@@ -116,7 +117,7 @@ class TestRepoDone:
 
         finalizer.side_effect = mocked_finalizer
 
-        msg = module_build_service.messaging.KojiRepoChange(
+        msg = KojiRepoChange(
             "some_msg_id", "module-testmodule-master-20170109091357-7c29193d-build")
         module_build_service.scheduler.handlers.repos.done(config=conf, msg=msg)
 
@@ -156,7 +157,7 @@ class TestRepoDone:
         config.return_value = mock.Mock(), "development"
         build_fn.return_value = None, 4, "Failed to submit artifact tangerine to Koji", None
 
-        msg = module_build_service.messaging.KojiRepoChange(
+        msg = KojiRepoChange(
             "some_msg_id", "module-testmodule-master-20170109091357-7c29193d-build")
         module_build_service.scheduler.handlers.repos.done(config=conf, msg=msg)
         build_fn.assert_called_once_with(
@@ -182,7 +183,7 @@ class TestRepoDone:
         component_build.tagged = False
         db_session.commit()
 
-        msg = module_build_service.messaging.KojiRepoChange(
+        msg = KojiRepoChange(
             "some_msg_id", "module-testmodule-master-20170109091357-7c29193d-build")
 
         module_build_service.scheduler.handlers.repos.done(config=conf, msg=msg)
@@ -222,7 +223,7 @@ class TestRepoDone:
         config.return_value = mock.Mock(), "development"
         build_fn.return_value = None, 4, "Failed to submit artifact x to Koji", None
 
-        msg = module_build_service.messaging.KojiRepoChange(
+        msg = KojiRepoChange(
             "some_msg_id", "module-testmodule-master-20170109091357-7c29193d-build")
         module_build_service.scheduler.handlers.repos.done(config=conf, msg=msg)
 

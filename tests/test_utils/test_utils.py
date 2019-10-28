@@ -17,6 +17,7 @@ from module_build_service.errors import ProgrammingError, ValidationError, Unpro
 from module_build_service.utils.reuse import get_reusable_module, get_reusable_component
 from module_build_service.utils.general import load_mmd
 from module_build_service.utils.submit import format_mmd
+from module_build_service.scheduler.events import KojiBuildChange, KojiRepoChange
 from tests import (
     clean_database,
     init_data,
@@ -1228,7 +1229,7 @@ class TestBatches:
         # to BUILDING, so KojiBuildChange message handler handles the change
         # properly.
         for msg in further_work:
-            if type(msg) == module_build_service.messaging.KojiBuildChange:
+            if type(msg) == KojiBuildChange:
                 assert msg.build_new_state == koji.BUILD_STATES["COMPLETE"]
                 component_build = models.ComponentBuild.from_component_event(db_session, msg)
                 assert component_build.state == koji.BUILD_STATES["BUILDING"]
@@ -1236,12 +1237,12 @@ class TestBatches:
         # When we handle these KojiBuildChange messages, MBS should tag all
         # the components just once.
         for msg in further_work:
-            if type(msg) == module_build_service.messaging.KojiBuildChange:
+            if type(msg) == KojiBuildChange:
                 module_build_service.scheduler.handlers.components.complete(conf, msg)
 
         # Since we have reused all the components in the batch, there should
         # be fake KojiRepoChange message.
-        assert type(further_work[-1]) == module_build_service.messaging.KojiRepoChange
+        assert type(further_work[-1]) == KojiRepoChange
 
         # Check that packages have been tagged just once.
         assert len(DummyModuleBuilder.TAGGED_COMPONENTS) == 2

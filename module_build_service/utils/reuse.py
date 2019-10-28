@@ -2,11 +2,11 @@
 # SPDX-License-Identifier: MIT
 import kobo.rpmlib
 
-import module_build_service.messaging
 from module_build_service import log, models, conf
 from module_build_service.db_session import db_session
-from module_build_service.utils.mse import get_base_module_mmds
 from module_build_service.resolver import GenericResolver
+from module_build_service.scheduler.events import KojiBuildChange
+from module_build_service.utils.mse import get_base_module_mmds
 
 
 def reuse_component(component, previous_component_build, change_state_now=False):
@@ -45,7 +45,7 @@ def reuse_component(component, previous_component_build, change_state_now=False)
     # Add this message to further_work so that the reused
     # component will be tagged properly
     return [
-        module_build_service.messaging.KojiBuildChange(
+        KojiBuildChange(
             msg_id="reuse_component: fake msg",
             build_id=None,
             task_id=component.task_id,

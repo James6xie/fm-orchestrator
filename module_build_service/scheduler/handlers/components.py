@@ -6,9 +6,10 @@ import logging
 import koji
 import module_build_service.builder
 
+from module_build_service import models, log
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
+from module_build_service.scheduler import events
 from module_build_service.utils.general import mmd_to_str
-from module_build_service import models, log, messaging
 from module_build_service.db_session import db_session
 
 logging.basicConfig(level=logging.DEBUG)
@@ -110,7 +111,7 @@ def _finalize(config, msg, state):
             # change message here.
             log.info("Batch done. No component to tag")
             further_work += [
-                messaging.KojiRepoChange(
+                events.KojiRepoChange(
                     "components::_finalize: fake msg", builder.module_build_tag["name"])
             ]
         else:

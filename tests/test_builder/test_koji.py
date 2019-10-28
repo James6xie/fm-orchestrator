@@ -17,6 +17,7 @@ import module_build_service.builder
 from module_build_service import Modulemd
 from module_build_service.db_session import db_session
 from module_build_service.utils.general import mmd_to_str
+from module_build_service.scheduler import events
 
 import pytest
 from mock import patch, MagicMock
@@ -150,7 +151,7 @@ class TestKojiBuilder:
         db_session.commit()
 
         assert len(actual) == 3
-        assert type(actual[0]) == module_build_service.messaging.KojiBuildChange
+        assert type(actual[0]) == events.KojiBuildChange
         assert actual[0].build_id == 91
         assert actual[0].task_id == 12345
         assert actual[0].build_new_state == koji.BUILD_STATES["COMPLETE"]
@@ -158,10 +159,10 @@ class TestKojiBuilder:
         assert actual[0].build_version == "1.0"
         assert actual[0].build_release == "1.module+e0095747"
         assert actual[0].module_build_id == 4
-        assert type(actual[1]) == module_build_service.messaging.KojiTagChange
+        assert type(actual[1]) == events.KojiTagChange
         assert actual[1].tag == "module-foo-build"
         assert actual[1].artifact == "rubygem-rails"
-        assert type(actual[2]) == module_build_service.messaging.KojiTagChange
+        assert type(actual[2]) == events.KojiTagChange
         assert actual[2].tag == "module-foo"
         assert actual[2].artifact == "rubygem-rails"
         assert component_build.state == koji.BUILD_STATES["COMPLETE"]
@@ -205,7 +206,7 @@ class TestKojiBuilder:
         db_session.commit()
 
         assert len(actual) == 1
-        assert type(actual[0]) == module_build_service.messaging.KojiBuildChange
+        assert type(actual[0]) == events.KojiBuildChange
         assert actual[0].build_id == 91
         assert actual[0].task_id == 12345
         assert actual[0].build_new_state == koji.BUILD_STATES["COMPLETE"]
@@ -259,7 +260,7 @@ class TestKojiBuilder:
         db_session.commit()
 
         assert len(actual) == 1
-        assert type(actual[0]) == module_build_service.messaging.KojiBuildChange
+        assert type(actual[0]) == events.KojiBuildChange
         assert actual[0].build_id == 91
         assert actual[0].task_id == 12345
         assert actual[0].build_new_state == koji.BUILD_STATES["COMPLETE"]

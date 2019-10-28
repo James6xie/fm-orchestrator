@@ -6,7 +6,6 @@ from module_build_service import conf, models, log, build_logs
 import module_build_service.builder
 import module_build_service.resolver
 import module_build_service.utils
-import module_build_service.messaging
 from module_build_service.utils import (
     attempt_to_reuse_all_components,
     record_component_builds,
@@ -17,6 +16,7 @@ from module_build_service.utils import (
 )
 from module_build_service.db_session import db_session
 from module_build_service.errors import UnprocessableEntity, Forbidden, ValidationError
+from module_build_service.scheduler import events
 from module_build_service.utils.greenwave import greenwave
 from module_build_service.scheduler.default_modules import (
     add_default_modules, handle_collisions_with_base_module_rpms)
@@ -382,7 +382,7 @@ def wait(config, msg):
         # Return a KojiRepoChange message so that the build can be transitioned to done
         # in the repos handler
         return [
-            module_build_service.messaging.KojiRepoChange(
+            events.KojiRepoChange(
                 "handlers.modules.wait: fake msg", builder.module_build_tag["name"])
         ]
 
@@ -458,7 +458,7 @@ def wait(config, msg):
         db_session.commit()
     else:
         further_work.append(
-            module_build_service.messaging.KojiRepoChange(
+            events.KojiRepoChange(
                 "fake msg", builder.module_build_tag["name"])
         )
     return further_work

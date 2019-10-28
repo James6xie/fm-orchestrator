@@ -23,6 +23,7 @@ from module_build_service.db_session import db_session
 from module_build_service.errors import StreamAmbigous
 import module_build_service.messaging
 import module_build_service.scheduler.consumer
+import module_build_service.scheduler.local
 
 
 manager = Manager(create_app)
@@ -181,10 +182,10 @@ def build_module_locally(
 
         module_build_ids = [build.id for build in module_builds]
 
-    stop = module_build_service.scheduler.make_simple_stop_condition()
+    stop = module_build_service.scheduler.local.make_simple_stop_condition()
 
     # Run the consumer until stop_condition returns True
-    module_build_service.scheduler.main([], stop)
+    module_build_service.scheduler.local.main([], stop)
 
     has_failed_module = db_session.query(models.ModuleBuild).filter(
         models.ModuleBuild.id.in_(module_build_ids),

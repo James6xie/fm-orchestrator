@@ -12,6 +12,7 @@ import module_build_service.resolver
 from module_build_service import build_logs, Modulemd
 from module_build_service.db_session import db_session
 from module_build_service.models import ComponentBuild, ModuleBuild
+from module_build_service.scheduler.events import MBSModule
 
 base_dir = os.path.dirname(os.path.dirname(__file__))
 
@@ -40,7 +41,7 @@ class TestModuleWait:
         create_builder.return_value = builder
 
         module_build_id = db_session.query(ModuleBuild).first().id
-        msg = module_build_service.messaging.MBSModule(
+        msg = MBSModule(
             msg_id=None,
             module_build_id=module_build_id,
             module_build_state="some state")
@@ -80,8 +81,7 @@ class TestModuleWait:
         resolver.get_module_tag.return_value = "module-testmodule-master-20170109091357"
 
         generic_resolver.create.return_value = resolver
-        msg = module_build_service.messaging.MBSModule(
-            msg_id=None, module_build_id=2, module_build_state="some state")
+        msg = MBSModule(msg_id=None, module_build_id=2, module_build_state="some state")
 
         module_build_service.scheduler.handlers.modules.wait(
             config=conf, msg=msg)
@@ -127,8 +127,7 @@ class TestModuleWait:
         resolver.get_module_tag.return_value = "module-testmodule-master-20170109091357"
 
         generic_resolver.create.return_value = resolver
-        msg = module_build_service.messaging.MBSModule(
-            msg_id=None, module_build_id=2, module_build_state="some state")
+        msg = MBSModule(msg_id=None, module_build_id=2, module_build_state="some state")
 
         module_build_service.scheduler.handlers.modules.wait(
             config=conf, msg=msg)
@@ -173,8 +172,7 @@ class TestModuleWait:
         }
 
         generic_resolver.create.return_value = resolver
-        msg = module_build_service.messaging.MBSModule(
-            msg_id=None, module_build_id=2, module_build_state="some state")
+        msg = MBSModule(msg_id=None, module_build_id=2, module_build_state="some state")
 
         module_build_service.scheduler.handlers.modules.wait(
             config=conf, msg=msg)
@@ -244,9 +242,7 @@ class TestModuleWait:
             new=koji_cg_tag_build,
         ):
             generic_resolver.create.return_value = resolver
-            msg = module_build_service.messaging.MBSModule(
-                msg_id=None, module_build_id=2, module_build_state="some state"
-            )
+            msg = MBSModule(msg_id=None, module_build_id=2, module_build_state="some state")
             module_build_service.scheduler.handlers.modules.wait(
                 config=conf, msg=msg
             )

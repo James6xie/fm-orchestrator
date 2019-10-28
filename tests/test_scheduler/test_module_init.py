@@ -12,6 +12,7 @@ from module_build_service import build_logs
 from module_build_service.db_session import db_session
 from module_build_service.models import ModuleBuild
 from module_build_service.utils.general import mmd_to_str, load_mmd
+from module_build_service.scheduler.events import MBSModule
 
 
 class TestModuleInit:
@@ -70,10 +71,7 @@ class TestModuleInit:
         platform_build.modulemd = mmd_to_str(mmd)
         db_session.commit()
 
-        msg = module_build_service.messaging.MBSModule(
-            msg_id=None, module_build_id=2, module_build_state="init"
-        )
-
+        msg = MBSModule(msg_id=None, module_build_id=2, module_build_state="init")
         self.fn(config=conf, msg=msg)
 
         build = ModuleBuild.get_by_id(db_session, 2)
@@ -114,8 +112,7 @@ class TestModuleInit:
             get_latest_error=RuntimeError("Failed in mocked_scm_get_latest")
         )
 
-        msg = module_build_service.messaging.MBSModule(
-            msg_id=None, module_build_id=2, module_build_state="init")
+        msg = MBSModule(msg_id=None, module_build_id=2, module_build_state="init")
         self.fn(config=conf, msg=msg)
 
         build = ModuleBuild.get_by_id(db_session, 2)
@@ -141,8 +138,7 @@ class TestModuleInit:
         scmurl = "git://pkgs.domain.local/modules/includedmodule?#da95886"
         ModuleBuild.create(
             db_session, conf, "includemodule", "1", 3, mmd_to_str(mmd), scmurl, "mprahl")
-        msg = module_build_service.messaging.MBSModule(
-            msg_id=None, module_build_id=3, module_build_state="init")
+        msg = MBSModule(msg_id=None, module_build_id=3, module_build_state="init")
         self.fn(config=conf, msg=msg)
         build = ModuleBuild.get_by_id(db_session, 3)
         assert build.state == 1
@@ -177,8 +173,7 @@ class TestModuleInit:
             "7035bd33614972ac66559ac1fdd019ff6027ad22",
             get_latest_raise=True,
         )
-        msg = module_build_service.messaging.MBSModule(
-            msg_id=None, module_build_id=2, module_build_state="init")
+        msg = MBSModule(msg_id=None, module_build_id=2, module_build_state="init")
         build = ModuleBuild.get_by_id(db_session, 2)
         mocked_from_module_event.return_value = build
 

@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
+
 from module_build_service import messaging
-from module_build_service.messaging import KojiRepoChange  # noqa
+from module_build_service.scheduler.parser import FedmsgMessageParser
 
 
 class TestFedmsgMessaging:
@@ -25,7 +26,8 @@ class TestFedmsgMessaging:
             "topic": "org.fedoraproject.prod.buildsys.build.state.change",
         }
 
-        msg = messaging.FedmsgMessageParser().parse(buildsys_state_change_msg)
+        parser = FedmsgMessageParser(messaging.known_fedmsg_services)
+        msg = parser.parse(buildsys_state_change_msg)
 
         assert msg.build_id == 614503
         assert msg.build_new_state == 1
@@ -49,7 +51,8 @@ class TestFedmsgMessaging:
             "topic": "org.fedoraproject.prod.buildsys.tag",
         }
 
-        msg = messaging.FedmsgMessageParser().parse(buildsys_tag_msg)
+        parser = FedmsgMessageParser(messaging.known_fedmsg_services)
+        msg = parser.parse(buildsys_tag_msg)
 
         assert msg.tag == "module-debugging-tools-master-20170405115403-build"
         assert msg.artifact == "module-build-macros"
@@ -68,6 +71,7 @@ class TestFedmsgMessaging:
             "topic": "org.fedoraproject.prod.buildsys.repo.done",
         }
 
-        msg = messaging.FedmsgMessageParser().parse(buildsys_tag_msg)
+        parser = FedmsgMessageParser(messaging.known_fedmsg_services)
+        msg = parser.parse(buildsys_tag_msg)
 
         assert msg.repo_tag == "module-f0f7e44f3c6cccab-build"

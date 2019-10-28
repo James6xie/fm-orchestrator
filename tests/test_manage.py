@@ -149,7 +149,7 @@ class TestCommandBuildModuleLocally:
         finally:
             app.config["SQLALCHEMY_DATABASE_URI"] = original_db_uri
 
-    @patch("module_build_service.scheduler.main")
+    @patch("module_build_service.scheduler.local.main")
     def test_set_stream(self, main):
         cli_cmd = [
             "mbs-manager", "build_module_locally",
@@ -159,9 +159,9 @@ class TestCommandBuildModuleLocally:
 
         self._run_manager_wrapper(cli_cmd)
 
-        # Since module_build_service.scheduler.main is mocked, MBS does not
-        # really build the testmodule for this test. Following lines assert the
-        # fact:
+        # Since module_build_service.scheduler.local.main is mocked, MBS does
+        # not really build the testmodule for this test. Following lines assert
+        # the fact:
         # Module testmodule-local-build is expanded and stored into database,
         # and this build has buildrequires platform:f28 and requires
         # platform:f28.
@@ -211,7 +211,7 @@ class TestCommandBuildModuleLocally:
         # We don't run consumer actually, but it could be patched to mark some
         # module build failed for test purpose.
 
-        with patch("module_build_service.scheduler.main",
+        with patch("module_build_service.scheduler.local.main",
                    side_effect=main_side_effect):
             with pytest.raises(RuntimeError, match="Module build failed"):
                 self._run_manager_wrapper(cli_cmd)

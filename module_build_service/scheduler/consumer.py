@@ -33,6 +33,7 @@ from module_build_service import models, log, conf
 from module_build_service.db_session import db_session
 from module_build_service.scheduler.handlers import greenwave
 from module_build_service.utils import module_build_state_from_msg
+from module_build_service.scheduler import events
 
 
 class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
@@ -124,7 +125,7 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
     def validate(self, message):
         if conf.messaging == "fedmsg":
             # If this is a faked internal message, don't bother.
-            if isinstance(message, module_build_service.messaging.BaseMessage):
+            if isinstance(message, events.BaseMessage):
                 log.info("Skipping crypto validation for %r" % message)
                 return
             # Otherwise, if it is a real message from the network, pass it
@@ -139,7 +140,7 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
         # messages, then just use them as-is.  If they are not already
         # instances of our message abstraction base class, then first transform
         # them before proceeding.
-        if isinstance(message, module_build_service.messaging.BaseMessage):
+        if isinstance(message, events.BaseMessage):
             msg = message
         else:
             msg = self.get_abstracted_msg(message)
@@ -169,7 +170,7 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
         if parser:
             try:
                 return parser.parse(message)
-            except module_build_service.messaging.IgnoreMessage:
+            except events.IgnoreMessage:
                 pass
         else:
             raise ValueError("{0} backend does not define a message parser".format(conf.messaging))
@@ -198,32 +199,32 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
     def _map_message(self, db_session, msg):
         """Map message to its corresponding event handler and module build"""
 
-        if isinstance(msg, module_build_service.messaging.KojiBuildChange):
+        if isinstance(msg, events.KojiBuildChange):
             handler = self.on_build_change[msg.build_new_state]
             build = models.ComponentBuild.from_component_event(db_session, msg)
             if build:
                 build = build.module_build
             return handler, build
 
-        if isinstance(msg, module_build_service.messaging.KojiRepoChange):
+        if isinstance(msg, events.KojiRepoChange):
             return (
                 self.on_repo_change,
                 models.ModuleBuild.from_repo_done_event(db_session, msg)
             )
 
-        if isinstance(msg, module_build_service.messaging.KojiTagChange):
+        if isinstance(msg, events.KojiTagChange):
             return (
                 self.on_tag_change,
                 models.ModuleBuild.from_tag_change_event(db_session, msg)
             )
 
-        if isinstance(msg, module_build_service.messaging.MBSModule):
+        if isinstance(msg, events.MBSModule):
             return (
                 self.on_module_change[module_build_state_from_msg(msg)],
                 models.ModuleBuild.from_module_event(db_session, msg)
             )
 
-        if isinstance(msg, module_build_service.messaging.GreenwaveDecisionUpdate):
+        if isinstance(msg, events.GreenwaveDecisionUpdate):
             return (
                 self.on_decision_update,
                 greenwave.get_corresponding_module_build(msg.subject_identifier)
@@ -305,6 +306,6 @@ def work_queue_put(msg):
 
 
 def fake_repo_done_message(tag_name):
-    msg = module_build_service.messaging.KojiRepoChange(
+    msg = events.KojiRepoChange(
         msg_id="a faked internal message", repo_tag=tag_name + "-build")
     work_queue_put(msg)

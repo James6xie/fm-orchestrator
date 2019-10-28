@@ -7,9 +7,9 @@ from module_build_service import models, conf
 from tests import clean_database, make_module_in_db
 import mock
 import koji
-from module_build_service.scheduler.producer import MBSProducer
-from module_build_service.messaging import KojiTagChange
 from module_build_service.db_session import db_session
+from module_build_service.scheduler.producer import MBSProducer
+from module_build_service.scheduler.events import KojiTagChange
 import six.moves.queue as queue
 from datetime import datetime, timedelta
 

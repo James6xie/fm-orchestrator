@@ -5,8 +5,9 @@
 import module_build_service.builder
 import logging
 import koji
-from module_build_service import models, log, messaging
+from module_build_service import models, log
 from module_build_service.db_session import db_session
+from module_build_service.scheduler import events
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -70,7 +71,7 @@ def tagged(config, msg):
             log.info(
                 "All components in module tagged and built, skipping the last repo regeneration")
             further_work += [
-                messaging.KojiRepoChange(
+                events.KojiRepoChange(
                     "components::_finalize: fake msg", builder.module_build_tag["name"])
             ]
         db_session.commit()
