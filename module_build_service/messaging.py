@@ -6,7 +6,7 @@ import pkg_resources
 
 from module_build_service.scheduler.parser import FedmsgMessageParser
 
-from module_build_service import log
+from module_build_service import conf, log
 
 
 def publish(topic, msg, conf, service):
@@ -109,3 +109,7 @@ for entrypoint in pkg_resources.iter_entry_points("mbs.messaging_backends"):
 
 if not _messaging_backends:
     raise ValueError("No messaging plugins are installed or available.")
+
+# After loading registered messaging backends, the default messaging backend
+# can be determined by configured messaging backend.
+default_messaging_backend = _messaging_backends[conf.messaging]

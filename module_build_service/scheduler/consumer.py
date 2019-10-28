@@ -31,6 +31,7 @@ import module_build_service.monitor as monitor
 
 from module_build_service import models, log, conf
 from module_build_service.db_session import db_session
+from module_build_service.messaging import default_messaging_backend
 from module_build_service.scheduler.handlers import greenwave
 from module_build_service.utils import module_build_state_from_msg
 from module_build_service.scheduler import events
@@ -51,10 +52,9 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
     def __init__(self, hub):
         # Topic setting needs to be done *before* the call to `super`.
 
-        backends = module_build_service.messaging._messaging_backends
         prefixes = conf.messaging_topic_prefix  # This is a list.
-        services = backends[conf.messaging]["services"]
-        suffix = backends[conf.messaging]["topic_suffix"]
+        services = default_messaging_backend["services"]
+        suffix = default_messaging_backend["topic_suffix"]
         self.topic = [
             "{}.{}{}".format(prefix.rstrip("."), category, suffix)
             for prefix, category in itertools.product(prefixes, services)
@@ -166,7 +166,7 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
             self.shutdown()
 
     def get_abstracted_msg(self, message):
-        parser = module_build_service.messaging._messaging_backends[conf.messaging].get("parser")
+        parser = default_messaging_backend.get("parser")
         if parser:
             try:
                 return parser.parse(message)
