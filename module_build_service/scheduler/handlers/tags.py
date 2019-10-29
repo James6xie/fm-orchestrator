@@ -5,16 +5,16 @@
 import module_build_service.builder
 import logging
 import koji
-from module_build_service import models, log
+from module_build_service import conf, models, log
 from module_build_service.db_session import db_session
 from module_build_service.scheduler import events
 
 logging.basicConfig(level=logging.DEBUG)
 
 
-def tagged(config, msg):
+def tagged(msg):
     """ Called whenever koji tags a build to tag. """
-    if config.system not in ("koji", "test"):
+    if conf.system not in ("koji", "test"):
         return []
 
     # Find our ModuleBuild associated with this tagged artifact.
@@ -51,7 +51,7 @@ def tagged(config, msg):
     # If all components are tagged, start newRepo task.
     if not any(c.is_completed and not c.is_tagged for c in module_build.up_to_current_batch()):
         builder = module_build_service.builder.GenericBuilder.create_from_module(
-            db_session, module_build, config)
+            db_session, module_build, conf)
 
         if any(c.is_unbuilt for c in module_build.component_builds):
             if not _is_new_repo_generating(module_build, builder.koji_session):

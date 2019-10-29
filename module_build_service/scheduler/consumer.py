@@ -87,7 +87,7 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
 
         # These are our main lookup tables for figuring out what to run in
         # response to what messaging events.
-        self.NO_OP = NO_OP = lambda config, msg: True
+        self.NO_OP = NO_OP = lambda msg: True
         self.on_build_change = {
             koji.BUILD_STATES["BUILDING"]: NO_OP,
             koji.BUILD_STATES[
@@ -187,7 +187,7 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
 
         all_fns = list(self.on_build_change.items()) + list(self.on_module_change.items())
         for key, callback in all_fns:
-            expected = ["config", "msg"]
+            expected = ["msg"]
             if six.PY2:
                 argspec = inspect.getargspec(callback)[0]
             else:
@@ -255,7 +255,7 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
         log.info("Calling %s", idx)
 
         try:
-            further_work = handler(conf, msg) or []
+            further_work = handler(msg) or []
         except Exception as e:
             log.exception("Could not process message handler.")
             db_session.rollback()

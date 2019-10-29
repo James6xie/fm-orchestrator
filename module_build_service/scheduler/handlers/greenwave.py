@@ -31,7 +31,7 @@ def get_corresponding_module_build(nvr):
     return ModuleBuild.get_by_id(db_session, module_build_id)
 
 
-def decision_update(config, msg):
+def decision_update(msg):
     """Move module build to ready or failed according to Greenwave result
 
     :param config: the config object returned from function :func:`init_config`,
@@ -41,7 +41,7 @@ def decision_update(config, msg):
         ``greenwave.decision.update``.
     :type msg: :class:`GreenwaveDecisionUpdate`
     """
-    if not config.greenwave_decision_context:
+    if not conf.greenwave_decision_context:
         log.debug(
             "Skip Greenwave message %s as MBS does not have GREENWAVE_DECISION_CONTEXT "
             "configured",
@@ -49,12 +49,12 @@ def decision_update(config, msg):
         )
         return
 
-    if msg.decision_context != config.greenwave_decision_context:
+    if msg.decision_context != conf.greenwave_decision_context:
         log.debug(
             "Skip Greenwave message %s as MBS only handles messages with the "
             'decision context "%s"',
             msg.msg_id,
-            config.greenwave_decision_context,
+            conf.greenwave_decision_context,
         )
         return
 

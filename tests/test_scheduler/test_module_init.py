@@ -72,7 +72,7 @@ class TestModuleInit:
         db_session.commit()
 
         msg = MBSModule(msg_id=None, module_build_id=2, module_build_state="init")
-        self.fn(config=conf, msg=msg)
+        self.fn(msg=msg)
 
         build = ModuleBuild.get_by_id(db_session, 2)
         # Make sure the module entered the wait state
@@ -113,7 +113,7 @@ class TestModuleInit:
         )
 
         msg = MBSModule(msg_id=None, module_build_id=2, module_build_state="init")
-        self.fn(config=conf, msg=msg)
+        self.fn(msg=msg)
 
         build = ModuleBuild.get_by_id(db_session, 2)
         # Make sure the module entered the failed state
@@ -139,7 +139,7 @@ class TestModuleInit:
         ModuleBuild.create(
             db_session, conf, "includemodule", "1", 3, mmd_to_str(mmd), scmurl, "mprahl")
         msg = MBSModule(msg_id=None, module_build_id=3, module_build_state="init")
-        self.fn(config=conf, msg=msg)
+        self.fn(msg=msg)
         build = ModuleBuild.get_by_id(db_session, 3)
         assert build.state == 1
         assert build.name == "includemodule"
@@ -177,7 +177,7 @@ class TestModuleInit:
         build = ModuleBuild.get_by_id(db_session, 2)
         mocked_from_module_event.return_value = build
 
-        self.fn(config=conf, msg=msg)
+        self.fn(msg=msg)
 
         # Query the database again to make sure the build object is updated
         db_session.refresh(build)

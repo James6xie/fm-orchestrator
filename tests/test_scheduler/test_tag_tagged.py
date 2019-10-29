@@ -11,7 +11,6 @@ import module_build_service.scheduler.handlers.tags
 import module_build_service.models
 
 from module_build_service.scheduler.events import KojiTagChange
-from tests import conf
 from module_build_service.db_session import db_session
 
 import koji
@@ -28,8 +27,7 @@ class TestTagTagged:
         from_tag_change_event.return_value = None
         msg = KojiTagChange(
             "no matches for this...", "2016-some-nonexistent-build", "artifact", "artifact-1.2-1")
-        module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, msg=msg)
+        module_build_service.scheduler.handlers.tags.tagged(msg=msg)
 
     def test_no_matching_artifact(self):
         """ Test that when a tag msg hits us and we have no match,
@@ -41,8 +39,7 @@ class TestTagTagged:
             "artifact",
             "artifact-1.2-1",
         )
-        module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, msg=msg)
+        module_build_service.scheduler.handlers.tags.tagged(msg=msg)
 
     @patch(
         "module_build_service.builder.GenericBuilder.default_buildroot_groups",
@@ -94,9 +91,7 @@ class TestTagTagged:
             "perl-Tangerine",
             "perl-Tangerine-0.23-1.module+0+d027b723",
         )
-        module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, msg=msg
-        )
+        module_build_service.scheduler.handlers.tags.tagged(msg=msg)
         # Tag the first component to the final tag.
         msg = KojiTagChange(
             "id",
@@ -104,9 +99,7 @@ class TestTagTagged:
             "perl-Tangerine",
             "perl-Tangerine-0.23-1.module+0+d027b723",
         )
-        module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, msg=msg
-        )
+        module_build_service.scheduler.handlers.tags.tagged(msg=msg)
 
         # newRepo should not be called, because there are still components
         # to tag.
@@ -119,9 +112,7 @@ class TestTagTagged:
             "perl-List-Compare",
             "perl-List-Compare-0.53-5.module+0+d027b723",
         )
-        module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, msg=msg
-        )
+        module_build_service.scheduler.handlers.tags.tagged(msg=msg)
 
         # newRepo should not be called, because the component has not been
         # tagged to final tag so far.
@@ -134,8 +125,7 @@ class TestTagTagged:
             "perl-List-Compare",
             "perl-List-Compare-0.53-5.module+0+d027b723",
         )
-        module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, msg=msg)
+        module_build_service.scheduler.handlers.tags.tagged(msg=msg)
 
         # newRepo should be called now - all components have been tagged.
         koji_session.newRepo.assert_called_once_with(
@@ -190,8 +180,7 @@ class TestTagTagged:
             "perl-Tangerine",
             "perl-Tangerine-0.23-1.module+0+d027b723",
         )
-        module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, msg=msg)
+        module_build_service.scheduler.handlers.tags.tagged(msg=msg)
         # Tag the perl-List-Compare component to final tag.
         msg = KojiTagChange(
             "id",
@@ -199,8 +188,7 @@ class TestTagTagged:
             "perl-Tangerine",
             "perl-Tangerine-0.23-1.module+0+d027b723",
         )
-        module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, msg=msg)
+        module_build_service.scheduler.handlers.tags.tagged(msg=msg)
 
         # newRepo should not be called, because perl-List-Compare has not been
         # built yet.
@@ -260,9 +248,7 @@ class TestTagTagged:
             "perl-List-Compare",
             "perl-List-Compare-0.53-5.module+0+d027b723",
         )
-        module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, msg=msg
-        )
+        module_build_service.scheduler.handlers.tags.tagged(msg=msg)
         # Tag the perl-List-Compare component to final tag.
         msg = KojiTagChange(
             "id",
@@ -270,8 +256,7 @@ class TestTagTagged:
             "perl-List-Compare",
             "perl-List-Compare-0.53-5.module+0+d027b723",
         )
-        module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, msg=msg)
+        module_build_service.scheduler.handlers.tags.tagged(msg=msg)
 
         # newRepo should be called now - all successfully built
         # components have been tagged.
@@ -336,8 +321,7 @@ class TestTagTagged:
             "perl-Tangerine",
             "perl-Tangerine-0.23-1.module+0+d027b723",
         )
-        module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, msg=msg)
+        module_build_service.scheduler.handlers.tags.tagged(msg=msg)
         # Tag the first component to the final tag.
         msg = KojiTagChange(
             "id",
@@ -345,8 +329,7 @@ class TestTagTagged:
             "perl-Tangerine",
             "perl-Tangerine-0.23-1.module+0+d027b723",
         )
-        module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, msg=msg)
+        module_build_service.scheduler.handlers.tags.tagged(msg=msg)
 
         # newRepo should not be called, because there are still components
         # to tag.
@@ -359,8 +342,7 @@ class TestTagTagged:
             "perl-List-Compare",
             "perl-List-Compare-0.53-5.module+0+d027b723",
         )
-        module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, msg=msg)
+        module_build_service.scheduler.handlers.tags.tagged(msg=msg)
         # Tag the second component to final tag.
         msg = KojiTagChange(
             "id",
@@ -368,8 +350,7 @@ class TestTagTagged:
             "perl-List-Compare",
             "perl-List-Compare-0.53-5.module+0+d027b723",
         )
-        module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, msg=msg)
+        module_build_service.scheduler.handlers.tags.tagged(msg=msg)
 
         # newRepo should not be called, because there are still components
         # to tag.
@@ -382,8 +363,7 @@ class TestTagTagged:
             "module-build-macros",
             "module-build-macros-0.1-1.module+0+b0a1d1f7",
         )
-        module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, msg=msg)
+        module_build_service.scheduler.handlers.tags.tagged(msg=msg)
         # Tag the component from first batch to the buildroot.
         msg = KojiTagChange(
             "id",
@@ -391,8 +371,7 @@ class TestTagTagged:
             "module-build-macros",
             "module-build-macros-0.1-1.module+0+b0a1d1f7",
         )
-        module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, msg=msg)
+        module_build_service.scheduler.handlers.tags.tagged(msg=msg)
 
         # newRepo should be called now - all components have been tagged.
         koji_session.newRepo.assert_called_once_with(
@@ -463,8 +442,7 @@ class TestTagTagged:
             "perl-Tangerine",
             "perl-Tangerine-0.23-1.module+0+d027b723",
         )
-        module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, msg=msg)
+        module_build_service.scheduler.handlers.tags.tagged(msg=msg)
         assert not koji_session.newRepo.called
         # Tag the perl-List-Compare component to the buildroot.
         msg = KojiTagChange(
@@ -473,8 +451,7 @@ class TestTagTagged:
             "perl-List-Compare",
             "perl-List-Compare-0.53-5.module+0+d027b723",
         )
-        module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, msg=msg)
+        module_build_service.scheduler.handlers.tags.tagged(msg=msg)
         # Tag the perl-List-Compare component to final tag.
         msg = KojiTagChange(
             "id",
@@ -482,8 +459,7 @@ class TestTagTagged:
             "perl-List-Compare",
             "perl-List-Compare-0.53-5.module+0+d027b723",
         )
-        module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, msg=msg)
+        module_build_service.scheduler.handlers.tags.tagged(msg=msg)
 
         # newRepo should be called now - all successfully built
         # components have been tagged.
@@ -562,8 +538,7 @@ class TestTagTagged:
             "perl-Tangerine",
             "perl-Tangerine-0.23-1.module+0+d027b723",
         )
-        module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, msg=msg)
+        module_build_service.scheduler.handlers.tags.tagged(msg=msg)
         # Tag the first component to the final tag.
         msg = KojiTagChange(
             "id",
@@ -571,8 +546,7 @@ class TestTagTagged:
             "perl-Tangerine",
             "perl-Tangerine-0.23-1.module+0+d027b723",
         )
-        module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, msg=msg)
+        module_build_service.scheduler.handlers.tags.tagged(msg=msg)
         # Tag the second component to the buildroot.
         msg = KojiTagChange(
             "id",
@@ -580,8 +554,7 @@ class TestTagTagged:
             "perl-List-Compare",
             "perl-List-Compare-0.53-5.module+0+d027b723",
         )
-        module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, msg=msg)
+        module_build_service.scheduler.handlers.tags.tagged(msg=msg)
         # Tag the second component to the final tag.
         msg = KojiTagChange(
             "id",
@@ -589,8 +562,7 @@ class TestTagTagged:
             "perl-List-Compare",
             "perl-List-Compare-0.53-5.module+0+d027b723",
         )
-        module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, msg=msg)
+        module_build_service.scheduler.handlers.tags.tagged(msg=msg)
 
         # All components are tagged, newRepo should be called if there are no active tasks.
         if expect_new_repo:

@@ -1238,7 +1238,7 @@ class TestBatches:
         # the components just once.
         for msg in further_work:
             if type(msg) == KojiBuildChange:
-                module_build_service.scheduler.handlers.components.complete(conf, msg)
+                module_build_service.scheduler.handlers.components.complete(msg)
 
         # Since we have reused all the components in the batch, there should
         # be fake KojiRepoChange message.

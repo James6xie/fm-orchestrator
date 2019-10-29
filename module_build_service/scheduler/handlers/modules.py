@@ -40,7 +40,7 @@ def get_artifact_from_srpm(srpm_path):
     return os.path.basename(srpm_path).replace(".src.rpm", "")
 
 
-def failed(config, msg):
+def failed(msg):
     """
     Called whenever a module enters the 'failed' state.
 
@@ -60,7 +60,7 @@ def failed(config, msg):
 
     if build.koji_tag:
         builder = module_build_service.builder.GenericBuilder.create_from_module(
-            db_session, build, config)
+            db_session, build, conf)
 
         if build.new_repo_task_id:
             builder.cancel_build(build.new_repo_task_id)
@@ -80,7 +80,7 @@ def failed(config, msg):
             reason = "Missing koji tag. Assuming previously failed module lookup."
             log.error(reason)
             build.transition(
-                db_session, config,
+                db_session, conf,
                 state=models.BUILD_STATES["failed"],
                 state_reason=reason, failure_type="infra")
             db_session.commit()
@@ -89,7 +89,7 @@ def failed(config, msg):
     # Don't transition it again if it's already been transitioned
     if build.state != models.BUILD_STATES["failed"]:
         build.transition(
-            db_session, config, state=models.BUILD_STATES["failed"], failure_type="user")
+            db_session, conf, state=models.BUILD_STATES["failed"], failure_type="user")
 
     db_session.commit()
 
@@ -97,7 +97,7 @@ def failed(config, msg):
     module_build_service.builder.GenericBuilder.clear_cache(build)
 
 
-def done(config, msg):
+def done(msg):
     """Called whenever a module enters the 'done' state.
 
     We currently don't do anything useful, so moving to ready.
@@ -117,7 +117,7 @@ def done(config, msg):
     # Scratch builds stay in 'done' state
     if not build.scratch:
         if greenwave is None or greenwave.check_gating(build):
-            build.transition(db_session, config, state=models.BUILD_STATES["ready"])
+            build.transition(db_session, conf, state=models.BUILD_STATES["ready"])
         else:
             build.state_reason = "Gating failed"
             if greenwave.error_occurred:
@@ -129,7 +129,7 @@ def done(config, msg):
     module_build_service.builder.GenericBuilder.clear_cache(build)
 
 
-def init(config, msg):
+def init(msg):
     """ Called whenever a module enters the 'init' state."""
     # Sleep for a few seconds to make sure the module in the database is committed
     # TODO: Remove this once messaging is implemented in SQLAlchemy hooks
@@ -297,7 +297,7 @@ def get_content_generator_build_koji_tag(module_deps):
         return conf.koji_cg_default_build_tag
 
 
-def wait(config, msg):
+def wait(msg):
     """ Called whenever a module enters the 'wait' state.
 
     We transition to this state shortly after a modulebuild is first requested.
@@ -337,7 +337,7 @@ def wait(config, msg):
         reason = "Failed to get module info from MBS. Max retries reached."
         log.exception(reason)
         build.transition(
-            db_session, config,
+            db_session, conf,
             state=models.BUILD_STATES["failed"],
             state_reason=reason, failure_type="infra")
         db_session.commit()
@@ -366,7 +366,7 @@ def wait(config, msg):
         log.debug("Skip to assign Content Generator build koji tag to module build.")
 
     builder = module_build_service.builder.GenericBuilder.create_from_module(
-        db_session, build, config)
+        db_session, build, conf)
 
     log.debug(
         "Adding dependencies %s into buildroot for module %s:%s:%s",
@@ -376,7 +376,7 @@ def wait(config, msg):
 
     if not build.component_builds:
         log.info("There are no components in module %r, skipping build" % build)
-        build.transition(db_session, config, state=models.BUILD_STATES["build"])
+        build.transition(db_session, conf, state=models.BUILD_STATES["build"])
         db_session.add(build)
         db_session.commit()
         # Return a KojiRepoChange message so that the build can be transitioned to done
@@ -390,7 +390,7 @@ def wait(config, msg):
     # module-build-macros, because there won't be any build done.
     if attempt_to_reuse_all_components(builder, build):
         log.info("All components have been reused for module %r, skipping build" % build)
-        build.transition(db_session, config, state=models.BUILD_STATES["build"])
+        build.transition(db_session, conf, state=models.BUILD_STATES["build"])
         db_session.add(build)
         db_session.commit()
         return []
@@ -446,12 +446,12 @@ def wait(config, msg):
             component_build.nvr = nvr
 
     db_session.add(component_build)
-    build.transition(db_session, config, state=models.BUILD_STATES["build"])
+    build.transition(db_session, conf, state=models.BUILD_STATES["build"])
     db_session.add(build)
     db_session.commit()
 
     # We always have to regenerate the repository.
-    if config.system == "koji":
+    if conf.system == "koji":
         log.info("Regenerating the repository")
         task_id = builder.koji_session.newRepo(builder.module_build_tag["name"])
         build.new_repo_task_id = task_id

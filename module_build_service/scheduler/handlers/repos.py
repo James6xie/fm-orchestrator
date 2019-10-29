@@ -5,19 +5,19 @@
 import module_build_service.builder
 import logging
 from datetime import datetime
-from module_build_service import models, log
+from module_build_service import conf, models, log
 from module_build_service.utils import start_next_batch_build
 from module_build_service.db_session import db_session
 
 logging.basicConfig(level=logging.DEBUG)
 
 
-def done(config, msg):
+def done(msg):
     """ Called whenever koji rebuilds a repo, any repo. """
 
     # First, find our ModuleBuild associated with this repo, if any.
     tag = msg.repo_tag
-    if config.system in ("koji", "test") and not tag.endswith("-build"):
+    if conf.system in ("koji", "test") and not tag.endswith("-build"):
         log.debug("Tag %r does not end with '-build' suffix, ignoring" % tag)
         return
     tag = tag[:-6] if tag.endswith("-build") else tag
@@ -41,7 +41,7 @@ def done(config, msg):
 
     # Get the list of untagged components in current/previous batches which
     # have been built successfully
-    if config.system in ("koji", "test") and current_batch:
+    if conf.system in ("koji", "test") and current_batch:
         if any(c.is_completed and not c.is_tagged for c in module_build.up_to_current_batch()):
             log.info("Ignoring repo regen, because not all components are tagged.")
             return
@@ -70,7 +70,7 @@ def done(config, msg):
         state_reason = "Component(s) {} failed to build.".format(
             ", ".join(c.package for c in current_batch if c.is_unsuccessful))
         module_build.transition(
-            db_session, config, models.BUILD_STATES["failed"], state_reason, failure_type="infra")
+            db_session, conf, models.BUILD_STATES["failed"], state_reason, failure_type="infra")
         db_session.commit()
         log.warning("Odd!  All components in batch failed for %r." % module_build)
         return
@@ -82,8 +82,8 @@ def done(config, msg):
         db_session,
         module_build.owner,
         module_build,
-        config.system,
-        config,
+        conf.system,
+        conf,
         tag_name=tag,
         components=[c.package for c in module_build.component_builds],
     )
@@ -112,7 +112,7 @@ def done(config, msg):
 
         # Try to start next batch build, because there are still unbuilt
         # components in a module.
-        further_work += start_next_batch_build(config, module_build, builder)
+        further_work += start_next_batch_build(conf, module_build, builder)
 
     else:
         if has_failed_components:
@@ -123,7 +123,7 @@ def done(config, msg):
             )
             module_build.transition(
                 db_session,
-                config,
+                conf,
                 state=models.BUILD_STATES["failed"],
                 state_reason=state_reason,
                 failure_type="user",
@@ -133,7 +133,7 @@ def done(config, msg):
             module_build.time_completed = datetime.utcnow()
             builder.finalize(succeeded=True)
 
-            module_build.transition(db_session, config, state=models.BUILD_STATES["done"])
+            module_build.transition(db_session, conf, state=models.BUILD_STATES["done"])
         db_session.commit()
 
     return further_work

@@ -6,7 +6,7 @@ import logging
 import koji
 import module_build_service.builder
 
-from module_build_service import models, log
+from module_build_service import conf, models, log
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
 from module_build_service.scheduler import events
 from module_build_service.utils.general import mmd_to_str
@@ -15,7 +15,7 @@ from module_build_service.db_session import db_session
 logging.basicConfig(level=logging.DEBUG)
 
 
-def _finalize(config, msg, state):
+def _finalize(msg, state):
     """ Called whenever a koji build completes or fails. """
 
     # First, find our ModuleBuild associated with this component, if any.
@@ -50,7 +50,7 @@ def _finalize(config, msg, state):
     if component_build.package == "module-build-macros" and state != koji.BUILD_STATES["COMPLETE"]:
         parent.transition(
             db_session,
-            config,
+            conf,
             state=models.BUILD_STATES["failed"],
             state_reason=state_reason,
             failure_type="user",
@@ -60,10 +60,10 @@ def _finalize(config, msg, state):
 
     if (
         component_build.buildonly
-        and config.system in ["koji", "test"]
+        and conf.system in ["koji", "test"]
         and state == koji.BUILD_STATES["COMPLETE"]
     ):
-        koji_session = KojiModuleBuilder.get_session(config)
+        koji_session = KojiModuleBuilder.get_session(conf)
         rpms = koji_session.listBuildRPMs(component_build.nvr)
         mmd = parent.mmd()
         for artifact in rpms:
@@ -86,7 +86,7 @@ def _finalize(config, msg, state):
         built_components_in_batch = [c for c in parent_current_batch if c.is_completed]
 
         builder = module_build_service.builder.GenericBuilder.create_from_module(
-            db_session, parent, config
+            db_session, parent, conf
         )
 
         if failed_components_in_batch:
@@ -98,7 +98,7 @@ def _finalize(config, msg, state):
                 ", ".join(c.package for c in failed_components_in_batch))
             parent.transition(
                 db_session,
-                config,
+                conf,
                 state=models.BUILD_STATES["failed"],
                 state_reason=state_reason,
                 failure_type="user",
@@ -149,20 +149,20 @@ def _finalize(config, msg, state):
         # build, try to call continue_batch_build again so in case we hit the
         # threshold previously, we will submit another build from this batch.
         builder = module_build_service.builder.GenericBuilder.create_from_module(
-            db_session, parent, config)
+            db_session, parent, conf)
         further_work += module_build_service.utils.continue_batch_build(
-            config, parent, builder)
+            conf, parent, builder)
 
     return further_work
 
 
-def complete(config, msg):
-    return _finalize(config, msg, state=koji.BUILD_STATES["COMPLETE"])
+def complete(msg):
+    return _finalize(msg, state=koji.BUILD_STATES["COMPLETE"])
 
 
-def failed(config, msg):
-    return _finalize(config, msg, state=koji.BUILD_STATES["FAILED"])
+def failed(msg):
+    return _finalize(msg, state=koji.BUILD_STATES["FAILED"])
 
 
-def canceled(config, msg):
-    return _finalize(config, msg, state=koji.BUILD_STATES["CANCELED"])
+def canceled(msg):
+    return _finalize(msg, state=koji.BUILD_STATES["CANCELED"])

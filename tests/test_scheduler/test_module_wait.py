@@ -46,7 +46,7 @@ class TestModuleWait:
             module_build_id=module_build_id,
             module_build_state="some state")
         with patch("module_build_service.resolver.GenericResolver.create"):
-            self.fn(config=self.config, msg=msg)
+            self.fn(msg=msg)
 
     @patch(
         "module_build_service.builder.GenericBuilder.default_buildroot_groups",
@@ -83,8 +83,7 @@ class TestModuleWait:
         generic_resolver.create.return_value = resolver
         msg = MBSModule(msg_id=None, module_build_id=2, module_build_state="some state")
 
-        module_build_service.scheduler.handlers.modules.wait(
-            config=conf, msg=msg)
+        module_build_service.scheduler.handlers.modules.wait(msg=msg)
 
         koji_session.newRepo.assert_called_once_with("module-123-build")
 
@@ -129,8 +128,7 @@ class TestModuleWait:
         generic_resolver.create.return_value = resolver
         msg = MBSModule(msg_id=None, module_build_id=2, module_build_state="some state")
 
-        module_build_service.scheduler.handlers.modules.wait(
-            config=conf, msg=msg)
+        module_build_service.scheduler.handlers.modules.wait(msg=msg)
 
         assert koji_session.newRepo.called
 
@@ -174,8 +172,7 @@ class TestModuleWait:
         generic_resolver.create.return_value = resolver
         msg = MBSModule(msg_id=None, module_build_id=2, module_build_state="some state")
 
-        module_build_service.scheduler.handlers.modules.wait(
-            config=conf, msg=msg)
+        module_build_service.scheduler.handlers.modules.wait(msg=msg)
 
         module_build = ModuleBuild.get_by_id(db_session, 2)
         assert module_build.cg_build_koji_tag == "modular-updates-candidate"
@@ -243,8 +240,6 @@ class TestModuleWait:
         ):
             generic_resolver.create.return_value = resolver
             msg = MBSModule(msg_id=None, module_build_id=2, module_build_state="some state")
-            module_build_service.scheduler.handlers.modules.wait(
-                config=conf, msg=msg
-            )
+            module_build_service.scheduler.handlers.modules.wait(msg=msg)
             module_build = ModuleBuild.get_by_id(db_session, 2)
             assert module_build.cg_build_koji_tag == expected_cg_koji_build_tag

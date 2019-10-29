@@ -8,7 +8,7 @@ import module_build_service.models
 from module_build_service.db_session import db_session
 from module_build_service.models import ComponentBuild
 from module_build_service.scheduler.events import KojiRepoChange
-from tests import conf, scheduler_init_data
+from tests import scheduler_init_data
 
 
 class TestRepoDone:
@@ -22,7 +22,7 @@ class TestRepoDone:
         from_repo_done_event.return_value = None
         msg = KojiRepoChange(
             "no matches for this...", "2016-some-nonexistent-build")
-        module_build_service.scheduler.handlers.repos.done(config=conf, msg=msg)
+        module_build_service.scheduler.handlers.repos.done(msg=msg)
 
     @mock.patch(
         "module_build_service.builder.KojiModuleBuilder."
@@ -59,7 +59,7 @@ class TestRepoDone:
 
         msg = KojiRepoChange(
             "some_msg_id", "module-testmodule-master-20170109091357-7c29193d-build")
-        module_build_service.scheduler.handlers.repos.done(config=conf, msg=msg)
+        module_build_service.scheduler.handlers.repos.done(msg=msg)
         build_fn.assert_called_once_with(
             artifact_name="tangerine",
             source=(
@@ -119,7 +119,7 @@ class TestRepoDone:
 
         msg = KojiRepoChange(
             "some_msg_id", "module-testmodule-master-20170109091357-7c29193d-build")
-        module_build_service.scheduler.handlers.repos.done(config=conf, msg=msg)
+        module_build_service.scheduler.handlers.repos.done(msg=msg)
 
         finalizer.assert_called_once()
 
@@ -159,7 +159,7 @@ class TestRepoDone:
 
         msg = KojiRepoChange(
             "some_msg_id", "module-testmodule-master-20170109091357-7c29193d-build")
-        module_build_service.scheduler.handlers.repos.done(config=conf, msg=msg)
+        module_build_service.scheduler.handlers.repos.done(msg=msg)
         build_fn.assert_called_once_with(
             artifact_name="tangerine",
             source=(
@@ -186,7 +186,7 @@ class TestRepoDone:
         msg = KojiRepoChange(
             "some_msg_id", "module-testmodule-master-20170109091357-7c29193d-build")
 
-        module_build_service.scheduler.handlers.repos.done(config=conf, msg=msg)
+        module_build_service.scheduler.handlers.repos.done(msg=msg)
 
         mock_log_info.assert_called_with(
             "Ignoring repo regen, because not all components are tagged."
@@ -225,7 +225,7 @@ class TestRepoDone:
 
         msg = KojiRepoChange(
             "some_msg_id", "module-testmodule-master-20170109091357-7c29193d-build")
-        module_build_service.scheduler.handlers.repos.done(config=conf, msg=msg)
+        module_build_service.scheduler.handlers.repos.done(msg=msg)
 
         module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
         assert module_build.state == module_build_service.models.BUILD_STATES["failed"]
