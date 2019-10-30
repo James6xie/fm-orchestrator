@@ -76,10 +76,6 @@ class FakeSCM(object):
 
 @pytest.mark.usefixtures("reuse_component_init_data")
 class TestUtilsComponentReuse:
-    #
-    # def teardown_method(self, test_method):
-    #     clean_database()
-
     @pytest.mark.parametrize(
         "changed_component", ["perl-List-Compare", "perl-Tangerine", "tangerine", None]
     )
