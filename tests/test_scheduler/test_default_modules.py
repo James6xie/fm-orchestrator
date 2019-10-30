@@ -11,7 +11,7 @@ from module_build_service.errors import UnprocessableEntity
 from module_build_service.models import ModuleBuild
 from module_build_service.scheduler import default_modules
 from module_build_service.utils.general import load_mmd, mmd_to_str
-from tests import clean_database, conf, make_module_in_db, read_staged_data
+from tests import clean_database, conf, make_module_in_db, read_staged_data, import_mmd
 
 
 @patch("module_build_service.scheduler.default_modules.handle_collisions_with_base_module_rpms")
@@ -39,8 +39,13 @@ def test_add_default_modules(mock_get_dm, mock_hc, db_session):
     platform_mmd.set_xmd(platform_xmd)
     platform.modulemd = mmd_to_str(platform_mmd)
 
-    make_module_in_db("python:3:12345:1", base_module=platform, db_session=db_session)
-    make_module_in_db("nodejs:11:2345:2", base_module=platform, db_session=db_session)
+    dependencies = [
+        {"requires": {"platform": ["f28"]},
+         "buildrequires": {"platform": ["f28"]}}]
+    make_module_in_db("python:3:12345:1", base_module=platform, db_session=db_session,
+                      dependencies=dependencies)
+    make_module_in_db("nodejs:11:2345:2", base_module=platform, db_session=db_session,
+                      dependencies=dependencies)
     db_session.commit()
 
     mock_get_dm.return_value = {
@@ -85,6 +90,64 @@ def test_add_default_modules_platform_not_available(db_session):
     expected_error = "Failed to retrieve the module platform:f28:3:00000000 from the database"
     with pytest.raises(RuntimeError, match=expected_error):
         default_modules.add_default_modules(db_session, mmd, ["x86_64"])
+
+
+@patch("module_build_service.scheduler.default_modules._get_default_modules")
+def test_add_default_modules_compatible_platforms(mock_get_dm, db_session):
+    """
+    Test that default modules built against compatible base module streams are added.
+    """
+    clean_database(add_platform_module=False)
+
+    # Create compatible base modules.
+    mmd = load_mmd(read_staged_data("platform"))
+    for stream in ["f27", "f28"]:
+        mmd = mmd.copy("platform", stream)
+
+        # Set the virtual stream to "fedora" to make these base modules compatible.
+        xmd = mmd.get_xmd()
+        xmd["mbs"]["virtual_streams"] = ["fedora"]
+        xmd["mbs"]["use_default_modules"] = True
+        mmd.set_xmd(xmd)
+        import_mmd(db_session, mmd)
+
+    mmd = load_mmd(read_staged_data("formatted_testmodule.yaml"))
+    xmd_brs = mmd.get_xmd()["mbs"]["buildrequires"]
+    assert set(xmd_brs.keys()) == {"platform"}
+
+    platform_f27 = ModuleBuild.get_build_from_nsvc(
+        db_session, "platform", "f27", "3", "00000000")
+    assert platform_f27
+
+    # Create python default module which requires platform:f27 and therefore cannot be used
+    # as default module for platform:f28.
+    dependencies = [
+        {"requires": {"platform": ["f27"]},
+         "buildrequires": {"platform": ["f27"]}}]
+    make_module_in_db("python:3:12345:1", base_module=platform_f27, db_session=db_session,
+                      dependencies=dependencies)
+
+    # Create nodejs default module which requries any platform stream and therefore can be used
+    # as default module for platform:f28.
+    dependencies[0]["requires"]["platform"] = []
+    make_module_in_db("nodejs:11:2345:2", base_module=platform_f27, db_session=db_session,
+                      dependencies=dependencies)
+    db_session.commit()
+
+    mock_get_dm.return_value = {
+        "nodejs": "11",
+        "python": "3",
+        "ruby": "2.6",
+    }
+    defaults_added = default_modules.add_default_modules(db_session, mmd, ["x86_64"])
+    # Make sure that the default modules were added. ruby:2.6 will be ignored since it's not in
+    # the database
+    assert set(mmd.get_xmd()["mbs"]["buildrequires"].keys()) == {"nodejs", "platform"}
+    mock_get_dm.assert_called_once_with(
+        "f28",
+        "https://pagure.io/releng/fedora-module-defaults.git",
+    )
+    assert defaults_added is True
 
 
 @patch("module_build_service.scheduler.default_modules._get_default_modules")
