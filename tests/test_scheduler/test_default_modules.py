@@ -52,7 +52,7 @@ def test_add_default_modules(mock_get_dm, mock_hc):
         "python": "3",
         "ruby": "2.6",
     }
-    defaults_added = default_modules.add_default_modules(mmd, ["x86_64"])
+    defaults_added = default_modules.add_default_modules(mmd)
     # Make sure that the default modules were added. ruby:2.6 will be ignored since it's not in
     # the database
     assert set(mmd.get_xmd()["mbs"]["buildrequires"].keys()) == {"nodejs", "platform", "python"}
@@ -72,7 +72,7 @@ def test_add_default_modules_not_linked(mock_get_dm):
     clean_database()
     mmd = load_mmd(read_staged_data("formatted_testmodule.yaml"))
     assert set(mmd.get_xmd()["mbs"]["buildrequires"].keys()) == {"platform"}
-    default_modules.add_default_modules(mmd, ["x86_64"])
+    default_modules.add_default_modules(mmd)
     assert set(mmd.get_xmd()["mbs"]["buildrequires"].keys()) == {"platform"}
     mock_get_dm.assert_not_called()
 
@@ -88,7 +88,7 @@ def test_add_default_modules_platform_not_available():
 
     expected_error = "Failed to retrieve the module platform:f28:3:00000000 from the database"
     with pytest.raises(RuntimeError, match=expected_error):
-        default_modules.add_default_modules(mmd, ["x86_64"])
+        default_modules.add_default_modules(mmd)
 
 
 @patch("module_build_service.scheduler.default_modules._get_default_modules")
@@ -136,7 +136,7 @@ def test_add_default_modules_compatible_platforms(mock_get_dm):
         "python": "3",
         "ruby": "2.6",
     }
-    defaults_added = default_modules.add_default_modules(mmd, ["x86_64"])
+    defaults_added = default_modules.add_default_modules(mmd)
     # Make sure that the default modules were added. ruby:2.6 will be ignored since it's not in
     # the database
     assert set(mmd.get_xmd()["mbs"]["buildrequires"].keys()) == {"nodejs", "platform"}
@@ -178,7 +178,7 @@ def test_add_default_modules_request_failed(mock_get_dm):
     mock_get_dm.side_effect = ValueError(expected_error)
 
     with pytest.raises(ValueError, match=expected_error):
-        default_modules.add_default_modules(mmd, ["x86_64"])
+        default_modules.add_default_modules(mmd)
 
 
 @pytest.mark.parametrize("is_rawhide", (True, False))

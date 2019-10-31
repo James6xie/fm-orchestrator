@@ -157,7 +157,7 @@ def init(config, msg):
         mmd = build.mmd()
         record_module_build_arches(mmd, build)
         arches = [arch.name for arch in build.arches]
-        defaults_added = add_default_modules(mmd, arches)
+        defaults_added = add_default_modules(mmd)
 
         # Format the modulemd by putting in defaults and replacing streams that
         # are branches with commit hashes

@@ -22,7 +22,7 @@ from module_build_service.utils.mse import (
     get_compatible_base_module_mmds, expand_single_mse_streams)
 
 
-def add_default_modules(mmd, arches):
+def add_default_modules(mmd):
     """
     Add default modules as buildrequires to the input modulemd.
 
@@ -31,8 +31,6 @@ def add_default_modules(mmd, arches):
     database will be logged and ignored.
 
     :param Modulemd.ModuleStream mmd: the modulemd of the module to add the module defaults to
-    :param list arches: the arches to limit the external repo queries to; this should be the arches
-        the module will be built with
     :raises RuntimeError: if the buildrequired base module isn't in the database or the default
         modules list can't be downloaded
     """
