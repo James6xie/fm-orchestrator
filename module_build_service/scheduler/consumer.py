@@ -255,7 +255,7 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
         try:
             further_work = handler(conf, db_session, msg) or []
         except Exception as e:
-            log.exception()
+            log.exception("Could not process message handler.")
             db_session.rollback()
             db_session.refresh(build)
             build.transition(
