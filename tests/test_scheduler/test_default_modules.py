@@ -183,7 +183,7 @@ def test_get_default_modules_invalid_branch(
     else:
         mock_get_rawhide.return_value = "something_else"
 
-    with pytest.raises(ValueError, match="Failed to retrieve the default modules"):
+    with pytest.raises(RuntimeError, match="Failed to retrieve the default modules"):
         default_modules._get_default_modules("f32", conf.default_modules_scm_url)
 
     mock_mmd_new.assert_not_called()

@@ -121,7 +121,7 @@ def _get_default_modules(stream, default_modules_scm_url):
     :return: a dictionary where the keys are default module names and the values are default module
         streams
     :rtype: dict
-    :raise ValueError: if no default modules can be retrieved for that stream
+    :raise RuntimeError: if no default modules can be retrieved for that stream
     """
     scm_obj = scm.SCM(default_modules_scm_url)
     temp_dir = tempfile.mkdtemp()
@@ -167,7 +167,7 @@ def _get_default_modules(stream, default_modules_scm_url):
     except:  # noqa: E722
         msg = "Failed to retrieve the default modules"
         log.exception(msg)
-        raise ValueError(msg)
+        raise RuntimeError(msg)
     finally:
         shutil.rmtree(temp_dir)
 
