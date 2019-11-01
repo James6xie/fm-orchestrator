@@ -1,4 +1,4 @@
-FROM fedora:29 AS builder
+FROM fedora:31 AS builder
 
 ARG EXTRA_RPMS=""
 ARG GIT_REPO=""
@@ -24,7 +24,7 @@ RUN flake8 && \
     tox -v -e py3
 
 
-FROM fedora:29
+FROM fedora:31
 LABEL \
     org.opencontainers.image.title="Backend for the Module Build Service (MBS)" \
     org.opencontainers.image.description="The MBS coordinates module builds. This image is to serve as the MBS backend." \
@@ -42,13 +42,10 @@ LABEL \
 COPY --from=builder /srv/RPMS /srv/RPMS
 COPY repos/ /etc/yum.repos.d/
 
-# TODO: Unpin the `python3-libmodulemd` RPM once MBS is released with libmodulemd v2
 RUN $DNF_CMD install \
       python3-psycopg2 \
-      python3-docopt \
       python3-service-identity \
       /srv/*/*/*.rpm \
-      python3-libmodulemd \
       $EXTRA_RPMS && \
     $DNF_CMD clean all && \
     rm -rf /srv/RPMS

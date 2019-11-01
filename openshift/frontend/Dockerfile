@@ -25,10 +25,11 @@ LABEL \
 USER root
 
 RUN $DNF_CMD install \
-      nss_wrapper httpd mod_ssl mod_auth_gssapi python3-mod_wsgi && \
+      httpd mod_ssl mod_auth_gssapi python3-mod_wsgi && \
     $DNF_CMD clean all
 
 RUN chmod a+rwx /run/httpd && \
+    chmod a+rw /etc/passwd && \
     sed -i -r -e 's!Listen 80!Listen 8080!' \
               -e 's!^User apache!User default!' \
               -e 's!^Group apache!Group root!' \
@@ -45,10 +46,11 @@ RUN chmod a+rwx /run/httpd && \
               -e 's!^#(SSLCertificateChainFile)\s+\S+!\1 /etc/mbs-certs/frontendca.crt!' \
         /etc/httpd/conf.d/ssl.conf
 
-COPY openshift/frontend/run-httpd /usr/bin
+COPY openshift/frontend/run /usr/bin
 
 USER 1001
 
 VOLUME ["/etc/module-build-service", "/etc/fedmsg.d", "/etc/mbs-certs", "/etc/httpd/conf.d"]
 EXPOSE 8080/tcp 8443/tcp
-CMD ["/usr/bin/run-httpd"]
+ENTRYPOINT ["/usr/bin/run"]
+CMD ["httpd", "-D", "FOREGROUND"]

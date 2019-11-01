@@ -2,7 +2,7 @@
 # https://github.com/jenkinsci/docker-jnlp-slave/blob/master/Dockerfile
 # https://github.com/jenkinsci/docker-slave/blob/master/Dockerfile
 
-FROM fedora:29
+FROM fedora:31
 LABEL \
     org.opencontainers.image.title="Jenkins slave for Module Build Service (MBS) pipelines" \
     org.opencontainers.image.description="The MBS coordinates module builds. This image is to serve as the slave for executing build and test pipelines." \
@@ -15,8 +15,8 @@ LABEL \
 
 ARG USER=jenkins
 ARG UID=10000
-ARG HOME_DIR=/var/lib/jenkins
-ARG SLAVE_VERSION=3.29
+ARG HOME_DIR=/home/jenkins
+ARG REMOTING_VERSION=3.35
 ARG TINI_VERSION=0.18.0
 ARG DNF_CMD="dnf -y --setopt=deltarpm=0 --setopt=install_weak_deps=false --setopt=tsflags=nodocs"
 ARG CA_URLS=""
@@ -56,7 +56,7 @@ RUN chmod g+rw /etc/passwd
 
 # Retrieve jenkins slave client
 RUN curl --create-dirs -sSLo /usr/share/jenkins/slave.jar \
-    https://repo.jenkins-ci.org/public/org/jenkins-ci/main/remoting/${SLAVE_VERSION}/remoting-${SLAVE_VERSION}.jar && \
+    https://repo.jenkins-ci.org/public/org/jenkins-ci/main/remoting/${REMOTING_VERSION}/remoting-${REMOTING_VERSION}.jar && \
     chmod 755 /usr/share/jenkins && \
     chmod 644 /usr/share/jenkins/slave.jar
 
