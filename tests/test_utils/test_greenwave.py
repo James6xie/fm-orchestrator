@@ -13,7 +13,7 @@ class TestGreenwaveQuery():
         clean_database()
 
     @patch("module_build_service.utils.greenwave.requests")
-    def test_greenwave_query_decision(self, mock_requests, db_session):
+    def test_greenwave_query_decision(self, mock_requests):
         resp_status = 200
         resp_content = {
             "applicable_policies": ["osci_compose_modules"],
@@ -43,7 +43,7 @@ class TestGreenwaveQuery():
                 "requires": {"platform": ["el8"]},
                 "buildrequires": {"platform": ["el8"]},
             }],
-            db_session=db_session)
+        )
         got_response = greenwave.query_decision(fake_build, prod_version="xxxx-8")
 
         assert got_response == resp_content
@@ -138,7 +138,7 @@ class TestGreenwaveQuery():
 
     @pytest.mark.parametrize("policies_satisfied", (True, False))
     @patch("module_build_service.utils.greenwave.requests")
-    def test_greenwave_check_gating(self, mock_requests, policies_satisfied, db_session):
+    def test_greenwave_check_gating(self, mock_requests, policies_satisfied):
         resp_status = 200
         policies_content = {
             "policies": [
@@ -165,7 +165,7 @@ class TestGreenwaveQuery():
                 "requires": {"platform": ["el8"]},
                 "buildrequires": {"platform": ["el8"]},
             }],
-            db_session=db_session)
+        )
         result = greenwave.check_gating(fake_build)
 
         assert result == policies_satisfied

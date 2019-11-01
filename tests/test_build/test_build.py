@@ -16,6 +16,7 @@ import module_build_service.scheduler.handlers.repos
 import module_build_service.utils
 from module_build_service.errors import Forbidden
 from module_build_service import models, conf, build_logs
+from module_build_service.db_session import db_session
 from module_build_service.scheduler import make_simple_stop_condition
 
 from mock import patch, PropertyMock, Mock, MagicMock
@@ -337,10 +338,10 @@ def cleanup_moksha():
 
 class BaseTestBuild:
 
-    def run_scheduler(self, db_session, msgs=None, stop_condition=None):
+    def run_scheduler(self, msgs=None, stop_condition=None):
         module_build_service.scheduler.main(
             msgs or [],
-            stop_condition or make_simple_stop_condition(db_session)
+            stop_condition or make_simple_stop_condition()
         )
 
 
@@ -413,8 +414,7 @@ class TestBuild(BaseTestBuild):
         cleanup_moksha()
         for i in range(20):
             try:
-                with models.make_db_session(conf) as db_session:
-                    os.remove(build_logs.path(db_session, i))
+                os.remove(build_logs.path(db_session, i))
             except Exception:
                 pass
 
@@ -422,7 +422,7 @@ class TestBuild(BaseTestBuild):
     @patch("module_build_service.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build(
-        self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc, mmd_version, db_session
+        self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc, mmd_version
     ):
         """
         Tests the build of testmodule.yaml using FakeModuleBuilder which
@@ -474,7 +474,7 @@ class TestBuild(BaseTestBuild):
 
         FakeModuleBuilder.on_buildroot_add_artifacts_cb = on_buildroot_add_artifacts_cb
 
-        self.run_scheduler(db_session)
+        self.run_scheduler()
 
         # All components should be built and module itself should be in "done"
         # or "ready" state.
@@ -501,7 +501,7 @@ class TestBuild(BaseTestBuild):
     @patch("module_build_service.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_buildonly(
-        self, mocked_scm, mocked_get_user, mocked_get_session, conf_system, dbg, hmsc, db_session
+        self, mocked_scm, mocked_get_user, mocked_get_session, conf_system, dbg, hmsc
     ):
         def list_build_rpms(nvr):
             assert nvr == "perl-List-Compare-1-1"
@@ -553,7 +553,7 @@ class TestBuild(BaseTestBuild):
 
         FakeModuleBuilder.on_buildroot_add_artifacts_cb = on_buildroot_add_artifacts_cb
 
-        self.run_scheduler(db_session)
+        self.run_scheduler()
 
         # All components should be built and module itself should be in "done"
         # or "ready" state.
@@ -569,7 +569,7 @@ class TestBuild(BaseTestBuild):
     @patch("module_build_service.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_no_components(
-        self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc, gating_result, db_session
+        self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc, gating_result
     ):
         """
         Tests the build of a module with no components
@@ -581,6 +581,7 @@ class TestBuild(BaseTestBuild):
             "python3-no-components.yaml",
             "620ec77321b2ea7b0d67d82992dda3e1d67055b4",
         )
+
         rv = self.client.post(
             "/module-build-service/1/module-builds/",
             data=json.dumps({
@@ -593,9 +594,10 @@ class TestBuild(BaseTestBuild):
         data = json.loads(rv.data)
         module_build_id = data["id"]
 
-        self.run_scheduler(db_session)
+        self.run_scheduler()
 
         module_build = models.ModuleBuild.get_by_id(db_session, module_build_id)
+
         # Make sure no component builds were registered
         assert len(module_build.component_builds) == 0
         # Make sure the build is done
@@ -665,7 +667,7 @@ class TestBuild(BaseTestBuild):
     @patch("module_build_service.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_from_yaml_allowed(
-        self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc, db_session
+        self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc
     ):
         FakeSCM(
             mocked_scm, "testmodule", "testmodule.yaml", "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
@@ -687,7 +689,7 @@ class TestBuild(BaseTestBuild):
             module_build_id = data["id"]
             assert module_build_id == 2
 
-        self.run_scheduler(db_session)
+        self.run_scheduler()
 
         module_build = models.ModuleBuild.get_by_id(db_session, module_build_id)
         assert module_build.state == models.BUILD_STATES["ready"]
@@ -695,7 +697,7 @@ class TestBuild(BaseTestBuild):
     @patch("module_build_service.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_cancel(
-        self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc, db_session
+        self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc
     ):
         """
         Submit all builds for a module and cancel the module build later.
@@ -739,7 +741,7 @@ class TestBuild(BaseTestBuild):
         FakeModuleBuilder.on_cancel_cb = on_cancel_cb
         FakeModuleBuilder.on_finalize_cb = on_finalize_cb
 
-        self.run_scheduler(db_session)
+        self.run_scheduler()
 
         # Because we did not finished single component build and canceled the
         # module build, all components and even the module itself should be in
@@ -757,7 +759,7 @@ class TestBuild(BaseTestBuild):
     @patch("module_build_service.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_instant_complete(
-        self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc, db_session
+        self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc
     ):
         """
         Tests the build of testmodule.yaml using FakeModuleBuilder which
@@ -779,7 +781,7 @@ class TestBuild(BaseTestBuild):
         module_build_id = data["id"]
         FakeModuleBuilder.INSTANT_COMPLETE = True
 
-        self.run_scheduler(db_session)
+        self.run_scheduler()
 
         # All components should be built and module itself should be in "done"
         # or "ready" state.
@@ -799,7 +801,7 @@ class TestBuild(BaseTestBuild):
     )
     def test_submit_build_concurrent_threshold(
         self, conf_num_concurrent_builds, mocked_scm, mocked_get_user,
-        conf_system, dbg, hmsc, db_session
+        conf_system, dbg, hmsc
     ):
         """
         Tests the build of testmodule.yaml using FakeModuleBuilder with
@@ -825,16 +827,18 @@ class TestBuild(BaseTestBuild):
             Stop the scheduler when the module is built or when we try to build
             more components than the num_concurrent_builds.
             """
-            main_stop = make_simple_stop_condition(db_session)
+            main_stop = make_simple_stop_condition()
             build_count = (
                 db_session.query(models.ComponentBuild).filter_by(
                     state=koji.BUILD_STATES["BUILDING"]
                 ).count()
             )
             over_threshold = conf.num_concurrent_builds < build_count
-            return main_stop(message) or over_threshold
+            result = main_stop(message) or over_threshold
+            db_session.remove()
+            return result
 
-        self.run_scheduler(db_session, stop_condition=stop)
+        self.run_scheduler(stop_condition=stop)
 
         # All components should be built and module itself should be in "done"
         # or "ready" state.
@@ -856,7 +860,7 @@ class TestBuild(BaseTestBuild):
     )
     def test_try_to_reach_concurrent_threshold(
         self, conf_num_concurrent_builds, mocked_scm, mocked_get_user,
-        conf_system, dbg, hmsc, db_session
+        conf_system, dbg, hmsc
     ):
         """
         Tests that we try to submit new component build right after
@@ -887,7 +891,7 @@ class TestBuild(BaseTestBuild):
             Stop the scheduler when the module is built or when we try to build
             more components than the num_concurrent_builds.
             """
-            main_stop = module_build_service.scheduler.make_simple_stop_condition(db_session)
+            main_stop = module_build_service.scheduler.make_simple_stop_condition()
             num_building = (
                 db_session.query(models.ComponentBuild)
                 .filter_by(state=koji.BUILD_STATES["BUILDING"])
@@ -895,9 +899,11 @@ class TestBuild(BaseTestBuild):
             )
             over_threshold = conf.num_concurrent_builds < num_building
             TestBuild._global_var.append(num_building)
-            return main_stop(message) or over_threshold
+            result = main_stop(message) or over_threshold
+            db_session.remove()
+            return result
 
-        self.run_scheduler(db_session, stop_condition=stop)
+        self.run_scheduler(stop_condition=stop)
 
         # _global_var looks similar to this: [0, 1, 0, 0, 2, 2, 1, 0, 0, 0]
         # It shows the number of concurrent builds in the time. At first we
@@ -921,7 +927,7 @@ class TestBuild(BaseTestBuild):
     )
     def test_build_in_batch_fails(
         self, conf_num_concurrent_builds, mocked_scm, mocked_get_user,
-        conf_system, dbg, hmsc, db_session
+        conf_system, dbg, hmsc
     ):
         """
         Tests that if the build in batch fails, other components in a batch
@@ -959,7 +965,7 @@ class TestBuild(BaseTestBuild):
 
         FakeModuleBuilder.on_tag_artifacts_cb = on_tag_artifacts_cb
 
-        self.run_scheduler(db_session)
+        self.run_scheduler()
 
         for c in models.ModuleBuild.get_by_id(db_session, module_build_id).component_builds:
             # perl-Tangerine is expected to fail as configured in on_build_cb.
@@ -990,7 +996,7 @@ class TestBuild(BaseTestBuild):
     )
     def test_all_builds_in_batch_fail(
         self, conf_num_concurrent_builds, mocked_scm, mocked_get_user,
-        conf_system, dbg, hmsc, db_session
+        conf_system, dbg, hmsc
     ):
         """
         Tests that if the build in batch fails, other components in a batch
@@ -1019,7 +1025,7 @@ class TestBuild(BaseTestBuild):
 
         FakeModuleBuilder.on_build_cb = on_build_cb
 
-        self.run_scheduler(db_session)
+        self.run_scheduler()
 
         for c in models.ModuleBuild.get_by_id(db_session, module_build_id).component_builds:
             # perl-Tangerine is expected to fail as configured in on_build_cb.
@@ -1044,7 +1050,7 @@ class TestBuild(BaseTestBuild):
     @patch("module_build_service.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_reuse_all(
-        self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc, db_session
+        self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc
     ):
         """
         Tests that we do not try building module-build-macros when reusing all
@@ -1083,9 +1089,10 @@ class TestBuild(BaseTestBuild):
 
         FakeModuleBuilder.on_buildroot_add_artifacts_cb = on_buildroot_add_artifacts_cb
 
+        from module_build_service.db_session import db_session
+
         # Create a dedicated database session for scheduler to avoid hang
-        with models.make_db_session(conf) as scheduler_db_session:
-            self.run_scheduler(scheduler_db_session, msgs=[MBSModule("local module build", 3, 1)])
+        self.run_scheduler(msgs=[MBSModule("local module build", 3, 1)])
 
         reused_component_ids = {
             "module-build-macros": None,
@@ -1108,13 +1115,15 @@ class TestBuild(BaseTestBuild):
     @patch("module_build_service.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_reuse_all_without_build_macros(
-        self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc, db_session
+        self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc
     ):
         """
         Tests that we can reuse components even when the reused module does
         not have module-build-macros component.
         """
         # Firstly, remove all existing module-build-macros component builds
+
+        from module_build_service.db_session import db_session
 
         macros_cb_query = db_session.query(models.ComponentBuild).filter_by(
             package="module-build-macros")
@@ -1162,8 +1171,7 @@ class TestBuild(BaseTestBuild):
 
         FakeModuleBuilder.on_buildroot_add_artifacts_cb = on_buildroot_add_artifacts_cb
 
-        with models.make_db_session(conf) as scheduler_db_session:
-            self.run_scheduler(scheduler_db_session, msgs=[MBSModule("local module build", 3, 1)])
+        self.run_scheduler(msgs=[MBSModule("local module build", 3, 1)])
 
         # All components should be built and module itself should be in "done"
         # or "ready" state.
@@ -1178,7 +1186,7 @@ class TestBuild(BaseTestBuild):
     @patch("module_build_service.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_resume(
-        self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc, db_session
+        self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc
     ):
         """
         Tests that resuming the build works even when previous batches
@@ -1299,8 +1307,7 @@ class TestBuild(BaseTestBuild):
         db_session.expire_all()
 
         # Run the backend
-        with models.make_db_session(conf) as scheduler_db_session:
-            self.run_scheduler(scheduler_db_session)
+        self.run_scheduler()
 
         # All components should be built and module itself should be in "done"
         # or "ready" state.
@@ -1314,7 +1321,7 @@ class TestBuild(BaseTestBuild):
     @patch("module_build_service.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_resume_recover_orphaned_macros(
-        self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc, db_session
+        self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc
     ):
         """
         Tests that resuming the build works when module-build-macros is orphaned but marked as
@@ -1421,8 +1428,7 @@ class TestBuild(BaseTestBuild):
         db_session.expire_all()
 
         # Run the backend
-        with models.make_db_session(conf) as scheduler_db_session:
-            self.run_scheduler(scheduler_db_session)
+        self.run_scheduler()
 
         # All components should be built and module itself should be in "done"
         # or "ready" state.
@@ -1436,7 +1442,7 @@ class TestBuild(BaseTestBuild):
     @patch("module_build_service.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_resume_failed_init(
-        self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc, db_session
+        self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc
     ):
         """
         Tests that resuming the build works when the build failed during the init step
@@ -1455,11 +1461,12 @@ class TestBuild(BaseTestBuild):
                 }),
             )
             # Run the backend so that it fails in the "init" handler
-            self.run_scheduler(db_session)
+            self.run_scheduler()
             cleanup_moksha()
 
         module_build_id = json.loads(rv.data)["id"]
         module_build = models.ModuleBuild.get_by_id(db_session, module_build_id)
+        db_session.refresh(module_build)
         assert module_build.state == models.BUILD_STATES["failed"]
         assert module_build.state_reason == "Custom component repositories aren't allowed."
         assert len(module_build.module_builds_trace) == 2
@@ -1478,7 +1485,7 @@ class TestBuild(BaseTestBuild):
             }),
         )
 
-        module_build = models.ModuleBuild.query.filter_by(id=module_build_id).one()
+        db_session.refresh(module_build)
         components = (
             db_session.query(models.ComponentBuild)
             .filter_by(module_id=module_build_id, batch=2)
@@ -1490,14 +1497,15 @@ class TestBuild(BaseTestBuild):
         assert module_build.state_reason == "Resubmitted by Homer J. Simpson"
         # Make sure there are no components
         assert components == []
-        db_session.expire_all()
 
         # Run the backend again
-        self.run_scheduler(db_session)
+        self.run_scheduler()
 
         # All components should be built and module itself should be in "done"
         # or "ready" state.
-        for build in models.ModuleBuild.get_by_id(db_session, module_build_id).component_builds:
+        db_session.refresh(module_build)
+        # for build in models.ModuleBuild.get_by_id(db_session, module_build_id).component_builds:
+        for build in module_build.component_builds:
             assert build.state == koji.BUILD_STATES["COMPLETE"]
             assert build.module_build.state in [
                 models.BUILD_STATES["done"],
@@ -1507,7 +1515,7 @@ class TestBuild(BaseTestBuild):
     @patch("module_build_service.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_resume_init_fail(
-        self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc, db_session
+        self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc
     ):
         """
         Tests that resuming the build fails when the build is in init state
@@ -1525,7 +1533,7 @@ class TestBuild(BaseTestBuild):
         )
         assert rv.status_code == 201
         # Run the backend
-        self.run_scheduler(db_session)
+        self.run_scheduler()
         # Post again and make sure it fails
         rv2 = self.client.post(
             "/module-build-service/1/module-builds/",
@@ -1554,7 +1562,7 @@ class TestBuild(BaseTestBuild):
         return_value=True,
     )
     def test_submit_scratch_vs_normal(
-        self, mocked_allow_scratch, mocked_scm, mocked_get_user, conf_system, dbg, hmsc, db_session
+        self, mocked_allow_scratch, mocked_scm, mocked_get_user, conf_system, dbg, hmsc
     ):
         """
         Tests that submitting a scratch build with the same NSV as a previously
@@ -1574,18 +1582,18 @@ class TestBuild(BaseTestBuild):
         assert rv.status_code == 201
         data = json.loads(rv.data)
         module_build_id = data["id"]
-        module_build = models.ModuleBuild.query.filter_by(id=module_build_id).one()
+        module_build = models.ModuleBuild.get_by_id(db_session, module_build_id)
         # make sure normal build has expected context without a suffix
         assert module_build.context == "9c690d0e"
         # Run the backend
-        self.run_scheduler(db_session)
+        self.run_scheduler()
         # Post again as a scratch build and make sure it succeeds
         post_data["scratch"] = True
         rv2 = self.client.post(post_url, data=json.dumps(post_data))
         assert rv2.status_code == 201
         data = json.loads(rv2.data)
         module_build_id = data["id"]
-        module_build = models.ModuleBuild.query.filter_by(id=module_build_id).one()
+        module_build = models.ModuleBuild.get_by_id(db_session, module_build_id)
         # make sure scratch build has expected context with unique suffix
         assert module_build.context == "9c690d0e_1"
 
@@ -1597,7 +1605,7 @@ class TestBuild(BaseTestBuild):
         return_value=True,
     )
     def test_submit_normal_vs_scratch(
-        self, mocked_allow_scratch, mocked_scm, mocked_get_user, conf_system, dbg, hmsc, db_session
+        self, mocked_allow_scratch, mocked_scm, mocked_get_user, conf_system, dbg, hmsc
     ):
         """
         Tests that submitting a normal build with the same NSV as a previously
@@ -1618,18 +1626,18 @@ class TestBuild(BaseTestBuild):
         assert rv.status_code == 201
         data = json.loads(rv.data)
         module_build_id = data["id"]
-        module_build = models.ModuleBuild.query.filter_by(id=module_build_id).one()
+        module_build = models.ModuleBuild.get_by_id(db_session, module_build_id)
         # make sure scratch build has expected context with unique suffix
         assert module_build.context == "9c690d0e_1"
         # Run the backend
-        self.run_scheduler(db_session)
+        self.run_scheduler()
         # Post again as a non-scratch build and make sure it succeeds
         post_data["scratch"] = False
         rv2 = self.client.post(post_url, data=json.dumps(post_data))
         assert rv2.status_code == 201
         data = json.loads(rv2.data)
         module_build_id = data["id"]
-        module_build = models.ModuleBuild.query.filter_by(id=module_build_id).one()
+        module_build = models.ModuleBuild.get_by_id(db_session, module_build_id)
         # make sure normal build has expected context without suffix
         assert module_build.context == "9c690d0e"
 
@@ -1641,7 +1649,7 @@ class TestBuild(BaseTestBuild):
         return_value=True,
     )
     def test_submit_scratch_vs_scratch(
-        self, mocked_allow_scratch, mocked_scm, mocked_get_user, conf_system, dbg, hmsc, db_session
+        self, mocked_allow_scratch, mocked_scm, mocked_get_user, conf_system, dbg, hmsc
     ):
         """
         Tests that submitting a scratch build with the same NSV as a previously
@@ -1661,24 +1669,24 @@ class TestBuild(BaseTestBuild):
         assert rv.status_code == 201
         data = json.loads(rv.data)
         module_build_id = data["id"]
-        module_build = models.ModuleBuild.query.filter_by(id=module_build_id).one()
+        module_build = models.ModuleBuild.get_by_id(db_session, module_build_id)
         # make sure first scratch build has expected context with unique suffix
         assert module_build.context == "9c690d0e_1"
         # Run the backend
-        self.run_scheduler(db_session)
+        self.run_scheduler()
         # Post scratch build again and make sure it succeeds
         rv2 = self.client.post(post_url, data=json.dumps(post_data))
         assert rv2.status_code == 201
         data = json.loads(rv2.data)
         module_build_id = data["id"]
-        module_build = models.ModuleBuild.query.filter_by(id=module_build_id).one()
+        module_build = models.ModuleBuild.get_by_id(db_session, module_build_id)
         # make sure second scratch build has expected context with unique suffix
         assert module_build.context == "9c690d0e_2"
 
     @patch("module_build_service.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_repo_regen_not_started_batch(
-        self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc, db_session
+        self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc
     ):
         """
         Tests that if MBS starts a new batch, the concurrent component threshold is met before a
@@ -1704,18 +1712,21 @@ class TestBuild(BaseTestBuild):
         def _stop_condition(message):
             # Stop the backend if the module batch is 2 (where we simulate the concurrent threshold
             # being met). For safety, also stop the backend if the module erroneously completes.
-            module = db_session.query(models.ModuleBuild).get(module_build_id)
-            return module.batch == 2 or module.state >= models.BUILD_STATES["done"]
+            module = models.ModuleBuild.get_by_id(db_session, module_build_id)
+            result = module.batch == 2 or module.state >= models.BUILD_STATES["done"]
+            if result:
+                db_session.remove()
+            return result
 
         with patch(
             "module_build_service.utils.batches.at_concurrent_component_threshold"
         ) as mock_acct:
             # Once we get to batch 2, then simulate the concurrent threshold being met
-            def _at_concurrent_component_threshold(config, session):
-                return session.query(models.ModuleBuild).get(module_build_id).batch == 2
+            def _at_concurrent_component_threshold(config):
+                return models.ModuleBuild.get_by_id(db_session, module_build_id).batch == 2
 
             mock_acct.side_effect = _at_concurrent_component_threshold
-            self.run_scheduler(db_session, stop_condition=_stop_condition)
+            self.run_scheduler(stop_condition=_stop_condition)
 
         # Only module-build-macros should be built
         for build in (
@@ -1737,7 +1748,13 @@ class TestBuild(BaseTestBuild):
         ]
         db_session.expire_all()
         # Stop after processing the seeded message
-        self.run_scheduler(db_session, msgs, lambda message: True)
+
+        def stop(message):
+            db_session.remove()
+            return True
+
+        self.run_scheduler(msgs, stop_condition=stop)
+
         # Make sure the module build didn't fail so that the poller can resume it later
         module = models.ModuleBuild.get_by_id(db_session, module_build_id)
         assert module.state == models.BUILD_STATES["build"]
@@ -1745,7 +1762,7 @@ class TestBuild(BaseTestBuild):
     @patch("module_build_service.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_br_metadata_only_module(
-        self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc, db_session
+        self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc
     ):
         """
         Test that when a build is submitted with a buildrequire without a Koji tag,
@@ -1779,7 +1796,7 @@ class TestBuild(BaseTestBuild):
             assert set(dependencies.keys()) == {"module-f28-build"}
 
         FakeModuleBuilder.on_buildroot_add_repos_cb = on_buildroot_add_repos_cb
-        self.run_scheduler(db_session)
+        self.run_scheduler()
 
         module = models.ModuleBuild.get_by_id(db_session, module_build_id)
         assert module.state == models.BUILD_STATES["ready"]
@@ -1801,8 +1818,7 @@ class TestLocalBuild(BaseTestBuild):
         cleanup_moksha()
         for i in range(20):
             try:
-                with models.make_db_session(conf) as db_session:
-                    os.remove(build_logs.path(db_session, i))
+                os.remove(build_logs.path(db_session, i))
             except Exception:
                 pass
 
@@ -1815,12 +1831,12 @@ class TestLocalBuild(BaseTestBuild):
         return_value=staged_data_filename('local_builds'),
     )
     def test_submit_build_local_dependency(
-        self, resultsdir, mocked_scm, mocked_get_user, conf_system, hmsc, db_session
+        self, resultsdir, mocked_scm, mocked_get_user, conf_system, hmsc
     ):
         """
         Tests local module build dependency.
         """
-        module_build_service.utils.load_local_builds(db_session, ["platform"])
+        module_build_service.utils.load_local_builds(["platform"])
         FakeSCM(
             mocked_scm,
             "testmodule",
@@ -1844,7 +1860,7 @@ class TestLocalBuild(BaseTestBuild):
         # the local one and not the main one.
         FakeModuleBuilder.DEFAULT_GROUPS = {"srpm-build": {"bar"}, "build": {"foo"}}
 
-        self.run_scheduler(db_session)
+        self.run_scheduler()
 
         # All components should be built and module itself should be in "done"
         # or "ready" state.

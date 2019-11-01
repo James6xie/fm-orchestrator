@@ -24,6 +24,7 @@ from module_build_service.builder.utils import (
     get_koji_config,
 )
 from module_build_service.utils.general import mmd_to_str
+from module_build_service.db_session import db_session
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
 
 from module_build_service import models
@@ -563,22 +564,21 @@ class MockModuleBuilder(GenericBuilder):
         :param Modulemd mmd: Modulemd to get the built RPMs from.
         :return: list of NVRs
         """
-        with models.make_db_session(conf) as db_session:
-            build = models.ModuleBuild.get_build_from_nsvc(
-                db_session,
-                mmd.get_module_name(),
-                mmd.get_stream_name(),
-                mmd.get_version(),
-                mmd.get_context()
-            )
-            if build.koji_tag.startswith("repofile://"):
-                # Modules from local repository have already the RPMs filled in mmd.
-                return mmd.get_rpm_artifacts()
-            else:
-                koji_session = KojiModuleBuilder.get_session(conf, login=False)
-                rpms = koji_session.listTaggedRPMS(build.koji_tag, latest=True)[0]
-                nvrs = set(kobo.rpmlib.make_nvr(rpm, force_epoch=True) for rpm in rpms)
-                return list(nvrs)
+        build = models.ModuleBuild.get_build_from_nsvc(
+            db_session,
+            mmd.get_module_name(),
+            mmd.get_stream_name(),
+            mmd.get_version(),
+            mmd.get_context()
+        )
+        if build.koji_tag.startswith("repofile://"):
+            # Modules from local repository have already the RPMs filled in mmd.
+            return mmd.get_rpm_artifacts()
+        else:
+            koji_session = KojiModuleBuilder.get_session(conf, login=False)
+            rpms = koji_session.listTaggedRPMS(build.koji_tag, latest=True)[0]
+            nvrs = set(kobo.rpmlib.make_nvr(rpm, force_epoch=True) for rpm in rpms)
+            return list(nvrs)
 
 
 class BaseBuilder(object):

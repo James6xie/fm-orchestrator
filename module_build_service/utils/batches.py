@@ -5,15 +5,15 @@ import concurrent.futures
 
 from module_build_service import conf, log, models
 import module_build_service.messaging
+from module_build_service.db_session import db_session
 from .reuse import get_reusable_components, reuse_component
 
 
-def at_concurrent_component_threshold(config, db_session):
+def at_concurrent_component_threshold(config):
     """
     Determines if the number of concurrent component builds has reached
     the configured threshold
     :param config: Module Build Service configuration object
-    :param db_session: SQLAlchemy database session
     :return: boolean representing if there are too many concurrent builds at
     this time
     """
@@ -79,7 +79,7 @@ def start_build_component(db_session, builder, c):
         return
 
 
-def continue_batch_build(config, module, db_session, builder, components=None):
+def continue_batch_build(config, module, builder, components=None):
     """
     Continues building current batch. Submits next components in the batch
     until it hits concurrent builds limit.
@@ -124,7 +124,7 @@ def continue_batch_build(config, module, db_session, builder, components=None):
         if c.is_completed:
             continue
         # Check the concurrent build threshold.
-        if at_concurrent_component_threshold(config, db_session):
+        if at_concurrent_component_threshold(config):
             log.info("Concurrent build threshold met")
             break
 
@@ -152,7 +152,7 @@ def continue_batch_build(config, module, db_session, builder, components=None):
     return further_work
 
 
-def start_next_batch_build(config, module, db_session, builder, components=None):
+def start_next_batch_build(config, module, builder, components=None):
     """
     Tries to start the build of next batch. In case there are still unbuilt
     components in a batch, tries to submit more components until it hits
@@ -173,7 +173,7 @@ def start_next_batch_build(config, module, db_session, builder, components=None)
     # the new one. If there is, continue building current batch.
     if any(c.is_waiting_for_build for c in current_batch):
         log.info("Continuing building batch %d", module.batch)
-        return continue_batch_build(config, module, db_session, builder, components)
+        return continue_batch_build(config, module, builder, components)
 
     # Check that there are no components in BUILDING state in current batch.
     # If there are, wait until they are built.
@@ -243,7 +243,7 @@ def start_next_batch_build(config, module, db_session, builder, components=None)
     # the new one. This can happen when resubmitting the failed module build.
     if not unbuilt_components and not components:
         log.info("Skipping build of batch %d, no component to build.", module.batch)
-        return start_next_batch_build(config, module, db_session, builder)
+        return start_next_batch_build(config, module, builder)
 
     log.info("Starting build of next batch %d, %s" % (module.batch, unbuilt_components))
 
@@ -260,7 +260,7 @@ def start_next_batch_build(config, module, db_session, builder, components=None)
         should_try_reuse = all_reused_in_prev_batch or prev_batch == 1
     if should_try_reuse:
         component_names = [c.package for c in unbuilt_components]
-        reusable_components = get_reusable_components(db_session, module, component_names)
+        reusable_components = get_reusable_components(module, component_names)
         for c, reusable_c in zip(unbuilt_components, reusable_components):
             if reusable_c:
                 components_reused = True
@@ -281,4 +281,4 @@ def start_next_batch_build(config, module, db_session, builder, components=None)
         return further_work
 
     return further_work + continue_batch_build(
-        config, module, db_session, builder, unbuilt_components_after_reuse)
+        config, module, builder, unbuilt_components_after_reuse)

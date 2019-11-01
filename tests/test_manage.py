@@ -4,6 +4,7 @@ import pytest
 from mock import patch
 
 from module_build_service import app, models
+from module_build_service.db_session import db_session
 from module_build_service.manage import manager_wrapper, retire
 from module_build_service.models import BUILD_STATES, ModuleBuild
 from module_build_service.utils.general import deps_to_dict
@@ -44,7 +45,7 @@ class TestMBSManage:
         ),
     )
     @patch("module_build_service.manage.prompt_bool")
-    def test_retire_build(self, prompt_bool, overrides, identifier, changed_count, db_session):
+    def test_retire_build(self, prompt_bool, overrides, identifier, changed_count):
         prompt_bool.return_value = True
 
         module_builds = db_session.query(ModuleBuild).filter_by(state=BUILD_STATES["ready"]).all()
@@ -83,7 +84,7 @@ class TestMBSManage:
     )
     @patch("module_build_service.manage.prompt_bool")
     def test_retire_build_confirm_prompt(
-        self, prompt_bool, confirm_prompt, confirm_arg, confirm_expected, db_session
+        self, prompt_bool, confirm_prompt, confirm_arg, confirm_expected
     ):
         prompt_bool.return_value = confirm_prompt
 
@@ -149,7 +150,7 @@ class TestCommandBuildModuleLocally:
             app.config["SQLALCHEMY_DATABASE_URI"] = original_db_uri
 
     @patch("module_build_service.scheduler.main")
-    def test_set_stream(self, main, db_session):
+    def test_set_stream(self, main):
         cli_cmd = [
             "mbs-manager", "build_module_locally",
             "--set-stream", "platform:f28",
@@ -193,7 +194,7 @@ class TestCommandBuildModuleLocally:
         args, _ = logging.error.call_args_list[1]
         assert "Use '-s module_name:module_stream' to choose the stream" == args[0]
 
-    def test_module_build_failed(self, db_session):
+    def test_module_build_failed(self):
         cli_cmd = [
             "mbs-manager", "build_module_locally",
             "--set-stream", "platform:f28",

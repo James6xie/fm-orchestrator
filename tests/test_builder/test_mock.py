@@ -10,6 +10,7 @@ from textwrap import dedent
 import kobo.rpmlib
 
 from module_build_service import conf
+from module_build_service.db_session import db_session
 from module_build_service.models import ModuleBuild, ComponentBuild
 from module_build_service.builder.MockModuleBuilder import MockModuleBuilder
 from module_build_service.utils import import_fake_base_module, mmd_to_str, load_mmd
@@ -113,7 +114,7 @@ class TestMockModuleBuilder:
         return module
 
     @mock.patch("module_build_service.conf.system", new="mock")
-    def test_createrepo_filter_last_batch(self, db_session):
+    def test_createrepo_filter_last_batch(self):
         module = self._create_module_with_filters(db_session, 3, koji.BUILD_STATES["COMPLETE"])
 
         builder = MockModuleBuilder(
@@ -140,7 +141,7 @@ class TestMockModuleBuilder:
             assert "ed" not in rpm_names
 
     @mock.patch("module_build_service.conf.system", new="mock")
-    def test_createrepo_not_last_batch(self, db_session):
+    def test_createrepo_not_last_batch(self):
         module = self._create_module_with_filters(db_session, 2, koji.BUILD_STATES["COMPLETE"])
 
         builder = MockModuleBuilder(
@@ -165,7 +166,7 @@ class TestMockModuleBuilder:
             assert "ed" in rpm_names
 
     @mock.patch("module_build_service.conf.system", new="mock")
-    def test_createrepo_empty_rmp_list(self, db_session):
+    def test_createrepo_empty_rmp_list(self):
         module = self._create_module_with_filters(db_session, 3, koji.BUILD_STATES["COMPLETE"])
 
         builder = MockModuleBuilder(
@@ -199,17 +200,17 @@ class TestMockModuleBuilderAddRepos:
         "module_build_service.builder.MockModuleBuilder.MockModuleBuilder._write_mock_config"
     )
     def test_buildroot_add_repos(
-        self, write_config, load_config, patched_open, base_module_repofiles, db_session
+        self, write_config, load_config, patched_open, base_module_repofiles
     ):
-        import_fake_base_module(db_session, "platform:f29:1:000000")
+        import_fake_base_module("platform:f29:1:000000")
 
         platform = ModuleBuild.get_last_build_in_stream(db_session, "platform", "f29")
         module_deps = [{
             "requires": {"platform": ["f29"]},
             "buildrequires": {"platform": ["f29"]},
         }]
-        foo = make_module_in_db("foo:1:1:1", module_deps, db_session=db_session)
-        app = make_module_in_db("app:1:1:1", module_deps, db_session=db_session)
+        foo = make_module_in_db("foo:1:1:1", module_deps)
+        app = make_module_in_db("app:1:1:1", module_deps)
 
         patched_open.side_effect = [
             mock.mock_open(read_data="[fake]\nrepofile 1\n").return_value,

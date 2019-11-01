@@ -6,6 +6,7 @@ import shutil
 import tempfile
 
 from module_build_service import log, models
+from module_build_service.db_session import db_session
 from module_build_service.logger import ModuleBuildLogs
 from module_build_service.scheduler.consumer import MBSConsumer
 from tests import init_data
@@ -39,7 +40,7 @@ class TestLogger:
         MBSConsumer.current_module_build_id = None
         shutil.rmtree(self.base)
 
-    def test_module_build_logs(self, db_session):
+    def test_module_build_logs(self):
         """
         Tests that ModuleBuildLogs is logging properly to build log file.
         """
@@ -98,7 +99,7 @@ class TestLogger:
             data = f.read()
             assert data.find("ignore this test msg3") == -1
 
-    def test_module_build_logs_name_format(self, db_session):
+    def test_module_build_logs_name_format(self):
         build = models.ModuleBuild.get_by_id(db_session, 2)
 
         log1 = ModuleBuildLogs("/some/path", "build-{id}.log")

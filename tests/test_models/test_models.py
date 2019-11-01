@@ -4,6 +4,7 @@ import pytest
 
 from mock import patch
 from module_build_service import conf
+from module_build_service.db_session import db_session
 from module_build_service.models import ComponentBuild, ComponentBuildTrace, ModuleBuild
 from module_build_service.utils.general import mmd_to_str, load_mmd
 from tests import init_data as init_data_contexts, clean_database, read_staged_data
@@ -13,7 +14,7 @@ from tests import make_module_in_db, module_build_from_modulemd
 @pytest.mark.usefixtures("model_tests_init_data")
 class TestModels:
 
-    def test_app_sqlalchemy_events(self, db_session):
+    def test_app_sqlalchemy_events(self):
         component_build = ComponentBuild(
             package="before_models_committed",
             scmurl="git://pkgs.domain.local/rpms/before_models_committed?"
@@ -40,7 +41,7 @@ class TestModels:
         assert component_builds_trace.state_reason is None
         assert component_builds_trace.task_id == 999999999
 
-    def test_context_functions(self, db_session):
+    def test_context_functions(self):
         """ Test that the build_context, runtime_context, and context hashes are correctly
         determined"""
         db_session.commit()
@@ -55,7 +56,7 @@ class TestModels:
         assert build.context == "3ee22b28"
         assert build.build_context_no_bms == "089df24993c037e10174f3fa7342ab4dc191a4d4"
 
-    def test_siblings_property(self, db_session):
+    def test_siblings_property(self):
         """ Tests that the siblings property returns the ID of all modules with
         the same name:stream:version
         """
@@ -93,7 +94,7 @@ class TestModels:
 
 
 class TestModelsGetStreamsContexts:
-    def test_get_last_build_in_all_streams(self, db_session):
+    def test_get_last_build_in_all_streams(self):
         init_data_contexts(contexts=True)
         builds = ModuleBuild.get_last_build_in_all_streams(db_session, "nginx")
         builds = sorted([
@@ -102,7 +103,7 @@ class TestModelsGetStreamsContexts:
         db_session.commit()
         assert builds == ["nginx:%d:%d" % (i, i + 2) for i in range(10)]
 
-    def test_get_last_build_in_all_stream_last_version(self, db_session):
+    def test_get_last_build_in_all_stream_last_version(self):
         init_data_contexts(contexts=False)
         builds = ModuleBuild.get_last_build_in_all_streams(db_session, "nginx")
         builds = [
@@ -111,7 +112,7 @@ class TestModelsGetStreamsContexts:
         db_session.commit()
         assert builds == ["nginx:1:11"]
 
-    def test_get_last_builds_in_stream(self, db_session):
+    def test_get_last_builds_in_stream(self):
         init_data_contexts(contexts=True)
         builds = ModuleBuild.get_last_builds_in_stream(db_session, "nginx", "1")
         builds = [
@@ -121,7 +122,7 @@ class TestModelsGetStreamsContexts:
         db_session.commit()
         assert builds == ["nginx:1:3:d5a6c0fa", "nginx:1:3:795e97c1"]
 
-    def test_get_last_builds_in_stream_version_lte(self, db_session):
+    def test_get_last_builds_in_stream_version_lte(self):
         init_data_contexts(1, multiple_stream_versions=True)
         builds = ModuleBuild.get_last_builds_in_stream_version_lte(db_session, "platform", 290100)
         builds = {
@@ -131,7 +132,7 @@ class TestModelsGetStreamsContexts:
         db_session.commit()
         assert builds == {"platform:f29.0.0:3:00000000", "platform:f29.1.0:3:00000000"}
 
-    def test_get_last_builds_in_stream_version_lte_different_versions(self, db_session):
+    def test_get_last_builds_in_stream_version_lte_different_versions(self):
         """
         Tests that get_last_builds_in_stream_version_lte works in case the
         name:stream_ver modules have different versions.
@@ -139,26 +140,19 @@ class TestModelsGetStreamsContexts:
         clean_database(False)
 
         make_module_in_db(
-            "platform:f29.1.0:10:old_version",
-            db_session=db_session, virtual_streams=["f29"])
+            "platform:f29.1.0:10:old_version", virtual_streams=["f29"])
         make_module_in_db(
-            "platform:f29.1.0:15:c11.another",
-            db_session=db_session, virtual_streams=["f29"])
+            "platform:f29.1.0:15:c11.another", virtual_streams=["f29"])
         make_module_in_db(
-            "platform:f29.1.0:15:c11",
-            db_session=db_session, virtual_streams=["f29"])
+            "platform:f29.1.0:15:c11", virtual_streams=["f29"])
         make_module_in_db(
-            "platform:f29.2.0:0:old_version",
-            db_session=db_session, virtual_streams=["f29"])
+            "platform:f29.2.0:0:old_version", virtual_streams=["f29"])
         make_module_in_db(
-            "platform:f29.2.0:1:c11",
-            db_session=db_session, virtual_streams=["f29"])
+            "platform:f29.2.0:1:c11", virtual_streams=["f29"])
         make_module_in_db(
-            "platform:f29.3.0:15:old_version",
-            db_session=db_session, virtual_streams=["f29"])
+            "platform:f29.3.0:15:old_version", virtual_streams=["f29"])
         make_module_in_db(
-            "platform:f29.3.0:20:c11",
-            db_session=db_session, virtual_streams=["f29"])
+            "platform:f29.3.0:20:c11", virtual_streams=["f29"])
 
         builds = ModuleBuild.get_last_builds_in_stream_version_lte(
             db_session, "platform", 290200)
@@ -173,30 +167,26 @@ class TestModelsGetStreamsContexts:
             "platform:f29.2.0:1:c11",
         }
 
-    def test_get_module_count(self, db_session):
+    def test_get_module_count(self):
         clean_database(False)
-        make_module_in_db("platform:f29.1.0:10:c11", db_session=db_session)
-        make_module_in_db("platform:f29.1.0:10:c12", db_session=db_session)
+        make_module_in_db("platform:f29.1.0:10:c11")
+        make_module_in_db("platform:f29.1.0:10:c12")
 
         count = ModuleBuild.get_module_count(db_session, name="platform")
         db_session.commit()
         assert count == 2
 
-    def test_add_virtual_streams_filter(self, db_session):
+    def test_add_virtual_streams_filter(self):
         clean_database(False)
 
         make_module_in_db(
-            "platform:f29.1.0:10:c1",
-            db_session=db_session, virtual_streams=["f29"])
+            "platform:f29.1.0:10:c1", virtual_streams=["f29"])
         make_module_in_db(
-            "platform:f29.1.0:15:c1",
-            db_session=db_session, virtual_streams=["f29"])
+            "platform:f29.1.0:15:c1", virtual_streams=["f29"])
         make_module_in_db(
-            "platform:f29.3.0:15:old_version",
-            db_session=db_session, virtual_streams=["f28", "f29"])
+            "platform:f29.3.0:15:old_version", virtual_streams=["f28", "f29"])
         make_module_in_db(
-            "platform:f29.3.0:20:c11",
-            db_session=db_session, virtual_streams=["f30"])
+            "platform:f29.3.0:20:c11", virtual_streams=["f30"])
 
         query = db_session.query(ModuleBuild).filter_by(name="platform")
         query = ModuleBuild._add_virtual_streams_filter(db_session, query, ["f28", "f29"])

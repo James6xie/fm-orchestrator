@@ -3,6 +3,7 @@
 import json
 from datetime import datetime
 from functools import partial
+from sqlalchemy.orm import load_only
 
 import module_build_service.scm
 
@@ -20,9 +21,10 @@ import sqlalchemy
 from tests import app, init_data, clean_database, staged_data_filename, make_module_in_db
 from tests import read_staged_data, time_assert
 from tests.test_scm import base_dir as scm_base_dir
+from module_build_service.db_session import db_session
 from module_build_service.errors import UnprocessableEntity
 from module_build_service.models import ModuleBuild, BUILD_STATES, ComponentBuild
-from module_build_service import db, version
+from module_build_service import version
 import module_build_service.config as mbs_config
 import module_build_service.scheduler.handlers.modules
 import module_build_service.utils.submit
@@ -364,13 +366,13 @@ class TestViews:
 
         checking_build_id = 3
         # Get component build ids dynamically rather than hardcode inside expected output.
-        component_builds = sorted(
-            cb.id for cb in ModuleBuild.query.get(checking_build_id).component_builds
-        )
+        component_build_ids = db_session.query(ComponentBuild).filter(
+            ComponentBuild.module_id == checking_build_id
+        ).order_by(ComponentBuild.id).options(load_only("id")).all()
 
         expected = [
             {
-                "component_builds": component_builds,
+                "component_builds": [cb.id for cb in component_build_ids],
                 "context": "3a4057d2",
                 "id": checking_build_id,
                 "koji_tag": "module-nginx-1.2",
@@ -556,14 +558,13 @@ class TestViews:
         assert data["state_trace"][0]["state_name"] == "wait"
         assert data["state_url"], "/module-build-service/1/component-builds/3"
 
-    def test_query_component_builds_trace_is_serialized_with_none_state(self, db_session):
+    def test_query_component_builds_trace_is_serialized_with_none_state(self):
         # Beside the module builds and their component builds created already
         # in setup_method, some new component builds with None state must be
         # created for this test to ensure the extended_json works well to
         # serialize component build trace correctly.
 
-        module_build = make_module_in_db(
-            "cool-module:10:201907291454:c1", db_session=db_session)
+        module_build = make_module_in_db("cool-module:10:201907291454:c1")
         component_release = get_rpm_release(db_session, module_build)
 
         # No state is set.
@@ -775,10 +776,9 @@ class TestViews:
             assert total == 5
 
     def test_query_builds_order_by(self):
-        build = db.session.query(module_build_service.models.ModuleBuild).filter_by(id=2).one()
+        build = ModuleBuild.get_by_id(db_session, 2)
         build.name = "candy"
-        db.session.add(build)
-        db.session.commit()
+        db_session.commit()
         rv = self.client.get("/module-build-service/1/module-builds/?per_page=10&order_by=name")
         items = json.loads(rv.data)["items"]
         assert items[0]["name"] == "candy"
@@ -786,12 +786,11 @@ class TestViews:
 
     def test_query_builds_order_by_multiple(self):
         init_data(data_size=1, multiple_stream_versions=True)
-        platform_f28 = module_build_service.models.ModuleBuild.get_by_id(db.session, 1)
+        platform_f28 = ModuleBuild.get_by_id(db_session, 1)
         platform_f28.version = "150"
-        db.session.add(platform_f28)
-        db.session.commit()
+        db_session.commit()
         # Simply assert the order of all module builds
-        page_size = ModuleBuild.query.count()
+        page_size = db_session.query(ModuleBuild).count()
         rv = self.client.get(
             "/module-build-service/1/module-builds/?order_desc_by=stream_version"
             "&order_desc_by=version&per_page={}".format(page_size)
@@ -800,7 +799,7 @@ class TestViews:
         actual_ids = [item["id"] for item in items]
 
         expected_ids = [
-            build.id for build in ModuleBuild.query.order_by(
+            build.id for build in db_session.query(ModuleBuild).order_by(
                 ModuleBuild.stream_version.desc(),
                 sqlalchemy.cast(ModuleBuild.version, sqlalchemy.BigInteger).desc()
             ).all()
@@ -857,8 +856,8 @@ class TestViews:
     def test_query_base_module_br_filters(self):
         mmd = load_mmd(read_staged_data("platform"))
         mmd = mmd.copy(mmd.get_module_name(), "f30.1.3")
-        import_mmd(db.session, mmd)
-        platform_f300103 = ModuleBuild.query.filter_by(stream="f30.1.3").one()
+        import_mmd(db_session, mmd)
+        platform_f300103 = db_session.query(ModuleBuild).filter_by(stream="f30.1.3").one()
         build = ModuleBuild(
             name="testmodule",
             stream="master",
@@ -877,8 +876,8 @@ class TestViews:
             modulemd=read_staged_data("testmodule"),
         )
         build.buildrequires.append(platform_f300103)
-        db.session.add(build)
-        db.session.commit()
+        db_session.add(build)
+        db_session.commit()
         # Query by NSVC
         rv = self.client.get(
             "/module-build-service/1/module-builds/?base_module_br=platform:f28:3:00000000")
@@ -973,7 +972,7 @@ class TestViews:
         module_build_service.utils.load_mmd(data["modulemd"])
 
         # Make sure the buildrequires entry was created
-        module = ModuleBuild.get_by_id(db.session, 8)
+        module = ModuleBuild.get_by_id(db_session, 8)
         assert len(module.buildrequires) == 1
         assert module.buildrequires[0].name == "platform"
         assert module.buildrequires[0].stream == "f28"
@@ -1256,14 +1255,14 @@ class TestViews:
 
     @patch("module_build_service.auth.get_user", return_value=other_user)
     def test_cancel_build_already_failed(self, mocked_get_user):
-        module = ModuleBuild.query.filter_by(id=7).one()
+        module = ModuleBuild.get_by_id(db_session, 7)
         module.state = 4
-        db.session.add(module)
-        db.session.commit()
+        db_session.commit()
+
         rv = self.client.patch(
             "/module-build-service/1/module-builds/7", data=json.dumps({"state": "failed"}))
-        data = json.loads(rv.data)
 
+        data = json.loads(rv.data)
         assert data["status"] == 403
         assert data["error"] == "Forbidden"
 
@@ -1434,7 +1433,7 @@ class TestViews:
         rv = self.client.post("/module-build-service/1/module-builds/", data=json.dumps(data))
         result = json.loads(rv.data)
 
-        build = ModuleBuild.query.filter(ModuleBuild.id == result["id"]).one()
+        build = ModuleBuild.get_by_id(db_session, result["id"])
         assert (build.owner == result["owner"] == "foo") is True
 
     @patch("module_build_service.auth.get_user", return_value=("svc_account", set()))
@@ -2039,7 +2038,7 @@ class TestViews:
         # assertion later.
         br_modulea = dict(stream="6", version="1", context="1234")
         br_moduleb = dict(stream="10", version="1", context="5678")
-        build = ModuleBuild.query.first()
+        build = db_session.query(ModuleBuild).first()
         mmd = build.mmd()
         xmd = mmd.get_xmd()
         mbs = xmd.setdefault("mbs", {})
@@ -2048,7 +2047,7 @@ class TestViews:
         buildrequires["moduleb"] = br_moduleb
         mmd.set_xmd(xmd)
         build.modulemd = mmd_to_str(mmd)
-        db.session.commit()
+        db_session.commit()
 
         rv = self.client.get("/module-build-service/1/module-builds/{}".format(build.id))
         data = json.loads(rv.data)
@@ -2111,7 +2110,7 @@ class TestViews:
         module_build_service.utils.load_mmd(data["modulemd"])
 
         # Make sure the buildrequires entry was created
-        module = ModuleBuild.get_by_id(db.session, 8)
+        module = ModuleBuild.get_by_id(db_session, 8)
         assert len(module.buildrequires) == 1
         assert module.buildrequires[0].name == "platform"
         assert module.buildrequires[0].stream == "f28"
@@ -2207,7 +2206,7 @@ class TestViews:
         module_build_service.utils.load_mmd(data["modulemd"])
 
         # Make sure the buildrequires entry was created
-        module = ModuleBuild.get_by_id(db.session, 8)
+        module = ModuleBuild.get_by_id(db_session, 8)
         assert len(module.buildrequires) == 1
         assert module.buildrequires[0].name == "platform"
         assert module.buildrequires[0].stream == "f28"
@@ -2307,7 +2306,7 @@ class TestViews:
                 xmd = platform_mmd.get_xmd()
                 xmd["mbs"]["virtual_streams"] = ["el8"]
                 platform_mmd.set_xmd(xmd)
-            import_mmd(db.session, platform_mmd)
+            import_mmd(db_session, platform_mmd)
 
         FakeSCM(
             mocked_scm, "testmodule", "testmodule.yaml", "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
@@ -2350,7 +2349,7 @@ class TestViews:
         # Create a platform for the override so the build submission succeeds
         platform_mmd = load_mmd(read_staged_data('platform'))
         platform_mmd = platform_mmd.copy(platform_mmd.get_module_name(), "product1.3")
-        import_mmd(db.session, platform_mmd)
+        import_mmd(db_session, platform_mmd)
 
         FakeSCM(
             mocked_scm, "testmodule", "testmodule.yaml", "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
@@ -2389,7 +2388,7 @@ class TestViews:
         init_data(data_size=1, multiple_stream_versions=True)
         platform_mmd = load_mmd(read_staged_data("platform"))
         platform_mmd = platform_mmd.copy(platform_mmd.get_module_name(), "el8.0.0")
-        import_mmd(db.session, platform_mmd)
+        import_mmd(db_session, platform_mmd)
 
         FakeSCM(
             mocked_scm,
@@ -2450,7 +2449,7 @@ class TestViews:
         xmd = mmd.get_xmd()
         xmd["mbs"]["virtual_streams"] = ["el8"]
         mmd.set_xmd(xmd)
-        import_mmd(db.session, mmd)
+        import_mmd(db_session, mmd)
 
         # Use a testmodule that buildrequires platform:el8
         FakeSCM(
@@ -2610,7 +2609,7 @@ class TestViews:
         # Create the required platforms
         for stream in ("el8.0.0", "el8.0.0.z", "el8.2.1", "el8.2.1.z"):
             mmd = mmd.copy(mmd.get_module_name(), stream)
-            import_mmd(db.session, mmd)
+            import_mmd(db_session, mmd)
 
         # Use a testmodule that buildrequires platform:el8.0.0 or platform:el8.2.1
         FakeSCM(
@@ -2655,11 +2654,11 @@ class TestViews:
         self, mocked_scm, mocked_get_user, reuse_components_from,
     ):
         """Test a build submission using the reuse_components_from parameter."""
-        module_to_reuse = db.session.query(ModuleBuild).get(7)
+        module_to_reuse = ModuleBuild.get_by_id(db_session, 7)
         module_to_reuse.state = BUILD_STATES["ready"]
         for c in module_to_reuse.component_builds:
             c.state = koji.BUILD_STATES["COMPLETE"]
-        db.session.commit()
+        db_session.commit()
 
         FakeSCM(
             mocked_scm, "testmodule", "testmodule.yaml", "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
@@ -2765,11 +2764,11 @@ class TestLogMessageViews:
         init_data(2)
         self.module_id = 2
         self.component_id = 1
-        self.module_build = db.session.query(ModuleBuild).filter_by(id=self.module_id).first()
-        self.module_build.log_message(db.session, "Build-1 msg")
-        self.module_build.log_message(db.session, "Build-2 msg")
+        self.module_build = ModuleBuild.get_by_id(db_session, self.module_id)
+        self.module_build.log_message(db_session, "Build-1 msg")
+        self.module_build.log_message(db_session, "Build-2 msg")
         self.component_build = self.module_build.component_builds[0]
-        self.component_build.log_message(db.session, "Component-1 msg")
+        self.component_build.log_message(db_session, "Component-1 msg")
 
     def test_view_log_messages_for_module_builds(self):
         url = "/module-build-service/1/module-builds/{module_id}/messages".format(

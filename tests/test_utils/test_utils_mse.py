@@ -5,6 +5,7 @@ import pytest
 
 import module_build_service.utils
 from module_build_service import Modulemd, models
+from module_build_service.db_session import db_session
 from module_build_service.errors import StreamAmbigous
 from tests import clean_database, make_module_in_db, init_data, read_staged_data
 
@@ -29,13 +30,13 @@ class TestUtilsModuleStreamExpansion:
         nsvcs = [m.get_nsvc() for m in modules]
         return nsvcs
 
-    def _generate_default_modules(self, db_session):
+    def _generate_default_modules(self):
         """
         Generates gtk:1, gtk:2, foo:1 and foo:2 modules requiring the
         platform:f28 and platform:f29 modules.
         """
-        platform_f28 = make_module_in_db("platform:f28:0:c10", db_session=db_session)
-        platform_f29 = make_module_in_db("platform:f29:0:c11", db_session=db_session)
+        platform_f28 = make_module_in_db("platform:f28:0:c10")
+        platform_f29 = make_module_in_db("platform:f29:0:c11")
         f28_deps = [{
             "requires": {"platform": ["f28"]},
             "buildrequires": {"platform": ["f28"]},
@@ -44,18 +45,18 @@ class TestUtilsModuleStreamExpansion:
             "requires": {"platform": ["f29"]},
             "buildrequires": {"platform": ["f29"]},
         }]
-        make_module_in_db("gtk:1:0:c2", f28_deps, base_module=platform_f28, db_session=db_session)
-        make_module_in_db("gtk:1:0:c3", f29_deps, base_module=platform_f29, db_session=db_session)
-        make_module_in_db("gtk:2:0:c4", f28_deps, base_module=platform_f28, db_session=db_session)
-        make_module_in_db("gtk:2:0:c5", f29_deps, base_module=platform_f29, db_session=db_session)
-        make_module_in_db("foo:1:0:c2", f28_deps, base_module=platform_f28, db_session=db_session)
-        make_module_in_db("foo:1:0:c3", f29_deps, base_module=platform_f29, db_session=db_session)
-        make_module_in_db("foo:2:0:c4", f28_deps, base_module=platform_f28, db_session=db_session)
-        make_module_in_db("foo:2:0:c5", f29_deps, base_module=platform_f29, db_session=db_session)
-        make_module_in_db("app:1:0:c6", f29_deps, base_module=platform_f29, db_session=db_session)
+        make_module_in_db("gtk:1:0:c2", f28_deps, base_module=platform_f28)
+        make_module_in_db("gtk:1:0:c3", f29_deps, base_module=platform_f29)
+        make_module_in_db("gtk:2:0:c4", f28_deps, base_module=platform_f28)
+        make_module_in_db("gtk:2:0:c5", f29_deps, base_module=platform_f29)
+        make_module_in_db("foo:1:0:c2", f28_deps, base_module=platform_f28)
+        make_module_in_db("foo:1:0:c3", f29_deps, base_module=platform_f29)
+        make_module_in_db("foo:2:0:c4", f28_deps, base_module=platform_f28)
+        make_module_in_db("foo:2:0:c5", f29_deps, base_module=platform_f29)
+        make_module_in_db("app:1:0:c6", f29_deps, base_module=platform_f29)
 
-    def test_generate_expanded_mmds_context(self, db_session):
-        self._generate_default_modules(db_session)
+    def test_generate_expanded_mmds_context(self):
+        self._generate_default_modules()
         module_build = make_module_in_db(
             "app:1:0:c1", [{
                 "requires": {"gtk": ["1", "2"]},
@@ -64,7 +65,7 @@ class TestUtilsModuleStreamExpansion:
                     "gtk": ["1", "2"]
                 },
             }],
-            db_session=db_session)
+        )
         mmds = module_build_service.utils.generate_expanded_mmds(
             db_session, module_build.mmd())
         contexts = {mmd.get_context() for mmd in mmds}
@@ -157,10 +158,10 @@ class TestUtilsModuleStreamExpansion:
         ],
     )
     def test_generate_expanded_mmds_buildrequires(
-        self, module_deps, stream_ambigous, expected_xmd, expected_buildrequires, db_session
+        self, module_deps, stream_ambigous, expected_xmd, expected_buildrequires
     ):
-        self._generate_default_modules(db_session)
-        module_build = make_module_in_db("app:1:0:c1", module_deps, db_session=db_session)
+        self._generate_default_modules()
+        module_build = make_module_in_db("app:1:0:c1", module_deps)
 
         # Check that generate_expanded_mmds raises an exception if stream is ambigous
         # and also that it does not raise an exception otherwise.
@@ -250,9 +251,9 @@ class TestUtilsModuleStreamExpansion:
             ),
         ],
     )
-    def test_generate_expanded_mmds_requires(self, module_deps, expected, db_session):
-        self._generate_default_modules(db_session)
-        module_build = make_module_in_db("app:1:0:c1", module_deps, db_session=db_session)
+    def test_generate_expanded_mmds_requires(self, module_deps, expected):
+        self._generate_default_modules()
+        module_build = make_module_in_db("app:1:0:c1", module_deps)
         mmds = module_build_service.utils.generate_expanded_mmds(db_session, module_build.mmd())
 
         requires_per_mmd = set()
@@ -342,55 +343,55 @@ class TestUtilsModuleStreamExpansion:
             ),
         ],
     )
-    def test_get_required_modules_simple(self, module_deps, expected, db_session):
-        module_build = make_module_in_db("app:1:0:c1", module_deps, db_session=db_session)
-        self._generate_default_modules(db_session)
+    def test_get_required_modules_simple(self, module_deps, expected):
+        module_build = make_module_in_db("app:1:0:c1", module_deps)
+        self._generate_default_modules()
         nsvcs = self._get_mmds_required_by_module_recursively(module_build, db_session)
         assert set(nsvcs) == set(expected)
 
-    def _generate_default_modules_recursion(self, db_session):
+    def _generate_default_modules_recursion(self):
         """
         Generates the gtk:1 module requiring foo:1 module requiring bar:1
         and lorem:1 modules which require base:f29 module requiring
         platform:f29 module :).
         """
-        base_module = make_module_in_db("platform:f29:0:c11", db_session=db_session)
+        base_module = make_module_in_db("platform:f29:0:c11")
         make_module_in_db(
             "gtk:1:0:c2",
             [{"requires": {"foo": ["unknown"]}, "buildrequires": {}}],
-            base_module=base_module, db_session=db_session)
+            base_module=base_module)
         make_module_in_db(
             "gtk:1:1:c2",
             [{"requires": {"foo": ["1"]}, "buildrequires": {}}],
-            base_module=base_module, db_session=db_session)
+            base_module=base_module)
         make_module_in_db(
             "foo:1:0:c2",
             [{"requires": {"bar": ["unknown"]}, "buildrequires": {}}],
-            base_module=base_module, db_session=db_session)
+            base_module=base_module)
         make_module_in_db(
             "foo:1:1:c2",
             [{"requires": {"bar": ["1"], "lorem": ["1"]}, "buildrequires": {}}],
-            base_module=base_module, db_session=db_session)
+            base_module=base_module)
         make_module_in_db(
             "bar:1:0:c2",
             [{"requires": {"base": ["unknown"]}, "buildrequires": {}}],
-            base_module=base_module, db_session=db_session)
+            base_module=base_module)
         make_module_in_db(
             "bar:1:1:c2",
             [{"requires": {"base": ["f29"]}, "buildrequires": {}}],
-            base_module=base_module, db_session=db_session)
+            base_module=base_module)
         make_module_in_db(
             "lorem:1:0:c2",
             [{"requires": {"base": ["unknown"]}, "buildrequires": {}}],
-            base_module=base_module, db_session=db_session)
+            base_module=base_module)
         make_module_in_db(
             "lorem:1:1:c2",
             [{"requires": {"base": ["f29"]}, "buildrequires": {}}],
-            base_module=base_module, db_session=db_session)
+            base_module=base_module)
         make_module_in_db(
             "base:f29:0:c3",
             [{"requires": {"platform": ["f29"]}, "buildrequires": {}}],
-            base_module=base_module, db_session=db_session)
+            base_module=base_module)
 
     @pytest.mark.parametrize(
         "module_deps,expected",
@@ -418,13 +419,13 @@ class TestUtilsModuleStreamExpansion:
             ),
         ],
     )
-    def test_get_required_modules_recursion(self, module_deps, expected, db_session):
-        module_build = make_module_in_db("app:1:0:c1", module_deps, db_session=db_session)
-        self._generate_default_modules_recursion(db_session)
+    def test_get_required_modules_recursion(self, module_deps, expected):
+        module_build = make_module_in_db("app:1:0:c1", module_deps)
+        self._generate_default_modules_recursion()
         nsvcs = self._get_mmds_required_by_module_recursively(module_build, db_session)
         assert set(nsvcs) == set(expected)
 
-    def _generate_default_modules_modules_multiple_stream_versions(self, db_session):
+    def _generate_default_modules_modules_multiple_stream_versions(self):
         """
         Generates the gtk:1 module requiring foo:1 module requiring bar:1
         and lorem:1 modules which require base:f29 module requiring
@@ -436,17 +437,17 @@ class TestUtilsModuleStreamExpansion:
         }]
 
         f290000 = make_module_in_db(
-            "platform:f29.0.0:0:c11", db_session=db_session, virtual_streams=["f29"])
-        make_module_in_db("gtk:1:0:c2", f29_dep, base_module=f290000, db_session=db_session)
+            "platform:f29.0.0:0:c11", virtual_streams=["f29"])
+        make_module_in_db("gtk:1:0:c2", f29_dep, base_module=f290000)
 
         f290100 = make_module_in_db(
-            "platform:f29.1.0:0:c11", db_session=db_session, virtual_streams=["f29"])
-        make_module_in_db("gtk:1:1:c2", f29_dep, base_module=f290100, db_session=db_session)
-        make_module_in_db("gtk:1:2:c2", f29_dep, base_module=f290100, db_session=db_session)
+            "platform:f29.1.0:0:c11", virtual_streams=["f29"])
+        make_module_in_db("gtk:1:1:c2", f29_dep, base_module=f290100)
+        make_module_in_db("gtk:1:2:c2", f29_dep, base_module=f290100)
 
         f290200 = make_module_in_db(
-            "platform:f29.2.0:0:c11", db_session=db_session, virtual_streams=["f29"])
-        make_module_in_db("gtk:1:3:c2", f29_dep, base_module=f290200, db_session=db_session)
+            "platform:f29.2.0:0:c11", virtual_streams=["f29"])
+        make_module_in_db("gtk:1:3:c2", f29_dep, base_module=f290200)
 
     @pytest.mark.parametrize(
         "module_deps,expected",
@@ -460,13 +461,13 @@ class TestUtilsModuleStreamExpansion:
             )
         ],
     )
-    def test_get_required_modules_stream_versions(self, module_deps, expected, db_session):
-        module_build = make_module_in_db("app:1:0:c1", module_deps, db_session=db_session)
-        self._generate_default_modules_modules_multiple_stream_versions(db_session)
+    def test_get_required_modules_stream_versions(self, module_deps, expected):
+        module_build = make_module_in_db("app:1:0:c1", module_deps)
+        self._generate_default_modules_modules_multiple_stream_versions()
         nsvcs = self._get_mmds_required_by_module_recursively(module_build, db_session)
         assert set(nsvcs) == set(expected)
 
-    def test__get_base_module_mmds(self, db_session):
+    def test__get_base_module_mmds(self):
         """Ensure the correct results are returned without duplicates."""
         init_data(data_size=1, multiple_stream_versions=True)
         mmd = module_build_service.utils.load_mmd(read_staged_data("testmodule_v2.yaml"))
@@ -490,7 +491,7 @@ class TestUtilsModuleStreamExpansion:
         assert actual == expected
 
     @pytest.mark.parametrize("virtual_streams", (None, ["f29"], ["lp29"]))
-    def test__get_base_module_mmds_virtual_streams(self, virtual_streams, db_session):
+    def test__get_base_module_mmds_virtual_streams(self, virtual_streams):
         """Ensure the correct results are returned without duplicates."""
         init_data(data_size=1, multiple_stream_versions=True)
         mmd = module_build_service.utils.load_mmd(read_staged_data("testmodule_v2"))
@@ -502,9 +503,7 @@ class TestUtilsModuleStreamExpansion:
         mmd.remove_dependencies(deps)
         mmd.add_dependencies(new_deps)
 
-        make_module_in_db(
-            "platform:lp29.1.1:12:c11",
-            db_session=db_session, virtual_streams=virtual_streams)
+        make_module_in_db("platform:lp29.1.1:12:c11", virtual_streams=virtual_streams)
 
         mmds = module_build_service.utils.mse.get_base_module_mmds(db_session, mmd)
         if virtual_streams == ["f29"]:
@@ -528,7 +527,7 @@ class TestUtilsModuleStreamExpansion:
         "module_build_service.config.Config.allow_only_compatible_base_modules",
         new_callable=PropertyMock, return_value=False
     )
-    def test__get_base_module_mmds_virtual_streams_only_major_versions(self, cfg, db_session):
+    def test__get_base_module_mmds_virtual_streams_only_major_versions(self, cfg):
         """Ensure the correct results are returned without duplicates."""
         init_data(data_size=1, multiple_stream_versions=["foo28", "foo29", "foo30"])
 

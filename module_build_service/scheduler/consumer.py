@@ -30,6 +30,7 @@ import module_build_service.scheduler.handlers.greenwave
 import module_build_service.monitor as monitor
 
 from module_build_service import models, log, conf
+from module_build_service.db_session import db_session
 from module_build_service.scheduler.handlers import greenwave
 from module_build_service.utils import module_build_state_from_msg
 
@@ -85,7 +86,7 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
 
         # These are our main lookup tables for figuring out what to run in
         # response to what messaging events.
-        self.NO_OP = NO_OP = lambda config, db_session, msg: True
+        self.NO_OP = NO_OP = lambda config, msg: True
         self.on_build_change = {
             koji.BUILD_STATES["BUILDING"]: NO_OP,
             koji.BUILD_STATES[
@@ -145,8 +146,7 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
 
         # Primary work is done here.
         try:
-            with models.make_db_session(conf) as db_session:
-                self.process_message(db_session, msg)
+            self.process_message(msg)
             monitor.messaging_rx_processed_ok_counter.inc()
         except sqlalchemy.exc.OperationalError as error:
             monitor.messaging_rx_failed_counter.inc()
@@ -158,6 +158,8 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
                 raise
         except Exception:
             monitor.messaging_rx_failed_counter.inc()
+        finally:
+            db_session.remove()
 
         if self.stop_condition and self.stop_condition(message):
             self.shutdown()
@@ -184,7 +186,7 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
 
         all_fns = list(self.on_build_change.items()) + list(self.on_module_change.items())
         for key, callback in all_fns:
-            expected = ["config", "db_session", "msg"]
+            expected = ["config", "msg"]
             if six.PY2:
                 argspec = inspect.getargspec(callback)[0]
             else:
@@ -224,13 +226,12 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
         if isinstance(msg, module_build_service.messaging.GreenwaveDecisionUpdate):
             return (
                 self.on_decision_update,
-                greenwave.get_corresponding_module_build(
-                    db_session, msg.subject_identifier)
+                greenwave.get_corresponding_module_build(msg.subject_identifier)
             )
 
         return None, None
 
-    def process_message(self, db_session, msg):
+    def process_message(self, msg):
         # Choose a handler for this message
         handler, build = self._map_message(db_session, msg)
 
@@ -253,7 +254,7 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
         log.info("Calling %s", idx)
 
         try:
-            further_work = handler(conf, db_session, msg) or []
+            further_work = handler(conf, msg) or []
         except Exception as e:
             log.exception("Could not process message handler.")
             db_session.rollback()

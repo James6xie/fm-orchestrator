@@ -6,10 +6,11 @@ This is the implementation of the orchestrator's public RESTful API.
 
 import json
 import module_build_service.auth
-from flask import request, url_for
+from flask import request, url_for, Blueprint, Response
 from flask.views import MethodView
 from six import string_types
 from io import BytesIO
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
 from module_build_service import app, conf, log, models, db, version, api_version as max_api_version
 from module_build_service.utils import (
@@ -27,7 +28,7 @@ from module_build_service.utils import (
 )
 from module_build_service.errors import ValidationError, Forbidden, NotFound, ProgrammingError
 from module_build_service.backports import jsonify
-from module_build_service.monitor import monitor_api
+from module_build_service.monitor import registry
 
 
 api_routes = {
@@ -502,6 +503,17 @@ def _dict_from_request(request):
             log.exception("Invalid JSON submitted")
             raise ValidationError("Invalid JSON submitted")
     return data
+
+
+monitor_api = Blueprint(
+    "monitor", __name__, url_prefix="/module-build-service/<int:api_version>/monitor")
+
+
+@cors_header()
+@validate_api_version()
+@monitor_api.route("/metrics")
+def metrics(api_version):
+    return Response(generate_latest(registry), content_type=CONTENT_TYPE_LATEST)
 
 
 def register_api():

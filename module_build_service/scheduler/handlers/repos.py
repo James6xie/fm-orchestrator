@@ -7,11 +7,12 @@ import logging
 from datetime import datetime
 from module_build_service import models, log
 from module_build_service.utils import start_next_batch_build
+from module_build_service.db_session import db_session
 
 logging.basicConfig(level=logging.DEBUG)
 
 
-def done(config, db_session, msg):
+def done(config, msg):
     """ Called whenever koji rebuilds a repo, any repo. """
 
     # First, find our ModuleBuild associated with this repo, if any.
@@ -111,7 +112,7 @@ def done(config, db_session, msg):
 
         # Try to start next batch build, because there are still unbuilt
         # components in a module.
-        further_work += start_next_batch_build(config, module_build, db_session, builder)
+        further_work += start_next_batch_build(config, module_build, builder)
 
     else:
         if has_failed_components:

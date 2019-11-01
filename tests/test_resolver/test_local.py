@@ -4,19 +4,20 @@ import pytest
 from datetime import datetime
 
 import module_build_service.resolver as mbs_resolver
-from module_build_service.utils.general import import_mmd, mmd_to_str, load_mmd
+from module_build_service.db_session import db_session
 from module_build_service.models import ModuleBuild
+from module_build_service.utils.general import import_mmd, mmd_to_str, load_mmd
 import tests
 
 
 @pytest.mark.usefixtures("reuse_component_init_data")
 class TestLocalResolverModule:
 
-    def test_get_buildrequired_modulemds(self, db_session):
+    def test_get_buildrequired_modulemds(self):
         mmd = load_mmd(tests.read_staged_data("platform"))
         mmd = mmd.copy(mmd.get_module_name(), "f8")
         import_mmd(db_session, mmd)
-        platform_f8 = ModuleBuild.query.filter_by(stream="f8").one()
+        platform_f8 = db_session.query(ModuleBuild).filter_by(stream="f8").one()
         mmd = mmd.copy("testmodule", "master")
         mmd.set_version(20170109091357)
         mmd.set_context("123")

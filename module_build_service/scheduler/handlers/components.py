@@ -9,11 +9,12 @@ import module_build_service.builder
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
 from module_build_service.utils.general import mmd_to_str
 from module_build_service import models, log, messaging
+from module_build_service.db_session import db_session
 
 logging.basicConfig(level=logging.DEBUG)
 
 
-def _finalize(config, db_session, msg, state):
+def _finalize(config, msg, state):
     """ Called whenever a koji build completes or fails. """
 
     # First, find our ModuleBuild associated with this component, if any.
@@ -149,18 +150,18 @@ def _finalize(config, db_session, msg, state):
         builder = module_build_service.builder.GenericBuilder.create_from_module(
             db_session, parent, config)
         further_work += module_build_service.utils.continue_batch_build(
-            config, parent, db_session, builder)
+            config, parent, builder)
 
     return further_work
 
 
-def complete(config, db_session, msg):
-    return _finalize(config, db_session, msg, state=koji.BUILD_STATES["COMPLETE"])
+def complete(config, msg):
+    return _finalize(config, msg, state=koji.BUILD_STATES["COMPLETE"])
 
 
-def failed(config, db_session, msg):
-    return _finalize(config, db_session, msg, state=koji.BUILD_STATES["FAILED"])
+def failed(config, msg):
+    return _finalize(config, msg, state=koji.BUILD_STATES["FAILED"])
 
 
-def canceled(config, db_session, msg):
-    return _finalize(config, db_session, msg, state=koji.BUILD_STATES["CANCELED"])
+def canceled(config, msg):
+    return _finalize(config, msg, state=koji.BUILD_STATES["CANCELED"])

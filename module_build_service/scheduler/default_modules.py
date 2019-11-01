@@ -14,6 +14,7 @@ from module_build_service import conf, log, models, Modulemd, scm
 from module_build_service.builder.KojiModuleBuilder import (
     koji_retrying_multicall_map, KojiModuleBuilder,
 )
+from module_build_service.db_session import db_session
 from module_build_service.errors import UnprocessableEntity
 from module_build_service.resolver.base import GenericResolver
 from module_build_service.utils import retry
@@ -21,7 +22,7 @@ from module_build_service.utils.mse import (
     get_compatible_base_module_mmds, expand_single_mse_streams)
 
 
-def add_default_modules(db_session, mmd, arches):
+def add_default_modules(mmd, arches):
     """
     Add default modules as buildrequires to the input modulemd.
 
@@ -29,7 +30,6 @@ def add_default_modules(db_session, mmd, arches):
     a URL to a text file in xmd.mbs.default_modules_url. Any default module that isn't in the
     database will be logged and ignored.
 
-    :param db_session: a SQLAlchemy database session
     :param Modulemd.ModuleStream mmd: the modulemd of the module to add the module defaults to
     :param list arches: the arches to limit the external repo queries to; this should be the arches
         the module will be built with

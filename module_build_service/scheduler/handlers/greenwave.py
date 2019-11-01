@@ -2,13 +2,13 @@
 # SPDX-License-Identifier: MIT
 from module_build_service import conf, log
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
+from module_build_service.db_session import db_session
 from module_build_service.models import ModuleBuild, BUILD_STATES
 
 
-def get_corresponding_module_build(db_session, nvr):
+def get_corresponding_module_build(nvr):
     """Find corresponding module build from database and return
 
-    :param session: the SQLAlchemy database session object.
     :param str nvr: module build NVR. This is the subject_identifier included
         inside ``greenwave.decision.update`` message.
     :return: the corresponding module build object. For whatever the reason,
@@ -31,13 +31,12 @@ def get_corresponding_module_build(db_session, nvr):
     return ModuleBuild.get_by_id(db_session, module_build_id)
 
 
-def decision_update(config, db_session, msg):
+def decision_update(config, msg):
     """Move module build to ready or failed according to Greenwave result
 
     :param config: the config object returned from function :func:`init_config`,
         which is loaded from configuration file.
     :type config: :class:`Config`
-    :param db_session: the SQLAlchemy database session object.
     :param msg: the message object representing a message received from topic
         ``greenwave.decision.update``.
     :type msg: :class:`GreenwaveDecisionUpdate`
@@ -68,7 +67,7 @@ def decision_update(config, db_session, msg):
         )
         return
 
-    build = get_corresponding_module_build(db_session, module_build_nvr)
+    build = get_corresponding_module_build(module_build_nvr)
 
     if build is None:
         log.debug(

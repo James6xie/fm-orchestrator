@@ -14,6 +14,7 @@ from six import text_type, string_types
 from gi.repository.GLib import Error as ModuleMDError
 
 from module_build_service import conf, log, models, Modulemd
+from module_build_service.db_session import db_session
 from module_build_service.errors import ValidationError, ProgrammingError, UnprocessableEntity
 
 
@@ -529,11 +530,10 @@ def import_mmd(db_session, mmd, check_buildrequires=True):
     return build, msgs
 
 
-def import_fake_base_module(db_session, nsvc):
+def import_fake_base_module(nsvc):
     """
     Creates and imports new fake base module to be used with offline local builds.
 
-    :param db_session: SQLAlchemy session object.
     :param str nsvc: name:stream:version:context of a module.
     """
     name, stream, version, context = nsvc.split(":")
@@ -579,14 +579,13 @@ def get_local_releasever():
     return dnf_base.conf.releasever
 
 
-def import_builds_from_local_dnf_repos(db_session, platform_id=None):
+def import_builds_from_local_dnf_repos(platform_id=None):
     """
     Imports the module builds from all available local repositories to MBS DB.
 
     This is used when building modules locally without any access to MBS infra.
     This method also generates and imports the base module according to /etc/os-release.
 
-    :param db_session: SQLAlchemy session object.
     :param str platform_id: The `name:stream` of a fake platform module to generate in this
         method. When not set, the /etc/os-release is parsed to get the PLATFORM_ID.
     """
@@ -635,14 +634,13 @@ def import_builds_from_local_dnf_repos(db_session, platform_id=None):
     # Create the fake platform:stream:1:000000 module to fulfill the
     # dependencies for local offline build and also to define the
     # srpm-buildroot and buildroot.
-    import_fake_base_module(db_session, "%s:1:000000" % platform_id)
+    import_fake_base_module("%s:1:000000" % platform_id)
 
 
-def get_build_arches(db_session, mmd, config):
+def get_build_arches(mmd, config):
     """
     Returns the list of architectures for which the module `mmd` should be built.
 
-    :param db_session: SQLAlchemy session object.
     :param mmd: Module MetaData
     :param config: config (module_build_service.config.Config instance)
     :return list of architectures

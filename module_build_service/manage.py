@@ -19,6 +19,7 @@ from module_build_service.utils import (
     import_mmd,
     import_builds_from_local_dnf_repos,
 )
+from module_build_service.db_session import db_session
 from module_build_service.errors import StreamAmbigous
 import module_build_service.messaging
 import module_build_service.scheduler.consumer
@@ -157,37 +158,37 @@ def build_module_locally(
 
     yaml_file_path = os.path.abspath(yaml_file)
 
-    with models.make_db_session(conf) as db_session:
-        if offline:
-            import_builds_from_local_dnf_repos(db_session, platform_id)
-        load_local_builds(db_session, local_build_nsvs)
+    from module_build_service.db_session import db_session
 
-        with open(yaml_file_path) as fd:
-            filename = os.path.basename(yaml_file)
-            handle = FileStorage(fd)
-            handle.filename = filename
-            try:
-                module_builds = submit_module_build_from_yaml(
-                    db_session, username, handle, params,
-                    stream=str(stream), skiptests=skiptests
-                )
-            except StreamAmbigous as e:
-                logging.error(str(e))
-                logging.error("Use '-s module_name:module_stream' to choose the stream")
-                return
+    if offline:
+        import_builds_from_local_dnf_repos(platform_id)
+    load_local_builds(local_build_nsvs)
 
-            module_build_ids = [build.id for build in module_builds]
+    with open(yaml_file_path) as fd:
+        filename = os.path.basename(yaml_file)
+        handle = FileStorage(fd)
+        handle.filename = filename
+        try:
+            module_builds = submit_module_build_from_yaml(
+                db_session, username, handle, params,
+                stream=str(stream), skiptests=skiptests
+            )
+        except StreamAmbigous as e:
+            logging.error(str(e))
+            logging.error("Use '-s module_name:module_stream' to choose the stream")
+            return
 
-        stop = module_build_service.scheduler.make_simple_stop_condition(db_session)
+        module_build_ids = [build.id for build in module_builds]
+
+    stop = module_build_service.scheduler.make_simple_stop_condition()
 
     # Run the consumer until stop_condition returns True
     module_build_service.scheduler.main([], stop)
 
-    with models.make_db_session(conf) as db_session:
-        has_failed_module = db_session.query(models.ModuleBuild).filter(
-            models.ModuleBuild.id.in_(module_build_ids),
-            models.ModuleBuild.state == models.BUILD_STATES["failed"],
-        ).count() > 0
+    has_failed_module = db_session.query(models.ModuleBuild).filter(
+        models.ModuleBuild.id.in_(module_build_ids),
+        models.ModuleBuild.state == models.BUILD_STATES["failed"],
+    ).count() > 0
 
     if has_failed_module:
         raise RuntimeError("Module build failed")
@@ -221,28 +222,29 @@ def retire(identifier, confirm=False):
     if len(parts) >= 4:
         filter_by_kwargs["context"] = parts[3]
 
-    with models.make_db_session(conf) as db_session:
-        # Find module builds to retire
-        module_builds = db_session.query(models.ModuleBuild).filter_by(**filter_by_kwargs).all()
+    # Find module builds to retire
+    module_builds = db_session.query(models.ModuleBuild).filter_by(**filter_by_kwargs).all()
 
-        if not module_builds:
-            logging.info("No module builds found.")
-            return
+    if not module_builds:
+        logging.info("No module builds found.")
+        return
 
-        logging.info("Found %d module builds:", len(module_builds))
-        for build in module_builds:
-            logging.info("\t%s", ":".join((build.name, build.stream, build.version, build.context)))
+    logging.info("Found %d module builds:", len(module_builds))
+    for build in module_builds:
+        logging.info("\t%s", ":".join((build.name, build.stream, build.version, build.context)))
 
-        # Prompt for confirmation
-        is_confirmed = confirm or prompt_bool("Retire {} module builds?".format(len(module_builds)))
-        if not is_confirmed:
-            logging.info("Module builds were NOT retired.")
-            return
+    # Prompt for confirmation
+    is_confirmed = confirm or prompt_bool("Retire {} module builds?".format(len(module_builds)))
+    if not is_confirmed:
+        logging.info("Module builds were NOT retired.")
+        return
 
-        # Retire module builds
-        for build in module_builds:
-            build.transition(
-                db_session, conf, models.BUILD_STATES["garbage"], "Module build retired")
+    # Retire module builds
+    for build in module_builds:
+        build.transition(
+            db_session, conf, models.BUILD_STATES["garbage"], "Module build retired")
+
+    db_session.commit()
 
     logging.info("Module builds retired.")
 

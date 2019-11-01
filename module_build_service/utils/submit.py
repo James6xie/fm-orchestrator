@@ -17,6 +17,7 @@ from gi.repository import GLib
 
 import module_build_service.scm
 from module_build_service import conf, log, models, Modulemd
+from module_build_service.db_session import db_session
 from module_build_service.errors import ValidationError, UnprocessableEntity, Forbidden, Conflict
 from module_build_service.utils import (
     to_text_type, deps_to_dict, mmd_to_str, load_mmd, load_mmd_file,
@@ -24,29 +25,25 @@ from module_build_service.utils import (
 )
 
 
-def record_module_build_arches(mmd, build, db_session):
+def record_module_build_arches(mmd, build):
     """
     Finds out the list of build arches against which the ModuleBuld `build` should be built
     and records them to `build.arches`.
 
     :param Modulemd mmd: The MMD file associated with a ModuleBuild.
     :param ModuleBuild build: The ModuleBuild.
-    :param db_session: Database session.
     """
-    arches = get_build_arches(db_session, mmd, conf)
+    arches = get_build_arches(mmd, conf)
     for arch in arches:
         arch_obj = db_session.query(models.ModuleArch).filter_by(name=arch).first()
         if not arch_obj:
             arch_obj = models.ModuleArch(name=arch)
-            db_session.add(arch_obj)
-            db_session.commit()
+        build.arches.append(arch_obj)
 
-        if arch_obj not in build.arches:
-            build.arches.append(arch_obj)
-            db_session.add(build)
+    db_session.commit()
 
 
-def record_filtered_rpms(db_session, mmd):
+def record_filtered_rpms(mmd):
     """Record filtered RPMs that should not be installed into buildroot
 
     These RPMs are filtered:
@@ -54,7 +51,6 @@ def record_filtered_rpms(db_session, mmd):
     * Reads the mmd["xmd"]["buildrequires"] and extends it with "filtered_rpms"
       list containing the NVRs of filtered RPMs in a buildrequired module.
 
-    :param db_session: SQLAlchemy session object.
     :param Modulemd mmd: Modulemd that will be built next.
     :rtype: Modulemd.Module
     :return: Modulemd extended with the "filtered_rpms" in XMD section.
@@ -395,7 +391,7 @@ def get_module_srpm_overrides(module):
 
 
 def record_component_builds(
-    db_session, mmd, module, initial_batch=1, previous_buildorder=None, main_mmd=None
+    mmd, module, initial_batch=1, previous_buildorder=None, main_mmd=None
 ):
     # Imported here to allow import of utils in GenericBuilder.
     import module_build_service.builder
@@ -466,7 +462,7 @@ def record_component_builds(
             included_mmd = fetch_mmd(full_url, whitelist_url=True)[0]
             format_mmd(included_mmd, module.scmurl, module, db_session)
             batch = record_component_builds(
-                db_session, included_mmd, module, batch, previous_buildorder, main_mmd)
+                included_mmd, module, batch, previous_buildorder, main_mmd)
             continue
 
         package = component.get_name()
@@ -1120,12 +1116,11 @@ def fetch_mmd(url, branch=None, allow_local_url=False, whitelist_url=False, mand
     return mmd, scm
 
 
-def load_local_builds(db_session, local_build_nsvs):
+def load_local_builds(local_build_nsvs):
     """
     Loads previously finished local module builds from conf.mock_resultsdir
     and imports them to database.
 
-    :param db_session: SQLAlchemy session object.
     :param local_build_nsvs: List of NSV separated by ':' defining the modules
         to load from the mock_resultsdir.
     """

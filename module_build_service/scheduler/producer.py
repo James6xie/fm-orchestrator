@@ -17,31 +17,34 @@ from module_build_service import conf, models, log
 from module_build_service.builder import GenericBuilder
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
 from module_build_service.utils.greenwave import greenwave
+from module_build_service.db_session import db_session
 
 
 class MBSProducer(PollingProducer):
     frequency = timedelta(seconds=conf.polling_interval)
 
     def poll(self):
-        with models.make_db_session(conf) as db_session:
-            try:
-                self.log_summary(db_session)
-                self.process_waiting_module_builds(db_session)
-                self.process_open_component_builds(db_session)
-                self.fail_lost_builds(db_session)
-                self.process_paused_module_builds(conf, db_session)
-                self.retrigger_new_repo_on_failure(conf, db_session)
-                self.delete_old_koji_targets(conf, db_session)
-                self.cleanup_stale_failed_builds(conf, db_session)
-                self.sync_koji_build_tags(conf, db_session)
-                self.poll_greenwave(conf, db_session)
-            except Exception:
-                msg = "Error in poller execution:"
-                log.exception(msg)
+        try:
+            self.log_summary()
+            self.process_waiting_module_builds()
+            self.process_open_component_builds()
+            self.fail_lost_builds()
+            self.process_paused_module_builds(conf)
+            self.retrigger_new_repo_on_failure(conf)
+            self.delete_old_koji_targets(conf)
+            self.cleanup_stale_failed_builds(conf)
+            self.sync_koji_build_tags(conf)
+            self.poll_greenwave(conf)
+        except Exception:
+            msg = "Error in poller execution:"
+            log.exception(msg)
+
+        # Poller runs in its own thread. Database session can be removed safely.
+        db_session.remove()
 
         log.info('Poller will now sleep for "{}" seconds'.format(conf.polling_interval))
 
-    def fail_lost_builds(self, db_session):
+    def fail_lost_builds(self):
         # This function is supposed to be handling only the part which can't be
         # updated through messaging (e.g. srpm-build failures). Please keep it
         # fit `n` slim. We do want rest to be processed elsewhere
@@ -120,7 +123,7 @@ class MBSProducer(PollingProducer):
         elif conf.system == "mock":
             pass
 
-    def cleanup_stale_failed_builds(self, conf, db_session):
+    def cleanup_stale_failed_builds(self, conf):
         """ Does various clean up tasks on stale failed module builds
         :param conf: the MBS configuration object
         :param db_session: a SQLAlchemy database session
@@ -170,7 +173,7 @@ class MBSProducer(PollingProducer):
                 db_session.add(module)
                 db_session.commit()
 
-    def log_summary(self, db_session):
+    def log_summary(self):
         log.info("Current status:")
         consumer = module_build_service.scheduler.consumer.get_global_consumer()
         backlog = consumer.incoming.qsize()
@@ -189,7 +192,7 @@ class MBSProducer(PollingProducer):
                         n = len([c for c in module_build.component_builds if c.batch == i])
                         log.info("      * {0} components in batch {1}".format(n, i))
 
-    def _nudge_module_builds_in_state(self, db_session, state_name, older_than_minutes):
+    def _nudge_module_builds_in_state(self, state_name, older_than_minutes):
         """
         Finds all the module builds in the `state` with `time_modified` older
         than `older_than_minutes` and adds fake MBSModule message to the
@@ -218,16 +221,16 @@ class MBSProducer(PollingProducer):
 
         db_session.commit()
 
-    def process_waiting_module_builds(self, db_session):
+    def process_waiting_module_builds(self):
         for state in ["init", "wait"]:
-            self._nudge_module_builds_in_state(db_session, state, 10)
+            self._nudge_module_builds_in_state(state, 10)
 
-    def process_open_component_builds(self, db_session):
+    def process_open_component_builds(self):
         log.warning("process_open_component_builds is not yet implemented...")
 
-    def process_paused_module_builds(self, config, db_session):
+    def process_paused_module_builds(self, config):
         log.info("Looking for paused module builds in the build state")
-        if module_build_service.utils.at_concurrent_component_threshold(config, db_session):
+        if module_build_service.utils.at_concurrent_component_threshold(config):
             log.debug(
                 "Will not attempt to start paused module builds due to "
                 "the concurrent build threshold being met"
@@ -262,7 +265,7 @@ class MBSProducer(PollingProducer):
                 if _has_missed_new_repo_message(module_build, builder.koji_session):
                     log.info("  Processing the paused module build %r", module_build)
                     further_work = module_build_service.utils.start_next_batch_build(
-                        config, module_build, db_session, builder)
+                        config, module_build, builder)
                     for event in further_work:
                         log.info("  Scheduling faked event %r" % event)
                         module_build_service.scheduler.consumer.work_queue_put(event)
@@ -271,7 +274,7 @@ class MBSProducer(PollingProducer):
             if module_build_service.utils.at_concurrent_component_threshold(config, db_session):
                 break
 
-    def retrigger_new_repo_on_failure(self, config, db_session):
+    def retrigger_new_repo_on_failure(self, config):
         """
         Retrigger failed new repo tasks for module builds in the build state.
 
@@ -302,7 +305,7 @@ class MBSProducer(PollingProducer):
 
         db_session.commit()
 
-    def delete_old_koji_targets(self, config, db_session):
+    def delete_old_koji_targets(self, config):
         """
         Deletes targets older than `config.koji_target_delete_time` seconds
         from Koji to cleanup after the module builds.
@@ -344,7 +347,7 @@ class MBSProducer(PollingProducer):
                 log.info("Removing target of module %r", module)
                 koji_session.deleteBuildTarget(target["id"])
 
-    def cancel_stuck_module_builds(self, config, db_session):
+    def cancel_stuck_module_builds(self, config):
         """
         Method transitions builds which are stuck in one state too long to the "failed" state.
         The states are defined with the "cleanup_stuck_builds_states" config option and the
@@ -392,7 +395,7 @@ class MBSProducer(PollingProducer):
             )
             db_session.commit()
 
-    def sync_koji_build_tags(self, config, db_session):
+    def sync_koji_build_tags(self, config):
         """
         Method checking the "tagged" and "tagged_in_final" attributes of
         "complete" ComponentBuilds in the current batch of module builds
@@ -448,7 +451,7 @@ class MBSProducer(PollingProducer):
                     log.info("  Scheduling faked event %r" % msg)
                     module_build_service.scheduler.consumer.work_queue_put(msg)
 
-    def poll_greenwave(self, config, db_session):
+    def poll_greenwave(self, config):
         """
         Polls Greenwave for all builds in done state
         :param db_session: SQLAlchemy DB session

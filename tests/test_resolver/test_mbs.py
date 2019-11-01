@@ -4,6 +4,7 @@ from mock import patch, PropertyMock, Mock, call
 
 import module_build_service.resolver as mbs_resolver
 import module_build_service.utils
+from module_build_service.db_session import db_session
 from module_build_service.utils.general import mmd_to_str
 import module_build_service.models
 import tests
@@ -11,7 +12,7 @@ import tests
 
 class TestMBSModule:
     @patch("module_build_service.resolver.MBSResolver.requests_session")
-    def test_get_module_modulemds_nsvc(self, mock_session, testmodule_mmd_9c690d0e, db_session):
+    def test_get_module_modulemds_nsvc(self, mock_session, testmodule_mmd_9c690d0e):
         """ Tests for querying a module from mbs """
         mock_res = Mock()
         mock_res.ok.return_value = True
@@ -54,7 +55,7 @@ class TestMBSModule:
 
     @patch("module_build_service.resolver.MBSResolver.requests_session")
     def test_get_module_modulemds_partial(
-        self, mock_session, testmodule_mmd_9c690d0e, testmodule_mmd_c2c572ed, db_session
+        self, mock_session, testmodule_mmd_9c690d0e, testmodule_mmd_c2c572ed
     ):
         """ Test for querying MBS without the context of a module """
 
@@ -106,7 +107,7 @@ class TestMBSModule:
 
     @patch("module_build_service.resolver.MBSResolver.requests_session")
     def test_get_module_build_dependencies(
-        self, mock_session, platform_mmd, testmodule_mmd_9c690d0e, db_session
+        self, mock_session, platform_mmd, testmodule_mmd_9c690d0e
     ):
         """
         Tests that we return just direct build-time dependencies of testmodule.
@@ -183,7 +184,7 @@ class TestMBSModule:
 
     @patch("module_build_service.resolver.MBSResolver.requests_session")
     def test_get_module_build_dependencies_empty_buildrequires(
-        self, mock_session, testmodule_mmd_9c690d0e, db_session
+        self, mock_session, testmodule_mmd_9c690d0e
     ):
 
         mmd = module_build_service.utils.load_mmd(testmodule_mmd_9c690d0e)
@@ -237,7 +238,7 @@ class TestMBSModule:
 
     @patch("module_build_service.resolver.MBSResolver.requests_session")
     def test_resolve_profiles(
-        self, mock_session, formatted_testmodule_mmd, platform_mmd, db_session
+        self, mock_session, formatted_testmodule_mmd, platform_mmd
     ):
 
         mock_res = Mock()
@@ -323,20 +324,19 @@ class TestMBSModule:
         return_value=tests.staged_data_filename("local_builds")
     )
     def test_resolve_profiles_local_module(
-        self, local_builds, conf_system, formatted_testmodule_mmd, db_session
+        self, local_builds, conf_system, formatted_testmodule_mmd
     ):
         tests.clean_database()
-        with tests.app.app_context():
-            module_build_service.utils.load_local_builds(db_session, ["platform"])
+        module_build_service.utils.load_local_builds(["platform"])
 
-            resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="mbs")
-            result = resolver.resolve_profiles(
-                formatted_testmodule_mmd, ("buildroot", "srpm-buildroot"))
-            expected = {"buildroot": {"foo"}, "srpm-buildroot": {"bar"}}
-            assert result == expected
+        resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="mbs")
+        result = resolver.resolve_profiles(
+            formatted_testmodule_mmd, ("buildroot", "srpm-buildroot"))
+        expected = {"buildroot": {"foo"}, "srpm-buildroot": {"bar"}}
+        assert result == expected
 
     @patch("module_build_service.resolver.MBSResolver.requests_session")
-    def test_get_empty_buildrequired_modulemds(self, request_session, db_session):
+    def test_get_empty_buildrequired_modulemds(self, request_session):
         resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="mbs")
         request_session.get.return_value = Mock(ok=True)
         request_session.get.return_value.json.return_value = {"items": [], "meta": {"next": None}}
@@ -346,7 +346,7 @@ class TestMBSModule:
         assert [] == result
 
     @patch("module_build_service.resolver.MBSResolver.requests_session")
-    def test_get_buildrequired_modulemds(self, mock_session, db_session):
+    def test_get_buildrequired_modulemds(self, mock_session):
         resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="mbs")
         mock_session.get.return_value = Mock(ok=True)
         mock_session.get.return_value.json.return_value = {
@@ -384,7 +384,7 @@ class TestMBSModule:
         assert "c1" == mmd.get_context()
 
     @patch("module_build_service.resolver.MBSResolver.requests_session")
-    def test_get_module_count(self, mock_session, db_session):
+    def test_get_module_count(self, mock_session):
         mock_res = Mock()
         mock_res.ok.return_value = True
         mock_res.json.return_value = {
@@ -403,7 +403,7 @@ class TestMBSModule:
         )
 
     @patch("module_build_service.resolver.MBSResolver.requests_session")
-    def test_get_latest_with_virtual_stream(self, mock_session, platform_mmd, db_session):
+    def test_get_latest_with_virtual_stream(self, mock_session, platform_mmd):
         mock_res = Mock()
         mock_res.ok.return_value = True
         mock_res.json.return_value = {
@@ -445,11 +445,11 @@ class TestMBSModule:
         return_value=tests.staged_data_filename("local_builds")
     )
     def test_get_buildrequired_modulemds_local_builds(
-        self, local_builds, conf_system, db_session
+        self, local_builds, conf_system
     ):
         tests.clean_database()
         with tests.app.app_context():
-            module_build_service.utils.load_local_builds(db_session, ["testmodule"])
+            module_build_service.utils.load_local_builds(["testmodule"])
 
             resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="mbs")
             result = resolver.get_buildrequired_modulemds(
@@ -462,7 +462,7 @@ class TestMBSModule:
             assert "321" == mmd.get_context()
 
     @patch("module_build_service.resolver.MBSResolver.requests_session")
-    def test_get_buildrequired_modulemds_kojiresolver(self, mock_session, db_session):
+    def test_get_buildrequired_modulemds_kojiresolver(self, mock_session):
         """
         Test that MBSResolver uses KojiResolver as input when KojiResolver is enabled for
         the base module.

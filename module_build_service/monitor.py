@@ -7,21 +7,15 @@
 import os
 import tempfile
 
-from flask import Blueprint, Response
 from prometheus_client import (  # noqa: F401
     ProcessCollector,
     CollectorRegistry,
     Counter,
     multiprocess,
     Histogram,
-    generate_latest,
     start_http_server,
-    CONTENT_TYPE_LATEST,
 )
 from sqlalchemy import event
-
-# Service-specific imports
-from module_build_service.utils import cors_header, validate_api_version
 
 
 if not os.environ.get("prometheus_multiproc_dir"):
@@ -106,14 +100,3 @@ def db_hook_event_listeners(target=None):
     @event.listens_for(target, "rollback")
     def receive_rollback(conn):
         db_transaction_rollback_counter.inc()
-
-
-monitor_api = Blueprint(
-    "monitor", __name__, url_prefix="/module-build-service/<int:api_version>/monitor")
-
-
-@cors_header()
-@validate_api_version()
-@monitor_api.route("/metrics")
-def metrics(api_version):
-    return Response(generate_latest(registry), content_type=CONTENT_TYPE_LATEST)

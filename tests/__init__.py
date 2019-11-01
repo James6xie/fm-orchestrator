@@ -17,9 +17,10 @@ from module_build_service.utils import get_rpm_release, import_mmd, mmd_to_str
 from module_build_service.config import init_config
 from module_build_service.models import (
     ModuleBuild, ModuleArch, ComponentBuild, VirtualStream,
-    make_db_session, BUILD_STATES,
+    BUILD_STATES,
 )
 from module_build_service import Modulemd
+from module_build_service.db_session import db_session
 
 
 base_dir = os.path.dirname(__file__)
@@ -101,10 +102,14 @@ def clean_database(add_platform_module=True, add_default_arches=True):
     Please note that, this function relies on database objects managed by
     Flask-SQLAlchemy.
     """
-    # Ensure all pending transactions are committed and do not block subsequent
-    # DML on tables.
-    # TODO: Should the code be fixed that forget to commit?
-    db.session.commit()
+
+    # Helpful for writing tests if any changes were made using the database
+    # session but the test didn't commit or rollback.
+    #
+    # clean_database is usually called before a test run. So, it makes no sense
+    # to keep any changes in the transaction made by previous test.
+    db_session.remove()
+
     db.drop_all()
     db.create_all()
 
@@ -130,6 +135,7 @@ def init_data(data_size=10, contexts=False, multiple_stream_versions=None, scrat
         the generated base module streams.
     """
     clean_database()
+
     if multiple_stream_versions:
         if multiple_stream_versions is True:
             multiple_stream_versions = ["f28.0.0", "f29.0.0", "f29.1.0", "f29.2.0"]
@@ -147,11 +153,11 @@ def init_data(data_size=10, contexts=False, multiple_stream_versions=None, scrat
             # Just to possibly confuse tests by adding another base module.
             mmd = mmd.copy("bootstrap", stream)
             import_mmd(db.session, mmd)
-    with make_db_session(conf) as db_session:
-        _populate_data(db_session, data_size, contexts=contexts, scratch=scratch)
+
+    _populate_data(data_size, contexts=contexts, scratch=scratch)
 
 
-def _populate_data(db_session, data_size=10, contexts=False, scratch=False):
+def _populate_data(data_size=10, contexts=False, scratch=False):
     # Query arch from passed database session, otherwise there will be an error
     # like "Object '<ModuleBuild at 0x7f4ccc805c50>' is already attached to
     # session '275' (this is '276')" when add new module build object to passed
@@ -326,7 +332,7 @@ def _populate_data(db_session, data_size=10, contexts=False, scratch=False):
         db_session.commit()
 
 
-def scheduler_init_data(db_session, tangerine_state=None, scratch=False):
+def scheduler_init_data(tangerine_state=None, scratch=False):
     """ Creates a testmodule in the building state with all the components in the same batch
     """
     clean_database()
@@ -435,7 +441,6 @@ def make_module(
     base_module=None,
     filtered_rpms=None,
     xmd=None,
-    db_session=None,
     store_to_db=False,
     virtual_streams=None,
     arches=None,
@@ -459,7 +464,6 @@ def make_module(
     :param dict xmd: a mapping representing XMD section in module metadata. A
         custom xmd could be passed for testing a particular scenario and some
         default key/value pairs are added if not present.
-    :param db_session: SQLAlchemy database session.
     :param bool store_to_db: whether to store created module metadata to the
         database. If set to True, ``db_session`` is required.
     :param virtual_streams: List of virtual streams provided by this module.
@@ -479,9 +483,9 @@ def make_module(
     if base_module:
         assert db_session is not None
     if virtual_streams:
-        assert db_session and store_to_db
+        assert store_to_db
     if arches:
-        assert db_session and store_to_db
+        assert store_to_db
 
     name, stream, version, context = nsvc.split(":")
     mmd = Modulemd.ModuleStreamV2.new(name, stream)

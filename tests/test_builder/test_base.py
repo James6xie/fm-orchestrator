@@ -8,6 +8,7 @@ import module_build_service.resolver
 
 from tests import init_data
 
+from module_build_service.db_session import db_session
 from module_build_service.builder import GenericBuilder
 from mock import patch
 
@@ -18,7 +19,7 @@ class TestGenericBuilder:
 
     @patch("module_build_service.resolver.DBResolver")
     @patch("module_build_service.builder.base.GenericResolver")
-    def test_default_buildroot_groups_cache(self, generic_resolver, resolver, db_session):
+    def test_default_buildroot_groups_cache(self, generic_resolver, resolver):
         mbs_groups = {"buildroot": [], "srpm-buildroot": []}
 
         resolver = mock.MagicMock()

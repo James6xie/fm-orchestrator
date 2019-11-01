@@ -5,15 +5,16 @@ from mock import patch, MagicMock
 from datetime import datetime
 
 import module_build_service.resolver as mbs_resolver
-from module_build_service.utils.general import import_mmd, mmd_to_str, load_mmd
-from module_build_service.models import ModuleBuild, BUILD_STATES
 import tests
+from module_build_service.db_session import db_session
+from module_build_service.models import ModuleBuild, BUILD_STATES
+from module_build_service.utils.general import import_mmd, mmd_to_str, load_mmd
 
 
 @pytest.mark.usefixtures("reuse_component_init_data")
 class TestLocalResolverModule:
 
-    def _create_test_modules(self, db_session, koji_tag_with_modules="foo-test"):
+    def _create_test_modules(self, koji_tag_with_modules="foo-test"):
         mmd = load_mmd(tests.read_staged_data("platform"))
         mmd = mmd.copy(mmd.get_module_name(), "f30.1.3")
 
@@ -51,8 +52,8 @@ class TestLocalResolverModule:
             db_session.add(build)
         db_session.commit()
 
-    def test_get_buildrequired_modulemds_fallback_to_db_resolver(self, db_session):
-        self._create_test_modules(db_session, koji_tag_with_modules=None)
+    def test_get_buildrequired_modulemds_fallback_to_db_resolver(self):
+        self._create_test_modules(koji_tag_with_modules=None)
         platform = db_session.query(ModuleBuild).filter_by(stream="f30.1.3").one()
 
         resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="koji")
@@ -64,7 +65,7 @@ class TestLocalResolverModule:
             "testmodule:master:20170109091357:7c29193e"}
 
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
-    def test_get_buildrequired_modulemds_name_not_tagged(self, ClientSession, db_session):
+    def test_get_buildrequired_modulemds_name_not_tagged(self, ClientSession):
         koji_session = ClientSession.return_value
         koji_session.getLastEvent.return_value = {"id": 123}
 
@@ -72,7 +73,7 @@ class TestLocalResolverModule:
         koji_session.listTagged.return_value = []
         koji_session.multiCall.return_value = [[]]
 
-        self._create_test_modules(db_session)
+        self._create_test_modules()
         platform = db_session.query(ModuleBuild).filter_by(stream="f30.1.3").one()
         resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="koji")
         result = resolver.get_buildrequired_modulemds("testmodule", "master", platform.mmd())
@@ -82,7 +83,7 @@ class TestLocalResolverModule:
             "foo-test", inherit=True, package="testmodule", type="module", event=123)
 
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
-    def test_get_buildrequired_modulemds_multiple_streams(self, ClientSession, db_session):
+    def test_get_buildrequired_modulemds_multiple_streams(self, ClientSession):
         koji_session = ClientSession.return_value
 
         # We will ask for testmodule:master, but there is also testmodule:2 in a tag.
@@ -99,7 +100,7 @@ class TestLocalResolverModule:
         koji_session.multiCall.return_value = [
             [build] for build in koji_session.listTagged.return_value]
 
-        self._create_test_modules(db_session)
+        self._create_test_modules()
         platform = db_session.query(ModuleBuild).filter_by(stream="f30.1.3").one()
         resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="koji")
         result = resolver.get_buildrequired_modulemds("testmodule", "master", platform.mmd())
@@ -108,7 +109,7 @@ class TestLocalResolverModule:
         assert nsvcs == {"testmodule:master:20170109091357:7c29193d"}
 
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
-    def test_get_buildrequired_modulemds_tagged_but_not_in_db(self, ClientSession, db_session):
+    def test_get_buildrequired_modulemds_tagged_but_not_in_db(self, ClientSession):
         koji_session = ClientSession.return_value
 
         # We will ask for testmodule:2, but it is not in database, so it should raise
@@ -126,7 +127,7 @@ class TestLocalResolverModule:
         koji_session.multiCall.return_value = [
             [build] for build in koji_session.listTagged.return_value]
 
-        self._create_test_modules(db_session)
+        self._create_test_modules()
         platform = db_session.query(ModuleBuild).filter_by(stream="f30.1.3").one()
         resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="koji")
         expected_error = ("Module testmodule:2:820181219174508:9edba152 is tagged in the "
@@ -135,8 +136,7 @@ class TestLocalResolverModule:
             resolver.get_buildrequired_modulemds("testmodule", "2", platform.mmd())
 
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
-    def test_get_buildrequired_modulemds_multiple_versions_contexts(
-            self, ClientSession, db_session):
+    def test_get_buildrequired_modulemds_multiple_versions_contexts(self, ClientSession):
         koji_session = ClientSession.return_value
 
         # We will ask for testmodule:2, but it is not in database, so it should raise
@@ -162,7 +162,7 @@ class TestLocalResolverModule:
         koji_session.multiCall.return_value = [
             [build] for build in koji_session.listTagged.return_value]
 
-        self._create_test_modules(db_session)
+        self._create_test_modules()
         platform = db_session.query(ModuleBuild).filter_by(stream="f30.1.3").one()
         resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="koji")
         result = resolver.get_buildrequired_modulemds("testmodule", "master", platform.mmd())
@@ -173,7 +173,7 @@ class TestLocalResolverModule:
             "testmodule:master:20170109091357:7c29193e"}
 
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
-    def test_get_buildrequired_modules(self, ClientSession, db_session):
+    def test_get_buildrequired_modules(self, ClientSession):
         koji_session = ClientSession.return_value
 
         # We will ask for testmodule:master, but there is also testmodule:2 in a tag.
@@ -190,7 +190,7 @@ class TestLocalResolverModule:
         koji_session.multiCall.return_value = [
             [build] for build in koji_session.listTagged.return_value]
 
-        self._create_test_modules(db_session)
+        self._create_test_modules()
         platform = db_session.query(ModuleBuild).filter_by(stream="f30.1.3").one()
         resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="koji")
         result = resolver.get_buildrequired_modules("testmodule", "master", platform.mmd())
@@ -199,7 +199,7 @@ class TestLocalResolverModule:
         assert nvrs == {"testmodule-master-20170109091357.7c29193d"}
 
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
-    def test_filter_inherited(self, ClientSession, db_session):
+    def test_filter_inherited(self, ClientSession):
         koji_session = ClientSession.return_value
 
         koji_session.getFullInheritance.return_value = [
@@ -230,7 +230,7 @@ class TestLocalResolverModule:
             "testmodule-2-20180109091357.7c29193d"}
 
     @patch("module_build_service.builder.KojiModuleBuilder.koji_multicall_map")
-    def test_filter_based_on_real_stream_name(self, koji_multicall_map, db_session):
+    def test_filter_based_on_real_stream_name(self, koji_multicall_map):
         koji_session = MagicMock()
         koji_multicall_map.return_value = [
             {"build_id": 124, "extra": {"typeinfo": {"module": {"stream": "foo-test"}}}},
@@ -253,8 +253,7 @@ class TestLocalResolverModule:
         assert build_ids == {124, 126, 127}
 
     @patch("module_build_service.builder.KojiModuleBuilder.koji_multicall_map")
-    def test_filter_based_on_real_stream_name_multicall_error(
-            self, koji_multicall_map, db_session):
+    def test_filter_based_on_real_stream_name_multicall_error(self, koji_multicall_map):
         koji_session = MagicMock()
         koji_multicall_map.return_value = None
 
@@ -267,7 +266,7 @@ class TestLocalResolverModule:
         with pytest.raises(RuntimeError, match=expected_error):
             resolver._filter_based_on_real_stream_name(koji_session, builds, "foo-test")
 
-    def test_get_compatible_base_module_modulemds_fallback_to_dbresolver(self, db_session):
+    def test_get_compatible_base_module_modulemds_fallback_to_dbresolver(self):
         tests.init_data(1, multiple_stream_versions=True)
         resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="koji")
         platform = db_session.query(ModuleBuild).filter_by(name="platform", stream="f29.1.0").one()
@@ -278,7 +277,7 @@ class TestLocalResolverModule:
 
         assert len(result) == 2
 
-    def test_get_compatible_base_module_modulemds(self, db_session):
+    def test_get_compatible_base_module_modulemds(self):
         tests.init_data(1, multiple_stream_versions=True)
         resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="koji")
 
@@ -288,6 +287,7 @@ class TestLocalResolverModule:
         platform_xmd["mbs"]["koji_tag_with_modules"] = "module-f29-build"
         platform_mmd.set_xmd(platform_xmd)
         platform.modulemd = mmd_to_str(platform_mmd)
+        db_session.commit()
 
         result = resolver.get_compatible_base_module_modulemds(
             platform_mmd, stream_version_lte=True, virtual_streams=["f29"],

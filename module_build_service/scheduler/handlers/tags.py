@@ -6,11 +6,12 @@ import module_build_service.builder
 import logging
 import koji
 from module_build_service import models, log, messaging
+from module_build_service.db_session import db_session
 
 logging.basicConfig(level=logging.DEBUG)
 
 
-def tagged(config, db_session, msg):
+def tagged(config, msg):
     """ Called whenever koji tags a build to tag. """
     if config.system not in ("koji", "test"):
         return []

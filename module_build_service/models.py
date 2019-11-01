@@ -3,7 +3,6 @@
 """ SQLAlchemy Database models for the Flask app
 """
 
-import contextlib
 import hashlib
 import json
 import koji
@@ -15,8 +14,7 @@ import sqlalchemy
 import kobo.rpmlib
 from sqlalchemy import func, and_
 from sqlalchemy.orm import lazyload
-from sqlalchemy.orm import validates, scoped_session, sessionmaker, load_only
-from sqlalchemy.pool import NullPool
+from sqlalchemy.orm import validates, load_only
 
 import module_build_service.messaging
 from module_build_service import db, log, get_url_for, conf
@@ -80,111 +78,6 @@ def _utc_datetime_to_iso(datetime_object):
         return datetime_object.strftime("%Y-%m-%dT%H:%M:%SZ")
 
     return None
-
-
-def _setup_event_listeners(db_session):
-    """
-    Starts listening for events related to database session.
-    """
-    if not sqlalchemy.event.contains(db_session, "before_commit", session_before_commit_handlers):
-        sqlalchemy.event.listen(db_session, "before_commit", session_before_commit_handlers)
-
-    # initialize DB event listeners from the monitor module
-    from module_build_service.monitor import db_hook_event_listeners
-
-    db_hook_event_listeners(db_session.bind.engine)
-
-
-def apply_engine_options(conf):
-    options = {
-        "configuration": {"sqlalchemy.url": conf.sqlalchemy_database_uri},
-    }
-    if conf.sqlalchemy_database_uri.startswith("sqlite://"):
-        options.update({
-            # For local module build, MBS is actually a multi-threaded
-            # application. The command submitting a module build runs in its
-            # own thread, and the backend build workflow, implemented as a
-            # fedmsg consumer on top of fedmsg-hub, runs in separate threads.
-            # So, disable this option in order to allow accessing data which
-            # was written from another thread.
-            "connect_args": {'check_same_thread': False},
-
-            # Both local module build and running tests requires a file-based
-            # SQLite database, we do not use a connection pool for these two
-            # scenario.
-            "poolclass": NullPool,
-        })
-    else:
-        # TODO - we could use ZopeTransactionExtension() here some day for
-        # improved safety on the backend.
-        pool_options = {}
-
-        # Apply pool options SQLALCHEMY_* set in MBS config.
-        # Abbrev sa stands for SQLAlchemy.
-        def apply_mbs_option(mbs_config_key, sa_config_key):
-            value = getattr(conf, mbs_config_key, None)
-            if value is not None:
-                pool_options[sa_config_key] = value
-
-        apply_mbs_option("sqlalchemy_pool_size", "pool_size")
-        apply_mbs_option("sqlalchemy_pool_timeout", "pool_timeout")
-        apply_mbs_option("sqlalchemy_pool_recycle", "pool_recycle")
-        apply_mbs_option("sqlalchemy_max_overflow", "max_overflow")
-
-        options.update(pool_options)
-
-    return options
-
-
-def create_sa_session(conf):
-    """Create a SQLAlchemy session object"""
-    engine_opts = apply_engine_options(conf)
-    engine = sqlalchemy.engine_from_config(**engine_opts)
-    session = scoped_session(sessionmaker(bind=engine))()
-    return session
-
-
-@contextlib.contextmanager
-def make_db_session(conf):
-    """Yields new SQLAlchemy database session.
-
-    MBS is actually a multiple threads application consisting of several
-    components. For a deployment instance, the REST API (implemented by Flask)
-    and build workflow (implemented as a fedmsg-hub consumer), which run in
-    different threads. For building a module locally, MBS runs in a similar
-    scenario, the CLI submits module build and then the build workflow starts
-    in its own thread.
-
-    The code of REST API uses session object managed by Flask-SQLAlchemy, and
-    other components use a plain SQLAlchemy session object created by this
-    function.
-
-    To support building a module both remotely and locally, this function
-    handles a session for both SQLite and PostgreSQL. For the scenario working
-    with SQLite, check_same_thread must be set to False so that queries are
-    allowed to access data created inside other threads.
-
-    **Note that**: MBS uses ``autocommit=False`` mode.
-    """
-    session = create_sa_session(conf)
-    _setup_event_listeners(session)
-
-    try:
-        # TODO: maybe this could be rewritten in an alternative way to allow
-        #       the caller to pass a flag back to indicate if all transactions
-        #       are handled already by itself, then it is not necessary to call
-        #       following commit unconditionally.
-        yield session
-
-        # Always commit whatever there is opening transaction.
-        # FIXME: Would it be a performance issue from the database side?
-        session.commit()
-    except Exception:
-        # This is a no-op if no transaction is in progress.
-        session.rollback()
-        raise
-    finally:
-        session.close()
 
 
 class MBSBase(db.Model):

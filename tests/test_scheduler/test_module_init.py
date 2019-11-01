@@ -9,7 +9,8 @@ from tests.test_views.test_views import FakeSCM
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.modules
 from module_build_service import build_logs
-from module_build_service.models import make_db_session, ModuleBuild
+from module_build_service.db_session import db_session
+from module_build_service.models import ModuleBuild
 from module_build_service.utils.general import mmd_to_str, load_mmd
 
 
@@ -22,14 +23,12 @@ class TestModuleInit:
         mmd = mmd.copy("testmodule", "1")
         scmurl = "git://pkgs.domain.local/modules/testmodule?#620ec77"
         clean_database()
-        with make_db_session(conf) as session:
-            ModuleBuild.create(
-                session, conf, "testmodule", "1", 3, mmd_to_str(mmd), scmurl, "mprahl")
+        ModuleBuild.create(
+            db_session, conf, "testmodule", "1", 3, mmd_to_str(mmd), scmurl, "mprahl")
 
     def teardown_method(self, test_method):
         try:
-            with make_db_session(conf) as db_session:
-                path = build_logs.path(db_session, 1)
+            path = build_logs.path(db_session, 1)
             os.remove(path)
         except Exception:
             pass
@@ -75,7 +74,7 @@ class TestModuleInit:
             msg_id=None, module_build_id=2, module_build_state="init"
         )
 
-        self.fn(config=conf, db_session=db_session, msg=msg)
+        self.fn(config=conf, msg=msg)
 
         build = ModuleBuild.get_by_id(db_session, 2)
         # Make sure the module entered the wait state
@@ -89,7 +88,7 @@ class TestModuleInit:
         hcwbmr.assert_called_once()
         return build
 
-    def test_init_called_twice(self, db_session):
+    def test_init_called_twice(self):
         build = self.init_basic(db_session)
         old_component_builds = len(build.component_builds)
         old_mmd = load_mmd(build.modulemd)
@@ -108,7 +107,7 @@ class TestModuleInit:
 
     @patch("module_build_service.scm.SCM")
     @patch("module_build_service.utils.submit.get_build_arches", return_value=["x86_64"])
-    def test_init_scm_not_available(self, get_build_arches, mocked_scm, db_session):
+    def test_init_scm_not_available(self, get_build_arches, mocked_scm):
         FakeSCM(
             mocked_scm, "testmodule", "testmodule.yaml", "620ec77321b2ea7b0d67d82992dda3e1d67055b4",
             get_latest_raise=True,
@@ -117,7 +116,7 @@ class TestModuleInit:
 
         msg = module_build_service.messaging.MBSModule(
             msg_id=None, module_build_id=2, module_build_state="init")
-        self.fn(config=conf, db_session=db_session, msg=msg)
+        self.fn(config=conf, msg=msg)
 
         build = ModuleBuild.get_by_id(db_session, 2)
         # Make sure the module entered the failed state
@@ -132,7 +131,7 @@ class TestModuleInit:
     @patch("module_build_service.scm.SCM")
     @patch("module_build_service.utils.submit.get_build_arches", return_value=["x86_64"])
     def test_init_includedmodule(
-        self, get_build_arches, mocked_scm, mocked_mod_allow_repo, db_session
+        self, get_build_arches, mocked_scm, mocked_mod_allow_repo
     ):
         FakeSCM(mocked_scm, "includedmodules", ["testmodule_init.yaml"])
         includedmodules_yml_path = read_staged_data("includedmodules")
@@ -144,7 +143,7 @@ class TestModuleInit:
             db_session, conf, "includemodule", "1", 3, mmd_to_str(mmd), scmurl, "mprahl")
         msg = module_build_service.messaging.MBSModule(
             msg_id=None, module_build_id=3, module_build_state="init")
-        self.fn(config=conf, db_session=db_session, msg=msg)
+        self.fn(config=conf, msg=msg)
         build = ModuleBuild.get_by_id(db_session, 3)
         assert build.state == 1
         assert build.name == "includemodule"
@@ -170,7 +169,7 @@ class TestModuleInit:
     @patch("module_build_service.scm.SCM")
     @patch("module_build_service.utils.submit.get_build_arches", return_value=["x86_64"])
     def test_init_when_get_latest_raises(
-            self, get_build_arches, mocked_scm, mocked_from_module_event, db_session):
+            self, get_build_arches, mocked_scm, mocked_from_module_event):
         FakeSCM(
             mocked_scm,
             "testmodule",
@@ -183,7 +182,7 @@ class TestModuleInit:
         build = ModuleBuild.get_by_id(db_session, 2)
         mocked_from_module_event.return_value = build
 
-        self.fn(config=conf, db_session=db_session, msg=msg)
+        self.fn(config=conf, msg=msg)
 
         # Query the database again to make sure the build object is updated
         db_session.refresh(build)

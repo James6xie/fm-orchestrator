@@ -73,7 +73,7 @@ class TestConsumer:
         }
         consumer.consume(msg)
         assert process_message.call_count == 1
-        msg_obj = process_message.call_args[0][1]
+        msg_obj = process_message.call_args[0][0]
         assert isinstance(msg_obj, KojiRepoChange)
         assert msg_obj.msg_id == msg["body"]["msg_id"]
         assert msg_obj.repo_tag == msg["body"]["msg"]["tag"]

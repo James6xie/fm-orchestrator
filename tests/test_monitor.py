@@ -7,6 +7,7 @@ import mock
 import module_build_service.config as mbs_config
 import module_build_service.monitor
 from module_build_service import models
+from module_build_service.db_session import db_session
 from conf.config import TestConfiguration
 
 from six.moves import reload_module
@@ -49,14 +50,17 @@ def test_standalone_metrics_server():
 
 @mock.patch("module_build_service.monitor.builder_failed_counter.labels")
 @mock.patch("module_build_service.monitor.builder_success_counter.inc")
-def test_monitor_state_changing_success(succ_cnt, failed_cnt, db_session):
+def test_monitor_state_changing_success(succ_cnt, failed_cnt):
     conf = mbs_config.Config(TestConfiguration)
     b = make_module_in_db(
-        "pkg:0.1:1:c1", [{
-            "requires": {"platform": ["el8"]},
-            "buildrequires": {"platform": ["el8"]},
-        }],
-        db_session=db_session)
+        "pkg:0.1:1:c1",
+        [
+            {
+                "requires": {"platform": ["el8"]},
+                "buildrequires": {"platform": ["el8"]},
+            }
+        ],
+    )
     b.transition(db_session, conf, models.BUILD_STATES["wait"])
     b.transition(db_session, conf, models.BUILD_STATES["build"])
     b.transition(db_session, conf, models.BUILD_STATES["done"])
@@ -67,15 +71,18 @@ def test_monitor_state_changing_success(succ_cnt, failed_cnt, db_session):
 
 @mock.patch("module_build_service.monitor.builder_failed_counter.labels")
 @mock.patch("module_build_service.monitor.builder_success_counter.inc")
-def test_monitor_state_changing_failure(succ_cnt, failed_cnt, db_session):
+def test_monitor_state_changing_failure(succ_cnt, failed_cnt):
     failure_type = "user"
     conf = mbs_config.Config(TestConfiguration)
     b = make_module_in_db(
-        "pkg:0.1:1:c1", [{
-            "requires": {"platform": ["el8"]},
-            "buildrequires": {"platform": ["el8"]},
-        }],
-        db_session=db_session)
+        "pkg:0.1:1:c1",
+        [
+            {
+                "requires": {"platform": ["el8"]},
+                "buildrequires": {"platform": ["el8"]},
+            }
+        ],
+    )
     b.transition(db_session, conf, models.BUILD_STATES["wait"])
     b.transition(db_session, conf, models.BUILD_STATES["build"])
     b.transition(db_session, conf, models.BUILD_STATES["failed"], failure_type=failure_type)

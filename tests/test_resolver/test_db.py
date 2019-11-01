@@ -11,13 +11,14 @@ from module_build_service import models, utils, Modulemd
 from module_build_service.utils import import_mmd, mmd_to_str, load_mmd
 from module_build_service.models import ModuleBuild
 from module_build_service.errors import UnprocessableEntity
+from module_build_service.db_session import db_session
 import tests
 
 
 @pytest.mark.usefixtures("reuse_component_init_data")
 class TestDBModule:
 
-    def test_get_buildrequired_modulemds(self, db_session):
+    def test_get_buildrequired_modulemds(self):
         mmd = load_mmd(tests.read_staged_data("platform"))
         mmd = mmd.copy(mmd.get_module_name(), "f30.1.3")
 
@@ -52,9 +53,7 @@ class TestDBModule:
         assert nsvcs == {"testmodule:master:20170109091357:123"}
 
     @pytest.mark.parametrize("stream_versions", [False, True])
-    def test_get_compatible_base_module_modulemds_stream_versions(
-        self, stream_versions, db_session
-    ):
+    def test_get_compatible_base_module_modulemds_stream_versions(self, stream_versions):
         tests.init_data(1, multiple_stream_versions=True)
         resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="db")
         platform = db_session.query(ModuleBuild).filter_by(name="platform", stream="f29.1.0").one()
@@ -73,7 +72,7 @@ class TestDBModule:
             }
 
     @pytest.mark.parametrize("empty_buildrequires", [False, True])
-    def test_get_module_build_dependencies(self, empty_buildrequires, db_session):
+    def test_get_module_build_dependencies(self, empty_buildrequires):
         """
         Tests that the buildrequires of testmodule are returned
         """
@@ -95,7 +94,7 @@ class TestDBModule:
             "testmodule", "master", "20170109091357", "78e4a6fd").keys()
         assert set(result) == expected
 
-    def test_get_module_build_dependencies_recursive(self, db_session):
+    def test_get_module_build_dependencies_recursive(self):
         """
         Tests that the buildrequires are returned when it is two layers deep
         """
@@ -136,13 +135,11 @@ class TestDBModule:
         new_callable=PropertyMock,
         return_value=tests.staged_data_filename("local_builds"),
     )
-    def test_get_module_build_dependencies_recursive_requires(
-        self, resultdir, conf_system, db_session
-    ):
+    def test_get_module_build_dependencies_recursive_requires(self, resultdir, conf_system):
         """
         Tests that it returns the requires of the buildrequires recursively
         """
-        utils.load_local_builds(db_session, ["platform", "parent", "child", "testmodule"])
+        utils.load_local_builds(["platform", "parent", "child", "testmodule"])
 
         build = models.ModuleBuild.local_modules(db_session, "child", "master")
         resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="db")
@@ -153,7 +150,7 @@ class TestDBModule:
         expected = [os.path.join(local_path, "module-parent-master-20170816080815/results")]
         assert set(result) == set(expected)
 
-    def test_resolve_requires(self, db_session):
+    def test_resolve_requires(self):
         build = models.ModuleBuild.get_by_id(db_session, 2)
         resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="db")
         result = resolver.resolve_requires(
@@ -170,7 +167,7 @@ class TestDBModule:
             }
         }
 
-    def test_resolve_requires_exception(self, db_session):
+    def test_resolve_requires_exception(self):
         build = models.ModuleBuild.get_by_id(db_session, 2)
         resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="db")
         with pytest.raises(UnprocessableEntity):
@@ -178,7 +175,7 @@ class TestDBModule:
                 [":".join(["abcdefghi", build.stream, build.version, build.context])]
             )
 
-    def test_resolve_requires_siblings(self, db_session):
+    def test_resolve_requires_siblings(self):
         tests.clean_database()
         resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="db")
         mmd = load_mmd(tests.read_staged_data("formatted_testmodule"))
@@ -205,7 +202,7 @@ class TestDBModule:
 
         db_session.commit()
 
-    def test_resolve_profiles(self, db_session):
+    def test_resolve_profiles(self):
         """
         Tests that the profiles get resolved recursively
         """
@@ -259,30 +256,30 @@ class TestDBModule:
         new_callable=PropertyMock,
         return_value=tests.staged_data_filename("local_builds")
     )
-    def test_resolve_profiles_local_module(self, local_builds, conf_system, db_session):
+    def test_resolve_profiles_local_module(self, local_builds, conf_system):
         """
         Test that profiles get resolved recursively on local builds
         """
-        utils.load_local_builds(db_session, ["platform"])
+        utils.load_local_builds(["platform"])
         mmd = models.ModuleBuild.get_by_id(db_session, 2).mmd()
         resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="mbs")
         result = resolver.resolve_profiles(mmd, ("buildroot", "srpm-buildroot"))
         expected = {"buildroot": {"foo"}, "srpm-buildroot": {"bar"}}
         assert result == expected
 
-    def test_get_latest_with_virtual_stream(self, db_session):
+    def test_get_latest_with_virtual_stream(self):
         tests.init_data(1, multiple_stream_versions=True)
         resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="db")
         mmd = resolver.get_latest_with_virtual_stream("platform", "f29")
         assert mmd
         assert mmd.get_stream_name() == "f29.2.0"
 
-    def test_get_latest_with_virtual_stream_none(self, db_session):
+    def test_get_latest_with_virtual_stream_none(self):
         resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="db")
         mmd = resolver.get_latest_with_virtual_stream("platform", "doesnotexist")
         assert not mmd
 
-    def test_get_module_count(self, db_session):
+    def test_get_module_count(self):
         resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="db")
         count = resolver.get_module_count(name="platform", stream="f28")
         assert count == 1

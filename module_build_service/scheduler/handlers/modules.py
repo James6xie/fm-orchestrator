@@ -15,6 +15,7 @@ from module_build_service.utils import (
     record_filtered_rpms,
     record_module_build_arches
 )
+from module_build_service.db_session import db_session
 from module_build_service.errors import UnprocessableEntity, Forbidden, ValidationError
 from module_build_service.utils.greenwave import greenwave
 from module_build_service.scheduler.default_modules import (
@@ -39,7 +40,7 @@ def get_artifact_from_srpm(srpm_path):
     return os.path.basename(srpm_path).replace(".src.rpm", "")
 
 
-def failed(config, db_session, msg):
+def failed(config, msg):
     """
     Called whenever a module enters the 'failed' state.
 
@@ -96,7 +97,7 @@ def failed(config, db_session, msg):
     module_build_service.builder.GenericBuilder.clear_cache(build)
 
 
-def done(config, db_session, msg):
+def done(config, msg):
     """Called whenever a module enters the 'done' state.
 
     We currently don't do anything useful, so moving to ready.
@@ -128,7 +129,7 @@ def done(config, db_session, msg):
     module_build_service.builder.GenericBuilder.clear_cache(build)
 
 
-def init(config, db_session, msg):
+def init(config, msg):
     """ Called whenever a module enters the 'init' state."""
     # Sleep for a few seconds to make sure the module in the database is committed
     # TODO: Remove this once messaging is implemented in SQLAlchemy hooks
@@ -154,20 +155,20 @@ def init(config, db_session, msg):
     failure_reason = "unspec"
     try:
         mmd = build.mmd()
-        record_module_build_arches(mmd, build, db_session)
+        record_module_build_arches(mmd, build)
         arches = [arch.name for arch in build.arches]
-        defaults_added = add_default_modules(db_session, mmd, arches)
+        defaults_added = add_default_modules(mmd, arches)
 
         # Format the modulemd by putting in defaults and replacing streams that
         # are branches with commit hashes
         format_mmd(mmd, build.scmurl, build, db_session)
-        record_component_builds(db_session, mmd, build)
+        record_component_builds(mmd, build)
 
         # The ursine.handle_stream_collision_modules is Koji specific.
         # It is also run only when Ursa Prime is not enabled for the base
         # module (`if not defaults_added`).
         if conf.system in ["koji", "test"] and not defaults_added:
-            handle_stream_collision_modules(db_session, mmd)
+            handle_stream_collision_modules(mmd)
 
         # Sets xmd["mbs"]["ursine_rpms"] with RPMs from the buildrequired base modules which
         # conflict with the RPMs from other buildrequired modules. This is done to prefer modular
@@ -182,7 +183,7 @@ def init(config, db_session, msg):
                 ", ".join(conf.base_module_names)
             )
 
-        mmd = record_filtered_rpms(db_session, mmd)
+        mmd = record_filtered_rpms(mmd)
         build.modulemd = mmd_to_str(mmd)
         build.transition(db_session, conf, models.BUILD_STATES["wait"])
     # Catch custom exceptions that we can expose to the user
@@ -212,6 +213,7 @@ def init(config, db_session, msg):
                 state_reason=error_msg,
                 failure_type=failure_reason,
             )
+            db_session.commit()
 
 
 def generate_module_build_koji_tag(build):
@@ -239,10 +241,9 @@ def generate_module_build_koji_tag(build):
 @module_build_service.utils.retry(
     interval=10, timeout=120, wait_on=(ValueError, RuntimeError, ConnectionError)
 )
-def get_module_build_dependencies(db_session, build):
+def get_module_build_dependencies(build):
     """Used by wait handler to get module's build dependencies
 
-    :param db_session: SQLAlchemy session object.
     :param build: a module build.
     :type build: :class:`ModuleBuild`
     :return: the value returned from :meth:`get_module_build_dependencies`
@@ -296,7 +297,7 @@ def get_content_generator_build_koji_tag(module_deps):
         return conf.koji_cg_default_build_tag
 
 
-def wait(config, db_session, msg):
+def wait(config, msg):
     """ Called whenever a module enters the 'wait' state.
 
     We transition to this state shortly after a modulebuild is first requested.
@@ -331,7 +332,7 @@ def wait(config, db_session, msg):
         pass
 
     try:
-        build_deps = get_module_build_dependencies(db_session, build)
+        build_deps = get_module_build_dependencies(build)
     except ValueError:
         reason = "Failed to get module info from MBS. Max retries reached."
         log.exception(reason)
@@ -387,7 +388,7 @@ def wait(config, db_session, msg):
 
     # If all components in module build will be reused, we don't have to build
     # module-build-macros, because there won't be any build done.
-    if attempt_to_reuse_all_components(builder, db_session, build):
+    if attempt_to_reuse_all_components(builder, build):
         log.info("All components have been reused for module %r, skipping build" % build)
         build.transition(db_session, config, state=models.BUILD_STATES["build"])
         db_session.add(build)

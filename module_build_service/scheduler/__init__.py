@@ -8,6 +8,8 @@ import moksha.hub
 import module_build_service.models
 import module_build_service.scheduler.consumer
 
+from module_build_service.db_session import db_session
+
 import logging
 
 log = logging.getLogger(__name__)
@@ -46,7 +48,7 @@ def main(initial_messages, stop_condition):
     )
 
 
-def make_simple_stop_condition(db_session):
+def make_simple_stop_condition():
     """ Return a simple stop_condition callable.
 
     Intended to be used with the main() function here in manage.py and tests.
@@ -71,6 +73,15 @@ def make_simple_stop_condition(db_session):
         )
         result = module.state in done
         log.debug("stop_condition checking %r, got %r" % (module, result))
+
+        # moksha.hub.main starts the hub and runs it in a separate thread. When
+        # the result is True, remove the db_session from that thread local so
+        # that any pending queries in the transaction will not block other
+        # queries made from other threads.
+        # This is useful for testing particularly.
+        if result:
+            db_session.remove()
+
         return result
 
     return stop_condition

@@ -10,6 +10,7 @@ from os import path
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.repos  # noqa
 from module_build_service import models, conf, build_logs, Modulemd
+from module_build_service.db_session import db_session
 from module_build_service.utils.general import mmd_to_str
 
 from mock import patch, Mock, call, mock_open
@@ -34,7 +35,7 @@ GET_USER_RV = {
 class TestBuild:
     def setup_method(self, test_method):
         init_data(1, contexts=True)
-        module = models.ModuleBuild.query.filter_by(id=2).one()
+        module = models.ModuleBuild.get_by_id(db_session, 2)
         module.cg_build_koji_tag = "f27-module-candidate"
         self.cg = KojiContentGenerator(module, conf)
 
@@ -50,8 +51,7 @@ class TestBuild:
 
         # Ensure that there is no build log from other tests
         try:
-            with models.make_db_session(conf) as db_session:
-                file_path = build_logs.path(db_session, self.cg.module)
+            file_path = build_logs.path(db_session, self.cg.module)
             os.remove(file_path)
         except OSError:
             pass
@@ -68,8 +68,7 @@ class TestBuild:
         import moksha.hub.reactor  # noqa
 
         try:
-            with models.make_db_session(conf) as db_session:
-                file_path = build_logs.path(db_session, self.cg.module)
+            file_path = build_logs.path(db_session, self.cg.module)
             os.remove(file_path)
         except OSError:
             pass
@@ -116,8 +115,7 @@ class TestBuild:
             expected_output = json.load(expected_output_file)
 
         # create the build.log
-        with models.make_db_session(conf) as db_session:
-            build_logs.start(db_session, self.cg.module)
+        build_logs.start(db_session, self.cg.module)
         build_logs.stop(self.cg.module)
 
         self.cg.devel = devel

@@ -10,6 +10,7 @@ import module_build_service.scheduler.handlers.repos
 import module_build_service.scheduler.handlers.tags
 import module_build_service.models
 from tests import conf
+from module_build_service.db_session import db_session
 
 import koji
 
@@ -18,7 +19,7 @@ import koji
 class TestTagTagged:
 
     @mock.patch("module_build_service.models.ModuleBuild.from_tag_change_event")
-    def test_no_matching_module(self, from_tag_change_event, db_session):
+    def test_no_matching_module(self, from_tag_change_event):
         """ Test that when a tag msg hits us and we have no match,
         that we do nothing gracefully.
         """
@@ -26,9 +27,9 @@ class TestTagTagged:
         msg = module_build_service.messaging.KojiTagChange(
             "no matches for this...", "2016-some-nonexistent-build", "artifact", "artifact-1.2-1")
         module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, db_session=db_session, msg=msg)
+            config=conf, msg=msg)
 
-    def test_no_matching_artifact(self, db_session):
+    def test_no_matching_artifact(self):
         """ Test that when a tag msg hits us and we have no match,
         that we do nothing gracefully.
         """
@@ -39,7 +40,7 @@ class TestTagTagged:
             "artifact-1.2-1",
         )
         module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, db_session=db_session, msg=msg)
+            config=conf, msg=msg)
 
     @patch(
         "module_build_service.builder.GenericBuilder.default_buildroot_groups",
@@ -47,7 +48,7 @@ class TestTagTagged:
     )
     @patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
     @patch("module_build_service.builder.GenericBuilder.create_from_module")
-    def test_newrepo(self, create_builder, koji_get_session, dbg, db_session):
+    def test_newrepo(self, create_builder, koji_get_session, dbg):
         """
         Test that newRepo is called in the expected times.
         """
@@ -92,7 +93,7 @@ class TestTagTagged:
             "perl-Tangerine-0.23-1.module+0+d027b723",
         )
         module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, db_session=db_session, msg=msg
+            config=conf, msg=msg
         )
         # Tag the first component to the final tag.
         msg = module_build_service.messaging.KojiTagChange(
@@ -102,7 +103,7 @@ class TestTagTagged:
             "perl-Tangerine-0.23-1.module+0+d027b723",
         )
         module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, db_session=db_session, msg=msg
+            config=conf, msg=msg
         )
 
         # newRepo should not be called, because there are still components
@@ -117,7 +118,7 @@ class TestTagTagged:
             "perl-List-Compare-0.53-5.module+0+d027b723",
         )
         module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, db_session=db_session, msg=msg
+            config=conf, msg=msg
         )
 
         # newRepo should not be called, because the component has not been
@@ -132,7 +133,7 @@ class TestTagTagged:
             "perl-List-Compare-0.53-5.module+0+d027b723",
         )
         module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, db_session=db_session, msg=msg)
+            config=conf, msg=msg)
 
         # newRepo should be called now - all components have been tagged.
         koji_session.newRepo.assert_called_once_with(
@@ -152,7 +153,7 @@ class TestTagTagged:
     @patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
     @patch("module_build_service.builder.GenericBuilder.create_from_module")
     def test_newrepo_still_building_components(
-        self, create_builder, koji_get_session, dbg, db_session
+        self, create_builder, koji_get_session, dbg
     ):
         """
         Test that newRepo is called in the expected times.
@@ -188,7 +189,7 @@ class TestTagTagged:
             "perl-Tangerine-0.23-1.module+0+d027b723",
         )
         module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, db_session=db_session, msg=msg)
+            config=conf, msg=msg)
         # Tag the perl-List-Compare component to final tag.
         msg = module_build_service.messaging.KojiTagChange(
             "id",
@@ -197,7 +198,7 @@ class TestTagTagged:
             "perl-Tangerine-0.23-1.module+0+d027b723",
         )
         module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, db_session=db_session, msg=msg)
+            config=conf, msg=msg)
 
         # newRepo should not be called, because perl-List-Compare has not been
         # built yet.
@@ -209,7 +210,7 @@ class TestTagTagged:
     )
     @patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
     @patch("module_build_service.builder.GenericBuilder.create_from_module")
-    def test_newrepo_failed_components(self, create_builder, koji_get_session, dbg, db_session):
+    def test_newrepo_failed_components(self, create_builder, koji_get_session, dbg):
         """
         Test that newRepo is called in the expected times.
         """
@@ -258,7 +259,7 @@ class TestTagTagged:
             "perl-List-Compare-0.53-5.module+0+d027b723",
         )
         module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, db_session=db_session, msg=msg
+            config=conf, msg=msg
         )
         # Tag the perl-List-Compare component to final tag.
         msg = module_build_service.messaging.KojiTagChange(
@@ -268,7 +269,7 @@ class TestTagTagged:
             "perl-List-Compare-0.53-5.module+0+d027b723",
         )
         module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, db_session=db_session, msg=msg)
+            config=conf, msg=msg)
 
         # newRepo should be called now - all successfully built
         # components have been tagged.
@@ -289,7 +290,7 @@ class TestTagTagged:
     @patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
     @patch("module_build_service.builder.GenericBuilder.create_from_module")
     def test_newrepo_multiple_batches_tagged(
-        self, create_builder, koji_get_session, dbg, db_session
+        self, create_builder, koji_get_session, dbg
     ):
         """
         Test that newRepo is called just once and only when all components
@@ -334,7 +335,7 @@ class TestTagTagged:
             "perl-Tangerine-0.23-1.module+0+d027b723",
         )
         module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, db_session=db_session, msg=msg)
+            config=conf, msg=msg)
         # Tag the first component to the final tag.
         msg = module_build_service.messaging.KojiTagChange(
             "id",
@@ -343,7 +344,7 @@ class TestTagTagged:
             "perl-Tangerine-0.23-1.module+0+d027b723",
         )
         module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, db_session=db_session, msg=msg)
+            config=conf, msg=msg)
 
         # newRepo should not be called, because there are still components
         # to tag.
@@ -357,7 +358,7 @@ class TestTagTagged:
             "perl-List-Compare-0.53-5.module+0+d027b723",
         )
         module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, db_session=db_session, msg=msg)
+            config=conf, msg=msg)
         # Tag the second component to final tag.
         msg = module_build_service.messaging.KojiTagChange(
             "id",
@@ -366,7 +367,7 @@ class TestTagTagged:
             "perl-List-Compare-0.53-5.module+0+d027b723",
         )
         module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, db_session=db_session, msg=msg)
+            config=conf, msg=msg)
 
         # newRepo should not be called, because there are still components
         # to tag.
@@ -380,7 +381,7 @@ class TestTagTagged:
             "module-build-macros-0.1-1.module+0+b0a1d1f7",
         )
         module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, db_session=db_session, msg=msg)
+            config=conf, msg=msg)
         # Tag the component from first batch to the buildroot.
         msg = module_build_service.messaging.KojiTagChange(
             "id",
@@ -389,7 +390,7 @@ class TestTagTagged:
             "module-build-macros-0.1-1.module+0+b0a1d1f7",
         )
         module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, db_session=db_session, msg=msg)
+            config=conf, msg=msg)
 
         # newRepo should be called now - all components have been tagged.
         koji_session.newRepo.assert_called_once_with(
@@ -408,7 +409,7 @@ class TestTagTagged:
     )
     @patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
     @patch("module_build_service.builder.GenericBuilder.create_from_module")
-    def test_newrepo_build_time_only(self, create_builder, koji_get_session, dbg, db_session):
+    def test_newrepo_build_time_only(self, create_builder, koji_get_session, dbg):
         """
         Test the component.build_time_only is respected in tag handler.
         """
@@ -461,7 +462,7 @@ class TestTagTagged:
             "perl-Tangerine-0.23-1.module+0+d027b723",
         )
         module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, db_session=db_session, msg=msg)
+            config=conf, msg=msg)
         assert not koji_session.newRepo.called
         # Tag the perl-List-Compare component to the buildroot.
         msg = module_build_service.messaging.KojiTagChange(
@@ -471,7 +472,7 @@ class TestTagTagged:
             "perl-List-Compare-0.53-5.module+0+d027b723",
         )
         module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, db_session=db_session, msg=msg)
+            config=conf, msg=msg)
         # Tag the perl-List-Compare component to final tag.
         msg = module_build_service.messaging.KojiTagChange(
             "id",
@@ -480,7 +481,7 @@ class TestTagTagged:
             "perl-List-Compare-0.53-5.module+0+d027b723",
         )
         module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, db_session=db_session, msg=msg)
+            config=conf, msg=msg)
 
         # newRepo should be called now - all successfully built
         # components have been tagged.
@@ -510,7 +511,7 @@ class TestTagTagged:
     @patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
     @patch("module_build_service.builder.GenericBuilder.create_from_module")
     def test_newrepo_not_duplicated(
-        self, create_builder, koji_get_session, dbg, task_state, expect_new_repo, db_session
+        self, create_builder, koji_get_session, dbg, task_state, expect_new_repo
     ):
         """
         Test that newRepo is not called if a task is already in progress.
@@ -560,7 +561,7 @@ class TestTagTagged:
             "perl-Tangerine-0.23-1.module+0+d027b723",
         )
         module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, db_session=db_session, msg=msg)
+            config=conf, msg=msg)
         # Tag the first component to the final tag.
         msg = module_build_service.messaging.KojiTagChange(
             "id",
@@ -569,7 +570,7 @@ class TestTagTagged:
             "perl-Tangerine-0.23-1.module+0+d027b723",
         )
         module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, db_session=db_session, msg=msg)
+            config=conf, msg=msg)
         # Tag the second component to the buildroot.
         msg = module_build_service.messaging.KojiTagChange(
             "id",
@@ -578,7 +579,7 @@ class TestTagTagged:
             "perl-List-Compare-0.53-5.module+0+d027b723",
         )
         module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, db_session=db_session, msg=msg)
+            config=conf, msg=msg)
         # Tag the second component to the final tag.
         msg = module_build_service.messaging.KojiTagChange(
             "id",
@@ -587,7 +588,7 @@ class TestTagTagged:
             "perl-List-Compare-0.53-5.module+0+d027b723",
         )
         module_build_service.scheduler.handlers.tags.tagged(
-            config=conf, db_session=db_session, msg=msg)
+            config=conf, msg=msg)
 
         # All components are tagged, newRepo should be called if there are no active tasks.
         if expect_new_repo:

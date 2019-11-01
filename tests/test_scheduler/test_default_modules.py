@@ -7,6 +7,7 @@ import dnf
 from mock import call, Mock, patch, PropertyMock
 import pytest
 
+from module_build_service.db_session import db_session
 from module_build_service.errors import UnprocessableEntity
 from module_build_service.models import ModuleBuild
 from module_build_service.scheduler import default_modules
@@ -16,7 +17,7 @@ from tests import clean_database, conf, make_module_in_db, read_staged_data, imp
 
 @patch("module_build_service.scheduler.default_modules.handle_collisions_with_base_module_rpms")
 @patch("module_build_service.scheduler.default_modules._get_default_modules")
-def test_add_default_modules(mock_get_dm, mock_hc, db_session):
+def test_add_default_modules(mock_get_dm, mock_hc):
     """
     Test that default modules present in the database are added, and the others are ignored.
     """
@@ -42,10 +43,8 @@ def test_add_default_modules(mock_get_dm, mock_hc, db_session):
     dependencies = [
         {"requires": {"platform": ["f28"]},
          "buildrequires": {"platform": ["f28"]}}]
-    make_module_in_db("python:3:12345:1", base_module=platform, db_session=db_session,
-                      dependencies=dependencies)
-    make_module_in_db("nodejs:11:2345:2", base_module=platform, db_session=db_session,
-                      dependencies=dependencies)
+    make_module_in_db("python:3:12345:1", base_module=platform, dependencies=dependencies)
+    make_module_in_db("nodejs:11:2345:2", base_module=platform, dependencies=dependencies)
     db_session.commit()
 
     mock_get_dm.return_value = {
@@ -53,7 +52,7 @@ def test_add_default_modules(mock_get_dm, mock_hc, db_session):
         "python": "3",
         "ruby": "2.6",
     }
-    defaults_added = default_modules.add_default_modules(db_session, mmd, ["x86_64"])
+    defaults_added = default_modules.add_default_modules(mmd, ["x86_64"])
     # Make sure that the default modules were added. ruby:2.6 will be ignored since it's not in
     # the database
     assert set(mmd.get_xmd()["mbs"]["buildrequires"].keys()) == {"nodejs", "platform", "python"}
@@ -66,19 +65,19 @@ def test_add_default_modules(mock_get_dm, mock_hc, db_session):
 
 
 @patch("module_build_service.scheduler.default_modules._get_default_modules")
-def test_add_default_modules_not_linked(mock_get_dm, db_session):
+def test_add_default_modules_not_linked(mock_get_dm):
     """
     Test that no default modules are added when they aren't linked from the base module.
     """
     clean_database()
     mmd = load_mmd(read_staged_data("formatted_testmodule.yaml"))
     assert set(mmd.get_xmd()["mbs"]["buildrequires"].keys()) == {"platform"}
-    default_modules.add_default_modules(db_session, mmd, ["x86_64"])
+    default_modules.add_default_modules(mmd, ["x86_64"])
     assert set(mmd.get_xmd()["mbs"]["buildrequires"].keys()) == {"platform"}
     mock_get_dm.assert_not_called()
 
 
-def test_add_default_modules_platform_not_available(db_session):
+def test_add_default_modules_platform_not_available():
     """
     Test that an exception is raised when the platform module that is buildrequired is missing.
 
@@ -89,11 +88,11 @@ def test_add_default_modules_platform_not_available(db_session):
 
     expected_error = "Failed to retrieve the module platform:f28:3:00000000 from the database"
     with pytest.raises(RuntimeError, match=expected_error):
-        default_modules.add_default_modules(db_session, mmd, ["x86_64"])
+        default_modules.add_default_modules(mmd, ["x86_64"])
 
 
 @patch("module_build_service.scheduler.default_modules._get_default_modules")
-def test_add_default_modules_compatible_platforms(mock_get_dm, db_session):
+def test_add_default_modules_compatible_platforms(mock_get_dm):
     """
     Test that default modules built against compatible base module streams are added.
     """
@@ -124,14 +123,12 @@ def test_add_default_modules_compatible_platforms(mock_get_dm, db_session):
     dependencies = [
         {"requires": {"platform": ["f27"]},
          "buildrequires": {"platform": ["f27"]}}]
-    make_module_in_db("python:3:12345:1", base_module=platform_f27, db_session=db_session,
-                      dependencies=dependencies)
+    make_module_in_db("python:3:12345:1", base_module=platform_f27, dependencies=dependencies)
 
     # Create nodejs default module which requries any platform stream and therefore can be used
     # as default module for platform:f28.
     dependencies[0]["requires"]["platform"] = []
-    make_module_in_db("nodejs:11:2345:2", base_module=platform_f27, db_session=db_session,
-                      dependencies=dependencies)
+    make_module_in_db("nodejs:11:2345:2", base_module=platform_f27, dependencies=dependencies)
     db_session.commit()
 
     mock_get_dm.return_value = {
@@ -139,7 +136,7 @@ def test_add_default_modules_compatible_platforms(mock_get_dm, db_session):
         "python": "3",
         "ruby": "2.6",
     }
-    defaults_added = default_modules.add_default_modules(db_session, mmd, ["x86_64"])
+    defaults_added = default_modules.add_default_modules(mmd, ["x86_64"])
     # Make sure that the default modules were added. ruby:2.6 will be ignored since it's not in
     # the database
     assert set(mmd.get_xmd()["mbs"]["buildrequires"].keys()) == {"nodejs", "platform"}
@@ -151,13 +148,13 @@ def test_add_default_modules_compatible_platforms(mock_get_dm, db_session):
 
 
 @patch("module_build_service.scheduler.default_modules._get_default_modules")
-def test_add_default_modules_request_failed(mock_get_dm, db_session):
+def test_add_default_modules_request_failed(mock_get_dm):
     """
     Test that an exception is raised when the call to _get_default_modules failed.
     """
     clean_database()
-    make_module_in_db("python:3:12345:1", db_session=db_session)
-    make_module_in_db("nodejs:11:2345:2", db_session=db_session)
+    make_module_in_db("python:3:12345:1")
+    make_module_in_db("nodejs:11:2345:2")
     mmd = load_mmd(read_staged_data("formatted_testmodule.yaml"))
     xmd_brs = mmd.get_xmd()["mbs"]["buildrequires"]
     assert set(xmd_brs.keys()) == {"platform"}
@@ -181,7 +178,7 @@ def test_add_default_modules_request_failed(mock_get_dm, db_session):
     mock_get_dm.side_effect = ValueError(expected_error)
 
     with pytest.raises(ValueError, match=expected_error):
-        default_modules.add_default_modules(db_session, mmd, ["x86_64"])
+        default_modules.add_default_modules(mmd, ["x86_64"])
 
 
 @pytest.mark.parametrize("is_rawhide", (True, False))

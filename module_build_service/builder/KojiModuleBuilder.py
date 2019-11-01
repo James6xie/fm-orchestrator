@@ -25,6 +25,7 @@ import module_build_service.scm
 import module_build_service.utils
 from module_build_service.builder.utils import execute_cmd
 from module_build_service.builder.koji_backports import ClientSession as KojiClientSession
+from module_build_service.db_session import db_session
 from module_build_service.errors import ProgrammingError
 
 from module_build_service.builder.base import GenericBuilder
@@ -159,7 +160,7 @@ class KojiModuleBuilder(GenericBuilder):
         log.debug("Using koji_config: %s" % config.koji_config)
 
         self.koji_session = self.get_session(config)
-        self.arches = [arch.name for arch in self.module.arches]
+        self.arches = sorted(arch.name for arch in self.module.arches)
 
         # Allow KojiModuleBuilder to be initialized if no arches are set but the module is in
         # a failed set. This will allow the clean up of old module builds.
@@ -228,63 +229,61 @@ class KojiModuleBuilder(GenericBuilder):
         """
         # filtered_rpms will contain the NVRs of non-reusable component's RPMs
         filtered_rpms = list(set(filtered_rpms_of_dep))
-        with models.make_db_session(conf) as db_session:
-            # Get a module build that can be reused, which will likely be the
-            # build dep that is used since it relies on itself
-            reusable_module = get_reusable_module(db_session, module_build)
-            if not reusable_module:
-                return filtered_rpms
-            koji_session = KojiModuleBuilder.get_session(conf, login=False)
-            # Get all the RPMs and builds of the reusable module in Koji
-            rpms, builds = koji_session.listTaggedRPMS(reusable_module.koji_tag, latest=True)
-            # Convert the list to a dict where each key is the build_id
-            builds = {build["build_id"]: build for build in builds}
-            # Create a mapping of package (SRPM) to the RPMs in NVR format
-            package_to_rpms = {}
-            for rpm in rpms:
-                package = builds[rpm["build_id"]]["name"]
-                package_to_rpms.setdefault(package, []).append(kobo.rpmlib.make_nvr(rpm))
+        # Get a module build that can be reused, which will likely be the
+        # build dep that is used since it relies on itself
+        reusable_module = get_reusable_module(module_build)
+        if not reusable_module:
+            return filtered_rpms
+        koji_session = KojiModuleBuilder.get_session(conf, login=False)
+        # Get all the RPMs and builds of the reusable module in Koji
+        rpms, builds = koji_session.listTaggedRPMS(reusable_module.koji_tag, latest=True)
+        # Convert the list to a dict where each key is the build_id
+        builds = {build["build_id"]: build for build in builds}
+        # Create a mapping of package (SRPM) to the RPMs in NVR format
+        package_to_rpms = {}
+        for rpm in rpms:
+            package = builds[rpm["build_id"]]["name"]
+            package_to_rpms.setdefault(package, []).append(kobo.rpmlib.make_nvr(rpm))
 
-            components_in_module = [c.package for c in module_build.component_builds]
-            reusable_components = get_reusable_components(
-                db_session,
-                module_build,
-                components_in_module,
-                previous_module_build=reusable_module,
-            )
-            # Loop through all the reusable components to find if any of their RPMs are
-            # being filtered
-            for reusable_component in reusable_components:
-                # reusable_component will be None if the component can't be reused
-                if not reusable_component:
-                    continue
-                # We must get the component name from the NVR and not from
-                # reusable_component.package because macros such as those used
-                # by SCLs can change the name of the underlying build
-                component_name = kobo.rpmlib.parse_nvr(reusable_component.nvr)["name"]
+        components_in_module = [c.package for c in module_build.component_builds]
+        reusable_components = get_reusable_components(
+            module_build,
+            components_in_module,
+            previous_module_build=reusable_module,
+        )
+        # Loop through all the reusable components to find if any of their RPMs are
+        # being filtered
+        for reusable_component in reusable_components:
+            # reusable_component will be None if the component can't be reused
+            if not reusable_component:
+                continue
+            # We must get the component name from the NVR and not from
+            # reusable_component.package because macros such as those used
+            # by SCLs can change the name of the underlying build
+            component_name = kobo.rpmlib.parse_nvr(reusable_component.nvr)["name"]
 
-                if component_name not in package_to_rpms:
-                    continue
+            if component_name not in package_to_rpms:
+                continue
 
-                # Loop through the RPMs associated with the reusable component
-                for nvr in package_to_rpms[component_name]:
-                    parsed_nvr = kobo.rpmlib.parse_nvr(nvr)
+            # Loop through the RPMs associated with the reusable component
+            for nvr in package_to_rpms[component_name]:
+                parsed_nvr = kobo.rpmlib.parse_nvr(nvr)
+                # Don't compare with the epoch
+                parsed_nvr["epoch"] = None
+                # Loop through all the filtered RPMs to find a match with the reusable
+                # component's RPMs.
+                for nvr2 in list(filtered_rpms):
+                    parsed_nvr2 = kobo.rpmlib.parse_nvr(nvr2)
                     # Don't compare with the epoch
-                    parsed_nvr["epoch"] = None
-                    # Loop through all the filtered RPMs to find a match with the reusable
-                    # component's RPMs.
-                    for nvr2 in list(filtered_rpms):
-                        parsed_nvr2 = kobo.rpmlib.parse_nvr(nvr2)
-                        # Don't compare with the epoch
-                        parsed_nvr2["epoch"] = None
-                        # Only remove the filter if we are going to reuse a component with
-                        # the same exact NVR
-                        if parsed_nvr == parsed_nvr2:
-                            filtered_rpms.remove(nvr2)
-                            # Since filtered_rpms was cast to a set and then back
-                            # to a list above, we know there won't be duplicate RPMS,
-                            # so we can just break here.
-                            break
+                    parsed_nvr2["epoch"] = None
+                    # Only remove the filter if we are going to reuse a component with
+                    # the same exact NVR
+                    if parsed_nvr == parsed_nvr2:
+                        filtered_rpms.remove(nvr2)
+                        # Since filtered_rpms was cast to a set and then back
+                        # to a list above, we know there won't be duplicate RPMS,
+                        # so we can just break here.
+                        break
         return filtered_rpms
 
     @staticmethod
@@ -1280,18 +1279,17 @@ class KojiModuleBuilder(GenericBuilder):
         :param Modulemd mmd: Modulemd to get the built RPMs from.
         :return: list of NVRs
         """
-        with models.make_db_session(conf) as db_session:
-            build = models.ModuleBuild.get_build_from_nsvc(
-                db_session,
-                mmd.get_module_name(),
-                mmd.get_stream_name(),
-                mmd.get_version(),
-                mmd.get_context()
-            )
-            koji_session = KojiModuleBuilder.get_session(conf, login=False)
-            rpms = koji_session.listTaggedRPMS(build.koji_tag, latest=True)[0]
-            nvrs = set(kobo.rpmlib.make_nvr(rpm, force_epoch=True) for rpm in rpms)
-            return list(nvrs)
+        build = models.ModuleBuild.get_build_from_nsvc(
+            db_session,
+            mmd.get_module_name(),
+            mmd.get_stream_name(),
+            mmd.get_version(),
+            mmd.get_context()
+        )
+        koji_session = KojiModuleBuilder.get_session(conf, login=False)
+        rpms = koji_session.listTaggedRPMS(build.koji_tag, latest=True)[0]
+        nvrs = set(kobo.rpmlib.make_nvr(rpm, force_epoch=True) for rpm in rpms)
+        return list(nvrs)
 
     def finalize(self, succeeded=True):
         # Only import to koji CG if the module is "build" and not scratch.

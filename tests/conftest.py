@@ -8,8 +8,8 @@ from datetime import datetime
 
 import module_build_service
 
-from module_build_service import conf
-from module_build_service.models import make_db_session, BUILD_STATES
+from module_build_service.models import BUILD_STATES
+from module_build_service.db_session import db_session
 from module_build_service.utils.general import mmd_to_str, load_mmd, get_rpm_release
 from tests import clean_database, read_staged_data, module_build_from_modulemd
 
@@ -48,13 +48,7 @@ def platform_mmd():
 
 
 @pytest.fixture()
-def db_session():
-    with make_db_session(conf) as db_session:
-        yield db_session
-
-
-@pytest.fixture()
-def model_tests_init_data(db_session):
+def model_tests_init_data():
     """Initialize data for model tests
 
     This is refactored from tests/test_models/__init__.py, which was able to be
@@ -78,7 +72,7 @@ def model_tests_init_data(db_session):
 
 
 @pytest.fixture()
-def reuse_component_init_data(db_session):
+def reuse_component_init_data():
     clean_database()
 
     mmd = load_mmd(read_staged_data("formatted_testmodule"))
@@ -265,7 +259,7 @@ def reuse_component_init_data(db_session):
 
 
 @pytest.fixture()
-def reuse_shared_userspace_init_data(db_session):
+def reuse_shared_userspace_init_data():
     # Create shared-userspace-570, state is COMPLETE, all components
     # are properly built.
     scmurl = "https://src.stg.fedoraproject.org/modules/testmodule.git?#7fea453"
