@@ -302,7 +302,7 @@ class KojiModuleBuilder(GenericBuilder):
         name = "module-build-macros"
         version = "0.1"
         release = "1"
-        with set_locale(locale.LC_TIME, "en_US.utf8"):
+        with set_locale(locale.LC_TIME, "C"):
             today = datetime.date.today().strftime("%a %b %d %Y")
         mmd = module_build.mmd()
 
