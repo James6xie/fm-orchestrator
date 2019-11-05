@@ -1,6 +1,14 @@
 Change Log
 ==========
 
+v2.30.0
+-------
+* Remove Kerberos authentication directly performed by MBS (``mod_auth_gssapi`` is now required)
+* Find the correct default modules based on the buildrequired base module (e.g. platform)
+* Fix the name field in the modulemd text for ``-devel`` content generator builds
+* The KojiResolver feature is now ready for testing
+* Fixed a bug that caused local builds to fail
+
 v2.29.1
 -------
 * Fix a fork in the database migration scripts
