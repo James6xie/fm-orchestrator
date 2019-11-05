@@ -64,3 +64,19 @@ available modules to be used as buildrequires as follows:
   buildrequires, and therefore, also as input to Module Stream Expansion.
 - It reuses already built components only from the modules tagged in the tag defined in
   ``koji_tag_with_modules``.
+
+Defining Layered Products Using KojiResolver
+============================================
+
+Sometimes it is needed to define a "layered product" on top of an existing base module.
+A layered product is a special module that extends a base module. The goal of a layered product is
+to allow building modules on top of an existing base module, but to not tag such module builds back
+to the original base module's Koji tag. The module builds built for a layered product are therefore,
+separated from the base module.
+
+Defining a layered product using KojiResolver is simple. One just needs to create a new Koji
+tag for the layered product which inherits the base module's Koji tag. There also needs to be
+a new base module defined using the virtual modules MBS feature. This virtual module needs
+to point to this newly created layered product's Koji tag. This virtual module should not
+buildrequire a base module on the modulemd file level. This dependency is expressed using
+Koji tag inheritance.
