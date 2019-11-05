@@ -17,6 +17,8 @@ from module_build_service.builder.KojiModuleBuilder import (
 from module_build_service.errors import UnprocessableEntity
 from module_build_service.resolver.base import GenericResolver
 from module_build_service.utils import retry
+from module_build_service.utils.mse import (
+    get_compatible_base_module_mmds, expand_single_mse_streams)
 
 
 def add_default_modules(db_session, mmd, arches):
@@ -86,18 +88,47 @@ def add_default_modules(db_session, mmd, arches):
 
             # Query for the latest default module that was built against this base module
             resolver = GenericResolver.create(db_session, conf)
-            default_module_mmds = resolver.get_buildrequired_modulemds(name, stream, bm_mmd)
-            if not default_module_mmds:
+            base_mmds = get_compatible_base_module_mmds(resolver, bm_mmd)
+            base_mmds = base_mmds["ready"] + base_mmds["garbage"]
+            base_mmds.sort(
+                key=lambda mmd: models.ModuleBuild.get_stream_version(mmd.get_stream_name(), False),
+                reverse=True)
+            for base_mmd in base_mmds:
+                default_module_mmds = resolver.get_buildrequired_modulemds(name, stream, base_mmd)
+                if not default_module_mmds:
+                    continue
+
+                # We need to ensure that module built against compatible base module stream
+                # really contains runtime-dependency on the current base module stream.
+                # For example in Fedora, we can have platform:f30 and platform:f31 base module
+                # streams. There can be foo:1 module built against platform:f30 which can work with
+                # any platform ("requires: platform: []"). This module can be configured as default
+                # module for platform:f28 and we need to support this case, but in the same time we
+                # cannot simply add any platform:f27 based module to platform:f28.
+                module_found = False
+                for default_module_mmd in default_module_mmds:
+                    for deps in default_module_mmd.get_dependencies():
+                        streams = deps.get_runtime_streams(module_name)
+                        if streams is None:
+                            continue
+                        streams = expand_single_mse_streams(db_session, module_name, streams)
+                        if bm_info["stream"] in streams:
+                            module_found = True
+                            break
+                    else:
+                        log.info(
+                            "Not using module %s as default module, because it does not "
+                            "contain runtime dependency on %s", default_module_mmd.get_nsvc(),
+                            bm_nsvc)
+                if module_found:
+                    break
+            else:
                 log.warning(
                     "The default module %s from %s is not in the database and couldn't be added as "
                     "a buildrequire",
                     ns, bm_nsvc,
                 )
                 continue
-            # Since a default module entry only has the name and stream, there's no way to know
-            # which context to pick from if multiple are present. In this case, just pick the first
-            # one, which is the latest version but potentially a random context.
-            default_module_mmd = default_module_mmds[0]
             # Use resolve_requires since it provides the exact format that is needed for
             # mbs.xmd.buildrequires
             resolved = resolver.resolve_requires([default_module_mmd.get_nsvc()])

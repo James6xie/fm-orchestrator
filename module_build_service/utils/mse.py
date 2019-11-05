@@ -8,7 +8,8 @@ from module_build_service.utils.general import deps_to_dict, mmd_to_str
 from module_build_service.resolver import GenericResolver
 
 
-def _expand_mse_streams(db_session, name, streams, default_streams, raise_if_stream_ambigous):
+def expand_single_mse_streams(
+        db_session, name, streams, default_streams=None, raise_if_stream_ambigous=False):
     """
     Helper method for `expand_mse_stream()` expanding single name:[streams].
     Returns list of expanded streams.
@@ -80,7 +81,7 @@ def expand_mse_streams(db_session, mmd, default_streams=None, raise_if_stream_am
         new_deps = Modulemd.Dependencies()
         for name in deps.get_runtime_modules():
             streams = deps.get_runtime_streams(name)
-            new_streams = _expand_mse_streams(
+            new_streams = expand_single_mse_streams(
                 db_session, name, streams, default_streams, raise_if_stream_ambigous)
 
             if not new_streams:
@@ -91,7 +92,7 @@ def expand_mse_streams(db_session, mmd, default_streams=None, raise_if_stream_am
 
         for name in deps.get_buildtime_modules():
             streams = deps.get_buildtime_streams(name)
-            new_streams = _expand_mse_streams(
+            new_streams = expand_single_mse_streams(
                 db_session, name, streams, default_streams, raise_if_stream_ambigous)
 
             if not new_streams:
@@ -184,6 +185,67 @@ def _get_mmds_from_requires(
     return mmds
 
 
+def get_compatible_base_module_mmds(resolver, base_mmd, ignore_ns=None):
+    """
+    Returns dict containing the base modules compatible with `base_mmd` grouped by their state.
+
+    :param GenericResolver resolver: GenericResolver instance.
+    :param Modulemd base_mmd: Modulemd instant to return compatible modules for.
+    :param set ignore_ns: When set, defines the name:stream of base modules which will be ignored
+        by this function and therefore not returned.
+    :return dict: Dictionary with module's state name as a key and list of Modulemd objects for
+        each compatible base module in that state. For example:
+            {
+                "ready": [base_mmd_1, base_mmd_2]
+                "garbage": [base_mmd_3]
+            }
+        The input `base_mmd` is always included in the result in "ready" state.
+    """
+    # Add the module to `seen` and `ret`.
+    ret = {"ready": [], "garbage": []}
+    ret["ready"].append(base_mmd)
+    ns = ":".join([base_mmd.get_module_name(), base_mmd.get_stream_name()])
+    seen = set() if not ignore_ns else set(ignore_ns)
+    seen.add(ns)
+
+    # Get the list of compatible virtual streams.
+    xmd = base_mmd.get_xmd()
+    virtual_streams = xmd.get("mbs", {}).get("virtual_streams")
+
+    # In case there are no virtual_streams in the buildrequired name:stream,
+    # it is clear that there are no compatible streams, so return just this
+    # `base_mmd`.
+    if not virtual_streams:
+        return ret
+
+    if conf.allow_only_compatible_base_modules:
+        stream_version_lte = True
+        states = ["ready"]
+    else:
+        stream_version_lte = False
+        states = ["ready", "garbage"]
+
+    for state in states:
+        mmds = resolver.get_compatible_base_module_modulemds(
+            base_mmd, stream_version_lte, virtual_streams,
+            [models.BUILD_STATES[state]])
+        ret_chunk = []
+        # Add the returned mmds to the `seen` set to avoid querying those
+        # individually if they are part of the buildrequire streams for this
+        # base module.
+        for mmd_ in mmds:
+            mmd_ns = ":".join([mmd_.get_module_name(), mmd_.get_stream_name()])
+            # An extra precaution to ensure there are no duplicates. This can happen when there
+            # are two modules with the same name:stream - one in ready state and one in garbage
+            # state.
+            if mmd_ns not in seen:
+                ret_chunk.append(mmd_)
+                seen.add(mmd_ns)
+        ret[state] += ret_chunk
+
+    return ret
+
+
 def get_base_module_mmds(db_session, mmd):
     """
     Returns list of MMDs of base modules buildrequired by `mmd` including the compatible
@@ -227,47 +289,14 @@ def get_base_module_mmds(db_session, mmd):
                 mmds = resolver.get_module_modulemds(name, stream)
                 if not mmds:
                     continue
-                stream_mmd = mmds[0]
+                base_mmd = mmds[0]
 
-                # Add the module to `seen` and `ret`.
-                seen.add(ns)
-                ret["ready"].append(stream_mmd)
-
-                # Get the list of compatible virtual streams.
-                xmd = stream_mmd.get_xmd()
-                virtual_streams = xmd.get("mbs", {}).get("virtual_streams")
-
-                # In case there are no virtual_streams in the buildrequired name:stream,
-                # it is clear that there are no compatible streams, so return just this
-                # `stream_mmd`.
-                if not virtual_streams:
-                    continue
-
-                if conf.allow_only_compatible_base_modules:
-                    stream_version_lte = True
-                    states = ["ready"]
-                else:
-                    stream_version_lte = False
-                    states = ["ready", "garbage"]
-
-                for state in states:
-                    mmds = resolver.get_compatible_base_module_modulemds(
-                        stream_mmd, stream_version_lte, virtual_streams,
-                        [models.BUILD_STATES[state]])
-                    ret_chunk = []
-                    # Add the returned mmds to the `seen` set to avoid querying those
-                    # individually if they are part of the buildrequire streams for this
-                    # base module.
-                    for mmd_ in mmds:
+                new_ret = get_compatible_base_module_mmds(resolver, base_mmd, ignore_ns=seen)
+                for state in new_ret.keys():
+                    for mmd_ in new_ret[state]:
                         mmd_ns = ":".join([mmd_.get_module_name(), mmd_.get_stream_name()])
-                        # An extra precaution to ensure there are no duplicates in the event the
-                        # sorting above wasn't flawless
-                        if mmd_ns not in seen:
-                            ret_chunk.append(mmd_)
-                            seen.add(mmd_ns)
-                    ret[state] += ret_chunk
-                # Just in case it was queried for but MBS didn't find it
-                seen.add(ns)
+                        seen.add(mmd_ns)
+                    ret[state] += new_ret[state]
             break
     return ret
 
