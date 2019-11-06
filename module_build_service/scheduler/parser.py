@@ -4,6 +4,7 @@
 import re
 
 from module_build_service import log
+from module_build_service.errors import IgnoreMessage
 from module_build_service.scheduler import events
 
 
@@ -70,49 +71,60 @@ class FedmsgMessageParser(MessageParser):
                     return
 
                 if object == "build" and subobject == "state" and event == "change":
-                    build_id = msg_inner_msg.get("build_id")
                     task_id = msg_inner_msg.get("task_id")
-                    build_new_state = msg_inner_msg.get("new")
-                    build_name = msg_inner_msg.get("name")
-                    build_version = msg_inner_msg.get("version")
-                    build_release = msg_inner_msg.get("release")
-
-                    return events.KojiBuildChange(
-                        msg_id,
-                        build_id,
-                        task_id,
-                        build_new_state,
-                        build_name,
-                        build_version,
-                        build_release,
-                    )
+                    if task_id is None:
+                        raise IgnoreMessage(
+                            "Ignore message {}, with has a null task_id.".format(msg_id))
+                    return {
+                        "msg_id": msg_id,
+                        "event": events.KOJI_BUILD_CHANGE,
+                        "build_id": msg_inner_msg.get("build_id"),
+                        "task_id": task_id,
+                        "build_new_state": msg_inner_msg.get("new"),
+                        "build_name": msg_inner_msg.get("name"),
+                        "build_version": msg_inner_msg.get("version"),
+                        "build_release": msg_inner_msg.get("release"),
+                        "module_build_id": None,
+                        "state_reason": None,
+                    }
 
                 if object == "repo" and subobject is None and event == "done":
-                    repo_tag = msg_inner_msg.get("tag")
-                    return events.KojiRepoChange(msg_id, repo_tag)
+                    return {
+                        "msg_id": msg_id,
+                        "event": events.KOJI_REPO_CHANGE,
+                        "repo_tag": msg_inner_msg.get("tag")
+                    }
 
                 if event == "tag":
-                    tag = msg_inner_msg.get("tag")
                     name = msg_inner_msg.get("name")
                     version = msg_inner_msg.get("version")
                     release = msg_inner_msg.get("release")
                     nvr = None
                     if name and version and release:
                         nvr = "-".join((name, version, release))
-                    return events.KojiTagChange(msg_id, tag, name, nvr)
+                    return {
+                        "msg_id": msg_id,
+                        "event": events.KOJI_TAG_CHANGE,
+                        "tag_name": msg_inner_msg.get("tag"),
+                        "build_name": msg_inner_msg.get("name"),
+                        "build_nvr": nvr,
+                    }
 
             if (category == "mbs"
                     and object == "module" and subobject == "state" and event == "change"):
-                return events.MBSModule(
-                    msg_id,
-                    msg_inner_msg.get("id"),
-                    msg_inner_msg.get("state"))
+                return {
+                    "msg_id": msg_id,
+                    "event": events.MBS_MODULE_STATE_CHANGE,
+                    "module_build_id": msg_inner_msg.get("id"),
+                    "module_build_state": msg_inner_msg.get("state"),
+                }
 
             if (category == "greenwave"
                     and object == "decision" and subobject is None and event == "update"):
-                return events.GreenwaveDecisionUpdate(
-                    msg_id=msg_id,
-                    decision_context=msg_inner_msg.get("decision_context"),
-                    policies_satisfied=msg_inner_msg.get("policies_satisfied"),
-                    subject_identifier=msg_inner_msg.get("subject_identifier"),
-                )
+                return {
+                    "msg_id": msg_id,
+                    "event": events.GREENWAVE_DECISION_UPDATE,
+                    "decision_context": msg_inner_msg.get("decision_context"),
+                    "policies_satisfied": msg_inner_msg.get("policies_satisfied"),
+                    "subject_identifier": msg_inner_msg.get("subject_identifier"),
+                }

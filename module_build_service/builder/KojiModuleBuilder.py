@@ -27,7 +27,7 @@ from module_build_service.builder.utils import execute_cmd
 from module_build_service.db_session import db_session
 from module_build_service.errors import ProgrammingError
 
-from module_build_service.builder.base import GenericBuilder
+from module_build_service.builder import GenericBuilder
 from module_build_service.builder.KojiContentGenerator import KojiContentGenerator
 from module_build_service.scheduler import events
 from module_build_service.utils import get_reusable_components, get_reusable_module, set_locale
@@ -741,18 +741,18 @@ class KojiModuleBuilder(GenericBuilder):
         component_build.state_reason = "Found existing build"
         nvr_dict = kobo.rpmlib.parse_nvr(component_build.nvr)
         # Trigger a completed build message
-        further_work.append(
-            events.KojiBuildChange(
-                "recover_orphaned_artifact: fake message",
-                build["build_id"],
-                build["task_id"],
-                koji.BUILD_STATES["COMPLETE"],
-                component_build.package,
-                nvr_dict["version"],
-                nvr_dict["release"],
-                component_build.module_build.id,
-            )
-        )
+        further_work.append({
+            "msg_id": "recover_orphaned_artifact: fake message",
+            "event": events.KOJI_BUILD_CHANGE,
+            "build_id": build["build_id"],
+            "task_id": build["task_id"],
+            "build_new_state": koji.BUILD_STATES["COMPLETE"],
+            "build_name": component_build.package,
+            "build_version": nvr_dict["version"],
+            "build_release": nvr_dict["release"],
+            "module_build_id": component_build.module_build.id,
+            "state_reason": None
+        })
 
         component_tagged_in = []
         if build_tagged:
@@ -772,14 +772,13 @@ class KojiModuleBuilder(GenericBuilder):
                 'The build being skipped isn\'t tagged in the "{0}" tag. Will send a message to '
                 "the tag handler".format(tag)
             )
-            further_work.append(
-                events.KojiTagChange(
-                    "recover_orphaned_artifact: fake message",
-                    tag,
-                    component_build.package,
-                    component_build.nvr,
-                )
-            )
+            further_work.append({
+                "msg_id": "recover_orphaned_artifact: fake message",
+                "event": events.KOJI_TAG_CHANGE,
+                "tag_name": tag,
+                "build_name": component_build.package,
+                "build_nvr": component_build.nvr,
+            })
         return further_work
 
     def build(self, artifact_name, source):

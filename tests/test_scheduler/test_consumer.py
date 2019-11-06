@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
 from mock import patch, MagicMock
+from module_build_service.scheduler import events
 from module_build_service.scheduler.consumer import MBSConsumer
-from module_build_service.scheduler.events import KojiTagChange, KojiRepoChange
 
 
 class TestConsumer:
@@ -35,11 +35,11 @@ class TestConsumer:
                 "release": "1.el7",
             },
         }
-        msg_obj = consumer.get_abstracted_msg(msg)
-        assert isinstance(msg_obj, KojiTagChange)
-        assert msg_obj.msg_id == msg["msg_id"]
-        assert msg_obj.tag == msg["msg"]["tag"]
-        assert msg_obj.artifact == msg["msg"]["name"]
+        event_info = consumer.get_abstracted_event_info(msg)
+        assert event_info["event"] == events.KOJI_TAG_CHANGE
+        assert event_info["msg_id"] == msg["msg_id"]
+        assert event_info["tag_name"] == msg["msg"]["tag"]
+        assert event_info["build_name"] == msg["msg"]["name"]
 
     @patch("module_build_service.scheduler.consumer.models")
     @patch.object(MBSConsumer, "process_message")
@@ -73,7 +73,7 @@ class TestConsumer:
         }
         consumer.consume(msg)
         assert process_message.call_count == 1
-        msg_obj = process_message.call_args[0][0]
-        assert isinstance(msg_obj, KojiRepoChange)
-        assert msg_obj.msg_id == msg["body"]["msg_id"]
-        assert msg_obj.repo_tag == msg["body"]["msg"]["tag"]
+        event_info = process_message.call_args[0][0]
+        assert event_info["event"] == events.KOJI_REPO_CHANGE
+        assert event_info["msg_id"] == msg["body"]["msg_id"]
+        assert event_info["repo_tag"] == msg["body"]["msg"]["tag"]

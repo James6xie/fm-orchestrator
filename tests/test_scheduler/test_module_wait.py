@@ -12,7 +12,6 @@ import module_build_service.resolver
 from module_build_service import build_logs, Modulemd
 from module_build_service.db_session import db_session
 from module_build_service.models import ComponentBuild, ModuleBuild
-from module_build_service.scheduler.events import MBSModule
 
 base_dir = os.path.dirname(os.path.dirname(__file__))
 
@@ -23,7 +22,6 @@ class TestModuleWait:
 
         self.config = conf
         self.session = mock.Mock()
-        self.fn = module_build_service.scheduler.handlers.modules.wait
 
     def teardown_method(self, test_method):
         try:
@@ -41,12 +39,11 @@ class TestModuleWait:
         create_builder.return_value = builder
 
         module_build_id = db_session.query(ModuleBuild).first().id
-        msg = MBSModule(
-            msg_id=None,
-            module_build_id=module_build_id,
-            module_build_state="some state")
         with patch("module_build_service.resolver.GenericResolver.create"):
-            self.fn(msg=msg)
+            module_build_service.scheduler.handlers.modules.wait(
+                msg_id="msg-id-1",
+                module_build_id=module_build_id,
+                module_build_state="some state")
 
     @patch(
         "module_build_service.builder.GenericBuilder.default_buildroot_groups",
@@ -81,9 +78,10 @@ class TestModuleWait:
         resolver.get_module_tag.return_value = "module-testmodule-master-20170109091357"
 
         generic_resolver.create.return_value = resolver
-        msg = MBSModule(msg_id=None, module_build_id=2, module_build_state="some state")
 
-        module_build_service.scheduler.handlers.modules.wait(msg=msg)
+        module_build_service.scheduler.handlers.modules.wait(
+            msg_id="msg-id-1",
+            module_build_id=2, module_build_state="some state")
 
         koji_session.newRepo.assert_called_once_with("module-123-build")
 
@@ -126,9 +124,11 @@ class TestModuleWait:
         resolver.get_module_tag.return_value = "module-testmodule-master-20170109091357"
 
         generic_resolver.create.return_value = resolver
-        msg = MBSModule(msg_id=None, module_build_id=2, module_build_state="some state")
 
-        module_build_service.scheduler.handlers.modules.wait(msg=msg)
+        module_build_service.scheduler.handlers.modules.wait(
+            msg_id="msg-id-1",
+            module_build_id=2,
+            module_build_state="some state")
 
         assert koji_session.newRepo.called
 
@@ -170,9 +170,11 @@ class TestModuleWait:
         }
 
         generic_resolver.create.return_value = resolver
-        msg = MBSModule(msg_id=None, module_build_id=2, module_build_state="some state")
 
-        module_build_service.scheduler.handlers.modules.wait(msg=msg)
+        module_build_service.scheduler.handlers.modules.wait(
+            msg_id="msg-id-1",
+            module_build_id=2,
+            module_build_state="some state")
 
         module_build = ModuleBuild.get_by_id(db_session, 2)
         assert module_build.cg_build_koji_tag == "modular-updates-candidate"
@@ -239,7 +241,9 @@ class TestModuleWait:
             new=koji_cg_tag_build,
         ):
             generic_resolver.create.return_value = resolver
-            msg = MBSModule(msg_id=None, module_build_id=2, module_build_state="some state")
-            module_build_service.scheduler.handlers.modules.wait(msg=msg)
+            module_build_service.scheduler.handlers.modules.wait(
+                msg_id="msg-id-1",
+                module_build_id=2,
+                module_build_state="some state")
             module_build = ModuleBuild.get_by_id(db_session, 2)
             assert module_build.cg_build_koji_tag == expected_cg_koji_build_tag

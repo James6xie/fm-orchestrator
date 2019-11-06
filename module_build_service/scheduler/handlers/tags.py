@@ -2,38 +2,45 @@
 # SPDX-License-Identifier: MIT
 """ Handlers for repo change events on the message bus. """
 
-import module_build_service.builder
 import logging
 import koji
 from module_build_service import conf, models, log
 from module_build_service.db_session import db_session
+from module_build_service.builder import GenericBuilder
 from module_build_service.scheduler import events
 
 logging.basicConfig(level=logging.DEBUG)
 
 
-def tagged(msg):
-    """ Called whenever koji tags a build to tag. """
+def tagged(msg_id, tag_name, build_name, build_nvr):
+    """Called whenever koji tags a build to tag.
+
+    :param str msg_id: the original id of the message being handled which is
+        received from the message bus.
+    :param str tag_name: the tag name applied.
+    :param str build_name: name of the tagged build.
+    :param str build_nvr: nvr of the tagged build.
+    """
     if conf.system not in ("koji", "test"):
         return []
 
     # Find our ModuleBuild associated with this tagged artifact.
-    tag = msg.tag
-    module_build = models.ModuleBuild.from_tag_change_event(db_session, msg)
+    module_build = models.ModuleBuild.get_by_tag(db_session, tag_name)
     if not module_build:
-        log.debug("No module build found associated with koji tag %r" % tag)
+        log.debug("No module build found associated with koji tag %r", tag_name)
         return
 
     # Find tagged component.
-    component = models.ComponentBuild.from_component_nvr(db_session, msg.nvr, module_build.id)
+    component = models.ComponentBuild.from_component_nvr(
+        db_session, build_nvr, module_build.id)
     if not component:
-        log.error("No component %s in module %r", msg.nvr, module_build)
+        log.error("No component %s in module %r", build_nvr, module_build)
         return
 
-    log.info("Saw relevant component tag of %r from %r." % (component.nvr, msg.msg_id))
+    log.info("Saw relevant component tag of %r from %r.", component.nvr, msg_id)
 
     # Mark the component as tagged
-    if tag.endswith("-build"):
+    if tag_name.endswith("-build"):
         component.tagged = True
     else:
         component.tagged_in_final = True
@@ -42,7 +49,7 @@ def tagged(msg):
     if any(c.is_unbuilt for c in module_build.current_batch()):
         log.info(
             "Not regenerating repo for tag %s, there are still building components in a batch",
-            tag,
+            tag_name,
         )
         return []
 
@@ -50,7 +57,7 @@ def tagged(msg):
 
     # If all components are tagged, start newRepo task.
     if not any(c.is_completed and not c.is_tagged for c in module_build.up_to_current_batch()):
-        builder = module_build_service.builder.GenericBuilder.create_from_module(
+        builder = GenericBuilder.create_from_module(
             db_session, module_build, conf)
 
         if any(c.is_unbuilt for c in module_build.component_builds):
@@ -70,10 +77,11 @@ def tagged(msg):
             # would be useless to wait for a repository we will not use anyway.
             log.info(
                 "All components in module tagged and built, skipping the last repo regeneration")
-            further_work += [
-                events.KojiRepoChange(
-                    "components::_finalize: fake msg", builder.module_build_tag["name"])
-            ]
+            further_work += [{
+                "msg_id": "components::_finalize: fake msg",
+                "event": events.KOJI_REPO_CHANGE,
+                "repo_tag": builder.module_build_tag["name"],
+            }]
         db_session.commit()
 
     return further_work

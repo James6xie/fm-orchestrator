@@ -394,7 +394,7 @@ def record_component_builds(
     mmd, module, initial_batch=1, previous_buildorder=None, main_mmd=None
 ):
     # Imported here to allow import of utils in GenericBuilder.
-    import module_build_service.builder
+    from module_build_service.builder import GenericBuilder
 
     # When main_mmd is set, merge the metadata from this mmd to main_mmd,
     # otherwise our current mmd is main_mmd.
@@ -436,7 +436,7 @@ def record_component_builds(
     # Get map of packages that have SRPM overrides
     srpm_overrides = get_module_srpm_overrides(module)
 
-    rpm_weights = module_build_service.builder.GenericBuilder.get_build_weights(
+    rpm_weights = GenericBuilder.get_build_weights(
         [c.get_name() for c in rpm_components]
     )
     all_components.sort(key=lambda x: x.get_buildorder())

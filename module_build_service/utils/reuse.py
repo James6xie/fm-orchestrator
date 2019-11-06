@@ -5,7 +5,7 @@ import kobo.rpmlib
 from module_build_service import log, models, conf
 from module_build_service.db_session import db_session
 from module_build_service.resolver import GenericResolver
-from module_build_service.scheduler.events import KojiBuildChange
+from module_build_service.scheduler import events
 from module_build_service.utils.mse import get_base_module_mmds
 
 
@@ -34,29 +34,29 @@ def reuse_component(component, previous_component_build, change_state_now=False)
         component.state = previous_component_build.state
     else:
         # Use BUILDING state here, because we want the state to change to
-        # COMPLETE by the fake KojiBuildChange message we are generating
-        # few lines below. If we would set it to the right state right
-        # here, we would miss the code path handling the KojiBuildChange
-        # which works only when switching from BUILDING to COMPLETE.
+        # COMPLETE by scheduling a internal buildsys.build.state.change message
+        # we are generating few lines below.
+        # If we would set it to the right state right here, we would miss the
+        # code path handling that event which works only when switching from
+        # BUILDING to COMPLETE.
         component.state = koji.BUILD_STATES["BUILDING"]
     component.state_reason = "Reused component from previous module build"
     component.nvr = previous_component_build.nvr
     nvr_dict = kobo.rpmlib.parse_nvr(component.nvr)
     # Add this message to further_work so that the reused
     # component will be tagged properly
-    return [
-        KojiBuildChange(
-            msg_id="reuse_component: fake msg",
-            build_id=None,
-            task_id=component.task_id,
-            build_new_state=previous_component_build.state,
-            build_name=nvr_dict["name"],
-            build_version=nvr_dict["version"],
-            build_release=nvr_dict["release"],
-            module_build_id=component.module_id,
-            state_reason=component.state_reason,
-        )
-    ]
+    return [{
+        "msg_id": "reuse_component: fake msg",
+        "event": events.KOJI_BUILD_CHANGE,
+        "build_id": None,
+        "task_id": component.task_id,
+        "build_new_state": previous_component_build.state,
+        "build_name": nvr_dict["name"],
+        "build_version": nvr_dict["version"],
+        "build_release": nvr_dict["release"],
+        "module_build_id": component.module_id,
+        "state_reason": component.state_reason,
+    }]
 
 
 def get_reusable_module(module):

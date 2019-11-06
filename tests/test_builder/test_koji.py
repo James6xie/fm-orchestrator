@@ -13,11 +13,11 @@ from collections import OrderedDict
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.repos
 import module_build_service.models
-import module_build_service.builder
 from module_build_service import Modulemd
 from module_build_service.db_session import db_session
-from module_build_service.utils.general import mmd_to_str
+from module_build_service.builder import GenericBuilder
 from module_build_service.scheduler import events
+from module_build_service.utils.general import mmd_to_str
 
 import pytest
 from mock import patch, MagicMock
@@ -110,7 +110,7 @@ class TestKojiBuilder:
         """ Test that when a repo msg hits us and we have no match,
         that we do nothing gracefully.
         """
-        repo = module_build_service.builder.GenericBuilder.tag_to_repo(
+        repo = GenericBuilder.tag_to_repo(
             "koji", self.config, "module-base-runtime-0.25-9", "x86_64"
         )
         assert repo == (
@@ -151,20 +151,24 @@ class TestKojiBuilder:
         db_session.commit()
 
         assert len(actual) == 3
-        assert type(actual[0]) == events.KojiBuildChange
-        assert actual[0].build_id == 91
-        assert actual[0].task_id == 12345
-        assert actual[0].build_new_state == koji.BUILD_STATES["COMPLETE"]
-        assert actual[0].build_name == "rubygem-rails"
-        assert actual[0].build_version == "1.0"
-        assert actual[0].build_release == "1.module+e0095747"
-        assert actual[0].module_build_id == 4
-        assert type(actual[1]) == events.KojiTagChange
-        assert actual[1].tag == "module-foo-build"
-        assert actual[1].artifact == "rubygem-rails"
-        assert type(actual[2]) == events.KojiTagChange
-        assert actual[2].tag == "module-foo"
-        assert actual[2].artifact == "rubygem-rails"
+
+        assert actual[0]["event"] == events.KOJI_BUILD_CHANGE
+        assert actual[0]["build_id"] == 91
+        assert actual[0]["task_id"] == 12345
+        assert actual[0]["build_new_state"] == koji.BUILD_STATES["COMPLETE"]
+        assert actual[0]["build_name"] == "rubygem-rails"
+        assert actual[0]["build_version"] == "1.0"
+        assert actual[0]["build_release"] == "1.module+e0095747"
+        assert actual[0]["module_build_id"] == 4
+
+        assert actual[1]["event"] == events.KOJI_TAG_CHANGE
+        assert actual[1]["tag_name"] == "module-foo-build"
+        assert actual[1]["build_name"] == "rubygem-rails"
+
+        assert actual[2]["event"] == events.KOJI_TAG_CHANGE
+        assert actual[2]["tag_name"] == "module-foo"
+        assert actual[2]["build_name"] == "rubygem-rails"
+
         assert component_build.state == koji.BUILD_STATES["COMPLETE"]
         assert component_build.task_id == 12345
         assert component_build.state_reason == "Found existing build"
@@ -206,14 +210,14 @@ class TestKojiBuilder:
         db_session.commit()
 
         assert len(actual) == 1
-        assert type(actual[0]) == events.KojiBuildChange
-        assert actual[0].build_id == 91
-        assert actual[0].task_id == 12345
-        assert actual[0].build_new_state == koji.BUILD_STATES["COMPLETE"]
-        assert actual[0].build_name == "rubygem-rails"
-        assert actual[0].build_version == "1.0"
-        assert actual[0].build_release == "1.{0}".format(dist_tag)
-        assert actual[0].module_build_id == 4
+        assert actual[0]["event"] == events.KOJI_BUILD_CHANGE
+        assert actual[0]["build_id"] == 91
+        assert actual[0]["task_id"] == 12345
+        assert actual[0]["build_new_state"] == koji.BUILD_STATES["COMPLETE"]
+        assert actual[0]["build_name"] == "rubygem-rails"
+        assert actual[0]["build_version"] == "1.0"
+        assert actual[0]["build_release"] == "1.{0}".format(dist_tag)
+        assert actual[0]["module_build_id"] == 4
         assert component_build.state == koji.BUILD_STATES["COMPLETE"]
         assert component_build.task_id == 12345
         assert component_build.state_reason == "Found existing build"
@@ -260,14 +264,14 @@ class TestKojiBuilder:
         db_session.commit()
 
         assert len(actual) == 1
-        assert type(actual[0]) == events.KojiBuildChange
-        assert actual[0].build_id == 91
-        assert actual[0].task_id == 12345
-        assert actual[0].build_new_state == koji.BUILD_STATES["COMPLETE"]
-        assert actual[0].build_name == "module-build-macros"
-        assert actual[0].build_version == "1.0"
-        assert actual[0].build_release == "1.{0}".format(dist_tag)
-        assert actual[0].module_build_id == 4
+        assert actual[0]["event"] == events.KOJI_BUILD_CHANGE
+        assert actual[0]["build_id"] == 91
+        assert actual[0]["task_id"] == 12345
+        assert actual[0]["build_new_state"] == koji.BUILD_STATES["COMPLETE"]
+        assert actual[0]["build_name"] == "module-build-macros"
+        assert actual[0]["build_version"] == "1.0"
+        assert actual[0]["build_release"] == "1.{0}".format(dist_tag)
+        assert actual[0]["module_build_id"] == 4
         assert component_build.state == koji.BUILD_STATES["COMPLETE"]
         assert component_build.task_id == 12345
         assert component_build.state_reason == "Found existing build"

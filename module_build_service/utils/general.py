@@ -646,7 +646,8 @@ def get_build_arches(mmd, config):
     :return list of architectures
     """
     # Imported here to allow import of utils in GenericBuilder.
-    import module_build_service.builder
+    from module_build_service.builder import GenericBuilder
+
     nsvc = mmd.get_nsvc()
 
     # At first, handle BASE_MODULE_ARCHES - this overrides any other option.
@@ -698,8 +699,7 @@ def get_build_arches(mmd, config):
             )
             if not module_obj:
                 continue
-            arches = module_build_service.builder.GenericBuilder.get_module_build_arches(
-                module_obj)
+            arches = GenericBuilder.get_module_build_arches(module_obj)
             if arches:
                 log.info("Setting build arches of %s to %r based on the buildrequired "
                          "module %r." % (nsvc, arches, module_obj))

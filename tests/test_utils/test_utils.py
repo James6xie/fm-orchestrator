@@ -17,7 +17,6 @@ from module_build_service.errors import ProgrammingError, ValidationError, Unpro
 from module_build_service.utils.reuse import get_reusable_module, get_reusable_component
 from module_build_service.utils.general import load_mmd
 from module_build_service.utils.submit import format_mmd
-from module_build_service.scheduler.events import KojiBuildChange, KojiRepoChange
 from tests import (
     clean_database,
     init_data,
@@ -30,8 +29,9 @@ import koji
 import pytest
 import module_build_service.scheduler.handlers.components
 from module_build_service.db_session import db_session
-from module_build_service.builder.base import GenericBuilder
+from module_build_service.builder import GenericBuilder
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
+from module_build_service.scheduler import events
 from module_build_service import Modulemd
 from tests import app
 
@@ -1224,25 +1224,38 @@ class TestBatches:
         # Batch number should increase.
         assert module_build.batch == 2
 
-        # KojiBuildChange messages in further_work should have build_new_state
-        # set to COMPLETE, but the current component build state should be set
-        # to BUILDING, so KojiBuildChange message handler handles the change
-        # properly.
-        for msg in further_work:
-            if type(msg) == KojiBuildChange:
-                assert msg.build_new_state == koji.BUILD_STATES["COMPLETE"]
-                component_build = models.ComponentBuild.from_component_event(db_session, msg)
+        # buildsys.build.state.change messages in further_work should have
+        # build_new_state set to COMPLETE, but the current component build
+        # state should be set to BUILDING, so KojiBuildChange message handler
+        # handles the change properly.
+        for event_info in further_work:
+            if event_info["event"] == events.KOJI_BUILD_CHANGE:
+                assert event_info["build_new_state"] == koji.BUILD_STATES["COMPLETE"]
+                component_build = models.ComponentBuild.from_component_event(
+                    db_session,
+                    task_id=event_info["task_id"],
+                    module_id=event_info["module_build_id"])
                 assert component_build.state == koji.BUILD_STATES["BUILDING"]
 
         # When we handle these KojiBuildChange messages, MBS should tag all
         # the components just once.
-        for msg in further_work:
-            if type(msg) == KojiBuildChange:
-                module_build_service.scheduler.handlers.components.complete(msg)
+        for event_info in further_work:
+            if event_info["event"] == events.KOJI_BUILD_CHANGE:
+                module_build_service.scheduler.handlers.components.build_task_finalize(
+                    msg_id=event_info["msg_id"],
+                    build_id=event_info["build_id"],
+                    task_id=event_info["task_id"],
+                    build_new_state=event_info["build_new_state"],
+                    build_name=event_info["build_name"],
+                    build_version=event_info["build_version"],
+                    build_release=event_info["build_release"],
+                    module_build_id=event_info["module_build_id"],
+                    state_reason=event_info["state_reason"]
+                )
 
         # Since we have reused all the components in the batch, there should
         # be fake KojiRepoChange message.
-        assert type(further_work[-1]) == KojiRepoChange
+        assert further_work[-1]["event"] == events.KOJI_REPO_CHANGE
 
         # Check that packages have been tagged just once.
         assert len(DummyModuleBuilder.TAGGED_COMPONENTS) == 2
@@ -1282,8 +1295,12 @@ class TestBatches:
         # set to COMPLETE, but the current component build state in the DB should be set
         # to BUILDING, so KojiBuildChange message handler handles the change
         # properly.
-        assert further_work[0].build_new_state == koji.BUILD_STATES["COMPLETE"]
-        component_build = models.ComponentBuild.from_component_event(db_session, further_work[0])
+        event_info = further_work[0]
+        assert event_info["build_new_state"] == koji.BUILD_STATES["COMPLETE"]
+        component_build = models.ComponentBuild.from_component_event(
+            db_session,
+            task_id=event_info["task_id"],
+            module_id=event_info["module_build_id"])
         assert component_build.state == koji.BUILD_STATES["BUILDING"]
         assert component_build.package == "perl-Tangerine"
         assert component_build.reused_component_id is not None
@@ -1366,12 +1383,17 @@ class TestBatches:
 
         # Make sure we only have one message returned for the one reused component
         assert len(further_work) == 1
-        # The KojiBuildChange message in further_work should have build_new_state
-        # set to COMPLETE, but the current component build state in the DB should be set
-        # to BUILDING, so KojiBuildChange message handler handles the change
-        # properly.
-        assert further_work[0].build_new_state == koji.BUILD_STATES["COMPLETE"]
-        component_build = models.ComponentBuild.from_component_event(db_session, further_work[0])
+        # The buildsys.build.state.change message in further_work should have
+        # build_new_state set to COMPLETE, but the current component build state
+        # in the DB should be set to BUILDING, so the build state change handler
+        # handles the change properly.
+        event_info = further_work[0]
+        assert event_info["build_new_state"] == koji.BUILD_STATES["COMPLETE"]
+        component_build = models.ComponentBuild.from_component_event(
+            db_session,
+            task_id=event_info["task_id"],
+            module_id=event_info["module_build_id"],
+        )
         assert component_build.state == koji.BUILD_STATES["BUILDING"]
         assert component_build.package == "perl-Tangerine"
         assert component_build.reused_component_id is not None
@@ -1394,8 +1416,13 @@ class TestBatches:
         assert module_build.batch == 3
         # Verify that tangerine was reused even though perl-Tangerine was rebuilt in the previous
         # batch
-        assert further_work[0].build_new_state == koji.BUILD_STATES["COMPLETE"]
-        component_build = models.ComponentBuild.from_component_event(db_session, further_work[0])
+        event_info = further_work[0]
+        assert event_info["build_new_state"] == koji.BUILD_STATES["COMPLETE"]
+        component_build = models.ComponentBuild.from_component_event(
+            db_session,
+            task_id=event_info["task_id"],
+            module_id=event_info["module_build_id"]
+        )
         assert component_build.state == koji.BUILD_STATES["BUILDING"]
         assert component_build.package == "tangerine"
         assert component_build.reused_component_id is not None

@@ -8,8 +8,8 @@ from tests import clean_database, make_module_in_db
 import mock
 import koji
 from module_build_service.db_session import db_session
+from module_build_service.scheduler import events
 from module_build_service.scheduler.producer import MBSProducer
-from module_build_service.scheduler.events import KojiTagChange
 import six.moves.queue as queue
 from datetime import datetime, timedelta
 
@@ -671,10 +671,10 @@ class TestPoller:
 
         for i in range(consumer.incoming.qsize()):
             msg = consumer.incoming.get()
-            assert isinstance(msg, KojiTagChange)
-            assert msg.artifact == c.package
-            assert msg.nvr == c.nvr
-            assert msg.tag in expected_msg_tags
+            assert events.KOJI_TAG_CHANGE == msg["event"]
+            assert c.package == msg["build_name"]
+            assert c.nvr == msg["build_nvr"]
+            assert msg["tag_name"] in expected_msg_tags
 
     @pytest.mark.parametrize("greenwave_result", [True, False])
     @patch("module_build_service.utils.greenwave.Greenwave.check_gating")

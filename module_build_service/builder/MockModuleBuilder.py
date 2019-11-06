@@ -16,7 +16,7 @@ import module_build_service.utils
 import module_build_service.scheduler
 import module_build_service.scheduler.consumer
 
-from module_build_service.builder.base import GenericBuilder
+from module_build_service.builder import GenericBuilder
 from module_build_service.builder.utils import (
     create_local_repo_from_koji_tag,
     execute_cmd,
@@ -26,6 +26,7 @@ from module_build_service.builder.utils import (
 from module_build_service.utils.general import mmd_to_str
 from module_build_service.db_session import db_session
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
+from module_build_service.scheduler import events
 
 from module_build_service import models
 
@@ -400,16 +401,18 @@ class MockModuleBuilder(GenericBuilder):
 
         # build_id=1 and task_id=1 are OK here, because we are building just
         # one RPM at the time.
-        msg = module_build_service.messaging.KojiBuildChange(
-            msg_id="a faked internal message",
-            build_id=build_id,
-            task_id=build_id,
-            build_name=nvr["name"],
-            build_new_state=state,
-            build_release=nvr["release"],
-            build_version=nvr["version"],
-        )
-        module_build_service.scheduler.consumer.work_queue_put(msg)
+        module_build_service.scheduler.consumer.work_queue_put({
+            "msg_id": "a faked internal message",
+            "event": events.KOJI_BUILD_CHANGE,
+            "build_id": build_id,
+            "task_id": build_id,
+            "build_name": nvr["name"],
+            "build_new_state": state,
+            "build_release": nvr["release"],
+            "build_version": nvr["version"],
+            "module_build_id": None,
+            "state_reason": None
+        })
 
     def _save_log(self, resultsdir, log_name, artifact_name):
         old_log = os.path.join(resultsdir, log_name)

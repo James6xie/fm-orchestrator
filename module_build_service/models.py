@@ -747,41 +747,15 @@ class ModuleBuild(MBSBase):
         return db_session.query(ModuleBuild).filter_by(state=BUILD_STATES[state]).all()
 
     @classmethod
-    def from_repo_done_event(cls, db_session, event):
-        """ Find the ModuleBuilds in our database that should be in-flight...
-        ... for a given koji tag.
-
-        There should be at most one.
-        """
-        if event.repo_tag.endswith("-build"):
-            tag = event.repo_tag[:-6]
-        else:
-            tag = event.repo_tag
-        query = (
-            db_session.query(cls)
-            .filter(cls.koji_tag == tag)
-            .filter(cls.state == BUILD_STATES["build"])
+    def get_by_tag(cls, db_session, tag_name):
+        tag = tag_name[:-6] if tag_name.endswith("-build") else tag_name
+        query = db_session.query(cls).filter(
+            cls.koji_tag == tag,
+            cls.state == BUILD_STATES["build"]
         )
-
         count = query.count()
         if count > 1:
             raise RuntimeError("%r module builds in flight for %r" % (count, tag))
-
-        return query.first()
-
-    @classmethod
-    def from_tag_change_event(cls, db_session, event):
-        tag = event.tag[:-6] if event.tag.endswith("-build") else event.tag
-        query = (
-            db_session.query(cls)
-            .filter(cls.koji_tag == tag)
-            .filter(cls.state == BUILD_STATES["build"])
-        )
-
-        count = query.count()
-        if count > 1:
-            raise RuntimeError("%r module builds in flight for %r" % (count, tag))
-
         return query.first()
 
     def short_json(self, show_stream_version=False, show_scratch=True):
@@ -1128,18 +1102,12 @@ class ComponentBuild(MBSBase):
     weight = db.Column(db.Float, default=0)
 
     @classmethod
-    def from_component_event(cls, db_session, event):
-        if isinstance(event, events.KojiBuildChange):
-            if event.module_build_id:
-                return (
-                    db_session.query(cls)
-                    .filter_by(task_id=event.task_id, module_id=event.module_build_id)
-                    .one()
-                )
-            else:
-                return db_session.query(cls).filter(cls.task_id == event.task_id).first()
+    def from_component_event(cls, db_session, task_id, module_id=None):
+        _filter = db_session.query(cls).filter
+        if module_id is None:
+            return _filter(cls.task_id == task_id).first()
         else:
-            raise ValueError("%r is not a koji message." % event["topic"])
+            return _filter(cls.task_id == task_id, cls.module_id == module_id).one()
 
     @classmethod
     def from_component_name(cls, db_session, component_name, module_id):

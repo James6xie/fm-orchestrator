@@ -74,8 +74,12 @@ class TestDecisionUpdateHandler:
 
     @patch("module_build_service.scheduler.handlers.greenwave.log")
     def test_decision_context_is_not_match(self, log):
-        msg = Mock(msg_id="msg-id-1", decision_context="bodhi_update_push_testing")
-        decision_update(msg)
+        decision_update(
+            msg_id="msg-id-1",
+            decision_context="bodhi_update_push_testing",
+            policies_satisfied=True,
+            subject_identifier="xxx",
+        )
         log.debug.assert_called_once_with(
             'Skip Greenwave message %s as MBS only handles messages with the decision context "%s"',
             "msg-id-1",
@@ -84,16 +88,15 @@ class TestDecisionUpdateHandler:
 
     @patch("module_build_service.scheduler.handlers.greenwave.log")
     def test_not_satisfy_policies(self, log):
-        msg = Mock(
+        subject_identifier = "pkg-0.1-1.c1"
+        decision_update(
             msg_id="msg-id-1",
             decision_context="test_dec_context",
             policies_satisfied=False,
-            subject_identifier="pkg-0.1-1.c1",
-        )
-        decision_update(msg)
+            subject_identifier=subject_identifier)
         log.debug.assert_called_once_with(
             "Skip to handle module build %s because it has not satisfied Greenwave policies.",
-            msg.subject_identifier,
+            subject_identifier,
         )
 
     @patch("module_build_service.messaging.publish")

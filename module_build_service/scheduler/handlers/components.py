@@ -4,42 +4,67 @@
 
 import logging
 import koji
-import module_build_service.builder
 
 from module_build_service import conf, models, log
+from module_build_service.builder import GenericBuilder
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
-from module_build_service.scheduler import events
 from module_build_service.utils.general import mmd_to_str
 from module_build_service.db_session import db_session
+from module_build_service.scheduler import events
+from module_build_service.utils.batches import continue_batch_build
 
 logging.basicConfig(level=logging.DEBUG)
 
 
-def _finalize(msg, state):
-    """ Called whenever a koji build completes or fails. """
+def build_task_finalize(
+        msg_id, build_id, task_id, build_new_state,
+        build_name, build_version, build_release,
+        module_build_id=None, state_reason=None
+):
+    """Called when corresponding Koji build task of a component build finishes
+
+    When a task finishes, the task could be in state COMPLETE, FAILED or CANCELED.
+
+    :param str msg_id: the original id of the message being handled which is
+        received from the message bus.
+    :param int build_id: the Koji build id.
+    :param int task_id: the Koji build task id.
+    :param int build_new_state: the state of the build. Refer to
+        ``koji.BUILD_STATES`` for details. For this handler, values could be
+        the corresponding integer value of COMPLETE, FAILED or CANCELED.
+    :param str build_name: the build name.
+    :param str build_version: the build version.
+    :param str build_release: the build release.
+    :param int module_build_id: optionally set when this event handler is
+        scheduled from internal rather than just handling the received message.
+        When set, the value should be the id of module build having the
+        component build just built by the finished task.
+    :param str state_reason: optional. When set a reason explicitly, the
+        corresponding component build will have this reason as the
+        ``state_reason``. Otherwise, a custom reason will be set for a failed
+        build.
+    """
 
     # First, find our ModuleBuild associated with this component, if any.
-    component_build = models.ComponentBuild.from_component_event(db_session, msg)
-    try:
-        nvr = "{}-{}-{}".format(msg.build_name, msg.build_version, msg.build_release)
-    except KeyError:
-        nvr = None
+    component_build = models.ComponentBuild.from_component_event(
+        db_session, task_id, module_id=module_build_id)
+    nvr = "{}-{}-{}".format(build_name, build_version, build_release)
 
     if not component_build:
-        log.debug("We have no record of %s" % nvr)
+        log.debug("We have no record of %s", nvr)
         return
 
-    log.info("Saw relevant component build of %r from %r." % (nvr, msg.msg_id))
+    log.info("Saw relevant component build of %r from %r.", nvr, msg_id)
 
-    if msg.state_reason:
-        state_reason = msg.state_reason
-    elif state != koji.BUILD_STATES["COMPLETE"]:
-        state_reason = "Failed to build artifact %s in Koji" % (msg.build_name)
+    if state_reason:
+        state_reason = state_reason
+    elif build_new_state != koji.BUILD_STATES["COMPLETE"]:
+        state_reason = "Failed to build artifact {} in Koji".format(build_name)
     else:
         state_reason = ""
 
     # Mark the state in the db.
-    component_build.state = state
+    component_build.state = build_new_state
     component_build.nvr = nvr
     component_build.state_reason = state_reason
     db_session.commit()
@@ -47,7 +72,8 @@ def _finalize(msg, state):
     parent = component_build.module_build
 
     # If the macro build failed, then the module is doomed.
-    if component_build.package == "module-build-macros" and state != koji.BUILD_STATES["COMPLETE"]:
+    if (component_build.package == "module-build-macros"
+            and build_new_state != koji.BUILD_STATES["COMPLETE"]):
         parent.transition(
             db_session,
             conf,
@@ -61,7 +87,7 @@ def _finalize(msg, state):
     if (
         component_build.buildonly
         and conf.system in ["koji", "test"]
-        and state == koji.BUILD_STATES["COMPLETE"]
+        and build_new_state == koji.BUILD_STATES["COMPLETE"]
     ):
         koji_session = KojiModuleBuilder.get_session(conf)
         rpms = koji_session.listBuildRPMs(component_build.nvr)
@@ -85,9 +111,7 @@ def _finalize(msg, state):
         failed_components_in_batch = [c for c in parent_current_batch if c.is_unsuccessful]
         built_components_in_batch = [c for c in parent_current_batch if c.is_completed]
 
-        builder = module_build_service.builder.GenericBuilder.create_from_module(
-            db_session, parent, conf
-        )
+        builder = GenericBuilder.create_from_module(db_session, parent, conf)
 
         if failed_components_in_batch:
             log.info(
@@ -110,10 +134,11 @@ def _finalize(msg, state):
             # The repository won't be regenerated in this case and therefore we generate fake repo
             # change message here.
             log.info("Batch done. No component to tag")
-            further_work += [
-                events.KojiRepoChange(
-                    "components::_finalize: fake msg", builder.module_build_tag["name"])
-            ]
+            further_work += [{
+                "msg_id": "components::_finalize: fake msg",
+                "event": events.KOJI_REPO_CHANGE,
+                "repo_tag": builder.module_build_tag["name"],
+            }]
         else:
             built_component_nvrs_in_batch = [c.nvr for c in built_components_in_batch]
             # tag && add to srpm-build group if neccessary
@@ -148,21 +173,7 @@ def _finalize(msg, state):
         # done in repos.py:done(...), but because we have just finished one
         # build, try to call continue_batch_build again so in case we hit the
         # threshold previously, we will submit another build from this batch.
-        builder = module_build_service.builder.GenericBuilder.create_from_module(
-            db_session, parent, conf)
-        further_work += module_build_service.utils.continue_batch_build(
-            conf, parent, builder)
+        builder = GenericBuilder.create_from_module(db_session, parent, conf)
+        further_work += continue_batch_build(conf, parent, builder)
 
     return further_work
-
-
-def complete(msg):
-    return _finalize(msg, state=koji.BUILD_STATES["COMPLETE"])
-
-
-def failed(msg):
-    return _finalize(msg, state=koji.BUILD_STATES["FAILED"])
-
-
-def canceled(msg):
-    return _finalize(msg, state=koji.BUILD_STATES["CANCELED"])

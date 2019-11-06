@@ -17,6 +17,7 @@ import module_build_service.utils
 from module_build_service.errors import Forbidden
 from module_build_service import models, conf, build_logs
 from module_build_service.db_session import db_session
+from module_build_service.scheduler import events
 from module_build_service.scheduler.local import make_simple_stop_condition
 
 from mock import patch, PropertyMock, Mock, MagicMock
@@ -27,9 +28,8 @@ import pytest
 import json
 import itertools
 
-from module_build_service.builder.base import GenericBuilder
+from module_build_service.builder import GenericBuilder
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
-from module_build_service.scheduler import events
 from tests import (
     app, clean_database, read_staged_data, staged_data_filename
 )
@@ -232,32 +232,43 @@ class FakeModuleBuilder(GenericBuilder):
         return {"name": self.tag_name + "-build"}
 
     def _send_repo_done(self):
-        msg = events.KojiRepoChange(
-            msg_id="a faked internal message", repo_tag=self.tag_name + "-build")
-        module_build_service.scheduler.consumer.work_queue_put(msg)
+        event_info = {
+            "msg_id": "a faked internal message",
+            "event": events.KOJI_REPO_CHANGE,
+            "repo_tag": self.tag_name + "-build",
+        }
+        module_build_service.scheduler.consumer.work_queue_put(event_info)
 
     def _send_tag(self, artifact, nvr, dest_tag=True):
         if dest_tag:
             tag = self.tag_name
         else:
             tag = self.tag_name + "-build"
-        msg = events.KojiTagChange(
-            msg_id="a faked internal message", tag=tag, artifact=artifact, nvr=nvr)
-        module_build_service.scheduler.consumer.work_queue_put(msg)
+        event_info = {
+            "msg_id": "a faked internal message",
+            "event": events.KOJI_TAG_CHANGE,
+            "tag_name": tag,
+            "build_name": artifact,
+            "build_nvr": nvr
+        }
+        module_build_service.scheduler.consumer.work_queue_put(event_info)
 
     def _send_build_change(self, state, name, build_id):
         # build_id=1 and task_id=1 are OK here, because we are building just
         # one RPM at the time.
-        msg = events.KojiBuildChange(
-            msg_id="a faked internal message",
-            build_id=build_id,
-            task_id=build_id,
-            build_name=name,
-            build_new_state=state,
-            build_release="1",
-            build_version="1",
-        )
-        module_build_service.scheduler.consumer.work_queue_put(msg)
+        event_info = {
+            "msg_id": "a faked internal message",
+            "event": events.KOJI_BUILD_CHANGE,
+            "build_id": build_id,
+            "task_id": build_id,
+            "build_name": name,
+            "build_new_state": state,
+            "build_release": "1",
+            "build_version": "1",
+            "module_build_id": None,
+            "state_reason": None
+        }
+        module_build_service.scheduler.consumer.work_queue_put(event_info)
 
     def build(self, artifact_name, source):
         print("Starting building artifact %s: %s" % (artifact_name, source))
@@ -298,27 +309,26 @@ class FakeModuleBuilder(GenericBuilder):
             component_build.state_reason = "Found existing build"
             nvr_dict = kobo.rpmlib.parse_nvr(component_build.nvr)
             # Send a message stating the build is complete
-            msgs.append(
-                events.KojiBuildChange(
-                    "recover_orphaned_artifact: fake message",
-                    randint(1, 9999999),
-                    component_build.task_id,
-                    koji.BUILD_STATES["COMPLETE"],
-                    component_build.package,
-                    nvr_dict["version"],
-                    nvr_dict["release"],
-                    component_build.module_build.id,
-                )
-            )
+            msgs.append({
+                "msg_id": "recover_orphaned_artifact: fake message",
+                "event": events.KOJI_BUILD_CHANGE,
+                "build_id": randint(1, 9999999),
+                "task_id": component_build.task_id,
+                "build_new_state": koji.BUILD_STATES["COMPLETE"],
+                "build_name": component_build.package,
+                "build_version": nvr_dict["version"],
+                "build_release": nvr_dict["release"],
+                "module_build_id": component_build.module_build.id,
+                "state_reason": None
+            })
             # Send a message stating that the build was tagged in the build tag
-            msgs.append(
-                events.KojiTagChange(
-                    "recover_orphaned_artifact: fake message",
-                    component_build.module_build.koji_tag + "-build",
-                    component_build.package,
-                    component_build.nvr,
-                )
-            )
+            msgs.append({
+                "msg_id": "recover_orphaned_artifact: fake message",
+                "event": events.KOJI_TAG_CHANGE,
+                "tag_name": component_build.module_build.koji_tag + "-build",
+                "build_name": component_build.package,
+                "build_nvr": component_build.nvr,
+            })
         return msgs
 
     def finalize(self, succeeded=None):
@@ -1092,7 +1102,14 @@ class TestBuild(BaseTestBuild):
         from module_build_service.db_session import db_session
 
         # Create a dedicated database session for scheduler to avoid hang
-        self.run_scheduler(msgs=[events.MBSModule("local module build", 3, 1)])
+        self.run_scheduler(
+            msgs=[{
+                "msg_id": "local module build",
+                "event": events.MBS_MODULE_STATE_CHANGE,
+                "module_build_id": 3,
+                "module_build_state": 1
+            }]
+        )
 
         reused_component_ids = {
             "module-build-macros": None,
@@ -1171,7 +1188,14 @@ class TestBuild(BaseTestBuild):
 
         FakeModuleBuilder.on_buildroot_add_artifacts_cb = on_buildroot_add_artifacts_cb
 
-        self.run_scheduler(msgs=[events.MBSModule("local module build", 3, 1)])
+        self.run_scheduler(
+            msgs=[{
+                "msg_id": "local module build",
+                "event": events.MBS_MODULE_STATE_CHANGE,
+                "module_build_id": 3,
+                "module_build_state": 1
+            }]
+        )
 
         # All components should be built and module itself should be in "done"
         # or "ready" state.
@@ -1741,11 +1765,11 @@ class TestBuild(BaseTestBuild):
         # Simulate a random repo regen message that MBS didn't expect
         cleanup_moksha()
         module = models.ModuleBuild.get_by_id(db_session, module_build_id)
-        msgs = [
-            events.KojiRepoChange(
-                msg_id="a faked internal message", repo_tag=module.koji_tag + "-build"
-            )
-        ]
+        events_info = [{
+            "msg_id": "a faked internal message",
+            "event": events.KOJI_REPO_CHANGE,
+            "repo_tag": module.koji_tag + "-build"
+        }]
         db_session.expire_all()
         # Stop after processing the seeded message
 
@@ -1753,7 +1777,7 @@ class TestBuild(BaseTestBuild):
             db_session.remove()
             return True
 
-        self.run_scheduler(msgs, stop_condition=stop)
+        self.run_scheduler(events_info, stop_condition=stop)
 
         # Make sure the module build didn't fail so that the poller can resume it later
         module = models.ModuleBuild.get_by_id(db_session, module_build_id)

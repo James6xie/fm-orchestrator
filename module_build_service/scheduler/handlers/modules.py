@@ -3,7 +3,6 @@
 """ Handlers for module change events on the message bus. """
 
 from module_build_service import conf, models, log, build_logs
-import module_build_service.builder
 import module_build_service.resolver
 import module_build_service.utils
 from module_build_service.utils import (
@@ -15,12 +14,13 @@ from module_build_service.utils import (
     record_module_build_arches
 )
 from module_build_service.db_session import db_session
+from module_build_service.builder import GenericBuilder
 from module_build_service.errors import UnprocessableEntity, Forbidden, ValidationError
-from module_build_service.scheduler import events
 from module_build_service.utils.greenwave import greenwave
 from module_build_service.scheduler.default_modules import (
     add_default_modules, handle_collisions_with_base_module_rpms)
 from module_build_service.utils.submit import format_mmd
+from module_build_service.scheduler import events
 from module_build_service.utils.ursine import handle_stream_collision_modules
 
 from requests.exceptions import ConnectionError
@@ -40,27 +40,29 @@ def get_artifact_from_srpm(srpm_path):
     return os.path.basename(srpm_path).replace(".src.rpm", "")
 
 
-def failed(msg):
-    """
-    Called whenever a module enters the 'failed' state.
+def failed(msg_id, module_build_id, module_build_state):
+    """Called whenever a module enters the 'failed' state.
 
     We cancel all the remaining component builds of a module
     and stop the building.
+
+    :param str msg_id: the original id of the message being handled, which is
+        received from the message bus.
+    :param int module_build_id: the module build id.
+    :param int module_build_state: the module build state.
     """
+    build = models.ModuleBuild.get_by_id(db_session, module_build_id)
 
-    build = models.ModuleBuild.from_module_event(db_session, msg)
-
-    if build.state != msg.module_build_state:
+    if build.state != module_build_state:
         log.warning(
             "Note that retrieved module state %r doesn't match message module state %r",
-            build.state, msg.module_build_state,
+            build.state, module_build_state,
         )
         # This is ok.. it's a race condition we can ignore.
         pass
 
     if build.koji_tag:
-        builder = module_build_service.builder.GenericBuilder.create_from_module(
-            db_session, build, conf)
+        builder = GenericBuilder.create_from_module(db_session, build, conf)
 
         if build.new_repo_task_id:
             builder.cancel_build(build.new_repo_task_id)
@@ -94,22 +96,27 @@ def failed(msg):
     db_session.commit()
 
     build_logs.stop(build)
-    module_build_service.builder.GenericBuilder.clear_cache(build)
+    GenericBuilder.clear_cache(build)
 
 
-def done(msg):
+def done(msg_id, module_build_id, module_build_state):
     """Called whenever a module enters the 'done' state.
 
     We currently don't do anything useful, so moving to ready.
     Except for scratch module builds, which remain in the done state.
     Otherwise the done -> ready state should happen when all
     dependent modules were re-built, at least that's the current plan.
+
+    :param str msg_id: the original id of the message being handled, which is
+        received from the message bus.
+    :param int module_build_id: the module build id.
+    :param int module_build_state: the module build state.
     """
-    build = models.ModuleBuild.from_module_event(db_session, msg)
-    if build.state != msg.module_build_state:
+    build = models.ModuleBuild.get_by_id(db_session, module_build_id)
+    if build.state != module_build_state:
         log.warning(
             "Note that retrieved module state %r doesn't match message module state %r",
-            build.state, msg.module_build_state,
+            build.state, module_build_state,
         )
         # This is ok.. it's a race condition we can ignore.
         pass
@@ -126,15 +133,21 @@ def done(msg):
         db_session.commit()
 
     build_logs.stop(build)
-    module_build_service.builder.GenericBuilder.clear_cache(build)
+    GenericBuilder.clear_cache(build)
 
 
-def init(msg):
-    """ Called whenever a module enters the 'init' state."""
+def init(msg_id, module_build_id, module_build_state):
+    """Called whenever a module enters the 'init' state.
+
+    :param str msg_id: the original id of the message being handled, which is
+        received from message bus.
+    :param int module_build_id: the module build id.
+    :param int module_build_state: the module build state.
+    """
     # Sleep for a few seconds to make sure the module in the database is committed
     # TODO: Remove this once messaging is implemented in SQLAlchemy hooks
     for i in range(3):
-        build = models.ModuleBuild.from_module_event(db_session, msg)
+        build = models.ModuleBuild.get_by_id(db_session, module_build_id)
         if build:
             break
         time.sleep(1)
@@ -297,7 +310,7 @@ def get_content_generator_build_koji_tag(module_deps):
         return conf.koji_cg_default_build_tag
 
 
-def wait(msg):
+def wait(msg_id, module_build_id, module_build_state):
     """ Called whenever a module enters the 'wait' state.
 
     We transition to this state shortly after a modulebuild is first requested.
@@ -305,6 +318,11 @@ def wait(msg):
     All we do here is request preparation of the buildroot.
     The kicking off of individual component builds is handled elsewhere,
     in module_build_service.schedulers.handlers.repos.
+
+    :param str msg_id: the original id of the message being handled which is
+        received from the message bus.
+    :param int module_build_id: the module build id.
+    :param int module_build_state: the module build state.
     """
 
     # Wait for the db on the frontend to catch up to the message, otherwise the
@@ -312,7 +330,7 @@ def wait(msg):
     # See https://pagure.io/fm-orchestrator/issue/386
     @module_build_service.utils.retry(interval=10, timeout=120, wait_on=RuntimeError)
     def _get_build_containing_xmd_for_mbs():
-        build = models.ModuleBuild.from_module_event(db_session, msg)
+        build = models.ModuleBuild.get_by_id(db_session, module_build_id)
         if "mbs" in build.mmd().get_xmd():
             return build
         db_session.expire(build)
@@ -323,10 +341,10 @@ def wait(msg):
     log.info("Found build=%r from message" % build)
     log.debug("%r", build.modulemd)
 
-    if build.state != msg.module_build_state:
+    if build.state != module_build_state:
         log.warning(
             "Note that retrieved module state %r doesn't match message module state %r",
-            build.state, msg.module_build_state,
+            build.state, module_build_state,
         )
         # This is ok.. it's a race condition we can ignore.
         pass
@@ -365,8 +383,7 @@ def wait(msg):
             "It is disabled to tag module build during importing into Koji by Content Generator.")
         log.debug("Skip to assign Content Generator build koji tag to module build.")
 
-    builder = module_build_service.builder.GenericBuilder.create_from_module(
-        db_session, build, conf)
+    builder = GenericBuilder.create_from_module(db_session, build, conf)
 
     log.debug(
         "Adding dependencies %s into buildroot for module %s:%s:%s",
@@ -381,10 +398,11 @@ def wait(msg):
         db_session.commit()
         # Return a KojiRepoChange message so that the build can be transitioned to done
         # in the repos handler
-        return [
-            events.KojiRepoChange(
-                "handlers.modules.wait: fake msg", builder.module_build_tag["name"])
-        ]
+        return [{
+            "msg_id": "handlers.modules.wait: fake msg",
+            "event": events.KOJI_REPO_CHANGE,
+            "repo_tag": builder.module_build_tag["name"],
+        }]
 
     # If all components in module build will be reused, we don't have to build
     # module-build-macros, because there won't be any build done.
@@ -457,8 +475,9 @@ def wait(msg):
         build.new_repo_task_id = task_id
         db_session.commit()
     else:
-        further_work.append(
-            events.KojiRepoChange(
-                "fake msg", builder.module_build_tag["name"])
-        )
+        further_work.append({
+            "msg_id": "fake msg",
+            "event": events.KOJI_REPO_CHANGE,
+            "repo_tag": builder.module_build_tag["name"],
+        })
     return further_work

@@ -31,36 +31,38 @@ def get_corresponding_module_build(nvr):
     return ModuleBuild.get_by_id(db_session, module_build_id)
 
 
-def decision_update(msg):
+def decision_update(msg_id, decision_context, subject_identifier, policies_satisfied):
     """Move module build to ready or failed according to Greenwave result
 
-    :param config: the config object returned from function :func:`init_config`,
-        which is loaded from configuration file.
-    :type config: :class:`Config`
-    :param msg: the message object representing a message received from topic
-        ``greenwave.decision.update``.
-    :type msg: :class:`GreenwaveDecisionUpdate`
+    :param str msg_id: the original id of the message being handled which is
+        received from the message bus.
+    :param str decision_context: the context of the greewave decision. Refer to
+        the messaging document for detailed information.
+    :param str subject_identifier: usually a build NVR. Refer to
+        https://docs.pagure.org/greenwave/messaging.html for detailed information.
+    :param bool policies_satisfied: whether the build satisfies Greenwave rules.
+        Refer to the messaging document for detailed information.
     """
     if not conf.greenwave_decision_context:
         log.debug(
             "Skip Greenwave message %s as MBS does not have GREENWAVE_DECISION_CONTEXT "
             "configured",
-            msg.msg_id,
+            msg_id,
         )
         return
 
-    if msg.decision_context != conf.greenwave_decision_context:
+    if decision_context != conf.greenwave_decision_context:
         log.debug(
             "Skip Greenwave message %s as MBS only handles messages with the "
             'decision context "%s"',
-            msg.msg_id,
+            msg_id,
             conf.greenwave_decision_context,
         )
         return
 
-    module_build_nvr = msg.subject_identifier
+    module_build_nvr = subject_identifier
 
-    if not msg.policies_satisfied:
+    if not policies_satisfied:
         log.debug(
             "Skip to handle module build %s because it has not satisfied Greenwave policies.",
             module_build_nvr,
@@ -87,8 +89,7 @@ def decision_update(msg):
         log.warning(
             "Module build %s is not in done state but Greenwave tells "
             "it passes tests in decision context %s",
-            module_build_nvr,
-            msg.decision_context,
+            module_build_nvr, decision_context,
         )
 
     db_session.commit()

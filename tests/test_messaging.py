@@ -27,10 +27,10 @@ class TestFedmsgMessaging:
         }
 
         parser = FedmsgMessageParser(messaging.known_fedmsg_services)
-        msg = parser.parse(buildsys_state_change_msg)
+        event_info = parser.parse(buildsys_state_change_msg)
 
-        assert msg.build_id == 614503
-        assert msg.build_new_state == 1
+        assert event_info["build_id"] == 614503
+        assert event_info["build_new_state"] == 1
 
     def test_buildsys_tag(self):
         # https://fedora-fedmsg.readthedocs.io/en/latest/topics.html#id134
@@ -52,10 +52,10 @@ class TestFedmsgMessaging:
         }
 
         parser = FedmsgMessageParser(messaging.known_fedmsg_services)
-        msg = parser.parse(buildsys_tag_msg)
+        event_info = parser.parse(buildsys_tag_msg)
 
-        assert msg.tag == "module-debugging-tools-master-20170405115403-build"
-        assert msg.artifact == "module-build-macros"
+        assert event_info["tag_name"] == "module-debugging-tools-master-20170405115403-build"
+        assert event_info["build_name"] == "module-build-macros"
 
     def test_buildsys_repo_done(self):
         # https://fedora-fedmsg.readthedocs.io/en/latest/topics.html#id134
@@ -72,6 +72,6 @@ class TestFedmsgMessaging:
         }
 
         parser = FedmsgMessageParser(messaging.known_fedmsg_services)
-        msg = parser.parse(buildsys_tag_msg)
+        event_info = parser.parse(buildsys_tag_msg)
 
-        assert msg.repo_tag == "module-f0f7e44f3c6cccab-build"
+        assert event_info["repo_tag"] == "module-f0f7e44f3c6cccab-build"

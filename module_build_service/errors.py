@@ -44,3 +44,7 @@ def json_error(status, error, message):
     response = jsonify({"status": status, "error": error, "message": message})
     response.status_code = status
     return response
+
+
+class IgnoreMessage(Exception):
+    """Raise if message received from message bus should be ignored"""

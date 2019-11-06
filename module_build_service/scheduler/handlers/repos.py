@@ -2,26 +2,30 @@
 # SPDX-License-Identifier: MIT
 """ Handlers for repo change events on the message bus. """
 
-import module_build_service.builder
 import logging
 from datetime import datetime
 from module_build_service import conf, models, log
+from module_build_service.builder import GenericBuilder
 from module_build_service.utils import start_next_batch_build
 from module_build_service.db_session import db_session
 
 logging.basicConfig(level=logging.DEBUG)
 
 
-def done(msg):
-    """ Called whenever koji rebuilds a repo, any repo. """
+def done(msg_id, repo_tag):
+    """Called whenever koji rebuilds a repo, any repo.
+
+    :param str msg_id: the original id of the message being handled which is
+        received from the message bus.
+    :param str repo_tag: the tag name from which the repo is generated.
+    """
 
     # First, find our ModuleBuild associated with this repo, if any.
-    tag = msg.repo_tag
-    if conf.system in ("koji", "test") and not tag.endswith("-build"):
-        log.debug("Tag %r does not end with '-build' suffix, ignoring" % tag)
+    if conf.system in ("koji", "test") and not repo_tag.endswith("-build"):
+        log.debug("Tag %r does not end with '-build' suffix, ignoring", repo_tag)
         return
-    tag = tag[:-6] if tag.endswith("-build") else tag
-    module_build = models.ModuleBuild.from_repo_done_event(db_session, msg)
+    tag = repo_tag[:-6] if repo_tag.endswith("-build") else repo_tag
+    module_build = models.ModuleBuild.get_by_tag(db_session, repo_tag)
     if not module_build:
         log.debug("No module build found associated with koji tag %r" % tag)
         return
@@ -75,10 +79,8 @@ def done(msg):
         log.warning("Odd!  All components in batch failed for %r." % module_build)
         return
 
-    groups = module_build_service.builder.GenericBuilder.default_buildroot_groups(
-        db_session, module_build)
-
-    builder = module_build_service.builder.GenericBuilder.create(
+    groups = GenericBuilder.default_buildroot_groups(db_session, module_build)
+    builder = GenericBuilder.create(
         db_session,
         module_build.owner,
         module_build,

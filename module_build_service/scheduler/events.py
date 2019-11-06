@@ -1,151 +1,19 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
 
-try:
-    from inspect import signature
-except ImportError:
-    from funcsigs import signature
+"""
+This module defines constant for events emitted by external services that work
+with MBS together to complete a module build.
 
+The event name is defined in general as much as possible, especially for the
+events from Koji. Because some instance based on Koji, like Brew, might send
+messages to different topics on different message bus. For example, when a
+build is complete, Koji sends a message to topic buildsys.build.state.change,
+however Brew sends to topic brew.build.complete, etc.
+"""
 
-class IgnoreMessage(Exception):
-    pass
-
-
-class BaseMessage(object):
-    def __init__(self, msg_id):
-        """
-        A base class to abstract messages from different backends
-        :param msg_id: the id of the msg (e.g. 2016-SomeGUID)
-        """
-        self.msg_id = msg_id
-
-        # Moksha calls `consumer.validate` on messages that it receives, and
-        # even though we have validation turned off in the config there's still
-        # a step that tries to access `msg['body']`, `msg['topic']` and
-        # `msg.get('topic')`.
-        # These are here just so that the `validate` method won't raise an
-        # exception when we push our fake messages through.
-        # Note that, our fake message pushing has worked for a while... but the
-        # *latest* version of fedmsg has some code that exercises the bug.  I
-        # didn't hit this until I went to test in jenkins.
-        self.body = {}
-        self.topic = None
-
-    def __repr__(self):
-        init_sig = signature(self.__init__)
-
-        args_strs = (
-            "{}={!r}".format(name, getattr(self, name))
-            if param.default != param.empty
-            else repr(getattr(self, name))
-            for name, param in init_sig.parameters.items()
-        )
-
-        return "{}({})".format(type(self).__name__, ", ".join(args_strs))
-
-    def __getitem__(self, key):
-        """ Used to trick moksha into thinking we are a dict. """
-        return getattr(self, key)
-
-    def __setitem__(self, key, value):
-        """ Used to trick moksha into thinking we are a dict. """
-        return setattr(self, key, value)
-
-    def get(self, key, value=None):
-        """ Used to trick moksha into thinking we are a dict. """
-        return getattr(self, key, value)
-
-    def __json__(self):
-        return dict(msg_id=self.msg_id, topic=self.topic, body=self.body)
-
-
-class KojiBuildChange(BaseMessage):
-    """ A class that inherits from BaseMessage to provide a message
-    object for a build's info (in fedmsg this replaces the msg dictionary)
-    :param msg_id: the id of the msg (e.g. 2016-SomeGUID)
-    :param build_id: the id of the build (e.g. 264382)
-    :param build_new_state: the new build state, this is currently a Koji
-    integer
-    :param build_name: the name of what is being built
-    (e.g. golang-googlecode-tools)
-    :param build_version: the version of the build (e.g. 6.06.06)
-    :param build_release: the release of the build (e.g. 4.fc25)
-    :param module_build_id: the optional id of the module_build in the database
-    :param state_reason: the optional reason as to why the state changed
-    """
-
-    def __init__(
-            self,
-            msg_id,
-            build_id,
-            task_id,
-            build_new_state,
-            build_name,
-            build_version,
-            build_release,
-            module_build_id=None,
-            state_reason=None,
-    ):
-        if task_id is None:
-            raise IgnoreMessage("KojiBuildChange with a null task_id is invalid.")
-        super(KojiBuildChange, self).__init__(msg_id)
-        self.build_id = build_id
-        self.task_id = task_id
-        self.build_new_state = build_new_state
-        self.build_name = build_name
-        self.build_version = build_version
-        self.build_release = build_release
-        self.module_build_id = module_build_id
-        self.state_reason = state_reason
-
-
-class KojiTagChange(BaseMessage):
-    """
-    A class that inherits from BaseMessage to provide a message
-    object for a buildsys.tag info (in fedmsg this replaces the msg dictionary)
-    :param tag: the name of tag (e.g. module-123456789-build)
-    :param artifact: the name of tagged artifact (e.g. module-build-macros)
-    :param nvr: the nvr of the tagged artifact
-    """
-
-    def __init__(self, msg_id, tag, artifact, nvr):
-        super(KojiTagChange, self).__init__(msg_id)
-        self.tag = tag
-        self.artifact = artifact
-        self.nvr = nvr
-
-
-class KojiRepoChange(BaseMessage):
-    """ A class that inherits from BaseMessage to provide a message
-    object for a repo's info (in fedmsg this replaces the msg dictionary)
-    :param msg_id: the id of the msg (e.g. 2016-SomeGUID)
-    :param repo_tag: the repo's tag (e.g. SHADOWBUILD-f25-build)
-    """
-
-    def __init__(self, msg_id, repo_tag):
-        super(KojiRepoChange, self).__init__(msg_id)
-        self.repo_tag = repo_tag
-
-
-class MBSModule(BaseMessage):
-    """ A class that inherits from BaseMessage to provide a message
-    object for a module event generated by module_build_service
-    :param msg_id: the id of the msg (e.g. 2016-SomeGUID)
-    :param module_build_id: the id of the module build
-    :param module_build_state: the state of the module build
-    """
-
-    def __init__(self, msg_id, module_build_id, module_build_state):
-        super(MBSModule, self).__init__(msg_id)
-        self.module_build_id = module_build_id
-        self.module_build_state = module_build_state
-
-
-class GreenwaveDecisionUpdate(BaseMessage):
-    """A class representing message send to topic greenwave.decision.update"""
-
-    def __init__(self, msg_id, decision_context, policies_satisfied, subject_identifier):
-        super(GreenwaveDecisionUpdate, self).__init__(msg_id)
-        self.decision_context = decision_context
-        self.policies_satisfied = policies_satisfied
-        self.subject_identifier = subject_identifier
+KOJI_BUILD_CHANGE = "koji_build_change"
+KOJI_TAG_CHANGE = "koji_tag_change"
+KOJI_REPO_CHANGE = "koji_repo_change"
+MBS_MODULE_STATE_CHANGE = "mbs_module_state_change"
+GREENWAVE_DECISION_UPDATE = "greenwave_decision_update"

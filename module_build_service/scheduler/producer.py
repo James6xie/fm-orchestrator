@@ -16,9 +16,9 @@ import module_build_service.scheduler.consumer
 from module_build_service import conf, models, log
 from module_build_service.builder import GenericBuilder
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
-from module_build_service.scheduler import events
 from module_build_service.utils.greenwave import greenwave
 from module_build_service.db_session import db_session
+from module_build_service.scheduler import events
 
 
 class MBSProducer(PollingProducer):
@@ -110,15 +110,18 @@ class MBSProducer(PollingProducer):
                 log.info("  task {0!r} is in state {1!r}".format(task_id, task_info["state"]))
                 if task_info["state"] in state_mapping:
                     # Fake a fedmsg message on our internal queue
-                    msg = events.KojiBuildChange(
-                        msg_id="producer::fail_lost_builds fake msg",
-                        build_id=component_build.task_id,
-                        task_id=component_build.task_id,
-                        build_name=component_build.package,
-                        build_new_state=state_mapping[task_info["state"]],
-                        build_release=build_release,
-                        build_version=build_version,
-                    )
+                    msg = {
+                        "msg_id": "producer::fail_lost_builds fake msg",
+                        "event": events.KOJI_BUILD_CHANGE,
+                        "build_id": component_build.task_id,
+                        "task_id": component_build.task_id,
+                        "build_new_state": state_mapping[task_info["state"]],
+                        "build_name": component_build.package,
+                        "build_release": build_release,
+                        "build_version": build_version,
+                        "module_build_id": None,
+                        "state_reason": None
+                    }
                     module_build_service.scheduler.consumer.work_queue_put(msg)
 
         elif conf.system == "mock":
@@ -215,9 +218,13 @@ class MBSProducer(PollingProducer):
 
             # Fake a message to kickstart the build anew in the consumer
             state = module_build_service.models.BUILD_STATES[state_name]
-            msg = events.MBSModule(
-                "nudge_module_builds_fake_message", build.id, state)
-            log.info("  Scheduling faked event %r" % msg)
+            msg = {
+                "msg_id": "nudge_module_builds_fake_message",
+                "event": events.MBS_MODULE_STATE_CHANGE,
+                "module_build_id": build.id,
+                "module_build_state": state,
+            }
+            log.info("  Scheduling faked event %r", msg)
             module_build_service.scheduler.consumer.work_queue_put(msg)
 
         db_session.commit()
@@ -437,19 +444,28 @@ class MBSProducer(PollingProducer):
                 # If it is tagged in final tag, but MBS does not think so,
                 # schedule fake message.
                 if not c.tagged_in_final and module_build.koji_tag in tags:
-                    msg = events.KojiTagChange(
-                        "sync_koji_build_tags_fake_message", module_build.koji_tag, c.package, c.nvr
-                    )
-                    log.info("  Scheduling faked event %r" % msg)
+                    msg = {
+                        "msg_id": "sync_koji_build_tags_fake_message",
+                        "event": events.KOJI_TAG_CHANGE,
+                        "tag_name": module_build.koji_tag,
+                        "build_name": c.package,
+                        "build_nvr": c.nvr,
+                    }
+                    log.info("  Scheduling faked event %r", msg)
                     module_build_service.scheduler.consumer.work_queue_put(msg)
 
                 # If it is tagged in the build tag, but MBS does not think so,
                 # schedule fake message.
                 build_tag = module_build.koji_tag + "-build"
                 if not c.tagged and build_tag in tags:
-                    msg = events.KojiTagChange(
-                        "sync_koji_build_tags_fake_message", build_tag, c.package, c.nvr)
-                    log.info("  Scheduling faked event %r" % msg)
+                    msg = {
+                        "msg_id": "sync_koji_build_tags_fake_message",
+                        "event": events.KOJI_TAG_CHANGE,
+                        "tag_name": build_tag,
+                        "build_name": c.package,
+                        "build_nvr": c.nvr,
+                    }
+                    log.info("  Scheduling faked event %r", msg)
                     module_build_service.scheduler.consumer.work_queue_put(msg)
 
     def poll_greenwave(self, config):
