@@ -223,6 +223,8 @@ class MockModuleBuilder(GenericBuilder):
         self.yum_conf += "[%s]\n" % name
         self.yum_conf += "name=%s\n" % name
         self.yum_conf += "baseurl=%s\n" % baseurl
+        # See https://dnf.readthedocs.io/en/latest/modularity.html#hotfix-repositories
+        self.yum_conf += "module_hotfixes=true\n"
         self.yum_conf += extra
         self.yum_conf += "enabled=1\n\n"
 
