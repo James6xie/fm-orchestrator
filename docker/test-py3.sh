@@ -22,4 +22,4 @@ sed -i \
 
 # Since tox seems to ignore `usedevelop` when we have `sitepackages` on, we have to run it manually
 python3 setup.py develop --no-deps
-/usr/bin/tox -e flake8,py3 "$@"
+/usr/bin/tox -e flake8,py3,intflake "$@"
