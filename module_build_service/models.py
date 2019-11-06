@@ -82,15 +82,6 @@ def _utc_datetime_to_iso(datetime_object):
     return None
 
 
-@contextlib.contextmanager
-def _dummy_context_mgr():
-    """
-    Yields None. Used in the make_session to not duplicate the code when
-    app_context exists.
-    """
-    yield None
-
-
 def _setup_event_listeners(db_session):
     """
     Starts listening for events related to database session.
