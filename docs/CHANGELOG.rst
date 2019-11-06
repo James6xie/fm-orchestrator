@@ -1,6 +1,10 @@
 Change Log
 ==========
 
+v2.30.1
+-------
+* Fixed a bug that caused local builds to fail depending on the version of DNF being used
+
 v2.30.0
 -------
 * Remove Kerberos authentication directly performed by MBS (``mod_auth_gssapi`` is now required)
