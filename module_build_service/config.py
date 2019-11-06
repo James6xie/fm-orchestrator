@@ -373,22 +373,6 @@ class Config(object):
             "default": "oidc",
             "desc": "Authentiation method to MBS. Options are oidc or kerberos",
         },
-        "kerberos_http_host": {
-            "type": str,
-            "default": "",
-            "desc": (
-                "Hardcodes the HTTP host MBS identifies as in Kerberos. If this isn't set, "
-                "it will be derived dynamically."
-            ),
-        },
-        "kerberos_keytab": {
-            "type": str,
-            "default": "",
-            "desc": (
-                "Overrides the use of the environment variable KRB5_KTNAME, which specifies "
-                "the location to the Kerberos keytab for authentication."
-            ),
-        },
         "ldap_uri": {
             "type": str,
             "default": "",
@@ -823,15 +807,6 @@ class Config(object):
             except ImportError:
                 raise ValueError("ldap3 is required for kerberos authz")
         self._auth_method = s.lower()
-
-    def _setifok_kerberos_keytab(self, s):
-        keytab = str(s)
-        if keytab:
-            keytab = os.path.expanduser(keytab)
-            if not os.path.exists(keytab):
-                raise ValueError("The path set for KERBEROS_KEYTAB does not exist")
-
-        self._kerberos_keytab = keytab
 
     def _setifok_ldap_uri(self, s):
         ldap_uri = str(s)
