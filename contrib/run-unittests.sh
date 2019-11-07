@@ -12,6 +12,7 @@
 # --with-pgsql: run tests with PostgreSQL, otherwise SQLite is used.
 # --no-tty: don't use tty for containers
 # --sudo: run Docker via sudo
+# --podman: use Podman instead of Docker
 # --no-pull: don't update Docker images
 #
 # Please note that, both of them can have arbitrary value as long as one of
@@ -22,6 +23,7 @@ enable_py3=
 with_pgsql=
 no_tty=
 use_sudo=
+use_podman=
 do_pull=1
 
 while (( "$#" )); do
@@ -30,6 +32,7 @@ while (( "$#" )); do
         --with-pgsql) with_pgsql=1 ;;
         --no-tty) no_tty=1 ;;
         --sudo) use_sudo=1 ;;
+        --podman) use_podman=1 ;;
         --no-pull) do_pull= ;;
         *) break ;;
     esac
@@ -58,7 +61,9 @@ fi
 if [ -n "$with_pgsql" ]; then
     test_container_name="${test_container_name}-pgsql"
 fi
-if [ -n "$use_sudo" ]; then
+if [ -n "$use_podman" ]; then
+    docker="podman"
+elif [ -n "$use_sudo" ]; then
     # use sudo for docker
     docker="sudo /usr/bin/docker"
 else
