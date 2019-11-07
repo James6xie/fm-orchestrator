@@ -81,8 +81,9 @@ class Build:
     def __init__(self, packaging_utility, mbs_api):
         self._packaging_utility = Command(packaging_utility)
         self._mbs_api = mbs_api
-        self._url = None
         self._data = None
+        self._component_data = None
+        self._build_id = None
 
     def run(self, *args):
         """Run a module build
@@ -92,35 +93,51 @@ class Build:
         :rtype: string
         """
         stdout = self._packaging_utility("module-build", *args).stdout.decode("utf-8")
-        self._url = re.search(self._mbs_api + r"module-builds/\d+", stdout).group(0)
-        return self._url
+        self._build_id = re.search(self._mbs_api + r"module-builds/(\d+)", stdout).group(1)
+        return self._build_id
 
     @property
     def data(self):
         """Module build data cache for this build fetched from MBS"""
-        if self._data is None:
-            r = requests.get(self._url)
+        if self._data is None and self._build_id:
+            r = requests.get(f"{self._mbs_api}module-builds/{self._build_id}")
             r.raise_for_status()
             self._data = r.json()
         return self._data
+
+    @property
+    def component_data(self):
+        """Component data for the module build"""
+        if self._component_data is None and self._build_id:
+            params = {
+                "module_build": self._build_id,
+                "verbose": True,
+            }
+            r = requests.get(f"{self._mbs_api}component-builds/", params=params)
+            r.raise_for_status()
+            self._component_data = r.json()
+        return self._component_data
 
     @property
     def state_name(self):
         """Name of the state of this module build"""
         return self.data["state_name"]
 
-    def components(self, state="COMPLETE"):
-        """Components of this module build which are in some state
+    def components(self, state="COMPLETE", batch=None):
+        """Components of this module build which are in some state and in some batch
 
         :param string state: Koji build state the components should be in
-        :return: List of components
+        :param int batch: the number of the batch the components should be in
+        :return: List of filtered components
         :rtype: list of strings
         """
-        comps = []
-        for rpm, info in self.data["tasks"]["rpms"].items():
-            if info["state"] == koji.BUILD_STATES[state]:
-                comps.append(rpm)
-        return comps
+        filtered = self.component_data["items"]
+        if batch is not None:
+            filtered = filter(lambda x: x["batch"] == batch, filtered)
+        if state is not None:
+            filtered = filter(lambda x: x["state_name"] == state, filtered)
+
+        return [item["package"] for item in filtered]
 
     def nvr(self, name_suffix=""):
         """NVR dictionary of this module build
