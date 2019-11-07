@@ -109,7 +109,13 @@ class MockModuleBuilder(GenericBuilder):
             os.makedirs(self.configdir)
 
         # Generate path to mock config and add local repository there.
-        self._add_repo("localrepo", "file://" + self.resultsdir, "metadata_expire=1\n")
+        # Set skip_if_unavailable=True since the repo isn't available until after
+        # module-build-macros is built.
+        self._add_repo(
+            "localrepo",
+            "file://" + self.resultsdir,
+            "metadata_expire=1\nskip_if_unavailable=True\n",
+        )
 
         # Remove old files from the previous build of this tag but only
         # before the first build is done, otherwise we would remove files
