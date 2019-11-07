@@ -72,6 +72,8 @@ def create_local_repo_from_koji_tag(config, tag, repo_dir, archs=None):
     Downloads the packages build for one of `archs` (defaults to ['x86_64',
     'noarch']) in Koji tag `tag` to `repo_dir` and creates repository in that
     directory. Needs config.koji_profile and config.koji_config to be set.
+
+    If the there are no builds associated with the tag, False is returned.
     """
 
     # Placed here to avoid py2/py3 conflicts...
@@ -91,6 +93,10 @@ def create_local_repo_from_koji_tag(config, tag, repo_dir, archs=None):
         rpms, builds = session.listTaggedRPMS(tag, latest=True)
     except koji.GenericError:
         log.exception("Failed to list rpms in tag %r" % tag)
+
+    if not builds:
+        log.debug("No builds are associated with the tag %r", tag)
+        return False
 
     # Reformat builds so they are dict with build_id as a key.
     builds = {build["build_id"]: build for build in builds}
@@ -162,3 +168,5 @@ def create_local_repo_from_koji_tag(config, tag, repo_dir, archs=None):
 
         log.info("Creating local repository in %s" % repo_dir)
         execute_cmd(["/usr/bin/createrepo_c", repo_dir])
+
+    return True

@@ -373,18 +373,22 @@ class MockModuleBuilder(GenericBuilder):
                 repo_name = tag = source
                 koji_config = get_koji_config(self.config)
                 koji_session = koji.ClientSession(koji_config.server, opts=koji_config)
+                # Check to see if there are any external repos tied to the tag
+                for ext_repo in koji_session.getTagExternalRepos(tag):
+                    self._add_repo(ext_repo["external_repo_name"], ext_repo["url"])
+
                 repo = koji_session.getRepo(repo_name)
                 if repo:
                     baseurl = koji.PathInfo(topdir=koji_config.topurl).repo(repo["id"], repo_name)
                     baseurl = "{0}/{1}/".format(baseurl, self.arch)
                 else:
                     repo_dir = os.path.join(self.config.cache_dir, "koji_tags", tag)
-                    create_local_repo_from_koji_tag(
+                    should_add_repo = create_local_repo_from_koji_tag(
                         self.config, tag, repo_dir, [self.arch, "noarch"])
+                    if not should_add_repo:
+                        continue
                     baseurl = "file://" + repo_dir
-                # Check to see if there are any external repos tied to the tag
-                for ext_repo in koji_session.getTagExternalRepos(repo_name):
-                    self._add_repo(ext_repo["external_repo_name"], ext_repo["url"])
+
             self._add_repo(repo_name, baseurl)
         self._write_mock_config()
 
