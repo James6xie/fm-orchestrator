@@ -1,6 +1,10 @@
 Change Log
 ==========
 
+v2.30.2
+-------
+* Fixed bugs that caused local builds to fail on Fedora 31
+
 v2.30.1
 -------
 * Fixed a bug that caused local builds to fail depending on the version of DNF being used
