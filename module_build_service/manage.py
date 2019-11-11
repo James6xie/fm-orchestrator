@@ -144,6 +144,9 @@ def build_module_locally(
         os.remove(dbpath)
 
     db.create_all()
+    # Reconfigure the backend database session registry to use the new the database location
+    db_session.remove()
+    db_session.configure(bind=db.session.bind)
 
     params = {
         "local_build": True,
@@ -157,8 +160,6 @@ def build_module_locally(
         raise IOError("Provided modulemd file is not a yaml file.")
 
     yaml_file_path = os.path.abspath(yaml_file)
-
-    from module_build_service.db_session import db_session
 
     if offline:
         import_builds_from_local_dnf_repos(platform_id)
