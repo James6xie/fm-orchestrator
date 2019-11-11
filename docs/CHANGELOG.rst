@@ -1,6 +1,10 @@
 Change Log
 ==========
 
+v2.30.3
+-------
+* Fix a local build bug caused by the refactoring of how database sessions are handled
+
 v2.30.2
 -------
 * Fixed bugs that caused local builds to fail on Fedora 31
