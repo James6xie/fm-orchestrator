@@ -473,7 +473,7 @@ class ModuleBuild(MBSBase):
         raise ValueError("%s: %s, not in %r" % (key, field, BUILD_STATES))
 
     @validates("rebuild_strategy")
-    def validate_rebuild_stategy(self, key, rebuild_strategy):
+    def validate_rebuild_strategy(self, key, rebuild_strategy):
         if rebuild_strategy not in self.rebuild_strategies.keys():
             choices = ", ".join(self.rebuild_strategies.keys())
             raise ValueError(
