@@ -271,7 +271,7 @@ class MBSProducer(PollingProducer):
                         module_build_service.scheduler.consumer.work_queue_put(event)
 
             # Check if we have met the threshold.
-            if module_build_service.utils.at_concurrent_component_threshold(config, db_session):
+            if module_build_service.utils.at_concurrent_component_threshold(config):
                 break
 
     def retrigger_new_repo_on_failure(self, config):
