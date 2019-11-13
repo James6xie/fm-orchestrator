@@ -43,6 +43,7 @@ RUN yum -y install \
     python-sqlalchemy \
     python-tox \
     python2-distro \
+    python2-celery \
     python2-libmodulemd2 \
     python2-pyyaml \
     python2-pungi \

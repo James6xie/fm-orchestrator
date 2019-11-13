@@ -19,10 +19,12 @@ for a number of tasks:
 """
 
 import pkg_resources
+from celery import Celery
 from flask import Flask, has_app_context, url_for
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.pool import StaticPool
 from logging import getLogger
+
 import gi  # noqa
 gi.require_version("Modulemd", "2.0")  # noqa
 from gi.repository import Modulemd  # noqa
@@ -45,6 +47,15 @@ app = Flask(__name__)
 app.wsgi_app = ReverseProxy(app.wsgi_app)
 
 conf = init_config(app)
+
+celery_app = Celery("module-build-service")
+# Convert config names specific for Celery like this:
+# celery_broker_url -> broker_url
+celery_configs = {
+    name[7:]: getattr(conf, name)
+    for name in dir(conf) if name.startswith('celery_')
+}
+celery_app.conf.update(**celery_configs)
 
 
 class MBSSQLAlchemy(SQLAlchemy):

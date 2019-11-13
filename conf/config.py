@@ -92,6 +92,18 @@ class BaseConfiguration(object):
     # Disable Client Authorization
     NO_AUTH = False
 
+    # Configs for running tasks asynchronously with Celery
+    # For details of Celery configs, refer to Celery documentation:
+    # https://docs.celeryproject.org/en/latest/userguide/configuration.html
+    #
+    # Each config name consists of namespace CELERY_ and the new Celery config
+    # name converted to upper case. For example the broker url, Celery config
+    # name is broker_url, then as you can below, the corresponding config name
+    # in MBS is CELERY_BROKER_URL.
+    CELERY_BROKER_URL = ""
+    CELERY_RESULT_BACKEND = ""
+    CELERY_IMPORTS = []
+
 
 class TestConfiguration(BaseConfiguration):
     BUILD_LOGS_DIR = "/tmp"
@@ -154,3 +166,6 @@ class OfflineLocalBuildConfiguration(LocalBuildConfiguration):
 class DevConfiguration(LocalBuildConfiguration):
     DEBUG = True
     LOG_BACKEND = "console"
+
+    CELERY_BROKER_URL = "redis://localhost:6379/0"
+    CELERY_RESULT_BACKEND = "redis://localhost:6379/0"
