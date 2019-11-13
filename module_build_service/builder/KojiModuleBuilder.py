@@ -473,7 +473,8 @@ class KojiModuleBuilder(GenericBuilder):
     def get_session(config, login=True):
         """Create and return a koji.ClientSession object
 
-        :param config: the config object returned from :meth:`init_config`.
+        :param config: the config object returned from :meth:`init_web_config` or
+            :meth:`init_backend_config`.
         :type config: :class:`Config`
         :param bool login: whether to log into the session. To login if True
             is passed, otherwise not to log into session.

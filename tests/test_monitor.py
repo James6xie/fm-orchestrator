@@ -8,7 +8,7 @@ import module_build_service.config as mbs_config
 import module_build_service.monitor
 from module_build_service import models
 from module_build_service.db_session import db_session
-from conf.config import TestConfiguration
+from conf.web_config import TestConfiguration
 
 from six.moves import reload_module
 from tests import app, init_data, make_module_in_db
