@@ -163,6 +163,86 @@ class TestUtilsComponentReuse:
         tangerine = get_reusable_component(second_module_build, "tangerine")
         assert bool(tangerine is None) != bool(set_current_arch == set_database_arch)
 
+    @pytest.mark.parametrize(
+        "reuse_component",
+        ["perl-Tangerine", "perl-List-Compare", "tangerine"])
+    @pytest.mark.parametrize(
+        "changed_component",
+        ["perl-Tangerine", "perl-List-Compare", "tangerine"])
+    def test_get_reusable_component_different_batch(
+        self, changed_component, reuse_component, db_session
+    ):
+        """
+        Test that we get the correct reuse behavior for the changed-and-after strategy. Changes
+        to earlier batches should prevent reuse, but changes to later batches should not.
+        For context, see https://pagure.io/fm-orchestrator/issue/1298
+        """
+
+        if changed_component == reuse_component:
+            # we're only testing the cases where these are different
+            # this case is already covered by test_get_reusable_component_different_component
+            return
+
+        second_module_build = models.ModuleBuild.get_by_id(db_session, 3)
+
+        # update batch for changed component
+        changed_component = models.ComponentBuild.from_component_name(
+            db_session, changed_component, second_module_build.id)
+        orig_batch = changed_component.batch
+        changed_component.batch = orig_batch + 1
+        db_session.commit()
+
+        reuse_component = models.ComponentBuild.from_component_name(
+            db_session, reuse_component, second_module_build.id)
+
+        reuse_result = module_build_service.utils.get_reusable_component(
+            db_session, second_module_build, reuse_component.package)
+        # Component reuse should only be blocked when an earlier batch has been changed.
+        # In this case, orig_batch is the earliest batch that has been changed (the changed
+        # component has been removed from it and added to the following one).
+        assert bool(reuse_result is None) == bool(reuse_component.batch > orig_batch)
+
+    @pytest.mark.parametrize(
+        "reuse_component",
+        ["perl-Tangerine", "perl-List-Compare", "tangerine"])
+    @pytest.mark.parametrize(
+        "changed_component",
+        ["perl-Tangerine", "perl-List-Compare", "tangerine"])
+    def test_get_reusable_component_different_arch_in_batch(
+        self, changed_component, reuse_component, db_session
+    ):
+        """
+        Test that we get the correct reuse behavior for the changed-and-after strategy. Changes
+        to the architectures in earlier batches should prevent reuse, but such changes to later
+        batches should not.
+        For context, see https://pagure.io/fm-orchestrator/issue/1298
+        """
+        if changed_component == reuse_component:
+            # we're only testing the cases where these are different
+            # this case is already covered by test_get_reusable_component_different_arches
+            return
+
+        second_module_build = models.ModuleBuild.get_by_id(db_session, 3)
+
+        # update arch for changed component
+        mmd = second_module_build.mmd()
+        component = mmd.get_rpm_component(changed_component)
+        component.reset_arches()
+        component.add_restricted_arch("i686")
+        second_module_build.modulemd = mmd_to_str(mmd)
+        db_session.commit()
+
+        changed_component = models.ComponentBuild.from_component_name(
+            db_session, changed_component, second_module_build.id)
+        reuse_component = models.ComponentBuild.from_component_name(
+            db_session, reuse_component, second_module_build.id)
+
+        reuse_result = module_build_service.utils.get_reusable_component(
+            db_session, second_module_build, reuse_component.package)
+        # Changing the arch of a component should prevent reuse only when the changed component
+        # is in a batch earlier than the component being considered for reuse.
+        assert bool(reuse_result is None) == bool(reuse_component.batch > changed_component.batch)
+
     @pytest.mark.parametrize("rebuild_strategy", models.ModuleBuild.rebuild_strategies.keys())
     def test_get_reusable_component_different_buildrequires_stream(self, rebuild_strategy):
         first_module_build = models.ModuleBuild.get_by_id(db_session, 2)

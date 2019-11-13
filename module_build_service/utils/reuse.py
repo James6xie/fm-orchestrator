@@ -403,8 +403,8 @@ def get_reusable_component(
         # Create separate lists for the new and previous module build. These lists
         # will have an entry for every build batch *before* the component's
         # batch except for 1, which is reserved for the module-build-macros RPM.
-        # Each batch entry will contain a set of "(name, ref)" with the name and
-        # ref (commit) of the component.
+        # Each batch entry will contain a set of "(name, ref, arches)" with the name,
+        # ref (commit), and arches of the component.
         for i in range(new_module_build_component.batch - 1):
             # This is the first batch which we want to skip since it will always
             # contain only the module-build-macros RPM and it gets built every time
@@ -412,37 +412,34 @@ def get_reusable_component(
                 continue
 
             new_module_build_components.append({
-                (value.package, value.ref)
+                (value.package, value.ref,
+                    tuple(sorted(mmd.get_rpm_component(value.package).get_arches())))
                 for value in new_component_builds
                 if value.batch == i + 1
             })
 
             previous_module_build_components.append({
-                (value.package, value.ref)
+                (value.package, value.ref,
+                    tuple(sorted(old_mmd.get_rpm_component(value.package).get_arches())))
                 for value in prev_component_builds
                 if value.batch == i + 1
             })
 
-        # If the previous batches don't have the same ordering and hashes, then the
+        # If the previous batches don't have the same ordering, hashes, and arches, then the
         # component can't be reused
         if previous_module_build_components != new_module_build_components:
             message = ("Cannot reuse the component because a component in a previous"
-                       " batch has been rebuilt")
+                       " batch has been added, removed, or rebuilt")
             new_module_build_component.log_message(db_session, message)
             return None
 
-    for pkg_name in mmd.get_rpm_component_names():
-        pkg = mmd.get_rpm_component(pkg_name)
-        if pkg_name not in old_mmd.get_rpm_component_names():
-            message = ("Cannot reuse the component because a component was added or "
-                       "removed since the compatible module")
-            new_module_build_component.log_message(db_session, message)
-            return None
-        if set(pkg.get_arches()) != set(old_mmd.get_rpm_component(pkg_name).get_arches()):
-            message = ("Cannot reuse the component because the architectures for the package {}"
-                       " have changed since the compatible module build").format(pkg_name)
-            new_module_build_component.log_message(db_session, message)
-            return None
+    # check that arches have not changed
+    pkg = mmd.get_rpm_component(component_name)
+    if set(pkg.get_arches()) != set(old_mmd.get_rpm_component(component_name).get_arches()):
+        message = ("Cannot reuse the component because its architectures"
+                   " have changed since the compatible module build").format(component_name)
+        new_module_build_component.log_message(db_session, message)
+        return None
 
     reusable_component = db_session.query(models.ComponentBuild).filter_by(
         package=component_name, module_id=previous_module_build.id).one()
