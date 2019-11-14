@@ -201,7 +201,7 @@ class TestCommandBuildModuleLocally:
             "--file", staged_data_filename("testmodule-local-build.yaml")
         ]
 
-        def main_side_effect(initial_messages, stop_condition):
+        def main_side_effect(module_build_ids):
             build = db_session.query(models.ModuleBuild).filter(
                 models.ModuleBuild.name == "testmodule-local-build"
             ).first()

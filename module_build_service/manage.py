@@ -182,10 +182,7 @@ def build_module_locally(
 
         module_build_ids = [build.id for build in module_builds]
 
-    stop = module_build_service.scheduler.local.make_simple_stop_condition()
-
-    # Run the consumer until stop_condition returns True
-    module_build_service.scheduler.local.main([], stop)
+    module_build_service.scheduler.local.main(module_build_ids)
 
     has_failed_module = db_session.query(models.ModuleBuild).filter(
         models.ModuleBuild.id.in_(module_build_ids),

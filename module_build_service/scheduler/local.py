@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
 
-import fedmsg
 import logging
-import module_build_service.models
-import moksha.hub
+from module_build_service import models
 
 from module_build_service.db_session import db_session
+from module_build_service.scheduler.handlers.modules import init as modules_init_handler
+from module_build_service.scheduler.handlers.modules import wait as modules_wait_handler
+from module_build_service.scheduler.handlers.modules import done as modules_done_handler
+from module_build_service.scheduler.handlers.modules import failed as modules_failed_handler
 
 log = logging.getLogger(__name__)
 
@@ -16,82 +18,48 @@ This module contains functions to control fedmsg-hub running locally for local
 module build and running tests within test_build.py particularly.
 """
 
-__all__ = ["main", "make_simple_stop_condition"]
+__all__ = ["main"]
 
 
-def main(initial_messages, stop_condition):
-    """ Run the consumer until some condition is met.
-
-    Setting stop_condition to None will run the consumer forever.
+def raise_for_failed_build(module_build_ids):
     """
+    Raises an exception if any module build from `module_build_ids` list is in failed state.
+    This function also calls "failed" handler before raises an exception.
 
-    config = fedmsg.config.load_config()
-    config["mbsconsumer"] = True
-    config["mbsconsumer.stop_condition"] = stop_condition
-    config["mbsconsumer.initial_messages"] = initial_messages
-
-    # Moksha requires that we subscribe to *something*, so tell it /dev/null
-    # since we'll just be doing in-memory queue-based messaging for this single
-    # build.
-    config["zmq_enabled"] = True
-    config["zmq_subscribe_endpoints"] = "ipc:///dev/null"
-
-    # Lazy import consumer to avoid potential import cycle.
-    # For example, in some cases, importing event message from events.py would
-    # cause importing the consumer module, which then starts to import relative
-    # code inside handlers module, and the original code is imported eventually.
-    import module_build_service.scheduler.consumer
-
-    consumers = [module_build_service.scheduler.consumer.MBSConsumer]
-
-    # Note that the hub we kick off here cannot send any message.  You
-    # should use fedmsg.publish(...) still for that.
-    moksha.hub.main(
-        # Pass in our config dict
-        options=config,
-        # Only run the specified consumers if any are so specified.
-        consumers=consumers,
-        # Do not run default producers.
-        producers=[],
-        # Tell moksha to quiet its logging.
-        framework=False,
-    )
-
-
-def make_simple_stop_condition():
-    """ Return a simple stop_condition callable.
-
-    Intended to be used with the main() function here in manage.py and tests.
-
-    The stop_condition returns true when the latest module build enters the any
-    of the finished states.
+    :param list module_build_ids: List of module build IDs (int) to build locally.
     """
+    builds = db_session.query(models.ModuleBuild).filter(
+        models.ModuleBuild.id.in_(module_build_ids)).all()
+    has_failed_build = False
+    for build in builds:
+        if build.state == models.BUILD_STATES["failed"]:
+            modules_failed_handler("fake_msg_id", build.id, "failed")
+            has_failed_build = True
+    if has_failed_build:
+        raise ValueError("Local module build failed.")
 
-    def stop_condition(message):
-        # XXX - We ignore the message here and instead just query the DB.
 
-        # Grab the latest module build.
-        module = (
-            db_session.query(module_build_service.models.ModuleBuild)
-            .order_by(module_build_service.models.ModuleBuild.id.desc())
-            .first()
-        )
-        done = (
-            module_build_service.models.BUILD_STATES["failed"],
-            module_build_service.models.BUILD_STATES["ready"],
-            module_build_service.models.BUILD_STATES["done"],
-        )
-        result = module.state in done
-        log.debug("stop_condition checking %r, got %r" % (module, result))
+def main(module_build_ids):
+    """
+    Build modules locally. The modules have to be stored in the local database before
+    calling this function.
 
-        # moksha.hub.main starts the hub and runs it in a separate thread. When
-        # the result is True, remove the db_session from that thread local so
-        # that any pending queries in the transaction will not block other
-        # queries made from other threads.
-        # This is useful for testing particularly.
-        if result:
-            db_session.remove()
+    :param list module_build_ids: List of module build IDs (int) to build locally.
+    """
+    # The transition between states is normally handled by ModuleBuild.transition, which sends
+    # a message to message bus. The message is then received by the Consumer and handler is called.
+    # But for local builds, we do not have any message bus, so we just call the handlers in
+    # the right order manually.
+    # We only need to ensure that we won't call futher handlers in case the module build failed.
+    for module_build_id in module_build_ids:
+        modules_init_handler("fake_msg_id", module_build_id, "init")
 
-        return result
+    raise_for_failed_build(module_build_ids)
+    for module_build_id in module_build_ids:
+        modules_wait_handler("fake_msg_id", module_build_id, "wait")
 
-    return stop_condition
+    raise_for_failed_build(module_build_ids)
+    for module_build_id in module_build_ids:
+        modules_done_handler("fake_msg_id", module_build_id, "done")
+
+    raise_for_failed_build(module_build_ids)
