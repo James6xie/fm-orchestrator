@@ -89,6 +89,7 @@ class FakeKojiModuleBuilder(KojiModuleBuilder):
 class TestKojiBuilder:
     def setup_method(self, test_method):
         init_data(1)
+        events.scheduler.reset()
         self.config = mock.Mock()
         self.config.koji_profile = conf.koji_profile
         self.config.koji_repository_url = conf.koji_repository_url
@@ -105,6 +106,7 @@ class TestKojiBuilder:
 
     def teardown_method(self, test_method):
         self.p_read_config.stop()
+        events.scheduler.reset()
 
     def test_tag_to_repo(self):
         """ Test that when a repo msg hits us and we have no match,
@@ -145,29 +147,24 @@ class TestKojiBuilder:
         component_build.state = None
         component_build.nvr = None
 
-        actual = builder.recover_orphaned_artifact(component_build)
+        recovered = builder.recover_orphaned_artifact(component_build)
         # recover_orphaned_artifact modifies a component build, but doesn't
         # commit the changes.
         db_session.commit()
 
-        assert len(actual) == 3
+        assert recovered
 
-        assert actual[0]["event"] == events.KOJI_BUILD_CHANGE
-        assert actual[0]["build_id"] == 91
-        assert actual[0]["task_id"] == 12345
-        assert actual[0]["build_new_state"] == koji.BUILD_STATES["COMPLETE"]
-        assert actual[0]["build_name"] == "rubygem-rails"
-        assert actual[0]["build_version"] == "1.0"
-        assert actual[0]["build_release"] == "1.module+e0095747"
-        assert actual[0]["module_build_id"] == 4
+        event_info = events.scheduler.queue[0][3]
+        assert event_info == ('recover_orphaned_artifact: fake message', 91, 12345, 1,
+                              'rubygem-rails', '1.0', '1.module+e0095747', 4, None)
 
-        assert actual[1]["event"] == events.KOJI_TAG_CHANGE
-        assert actual[1]["tag_name"] == "module-foo-build"
-        assert actual[1]["build_name"] == "rubygem-rails"
+        event_info = events.scheduler.queue[1][3]
+        assert event_info == ('recover_orphaned_artifact: fake message', 'module-foo-build',
+                              'rubygem-rails', 'foo-1.0-1.module+e0095747')
 
-        assert actual[2]["event"] == events.KOJI_TAG_CHANGE
-        assert actual[2]["tag_name"] == "module-foo"
-        assert actual[2]["build_name"] == "rubygem-rails"
+        event_info = events.scheduler.queue[2][3]
+        assert event_info == ('recover_orphaned_artifact: fake message', 'module-foo',
+                              'rubygem-rails', 'foo-1.0-1.module+e0095747')
 
         assert component_build.state == koji.BUILD_STATES["COMPLETE"]
         assert component_build.task_id == 12345
@@ -206,18 +203,14 @@ class TestKojiBuilder:
         component_build.state = None
         db_session.commit()
 
-        actual = builder.recover_orphaned_artifact(component_build)
+        recovered = builder.recover_orphaned_artifact(component_build)
         db_session.commit()
 
-        assert len(actual) == 1
-        assert actual[0]["event"] == events.KOJI_BUILD_CHANGE
-        assert actual[0]["build_id"] == 91
-        assert actual[0]["task_id"] == 12345
-        assert actual[0]["build_new_state"] == koji.BUILD_STATES["COMPLETE"]
-        assert actual[0]["build_name"] == "rubygem-rails"
-        assert actual[0]["build_version"] == "1.0"
-        assert actual[0]["build_release"] == "1.{0}".format(dist_tag)
-        assert actual[0]["module_build_id"] == 4
+        assert recovered
+        event_info = events.scheduler.queue[0][3]
+        assert event_info == ('recover_orphaned_artifact: fake message', 91, 12345, 1,
+                              'rubygem-rails', '1.0', '1.module+2+b8661ee4', 4, None)
+
         assert component_build.state == koji.BUILD_STATES["COMPLETE"]
         assert component_build.task_id == 12345
         assert component_build.state_reason == "Found existing build"
@@ -260,18 +253,14 @@ class TestKojiBuilder:
         component_build.state = None
         db_session.commit()
 
-        actual = builder.recover_orphaned_artifact(component_build)
+        recovered = builder.recover_orphaned_artifact(component_build)
         db_session.commit()
 
-        assert len(actual) == 1
-        assert actual[0]["event"] == events.KOJI_BUILD_CHANGE
-        assert actual[0]["build_id"] == 91
-        assert actual[0]["task_id"] == 12345
-        assert actual[0]["build_new_state"] == koji.BUILD_STATES["COMPLETE"]
-        assert actual[0]["build_name"] == "module-build-macros"
-        assert actual[0]["build_version"] == "1.0"
-        assert actual[0]["build_release"] == "1.{0}".format(dist_tag)
-        assert actual[0]["module_build_id"] == 4
+        assert recovered
+        event_info = events.scheduler.queue[0][3]
+        assert event_info == ('recover_orphaned_artifact: fake message', 91, 12345, 1,
+                              'module-build-macros', '1.0', "1.{0}".format(dist_tag), 4, None)
+
         assert component_build.state == koji.BUILD_STATES["COMPLETE"]
         assert component_build.task_id == 12345
         assert component_build.state_reason == "Found existing build"
@@ -312,10 +301,10 @@ class TestKojiBuilder:
         component_build.state = None
         db_session.commit()
 
-        actual = builder.recover_orphaned_artifact(component_build)
+        recovered = builder.recover_orphaned_artifact(component_build)
         db_session.commit()
 
-        assert actual == []
+        assert not recovered
         # Make sure nothing erroneous gets tag
         assert builder.koji_session.tagBuild.call_count == 0
 

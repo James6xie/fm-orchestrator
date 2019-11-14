@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
+import sched
 import koji
 import os
 import re
@@ -19,6 +20,10 @@ from module_build_service import models, conf, build_logs
 from module_build_service.db_session import db_session
 from module_build_service.scheduler import events
 from module_build_service.scheduler.local import make_simple_stop_condition
+from module_build_service.scheduler.handlers.tags import tagged as tagged_handler
+from module_build_service.scheduler.handlers.components import (
+    build_task_finalize as build_task_finalize_handler)
+from module_build_service.scheduler.handlers.repos import done as repos_done_handler
 
 from mock import patch, PropertyMock, Mock, MagicMock
 from werkzeug.datastructures import FileStorage
@@ -232,43 +237,20 @@ class FakeModuleBuilder(GenericBuilder):
         return {"name": self.tag_name + "-build"}
 
     def _send_repo_done(self):
-        event_info = {
-            "msg_id": "a faked internal message",
-            "event": events.KOJI_REPO_CHANGE,
-            "repo_tag": self.tag_name + "-build",
-        }
-        module_build_service.scheduler.consumer.work_queue_put(event_info)
+        events.scheduler.add(repos_done_handler, ("fake_msg", self.tag_name + "-build"))
 
     def _send_tag(self, artifact, nvr, dest_tag=True):
         if dest_tag:
             tag = self.tag_name
         else:
             tag = self.tag_name + "-build"
-        event_info = {
-            "msg_id": "a faked internal message",
-            "event": events.KOJI_TAG_CHANGE,
-            "tag_name": tag,
-            "build_name": artifact,
-            "build_nvr": nvr
-        }
-        module_build_service.scheduler.consumer.work_queue_put(event_info)
+        events.scheduler.add(tagged_handler, ("a faked internal message", tag, artifact, nvr))
 
     def _send_build_change(self, state, name, build_id):
         # build_id=1 and task_id=1 are OK here, because we are building just
         # one RPM at the time.
-        event_info = {
-            "msg_id": "a faked internal message",
-            "event": events.KOJI_BUILD_CHANGE,
-            "build_id": build_id,
-            "task_id": build_id,
-            "build_name": name,
-            "build_new_state": state,
-            "build_release": "1",
-            "build_version": "1",
-            "module_build_id": None,
-            "state_reason": None
-        }
-        module_build_service.scheduler.consumer.work_queue_put(event_info)
+        args = ("a faked internal message", build_id, build_id, state, name, "1", "1", None, None)
+        events.scheduler.add(build_task_finalize_handler, args)
 
     def build(self, artifact_name, source):
         print("Starting building artifact %s: %s" % (artifact_name, source))
@@ -297,7 +279,6 @@ class FakeModuleBuilder(GenericBuilder):
         pass
 
     def recover_orphaned_artifact(self, component_build):
-        msgs = []
         if self.INSTANT_COMPLETE:
             disttag = module_build_service.utils.get_rpm_release(
                 self.db_session, component_build.module_build)
@@ -309,27 +290,17 @@ class FakeModuleBuilder(GenericBuilder):
             component_build.state_reason = "Found existing build"
             nvr_dict = kobo.rpmlib.parse_nvr(component_build.nvr)
             # Send a message stating the build is complete
-            msgs.append({
-                "msg_id": "recover_orphaned_artifact: fake message",
-                "event": events.KOJI_BUILD_CHANGE,
-                "build_id": randint(1, 9999999),
-                "task_id": component_build.task_id,
-                "build_new_state": koji.BUILD_STATES["COMPLETE"],
-                "build_name": component_build.package,
-                "build_version": nvr_dict["version"],
-                "build_release": nvr_dict["release"],
-                "module_build_id": component_build.module_build.id,
-                "state_reason": None
-            })
+            args = ("recover_orphaned_artifact: fake message", randint(1, 9999999),
+                    component_build.task_id, koji.BUILD_STATES["COMPLETE"],
+                    component_build.package, nvr_dict["version"], nvr_dict["release"],
+                    component_build.module_build.id, None)
+            events.scheduler.add(build_task_finalize_handler, args)
             # Send a message stating that the build was tagged in the build tag
-            msgs.append({
-                "msg_id": "recover_orphaned_artifact: fake message",
-                "event": events.KOJI_TAG_CHANGE,
-                "tag_name": component_build.module_build.koji_tag + "-build",
-                "build_name": component_build.package,
-                "build_nvr": component_build.nvr,
-            })
-        return msgs
+            args = ("recover_orphaned_artifact: fake message",
+                    component_build.module_build.koji_tag + "-build",
+                    component_build.package, component_build.nvr)
+            events.scheduler.add(tagged_handler, args)
+            return True
 
     def finalize(self, succeeded=None):
         if FakeModuleBuilder.on_finalize_cb:
@@ -868,8 +839,9 @@ class TestBuild(BaseTestBuild):
         new_callable=PropertyMock,
         return_value=2,
     )
+    @patch('module_build_service.scheduler.events.Scheduler.run', autospec=True)
     def test_try_to_reach_concurrent_threshold(
-        self, conf_num_concurrent_builds, mocked_scm, mocked_get_user,
+        self, scheduler_run, conf_num_concurrent_builds, mocked_scm, mocked_get_user,
         conf_system, dbg, hmsc
     ):
         """
@@ -896,24 +868,21 @@ class TestBuild(BaseTestBuild):
         # the module build.
         TestBuild._global_var = []
 
-        def stop(message):
+        def mocked_scheduler_run(self):
             """
-            Stop the scheduler when the module is built or when we try to build
-            more components than the num_concurrent_builds.
+            Store the number of concurrent builds between each handler call to global list so we
+            can examine it later.
             """
-            main_stop = make_simple_stop_condition()
             num_building = (
                 db_session.query(models.ComponentBuild)
                 .filter_by(state=koji.BUILD_STATES["BUILDING"])
                 .count()
             )
-            over_threshold = conf.num_concurrent_builds < num_building
             TestBuild._global_var.append(num_building)
-            result = main_stop(message) or over_threshold
-            db_session.remove()
-            return result
+            sched.scheduler.run(self)
 
-        self.run_scheduler(stop_condition=stop)
+        scheduler_run.side_effect = mocked_scheduler_run
+        self.run_scheduler()
 
         # _global_var looks similar to this: [0, 1, 0, 0, 2, 2, 1, 0, 0, 0]
         # It shows the number of concurrent builds in the time. At first we

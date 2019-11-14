@@ -24,6 +24,7 @@ from module_build_service.scheduler import events
 class MBSProducer(PollingProducer):
     frequency = timedelta(seconds=conf.polling_interval)
 
+    @events.mbs_event_handler()
     def poll(self):
         try:
             self.log_summary()
@@ -272,11 +273,8 @@ class MBSProducer(PollingProducer):
 
                 if _has_missed_new_repo_message(module_build, builder.koji_session):
                     log.info("  Processing the paused module build %r", module_build)
-                    further_work = module_build_service.utils.start_next_batch_build(
+                    module_build_service.utils.start_next_batch_build(
                         config, module_build, builder)
-                    for event in further_work:
-                        log.info("  Scheduling faked event %r" % event)
-                        module_build_service.scheduler.consumer.work_queue_put(event)
 
             # Check if we have met the threshold.
             if module_build_service.utils.at_concurrent_component_threshold(config):

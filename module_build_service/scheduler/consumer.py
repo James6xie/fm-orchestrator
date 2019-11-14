@@ -259,7 +259,7 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
         kwargs.pop("event")
 
         try:
-            further_work = handler(**kwargs) or []
+            handler(**kwargs)
         except Exception as e:
             log.exception("Could not process message handler.")
             db_session.rollback()
@@ -275,16 +275,6 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
 
             # Allow caller to do something when error is occurred.
             raise
-        else:
-            # Handlers can *optionally* return a list of fake messages that
-            # should be re-inserted back into the main work queue. We can use
-            # this (for instance) when we submit a new component build but (for
-            # some reason) it has already been built, then it can fake its own
-            # completion back to the scheduler so that work resumes as if it
-            # was submitted for real and koji announced its completion.
-            for event in further_work:
-                log.info("  Scheduling faked event %r", event)
-                self.incoming.put(event)
         finally:
             MBSConsumer.current_module_build_id = None
             log.debug("Done with %s", idx)
@@ -307,12 +297,3 @@ def work_queue_put(msg):
     """ Artificially put a message into the work queue of the consumer. """
     consumer = get_global_consumer()
     consumer.incoming.put(msg)
-
-
-def fake_repo_done_message(tag_name):
-    event_info = {
-        "msg_id": "a faked internal message",
-        "event": events.KOJI_REPO_CHANGE,
-        "repo_tag": tag_name + "-build"
-    }
-    work_queue_put(event_info)

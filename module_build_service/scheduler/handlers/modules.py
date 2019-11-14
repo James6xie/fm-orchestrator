@@ -40,6 +40,7 @@ def get_artifact_from_srpm(srpm_path):
     return os.path.basename(srpm_path).replace(".src.rpm", "")
 
 
+@events.mbs_event_handler()
 def failed(msg_id, module_build_id, module_build_state):
     """Called whenever a module enters the 'failed' state.
 
@@ -99,6 +100,7 @@ def failed(msg_id, module_build_id, module_build_state):
     GenericBuilder.clear_cache(build)
 
 
+@events.mbs_event_handler()
 def done(msg_id, module_build_id, module_build_state):
     """Called whenever a module enters the 'done' state.
 
@@ -136,6 +138,7 @@ def done(msg_id, module_build_id, module_build_state):
     GenericBuilder.clear_cache(build)
 
 
+@events.mbs_event_handler()
 def init(msg_id, module_build_id, module_build_state):
     """Called whenever a module enters the 'init' state.
 
@@ -310,6 +313,7 @@ def get_content_generator_build_koji_tag(module_deps):
         return conf.koji_cg_default_build_tag
 
 
+@events.mbs_event_handler()
 def wait(msg_id, module_build_id, module_build_state):
     """ Called whenever a module enters the 'wait' state.
 
@@ -398,11 +402,9 @@ def wait(msg_id, module_build_id, module_build_state):
         db_session.commit()
         # Return a KojiRepoChange message so that the build can be transitioned to done
         # in the repos handler
-        return [{
-            "msg_id": "handlers.modules.wait: fake msg",
-            "event": events.KOJI_REPO_CHANGE,
-            "repo_tag": builder.module_build_tag["name"],
-        }]
+        from module_build_service.scheduler.handlers.repos import done as repos_done_handler
+        events.scheduler.add(repos_done_handler, ("fake_msg", builder.module_build_tag["name"]))
+        return
 
     # If all components in module build will be reused, we don't have to build
     # module-build-macros, because there won't be any build done.
@@ -420,7 +422,6 @@ def wait(msg_id, module_build_id, module_build_state):
     artifact_name = "module-build-macros"
 
     component_build = models.ComponentBuild.from_component_name(db_session, artifact_name, build.id)
-    further_work = []
     srpm = builder.get_disttag_srpm(
         disttag=".%s" % get_rpm_release(db_session, build),
         module_build=build)
@@ -437,10 +438,9 @@ def wait(msg_id, module_build_id, module_build_state):
         # Commit and refresh so that the SQLAlchemy relationships are available
         db_session.commit()
         db_session.refresh(component_build)
-        msgs = builder.recover_orphaned_artifact(component_build)
-        if msgs:
+        recovered = builder.recover_orphaned_artifact(component_build)
+        if recovered:
             log.info("Found an existing module-build-macros build")
-            further_work += msgs
         # There was no existing artifact found, so lets submit the build instead
         else:
             task_id, state, reason, nvr = builder.build(artifact_name=artifact_name, source=srpm)
@@ -452,10 +452,9 @@ def wait(msg_id, module_build_id, module_build_state):
         # It's possible that the build succeeded in the builder but some other step failed which
         # caused module-build-macros to be marked as failed in MBS, so check to see if it exists
         # first
-        msgs = builder.recover_orphaned_artifact(component_build)
-        if msgs:
+        recovered = builder.recover_orphaned_artifact(component_build)
+        if recovered:
             log.info("Found an existing module-build-macros build")
-            further_work += msgs
         else:
             task_id, state, reason, nvr = builder.build(artifact_name=artifact_name, source=srpm)
             component_build.task_id = task_id
@@ -475,9 +474,5 @@ def wait(msg_id, module_build_id, module_build_state):
         build.new_repo_task_id = task_id
         db_session.commit()
     else:
-        further_work.append({
-            "msg_id": "fake msg",
-            "event": events.KOJI_REPO_CHANGE,
-            "repo_tag": builder.module_build_tag["name"],
-        })
-    return further_work
+        from module_build_service.scheduler.handlers.repos import done as repos_done_handler
+        events.scheduler.add(repos_done_handler, ("fake_msg", builder.module_build_tag["name"]))

@@ -12,6 +12,7 @@ from module_build_service.scheduler import events
 logging.basicConfig(level=logging.DEBUG)
 
 
+@events.mbs_event_handler()
 def tagged(msg_id, tag_name, build_name, build_nvr):
     """Called whenever koji tags a build to tag.
 
@@ -53,8 +54,6 @@ def tagged(msg_id, tag_name, build_name, build_nvr):
         )
         return []
 
-    further_work = []
-
     # If all components are tagged, start newRepo task.
     if not any(c.is_completed and not c.is_tagged for c in module_build.up_to_current_batch()):
         builder = GenericBuilder.create_from_module(
@@ -77,14 +76,10 @@ def tagged(msg_id, tag_name, build_name, build_nvr):
             # would be useless to wait for a repository we will not use anyway.
             log.info(
                 "All components in module tagged and built, skipping the last repo regeneration")
-            further_work += [{
-                "msg_id": "components::_finalize: fake msg",
-                "event": events.KOJI_REPO_CHANGE,
-                "repo_tag": builder.module_build_tag["name"],
-            }]
+            from module_build_service.scheduler.handlers.repos import done as repos_done_handler
+            events.scheduler.add(
+                repos_done_handler, ("fake_msg", builder.module_build_tag["name"]))
         db_session.commit()
-
-    return further_work
 
 
 def _is_new_repo_generating(module_build, koji_session):

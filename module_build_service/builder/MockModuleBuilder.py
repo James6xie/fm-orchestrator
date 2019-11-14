@@ -318,6 +318,7 @@ class MockModuleBuilder(GenericBuilder):
         pass
 
     def buildroot_add_artifacts(self, artifacts, install=False):
+        from module_build_service.scheduler.handlers.repos import done as repos_done_handler
         self._createrepo()
 
         # TODO: This is just hack to install module-build-macros into the
@@ -330,9 +331,7 @@ class MockModuleBuilder(GenericBuilder):
                 self.groups.append("module-build-macros")
                 self._write_mock_config()
 
-        from module_build_service.scheduler.consumer import fake_repo_done_message
-
-        fake_repo_done_message(self.tag_name)
+        events.scheduler.add(repos_done_handler, ("fake_msg", self.tag_name + "-build"))
 
     def tag_artifacts(self, artifacts):
         pass
@@ -394,6 +393,8 @@ class MockModuleBuilder(GenericBuilder):
         self._write_mock_config()
 
     def _send_build_change(self, state, source, build_id):
+        from module_build_service.scheduler.handlers.components import (
+            build_task_finalize as build_task_finalize_handler)
         try:
             nvr = kobo.rpmlib.parse_nvr(source)
         except ValueError:
@@ -401,18 +402,10 @@ class MockModuleBuilder(GenericBuilder):
 
         # build_id=1 and task_id=1 are OK here, because we are building just
         # one RPM at the time.
-        module_build_service.scheduler.consumer.work_queue_put({
-            "msg_id": "a faked internal message",
-            "event": events.KOJI_BUILD_CHANGE,
-            "build_id": build_id,
-            "task_id": build_id,
-            "build_name": nvr["name"],
-            "build_new_state": state,
-            "build_release": nvr["release"],
-            "build_version": nvr["version"],
-            "module_build_id": None,
-            "state_reason": None
-        })
+        args = (
+            "a faked internal message", build_id, build_id, state, nvr["name"], nvr["version"],
+            nvr["release"], None, None)
+        events.scheduler.add(build_task_finalize_handler, args)
 
     def _save_log(self, resultsdir, log_name, artifact_name):
         old_log = os.path.join(resultsdir, log_name)

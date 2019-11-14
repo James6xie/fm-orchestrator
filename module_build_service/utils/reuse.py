@@ -9,7 +9,8 @@ from module_build_service.scheduler import events
 from module_build_service.utils.mse import get_base_module_mmds
 
 
-def reuse_component(component, previous_component_build, change_state_now=False):
+def reuse_component(component, previous_component_build, change_state_now=False,
+                    schedule_fake_events=True):
     """
     Reuses component build `previous_component_build` instead of building
     component `component`
@@ -18,11 +19,17 @@ def reuse_component(component, previous_component_build, change_state_now=False)
     This allows callers to reuse multiple component builds and commit them all
     at once.
 
-    Returns the list of BaseMessage instances to be handled later by the
-    scheduler.
+    :param ComponentBuild component: Component whihch will reuse previous module build.
+    :param ComponentBuild previous_component_build: Previous component build to reuse.
+    :param bool change_state_now: When True, the component.state will be set to
+        previous_component_build.state. Otherwise, the component.state will be set to BUILDING.
+    :param bool schedule_fake_events: When True, the `events.scheduler.add` will be used to
+        schedule handlers.component.build_task_finalize handler call.
     """
 
     import koji
+    from module_build_service.scheduler.handlers.components import (
+        build_task_finalize as build_task_finalize_handler)
 
     log.info(
         'Reusing component "{0}" from a previous module '
@@ -43,20 +50,13 @@ def reuse_component(component, previous_component_build, change_state_now=False)
     component.state_reason = "Reused component from previous module build"
     component.nvr = previous_component_build.nvr
     nvr_dict = kobo.rpmlib.parse_nvr(component.nvr)
-    # Add this message to further_work so that the reused
-    # component will be tagged properly
-    return [{
-        "msg_id": "reuse_component: fake msg",
-        "event": events.KOJI_BUILD_CHANGE,
-        "build_id": None,
-        "task_id": component.task_id,
-        "build_new_state": previous_component_build.state,
-        "build_name": nvr_dict["name"],
-        "build_version": nvr_dict["version"],
-        "build_release": nvr_dict["release"],
-        "module_build_id": component.module_id,
-        "state_reason": component.state_reason,
-    }]
+    # Add this event to scheduler so that the reused component will be tagged properly.
+    if schedule_fake_events:
+        args = (
+            "reuse_component: fake msg", None, component.task_id, previous_component_build.state,
+            nvr_dict["name"], nvr_dict["version"], nvr_dict["release"], component.module_id,
+            component.state_reason)
+        events.scheduler.add(build_task_finalize_handler, args)
 
 
 def get_reusable_module(module):
@@ -214,7 +214,7 @@ def attempt_to_reuse_all_components(builder, module):
             module.batch = c.batch
 
         # Reuse the component
-        reuse_component(c, component_to_reuse, True)
+        reuse_component(c, component_to_reuse, True, False)
         components_to_tag.append(c.nvr)
 
     # Tag them

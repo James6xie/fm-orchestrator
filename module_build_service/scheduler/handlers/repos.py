@@ -8,10 +8,12 @@ from module_build_service import conf, models, log
 from module_build_service.builder import GenericBuilder
 from module_build_service.utils import start_next_batch_build
 from module_build_service.db_session import db_session
+from module_build_service.scheduler import events
 
 logging.basicConfig(level=logging.DEBUG)
 
 
+@events.mbs_event_handler()
 def done(msg_id, repo_tag):
     """Called whenever koji rebuilds a repo, any repo.
 
@@ -103,7 +105,6 @@ def done(msg_id, repo_tag):
     has_unbuilt_components = any(c.is_unbuilt for c in module_build.component_builds)
     has_failed_components = any(c.is_unsuccessful for c in module_build.component_builds)
 
-    further_work = []
     if has_unbuilt_components and not has_failed_components:
         # Ok, for the subset of builds that did complete successfully, check to
         # see if they are in the buildroot before starting new batch.
@@ -114,8 +115,7 @@ def done(msg_id, repo_tag):
 
         # Try to start next batch build, because there are still unbuilt
         # components in a module.
-        further_work += start_next_batch_build(conf, module_build, builder)
-
+        start_next_batch_build(conf, module_build, builder)
     else:
         if has_failed_components:
             state_reason = "Component(s) {} failed to build.".format(
@@ -137,5 +137,3 @@ def done(msg_id, repo_tag):
 
             module_build.transition(db_session, conf, state=models.BUILD_STATES["done"])
         db_session.commit()
-
-    return further_work

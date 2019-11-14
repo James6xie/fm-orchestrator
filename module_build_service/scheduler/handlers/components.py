@@ -16,6 +16,7 @@ from module_build_service.utils.batches import continue_batch_build
 logging.basicConfig(level=logging.DEBUG)
 
 
+@events.mbs_event_handler()
 def build_task_finalize(
         msg_id, build_id, task_id, build_new_state,
         build_name, build_version, build_release,
@@ -97,8 +98,6 @@ def build_task_finalize(
         parent.modulemd = mmd_to_str(mmd)
         db_session.commit()
 
-    further_work = []
-
     parent_current_batch = parent.current_batch()
 
     # If there are no other components still building in a batch,
@@ -134,11 +133,9 @@ def build_task_finalize(
             # The repository won't be regenerated in this case and therefore we generate fake repo
             # change message here.
             log.info("Batch done. No component to tag")
-            further_work += [{
-                "msg_id": "components::_finalize: fake msg",
-                "event": events.KOJI_REPO_CHANGE,
-                "repo_tag": builder.module_build_tag["name"],
-            }]
+            from module_build_service.scheduler.handlers.repos import done as repos_done_handler
+            events.scheduler.add(
+                repos_done_handler, ("fake_msg", builder.module_build_tag["name"]))
         else:
             built_component_nvrs_in_batch = [c.nvr for c in built_components_in_batch]
             # tag && add to srpm-build group if neccessary
@@ -174,6 +171,4 @@ def build_task_finalize(
         # build, try to call continue_batch_build again so in case we hit the
         # threshold previously, we will submit another build from this batch.
         builder = GenericBuilder.create_from_module(db_session, parent, conf)
-        further_work += continue_batch_build(conf, parent, builder)
-
-    return further_work
+        continue_batch_build(conf, parent, builder)

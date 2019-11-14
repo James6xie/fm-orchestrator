@@ -4,6 +4,7 @@ from module_build_service import conf, log
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
 from module_build_service.db_session import db_session
 from module_build_service.models import ModuleBuild, BUILD_STATES
+from module_build_service.scheduler import events
 
 
 def get_corresponding_module_build(nvr):
@@ -31,6 +32,7 @@ def get_corresponding_module_build(nvr):
     return ModuleBuild.get_by_id(db_session, module_build_id)
 
 
+@events.mbs_event_handler()
 def decision_update(msg_id, decision_context, subject_identifier, policies_satisfied):
     """Move module build to ready or failed according to Greenwave result
 

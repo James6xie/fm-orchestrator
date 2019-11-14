@@ -700,6 +700,11 @@ class KojiModuleBuilder(GenericBuilder):
         :param component_build: a ComponentBuild object
         :return: a list of msgs that MBS needs to process
         """
+        # Imported here because of circular dependencies.
+        from module_build_service.scheduler.handlers.tags import tagged as tagged_handler
+        from module_build_service.scheduler.handlers.components import (
+            build_task_finalize as build_task_finalize_handler)
+
         opts = {"latest": True, "package": component_build.package, "inherit": False}
         build_tagged = self.koji_session.listTagged(self.module_build_tag["name"], **opts)
         dest_tagged = None
@@ -727,10 +732,10 @@ class KojiModuleBuilder(GenericBuilder):
                     nvr = "{name}-{version}-{release}".format(**untagged_build)
                     build = self.koji_session.getBuild(nvr)
                     break
-        further_work = []
-        # If the build doesn't exist, then return
+
+        # If the build doesn't exist, then return False
         if not build:
-            return further_work
+            return False
 
         # Start setting up MBS' database to use the existing build
         log.info('Skipping build of "{0}" since it already exists.'.format(build["nvr"]))
@@ -741,19 +746,11 @@ class KojiModuleBuilder(GenericBuilder):
         component_build.state_reason = "Found existing build"
         nvr_dict = kobo.rpmlib.parse_nvr(component_build.nvr)
         # Trigger a completed build message
-        further_work.append({
-            "msg_id": "recover_orphaned_artifact: fake message",
-            "event": events.KOJI_BUILD_CHANGE,
-            "build_id": build["build_id"],
-            "task_id": build["task_id"],
-            "build_new_state": koji.BUILD_STATES["COMPLETE"],
-            "build_name": component_build.package,
-            "build_version": nvr_dict["version"],
-            "build_release": nvr_dict["release"],
-            "module_build_id": component_build.module_build.id,
-            "state_reason": None
-        })
-
+        args = (
+            "recover_orphaned_artifact: fake message", build["build_id"], build["task_id"],
+            koji.BUILD_STATES["COMPLETE"], component_build.package, nvr_dict["version"],
+            nvr_dict["release"], component_build.module_build.id, None)
+        events.scheduler.add(build_task_finalize_handler, args)
         component_tagged_in = []
         if build_tagged:
             component_tagged_in.append(self.module_build_tag["name"])
@@ -772,14 +769,11 @@ class KojiModuleBuilder(GenericBuilder):
                 'The build being skipped isn\'t tagged in the "{0}" tag. Will send a message to '
                 "the tag handler".format(tag)
             )
-            further_work.append({
-                "msg_id": "recover_orphaned_artifact: fake message",
-                "event": events.KOJI_TAG_CHANGE,
-                "tag_name": tag,
-                "build_name": component_build.package,
-                "build_nvr": component_build.nvr,
-            })
-        return further_work
+            args = ("recover_orphaned_artifact: fake message", tag, component_build.package,
+                    component_build.nvr)
+            events.scheduler.add(tagged_handler, args)
+
+        return True
 
     def build(self, artifact_name, source):
         """

@@ -104,7 +104,6 @@ def continue_batch_build(config, module, builder, components=None):
     # Get the list of components to be built in this batch. We are not building
     # all `unbuilt_components`, because we can meet the num_concurrent_builds
     # threshold
-    further_work = []
     components_to_build = []
     # Sort the unbuilt_components so that the components that take the longest to build are
     # first
@@ -115,8 +114,7 @@ def continue_batch_build(config, module, builder, components=None):
         # Only evaluate new components
         if not component.is_waiting_for_build:
             continue
-        msgs = builder.recover_orphaned_artifact(component)
-        further_work += msgs
+        builder.recover_orphaned_artifact(component)
 
     for c in unbuilt_components:
         # If a previous build of the component was found, then the state will be marked as
@@ -149,7 +147,6 @@ def continue_batch_build(config, module, builder, components=None):
             future.result()
 
     db_session.commit()
-    return further_work
 
 
 def start_next_batch_build(config, module, builder, components=None):
@@ -248,7 +245,6 @@ def start_next_batch_build(config, module, builder, components=None):
     log.info("Starting build of next batch %d, %s" % (module.batch, unbuilt_components))
 
     # Attempt to reuse any components possible in the batch before attempting to build any
-    further_work = []
     unbuilt_components_after_reuse = []
     components_reused = False
     should_try_reuse = True
@@ -264,7 +260,7 @@ def start_next_batch_build(config, module, builder, components=None):
         for c, reusable_c in zip(unbuilt_components, reusable_components):
             if reusable_c:
                 components_reused = True
-                further_work += reuse_component(c, reusable_c)
+                reuse_component(c, reusable_c)
             else:
                 unbuilt_components_after_reuse.append(c)
         # Commit the changes done by reuse_component
@@ -274,12 +270,9 @@ def start_next_batch_build(config, module, builder, components=None):
     # If all the components were reused in the batch then make a KojiRepoChange
     # message and return
     if components_reused and not unbuilt_components_after_reuse:
-        further_work.append({
-            "msg_id": "start_build_batch: fake msg",
-            "event": events.KOJI_REPO_CHANGE,
-            "repo_tag": builder.module_build_tag["name"],
-        })
-        return further_work
+        from module_build_service.scheduler.handlers.repos import done as repos_done_handler
+        events.scheduler.add(
+            repos_done_handler, ("start_build_batch: fake_msg", builder.module_build_tag["name"]))
+        return
 
-    return further_work + continue_batch_build(
-        config, module, builder, unbuilt_components_after_reuse)
+    continue_batch_build(config, module, builder, unbuilt_components_after_reuse)

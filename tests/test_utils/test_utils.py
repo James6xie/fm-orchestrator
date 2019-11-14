@@ -1198,11 +1198,13 @@ class DummyModuleBuilder(GenericBuilder):
 class TestBatches:
     def setup_method(self, test_method):
         GenericBuilder.register_backend_class(DummyModuleBuilder)
+        events.scheduler.reset()
 
     def teardown_method(self, test_method):
         # clean_database()
         DummyModuleBuilder.TAGGED_COMPONENTS = []
         GenericBuilder.register_backend_class(KojiModuleBuilder)
+        events.scheduler.reset()
 
     def test_start_next_batch_build_reuse(self, default_buildroot_groups):
         """
@@ -1218,7 +1220,8 @@ class TestBatches:
         module_build.batch = 1
 
         builder = mock.MagicMock()
-        further_work = module_build_service.utils.start_next_batch_build(
+        builder.module_build_tag = {"name": "module-fedora-27-build"}
+        module_build_service.utils.start_next_batch_build(
             conf, module_build, builder)
 
         # Batch number should increase.
@@ -1228,34 +1231,19 @@ class TestBatches:
         # build_new_state set to COMPLETE, but the current component build
         # state should be set to BUILDING, so KojiBuildChange message handler
         # handles the change properly.
-        for event_info in further_work:
-            if event_info["event"] == events.KOJI_BUILD_CHANGE:
-                assert event_info["build_new_state"] == koji.BUILD_STATES["COMPLETE"]
+        for event in events.scheduler.queue:
+            event_info = event[3]
+            if event_info[0].startswith("reuse_component"):
+                assert event_info[3] == koji.BUILD_STATES["COMPLETE"]
                 component_build = models.ComponentBuild.from_component_event(
                     db_session,
-                    task_id=event_info["task_id"],
-                    module_id=event_info["module_build_id"])
+                    task_id=event_info[2],
+                    module_id=event_info[7])
                 assert component_build.state == koji.BUILD_STATES["BUILDING"]
 
         # When we handle these KojiBuildChange messages, MBS should tag all
         # the components just once.
-        for event_info in further_work:
-            if event_info["event"] == events.KOJI_BUILD_CHANGE:
-                module_build_service.scheduler.handlers.components.build_task_finalize(
-                    msg_id=event_info["msg_id"],
-                    build_id=event_info["build_id"],
-                    task_id=event_info["task_id"],
-                    build_new_state=event_info["build_new_state"],
-                    build_name=event_info["build_name"],
-                    build_version=event_info["build_version"],
-                    build_release=event_info["build_release"],
-                    module_build_id=event_info["module_build_id"],
-                    state_reason=event_info["state_reason"]
-                )
-
-        # Since we have reused all the components in the batch, there should
-        # be fake KojiRepoChange message.
-        assert further_work[-1]["event"] == events.KOJI_REPO_CHANGE
+        events.scheduler.run()
 
         # Check that packages have been tagged just once.
         assert len(DummyModuleBuilder.TAGGED_COMPONENTS) == 2
@@ -1283,24 +1271,27 @@ class TestBatches:
         builder = mock.MagicMock()
         builder.recover_orphaned_artifact.return_value = []
 
-        further_work = module_build_service.utils.start_next_batch_build(
+        module_build_service.utils.start_next_batch_build(
             conf, module_build, builder)
 
         # Batch number should increase.
         assert module_build.batch == 2
 
         # Make sure we only have one message returned for the one reused component
-        assert len(further_work) == 1
+        assert len(events.scheduler.queue) == 1
         # The KojiBuildChange message in further_work should have build_new_state
         # set to COMPLETE, but the current component build state in the DB should be set
         # to BUILDING, so KojiBuildChange message handler handles the change
         # properly.
-        event_info = further_work[0]
-        assert event_info["build_new_state"] == koji.BUILD_STATES["COMPLETE"]
+        event_info = events.scheduler.queue[0][3]
+        assert event_info == ('reuse_component: fake msg', None, 90276227, 1, 'perl-Tangerine',
+                              '0.23', '1.module+0+d027b723', 3,
+                              'Reused component from previous module build')
         component_build = models.ComponentBuild.from_component_event(
             db_session,
-            task_id=event_info["task_id"],
-            module_id=event_info["module_build_id"])
+            task_id=event_info[2],
+            module_id=event_info[7],
+        )
         assert component_build.state == koji.BUILD_STATES["BUILDING"]
         assert component_build.package == "perl-Tangerine"
         assert component_build.reused_component_id is not None
@@ -1328,13 +1319,13 @@ class TestBatches:
 
         builder = mock.MagicMock()
         builder.recover_orphaned_artifact.return_value = []
-        further_work = module_build_service.utils.start_next_batch_build(
+        module_build_service.utils.start_next_batch_build(
             conf, module_build, builder)
 
         # Batch number should increase.
         assert module_build.batch == 2
         # No component reuse messages should be returned
-        assert len(further_work) == 0
+        assert len(events.scheduler.queue) == 0
         # Make sure that both components in the batch were submitted
         assert len(mock_sbc.mock_calls) == 2
 
@@ -1375,24 +1366,26 @@ class TestBatches:
 
         builder = mock.MagicMock()
         builder.recover_orphaned_artifact.return_value = []
-        further_work = module_build_service.utils.start_next_batch_build(
+        module_build_service.utils.start_next_batch_build(
             conf, module_build, builder)
 
         # Batch number should increase
         assert module_build.batch == 2
 
         # Make sure we only have one message returned for the one reused component
-        assert len(further_work) == 1
+        assert len(events.scheduler.queue) == 1
         # The buildsys.build.state.change message in further_work should have
         # build_new_state set to COMPLETE, but the current component build state
         # in the DB should be set to BUILDING, so the build state change handler
         # handles the change properly.
-        event_info = further_work[0]
-        assert event_info["build_new_state"] == koji.BUILD_STATES["COMPLETE"]
+        event_info = events.scheduler.queue[0][3]
+        assert event_info == ('reuse_component: fake msg', None, 90276227, 1,
+                              'perl-Tangerine', '0.23', '1.module+0+d027b723', 3,
+                              'Reused component from previous module build')
         component_build = models.ComponentBuild.from_component_event(
             db_session,
-            task_id=event_info["task_id"],
-            module_id=event_info["module_build_id"],
+            task_id=event_info[2],
+            module_id=event_info[7],
         )
         assert component_build.state == koji.BUILD_STATES["BUILDING"]
         assert component_build.package == "perl-Tangerine"
@@ -1409,19 +1402,23 @@ class TestBatches:
             db_session, "perl-Tangerine", 3)
         pt_component.state = koji.BUILD_STATES["COMPLETE"]
 
+        events.scheduler.reset()
+
         # Start the next build batch
-        further_work = module_build_service.utils.start_next_batch_build(
+        module_build_service.utils.start_next_batch_build(
             conf, module_build, builder)
         # Batch number should increase
         assert module_build.batch == 3
         # Verify that tangerine was reused even though perl-Tangerine was rebuilt in the previous
         # batch
-        event_info = further_work[0]
-        assert event_info["build_new_state"] == koji.BUILD_STATES["COMPLETE"]
+        event_info = events.scheduler.queue[0][3]
+        assert event_info == ('reuse_component: fake msg', None, 90276315, 1, 'tangerine', '0.22',
+                              '3.module+0+d027b723', 3,
+                              'Reused component from previous module build')
         component_build = models.ComponentBuild.from_component_event(
             db_session,
-            task_id=event_info["task_id"],
-            module_id=event_info["module_build_id"]
+            task_id=event_info[2],
+            module_id=event_info[7],
         )
         assert component_build.state == koji.BUILD_STATES["BUILDING"]
         assert component_build.package == "tangerine"
@@ -1451,14 +1448,14 @@ class TestBatches:
 
         builder = mock.MagicMock()
         builder.recover_orphaned_artifact.return_value = []
-        further_work = module_build_service.utils.start_next_batch_build(
+        module_build_service.utils.start_next_batch_build(
             conf, module_build, builder)
 
         # Batch number should increase.
         assert module_build.batch == 2
 
         # Make sure we don't have any messages returned since no components should be reused
-        assert len(further_work) == 0
+        assert len(events.scheduler.queue) == 0
         # Make sure both components are set to the build state but not reused
         assert pt_component.state == koji.BUILD_STATES["BUILDING"]
         assert pt_component.reused_component_id is None
@@ -1487,7 +1484,7 @@ class TestBatches:
         db_session.commit()
 
         builder = mock.MagicMock()
-        further_work = module_build_service.utils.start_next_batch_build(
+        module_build_service.utils.start_next_batch_build(
             conf, module_build, builder)
 
         # Batch number should not increase.
@@ -1495,7 +1492,8 @@ class TestBatches:
         # Make sure start build was called for the second component which wasn't reused
         mock_sbc.assert_called_once()
         # No further work should be returned
-        assert len(further_work) == 0
+
+        assert len(events.scheduler.queue) == 0
 
     def test_start_next_batch_build_repo_building(self, default_buildroot_groups):
         """
@@ -1524,9 +1522,11 @@ class TestBatches:
 class TestLocalBuilds:
     def setup_method(self):
         clean_database()
+        events.scheduler.reset()
 
     def teardown_method(self):
         clean_database()
+        events.scheduler.reset()
 
     def test_load_local_builds_name(self, conf_system, conf_resultsdir):
         module_build_service.utils.load_local_builds("testmodule")
