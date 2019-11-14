@@ -109,6 +109,7 @@ def clean_database(add_platform_module=True, add_default_arches=True):
     # clean_database is usually called before a test run. So, it makes no sense
     # to keep any changes in the transaction made by previous test.
     db_session.remove()
+    db_session.configure(bind=db.session.get_bind())
 
     db.drop_all()
     db.create_all()
