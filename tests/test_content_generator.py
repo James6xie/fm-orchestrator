@@ -77,7 +77,7 @@ class TestBuild:
     @patch("subprocess.Popen")
     @patch("module_build_service.builder.KojiContentGenerator.Modulemd")
     @patch("pkg_resources.get_distribution")
-    @patch("platform.linux_distribution")
+    @patch("distro.linux_distribution")
     @patch("platform.machine")
     @patch(
         "module_build_service.builder.KojiContentGenerator.KojiContentGenerator._koji_rpms_in_tag"
@@ -142,7 +142,7 @@ class TestBuild:
     @patch("subprocess.Popen")
     @patch("module_build_service.builder.KojiContentGenerator.Modulemd")
     @patch("pkg_resources.get_distribution")
-    @patch("platform.linux_distribution")
+    @patch("distro.linux_distribution")
     @patch("platform.machine")
     @patch(
         "module_build_service.builder.KojiContentGenerator.KojiContentGenerator._koji_rpms_in_tag"

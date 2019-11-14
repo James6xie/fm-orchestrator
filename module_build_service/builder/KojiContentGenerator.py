@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
 import calendar
+import distro
 import hashlib
 import logging
 import json
@@ -293,12 +294,12 @@ class KojiContentGenerator(object):
 
     def _get_buildroot(self):
         version = pkg_resources.get_distribution("module-build-service").version
-        distro = platform.linux_distribution()
+        distro_info = distro.linux_distribution()
         ret = {
             u"id": 1,
             u"host": {
                 u"arch": text_type(platform.machine()),
-                u"os": u"%s %s" % (distro[0], distro[1]),
+                u"os": u"%s %s" % (distro_info[0], distro_info[1]),
             },
             u"content_generator": {
                 u"name": u"module-build-service",

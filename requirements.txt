@@ -1,10 +1,11 @@
+distro
+dogpile.cache
 enum34
+fedmsg
 Flask
 Flask-Migrate
-Flask-SQLAlchemy
 Flask-Script
-dogpile.cache
-fedmsg
+Flask-SQLAlchemy
 funcsigs # Python2 only
 futures # Python 2 only
 kobo>=0.5.0
@@ -13,8 +14,8 @@ ldap3
 moksha.hub
 munch
 prometheus_client
-pyOpenSSL
 pygobject
+pyOpenSSL
 requests
 six
 sqlalchemy
