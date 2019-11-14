@@ -170,7 +170,7 @@ class TestUtilsComponentReuse:
         "changed_component",
         ["perl-Tangerine", "perl-List-Compare", "tangerine"])
     def test_get_reusable_component_different_batch(
-        self, changed_component, reuse_component, db_session
+        self, changed_component, reuse_component
     ):
         """
         Test that we get the correct reuse behavior for the changed-and-after strategy. Changes
@@ -196,7 +196,7 @@ class TestUtilsComponentReuse:
             db_session, reuse_component, second_module_build.id)
 
         reuse_result = module_build_service.utils.get_reusable_component(
-            db_session, second_module_build, reuse_component.package)
+            second_module_build, reuse_component.package)
         # Component reuse should only be blocked when an earlier batch has been changed.
         # In this case, orig_batch is the earliest batch that has been changed (the changed
         # component has been removed from it and added to the following one).
@@ -209,7 +209,7 @@ class TestUtilsComponentReuse:
         "changed_component",
         ["perl-Tangerine", "perl-List-Compare", "tangerine"])
     def test_get_reusable_component_different_arch_in_batch(
-        self, changed_component, reuse_component, db_session
+        self, changed_component, reuse_component
     ):
         """
         Test that we get the correct reuse behavior for the changed-and-after strategy. Changes
@@ -238,7 +238,7 @@ class TestUtilsComponentReuse:
             db_session, reuse_component, second_module_build.id)
 
         reuse_result = module_build_service.utils.get_reusable_component(
-            db_session, second_module_build, reuse_component.package)
+            second_module_build, reuse_component.package)
         # Changing the arch of a component should prevent reuse only when the changed component
         # is in a batch earlier than the component being considered for reuse.
         assert bool(reuse_result is None) == bool(reuse_component.batch > changed_component.batch)
