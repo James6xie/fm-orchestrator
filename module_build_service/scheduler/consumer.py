@@ -259,7 +259,13 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
         kwargs.pop("event")
 
         try:
-            handler(**kwargs)
+            if conf.celery_broker_url:
+                # handlers are also Celery tasks, when celery_broker_url is configured,
+                # call "delay" method to run the handlers as Celery async tasks
+                func = getattr(handler, "delay")
+                func(**kwargs)
+            else:
+                handler(**kwargs)
         except Exception as e:
             log.exception("Could not process message handler.")
             db_session.rollback()

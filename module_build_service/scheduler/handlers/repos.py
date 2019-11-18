@@ -4,7 +4,7 @@
 
 import logging
 from datetime import datetime
-from module_build_service import conf, models, log
+from module_build_service import celery_app, conf, models, log
 from module_build_service.builder import GenericBuilder
 from module_build_service.utils import start_next_batch_build
 from module_build_service.db_session import db_session
@@ -13,6 +13,7 @@ from module_build_service.scheduler import events
 logging.basicConfig(level=logging.DEBUG)
 
 
+@celery_app.task
 @events.mbs_event_handler()
 def done(msg_id, repo_tag):
     """Called whenever koji rebuilds a repo, any repo.

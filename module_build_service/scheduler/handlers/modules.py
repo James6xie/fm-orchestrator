@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 """ Handlers for module change events on the message bus. """
 
-from module_build_service import conf, models, log, build_logs
+from module_build_service import celery_app, conf, models, log, build_logs
 import module_build_service.resolver
 import module_build_service.utils
 from module_build_service.utils import (
@@ -40,6 +40,7 @@ def get_artifact_from_srpm(srpm_path):
     return os.path.basename(srpm_path).replace(".src.rpm", "")
 
 
+@celery_app.task
 @events.mbs_event_handler()
 def failed(msg_id, module_build_id, module_build_state):
     """Called whenever a module enters the 'failed' state.
@@ -100,6 +101,7 @@ def failed(msg_id, module_build_id, module_build_state):
     GenericBuilder.clear_cache(build)
 
 
+@celery_app.task
 @events.mbs_event_handler()
 def done(msg_id, module_build_id, module_build_state):
     """Called whenever a module enters the 'done' state.
@@ -138,6 +140,7 @@ def done(msg_id, module_build_id, module_build_state):
     GenericBuilder.clear_cache(build)
 
 
+@celery_app.task
 @events.mbs_event_handler()
 def init(msg_id, module_build_id, module_build_state):
     """Called whenever a module enters the 'init' state.
@@ -313,6 +316,7 @@ def get_content_generator_build_koji_tag(module_deps):
         return conf.koji_cg_default_build_tag
 
 
+@celery_app.task
 @events.mbs_event_handler()
 def wait(msg_id, module_build_id, module_build_state):
     """ Called whenever a module enters the 'wait' state.

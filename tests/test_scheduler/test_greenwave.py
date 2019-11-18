@@ -2,9 +2,10 @@
 # SPDX-License-Identifier: MIT
 import pytest
 
-from mock import call, patch, Mock
+from mock import call, patch, PropertyMock, Mock
 from sqlalchemy import func
 
+import module_build_service.config
 from module_build_service import conf
 from module_build_service.db_session import db_session
 from module_build_service.models import BUILD_STATES, ModuleBuild
@@ -71,6 +72,19 @@ class TestGetCorrespondingModuleBuild:
 
 class TestDecisionUpdateHandler:
     """Test handler decision_update"""
+
+    def setup_method(self, test_method):
+        self.patch_config_broker = patch.object(
+            module_build_service.config.Config,
+            "celery_broker_url",
+            create=True,
+            new_callable=PropertyMock,
+            return_value=False,
+        )
+        self.patch_config_broker.start()
+
+    def teardown_method(self, test_method):
+        self.patch_config_broker.stop()
 
     @patch("module_build_service.scheduler.handlers.greenwave.log")
     def test_decision_context_is_not_match(self, log):

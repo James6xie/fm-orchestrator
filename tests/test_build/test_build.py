@@ -389,8 +389,18 @@ class TestBuild(BaseTestBuild):
             return_value=True)
         self.mock_check_gating = self.p_check_gating.start()
 
+        self.patch_config_broker = patch.object(
+            module_build_service.config.Config,
+            "celery_broker_url",
+            create=True,
+            new_callable=PropertyMock,
+            return_value=False,
+        )
+        self.patch_config_broker.start()
+
     def teardown_method(self, test_method):
         self.p_check_gating.stop()
+        self.patch_config_broker.stop()
         FakeModuleBuilder.reset()
         cleanup_moksha()
         for i in range(20):

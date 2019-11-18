@@ -5,7 +5,7 @@
 import logging
 import koji
 
-from module_build_service import conf, models, log
+from module_build_service import celery_app, conf, models, log
 from module_build_service.builder import GenericBuilder
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
 from module_build_service.utils.general import mmd_to_str
@@ -16,6 +16,7 @@ from module_build_service.utils.batches import continue_batch_build
 logging.basicConfig(level=logging.DEBUG)
 
 
+@celery_app.task
 @events.mbs_event_handler()
 def build_task_finalize(
         msg_id, build_id, task_id, build_new_state,

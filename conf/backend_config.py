@@ -21,7 +21,13 @@ class BackendConfiguration(object):
     # name in MBS is CELERY_BROKER_URL.
     CELERY_BROKER_URL = ""
     CELERY_RESULT_BACKEND = ""
-    CELERY_IMPORTS = []
+    CELERY_IMPORTS = [
+        "module_build_service.scheduler.handlers.components",
+        "module_build_service.scheduler.handlers.modules",
+        "module_build_service.scheduler.handlers.repos",
+        "module_build_service.scheduler.handlers.tags",
+        "module_build_service.scheduler.handlers.greenwave",
+    ]
 
 
 class TestConfiguration(BackendConfiguration):

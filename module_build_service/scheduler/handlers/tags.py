@@ -4,7 +4,7 @@
 
 import logging
 import koji
-from module_build_service import conf, models, log
+from module_build_service import celery_app, conf, models, log
 from module_build_service.db_session import db_session
 from module_build_service.builder import GenericBuilder
 from module_build_service.scheduler import events
@@ -12,6 +12,7 @@ from module_build_service.scheduler import events
 logging.basicConfig(level=logging.DEBUG)
 
 
+@celery_app.task
 @events.mbs_event_handler()
 def tagged(msg_id, tag_name, build_name, build_nvr):
     """Called whenever koji tags a build to tag.
