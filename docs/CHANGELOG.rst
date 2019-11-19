@@ -1,6 +1,10 @@
 Change Log
 ==========
 
+v2.30.4
+-------
+* allow component reuse in some cases when a component is added
+
 v2.30.3
 -------
 * Fix a local build bug caused by the refactoring of how database sessions are handled
