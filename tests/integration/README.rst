@@ -35,4 +35,9 @@ have self-signed certificates. Example usage::
 
     REQUESTS_CA_BUNDLE=/etc/pki/tls/certs/ca-bundle.crt tox -e integration
 
+``MBS_TEST_WORKERS`` can be used to run the tests in parallel. For example to
+have 4 tests running in parallel one could call::
+
+    MBS_TEST_WORKERS=4 tox -e integration
+
 .. _tests/integration/example.test.env.yaml: example.test.env.yaml
