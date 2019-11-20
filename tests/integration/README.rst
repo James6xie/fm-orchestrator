@@ -11,8 +11,13 @@ The tests should be configured by a ``test.env.yaml`` file placed in the
 top-level directory of this repository. This can be changed to a different
 path by setting ``MBS_TEST_CONFIG``.
 
-See `tests/integration/example.test.env.yaml`_ for the list of configuration
-options and examples.
+Usually each test will trigger a new module build, and potentially wait until
+it completes before doing the checks. In order to avoid waiting for this
+during test development, an existing module build can be reused by specifying
+a ``build_id`` for the test case.
+
+See `tests/integration/example.test.env.yaml`_ for a complete list of
+configuration options and examples.
 
 Running the tests
 =================

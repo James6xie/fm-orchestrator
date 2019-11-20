@@ -85,15 +85,22 @@ class Build:
         self._component_data = None
         self._build_id = None
 
-    def run(self, *args):
+    def run(self, *args, reuse=None):
         """Run a module build
 
         :param args: Options and arguments for the build command
-        :return: MBS API URL for the build created
-        :rtype: string
+        :param int reuse: Optional MBS build id to be reused for this run.
+            When specified, the corresponding module build will be used,
+            instead of triggering and waiting for a new one to finish.
+            Intended to be used while developing the tests.
+        :return: MBS build id of the build created
+        :rtype: int
         """
-        stdout = self._packaging_utility("module-build", *args).stdout.decode("utf-8")
-        self._build_id = re.search(self._mbs_api + r"module-builds/(\d+)", stdout).group(1)
+        if reuse is not None:
+            self._build_id = int(reuse)
+        else:
+            stdout = self._packaging_utility("module-build", *args).stdout.decode("utf-8")
+            self._build_id = int(re.search(self._mbs_api + r"module-builds/(\d+)", stdout).group(1))
         return self._build_id
 
     @property

@@ -14,7 +14,13 @@ def test_failed_build(test_env, repo, koji):
         cancelled, if not completed.
     """
     build = utils.Build(test_env["packaging_utility"], test_env["mbs_api"])
-    build.run("--watch", "--scratch", "--optional", "rebuild_strategy=all")
+    build.run(
+        "--watch",
+        "--scratch",
+        "--optional",
+        "rebuild_strategy=all",
+        reuse=test_env["testdata"]["failed_build"].get("build_id"),
+    )
 
     assert build.state_name == "failed"
     batch = test_env["testdata"]["failed_build"]["batch"]

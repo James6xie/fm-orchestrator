@@ -15,7 +15,13 @@ def test_scratch_build(test_env, repo, koji):
     * no content generator builds are created in Koji
     """
     build = utils.Build(test_env["packaging_utility"], test_env["mbs_api"])
-    build.run("--watch", "--scratch", "--optional", "rebuild_strategy=all")
+    build.run(
+        "--watch",
+        "--scratch",
+        "--optional",
+        "rebuild_strategy=all",
+        reuse=test_env["testdata"]["scratch_build"].get("build_id"),
+    )
 
     assert build.state_name == "done"
     assert sorted(build.components(state="COMPLETE")) == sorted(
