@@ -25,7 +25,7 @@ def test_normal_build(test_env, repo, koji):
         "rebuild_strategy=all",
         reuse=test_env["testdata"]["normal_build"].get("build_id"),
     )
-    assert sorted(build.components()) == sorted(repo.components + ["module-build-macros"])
+    assert sorted(build.component_names()) == sorted(repo.components + ["module-build-macros"])
 
     expected_buildorder = test_env["testdata"]["normal_build"]["buildorder"]
     expected_buildorder = [set(batch) for batch in expected_buildorder]

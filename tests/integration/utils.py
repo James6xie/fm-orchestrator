@@ -2,12 +2,13 @@
 # SPDX-License-Identifier: MIT
 
 import re
+import time
 
 from kobo import rpmlib
 import koji
 import yaml
 import requests
-from sh import Command
+from sh import Command, git
 
 
 class Koji:
@@ -99,6 +100,16 @@ class Repo:
         elif self._version == 2:
             return self._modulemd["data"]["dependencies"][0]["buildrequires"].get("platform")
 
+    def bump(self):
+        """Create a "bump" commit"""
+        args = [
+            "--allow-empty",
+            "-m",
+            "Bump"
+        ]
+        git("commit", *args)
+        git("push")
+
 
 class Build:
     """Wrapper class to work with module builds
@@ -108,6 +119,7 @@ class Build:
     :attribute string _mbs_api: URL of the MBS API (including trailing '/')
     :attribute string _url: URL of this MBS module build
     :attribute string _data: Module build data cache for this build fetched from MBS
+    :attribute string _module_build_data: Verbose module build data cache for this build
     """
 
     def __init__(self, packaging_utility, mbs_api):
@@ -116,6 +128,7 @@ class Build:
         self._data = None
         self._component_data = None
         self._build_id = None
+        self._module_build_data = None
 
     def run(self, *args, reuse=None):
         """Run a module build
@@ -134,6 +147,16 @@ class Build:
             stdout = self._packaging_utility("module-build", *args).stdout.decode("utf-8")
             self._build_id = int(re.search(self._mbs_api + r"module-builds/(\d+)", stdout).group(1))
         return self._build_id
+
+    def cancel(self):
+        """Cancel the module build
+
+        :return: Standard output of the "module-build-cancel <build id=""> command
+        :rtype: str
+        """
+        stdout = self._packaging_utility("module-build-cancel", self._build_id).stdout.decode(
+            "utf-8")
+        return stdout
 
     @property
     def data(self):
@@ -158,25 +181,56 @@ class Build:
         return self._component_data
 
     @property
+    def module_build_data(self):
+        """Verbose module build
+
+        :return: Dictionary of the verbose module build parameters
+        :rtype: dict
+        """
+        if self._build_id:
+            params = {
+                "verbose": True,
+            }
+            r = requests.get(f"{self._mbs_api}module-builds/{self._build_id}", params=params)
+            r.raise_for_status()
+            self._module_build_data = r.json()
+        return self._module_build_data
+
+    @property
     def state_name(self):
         """Name of the state of this module build"""
         return self.data["state_name"]
 
-    def components(self, state="COMPLETE", batch=None):
-        """Components of this module build which are in some state and in some batch
+    def components(self, state=None, batch=None, package=None):
+        """Components of this module build, optionally filtered based on properties
 
         :param string state: Koji build state the components should be in
         :param int batch: the number of the batch the components should be in
+        :param string package: name of the component (package)
         :return: List of filtered components
-        :rtype: list of strings
+        :rtype: list of dict
         """
         filtered = self.component_data["items"]
         if batch is not None:
             filtered = filter(lambda x: x["batch"] == batch, filtered)
         if state is not None:
             filtered = filter(lambda x: x["state_name"] == state, filtered)
+        if package is not None:
+            filtered = filter(lambda x: x["package"] == package, filtered)
 
-        return [item["package"] for item in filtered]
+        return list(filtered)
+
+    def component_names(self, state=None, batch=None, package=None):
+        """Component names of this module build, optionally filtered based on properties
+
+        :param string state: Koji build state the components should be in
+        :param int batch: the number of the batch the components should be in
+        :param string: name of component (package):
+        :return: List of components packages
+        :rtype: list of strings
+        """
+        components = self.components(state, batch, package)
+        return [item["package"] for item in components]
 
     def batches(self):
         """
@@ -195,6 +249,28 @@ class Build:
 
         return batches
 
+    def wait_for_koji_task_id(self, package, batch, timeout=60, sleep=10):
+        """Wait until the component is submitted to Koji (has a task_id)
+
+        :param string: name of component (package)
+        :param int batch: the number of the batch the components should be in
+        :param int timeout: time in seconds
+        :param int sleep: time in seconds
+        """
+        start = time.time()
+        while time.time() - start <= timeout:
+            # Clear cached data
+            self._component_data = None
+            components = self.components(package=package, batch=batch)
+            # Wait until the right component appears and has a task_id
+            if components and components[0]["task_id"]:
+                return components[0]["task_id"]
+            time.sleep(sleep)
+
+        raise RuntimeError(
+            f'Koji task for "{package}" did not start in {timeout} seconds'
+        )
+
     def nvr(self, name_suffix=""):
         """NVR dictionary of this module build
 
@@ -207,3 +283,18 @@ class Build:
             "version": self.data["stream"].replace("-", "_"),
             "release": f'{self.data["version"]}.{self.data["context"]}',
         }
+
+    def was_cancelled(self):
+        """Checking in the status trace if module was canceled
+
+        :return: Whether exists required status
+        :rtype: bool
+        """
+        for item in self.module_build_data["state_trace"]:
+            if (
+                    item["reason"] is not None
+                    and "Canceled" in item["reason"]
+                    and item["state_name"] == "failed"
+            ):
+                return True
+        return False

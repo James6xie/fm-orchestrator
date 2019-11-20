@@ -24,7 +24,7 @@ def test_scratch_build(test_env, repo, koji):
     )
 
     assert build.state_name == "done"
-    assert sorted(build.components(state="COMPLETE")) == sorted(
+    assert sorted(build.component_names(state="COMPLETE")) == sorted(
         repo.components + ["module-build-macros"]
     )
 

@@ -6,7 +6,7 @@ import utils
 
 def test_failed_build(test_env, repo, koji):
     """
-    Run a scratch build with "rebuild_strategy=all".
+    Run the build with "rebuild_strategy=all".
 
     Check that:
       * Check that the module build eventually fails
@@ -26,8 +26,8 @@ def test_failed_build(test_env, repo, koji):
     batch = test_env["testdata"]["failed_build"]["batch"]
     failing_components = test_env["testdata"]["failed_build"]["failing_components"]
     canceled_components = test_env["testdata"]["failed_build"]["canceled_components"]
-    assert sorted(failing_components) == sorted(build.components(state="FAILED", batch=batch))
+    assert sorted(failing_components) == sorted(build.component_names(state="FAILED", batch=batch))
     assert sorted(canceled_components) == sorted(
-        build.components(state="COMPLETE", batch=batch)
-        + build.components(state="CANCELED", batch=batch)
+        build.component_names(state="COMPLETE", batch=batch)
+        + build.component_names(state="CANCELED", batch=batch)
     )

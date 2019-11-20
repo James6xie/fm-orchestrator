@@ -48,9 +48,6 @@ def repo(request, test_env):
         args = [
             "--branch",
             repo_conf["branch"],
-            "--single-branch",
-            "--depth",
-            "1",
             url,
             tempdir,
         ]
