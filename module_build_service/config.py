@@ -24,11 +24,19 @@ SUPPORTED_RESOLVERS = {
 }
 
 
-def init_web_config(app):
+def init_config(app, backend=False):
     """ Configure MBS and the Flask app
+    By default, this create a config object with WebConfig, if backend is specified,
+    create a config object with BackendConfig.
     """
     config_module = None
-    config_file = "/etc/module-build-service/web_config.py"
+    if backend:
+        config_module_name = "backend_config"
+        config_file = "/etc/module-build-service/backend_config.py"
+    else:
+        config_module_name = "web_config"
+        config_file = "/etc/module-build-service/web_config.py"
+
     config_section = "DevConfiguration"
 
     # automagically detect production environment:
@@ -66,13 +74,14 @@ def init_web_config(app):
         if "MBS_CONFIG_SECTION" in app.request.environ:
             config_section = app.request.environ["MBS_CONFIG_SECTION"]
 
+    test_env = False
+    dev_env = False
+
     true_options = ("1", "on", "true", "y", "yes")
     # TestConfiguration shall only be used for running tests, otherwise...
     if any(["py.test" in arg or "pytest" in arg for arg in sys.argv]):
+        test_env = True
         config_section = "TestConfiguration"
-        from conf import web_config
-
-        config_module = web_config
     # ...MODULE_BUILD_SERVICE_DEVELOPER_ENV has always the last word
     # and overrides anything previously set before!
     # Again, check Flask app (preferably) or fallback to os.environ.
@@ -80,15 +89,16 @@ def init_web_config(app):
     # -> /conf/config.py.
     elif flask_app_env and "MODULE_BUILD_SERVICE_DEVELOPER_ENV" in app.request.environ:
         if app.request.environ["MODULE_BUILD_SERVICE_DEVELOPER_ENV"].lower() in true_options:
+            dev_env = True
             config_section = "DevConfiguration"
-            from conf import web_config
-
-            config_module = web_config
     elif os.environ.get("MODULE_BUILD_SERVICE_DEVELOPER_ENV", "").lower() in true_options:
+        dev_env = True
         config_section = "DevConfiguration"
-        from conf import web_config
 
-        config_module = web_config
+    if test_env or dev_env:
+        import importlib
+        config_module = importlib.import_module("conf.%s" % config_module_name)
+
     # try loading configuration from file
     if not config_module:
         try:
@@ -98,60 +108,11 @@ def init_web_config(app):
 
     # finally configure MBS and the Flask app
     config_section_obj = getattr(config_module, config_section)
-    conf = WebConfig(config_section_obj)
+    if backend:
+        conf = BackendConfig(config_section_obj)
+    else:
+        conf = WebConfig(config_section_obj)
     app.config.from_object(config_section_obj)
-    return conf
-
-
-def init_backend_config():
-    """ Configure MBS and backend workers
-    """
-    config_module = None
-    config_file = "/etc/module-build-service/backend_config.py"
-    config_section = "DevConfiguration"
-
-    try:
-        with open(config_file):
-            config_section = "ProdConfiguration"
-    except Exception:
-        pass
-
-    # Load LocalBuildConfiguration section in case we are building modules
-    # locally.
-    if "build_module_locally" in sys.argv:
-        if "--offline" in sys.argv:
-            config_section = "OfflineLocalBuildConfiguration"
-        else:
-            config_section = "LocalBuildConfiguration"
-
-    # try getting config_file from os.environ
-    if "MBS_CONFIG_FILE" in os.environ:
-        config_file = os.environ["MBS_CONFIG_FILE"]
-    # try getting config_section from os.environ
-    if "MBS_CONFIG_SECTION" in os.environ:
-        config_section = os.environ["MBS_CONFIG_SECTION"]
-
-    true_options = ("1", "on", "true", "y", "yes")
-    # TestConfiguration shall only be used for running tests, otherwise...
-    if any(["py.test" in arg or "pytest" in arg for arg in sys.argv]):
-        config_section = "TestConfiguration"
-        from conf import backend_config
-
-        config_module = backend_config
-    elif os.environ.get("MODULE_BUILD_SERVICE_DEVELOPER_ENV", "").lower() in true_options:
-        config_section = "DevConfiguration"
-        from conf import backend_config
-
-        config_module = backend_config
-    # try loading configuration from file
-    if not config_module:
-        try:
-            config_module = imp.load_source("mbs_runtime_config", config_file)
-        except Exception:
-            raise SystemError("Configuration file {} was not found.".format(config_file))
-
-    config_section_obj = getattr(config_module, config_section)
-    conf = BackendConfig(config_section_obj)
     return conf
 
 

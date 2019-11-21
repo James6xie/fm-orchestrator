@@ -7,6 +7,9 @@ dbdir = path.abspath(path.join(confdir, "..")) if confdir.endswith("conf") else 
 
 
 class BackendConfiguration(object):
+    SQLALCHEMY_DATABASE_URI = "sqlite:///{0}".format(path.join(dbdir, "module_build_service.db"))
+    SQLALCHEMY_TRACK_MODIFICATIONS = True
+
     # How often should we resort to polling, in seconds
     # Set to zero to disable polling
     POLLING_INTERVAL = 600

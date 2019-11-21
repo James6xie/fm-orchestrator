@@ -7,6 +7,10 @@ dbdir = path.abspath(path.join(confdir, "..")) if confdir.endswith("conf") else 
 
 
 class WebConfiguration(object):
+    SECRET_KEY = "74d9e9f9cd40e66fc6c4c2e9987dce48df3ce98542529fd0"
+    SQLALCHEMY_DATABASE_URI = "sqlite:///{0}".format(path.join(dbdir, "module_build_service.db"))
+    SQLALCHEMY_TRACK_MODIFICATIONS = True
+
     # Where we should run when running "manage.py run" directly.
     HOST = "0.0.0.0"
     PORT = 5000
