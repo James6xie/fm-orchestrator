@@ -164,6 +164,11 @@ class Config(object):
             "default": ["module", "scrmod"],
             "desc": "List of allowed koji tag prefixes.",
         },
+        "koji_tag_permission": {
+            "type": str,
+            "default": "admin",
+            "desc": "Permission name to require for newly created Koji tags.",
+        },
         "koji_tag_extra_opts": {
             "type": dict,
             "default": {

@@ -528,11 +528,13 @@ class KojiModuleBuilder(GenericBuilder):
         # only if we are creating the build_tag for first time.
         build_tag_exists = self.koji_session.getTag(self.tag_name + "-build")
 
+        tag_perm = self.config.koji_tag_permission
+
         # Create or update individual tags
         # the main tag needs arches so pungi can dump it
-        self.module_tag = self._koji_create_tag(self.tag_name, self.arches, perm="admin")
+        self.module_tag = self._koji_create_tag(self.tag_name, self.arches, perm=tag_perm)
         self.module_build_tag = self._koji_create_tag(
-            self.tag_name + "-build", self.arches, perm="admin")
+            self.tag_name + "-build", self.arches, perm=tag_perm)
 
         buildopts = self.mmd.get_buildopts()
         if buildopts and buildopts.get_rpm_whitelist():
