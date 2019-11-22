@@ -934,6 +934,25 @@ class TestKojiBuilder:
         ret = KojiModuleBuilder.get_module_build_arches(module_build)
         assert " ".join(ret) == arches
 
+    @patch.dict("sys.modules", krbV=MagicMock())
+    @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
+    def test_get_module_build_arches_with_archless_tag(self, ClientSession):
+        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
+        session = ClientSession.return_value
+        session.getTag.return_value = {"arches": ""}
+        ret = KojiModuleBuilder.get_module_build_arches(module_build)
+        assert ret == []
+
+    @patch.dict("sys.modules", krbV=MagicMock())
+    @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
+    def test_get_module_build_arches_with_unknown_tag(self, ClientSession):
+        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
+        session = ClientSession.return_value
+        session.getTag.return_value = None
+        with pytest.raises(ValueError) as exc_info:
+            KojiModuleBuilder.get_module_build_arches(module_build)
+        assert "Unknown Koji tag" in str(exc_info.value)
+
 
 class TestGetDistTagSRPM:
     """Test KojiModuleBuilder.get_disttag_srpm"""
