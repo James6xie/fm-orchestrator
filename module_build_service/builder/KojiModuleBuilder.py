@@ -1338,6 +1338,9 @@ class KojiModuleBuilder(GenericBuilder):
             the module build in the build system.
         :return: list of architectures
         """
+        if not module.koji_tag:
+            log.warning("No Koji tag associated with module %r", module)
+            return []
         koji_session = KojiModuleBuilder.get_session(conf, login=False)
         tag = koji_session.getTag(module.koji_tag)
         if not tag:
