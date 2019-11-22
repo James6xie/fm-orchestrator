@@ -945,13 +945,23 @@ class TestKojiBuilder:
 
     @patch.dict("sys.modules", krbV=MagicMock())
     @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
+    def test_get_module_build_arches_without_tag(self, ClientSession):
+        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
+        module_build.koji_tag = None
+        session = ClientSession.return_value
+        ret = KojiModuleBuilder.get_module_build_arches(module_build)
+        assert ret == []
+        session.getTag.assert_not_called()
+        session.assert_not_called()
+
+    @patch.dict("sys.modules", krbV=MagicMock())
+    @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
     def test_get_module_build_arches_with_unknown_tag(self, ClientSession):
         module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
         session = ClientSession.return_value
         session.getTag.return_value = None
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValueError, match="Unknown Koji tag .*"):
             KojiModuleBuilder.get_module_build_arches(module_build)
-        assert "Unknown Koji tag" in str(exc_info.value)
 
 
 class TestGetDistTagSRPM:
