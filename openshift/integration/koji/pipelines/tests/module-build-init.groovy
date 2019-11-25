@@ -1,9 +1,14 @@
 // Submit a build to MBS and verify that it initializes Koji correctly
 
 def runTests() {
-  def clientcert = ca.get_ssl_cert(env.KOJI_ADMIN)
-  koji.setConfig("https://${env.KOJI_SSL_HOST}/kojihub", "https://${env.KOJI_SSL_HOST}/kojifiles",
-                 clientcert.cert, clientcert.key, ca.get_ca_cert().cert)
+  def koji_admin = controller.getVar('KOJI_ADMIN')
+  def clientcert = controller.httpGet("/ca/${koji_admin}", true)
+  def koji_ssl_host = controller.getVar('KOJI_HUB_HOST')
+  def mbs_host = controller.getVar('MBS_FRONTEND_HOST')
+  def ca_cert = controller.httpGet("/ca/cacert")
+  koji.setConfig("https://${koji_ssl_host}/kojihub",
+                 "https://${koji_ssl_host}/kojifiles",
+                 clientcert.cert, clientcert.key, ca_cert)
   def tags = koji.callMethod("listTags")
   if (!tags.any { it.name == "module-f28" }) {
     koji.addTag("module-f28")
@@ -11,8 +16,8 @@ def runTests() {
   if (!tags.any { it.name == "module-f28-build" }) {
     koji.addTag("module-f28-build", "--parent=module-f28", "--arches=x86_64")
   }
-  writeFile file: 'ca-cert.pem', text: ca.get_ca_cert().cert
-  def url = "https://${env.MBS_SSL_HOST}/module-build-service/1/module-builds/"
+  writeFile file: 'ca-cert.pem', text: ca_cert
+  def url = "https://${mbs_host}/module-build-service/1/module-builds/"
   def curlargs = """
     --cacert ca-cert.pem \
     -H 'Content-Type: application/json' \
@@ -22,12 +27,12 @@ def runTests() {
     -w '%{http_code}'
   """.trim()
   def http_code, response
-  if (env.KRB5_REALM) {
+  if (controller.getVar("KRB5_REALM")) {
     writeFile file: 'buildparams.json', text: """
       {"scmurl": "https://src.fedoraproject.org/modules/testmodule.git?#9c589780e1dd1698dc64dfa28d30014ad18cad32",
        "branch": "f28"}
     """
-    krb5.withKrb {
+    krb5.withKrb(controller.getKrb5Vars(koji_admin)) {
       http_code = sh script: "curl --negotiate -u : $curlargs $url", returnStdout: true
       response = readFile file: 'response.json'
     }
@@ -35,7 +40,7 @@ def runTests() {
     writeFile file: 'buildparams.json', text: """
       {"scmurl": "https://src.fedoraproject.org/modules/testmodule.git?#9c589780e1dd1698dc64dfa28d30014ad18cad32",
        "branch": "f28",
-       "owner":  "${env.KOJI_ADMIN}"}
+       "owner":  "${koji_admin}"}
     """
     http_code = sh script: "curl $curlargs $url", returnStdout: true
     response = readFile file: 'response.json'

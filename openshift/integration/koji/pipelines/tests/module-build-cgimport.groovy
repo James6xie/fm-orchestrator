@@ -1,9 +1,14 @@
 // Build an empty module and verify that the CGImport works correctly
 
 def runTests() {
-  def clientcert = ca.get_ssl_cert(env.KOJI_ADMIN)
-  koji.setConfig("https://${env.KOJI_SSL_HOST}/kojihub", "https://${env.KOJI_SSL_HOST}/kojifiles",
-                 clientcert.cert, clientcert.key, ca.get_ca_cert().cert)
+  def koji_admin = controller.getVar('KOJI_ADMIN')
+  def clientcert = controller.httpGet("/ca/${koji_admin}", true)
+  def koji_ssl_host = controller.getVar('KOJI_HUB_HOST')
+  def mbs_host = controller.getVar('MBS_FRONTEND_HOST')
+  def ca_cert = controller.httpGet("/ca/cacert")
+  koji.setConfig("https://${koji_ssl_host}/kojihub",
+                 "https://${koji_ssl_host}/kojifiles",
+                 clientcert.cert, clientcert.key, ca_cert)
   def tags = koji.callMethod("listTags")
   if (!tags.any { it.name == "module-f28" }) {
     koji.addTag("module-f28")
@@ -14,17 +19,17 @@ def runTests() {
   try {
     // There's currently no way to query whether a given user has CG access, so just add it
     // and hope no one else has already done it.
-    koji.runCmd("grant-cg-access", env.KOJI_ADMIN, "module-build-service", "--new")
+    koji.runCmd("grant-cg-access", koji_admin, "module-build-service", "--new")
   } catch (ex) {
-    echo "Granting cg-access to ${env.KOJI_ADMIN} failed, assuming it was already provided in a previous test"
+    echo "Granting cg-access to ${koji_admin} failed, assuming it was already provided in a previous test"
   }
 
   if (!koji.callMethod("listBTypes").any { it.name == "module" }) {
     koji.callMethodLogin("addBType", "module")
   }
 
-  writeFile file: 'ca-cert.pem', text: ca.get_ca_cert().cert
-  def url = "https://${env.MBS_SSL_HOST}/module-build-service/1/module-builds/"
+  writeFile file: 'ca-cert.pem', text: ca_cert
+  def url = "https://${mbs_host}/module-build-service/1/module-builds/"
   def curlargs = """
     --cacert ca-cert.pem \
     -H 'Content-Type: application/json' \
@@ -34,12 +39,12 @@ def runTests() {
     -w '%{http_code}'
   """.trim()
   def http_code, response
-  if (env.KRB5_REALM) {
+  if (controller.getVar("KRB5_REALM")) {
     writeFile file: 'buildparams.json', text: """
       {"scmurl": "https://src.fedoraproject.org/forks/mikeb/modules/testmodule.git?#8b3fb16160f899ce10905faf570f110d52b91154",
        "branch": "empty-f28"}
     """
-    krb5.withKrb {
+    krb5.withKrb(controller.getKrb5Vars(koji_admin)) {
       http_code = sh script: "curl --negotiate -u : $curlargs $url", returnStdout: true
       response = readFile file: 'response.json'
     }
@@ -47,7 +52,7 @@ def runTests() {
     writeFile file: 'buildparams.json', text: """
       {"scmurl": "https://src.fedoraproject.org/forks/mikeb/modules/testmodule.git?#8b3fb16160f899ce10905faf570f110d52b91154",
        "branch": "empty-f28",
-       "owner":  "${env.KOJI_ADMIN}"}
+       "owner":  "${koji_admin}"}
     """
     http_code = sh script: "curl $curlargs $url", returnStdout: true
     response = readFile file: 'response.json'
