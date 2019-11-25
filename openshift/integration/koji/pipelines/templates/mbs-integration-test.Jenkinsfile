@@ -39,15 +39,12 @@ pipeline {
     skipDefaultCheckout()
   }
   environment {
-    // Jenkins BUILD_TAG could be too long (> 63 characters) for OpenShift to consume
-    TEST_ID = "${params.TEST_ID ?: UUID.randomUUID().toString().substring(0,7)}"
+    PIPELINE_ID = "${params.TEST_NAMESPACE}"
   }
   stages {
     stage('Prepare') {
       steps {
         script {
-          // Don't set ENVIRONMENT_LABEL in the environment block! Otherwise you will get 2 different UUIDs.
-          env.ENVIRONMENT_LABEL = "test-${env.TEST_ID}"
           // MBS_GIT_REF can be either a regular branch (in the heads/ namespace), a pull request
           // branch (in the pull/ namespace), or a full 40-character sha1, which is assumed to
           // exist on the master branch.
@@ -87,14 +84,16 @@ pipeline {
       }
     }
     stage('Route suffix') {
+      when {
+         expression { !env.PAAS_DOMAIN }
+      }
       steps {
         script {
           openshift.withCluster() {
-            openshift.withProject(params.TEST_NAMESPACE) {
+            openshift.withProject(env.PIPELINE_ID) {
               def testroute = openshift.create('route', 'edge', 'test',  '--service=test', '--port=8080')
               def testhost = testroute.object().spec.host
-              // trim off the test- prefix
-              env.ROUTE_SUFFIX = testhost.drop(5)
+              env.PAAS_DOMAIN = testhost.minus("test-${env.PIPELINE_ID}.")
               testroute.delete()
             }
           }
@@ -102,184 +101,31 @@ pipeline {
       }
       post {
         success {
-          echo "Routes end with ${env.ROUTE_SUFFIX}"
+          echo "Routes end with ${env.PAAS_DOMAIN}"
         }
       }
     }
-    stage('Generate CA') {
-      steps {
-        script {
-          ca.gen_ca()
-        }
-      }
-    }
-    stage('Deploy KDC') {
-      when {
-        expression {
-          return params.USE_KRB5 == 'true'
-        }
-      }
-      steps {
-        script {
-          env.KRB5_DOMAIN = env.ROUTE_SUFFIX.split('\\.', 2).last()
-          env.KRB5_REALM = env.KRB5_DOMAIN.toUpperCase()
-          env.KRB5_ADMIN_PASSWORD = UUID.randomUUID().toString().take(12)
-          openshift.withCluster() {
-            openshift.withProject(params.TEST_NAMESPACE) {
-              def deployed = krb5.deploy(script: this, test_id: env.TEST_ID,
-                                         realm: env.KRB5_REALM, domain: env.KRB5_DOMAIN,
-                                         admin_password: env.KRB5_ADMIN_PASSWORD)
-              // Wait for the KDC to become available, to allow creation of
-              // principals and keytabs for subsequent deployments.
-              c3i.waitForDeployment(script: this, objs: deployed)
-              def ports = openshift.selector('service', "kerberos-${TEST_ID}").object().spec.ports
-              def kdcPort = ports.find { it.name == 'kdc-udp' }.nodePort
-              def adminPort = ports.find { it.name == 'admin' }.nodePort
-              def kpasswdPort = ports.find { it.name == 'kpasswd-udp' }.nodePort
-              def krb5Host = "krb5-${TEST_ID}-${env.ROUTE_SUFFIX}"
-              env.KRB5_KDC_HOST = "${krb5Host}:${kdcPort}"
-              env.KRB5_ADMIN_HOST = "${krb5Host}:${adminPort}"
-              env.KRB5_KPASSWD_HOST = "${krb5Host}:${kpasswdPort}"
-            }
-          }
-        }
-      }
-      post {
-        success {
-          echo "KDC deployed: REALM: ${env.KRB5_REALM} KDC: ${env.KRB5_KDC_HOST}"
-        }
-        failure {
-          echo "KDC deployment FAILED"
-        }
-      }
-    }
-    stage('Deploy UMB') {
+    stage('Deploy test environment') {
       steps {
         script {
           openshift.withCluster() {
-            openshift.withProject(params.TEST_NAMESPACE) {
-              // The extact hostname doesn't matter, (as long as it resolves to the cluster) because traffic will
-              // be routed to the pod via the NodePort.
-              // However, the hostname we use to access the service must be a subjectAltName of the certificate
-              // being served by the service.
-              env.UMB_HOST = "umb-${TEST_ID}-${env.ROUTE_SUFFIX}"
-              ca.gen_ssl_cert("umb-${TEST_ID}-broker", env.UMB_HOST)
-              def keystore = ca.get_keystore("umb-${TEST_ID}-broker", 'mbskeys')
-              def truststore = ca.get_truststore('mbstrust')
-              deployments = umb.deploy(script: this, test_id: env.TEST_ID,
-                                       keystore_data: keystore, keystore_password: 'mbskeys',
-                                       truststore_data: truststore, truststore_password: 'mbstrust',
-                                       broker_image: params.UMB_IMAGE)
-              def ports = openshift.selector('service', "umb-${TEST_ID}-broker").object().spec.ports
-              env.UMB_AMQPS_PORT = ports.find { it.name == 'amqps' }.nodePort
-              env.UMB_STOMP_SSL_PORT = ports.find { it.name == 'stomp-ssl' }.nodePort
+            openshift.withProject(params.PIPELINE_AS_A_SERVICE_BUILD_NAMESPACE) {
+              c3i.buildAndWait(script: this, objs: "bc/pipeline-as-a-service",
+                '-e', "DEFAULT_IMAGE_TAG=${env.ENVIRONMENT}",
+                '-e', "PIPELINE_ID=${env.PIPELINE_ID}",
+                '-e', "WAIVERDB_IMAGE=",
+                '-e', "C3IAAS_PROJECT=",
+                '-e', "RESULTSDB_IMAGE=",
+                '-e', "RESULTSDB_UPDATER_IMAGE=",
+                '-e', "GREENWAVE_IMAGE=",
+                '-e', "DATAGREPPER_IMAGE=",
+                '-e', "DATANOMMER_IMAGE=",
+                '-e', "MBS_BACKEND_IMAGE=${env.MBS_BACKEND_IMAGE}",
+                '-e', "MBS_FRONTEND_IMAGE=${env.MBS_FRONTEND_IMAGE}",
+                '-e', "PAAS_DOMAIN=${env.PAAS_DOMAIN}"
+              )
             }
           }
-        }
-      }
-      post {
-        success {
-          echo "UMB deployed: amqps: ${env.UMB_HOST}:${env.UMB_AMQPS_PORT} stomp-ssl: ${env.UMB_HOST}:${env.UMB_STOMP_SSL_PORT}"
-        }
-        failure {
-          echo "UMB deployment FAILED"
-        }
-      }
-    }
-    stage('Deploy Koji') {
-      steps {
-        script {
-          openshift.withCluster() {
-            openshift.withProject(params.TEST_NAMESPACE) {
-              env.KOJI_SSL_HOST = "koji-${TEST_ID}-hub-${env.ROUTE_SUFFIX}"
-              def hubcert = ca.get_ssl_cert("koji-${TEST_ID}-hub", env.KOJI_SSL_HOST)
-              env.KOJI_ADMIN = "mbs-${TEST_ID}-koji-admin"
-              env.KOJI_MSG_CERT = "koji-${TEST_ID}-msg"
-              def deployed = koji.deploy(script: this, test_id: env.TEST_ID,
-                                         hubca: ca.get_ca_cert(), hubcert: hubcert,
-                                         brokerurl: "amqps://${env.UMB_HOST}:${env.UMB_AMQPS_PORT}",
-                                         brokercert: ca.get_ssl_cert(env.KOJI_MSG_CERT),
-                                         admin_user: env.KOJI_ADMIN,
-                                         hub_image: params.KOJI_IMAGE)
-              deployments = deployments.union(deployed)
-            }
-          }
-        }
-      }
-      post {
-        success {
-          echo "Koji deployed: hub: https://${env.KOJI_SSL_HOST}/"
-        }
-        failure {
-          echo "Koji deployment FAILED"
-        }
-      }
-    }
-    stage('Deploy MBS') {
-      steps {
-        script {
-          env.MBS_SSL_HOST = "mbs-${TEST_ID}-frontend-${env.ROUTE_SUFFIX}"
-          def frontendcert = ca.get_ssl_cert("mbs-${TEST_ID}-frontend", env.MBS_SSL_HOST)
-          // Required for accessing src.fedoraproject.org
-          def digicertca = readFile file: 'openshift/integration/koji/resources/certs/DigiCertHighAssuranceEVRootCA.pem'
-          def cabundle = ca.get_ca_cert().cert + digicertca
-          def msgcert = ca.get_ssl_cert("mbs-${TEST_ID}-msg")
-          def kojicert = ca.get_ssl_cert(env.KOJI_ADMIN)
-          if (params.USE_KRB5 == 'true') {
-            def krbAdmin = krb5.adminClient()
-            def krbsvc = "HTTP/${env.MBS_SSL_HOST}"
-            krbAdmin.addService(krbsvc)
-            env.MBS_FRONTEND_KEYTAB = krbAdmin.getKeytab(krbsvc)
-            // Usernames between MBS and Koji need to be consistent,
-            // so use the Koji admin as the MBS user.
-            env.KRB5_PRINCIPAL = env.KOJI_ADMIN
-            env.KRB5_PASSWORD = UUID.randomUUID().toString().take(12)
-            krbAdmin.addPrincipal(env.KRB5_PRINCIPAL, env.KRB5_PASSWORD)
-          }
-          openshift.withCluster() {
-            openshift.withProject(params.TEST_NAMESPACE) {
-              def deployed = mbs.deploy(script: this, test_id: env.TEST_ID,
-                                        kojicert: kojicert, kojica: ca.get_ca_cert(),
-                                        brokercert: msgcert,
-                                        frontendcert: frontendcert, frontendca: ca.get_ca_cert(),
-                                        cacerts: cabundle,
-                                        frontend_keytab: params.USE_KRB5 == 'true' ? env.MBS_FRONTEND_KEYTAB : '',
-                                        krb5_conf_configmap: params.USE_KRB5 == 'true' ? "krb5-${TEST_ID}-config" : '',
-                                        krb5_user: params.USE_KRB5 == 'true' ? env.KRB5_PRINCIPAL : '',
-                                        kojiurl: "https://${env.KOJI_SSL_HOST}",
-                                        stompuri: "${env.UMB_HOST}:${env.UMB_STOMP_SSL_PORT}",
-                                        backend_image: params.MBS_BACKEND_IMAGE,
-                                        frontend_image: params.MBS_FRONTEND_IMAGE)
-              deployments = deployments.union(deployed)
-            }
-          }
-        }
-      }
-      post {
-        success {
-          echo "MBS deployed: frontend: https://${env.MBS_SSL_HOST}/"
-        }
-        failure {
-          echo "MBS deployment FAILED"
-        }
-      }
-    }
-    stage('Wait for deployments') {
-      steps {
-        script {
-          openshift.withCluster() {
-            openshift.withProject(params.TEST_NAMESPACE) {
-              c3i.waitForDeployment(script: this, objs: deployments)
-            }
-          }
-        }
-      }
-      post {
-        success {
-          echo "Deployments complete"
-        }
-        failure {
-          echo 'Deployments FAILED'
         }
       }
     }
@@ -334,10 +180,8 @@ pipeline {
         }
         openshift.withCluster() {
           openshift.withProject(params.TEST_NAMESPACE) {
-            if (deployments) {
-              echo 'Getting logs from all deployments...'
-              deployments.logs('--tail=100')
-            }
+            echo 'Getting logs from all deployments...'
+            openshift.selector('pods', ['c3i.redhat.com/pipeline': env.PIPELINE_ID]).logs('--tail 100')
           }
         }
       }
@@ -349,7 +193,7 @@ pipeline {
             /* Tear down everything we just created */
             echo 'Tearing down test resources...'
             openshift.selector('all,pvc,configmap,secret',
-                               ['environment': env.ENVIRONMENT_LABEL]).delete('--ignore-not-found=true')
+                               ['c3i.redhat.com/pipeline': env.PIPELINE_ID]).delete('--ignore-not-found=true')
           }
         } else {
           echo 'Skipping cleanup'
@@ -359,6 +203,10 @@ pipeline {
   }
 }
 def sendToResultsDB(imageRef, status) {
+  if (!params.MESSAGING_PROVIDER) {
+    echo "Message bus is not set. Skipping send of:\nimageRef: ${imageRef}\nstatus: ${status}"
+    return
+  }
   def (repourl, digest) = imageRef.tokenize('@')
   def (registry, reponame) = repourl.split('/', 2)
   def image = reponame.split('/').last()

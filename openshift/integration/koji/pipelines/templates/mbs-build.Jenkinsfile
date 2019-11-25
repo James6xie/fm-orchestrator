@@ -45,7 +45,7 @@ pipeline {
     skipDefaultCheckout()
   }
   environment {
-    PIPELINE_NAMESPACE = readFile("/run/secrets/kubernetes.io/serviceaccount/namespace").trim()
+    TRIGGER_NAMESPACE = readFile("/run/secrets/kubernetes.io/serviceaccount/namespace").trim()
     PAGURE_API = "${params.PAGURE_URL}/api/0"
     PAGURE_REPO_IS_FORK = "${params.PAGURE_REPO_IS_FORK}"
     PAGURE_REPO_HOME = "${env.PAGURE_URL}${env.PAGURE_REPO_IS_FORK == 'true' ? '/fork' : ''}/${params.PAGURE_REPO_NAME}"
@@ -128,7 +128,7 @@ pipeline {
               pagureLink = """<a href="${env.PR_URL}">PR#${env.PR_NO}: ${escapeHtml(prInfo.title)}</a>"""
               // set PR status to Pending
               if (params.PAGURE_API_KEY_SECRET_NAME)
-                paguer.setBuildStatusOnPR(null, "Build #${env.BUILD_NUMBER} in progress (commit: ${env.MBS_GIT_COMMIT.take(8)})")
+                pagure.setBuildStatusOnPR(null, "Build #${env.BUILD_NUMBER} in progress (commit: ${env.MBS_GIT_COMMIT.take(8)})")
             } catch (Exception e) {
               echo "Error using pagure API: ${e}"
             }
@@ -151,24 +151,27 @@ pipeline {
     stage('Allocate C3IaaS project') {
       when {
         expression {
-          return params.USE_C3IAAS == 'true' &&
-                 params.C3IAAS_REQUEST_PROJECT_BUILD_CONFIG_NAMESPACE &&
-                 params.C3IAAS_REQUEST_PROJECT_BUILD_CONFIG_NAME
+          return params.USE_C3IAAS == 'true'
         }
       }
       steps {
         script {
-          if (env.PR_NO) {
-            env.C3IAAS_NAMESPACE = "c3i-mbs-pr-${env.PR_NO}-git${env.MBS_GIT_COMMIT.take(8)}"
-          } else {
-            env.C3IAAS_NAMESPACE = "c3i-mbs-${params.MBS_GIT_REF}-git${env.MBS_GIT_COMMIT.take(8)}"
+          if (!params.C3IAAS_REQUEST_PROJECT_BUILD_CONFIG_NAME ||
+              !params.C3IAAS_REQUEST_PROJECT_BUILD_CONFIG_NAMESPACE) {
+            error("USE_C3IAAS is set to true but missing C3IAAS_REQUEST_PROJECT_BUILD_CONFIG_NAME" +
+                  " or C3IAAS_REQUEST_PROJECT_BUILD_CONFIG_NAMESPACE")
           }
-          echo "Requesting new OpenShift project ${env.C3IAAS_NAMESPACE}..."
+          if (env.PR_NO) {
+            env.PIPELINE_ID = "c3i-mbs-pr-${env.PR_NO}-git${env.MBS_GIT_COMMIT.take(8)}"
+          } else {
+            env.PIPELINE_ID = "c3i-mbs-${params.MBS_GIT_REF}-git${env.MBS_GIT_COMMIT.take(8)}"
+          }
+          echo "Requesting new OpenShift project ${env.PIPELINE_ID}..."
           openshift.withCluster() {
             openshift.withProject(params.C3IAAS_REQUEST_PROJECT_BUILD_CONFIG_NAMESPACE) {
               c3i.buildAndWait(script: this, objs: "bc/${params.C3IAAS_REQUEST_PROJECT_BUILD_CONFIG_NAME}",
-                '-e', "PROJECT_NAME=${env.C3IAAS_NAMESPACE}",
-                '-e', "ADMIN_GROUPS=system:serviceaccounts:${PIPELINE_NAMESPACE}",
+                '-e', "PROJECT_NAME=${env.PIPELINE_ID}",
+                '-e', "ADMIN_GROUPS=system:serviceaccounts:${TRIGGER_NAMESPACE}",
                 '-e', "LIFETIME_IN_MINUTES=${params.C3IAAS_LIFETIME}"
               )
             }
@@ -177,10 +180,10 @@ pipeline {
       }
       post {
         success {
-          echo "Allocated project ${env.C3IAAS_NAMESPACE}"
+          echo "Allocated project ${env.PIPELINE_ID}"
         }
         failure {
-          echo "Failed to allocate ${env.C3IAAS_NAMESPACE} project"
+          echo "Failed to allocate ${env.PIPELINE_ID} project"
         }
       }
     }
@@ -191,7 +194,7 @@ pipeline {
       steps {
         script {
           openshift.withCluster() {
-            openshift.withProject(env.C3IAAS_NAMESPACE ?: env.PIPELINE_NAMESPACE) {
+            openshift.withProject(env.PIPELINE_ID) {
               // OpenShift BuildConfig doesn't support specifying a tag name at build time.
               // We have to create a new BuildConfig for each image build.
               echo 'Creating a BuildConfig for mbs-backend build...'
@@ -204,7 +207,7 @@ pipeline {
                 // because refspec cannot be customized in an OpenShift build.
                 '-p', "MBS_GIT_REF=${env.PR_NO ? params.MBS_GIT_REF : env.MBS_GIT_COMMIT}",
                 '-p', "MBS_BACKEND_IMAGESTREAM_NAME=${params.MBS_BACKEND_IMAGESTREAM_NAME}",
-                '-p', "MBS_BACKEND_IMAGESTREAM_NAMESPACE=${env.C3IAAS_NAMESPACE ?: env.PIPELINE_NAMESPACE}",
+                '-p', "MBS_BACKEND_IMAGESTREAM_NAMESPACE=${env.PIPELINE_ID}",
                 '-p', "MBS_IMAGE_TAG=${env.TEMP_TAG}",
                 '-p', "EXTRA_RPMS=${params.EXTRA_RPMS}",
                 '-p', "CREATED=${created}"
@@ -228,13 +231,15 @@ pipeline {
         }
         cleanup {
           script {
-            if (!env.C3IAAS_NAMESPACE) {
+            if (params.USE_C3IAAS != 'true') {
               openshift.withCluster() {
-                echo 'Tearing down...'
-                openshift.selector('bc', [
-                  'app': env.BACKEND_BUILDCONFIG_ID,
-                  'template': 'mbs-backend-build-template',
-                  ]).delete()
+                openshift.withProject(env.PIPELINE_ID) {
+                  echo 'Tearing down...'
+                  openshift.selector('bc', [
+                    'app': env.BACKEND_BUILDCONFIG_ID,
+                    'template': 'mbs-backend-build-template',
+                    ]).delete()
+                }
               }
             }
           }
@@ -248,7 +253,7 @@ pipeline {
       steps {
         script {
           openshift.withCluster() {
-            openshift.withProject(env.C3IAAS_NAMESPACE ?: env.PIPELINE_NAMESPACE) {
+            openshift.withProject(env.PIPELINE_ID) {
               // OpenShift BuildConfig doesn't support specifying a tag name at build time.
               // We have to create a new BuildConfig for each image build.
               echo 'Creating a BuildConfig for mbs-frontend build...'
@@ -261,10 +266,10 @@ pipeline {
                 // because refspec cannot be customized in an OpenShift build.
                 '-p', "MBS_GIT_REF=${env.PR_NO ? params.MBS_GIT_REF : env.MBS_GIT_COMMIT}",
                 '-p', "MBS_FRONTEND_IMAGESTREAM_NAME=${params.MBS_FRONTEND_IMAGESTREAM_NAME}",
-                '-p', "MBS_FRONTEND_IMAGESTREAM_NAMESPACE=${env.C3IAAS_NAMESPACE ?: env.PIPELINE_NAMESPACE}",
+                '-p', "MBS_FRONTEND_IMAGESTREAM_NAMESPACE=${env.PIPELINE_ID}",
                 '-p', "MBS_IMAGE_TAG=${env.TEMP_TAG}",
                 '-p', "MBS_BACKEND_IMAGESTREAM_NAME=${params.MBS_BACKEND_IMAGESTREAM_NAME}",
-                '-p', "MBS_BACKEND_IMAGESTREAM_NAMESPACE=${env.C3IAAS_NAMESPACE ?: env.PIPELINE_NAMESPACE}",
+                '-p', "MBS_BACKEND_IMAGESTREAM_NAMESPACE=${env.PIPELINE_ID}",
                 '-p', "CREATED=${created}"
               )
               def build = c3i.buildAndWait(script: this, objs: processed, '--from-dir=.')
@@ -311,8 +316,7 @@ pipeline {
                   '-e', "MBS_FRONTEND_IMAGE=${env.FRONTEND_IMAGE_REF}",
                   '-e', "TEST_IMAGES=${env.BACKEND_IMAGE_REF},${env.FRONTEND_IMAGE_REF}",
                   '-e', "IMAGE_IS_SCRATCH=${params.MBS_GIT_REF != params.MBS_MAIN_BRANCH}",
-                  // If env.C3IAAS_NAMESPACE has not been defined, tests will be run in the current namespace
-                  '-e', "TEST_NAMESPACE=${env.C3IAAS_NAMESPACE ?: ''}",
+                  '-e', "TEST_NAMESPACE=${env.PIPELINE_ID}",
                   '-e', "TESTCASES='${params.TESTCASES}'",
                   '-e', "CLEANUP=${params.CLEANUP}"
               )
@@ -402,8 +406,7 @@ pipeline {
       when {
         expression {
           return "${params.MBS_DEV_IMAGE_TAG}" && params.TAG_INTO_IMAGESTREAM == "true" &&
-            (params.FORCE_PUBLISH_IMAGE == "true" || params.MBS_GIT_REF == params.MBS_MAIN_BRANCH) &&
-            !env.C3IAAS_NAMESPACE
+            (params.FORCE_PUBLISH_IMAGE == "true" || params.MBS_GIT_REF == params.MBS_MAIN_BRANCH)
         }
       }
       steps {
@@ -434,18 +437,20 @@ pipeline {
   post {
     cleanup {
       script {
-        if (params.CLEANUP == 'true' && !env.C3IAAS_NAMESPACE) {
+        if (params.CLEANUP == 'true' && params.USE_C3IAAS != 'true') {
           openshift.withCluster() {
-            if (env.BACKEND_IMAGE_TAG) {
-              echo "Removing tag ${env.BACKEND_IMAGE_TAG} from the ${params.MBS_BACKEND_IMAGESTREAM_NAME} ImageStream..."
-              openshift.withProject(params.MBS_BACKEND_IMAGESTREAM_NAMESPACE) {
-                openshift.tag("${params.MBS_BACKEND_IMAGESTREAM_NAME}:${env.BACKEND_IMAGE_TAG}", "-d")
+            openshift.withProject(env.PIPELINE_ID) {
+              if (env.BACKEND_IMAGE_TAG) {
+                echo "Removing tag ${env.BACKEND_IMAGE_TAG} from the ${params.MBS_BACKEND_IMAGESTREAM_NAME} ImageStream..."
+                openshift.withProject(params.MBS_BACKEND_IMAGESTREAM_NAMESPACE) {
+                  openshift.tag("${params.MBS_BACKEND_IMAGESTREAM_NAME}:${env.BACKEND_IMAGE_TAG}", "-d")
+                }
               }
-            }
-            if (env.FRONTEND_IMAGE_TAG) {
-              echo "Removing tag ${env.FRONTEND_IMAGE_TAG} from the ${params.MBS_FRONTEND_IMAGESTREAM_NAME} ImageStream..."
-              openshift.withProject(params.MBS_FRONTEND_IMAGESTREAM_NAMESPACE) {
-                openshift.tag("${params.MBS_FRONTEND_IMAGESTREAM_NAME}:${env.FRONTEND_IMAGE_TAG}", "-d")
+              if (env.FRONTEND_IMAGE_TAG) {
+                echo "Removing tag ${env.FRONTEND_IMAGE_TAG} from the ${params.MBS_FRONTEND_IMAGESTREAM_NAME} ImageStream..."
+                openshift.withProject(params.MBS_FRONTEND_IMAGESTREAM_NAMESPACE) {
+                  openshift.tag("${params.MBS_FRONTEND_IMAGESTREAM_NAME}:${env.FRONTEND_IMAGE_TAG}", "-d")
+                }
               }
             }
           }

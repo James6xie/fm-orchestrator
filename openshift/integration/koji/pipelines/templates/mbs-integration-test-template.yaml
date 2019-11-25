@@ -35,20 +35,6 @@ parameters:
   displayName: The Koji container image to be tested
   description: This field must be in repo:tag or repo@sha256 format
   value: quay.io/factory2/koji:latest
-- name: UMB_IMAGE
-  displayName: The UMB container image to be tested
-  description: This field must be in repo:tag or repo@sha256 format
-  value: docker-registry.upshift.redhat.com/factory2/umb:latest
-- name: USE_KRB5
-  displayName: Deploy a Kerberos KDC and configure the MBS frontend to require Kerberos authentication.
-  description: If not set to "true", no KDC will be deployed and MBS will allow anonymous access.
-  required: true
-  value: "true"
-- name: KRB5_IMAGE
-  displayName: Kerberos 5 KDC image
-  description: The image used to deploy a Kerberos 5 KDC, if configured to do so.
-  required: false
-  value: quay.io/factory2/krb5-fedora:latest
 - name: TEST_IMAGES
   displayName: Images being tested
   description: >-
@@ -67,6 +53,9 @@ parameters:
     Namespace where the Jenkins agent for this test will run, and where
     test resources will be created.
   required: false
+- name: PIPELINE_AS_A_SERVICE_BUILD_NAMESPACE
+  displayName: Namespace with pipeline-as-a-service build
+  value: c3i
 - name: ENVIRONMENT
   displayName: environment name (dev/stage/prod)
   required: true
@@ -129,18 +118,10 @@ objects:
           value: "${MBS_FRONTEND_IMAGE}"
         - name: KOJI_IMAGE
           value: "${KOJI_IMAGE}"
-        - name: UMB_IMAGE
-          value: "${UMB_IMAGE}"
-        - name: USE_KRB5
-          value: "${USE_KRB5}"
-        - name: KRB5_IMAGE
-          value: "${KRB5_IMAGE}"
         - name: TEST_IMAGES
           value: "${TEST_IMAGES}"
         - name: IMAGE_IS_SCRATCH
           value: "true"
-        - name: "TEST_ID"
-          value: ""
         - name: JENKINS_AGENT_IMAGE
           value: "${JENKINS_AGENT_IMAGE}"
         - name: JENKINS_AGENT_CLOUD_NAME
@@ -151,6 +132,8 @@ objects:
           value: "${ENVIRONMENT}"
         - name: MESSAGING_PROVIDER
           value: "${MESSAGING_PROVIDER}"
+        - name: PIPELINE_AS_A_SERVICE_BUILD_NAMESPACE
+          value: "${PIPELINE_AS_A_SERVICE_BUILD_NAMESPACE}"
         - name: JENKINS_AGENT_SERVICE_ACCOUNT
           value: "${NAME}-jenkins-slave"
         - name: TESTCASES

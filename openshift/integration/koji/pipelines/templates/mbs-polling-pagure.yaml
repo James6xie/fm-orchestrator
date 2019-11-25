@@ -210,7 +210,8 @@ objects:
                       echo 'Starting a MBS build run...'
                       def devBuild = c3i.build(script: this,
                         objs: "bc/${env.PAGURE_POLLING_FOR_PR == 'true' ? env.PREMERGE_JOB_NAME : env.POSTMERGE_JOB_NAME}",
-                        '-e', "MBS_GIT_REF=${env.MBS_GIT_BRANCH}"
+                        '-e', "MBS_GIT_REF=${env.MBS_GIT_BRANCH}", '-e', "PAGURE_REPO_IS_FORK=${env.PAGURE_REPO_IS_FORK}",
+                        '-e', "PAGURE_REPO_NAME=${env.PAGURE_REPO_NAME}"
                       )
                       c3i.waitForBuildStart(script: this, build: devBuild)
                       def devBuildInfo = devBuild.object()
