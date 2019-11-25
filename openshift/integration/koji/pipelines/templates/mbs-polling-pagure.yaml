@@ -151,21 +151,19 @@ objects:
                     // Need to prefix the rev with origin/ for pollSCM to work correctly
                     def rev = "origin/${polled}"
                     def scmVars = c3i.clone(repo: env.GIT_URL, branch: polled, rev: rev)
-                    env.MBS_GIT_COMMIT = scmVars.GIT_COMMIT
+                    env.GIT_COMMIT = scmVars.GIT_COMMIT
                     // setting build display name
                     def prefix = 'origin/'
                     def branch = scmVars.GIT_BRANCH.startsWith(prefix) ? scmVars.GIT_BRANCH.substring(prefix.size())
                       : scmVars.GIT_BRANCH // origin/pull/1234/head -> pull/1234/head, origin/master -> master
                     env.MBS_GIT_BRANCH = branch
-                    echo "Build on branch=${env.MBS_GIT_BRANCH}, commit=${env.MBS_GIT_COMMIT}"
+                    echo "Build on branch=${env.MBS_GIT_BRANCH}, commit=${env.GIT_COMMIT}"
                     if (env.PAGURE_POLLING_FOR_PR == 'false') {
-                      currentBuild.displayName = "${env.MBS_GIT_BRANCH}: ${env.MBS_GIT_COMMIT.substring(0, 7)}"
-                      currentBuild.description = """<a href="${env.PAGURE_REPO_HOME}/c/${env.MBS_GIT_COMMIT}">${currentBuild.displayName}</a>"""
+                      currentBuild.displayName = "${env.MBS_GIT_BRANCH}: ${env.GIT_COMMIT.substring(0, 7)}"
+                      currentBuild.description = """<a href="${env.PAGURE_REPO_HOME}/c/${env.GIT_COMMIT}">${currentBuild.displayName}</a>"""
                     } else if (env.PAGURE_POLLING_FOR_PR == 'true' && branch ==~ /^pull\/[0-9]+\/head$/) {
                       env.PR_NO = branch.split('/')[1]
-                      def prInfo = withPagure {
-                        it.getPR(env.PR_NO)
-                      }
+                      def prInfo = pagure.getPR(env.PR_NO)
                       if (prInfo.status == 'Open') {
                         env.PR_URL = "${env.PAGURE_REPO_HOME}/pull-request/${env.PR_NO}"
                         // To HTML syntax in build description, go to `Jenkins/Global Security/Markup Formatter` and select 'Safe HTML'.
@@ -224,11 +222,4 @@ objects:
                 }
               }
             }
-          }
-          def withPagure(args=[:], cl) {
-            args.apiUrl = env.PAGURE_API
-            args.repo = env.PAGURE_REPO_NAME
-            args.isFork = env.PAGURE_REPO_IS_FORK == 'true'
-            def pagureClient = pagure.client(args)
-            return cl(pagureClient)
           }

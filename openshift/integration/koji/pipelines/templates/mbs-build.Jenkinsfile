@@ -60,6 +60,8 @@ pipeline {
           // the return value of checkout() is unreliable.
           // Not working: env.MBS_GIT_COMMIT = scmVars.GIT_COMMIT
           env.MBS_GIT_COMMIT = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
+          // Set for pagure function from c3i-library
+          env.GIT_COMMIT = env.MBS_GIT_COMMIT
           echo "Build ${params.MBS_GIT_REF}, commit=${env.MBS_GIT_COMMIT}"
 
           // Is the current branch a pull-request? If no, env.PR_NO will be empty.
@@ -122,13 +124,11 @@ pipeline {
             // To enable HTML syntax in build description, go to `Jenkins/Global Security/Markup Formatter` and select 'Safe HTML'.
             def pagureLink = """<a href="${env.PR_URL}">${currentBuild.displayName}</a>"""
             try {
-              def prInfo = withPagure {
-                it.getPR(env.PR_NO)
-              }
+              def prInfo = pagure.getPR(env.PR_NO)
               pagureLink = """<a href="${env.PR_URL}">PR#${env.PR_NO}: ${escapeHtml(prInfo.title)}</a>"""
               // set PR status to Pending
               if (params.PAGURE_API_KEY_SECRET_NAME)
-                setBuildStatusOnPagurePR(null, "Build #${env.BUILD_NUMBER} in progress (commit: ${env.MBS_GIT_COMMIT.take(8)})")
+                paguer.setBuildStatusOnPR(null, "Build #${env.BUILD_NUMBER} in progress (commit: ${env.MBS_GIT_COMMIT.take(8)})")
             } catch (Exception e) {
               echo "Error using pagure API: ${e}"
             }
@@ -138,7 +138,7 @@ pipeline {
             currentBuild.description = """<a href="${env.PAGURE_REPO_HOME}/c/${env.MBS_GIT_COMMIT}">${currentBuild.displayName}</a>"""
             if (params.PAGURE_API_KEY_SECRET_NAME) {
               try {
-                flagCommit('pending', null, "Build #${env.BUILD_NUMBER} in progress (commit: ${env.MBS_GIT_COMMIT.take(8)})")
+                pagure.flagCommit('pending', null, "Build #${env.BUILD_NUMBER} in progress (commit: ${env.MBS_GIT_COMMIT.take(8)})")
                 echo "Updated commit ${env.MBS_GIT_COMMIT} status to PENDING."
               } catch (e) {
 		echo "Error updating commit ${env.MBS_GIT_COMMIT} status to PENDING: ${e}"
@@ -457,7 +457,7 @@ pipeline {
         // on pre-merge workflow success
         if (params.PAGURE_API_KEY_SECRET_NAME && env.PR_NO) {
           try {
-            setBuildStatusOnPagurePR(100, "Build #${env.BUILD_NUMBER} successful (commit: ${env.MBS_GIT_COMMIT.take(8)})")
+            pagure.setBuildStatusOnPR(100, "Build #${env.BUILD_NUMBER} successful (commit: ${env.MBS_GIT_COMMIT.take(8)})")
             echo "Updated PR #${env.PR_NO} status to PASS."
           } catch (e) {
             echo "Error updating PR #${env.PR_NO} status to PASS: ${e}"
@@ -466,7 +466,7 @@ pipeline {
         // on post-merge workflow success
         if (params.PAGURE_API_KEY_SECRET_NAME && !env.PR_NO) {
           try {
-            flagCommit('success', 100, "Build #${env.BUILD_NUMBER} successful (commit: ${env.MBS_GIT_COMMIT.take(8)})")
+            pagure.flagCommit('success', 100, "Build #${env.BUILD_NUMBER} successful (commit: ${env.MBS_GIT_COMMIT.take(8)})")
             echo "Updated commit ${env.MBS_GIT_COMMIT} status to PASS."
           } catch (e) {
             echo "Error updating commit ${env.MBS_GIT_COMMIT} status to PASS: ${e}"
@@ -480,17 +480,17 @@ pipeline {
         if (params.PAGURE_API_KEY_SECRET_NAME && env.PR_NO) {
           // updating Pagure PR flag
           try {
-            setBuildStatusOnPagurePR(0, "Build #${env.BUILD_NUMBER} failed (commit: ${env.MBS_GIT_COMMIT.take(8)})")
+            pagure.setBuildStatusOnPR(0, "Build #${env.BUILD_NUMBER} failed (commit: ${env.MBS_GIT_COMMIT.take(8)})")
             echo "Updated PR #${env.PR_NO} status to FAILURE."
           } catch (e) {
             echo "Error updating PR #${env.PR_NO} status to FAILURE: ${e}"
           }
           // making a comment
           try {
-            commentOnPR("""
+            pagure.commentOnPR("""
             Build #${env.BUILD_NUMBER} [failed](${env.BUILD_URL}) (commit: ${env.MBS_GIT_COMMIT}).
             Rebase or make new commits to rebuild.
-            """.stripIndent())
+            """.stripIndent(), env.PR_NO)
             echo "Comment made."
           } catch (e) {
             echo "Error making a comment on PR #${env.PR_NO}: ${e}"
@@ -501,7 +501,7 @@ pipeline {
           // updating Pagure commit flag
           if (params.PAGURE_API_KEY_SECRET_NAME) {
             try {
-              flagCommit('failure', 0, "Build #${env.BUILD_NUMBER} failed (commit: ${env.MBS_GIT_COMMIT.take(8)})")
+              pagure.flagCommit('failure', 0, "Build #${env.BUILD_NUMBER} failed (commit: ${env.MBS_GIT_COMMIT.take(8)})")
               echo "Updated commit ${env.MBS_GIT_COMMIT} status to FAILURE."
             } catch (e) {
               echo "Error updating commit ${env.MBS_GIT_COMMIT} status to FAILURE: ${e}"
@@ -523,38 +523,6 @@ pipeline {
 def getPrNo(branch) {
   def prMatch = branch =~ /^(?:.+\/)?pull\/(\d+)\/head$/
   return prMatch ? prMatch[0][1] : ''
-}
-def withPagure(args=[:], cl) {
-  args.apiUrl = env.PAGURE_API
-  args.repo = env.PAGURE_REPO_NAME
-  args.isFork = env.PAGURE_REPO_IS_FORK == 'true'
-  def pagureClient = pagure.client(args)
-  return cl(pagureClient)
-}
-def withPagureCreds(args=[:], cl) {
-  def pagureClient = null
-  withCredentials([string(credentialsId: "${env.PIPELINE_NAMESPACE}-${env.PAGURE_API_KEY_SECRET_NAME}", variable: 'TOKEN')]) {
-    args.token = env.TOKEN
-    pagureClient = withPagure(args, cl)
-  }
-  return pagureClient
-}
-def setBuildStatusOnPagurePR(percent, String comment) {
-  withPagureCreds {
-    it.updatePRStatus(username: 'c3i-jenkins', uid: "ci-pre-merge-${env.MBS_GIT_COMMIT.take(8)}",
-      url: env.BUILD_URL, percent: percent, comment: comment, pr: env.PR_NO)
-  }
-}
-def flagCommit(status, percent, comment) {
-  withPagureCreds {
-    it.flagCommit(username: 'c3i-jenkins', uid: "ci-post-merge-${env.MBS_GIT_COMMIT.take(8)}", status: status,
-      url: env.BUILD_URL, percent: percent, comment: comment, commit: env.MBS_GIT_COMMIT)
-  }
-}
-def commentOnPR(String comment) {
-  withPagureCreds {
-    it.commentOnPR(comment: comment, pr: env.PR_NO)
-  }
 }
 def sendBuildStatusEmail(String status) {
   def recipient = params.MAIL_ADDRESS
