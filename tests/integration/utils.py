@@ -15,13 +15,17 @@ class Koji:
 
     :attribute string _server: URL of the Koji hub
     :attribute string _topurl: URL of the top-level Koji download location
+    :attribute string _weburl: URL of the web interface
     :attribute koji.ClientSession _session: Koji session
+    :attribute koji.PathInfo _pathinfo: Koji path
     """
 
-    def __init__(self, server, topurl):
+    def __init__(self, server, topurl, weburl):
         self._server = server
         self._topurl = topurl
+        self._weburl = weburl
         self._session = koji.ClientSession(self._server)
+        self._pathinfo = koji.PathInfo(self._weburl)
 
     def get_build(self, nvr_dict):
         """Koji build data for NVR
@@ -32,6 +36,18 @@ class Koji:
         """
         nvr_string = rpmlib.make_nvr(nvr_dict)
         return self._session.getBuild(nvr_string)
+
+    def get_modulemd(self, cg_build):
+        """Modulemd file of the build from koji archive
+
+        :param cg_build: koji build object
+        :return: Modulemd file
+        :rtype: dict
+        """
+        url = self._pathinfo.typedir(cg_build, 'module')
+        r = requests.get(f"{url}/modulemd.txt")
+        r.raise_for_status()
+        return yaml.safe_load(r.content)
 
 
 class Repo:
@@ -44,6 +60,7 @@ class Repo:
     def __init__(self, module_name):
         self.module_name = module_name
         self._modulemd = None
+        self._version = None
 
     @property
     def modulemd(self):
@@ -66,6 +83,21 @@ class Repo:
         :rtype: list of strings
         """
         return list(self.modulemd["data"]["components"]["rpms"])
+
+    @property
+    def platform(self):
+        """
+        List of platforms in the modulemd file, obtaining values differs on version
+
+        :return: List of platforms in the modulemd file
+        :rtype: list of strings
+        """
+        if self._version is None:
+            self._version = self._modulemd["version"]
+        if self._version == 1:
+            return [self._modulemd["data"]["dependencies"]["buildrequires"].get("platform")]
+        elif self._version == 2:
+            return self._modulemd["data"]["dependencies"][0]["buildrequires"].get("platform")
 
 
 class Build:
@@ -145,6 +177,23 @@ class Build:
             filtered = filter(lambda x: x["state_name"] == state, filtered)
 
         return [item["package"] for item in filtered]
+
+    def batches(self):
+        """
+        Components of the module build separated in sets according to batches
+
+        :return: list of components according to batches
+        :rtype: list of sets
+        """
+        comps_data = sorted(self.component_data["items"], key=lambda x: x["batch"])
+        batch_count = comps_data[-1]["batch"]
+        batches = batch_count * [set()]
+        for data in comps_data:
+            batch = data["batch"]
+            package = data["package"]
+            batches[batch - 1] = batches[batch - 1].union({package})
+
+        return batches
 
     def nvr(self, name_suffix=""):
         """NVR dictionary of this module build
