@@ -9,10 +9,11 @@ from kobo import rpmlib
 import koji
 import yaml
 import requests
+import tempfile
 import sh
 
 our_sh = sh(_out=sys.stdout, _err=sys.stderr, _tee=True)
-from our_sh import Command, git  # noqa
+from our_sh import Command, git, pushd  # noqa
 
 
 class Koji:
@@ -244,12 +245,20 @@ class Build:
 
         :param string state: Koji build state the components should be in
         :param int batch: the number of the batch the components should be in
-        :param string: name of component (package):
+        :param string package: name of component (package):
         :return: List of components packages
         :rtype: list of strings
         """
         components = self.components(state, batch, package)
         return [item["package"] for item in components]
+
+    def component_task_ids(self):
+        """Dictionary containing all names of packages from build and appropriate task ids
+
+        :return: Dictionary containing name of packages and their task id
+        :rtype: dict
+        """
+        return {comp["package"]: comp["task_id"] for comp in self.components()}
 
     def batches(self):
         """
@@ -268,18 +277,10 @@ class Build:
 
         return batches
 
-    def component_task_ids(self):
-        """Dictionary containing all names of packages from build and appropriate task ids
-
-            :return: Dictionary containing name of packages and their task id
-            :rtype: dict
-        """
-        return {comp["package"]: comp["task_id"] for comp in self.components()}
-
     def wait_for_koji_task_id(self, package, batch, timeout=300, sleep=10):
         """Wait until the component is submitted to Koji (has a task_id)
 
-        :param string: name of component (package)
+        :param string package: name of component (package)
         :param int batch: the number of the batch the components should be in
         :param int timeout: time in seconds
         :param int sleep: time in seconds
@@ -325,3 +326,47 @@ class Build:
             ):
                 return True
         return False
+
+
+class Component:
+    """Wrapper class to work with git repositories of components
+
+    :attribute string module_name: name of the module stored in this repo
+    :attribute string branch: branch of the git repo that will be used
+    :attribute TemporaryDirectory _clone_dir: directory where is the clone of the repo
+    """
+    def __init__(self, module_name, branch):
+        self._module_name = module_name
+        self._branch = branch
+        self._clone_dir = None
+
+    def __del__(self):
+        self._clone_dir.cleanup()
+
+    def clone(self, packaging_utility):
+        """Clone the git repo of the component to be used by the test in a temporary location
+
+        Directory of the clone is stored in self._clone_dir.
+        :param string packaging_utility: packaging utility as defined in test.env.yaml
+        """
+        tempdir = tempfile.TemporaryDirectory()
+        args = [
+            "--branch",
+            self._branch,
+            f'rpms/{self._module_name}',
+            tempdir.name
+        ]
+        packaging_util = Command(packaging_utility)
+        packaging_util("clone", *args)
+        self._clone_dir = tempdir
+
+    def bump(self):
+        """Create a "bump" commit and push it in git"""
+        args = [
+            "--allow-empty",
+            "-m",
+            "Bump"
+        ]
+        with pushd(self._clone_dir.name):
+            git("commit", *args)
+            git("push")
