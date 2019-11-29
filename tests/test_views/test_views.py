@@ -26,7 +26,6 @@ from module_build_service.errors import UnprocessableEntity
 from module_build_service.models import ModuleBuild, BUILD_STATES, ComponentBuild
 from module_build_service import version
 import module_build_service.config as mbs_config
-import module_build_service.scheduler.handlers.modules
 import module_build_service.utils.submit
 from module_build_service.utils.general import (
     import_mmd, mmd_to_str, load_mmd,

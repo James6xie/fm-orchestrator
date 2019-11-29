@@ -20,11 +20,6 @@ import moksha.hub
 import sqlalchemy.exc
 
 import module_build_service.messaging
-import module_build_service.scheduler.handlers.repos
-import module_build_service.scheduler.handlers.components
-import module_build_service.scheduler.handlers.modules
-import module_build_service.scheduler.handlers.tags
-import module_build_service.scheduler.handlers.greenwave
 import module_build_service.monitor as monitor
 
 from module_build_service import models, log, conf
@@ -32,7 +27,40 @@ from module_build_service.db_session import db_session
 from module_build_service.errors import IgnoreMessage
 from module_build_service.messaging import default_messaging_backend
 from module_build_service.scheduler import events
+from module_build_service.scheduler.handlers import components
+from module_build_service.scheduler.handlers import repos
+from module_build_service.scheduler.handlers import modules
+from module_build_service.scheduler.handlers import tags
 from module_build_service.scheduler.handlers import greenwave
+
+
+def no_op_handler(*args, **kwargs):
+    return True
+
+
+ON_BUILD_CHANGE_HANDLERS = {
+    koji.BUILD_STATES["BUILDING"]: no_op_handler,
+    koji.BUILD_STATES["COMPLETE"]: components.build_task_finalize,
+    koji.BUILD_STATES["FAILED"]: components.build_task_finalize,
+    koji.BUILD_STATES["CANCELED"]: components.build_task_finalize,
+    koji.BUILD_STATES["DELETED"]: no_op_handler,
+}
+
+ON_MODULE_CHANGE_HANDLERS = {
+    models.BUILD_STATES["init"]: modules.init,
+    models.BUILD_STATES["wait"]: modules.wait,
+    models.BUILD_STATES["build"]: no_op_handler,
+    models.BUILD_STATES["failed"]: modules.failed,
+    models.BUILD_STATES["done"]: modules.done,
+    # XXX: DIRECT TRANSITION TO READY
+    models.BUILD_STATES["ready"]: no_op_handler,
+    models.BUILD_STATES["garbage"]: no_op_handler,
+}
+
+# Only one kind of repo change event, though...
+ON_REPO_CHANGE_HANDLER = repos.done
+ON_TAG_CHANGE_HANDLER = tags.tagged
+ON_DECISION_UPDATE_HANDLER = greenwave.decision_update
 
 
 class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
@@ -83,32 +111,6 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
             msg = module_build_service.messaging._initial_messages.pop(0)
             self.incoming.put(msg)
 
-        from module_build_service.scheduler import handlers
-
-        # These are our main lookup tables for figuring out what to run in
-        # response to what messaging events.
-        self.NO_OP = NO_OP = lambda *args, **kwargs: True
-        self.on_build_change = {
-            koji.BUILD_STATES["BUILDING"]: NO_OP,
-            koji.BUILD_STATES["COMPLETE"]: handlers.components.build_task_finalize,
-            koji.BUILD_STATES["FAILED"]: handlers.components.build_task_finalize,
-            koji.BUILD_STATES["CANCELED"]: handlers.components.build_task_finalize,
-            koji.BUILD_STATES["DELETED"]: NO_OP,
-        }
-        self.on_module_change = {
-            models.BUILD_STATES["init"]: handlers.modules.init,
-            models.BUILD_STATES["wait"]: handlers.modules.wait,
-            models.BUILD_STATES["build"]: NO_OP,
-            models.BUILD_STATES["failed"]: handlers.modules.failed,
-            models.BUILD_STATES["done"]: handlers.modules.done,
-            # XXX: DIRECT TRANSITION TO READY
-            models.BUILD_STATES["ready"]: NO_OP,
-            models.BUILD_STATES["garbage"]: NO_OP,
-        }
-        # Only one kind of repo change event, though...
-        self.on_repo_change = handlers.repos.done
-        self.on_tag_change = handlers.tags.tagged
-        self.on_decision_update = handlers.greenwave.decision_update
         self.sanity_check()
 
     def shutdown(self):
@@ -180,10 +182,10 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
         """ On startup, make sure our implementation is sane. """
         # Ensure we have every state covered
         for state in models.BUILD_STATES:
-            if models.BUILD_STATES[state] not in self.on_module_change:
+            if models.BUILD_STATES[state] not in ON_MODULE_CHANGE_HANDLERS:
                 raise KeyError("Module build states %r not handled." % state)
         for state in koji.BUILD_STATES:
-            if koji.BUILD_STATES[state] not in self.on_build_change:
+            if koji.BUILD_STATES[state] not in ON_BUILD_CHANGE_HANDLERS:
                 raise KeyError("Koji build states %r not handled." % state)
 
     def _map_message(self, db_session, event_info):
@@ -192,7 +194,7 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
         event = event_info["event"]
 
         if event == events.KOJI_BUILD_CHANGE:
-            handler = self.on_build_change[event_info["build_new_state"]]
+            handler = ON_BUILD_CHANGE_HANDLERS[event_info["build_new_state"]]
             build = models.ComponentBuild.from_component_event(
                 db_session, event_info["task_id"], event_info["module_build_id"])
             if build:
@@ -201,13 +203,13 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
 
         if event == events.KOJI_REPO_CHANGE:
             return (
-                self.on_repo_change,
+                ON_REPO_CHANGE_HANDLER,
                 models.ModuleBuild.get_by_tag(db_session, event_info["repo_tag"])
             )
 
         if event == events.KOJI_TAG_CHANGE:
             return (
-                self.on_tag_change,
+                ON_TAG_CHANGE_HANDLER,
                 models.ModuleBuild.get_by_tag(db_session, event_info["tag_name"])
             )
 
@@ -219,14 +221,13 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
                     state, type(state), valid_module_build_states
                 ))
             return (
-                self.on_module_change[state],
-                models.ModuleBuild.get_by_id(
-                    db_session, event_info["module_build_id"])
+                ON_MODULE_CHANGE_HANDLERS[state],
+                models.ModuleBuild.get_by_id(db_session, event_info["module_build_id"])
             )
 
         if event == events.GREENWAVE_DECISION_UPDATE:
             return (
-                self.on_decision_update,
+                ON_DECISION_UPDATE_HANDLER,
                 greenwave.get_corresponding_module_build(event_info["subject_identifier"])
             )
 
@@ -243,7 +244,7 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
         idx = "%s: %s, %s" % (
             handler.__name__, event_info["event"], event_info["msg_id"])
 
-        if handler is self.NO_OP:
+        if handler is no_op_handler:
             log.debug("Handler is NO_OP: %s", idx)
             return
 

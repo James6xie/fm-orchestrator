@@ -8,7 +8,6 @@ import os
 from os import path
 
 import module_build_service.messaging
-import module_build_service.scheduler.handlers.repos  # noqa
 from module_build_service import models, conf, build_logs, Modulemd
 from module_build_service.db_session import db_session
 from module_build_service.utils.general import mmd_to_str
