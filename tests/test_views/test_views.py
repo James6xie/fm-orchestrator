@@ -450,7 +450,7 @@ class TestViews:
                     assert item[key] == part
 
     @pytest.mark.usefixtures("reuse_component_init_data")
-    @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
+    @patch("koji.ClientSession")
     def test_query_builds_with_binary_rpm(self, ClientSession):
         """
         Test for querying MBS with the binary rpm filename. MBS should return all the modules,

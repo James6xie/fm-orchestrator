@@ -73,7 +73,7 @@ class TestBuild:
         except OSError:
             pass
 
-    @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
+    @patch("koji.ClientSession")
     @patch("subprocess.Popen")
     @patch("module_build_service.builder.KojiContentGenerator.Modulemd")
     @patch("pkg_resources.get_distribution")
@@ -138,7 +138,7 @@ class TestBuild:
         # Ensure an anonymous Koji session works
         koji_session.krb_login.assert_not_called()
 
-    @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
+    @patch("koji.ClientSession")
     @patch("subprocess.Popen")
     @patch("module_build_service.builder.KojiContentGenerator.Modulemd")
     @patch("pkg_resources.get_distribution")
@@ -205,7 +205,7 @@ class TestBuild:
             assert len(mmd.read()) == 254
 
     @patch.dict("sys.modules", krbV=Mock())
-    @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
+    @patch("koji.ClientSession")
     def test_tag_cg_build(self, ClientSession):
         """ Test that the CG build is tagged. """
         koji_session = ClientSession.return_value
@@ -221,7 +221,7 @@ class TestBuild:
         koji_session.krb_login.assert_called_once()
 
     @patch.dict("sys.modules", krbV=Mock())
-    @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
+    @patch("koji.ClientSession")
     def test_tag_cg_build_fallback_to_default_tag(self, ClientSession):
         """ Test that the CG build is tagged to default tag. """
         koji_session = ClientSession.return_value
@@ -240,7 +240,7 @@ class TestBuild:
         koji_session.krb_login.assert_called_once()
 
     @patch.dict("sys.modules", krbV=Mock())
-    @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
+    @patch("koji.ClientSession")
     def test_tag_cg_build_no_tag_set(self, ClientSession):
         """ Test that the CG build is not tagged when no tag set. """
         koji_session = ClientSession.return_value
@@ -255,7 +255,7 @@ class TestBuild:
         koji_session.krb_login.assert_called_once()
 
     @patch.dict("sys.modules", krbV=Mock())
-    @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
+    @patch("koji.ClientSession")
     def test_tag_cg_build_no_tag_available(self, ClientSession):
         """ Test that the CG build is not tagged when no tag available. """
         koji_session = ClientSession.return_value
@@ -337,7 +337,7 @@ class TestBuild:
             "type": "file",
         }
 
-    @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
+    @patch("koji.ClientSession")
     def test_koji_rpms_in_tag(self, ClientSession):
         koji_session = ClientSession.return_value
         koji_session.getUser.return_value = GET_USER_RV
@@ -427,7 +427,7 @@ class TestBuild:
         # Listing tagged RPMs does not require to log into a session
         koji_session.krb_login.assert_not_called()
 
-    @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
+    @patch("koji.ClientSession")
     def test_koji_rpms_in_tag_empty_tag(self, ClientSession):
         koji_session = ClientSession.return_value
         koji_session.getUser.return_value = GET_USER_RV
@@ -439,7 +439,7 @@ class TestBuild:
         assert rpms == []
         koji_session.multiCall.assert_not_called()
 
-    @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
+    @patch("koji.ClientSession")
     def test_koji_rpms_in_tag_empty_headers(self, ClientSession):
         koji_session = ClientSession.return_value
         koji_session.getUser.return_value = GET_USER_RV
@@ -966,7 +966,7 @@ class TestBuild:
             assert "%s:%s" % (mmd.get_module_name(), mmd.get_stream_name()) in requires
 
     @patch.dict("sys.modules", krbV=Mock())
-    @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
+    @patch("koji.ClientSession")
     @patch("module_build_service.builder.KojiContentGenerator.KojiContentGenerator._tag_cg_build")
     @patch("module_build_service.builder.KojiContentGenerator.KojiContentGenerator._load_koji_tag")
     def test_koji_cg_koji_import(self, tag_loader, tagger, cl_session):

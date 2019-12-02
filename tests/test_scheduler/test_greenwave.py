@@ -20,7 +20,7 @@ class TestGetCorrespondingModuleBuild:
     def setup_method(self, method):
         clean_database()
 
-    @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
+    @patch("koji.ClientSession")
     def test_module_build_nvr_does_not_exist_in_koji(self, ClientSession):
         ClientSession.return_value.getBuild.return_value = None
 
@@ -37,13 +37,13 @@ class TestGetCorrespondingModuleBuild:
             {"extra": {"typeinfo": {"module": {}}}},
         ],
     )
-    @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
+    @patch("koji.ClientSession")
     def test_cannot_find_module_build_id_from_build_info(self, ClientSession, build_info):
         ClientSession.return_value.getBuild.return_value = build_info
 
         assert get_corresponding_module_build("n-v-r") is None
 
-    @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
+    @patch("koji.ClientSession")
     def test_corresponding_module_build_id_does_not_exist_in_db(self, ClientSession):
         fake_module_build_id, = db_session.query(func.max(ModuleBuild.id)).first()
 
@@ -53,7 +53,7 @@ class TestGetCorrespondingModuleBuild:
 
         assert get_corresponding_module_build("n-v-r") is None
 
-    @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
+    @patch("koji.ClientSession")
     def test_find_the_module_build(self, ClientSession):
         expected_module_build = (
             db_session.query(ModuleBuild).filter(ModuleBuild.name == "platform").first()
@@ -97,7 +97,7 @@ class TestDecisionUpdateHandler:
         )
 
     @patch("module_build_service.messaging.publish")
-    @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
+    @patch("koji.ClientSession")
     def test_transform_from_done_to_ready(self, ClientSession, publish):
         clean_database()
 

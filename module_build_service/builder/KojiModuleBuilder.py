@@ -24,7 +24,6 @@ from module_build_service import log, conf, models
 import module_build_service.scm
 import module_build_service.utils
 from module_build_service.builder.utils import execute_cmd
-from module_build_service.builder.koji_backports import ClientSession as KojiClientSession
 from module_build_service.db_session import db_session
 from module_build_service.errors import ProgrammingError
 
@@ -487,7 +486,7 @@ class KojiModuleBuilder(GenericBuilder):
 
         address = koji_config.server
         log.info("Connecting to koji %r.", address)
-        koji_session = KojiClientSession(address, opts=koji_config)
+        koji_session = koji.ClientSession(address, opts=koji_config)
 
         if not login:
             return koji_session

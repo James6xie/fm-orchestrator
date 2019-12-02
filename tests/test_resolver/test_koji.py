@@ -64,7 +64,7 @@ class TestLocalResolverModule:
             "testmodule:master:20170109091357:7c29193d",
             "testmodule:master:20170109091357:7c29193e"}
 
-    @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
+    @patch("koji.ClientSession")
     def test_get_buildrequired_modulemds_name_not_tagged(self, ClientSession):
         koji_session = ClientSession.return_value
         koji_session.getLastEvent.return_value = {"id": 123}
@@ -82,7 +82,7 @@ class TestLocalResolverModule:
         koji_session.listTagged.assert_called_with(
             "foo-test", inherit=True, package="testmodule", type="module", event=123)
 
-    @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
+    @patch("koji.ClientSession")
     def test_get_buildrequired_modulemds_multiple_streams(self, ClientSession):
         koji_session = ClientSession.return_value
 
@@ -108,7 +108,7 @@ class TestLocalResolverModule:
         nsvcs = {m.get_nsvc() for m in result}
         assert nsvcs == {"testmodule:master:20170109091357:7c29193d"}
 
-    @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
+    @patch("koji.ClientSession")
     def test_get_buildrequired_modulemds_tagged_but_not_in_db(self, ClientSession):
         koji_session = ClientSession.return_value
 
@@ -135,7 +135,7 @@ class TestLocalResolverModule:
         with pytest.raises(ValueError, match=expected_error):
             resolver.get_buildrequired_modulemds("testmodule", "2", platform.mmd())
 
-    @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
+    @patch("koji.ClientSession")
     def test_get_buildrequired_modulemds_multiple_versions_contexts(self, ClientSession):
         koji_session = ClientSession.return_value
 
@@ -172,7 +172,7 @@ class TestLocalResolverModule:
             "testmodule:master:20170109091357:7c29193d",
             "testmodule:master:20170109091357:7c29193e"}
 
-    @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
+    @patch("koji.ClientSession")
     def test_get_buildrequired_modules(self, ClientSession):
         koji_session = ClientSession.return_value
 
@@ -198,7 +198,7 @@ class TestLocalResolverModule:
         nvrs = {m.nvr_string for m in result}
         assert nvrs == {"testmodule-master-20170109091357.7c29193d"}
 
-    @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
+    @patch("koji.ClientSession")
     def test_filter_inherited(self, ClientSession):
         koji_session = ClientSession.return_value
 

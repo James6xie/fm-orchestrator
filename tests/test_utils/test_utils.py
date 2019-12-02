@@ -344,7 +344,7 @@ class TestUtils:
     def teardown_method(self, test_method):
         clean_database()
 
-    @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
+    @patch("koji.ClientSession")
     def test_get_build_arches(self, ClientSession):
         session = ClientSession.return_value
         session.getTag.return_value = {"arches": "ppc64le"}
@@ -352,7 +352,7 @@ class TestUtils:
         r = module_build_service.utils.get_build_arches(mmd, conf)
         assert r == ["ppc64le"]
 
-    @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
+    @patch("koji.ClientSession")
     def test_get_build_arches_no_arch_set(self, ClientSession):
         """
         When no architecture is set in Koji tag, fallback to conf.arches.
@@ -1727,7 +1727,7 @@ class TestUtilsModuleReuse:
         "module_build_service.config.Config.allow_only_compatible_base_modules",
         new_callable=mock.PropertyMock,
     )
-    @patch("module_build_service.builder.KojiModuleBuilder.KojiClientSession")
+    @patch("koji.ClientSession")
     @patch(
         "module_build_service.config.Config.resolver",
         new_callable=mock.PropertyMock, return_value="koji"
