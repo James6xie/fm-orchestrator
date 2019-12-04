@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 
 @celery_app.task
-@events.mbs_event_handler()
+@events.mbs_event_handler
 def done(msg_id, tag_name):
     """Called whenever koji rebuilds a repo, any repo.
 

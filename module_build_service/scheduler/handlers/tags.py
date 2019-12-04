@@ -13,7 +13,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 
 @celery_app.task
-@events.mbs_event_handler()
+@events.mbs_event_handler
 def tagged(msg_id, tag_name, build_name, build_nvr):
     """Called whenever koji tags a build to tag.
 

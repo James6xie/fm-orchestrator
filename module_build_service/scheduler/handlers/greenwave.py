@@ -33,7 +33,7 @@ def get_corresponding_module_build(nvr):
 
 
 @celery_app.task
-@events.mbs_event_handler()
+@events.mbs_event_handler
 def decision_update(msg_id, decision_context, subject_identifier, policies_satisfied):
     """Move module build to ready or failed according to Greenwave result
 

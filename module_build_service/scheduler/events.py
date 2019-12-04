@@ -66,22 +66,20 @@ class Scheduler(sched.scheduler):
 scheduler = Scheduler(time.time, delayfunc=lambda x: x)
 
 
-def mbs_event_handler():
+def mbs_event_handler(func):
     """
     A decorator for MBS event handlers. It implements common tasks which should otherwise
     be repeated in every MBS event handler, for example:
 
       - at the end of handler, call events.scheduler.run().
     """
-
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            try:
-                return func(*args, **kwargs)
-            finally:
-                scheduler.run()
-
-        return wrapper
-
-    return decorator
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        finally:
+            scheduler.run()
+    # save origin function as functools.wraps from python2 doesn't preserve the signature
+    if not hasattr(wrapper, "__wrapped__"):
+        wrapper.__wrapped__ = func
+    return wrapper

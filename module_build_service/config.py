@@ -670,6 +670,19 @@ class Config(object):
             "default": 30,
             "desc": "The timeout configuration for dnf operations, in seconds."
         },
+        "num_workers": {"type": int, "default": 1, "desc": "Number of Celery workers"},
+        "celery_task_always_eager": {
+            "type": bool,
+            "default": False,
+            "desc": "All Celery tasks will be executed locally by blocking until the task returns "
+                    "when this is True",
+        },
+        "celery_task_routes": {
+            "type": list,
+            "default": ["module_build_service.route.route_task"],
+            "desc": "A list of Celery routers. When deciding the final destination queue of a "
+                    "Celery task the routers are consulted in order",
+        },
         "celery_worker_prefetch_multiplier": {
             "type": int,
             "default": 1,

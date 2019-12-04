@@ -41,7 +41,7 @@ def get_artifact_from_srpm(srpm_path):
 
 
 @celery_app.task
-@events.mbs_event_handler()
+@events.mbs_event_handler
 def failed(msg_id, module_build_id, module_build_state):
     """Called whenever a module enters the 'failed' state.
 
@@ -102,7 +102,7 @@ def failed(msg_id, module_build_id, module_build_state):
 
 
 @celery_app.task
-@events.mbs_event_handler()
+@events.mbs_event_handler
 def done(msg_id, module_build_id, module_build_state):
     """Called whenever a module enters the 'done' state.
 
@@ -141,7 +141,7 @@ def done(msg_id, module_build_id, module_build_state):
 
 
 @celery_app.task
-@events.mbs_event_handler()
+@events.mbs_event_handler
 def init(msg_id, module_build_id, module_build_state):
     """Called whenever a module enters the 'init' state.
 
@@ -317,7 +317,7 @@ def get_content_generator_build_koji_tag(module_deps):
 
 
 @celery_app.task
-@events.mbs_event_handler()
+@events.mbs_event_handler
 def wait(msg_id, module_build_id, module_build_state):
     """ Called whenever a module enters the 'wait' state.
 

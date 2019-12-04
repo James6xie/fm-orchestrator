@@ -17,7 +17,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 
 @celery_app.task
-@events.mbs_event_handler()
+@events.mbs_event_handler
 def build_task_finalize(
         msg_id, build_id, task_id, build_new_state,
         build_name, build_version, build_release,
