@@ -115,6 +115,9 @@ class TestConfiguration(BaseConfiguration):
 
     STREAM_SUFFIXES = {r"^el\d+\.\d+\.\d+\.z$": 0.1}
 
+    # Ensures task.delay executes locally instead of scheduling a task to a queue.
+    CELERY_TASK_ALWAYS_EAGER = True
+
 
 class ProdConfiguration(BaseConfiguration):
     pass

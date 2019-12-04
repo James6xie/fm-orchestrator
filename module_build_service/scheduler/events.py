@@ -44,7 +44,7 @@ class Scheduler(sched.scheduler):
         """
         Schedule execution of `handler` with `arguments`.
         """
-        self.enter(0, 0, handler, arguments)
+        self.enter(0, 0, handler.delay, arguments)
 
     def run(self):
         """
