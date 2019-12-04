@@ -145,11 +145,15 @@ class Build:
         :return: MBS build id of the build created
         :rtype: int
         """
+        current_build_id = self._build_id
         if reuse is not None:
             self._build_id = int(reuse)
         else:
             stdout = self._packaging_utility("module-build", *args).stdout.decode("utf-8")
             self._build_id = int(re.search(self._mbs_api + r"module-builds/(\d+)", stdout).group(1))
+        # Clear cached data
+        if current_build_id != self._build_id:
+            self._component_data = None
         return self._build_id
 
     def watch(self):
@@ -263,6 +267,14 @@ class Build:
             batches[batch - 1] = batches[batch - 1].union({package})
 
         return batches
+
+    def component_task_ids(self):
+        """Dictionary containing all names of packages from build and appropriate task ids
+
+            :return: Dictionary containing name of packages and their task id
+            :rtype: dict
+        """
+        return {comp["package"]: comp["task_id"] for comp in self.components()}
 
     def wait_for_koji_task_id(self, package, batch, timeout=300, sleep=10):
         """Wait until the component is submitted to Koji (has a task_id)
