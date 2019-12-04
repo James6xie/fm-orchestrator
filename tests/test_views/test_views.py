@@ -1253,18 +1253,25 @@ class TestViews:
         assert data["state"] == 4
         assert data["state_reason"] == "Canceled by some_other_user."
 
+    @pytest.mark.parametrize("module_state", (BUILD_STATES["failed"], BUILD_STATES["ready"]))
     @patch("module_build_service.auth.get_user", return_value=other_user)
-    def test_cancel_build_already_failed(self, mocked_get_user):
+    def test_cancel_build_in_invalid_state(self, mocked_get_user, module_state):
         module = ModuleBuild.get_by_id(db_session, 7)
-        module.state = 4
+        module.state = module_state
         db_session.commit()
 
         rv = self.client.patch(
             "/module-build-service/1/module-builds/7", data=json.dumps({"state": "failed"}))
 
-        data = json.loads(rv.data)
-        assert data["status"] == 403
-        assert data["error"] == "Forbidden"
+        assert rv.status_code == 400
+        assert rv.json == {
+            "error": "Bad Request",
+            "message": (
+                "To cancel a module build, it must be in one of the following states: "
+                "build, init, wait"
+            ),
+            "status": 400,
+        }
 
     @patch("module_build_service.auth.get_user", return_value=("sammy", set()))
     def test_cancel_build_unauthorized_no_groups(self, mocked_get_user):
@@ -1328,11 +1335,13 @@ class TestViews:
     def test_cancel_build_wrong_state(self, mocked_get_user):
         rv = self.client.patch(
             "/module-build-service/1/module-builds/7", data=json.dumps({"state": "some_state"}))
-        data = json.loads(rv.data)
 
-        assert data["status"] == 400
-        assert data["error"] == "Bad Request"
-        assert data["message"] == "The provided state change is not supported"
+        assert rv.status_code == 400
+        assert rv.json == {
+            "error": "Bad Request",
+            "message": "An invalid state was submitted. Valid states values are: failed, 4",
+            "status": 400,
+        }
 
     @patch("module_build_service.auth.get_user", return_value=user)
     def test_submit_build_unsupported_scm_scheme(self, mocked_get_user):

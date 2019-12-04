@@ -206,15 +206,28 @@ class ModuleBuildAPI(AbstractQueryableBuildAPI):
             log.error("Invalid JSON submitted")
             raise ValidationError("Invalid JSON submitted")
 
-        if module.state == models.BUILD_STATES["failed"]:
-            raise Forbidden("You can't cancel a failed module")
+        state = r["state"]
+        valid_input_states = ("failed", str(models.BUILD_STATES["failed"]))
+        if state not in valid_input_states:
+            raise ValidationError(
+                "An invalid state was submitted. Valid states values are: {}"
+                .format(", ".join(valid_input_states))
+            )
 
-        if r["state"] == "failed" or r["state"] == str(models.BUILD_STATES["failed"]):
-            module.transition(
-                db.session, conf, models.BUILD_STATES["failed"], "Canceled by %s." % username)
-        else:
-            log.error('The provided state change of "{}" is not supported'.format(r["state"]))
-            raise ValidationError("The provided state change is not supported")
+        valid_states_to_cancel = ("build", "init", "wait")
+        module_state_name = models.INVERSE_BUILD_STATES[module.state]
+        if module_state_name not in valid_states_to_cancel:
+            log.error(
+                "The user %s attempted to cancel a build in the %s state",
+                username, module_state_name,
+            )
+            raise ValidationError(
+                "To cancel a module build, it must be in one of the following states: {}"
+                .format(", ".join(valid_states_to_cancel))
+            )
+
+        module.transition(
+            db.session, conf, models.BUILD_STATES["failed"], "Canceled by %s." % username)
         db.session.add(module)
         db.session.commit()
 
