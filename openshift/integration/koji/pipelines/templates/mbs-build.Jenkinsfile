@@ -45,7 +45,7 @@ pipeline {
     skipDefaultCheckout()
   }
   environment {
-    PIPELINE_NAMESPACE = readFile("/run/secrets/kubernetes.io/serviceaccount/namespace").trim()
+    TRIGGER_NAMESPACE = readFile("/run/secrets/kubernetes.io/serviceaccount/namespace").trim()
     PAGURE_API = "${params.PAGURE_URL}/api/0"
     PAGURE_REPO_IS_FORK = "${params.PAGURE_REPO_IS_FORK}"
     PAGURE_REPO_HOME = "${env.PAGURE_URL}${env.PAGURE_REPO_IS_FORK == 'true' ? '/fork' : ''}/${params.PAGURE_REPO_NAME}"
@@ -60,6 +60,8 @@ pipeline {
           // the return value of checkout() is unreliable.
           // Not working: env.MBS_GIT_COMMIT = scmVars.GIT_COMMIT
           env.MBS_GIT_COMMIT = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
+          // Set for pagure function from c3i-library
+          env.GIT_COMMIT = env.MBS_GIT_COMMIT
           echo "Build ${params.MBS_GIT_REF}, commit=${env.MBS_GIT_COMMIT}"
 
           // Is the current branch a pull-request? If no, env.PR_NO will be empty.
@@ -122,13 +124,11 @@ pipeline {
             // To enable HTML syntax in build description, go to `Jenkins/Global Security/Markup Formatter` and select 'Safe HTML'.
             def pagureLink = """<a href="${env.PR_URL}">${currentBuild.displayName}</a>"""
             try {
-              def prInfo = withPagure {
-                it.getPR(env.PR_NO)
-              }
+              def prInfo = pagure.getPR(env.PR_NO)
               pagureLink = """<a href="${env.PR_URL}">PR#${env.PR_NO}: ${escapeHtml(prInfo.title)}</a>"""
               // set PR status to Pending
               if (params.PAGURE_API_KEY_SECRET_NAME)
-                setBuildStatusOnPagurePR(null, "Build #${env.BUILD_NUMBER} in progress (commit: ${env.MBS_GIT_COMMIT.take(8)})")
+                pagure.setBuildStatusOnPR(null, "Build #${env.BUILD_NUMBER} in progress (commit: ${env.MBS_GIT_COMMIT.take(8)})")
             } catch (Exception e) {
               echo "Error using pagure API: ${e}"
             }
@@ -138,7 +138,7 @@ pipeline {
             currentBuild.description = """<a href="${env.PAGURE_REPO_HOME}/c/${env.MBS_GIT_COMMIT}">${currentBuild.displayName}</a>"""
             if (params.PAGURE_API_KEY_SECRET_NAME) {
               try {
-                flagCommit('pending', null, "Build #${env.BUILD_NUMBER} in progress (commit: ${env.MBS_GIT_COMMIT.take(8)})")
+                pagure.flagCommit('pending', null, "Build #${env.BUILD_NUMBER} in progress (commit: ${env.MBS_GIT_COMMIT.take(8)})")
                 echo "Updated commit ${env.MBS_GIT_COMMIT} status to PENDING."
               } catch (e) {
 		echo "Error updating commit ${env.MBS_GIT_COMMIT} status to PENDING: ${e}"
@@ -151,24 +151,27 @@ pipeline {
     stage('Allocate C3IaaS project') {
       when {
         expression {
-          return params.USE_C3IAAS == 'true' &&
-                 params.C3IAAS_REQUEST_PROJECT_BUILD_CONFIG_NAMESPACE &&
-                 params.C3IAAS_REQUEST_PROJECT_BUILD_CONFIG_NAME
+          return params.USE_C3IAAS == 'true'
         }
       }
       steps {
         script {
-          if (env.PR_NO) {
-            env.C3IAAS_NAMESPACE = "c3i-mbs-pr-${env.PR_NO}-git${env.MBS_GIT_COMMIT.take(8)}"
-          } else {
-            env.C3IAAS_NAMESPACE = "c3i-mbs-${params.MBS_GIT_REF}-git${env.MBS_GIT_COMMIT.take(8)}"
+          if (!params.C3IAAS_REQUEST_PROJECT_BUILD_CONFIG_NAME ||
+              !params.C3IAAS_REQUEST_PROJECT_BUILD_CONFIG_NAMESPACE) {
+            error("USE_C3IAAS is set to true but missing C3IAAS_REQUEST_PROJECT_BUILD_CONFIG_NAME" +
+                  " or C3IAAS_REQUEST_PROJECT_BUILD_CONFIG_NAMESPACE")
           }
-          echo "Requesting new OpenShift project ${env.C3IAAS_NAMESPACE}..."
+          if (env.PR_NO) {
+            env.PIPELINE_ID = "c3i-mbs-pr-${env.PR_NO}-git${env.MBS_GIT_COMMIT.take(8)}"
+          } else {
+            env.PIPELINE_ID = "c3i-mbs-${params.MBS_GIT_REF}-git${env.MBS_GIT_COMMIT.take(8)}"
+          }
+          echo "Requesting new OpenShift project ${env.PIPELINE_ID}..."
           openshift.withCluster() {
             openshift.withProject(params.C3IAAS_REQUEST_PROJECT_BUILD_CONFIG_NAMESPACE) {
               c3i.buildAndWait(script: this, objs: "bc/${params.C3IAAS_REQUEST_PROJECT_BUILD_CONFIG_NAME}",
-                '-e', "PROJECT_NAME=${env.C3IAAS_NAMESPACE}",
-                '-e', "ADMIN_GROUPS=system:serviceaccounts:${PIPELINE_NAMESPACE}",
+                '-e', "PROJECT_NAME=${env.PIPELINE_ID}",
+                '-e', "ADMIN_GROUPS=system:serviceaccounts:${TRIGGER_NAMESPACE}",
                 '-e', "LIFETIME_IN_MINUTES=${params.C3IAAS_LIFETIME}"
               )
             }
@@ -177,10 +180,10 @@ pipeline {
       }
       post {
         success {
-          echo "Allocated project ${env.C3IAAS_NAMESPACE}"
+          echo "Allocated project ${env.PIPELINE_ID}"
         }
         failure {
-          echo "Failed to allocate ${env.C3IAAS_NAMESPACE} project"
+          echo "Failed to allocate ${env.PIPELINE_ID} project"
         }
       }
     }
@@ -191,7 +194,7 @@ pipeline {
       steps {
         script {
           openshift.withCluster() {
-            openshift.withProject(env.C3IAAS_NAMESPACE ?: env.PIPELINE_NAMESPACE) {
+            openshift.withProject(env.PIPELINE_ID) {
               // OpenShift BuildConfig doesn't support specifying a tag name at build time.
               // We have to create a new BuildConfig for each image build.
               echo 'Creating a BuildConfig for mbs-backend build...'
@@ -204,7 +207,7 @@ pipeline {
                 // because refspec cannot be customized in an OpenShift build.
                 '-p', "MBS_GIT_REF=${env.PR_NO ? params.MBS_GIT_REF : env.MBS_GIT_COMMIT}",
                 '-p', "MBS_BACKEND_IMAGESTREAM_NAME=${params.MBS_BACKEND_IMAGESTREAM_NAME}",
-                '-p', "MBS_BACKEND_IMAGESTREAM_NAMESPACE=${env.C3IAAS_NAMESPACE ?: env.PIPELINE_NAMESPACE}",
+                '-p', "MBS_BACKEND_IMAGESTREAM_NAMESPACE=${env.PIPELINE_ID}",
                 '-p', "MBS_IMAGE_TAG=${env.TEMP_TAG}",
                 '-p', "EXTRA_RPMS=${params.EXTRA_RPMS}",
                 '-p', "CREATED=${created}"
@@ -228,13 +231,15 @@ pipeline {
         }
         cleanup {
           script {
-            if (!env.C3IAAS_NAMESPACE) {
+            if (params.USE_C3IAAS != 'true') {
               openshift.withCluster() {
-                echo 'Tearing down...'
-                openshift.selector('bc', [
-                  'app': env.BACKEND_BUILDCONFIG_ID,
-                  'template': 'mbs-backend-build-template',
-                  ]).delete()
+                openshift.withProject(env.PIPELINE_ID) {
+                  echo 'Tearing down...'
+                  openshift.selector('bc', [
+                    'app': env.BACKEND_BUILDCONFIG_ID,
+                    'template': 'mbs-backend-build-template',
+                    ]).delete()
+                }
               }
             }
           }
@@ -248,7 +253,7 @@ pipeline {
       steps {
         script {
           openshift.withCluster() {
-            openshift.withProject(env.C3IAAS_NAMESPACE ?: env.PIPELINE_NAMESPACE) {
+            openshift.withProject(env.PIPELINE_ID) {
               // OpenShift BuildConfig doesn't support specifying a tag name at build time.
               // We have to create a new BuildConfig for each image build.
               echo 'Creating a BuildConfig for mbs-frontend build...'
@@ -261,10 +266,10 @@ pipeline {
                 // because refspec cannot be customized in an OpenShift build.
                 '-p', "MBS_GIT_REF=${env.PR_NO ? params.MBS_GIT_REF : env.MBS_GIT_COMMIT}",
                 '-p', "MBS_FRONTEND_IMAGESTREAM_NAME=${params.MBS_FRONTEND_IMAGESTREAM_NAME}",
-                '-p', "MBS_FRONTEND_IMAGESTREAM_NAMESPACE=${env.C3IAAS_NAMESPACE ?: env.PIPELINE_NAMESPACE}",
+                '-p', "MBS_FRONTEND_IMAGESTREAM_NAMESPACE=${env.PIPELINE_ID}",
                 '-p', "MBS_IMAGE_TAG=${env.TEMP_TAG}",
                 '-p', "MBS_BACKEND_IMAGESTREAM_NAME=${params.MBS_BACKEND_IMAGESTREAM_NAME}",
-                '-p', "MBS_BACKEND_IMAGESTREAM_NAMESPACE=${env.C3IAAS_NAMESPACE ?: env.PIPELINE_NAMESPACE}",
+                '-p', "MBS_BACKEND_IMAGESTREAM_NAMESPACE=${env.PIPELINE_ID}",
                 '-p', "CREATED=${created}"
               )
               def build = c3i.buildAndWait(script: this, objs: processed, '--from-dir=.')
@@ -311,8 +316,7 @@ pipeline {
                   '-e', "MBS_FRONTEND_IMAGE=${env.FRONTEND_IMAGE_REF}",
                   '-e', "TEST_IMAGES=${env.BACKEND_IMAGE_REF},${env.FRONTEND_IMAGE_REF}",
                   '-e', "IMAGE_IS_SCRATCH=${params.MBS_GIT_REF != params.MBS_MAIN_BRANCH}",
-                  // If env.C3IAAS_NAMESPACE has not been defined, tests will be run in the current namespace
-                  '-e', "TEST_NAMESPACE=${env.C3IAAS_NAMESPACE ?: ''}",
+                  '-e', "TEST_NAMESPACE=${env.PIPELINE_ID}",
                   '-e', "TESTCASES='${params.TESTCASES}'",
                   '-e', "CLEANUP=${params.CLEANUP}"
               )
@@ -402,8 +406,7 @@ pipeline {
       when {
         expression {
           return "${params.MBS_DEV_IMAGE_TAG}" && params.TAG_INTO_IMAGESTREAM == "true" &&
-            (params.FORCE_PUBLISH_IMAGE == "true" || params.MBS_GIT_REF == params.MBS_MAIN_BRANCH) &&
-            !env.C3IAAS_NAMESPACE
+            (params.FORCE_PUBLISH_IMAGE == "true" || params.MBS_GIT_REF == params.MBS_MAIN_BRANCH)
         }
       }
       steps {
@@ -434,18 +437,20 @@ pipeline {
   post {
     cleanup {
       script {
-        if (params.CLEANUP == 'true' && !env.C3IAAS_NAMESPACE) {
+        if (params.CLEANUP == 'true' && params.USE_C3IAAS != 'true') {
           openshift.withCluster() {
-            if (env.BACKEND_IMAGE_TAG) {
-              echo "Removing tag ${env.BACKEND_IMAGE_TAG} from the ${params.MBS_BACKEND_IMAGESTREAM_NAME} ImageStream..."
-              openshift.withProject(params.MBS_BACKEND_IMAGESTREAM_NAMESPACE) {
-                openshift.tag("${params.MBS_BACKEND_IMAGESTREAM_NAME}:${env.BACKEND_IMAGE_TAG}", "-d")
+            openshift.withProject(env.PIPELINE_ID) {
+              if (env.BACKEND_IMAGE_TAG) {
+                echo "Removing tag ${env.BACKEND_IMAGE_TAG} from the ${params.MBS_BACKEND_IMAGESTREAM_NAME} ImageStream..."
+                openshift.withProject(params.MBS_BACKEND_IMAGESTREAM_NAMESPACE) {
+                  openshift.tag("${params.MBS_BACKEND_IMAGESTREAM_NAME}:${env.BACKEND_IMAGE_TAG}", "-d")
+                }
               }
-            }
-            if (env.FRONTEND_IMAGE_TAG) {
-              echo "Removing tag ${env.FRONTEND_IMAGE_TAG} from the ${params.MBS_FRONTEND_IMAGESTREAM_NAME} ImageStream..."
-              openshift.withProject(params.MBS_FRONTEND_IMAGESTREAM_NAMESPACE) {
-                openshift.tag("${params.MBS_FRONTEND_IMAGESTREAM_NAME}:${env.FRONTEND_IMAGE_TAG}", "-d")
+              if (env.FRONTEND_IMAGE_TAG) {
+                echo "Removing tag ${env.FRONTEND_IMAGE_TAG} from the ${params.MBS_FRONTEND_IMAGESTREAM_NAME} ImageStream..."
+                openshift.withProject(params.MBS_FRONTEND_IMAGESTREAM_NAMESPACE) {
+                  openshift.tag("${params.MBS_FRONTEND_IMAGESTREAM_NAME}:${env.FRONTEND_IMAGE_TAG}", "-d")
+                }
               }
             }
           }
@@ -457,7 +462,7 @@ pipeline {
         // on pre-merge workflow success
         if (params.PAGURE_API_KEY_SECRET_NAME && env.PR_NO) {
           try {
-            setBuildStatusOnPagurePR(100, "Build #${env.BUILD_NUMBER} successful (commit: ${env.MBS_GIT_COMMIT.take(8)})")
+            pagure.setBuildStatusOnPR(100, "Build #${env.BUILD_NUMBER} successful (commit: ${env.MBS_GIT_COMMIT.take(8)})")
             echo "Updated PR #${env.PR_NO} status to PASS."
           } catch (e) {
             echo "Error updating PR #${env.PR_NO} status to PASS: ${e}"
@@ -466,7 +471,7 @@ pipeline {
         // on post-merge workflow success
         if (params.PAGURE_API_KEY_SECRET_NAME && !env.PR_NO) {
           try {
-            flagCommit('success', 100, "Build #${env.BUILD_NUMBER} successful (commit: ${env.MBS_GIT_COMMIT.take(8)})")
+            pagure.flagCommit('success', 100, "Build #${env.BUILD_NUMBER} successful (commit: ${env.MBS_GIT_COMMIT.take(8)})")
             echo "Updated commit ${env.MBS_GIT_COMMIT} status to PASS."
           } catch (e) {
             echo "Error updating commit ${env.MBS_GIT_COMMIT} status to PASS: ${e}"
@@ -480,17 +485,17 @@ pipeline {
         if (params.PAGURE_API_KEY_SECRET_NAME && env.PR_NO) {
           // updating Pagure PR flag
           try {
-            setBuildStatusOnPagurePR(0, "Build #${env.BUILD_NUMBER} failed (commit: ${env.MBS_GIT_COMMIT.take(8)})")
+            pagure.setBuildStatusOnPR(0, "Build #${env.BUILD_NUMBER} failed (commit: ${env.MBS_GIT_COMMIT.take(8)})")
             echo "Updated PR #${env.PR_NO} status to FAILURE."
           } catch (e) {
             echo "Error updating PR #${env.PR_NO} status to FAILURE: ${e}"
           }
           // making a comment
           try {
-            commentOnPR("""
+            pagure.commentOnPR("""
             Build #${env.BUILD_NUMBER} [failed](${env.BUILD_URL}) (commit: ${env.MBS_GIT_COMMIT}).
             Rebase or make new commits to rebuild.
-            """.stripIndent())
+            """.stripIndent(), env.PR_NO)
             echo "Comment made."
           } catch (e) {
             echo "Error making a comment on PR #${env.PR_NO}: ${e}"
@@ -501,7 +506,7 @@ pipeline {
           // updating Pagure commit flag
           if (params.PAGURE_API_KEY_SECRET_NAME) {
             try {
-              flagCommit('failure', 0, "Build #${env.BUILD_NUMBER} failed (commit: ${env.MBS_GIT_COMMIT.take(8)})")
+              pagure.flagCommit('failure', 0, "Build #${env.BUILD_NUMBER} failed (commit: ${env.MBS_GIT_COMMIT.take(8)})")
               echo "Updated commit ${env.MBS_GIT_COMMIT} status to FAILURE."
             } catch (e) {
               echo "Error updating commit ${env.MBS_GIT_COMMIT} status to FAILURE: ${e}"
@@ -523,38 +528,6 @@ pipeline {
 def getPrNo(branch) {
   def prMatch = branch =~ /^(?:.+\/)?pull\/(\d+)\/head$/
   return prMatch ? prMatch[0][1] : ''
-}
-def withPagure(args=[:], cl) {
-  args.apiUrl = env.PAGURE_API
-  args.repo = env.PAGURE_REPO_NAME
-  args.isFork = env.PAGURE_REPO_IS_FORK == 'true'
-  def pagureClient = pagure.client(args)
-  return cl(pagureClient)
-}
-def withPagureCreds(args=[:], cl) {
-  def pagureClient = null
-  withCredentials([string(credentialsId: "${env.PIPELINE_NAMESPACE}-${env.PAGURE_API_KEY_SECRET_NAME}", variable: 'TOKEN')]) {
-    args.token = env.TOKEN
-    pagureClient = withPagure(args, cl)
-  }
-  return pagureClient
-}
-def setBuildStatusOnPagurePR(percent, String comment) {
-  withPagureCreds {
-    it.updatePRStatus(username: 'c3i-jenkins', uid: "ci-pre-merge-${env.MBS_GIT_COMMIT.take(8)}",
-      url: env.BUILD_URL, percent: percent, comment: comment, pr: env.PR_NO)
-  }
-}
-def flagCommit(status, percent, comment) {
-  withPagureCreds {
-    it.flagCommit(username: 'c3i-jenkins', uid: "ci-post-merge-${env.MBS_GIT_COMMIT.take(8)}", status: status,
-      url: env.BUILD_URL, percent: percent, comment: comment, commit: env.MBS_GIT_COMMIT)
-  }
-}
-def commentOnPR(String comment) {
-  withPagureCreds {
-    it.commentOnPR(comment: comment, pr: env.PR_NO)
-  }
 }
 def sendBuildStatusEmail(String status) {
   def recipient = params.MAIL_ADDRESS
