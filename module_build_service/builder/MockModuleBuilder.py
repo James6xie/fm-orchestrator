@@ -14,7 +14,6 @@ from module_build_service import conf, log
 import module_build_service.scm
 import module_build_service.utils
 import module_build_service.scheduler
-import module_build_service.scheduler.consumer
 
 from module_build_service.builder import GenericBuilder
 from module_build_service.builder.utils import (
