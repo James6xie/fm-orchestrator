@@ -154,6 +154,17 @@ class Build:
             self._build_id = int(re.search(self._mbs_api + r"module-builds/(\d+)", stdout).group(1))
         return self._build_id
 
+    def watch(self):
+        """Watch the build till the finish"""
+        if self._build_id is None:
+            raise RuntimeError("Build was not started. Cannot watch.")
+
+        stdout = self._packaging_utility(
+            "module-build-watch", str(self._build_id)
+        ).stdout.decode("utf-8")
+
+        return stdout
+
     def cancel(self):
         """Cancel the module build
 
