@@ -663,7 +663,7 @@ class ModuleBuild(MBSBase):
         bus.
 
         :param db_session: SQLAlchemy session object.
-        :param conf: MBS config object returned from function :func:`init_config`,
+        :param conf: MBS config object returned from function :func:`init_config`
             which contains loaded configs.
         :type conf: :class:`Config`
         :param int state: the state value to transition to. Refer to ``BUILD_STATES``.

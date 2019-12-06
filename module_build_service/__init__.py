@@ -18,9 +18,7 @@ for a number of tasks:
   infrastructure services can pick up the work.
 """
 
-import os.path
 import pkg_resources
-import sys
 from celery import Celery
 from flask import Flask, has_app_context, url_for
 from flask_sqlalchemy import SQLAlchemy
@@ -48,12 +46,7 @@ api_version = 2
 app = Flask(__name__)
 app.wsgi_app = ReverseProxy(app.wsgi_app)
 
-backend_commands = ("fedmsg-hub", "celery", "build_module_locally")
-if any([os.path.basename(arg).startswith(backend_commands) for arg in sys.argv]):
-    # running as backend
-    conf = init_config(app, backend=True)
-else:
-    conf = init_config(app)
+conf = init_config(app)
 
 celery_app = Celery("module-build-service")
 # Convert config names specific for Celery like this:

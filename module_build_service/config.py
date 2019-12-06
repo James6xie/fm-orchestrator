@@ -24,19 +24,11 @@ SUPPORTED_RESOLVERS = {
 }
 
 
-def init_config(app, backend=False):
+def init_config(app):
     """ Configure MBS and the Flask app
-    By default, this create a config object with WebConfig, if backend is specified,
-    create a config object with BackendConfig.
     """
     config_module = None
-    if backend:
-        config_module_name = "backend_config"
-        config_file = "/etc/module-build-service/backend_config.py"
-    else:
-        config_module_name = "web_config"
-        config_file = "/etc/module-build-service/web_config.py"
-
+    config_file = "/etc/module-build-service/config.py"
     config_section = "DevConfiguration"
 
     # automagically detect production environment:
@@ -74,14 +66,13 @@ def init_config(app, backend=False):
         if "MBS_CONFIG_SECTION" in app.request.environ:
             config_section = app.request.environ["MBS_CONFIG_SECTION"]
 
-    test_env = False
-    dev_env = False
-
     true_options = ("1", "on", "true", "y", "yes")
     # TestConfiguration shall only be used for running tests, otherwise...
     if any(["py.test" in arg or "pytest" in arg for arg in sys.argv]):
-        test_env = True
         config_section = "TestConfiguration"
+        from conf import config
+
+        config_module = config
     # ...MODULE_BUILD_SERVICE_DEVELOPER_ENV has always the last word
     # and overrides anything previously set before!
     # Again, check Flask app (preferably) or fallback to os.environ.
@@ -89,16 +80,15 @@ def init_config(app, backend=False):
     # -> /conf/config.py.
     elif flask_app_env and "MODULE_BUILD_SERVICE_DEVELOPER_ENV" in app.request.environ:
         if app.request.environ["MODULE_BUILD_SERVICE_DEVELOPER_ENV"].lower() in true_options:
-            dev_env = True
             config_section = "DevConfiguration"
+            from conf import config
+
+            config_module = config
     elif os.environ.get("MODULE_BUILD_SERVICE_DEVELOPER_ENV", "").lower() in true_options:
-        dev_env = True
         config_section = "DevConfiguration"
+        from conf import config
 
-    if test_env or dev_env:
-        import importlib
-        config_module = importlib.import_module("conf.%s" % config_module_name)
-
+        config_module = config
     # try loading configuration from file
     if not config_module:
         try:
@@ -108,10 +98,7 @@ def init_config(app, backend=False):
 
     # finally configure MBS and the Flask app
     config_section_obj = getattr(config_module, config_section)
-    if backend:
-        conf = BackendConfig(config_section_obj)
-    else:
-        conf = WebConfig(config_section_obj)
+    conf = Config(config_section_obj)
     app.config.from_object(config_section_obj)
     return conf
 
@@ -125,7 +112,7 @@ class Path:
 
 
 class Config(object):
-    """Class representing the orchestrator common configuration."""
+    """Class representing the orchestrator configuration."""
 
     _defaults = {
         "debug": {"type": bool, "default": False, "desc": "Debug mode"},
@@ -934,23 +921,3 @@ class Config(object):
         if i < 1:
             raise ValueError("NUM_THREADS_FOR_BUILD_SUBMISSIONS must be >= 1")
         self._num_threads_for_build_submissions = i
-
-
-class WebConfig(Config):
-    """Class representing the orchestrator frontend web configuration."""
-    _web_defaults = {
-    }
-
-    def __init__(self, conf_section_obj):
-        self._defaults.update(self._web_defaults)
-        super(WebConfig, self).__init__(conf_section_obj)
-
-
-class BackendConfig(Config):
-    """Class representing the orchestrator backend workers configuration."""
-    _backend_defaults = {
-    }
-
-    def __init__(self, conf_section_obj):
-        self._defaults.update(self._backend_defaults)
-        super(BackendConfig, self).__init__(conf_section_obj)
