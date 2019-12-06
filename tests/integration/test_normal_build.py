@@ -18,6 +18,7 @@ def test_normal_build(test_env, repo, koji):
         if a Platform stream is representing a GA RHEL release.
     """
     build = utils.Build(test_env["packaging_utility"], test_env["mbs_api"])
+    repo.bump()
     build_id = build.run(
         "--watch",
         "--scratch",
