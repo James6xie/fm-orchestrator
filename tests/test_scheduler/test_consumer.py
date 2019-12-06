@@ -76,4 +76,4 @@ class TestConsumer:
         event_info = process_message.call_args[0][0]
         assert event_info["event"] == events.KOJI_REPO_CHANGE
         assert event_info["msg_id"] == msg["body"]["msg_id"]
-        assert event_info["repo_tag"] == msg["body"]["msg"]["tag"]
+        assert event_info["tag_name"] == msg["body"]["msg"]["tag"]

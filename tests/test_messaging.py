@@ -74,4 +74,4 @@ class TestFedmsgMessaging:
         parser = FedmsgMessageParser(messaging.known_fedmsg_services)
         event_info = parser.parse(buildsys_tag_msg)
 
-        assert event_info["repo_tag"] == "module-f0f7e44f3c6cccab-build"
+        assert event_info["tag_name"] == "module-f0f7e44f3c6cccab-build"

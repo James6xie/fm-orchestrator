@@ -204,7 +204,7 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
         if event == events.KOJI_REPO_CHANGE:
             return (
                 ON_REPO_CHANGE_HANDLER,
-                models.ModuleBuild.get_by_tag(db_session, event_info["repo_tag"])
+                models.ModuleBuild.get_by_tag(db_session, event_info["tag_name"])
             )
 
         if event == events.KOJI_TAG_CHANGE:

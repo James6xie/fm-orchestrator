@@ -92,7 +92,7 @@ class FedmsgMessageParser(MessageParser):
                     return {
                         "msg_id": msg_id,
                         "event": events.KOJI_REPO_CHANGE,
-                        "repo_tag": msg_inner_msg.get("tag")
+                        "tag_name": msg_inner_msg.get("tag")
                     }
 
                 if event == "tag":

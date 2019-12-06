@@ -1825,7 +1825,7 @@ class TestBuild(BaseTestBuild):
         events_info = [{
             "msg_id": "a faked internal message",
             "event": events.KOJI_REPO_CHANGE,
-            "repo_tag": module.koji_tag + "-build"
+            "tag_name": module.koji_tag + "-build"
         }]
         db_session.expire_all()
         # Stop after processing the seeded message

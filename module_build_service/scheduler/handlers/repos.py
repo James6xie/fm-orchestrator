@@ -15,20 +15,20 @@ logging.basicConfig(level=logging.DEBUG)
 
 @celery_app.task
 @events.mbs_event_handler()
-def done(msg_id, repo_tag):
+def done(msg_id, tag_name):
     """Called whenever koji rebuilds a repo, any repo.
 
     :param str msg_id: the original id of the message being handled which is
         received from the message bus.
-    :param str repo_tag: the tag name from which the repo is generated.
+    :param str tag_name: the tag name from which the repo is generated.
     """
 
     # First, find our ModuleBuild associated with this repo, if any.
-    if conf.system in ("koji", "test") and not repo_tag.endswith("-build"):
-        log.debug("Tag %r does not end with '-build' suffix, ignoring", repo_tag)
+    if conf.system in ("koji", "test") and not tag_name.endswith("-build"):
+        log.debug("Tag %r does not end with '-build' suffix, ignoring", tag_name)
         return
-    tag = repo_tag[:-6] if repo_tag.endswith("-build") else repo_tag
-    module_build = models.ModuleBuild.get_by_tag(db_session, repo_tag)
+    tag = tag_name[:-6] if tag_name.endswith("-build") else tag_name
+    module_build = models.ModuleBuild.get_by_tag(db_session, tag_name)
     if not module_build:
         log.debug("No module build found associated with koji tag %r" % tag)
         return

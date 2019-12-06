@@ -21,7 +21,7 @@ class TestRepoDone:
         get_by_tag.return_value = None
         module_build_service.scheduler.handlers.repos.done(
             msg_id="no matches for this...",
-            repo_tag="2016-some-nonexistent-build")
+            tag_name="2016-some-nonexistent-build")
 
     @mock.patch(
         "module_build_service.builder.KojiModuleBuilder."
@@ -58,7 +58,7 @@ class TestRepoDone:
 
         module_build_service.scheduler.handlers.repos.done(
             msg_id="some_msg_id",
-            repo_tag="module-testmodule-master-20170109091357-7c29193d-build")
+            tag_name="module-testmodule-master-20170109091357-7c29193d-build")
         build_fn.assert_called_once_with(
             artifact_name="tangerine",
             source=(
@@ -118,7 +118,7 @@ class TestRepoDone:
 
         module_build_service.scheduler.handlers.repos.done(
             msg_id="some_msg_id",
-            repo_tag="module-testmodule-master-20170109091357-7c29193d-build")
+            tag_name="module-testmodule-master-20170109091357-7c29193d-build")
 
         finalizer.assert_called_once()
 
@@ -158,7 +158,7 @@ class TestRepoDone:
 
         module_build_service.scheduler.handlers.repos.done(
             msg_id="some_msg_id",
-            repo_tag="module-testmodule-master-20170109091357-7c29193d-build")
+            tag_name="module-testmodule-master-20170109091357-7c29193d-build")
 
         build_fn.assert_called_once_with(
             artifact_name="tangerine",
@@ -185,7 +185,7 @@ class TestRepoDone:
 
         module_build_service.scheduler.handlers.repos.done(
             msg_id="some_msg_id",
-            repo_tag="module-testmodule-master-20170109091357-7c29193d-build")
+            tag_name="module-testmodule-master-20170109091357-7c29193d-build")
 
         mock_log_info.assert_called_with(
             "Ignoring repo regen, because not all components are tagged."
@@ -224,7 +224,7 @@ class TestRepoDone:
 
         module_build_service.scheduler.handlers.repos.done(
             msg_id="some_msg_id",
-            repo_tag="module-testmodule-master-20170109091357-7c29193d-build")
+            tag_name="module-testmodule-master-20170109091357-7c29193d-build")
 
         module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
         assert module_build.state == module_build_service.models.BUILD_STATES["failed"]
