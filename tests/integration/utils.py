@@ -20,17 +20,15 @@ class Koji:
 
     :attribute string _server: URL of the Koji hub
     :attribute string _topurl: URL of the top-level Koji download location
-    :attribute string _weburl: URL of the web interface
     :attribute koji.ClientSession _session: Koji session
     :attribute koji.PathInfo _pathinfo: Koji path
     """
 
-    def __init__(self, server, topurl, weburl):
+    def __init__(self, server, topurl):
         self._server = server
         self._topurl = topurl
-        self._weburl = weburl
         self._session = koji.ClientSession(self._server)
-        self._pathinfo = koji.PathInfo(self._weburl)
+        self._pathinfo = koji.PathInfo(self._topurl)
 
     def get_build(self, nvr_dict):
         """Koji build data for NVR
