@@ -32,9 +32,18 @@ parameters:
 - name: TARGET_TAG
   displayName: Tag name to promote the image to
   required: true
-- name: IMAGE_PROMOTION_JOB
-  displayName: Downstream image promotion job to trigger
+- name: TAG_INTO_IMAGESTREAM
+  displayName: Whether to tag the image into an ImageStream
+  value: "false"
   required: true
+- name: DEST_IMAGESTREAM_NAME
+  displayName: Name of the ImageStream to be tagged
+  required: false
+  value: ""
+- name: CONTAINER_REGISTRY_CREDENTIALS
+  displayName: Secret name of container registries used for pulling and pushing images
+  value: factory2-pipeline-registry-credentials
+  required: false
 - name: MESSAGING_PROVIDER
   displayName: Name of the JMS messaging provider
   value: Red Hat UMB
@@ -47,6 +56,11 @@ parameters:
 - name: JENKINS_AGENT_CLOUD_NAME
   displayName: Name of OpenShift cloud in Jenkins master configuration
   value: openshift
+- name: PROMOTING_DESTINATIONS
+  displayName: Comma seperated list of container repositories (without tags) to which the image will be promoted
+  description: OpenShift registries must be prefixed with 'atomic:'
+  required: true
+{% include "snippets/c3i-library-parameters.yaml" %}
 objects:
 - kind: ServiceAccount
   apiVersion: v1
@@ -74,14 +88,12 @@ objects:
   spec:
     runPolicy: "Parallel"
     completionDeadlineSeconds: 1800
-    source:
-      git:
-        uri: "${MBS_GIT_REPO}"
-        ref: "${MBS_GIT_REF}"
     strategy:
       type: JenkinsPipeline
       jenkinsPipelineStrategy:
         env:
+        - name: PROMOTING_DESTINATIONS
+          value: "${PROMOTING_DESTINATIONS}"
         - name: JENKINS_AGENT_CLOUD_NAME
           value: "${JENKINS_AGENT_CLOUD_NAME}"
         - name: JENKINS_AGENT_IMAGE
@@ -90,10 +102,14 @@ objects:
           value: "${NAME}-jenkins-slave"
         - name: SOURCE_CONTAINER_REPO
           value: "${SOURCE_CONTAINER_REPO}"
+        - name: CONTAINER_REGISTRY_CREDENTIALS
+          value: "${CONTAINER_REGISTRY_CREDENTIALS}"
         - name: TARGET_TAG
           value: "${TARGET_TAG}"
-        - name: IMAGE_PROMOTION_JOB
-          value: "${IMAGE_PROMOTION_JOB}"
+        - name: TAG_INTO_IMAGESTREAM
+          value: "${TAG_INTO_IMAGESTREAM}"
+        - name: DEST_IMAGESTREAM_NAME
+          value: "${DEST_IMAGESTREAM_NAME}"
         - name: DECISION_CONTEXT_REGEX
           value: "${DECISION_CONTEXT_REGEX}"
         - name: SUBJECT_IDENTIFIER_REGEX
@@ -107,4 +123,5 @@ objects:
           value:
         - name: MESSAGE_HEADERS
           value:
-        jenkinsfilePath: openshift/integration/koji/pipelines/templates/mbs-greenwave-trigger.Jenkinsfile
+        jenkinsfile: |
+          {% filter indent(width=10) %}{% include "mbs-greenwave-trigger.Jenkinsfile" %}{% endfilter %}

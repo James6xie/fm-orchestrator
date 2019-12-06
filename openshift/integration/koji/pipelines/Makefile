@@ -23,7 +23,7 @@ install:
 	@for job in $(JOBS); do \
 		echo "[PIPELINE] Updating pipeline job \"$${job}\"..." ; \
 	  template_file=$$(cat ./$(JOBS_DIR)/$${job}.tmpl); \
-		$(OC_CMD) process --local -f ./$(TEMPLATES_DIR)/$${template_file} \
+		jinja2 ./$(TEMPLATES_DIR)/$${template_file} | $(OC_CMD) process --local -f - \
 			--param-file ./$(JOBS_DIR)/$${job}.env | $(OC_CMD) apply -f -; \
 		echo "[PIPELINE] Pipeline job \"$${job}\" updated" ; \
 	done
