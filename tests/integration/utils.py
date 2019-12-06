@@ -264,7 +264,7 @@ class Build:
 
         return batches
 
-    def wait_for_koji_task_id(self, package, batch, timeout=60, sleep=10):
+    def wait_for_koji_task_id(self, package, batch, timeout=300, sleep=10):
         """Wait until the component is submitted to Koji (has a task_id)
 
         :param string: name of component (package)
