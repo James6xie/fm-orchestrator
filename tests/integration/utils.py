@@ -2,13 +2,17 @@
 # SPDX-License-Identifier: MIT
 
 import re
+import sys
 import time
 
 from kobo import rpmlib
 import koji
 import yaml
 import requests
-from sh import Command, git
+import sh
+
+our_sh = sh(_out=sys.stdout, _err=sys.stderr, _tee=True)
+from our_sh import Command, git  # noqa
 
 
 class Koji:
@@ -123,7 +127,9 @@ class Build:
     """
 
     def __init__(self, packaging_utility, mbs_api):
-        self._packaging_utility = Command(packaging_utility)
+        self._packaging_utility = Command(packaging_utility).bake(
+            _out=sys.stdout, _err=sys.stderr, _tee=True
+        )
         self._mbs_api = mbs_api
         self._data = None
         self._component_data = None
