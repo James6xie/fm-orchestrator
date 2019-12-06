@@ -19,26 +19,15 @@ class BaseConfiguration(object):
     HOST = "0.0.0.0"
     PORT = 5000
 
-    # Global network-related values, in seconds
-    NET_TIMEOUT = 120
-    NET_RETRY_INTERVAL = 30
-
-    SYSTEM = "koji"
-    MESSAGING = "fedmsg"  # or amq
     MESSAGING_TOPIC_PREFIX = ["org.fedoraproject.prod"]
     KOJI_CONFIG = "/etc/module-build-service/koji.conf"
     KOJI_PROFILE = "koji"
     ARCHES = ["i686", "armv7hl", "x86_64"]
-    ALLOW_ARCH_OVERRIDE = False
     KOJI_REPOSITORY_URL = "https://kojipkgs.fedoraproject.org/repos"
-    KOJI_TAG_PREFIXES = ["module", "scrmod"]
-    KOJI_ENABLE_CONTENT_GENERATOR = True
-    CHECK_FOR_EOL = False
     PDC_URL = "https://pdc.fedoraproject.org/rest_api/v1"
     PDC_INSECURE = False
     PDC_DEVELOP = True
     SCMURLS = ["https://src.fedoraproject.org/modules/"]
-    YAML_SUBMIT_ALLOWED = False
 
     # How often should we resort to polling, in seconds
     # Set to zero to disable polling
@@ -48,23 +37,10 @@ class BaseConfiguration(object):
     # and be in the build state at a time. Set this to 0 for no restrictions
     NUM_CONCURRENT_BUILDS = 5
 
-    ALLOW_CUSTOM_SCMURLS = False
-
     RPMS_DEFAULT_REPOSITORY = "https://src.fedoraproject.org/rpms/"
-    RPMS_ALLOW_REPOSITORY = False
     RPMS_DEFAULT_CACHE = "http://pkgs.fedoraproject.org/repo/pkgs/"
-    RPMS_ALLOW_CACHE = False
 
     MODULES_DEFAULT_REPOSITORY = "https://src.fedoraproject.org/modules/"
-    MODULES_ALLOW_REPOSITORY = False
-    MODULES_ALLOW_SCRATCH = False
-
-    ALLOWED_GROUPS = {"packager"}
-
-    ALLOWED_GROUPS_TO_IMPORT_MODULE = set()
-
-    # Available backends are: console and file
-    LOG_BACKEND = "console"
 
     # Path to log file when LOG_BACKEND is set to "file".
     LOG_FILE = "module_build_service.log"
@@ -89,9 +65,6 @@ class BaseConfiguration(object):
     AMQ_PRIVATE_KEY_FILE = "/etc/module_build_service/msg-m8y-client.key"
     AMQ_TRUSTED_CERT_FILE = "/etc/module_build_service/Root-CA.crt"
 
-    # Disable Client Authorization
-    NO_AUTH = False
-
     # Configs for running tasks asynchronously with Celery
     # For details of Celery configs, refer to Celery documentation:
     # https://docs.celeryproject.org/en/latest/userguide/configuration.html
@@ -112,9 +85,6 @@ class BaseConfiguration(object):
 
 
 class TestConfiguration(BaseConfiguration):
-    BUILD_LOGS_DIR = "/tmp"
-    BUILD_LOGS_NAME_FORMAT = "build-{id}.log"
-    LOG_BACKEND = "console"
     LOG_LEVEL = "debug"
     SQLALCHEMY_DATABASE_URI = environ.get(
         "DATABASE_URI", "sqlite:///{0}".format(path.join(dbdir, "mbstest.db")))
@@ -135,8 +105,6 @@ class TestConfiguration(BaseConfiguration):
 
     KOJI_REPOSITORY_URL = "https://kojipkgs.stg.fedoraproject.org/repos"
     SCMURLS = ["https://src.stg.fedoraproject.org/modules/"]
-    AUTH_METHOD = "oidc"
-    RESOLVER = "db"
 
     ALLOWED_GROUPS_TO_IMPORT_MODULE = {"mbs-import-module"}
 
@@ -157,9 +125,6 @@ class LocalBuildConfiguration(BaseConfiguration):
     LOG_LEVEL = "debug"
     MESSAGING = "in_memory"
 
-    ARCH_AUTODETECT = True
-    ARCH_FALLBACK = "x86_64"
-
     ALLOW_CUSTOM_SCMURLS = True
     RESOLVER = "mbs"
     RPMS_ALLOW_REPOSITORY = True
@@ -172,7 +137,6 @@ class OfflineLocalBuildConfiguration(LocalBuildConfiguration):
 
 class DevConfiguration(LocalBuildConfiguration):
     DEBUG = True
-    LOG_BACKEND = "console"
 
     CELERY_BROKER_URL = "redis://localhost:6379/0"
     CELERY_RESULT_BACKEND = "redis://localhost:6379/0"
