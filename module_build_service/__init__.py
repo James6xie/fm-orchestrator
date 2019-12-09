@@ -53,7 +53,7 @@ celery_app = Celery("module-build-service")
 # celery_broker_url -> broker_url
 celery_configs = {
     name[7:]: getattr(conf, name)
-    for name in dir(conf) if name.startswith('celery_')
+    for name in dir(conf) if name.startswith("celery_")
 }
 celery_app.conf.update(**celery_configs)
 
