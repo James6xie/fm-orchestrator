@@ -55,6 +55,8 @@ celery_configs = {
     name[7:]: getattr(conf, name)
     for name in dir(conf) if name.startswith("celery_")
 }
+# Only allow a single process so that tasks are always serial per worker
+celery_configs["worker_concurrency"] = 1
 celery_app.conf.update(**celery_configs)
 
 

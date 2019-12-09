@@ -670,6 +670,13 @@ class Config(object):
             "default": 30,
             "desc": "The timeout configuration for dnf operations, in seconds."
         },
+        "celery_worker_prefetch_multiplier": {
+            "type": int,
+            "default": 1,
+            "desc": "This defaults to 1 so that the worker doesn't fetch more messages than it can "
+                    "handle at a time. This so that general tasks aren't starved when running "
+                    "a long handler.",
+        },
     }
 
     def __init__(self, conf_section_obj):
