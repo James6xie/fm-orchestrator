@@ -2,13 +2,17 @@
 # SPDX-License-Identifier: MIT
 
 import re
+import sys
 import time
 
 from kobo import rpmlib
 import koji
 import yaml
 import requests
-from sh import Command, git
+import sh
+
+our_sh = sh(_out=sys.stdout, _err=sys.stderr, _tee=True)
+from our_sh import Command, git  # noqa
 
 
 class Koji:
@@ -16,17 +20,15 @@ class Koji:
 
     :attribute string _server: URL of the Koji hub
     :attribute string _topurl: URL of the top-level Koji download location
-    :attribute string _weburl: URL of the web interface
     :attribute koji.ClientSession _session: Koji session
     :attribute koji.PathInfo _pathinfo: Koji path
     """
 
-    def __init__(self, server, topurl, weburl):
+    def __init__(self, server, topurl):
         self._server = server
         self._topurl = topurl
-        self._weburl = weburl
         self._session = koji.ClientSession(self._server)
-        self._pathinfo = koji.PathInfo(self._weburl)
+        self._pathinfo = koji.PathInfo(self._topurl)
 
     def get_build(self, nvr_dict):
         """Koji build data for NVR
@@ -123,7 +125,9 @@ class Build:
     """
 
     def __init__(self, packaging_utility, mbs_api):
-        self._packaging_utility = Command(packaging_utility)
+        self._packaging_utility = Command(packaging_utility).bake(
+            _out=sys.stdout, _err=sys.stderr, _tee=True
+        )
         self._mbs_api = mbs_api
         self._data = None
         self._component_data = None
@@ -147,6 +151,17 @@ class Build:
             stdout = self._packaging_utility("module-build", *args).stdout.decode("utf-8")
             self._build_id = int(re.search(self._mbs_api + r"module-builds/(\d+)", stdout).group(1))
         return self._build_id
+
+    def watch(self):
+        """Watch the build till the finish"""
+        if self._build_id is None:
+            raise RuntimeError("Build was not started. Cannot watch.")
+
+        stdout = self._packaging_utility(
+            "module-build-watch", str(self._build_id)
+        ).stdout.decode("utf-8")
+
+        return stdout
 
     def cancel(self):
         """Cancel the module build
@@ -249,7 +264,7 @@ class Build:
 
         return batches
 
-    def wait_for_koji_task_id(self, package, batch, timeout=60, sleep=10):
+    def wait_for_koji_task_id(self, package, batch, timeout=300, sleep=10):
         """Wait until the component is submitted to Koji (has a task_id)
 
         :param string: name of component (package)

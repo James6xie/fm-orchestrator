@@ -16,12 +16,12 @@ def test_scratch_build(test_env, repo, koji):
     """
     build = utils.Build(test_env["packaging_utility"], test_env["mbs_api"])
     build.run(
-        "--watch",
         "--scratch",
         "--optional",
         "rebuild_strategy=all",
         reuse=test_env["testdata"]["scratch_build"].get("build_id"),
     )
+    build.watch()
 
     assert build.state_name == "done"
     assert sorted(build.component_names(state="COMPLETE")) == sorted(

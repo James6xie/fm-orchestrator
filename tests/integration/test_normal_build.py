@@ -18,13 +18,14 @@ def test_normal_build(test_env, repo, koji):
         if a Platform stream is representing a GA RHEL release.
     """
     build = utils.Build(test_env["packaging_utility"], test_env["mbs_api"])
+    repo.bump()
     build_id = build.run(
-        "--watch",
-        "--scratch",
         "--optional",
         "rebuild_strategy=all",
         reuse=test_env["testdata"]["normal_build"].get("build_id"),
     )
+    build.watch()
+
     assert sorted(build.component_names()) == sorted(repo.components + ["module-build-macros"])
 
     expected_buildorder = test_env["testdata"]["normal_build"]["buildorder"]
