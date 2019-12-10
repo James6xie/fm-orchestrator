@@ -133,6 +133,9 @@ class LocalBuildConfiguration(BaseConfiguration):
     RPMS_ALLOW_REPOSITORY = True
     MODULES_ALLOW_REPOSITORY = True
 
+    # Celery tasks will be executed locally for local builds
+    CELERY_TASK_ALWAYS_EAGER = True
+
 
 class OfflineLocalBuildConfiguration(LocalBuildConfiguration):
     RESOLVER = "local"
