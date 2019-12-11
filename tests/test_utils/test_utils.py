@@ -1234,11 +1234,11 @@ class TestBatches:
         for event in events.scheduler.queue:
             event_info = event[3]
             if event_info[0].startswith("reuse_component"):
-                assert event_info[3] == koji.BUILD_STATES["COMPLETE"]
+                assert event_info[2] == koji.BUILD_STATES["COMPLETE"]
                 component_build = models.ComponentBuild.from_component_event(
                     db_session,
-                    task_id=event_info[2],
-                    module_id=event_info[7])
+                    task_id=event_info[1],
+                    module_id=event_info[6])
                 assert component_build.state == koji.BUILD_STATES["BUILDING"]
 
         # When we handle these KojiBuildChange messages, MBS should tag all
@@ -1284,13 +1284,13 @@ class TestBatches:
         # to BUILDING, so KojiBuildChange message handler handles the change
         # properly.
         event_info = events.scheduler.queue[0][3]
-        assert event_info == ('reuse_component: fake msg', None, 90276227, 1, 'perl-Tangerine',
+        assert event_info == ('reuse_component: fake msg', 90276227, 1, 'perl-Tangerine',
                               '0.23', '1.module+0+d027b723', 3,
                               'Reused component from previous module build')
         component_build = models.ComponentBuild.from_component_event(
             db_session,
-            task_id=event_info[2],
-            module_id=event_info[7],
+            task_id=event_info[1],
+            module_id=event_info[6],
         )
         assert component_build.state == koji.BUILD_STATES["BUILDING"]
         assert component_build.package == "perl-Tangerine"
@@ -1379,13 +1379,13 @@ class TestBatches:
         # in the DB should be set to BUILDING, so the build state change handler
         # handles the change properly.
         event_info = events.scheduler.queue[0][3]
-        assert event_info == ('reuse_component: fake msg', None, 90276227, 1,
+        assert event_info == ('reuse_component: fake msg', 90276227, 1,
                               'perl-Tangerine', '0.23', '1.module+0+d027b723', 3,
                               'Reused component from previous module build')
         component_build = models.ComponentBuild.from_component_event(
             db_session,
-            task_id=event_info[2],
-            module_id=event_info[7],
+            task_id=event_info[1],
+            module_id=event_info[6],
         )
         assert component_build.state == koji.BUILD_STATES["BUILDING"]
         assert component_build.package == "perl-Tangerine"
@@ -1412,13 +1412,13 @@ class TestBatches:
         # Verify that tangerine was reused even though perl-Tangerine was rebuilt in the previous
         # batch
         event_info = events.scheduler.queue[0][3]
-        assert event_info == ('reuse_component: fake msg', None, 90276315, 1, 'tangerine', '0.22',
+        assert event_info == ('reuse_component: fake msg', 90276315, 1, 'tangerine', '0.22',
                               '3.module+0+d027b723', 3,
                               'Reused component from previous module build')
         component_build = models.ComponentBuild.from_component_event(
             db_session,
-            task_id=event_info[2],
-            module_id=event_info[7],
+            task_id=event_info[1],
+            module_id=event_info[6],
         )
         assert component_build.state == koji.BUILD_STATES["BUILDING"]
         assert component_build.package == "tangerine"

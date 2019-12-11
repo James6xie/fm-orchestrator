@@ -39,7 +39,6 @@ class TestConsumer:
         assert event_info["event"] == events.KOJI_TAG_CHANGE
         assert event_info["msg_id"] == msg["msg_id"]
         assert event_info["tag_name"] == msg["msg"]["tag"]
-        assert event_info["build_name"] == msg["msg"]["name"]
 
     @patch("module_build_service.scheduler.consumer.models")
     @patch.object(MBSConsumer, "process_message")

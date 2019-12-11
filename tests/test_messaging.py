@@ -29,7 +29,6 @@ class TestFedmsgMessaging:
         parser = FedmsgMessageParser(messaging.known_fedmsg_services)
         event_info = parser.parse(buildsys_state_change_msg)
 
-        assert event_info["build_id"] == 614503
         assert event_info["build_new_state"] == 1
 
     def test_buildsys_tag(self):
@@ -55,7 +54,6 @@ class TestFedmsgMessaging:
         event_info = parser.parse(buildsys_tag_msg)
 
         assert event_info["tag_name"] == "module-debugging-tools-master-20170405115403-build"
-        assert event_info["build_name"] == "module-build-macros"
 
     def test_buildsys_repo_done(self):
         # https://fedora-fedmsg.readthedocs.io/en/latest/topics.html#id134

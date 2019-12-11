@@ -14,13 +14,12 @@ logging.basicConfig(level=logging.DEBUG)
 
 @celery_app.task
 @events.mbs_event_handler
-def tagged(msg_id, tag_name, build_name, build_nvr):
+def tagged(msg_id, tag_name, build_nvr):
     """Called whenever koji tags a build to tag.
 
     :param str msg_id: the original id of the message being handled which is
         received from the message bus.
     :param str tag_name: the tag name applied.
-    :param str build_name: name of the tagged build.
     :param str build_nvr: nvr of the tagged build.
     """
     if conf.system not in ("koji", "test"):

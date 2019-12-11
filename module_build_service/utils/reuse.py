@@ -53,7 +53,7 @@ def reuse_component(component, previous_component_build, change_state_now=False,
     # Add this event to scheduler so that the reused component will be tagged properly.
     if schedule_fake_events:
         args = (
-            "reuse_component: fake msg", None, component.task_id, previous_component_build.state,
+            "reuse_component: fake msg", component.task_id, previous_component_build.state,
             nvr_dict["name"], nvr_dict["version"], nvr_dict["release"], component.module_id,
             component.state_reason)
         events.scheduler.add(build_task_finalize_handler, args)

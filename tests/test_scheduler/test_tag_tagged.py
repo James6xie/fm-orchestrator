@@ -27,7 +27,6 @@ class TestTagTagged:
         module_build_service.scheduler.handlers.tags.tagged(
             msg_id="no matches for this...",
             tag_name="2016-some-nonexistent-build",
-            build_name="artifact",
             build_nvr="artifact-1.2-1")
 
     def test_no_matching_artifact(self):
@@ -37,7 +36,6 @@ class TestTagTagged:
         module_build_service.scheduler.handlers.tags.tagged(
             msg_id="id",
             tag_name="module-testmodule-master-20170219191323-c40c156c-build",
-            build_name="artifact",
             build_nvr="artifact-1.2-1",
         )
 
@@ -88,14 +86,12 @@ class TestTagTagged:
         module_build_service.scheduler.handlers.tags.tagged(
             msg_id="id",
             tag_name="module-testmodule-master-20170219191323-c40c156c-build",
-            build_name="perl-Tangerine",
             build_nvr="perl-Tangerine-0.23-1.module+0+d027b723",
         )
         # Tag the first component to the final tag.
         module_build_service.scheduler.handlers.tags.tagged(
             msg_id="id",
             tag_name="module-testmodule-master-20170219191323-c40c156c",
-            build_name="perl-Tangerine",
             build_nvr="perl-Tangerine-0.23-1.module+0+d027b723",
         )
 
@@ -107,7 +103,6 @@ class TestTagTagged:
         module_build_service.scheduler.handlers.tags.tagged(
             msg_id="id",
             tag_name="module-testmodule-master-20170219191323-c40c156c-build",
-            build_name="perl-List-Compare",
             build_nvr="perl-List-Compare-0.53-5.module+0+d027b723",
         )
 
@@ -119,7 +114,6 @@ class TestTagTagged:
         module_build_service.scheduler.handlers.tags.tagged(
             msg_id="id",
             tag_name="module-testmodule-master-20170219191323-c40c156c",
-            build_name="perl-List-Compare",
             build_nvr="perl-List-Compare-0.53-5.module+0+d027b723",
         )
 
@@ -173,14 +167,12 @@ class TestTagTagged:
         module_build_service.scheduler.handlers.tags.tagged(
             msg_id="id",
             tag_name="module-testmodule-master-20170219191323-c40c156c-build",
-            build_name="perl-Tangerine",
             build_nvr="perl-Tangerine-0.23-1.module+0+d027b723",
         )
         # Tag the perl-List-Compare component to final tag.
         module_build_service.scheduler.handlers.tags.tagged(
             msg_id="id",
             tag_name="module-testmodule-master-20170219191323-c40c156c",
-            build_name="perl-Tangerine",
             build_nvr="perl-Tangerine-0.23-1.module+0+d027b723",
         )
 
@@ -239,14 +231,12 @@ class TestTagTagged:
         module_build_service.scheduler.handlers.tags.tagged(
             msg_id="id",
             tag_name="module-testmodule-master-20170219191323-c40c156c-build",
-            build_name="perl-List-Compare",
             build_nvr="perl-List-Compare-0.53-5.module+0+d027b723",
         )
         # Tag the perl-List-Compare component to final tag.
         module_build_service.scheduler.handlers.tags.tagged(
             msg_id="id",
             tag_name="module-testmodule-master-20170219191323-c40c156c",
-            build_name="perl-List-Compare",
             build_nvr="perl-List-Compare-0.53-5.module+0+d027b723",
         )
 
@@ -310,14 +300,12 @@ class TestTagTagged:
         module_build_service.scheduler.handlers.tags.tagged(
             msg_id="id",
             tag_name="module-testmodule-master-20170219191323-c40c156c-build",
-            build_name="perl-Tangerine",
             build_nvr="perl-Tangerine-0.23-1.module+0+d027b723",
         )
         # Tag the first component to the final tag.
         module_build_service.scheduler.handlers.tags.tagged(
             msg_id="id",
             tag_name="module-testmodule-master-20170219191323-c40c156c",
-            build_name="perl-Tangerine",
             build_nvr="perl-Tangerine-0.23-1.module+0+d027b723",
         )
 
@@ -329,14 +317,12 @@ class TestTagTagged:
         module_build_service.scheduler.handlers.tags.tagged(
             msg_id="id",
             tag_name="module-testmodule-master-20170219191323-c40c156c-build",
-            build_name="perl-List-Compare",
             build_nvr="perl-List-Compare-0.53-5.module+0+d027b723",
         )
         # Tag the second component to final tag.
         module_build_service.scheduler.handlers.tags.tagged(
             msg_id="id",
             tag_name="module-testmodule-master-20170219191323-c40c156c",
-            build_name="perl-List-Compare",
             build_nvr="perl-List-Compare-0.53-5.module+0+d027b723",
         )
 
@@ -348,14 +334,12 @@ class TestTagTagged:
         module_build_service.scheduler.handlers.tags.tagged(
             msg_id="id",
             tag_name="module-testmodule-master-20170219191323-c40c156c",
-            build_name="module-build-macros",
             build_nvr="module-build-macros-0.1-1.module+0+b0a1d1f7",
         )
         # Tag the component from first batch to the buildroot.
         module_build_service.scheduler.handlers.tags.tagged(
             msg_id="id",
             tag_name="module-testmodule-master-20170219191323-c40c156c-build",
-            build_name="module-build-macros",
             build_nvr="module-build-macros-0.1-1.module+0+b0a1d1f7",
         )
 
@@ -425,7 +409,6 @@ class TestTagTagged:
         module_build_service.scheduler.handlers.tags.tagged(
             msg_id="id",
             tag_name="module-testmodule-master-20170219191323-c40c156c-build",
-            build_name="perl-Tangerine",
             build_nvr="perl-Tangerine-0.23-1.module+0+d027b723",
         )
         assert not koji_session.newRepo.called
@@ -433,14 +416,12 @@ class TestTagTagged:
         module_build_service.scheduler.handlers.tags.tagged(
             msg_id="id",
             tag_name="module-testmodule-master-20170219191323-c40c156c-build",
-            build_name="perl-List-Compare",
             build_nvr="perl-List-Compare-0.53-5.module+0+d027b723",
         )
         # Tag the perl-List-Compare component to final tag.
         module_build_service.scheduler.handlers.tags.tagged(
             msg_id="id",
             tag_name="module-testmodule-master-20170219191323-c40c156c",
-            build_name="perl-List-Compare",
             build_nvr="perl-List-Compare-0.53-5.module+0+d027b723",
         )
 
@@ -518,28 +499,24 @@ class TestTagTagged:
         module_build_service.scheduler.handlers.tags.tagged(
             msg_id="id",
             tag_name="module-testmodule-master-20170219191323-c40c156c-build",
-            build_name="perl-Tangerine",
             build_nvr="perl-Tangerine-0.23-1.module+0+d027b723",
         )
         # Tag the first component to the final tag.
         module_build_service.scheduler.handlers.tags.tagged(
             msg_id="id",
             tag_name="module-testmodule-master-20170219191323-c40c156c",
-            build_name="perl-Tangerine",
             build_nvr="perl-Tangerine-0.23-1.module+0+d027b723",
         )
         # Tag the second component to the buildroot.
         module_build_service.scheduler.handlers.tags.tagged(
             msg_id="id",
             tag_name="module-testmodule-master-20170219191323-c40c156c-build",
-            build_name="perl-List-Compare",
             build_nvr="perl-List-Compare-0.53-5.module+0+d027b723",
         )
         # Tag the second component to the final tag.
         module_build_service.scheduler.handlers.tags.tagged(
             msg_id="id",
             tag_name="module-testmodule-master-20170219191323-c40c156c",
-            build_name="perl-List-Compare",
             build_nvr="perl-List-Compare-0.53-5.module+0+d027b723",
         )
 

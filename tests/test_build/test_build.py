@@ -268,15 +268,9 @@ class FakeModuleBuilder(GenericBuilder):
             FakeModuleBuilder.on_buildroot_add_artifacts_cb(self, artifacts, install)
         if self.backend == "test":
             for nvr in artifacts:
-                # buildroot_add_artifacts received a list of NVRs, but the tag message expects the
-                # component name. At this point, the NVR may not be set if we are trying to reuse
-                # all components, so we can't search the database. We must parse the package name
-                # from the nvr and then tag it in the build tag. Kobo doesn't work when parsing
-                # the NVR of a component with a module dist-tag, so we must manually do it.
-                package_name = nvr.split(".module")[0].rsplit("-", 2)[0]
                 # When INSTANT_COMPLETE is on, the components are already in the build tag
                 if self.INSTANT_COMPLETE is False:
-                    self._send_tag(package_name, nvr, dest_tag=False)
+                    self._send_tag(nvr, dest_tag=False)
         elif self.backend == "testlocal":
             self._send_repo_done()
 
@@ -292,10 +286,7 @@ class FakeModuleBuilder(GenericBuilder):
             for nvr in artifacts:
                 # tag_artifacts received a list of NVRs, but the tag message expects the
                 # component name
-                from sqlalchemy.orm import load_only
-                artifact = self.db_session.query(models.ComponentBuild).filter_by(
-                    nvr=nvr).options(load_only("package")).first().package
-                self._send_tag(artifact, nvr, dest_tag=dest_tag)
+                self._send_tag(nvr, dest_tag=dest_tag)
 
     @property
     def koji_session(self):
@@ -317,17 +308,17 @@ class FakeModuleBuilder(GenericBuilder):
     def _send_repo_done(self):
         events.scheduler.add(repos_done_handler, ("fake_msg", self.tag_name + "-build"))
 
-    def _send_tag(self, artifact, nvr, dest_tag=True):
+    def _send_tag(self, nvr, dest_tag=True):
         if dest_tag:
             tag = self.tag_name
         else:
             tag = self.tag_name + "-build"
-        events.scheduler.add(tagged_handler, ("a faked internal message", tag, artifact, nvr))
+        events.scheduler.add(tagged_handler, ("a faked internal message", tag, nvr))
 
     def _send_build_change(self, state, name, build_id):
         # build_id=1 and task_id=1 are OK here, because we are building just
         # one RPM at the time.
-        args = ("a faked internal message", build_id, build_id, state, name, "1", "1", None, None)
+        args = ("a faked internal message", build_id, state, name, "1", "1", None, None)
         events.scheduler.add(build_task_finalize_handler, args)
 
     def build(self, artifact_name, source):
@@ -368,7 +359,7 @@ class FakeModuleBuilder(GenericBuilder):
             component_build.state_reason = "Found existing build"
             nvr_dict = kobo.rpmlib.parse_nvr(component_build.nvr)
             # Send a message stating the build is complete
-            args = ("recover_orphaned_artifact: fake message", randint(1, 9999999),
+            args = ("recover_orphaned_artifact: fake message",
                     component_build.task_id, koji.BUILD_STATES["COMPLETE"],
                     component_build.package, nvr_dict["version"], nvr_dict["release"],
                     component_build.module_build.id, None)
@@ -376,7 +367,7 @@ class FakeModuleBuilder(GenericBuilder):
             # Send a message stating that the build was tagged in the build tag
             args = ("recover_orphaned_artifact: fake message",
                     component_build.module_build.koji_tag + "-build",
-                    component_build.package, component_build.nvr)
+                    component_build.nvr)
             events.scheduler.add(tagged_handler, args)
             return True
 
@@ -490,7 +481,7 @@ class TestBuild(BaseTestBuild):
     @pytest.mark.parametrize("mmd_version", [1, 2])
     @patch("module_build_service.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
-    def test_submit_build(
+    def test_submit_build_normal(
         self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc, mmd_version
     ):
         """

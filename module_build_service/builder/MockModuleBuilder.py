@@ -399,10 +399,9 @@ class MockModuleBuilder(GenericBuilder):
         except ValueError:
             nvr = {"name": source, "release": "unknown", "version": "unknown"}
 
-        # build_id=1 and task_id=1 are OK here, because we are building just
-        # one RPM at the time.
+        # use build_id as task_id
         args = (
-            "a faked internal message", build_id, build_id, state, nvr["name"], nvr["version"],
+            "a faked internal message", build_id, state, nvr["name"], nvr["version"],
             nvr["release"], None, None)
         events.scheduler.add(build_task_finalize_handler, args)
 

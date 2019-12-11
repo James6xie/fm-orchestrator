@@ -155,16 +155,16 @@ class TestKojiBuilder:
         assert recovered
 
         event_info = events.scheduler.queue[0][3]
-        assert event_info == ('recover_orphaned_artifact: fake message', 91, 12345, 1,
+        assert event_info == ('recover_orphaned_artifact: fake message', 12345, 1,
                               'rubygem-rails', '1.0', '1.module+e0095747', 4, None)
 
         event_info = events.scheduler.queue[1][3]
         assert event_info == ('recover_orphaned_artifact: fake message', 'module-foo-build',
-                              'rubygem-rails', 'foo-1.0-1.module+e0095747')
+                              'foo-1.0-1.module+e0095747')
 
         event_info = events.scheduler.queue[2][3]
         assert event_info == ('recover_orphaned_artifact: fake message', 'module-foo',
-                              'rubygem-rails', 'foo-1.0-1.module+e0095747')
+                              'foo-1.0-1.module+e0095747')
 
         assert component_build.state == koji.BUILD_STATES["COMPLETE"]
         assert component_build.task_id == 12345
@@ -208,7 +208,7 @@ class TestKojiBuilder:
 
         assert recovered
         event_info = events.scheduler.queue[0][3]
-        assert event_info == ('recover_orphaned_artifact: fake message', 91, 12345, 1,
+        assert event_info == ('recover_orphaned_artifact: fake message', 12345, 1,
                               'rubygem-rails', '1.0', '1.module+2+b8661ee4', 4, None)
 
         assert component_build.state == koji.BUILD_STATES["COMPLETE"]
@@ -258,7 +258,7 @@ class TestKojiBuilder:
 
         assert recovered
         event_info = events.scheduler.queue[0][3]
-        assert event_info == ('recover_orphaned_artifact: fake message', 91, 12345, 1,
+        assert event_info == ('recover_orphaned_artifact: fake message', 12345, 1,
                               'module-build-macros', '1.0', "1.{0}".format(dist_tag), 4, None)
 
         assert component_build.state == koji.BUILD_STATES["COMPLETE"]

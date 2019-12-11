@@ -422,9 +422,7 @@ def sync_koji_build_tags():
                 log.info(
                     "Apply tag %s to module build %r",
                     module_build.koji_tag, module_build)
-                tagged.delay(
-                    "internal:sync_koji_build_tags",
-                    module_build.koji_tag, c.package, c.nvr)
+                tagged.delay("internal:sync_koji_build_tags", module_build.koji_tag, c.nvr)
 
             # If it is tagged in the build tag, but MBS does not think so,
             # schedule fake message.
@@ -433,9 +431,7 @@ def sync_koji_build_tags():
                 log.info(
                     "Apply build tag %s to module build %r",
                     build_tag, module_build)
-                tagged.delay(
-                    "internal:sync_koji_build_tags",
-                    build_tag, c.package, c.nvr)
+                tagged.delay("internal:sync_koji_build_tags", build_tag, c.nvr)
 
 
 @celery_app.task

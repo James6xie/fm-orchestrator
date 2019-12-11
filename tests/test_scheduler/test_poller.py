@@ -539,14 +539,14 @@ class TestPoller:
                     {"id": 1, "name": module_build_2.koji_tag + "-build"})
                 expected_tagged_calls.append(call(
                     "internal:sync_koji_build_tags",
-                    module_build_2.koji_tag + "-build", c.package, c.nvr
+                    module_build_2.koji_tag + "-build", c.nvr
                 ))
             if tagged_in_final:
                 listtags_return_value.append(
                     {"id": 2, "name": module_build_2.koji_tag})
                 expected_tagged_calls.append(call(
                     "internal:sync_koji_build_tags",
-                    module_build_2.koji_tag, c.package, c.nvr
+                    module_build_2.koji_tag, c.nvr
                 ))
         koji_session.listTags.return_value = listtags_return_value
 

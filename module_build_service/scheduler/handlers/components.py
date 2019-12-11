@@ -19,7 +19,7 @@ logging.basicConfig(level=logging.DEBUG)
 @celery_app.task
 @events.mbs_event_handler
 def build_task_finalize(
-        msg_id, build_id, task_id, build_new_state,
+        msg_id, task_id, build_new_state,
         build_name, build_version, build_release,
         module_build_id=None, state_reason=None
 ):
@@ -29,7 +29,6 @@ def build_task_finalize(
 
     :param str msg_id: the original id of the message being handled which is
         received from the message bus.
-    :param int build_id: the Koji build id.
     :param int task_id: the Koji build task id.
     :param int build_new_state: the state of the build. Refer to
         ``koji.BUILD_STATES`` for details. For this handler, values could be

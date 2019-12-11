@@ -78,7 +78,6 @@ class FedmsgMessageParser(MessageParser):
                     return {
                         "msg_id": msg_id,
                         "event": events.KOJI_BUILD_CHANGE,
-                        "build_id": msg_inner_msg.get("build_id"),
                         "task_id": task_id,
                         "build_new_state": msg_inner_msg.get("new"),
                         "build_name": msg_inner_msg.get("name"),
@@ -106,7 +105,6 @@ class FedmsgMessageParser(MessageParser):
                         "msg_id": msg_id,
                         "event": events.KOJI_TAG_CHANGE,
                         "tag_name": msg_inner_msg.get("tag"),
-                        "build_name": msg_inner_msg.get("name"),
                         "build_nvr": nvr,
                     }
 

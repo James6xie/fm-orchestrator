@@ -57,7 +57,7 @@ class TestCeleryRouteTask:
     def test_route_components_build_task_finalize_task(self, send_task_message):
         scheduler_init_data()
         components.build_task_finalize.delay(
-            "fakemsg", 123, 90276228, 1, "perl-Tangerine", "0.23", "1.module+f28+2+814cfa39")
+            "fakemsg", 90276228, 1, "perl-Tangerine", "0.23", "1.module+f28+2+814cfa39")
         queue = send_task_message.call_args[1].get("queue")
         qname = queue.__dict__.get("name")
         assert qname == "mbs-2"
@@ -65,7 +65,7 @@ class TestCeleryRouteTask:
     def test_route_components_build_task_finalize_task_without_a_module(self, send_task_message):
         scheduler_init_data()
         components.build_task_finalize.delay(
-            "fakemsg", 123, 123456, 1, "hostname", "0.1", "1.module+f28+2+814cfa39")
+            "fakemsg", 123456, 1, "hostname", "0.1", "1.module+f28+2+814cfa39")
         queue = send_task_message.call_args[1].get("queue")
         qname = queue.__dict__.get("name")
         assert qname == "mbs-default"
@@ -88,7 +88,7 @@ class TestCeleryRouteTask:
         scheduler_init_data()
         tags.tagged.delay(
             "fakemsg", "module-testmodule-master-20170109091357-7c29193d-build",
-            "perl-Tangerine", "perl-Tangerine-0.23-1.module+f28+2+814cfa39")
+            "perl-Tangerine-0.23-1.module+f28+2+814cfa39")
         queue = send_task_message.call_args[1].get("queue")
         qname = queue.__dict__.get("name")
         assert qname == "mbs-2"

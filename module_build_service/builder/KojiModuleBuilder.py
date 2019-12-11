@@ -747,7 +747,7 @@ class KojiModuleBuilder(GenericBuilder):
         nvr_dict = kobo.rpmlib.parse_nvr(component_build.nvr)
         # Trigger a completed build message
         args = (
-            "recover_orphaned_artifact: fake message", build["build_id"], build["task_id"],
+            "recover_orphaned_artifact: fake message", build["task_id"],
             koji.BUILD_STATES["COMPLETE"], component_build.package, nvr_dict["version"],
             nvr_dict["release"], component_build.module_build.id, None)
         events.scheduler.add(build_task_finalize_handler, args)
@@ -769,8 +769,7 @@ class KojiModuleBuilder(GenericBuilder):
                 'The build being skipped isn\'t tagged in the "{0}" tag. Will send a message to '
                 "the tag handler".format(tag)
             )
-            args = ("recover_orphaned_artifact: fake message", tag, component_build.package,
-                    component_build.nvr)
+            args = ("recover_orphaned_artifact: fake message", tag, component_build.nvr)
             events.scheduler.add(tagged_handler, args)
 
         return True
