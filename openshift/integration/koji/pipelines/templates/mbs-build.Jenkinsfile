@@ -1,43 +1,7 @@
-library identifier: 'c3i@master', changelog: false,
-  retriever: modernSCM([$class: 'GitSCMSource', remote: 'https://pagure.io/c3i-library.git'])
+{% include "snippets/c3i-library.groovy" %}
 import static org.apache.commons.lang.StringEscapeUtils.escapeHtml;
 pipeline {
-  agent {
-    kubernetes {
-      cloud params.JENKINS_AGENT_CLOUD_NAME
-      label "jenkins-slave-${UUID.randomUUID().toString()}"
-      serviceAccount params.JENKINS_AGENT_SERVICE_ACCOUNT
-      defaultContainer 'jnlp'
-      yaml """
-      apiVersion: v1
-      kind: Pod
-      metadata:
-        labels:
-          app: "jenkins-${env.JOB_BASE_NAME.take(50)}"
-          factory2-pipeline-kind: "mbs-build-pipeline"
-          factory2-pipeline-build-number: "${env.BUILD_NUMBER}"
-      spec:
-        containers:
-        - name: jnlp
-          image: "${params.JENKINS_AGENT_IMAGE}"
-          imagePullPolicy: Always
-          tty: true
-          env:
-          - name: REGISTRY_CREDENTIALS
-            valueFrom:
-              secretKeyRef:
-                name: "${params.CONTAINER_REGISTRY_CREDENTIALS}"
-                key: ".dockerconfigjson"
-          resources:
-            requests:
-              memory: 512Mi
-              cpu: 300m
-            limits:
-              memory: 768Mi
-              cpu: 500m
-      """
-    }
-  }
+  {% include "snippets/default-agent.groovy" %}
   options {
     timestamps()
     timeout(time: 120, unit: 'MINUTES')
@@ -64,6 +28,7 @@ pipeline {
           env.GIT_COMMIT = env.MBS_GIT_COMMIT
           echo "Build ${params.MBS_GIT_REF}, commit=${env.MBS_GIT_COMMIT}"
 
+          env.IMAGE_IS_SCRATCH = (params.MBS_GIT_REF != params.MBS_MAIN_BRANCH)
           // Is the current branch a pull-request? If no, env.PR_NO will be empty.
           env.PR_NO = getPrNo(params.MBS_GIT_REF)
 
@@ -102,6 +67,7 @@ pipeline {
                 -e '/sitepackages/a setenv = PYTHONPATH={toxinidir}' \
                 tox.ini
           """
+          {% include "snippets/get_paas_domain.groovy" %}
         }
       }
     }
@@ -304,33 +270,7 @@ pipeline {
         }
       }
     }
-    stage('Run integration tests') {
-      steps {
-        script {
-          openshift.withCluster() {
-            openshift.withProject(params.MBS_INTEGRATION_TEST_BUILD_CONFIG_NAMESPACE) {
-              def build = c3i.buildAndWait(script: this, objs: "bc/${params.MBS_INTEGRATION_TEST_BUILD_CONFIG_NAME}",
-                  '-e', "MBS_GIT_REPO=${params.MBS_GIT_REPO}",
-                  '-e', "MBS_GIT_REF=${env.PR_NO ? params.MBS_GIT_REF : env.MBS_GIT_COMMIT}",
-                  '-e', "MBS_BACKEND_IMAGE=${env.BACKEND_IMAGE_REF}",
-                  '-e', "MBS_FRONTEND_IMAGE=${env.FRONTEND_IMAGE_REF}",
-                  '-e', "TEST_IMAGES=${env.BACKEND_IMAGE_REF},${env.FRONTEND_IMAGE_REF}",
-                  '-e', "IMAGE_IS_SCRATCH=${params.MBS_GIT_REF != params.MBS_MAIN_BRANCH}",
-                  '-e', "TEST_NAMESPACE=${env.PIPELINE_ID}",
-                  '-e', "TESTCASES='${params.TESTCASES}'",
-                  '-e', "CLEANUP=${params.CLEANUP}"
-              )
-              echo 'Integration tests PASSED'
-            }
-          }
-        }
-      }
-      post {
-        failure {
-          echo 'Integration tests FAILED'
-        }
-      }
-    }
+    {% include "snippets/mbs-integration-test.groovy" %}
     stage('Push images') {
       when {
         expression {
@@ -340,10 +280,13 @@ pipeline {
       }
       steps {
         script {
-          if (env.REGISTRY_CREDENTIALS) {
-             dir ("${env.HOME}/.docker") {
-                  writeFile file: 'config.json', text: env.REGISTRY_CREDENTIALS
-             }
+          if (params.CONTAINER_REGISTRY_CREDENTIALS) {
+            dir ("${env.HOME}/.docker") {
+              openshift.withCluster() {
+                def dockerconf = openshift.selector('secret', params.CONTAINER_REGISTRY_CREDENTIALS).object().data['.dockerconfigjson']
+                writeFile file: 'config.json', text: dockerconf, encoding: "Base64"
+              }
+            }
           }
           def registryToken = readFile(file: '/run/secrets/kubernetes.io/serviceaccount/token')
           def copyDown = { name, src ->
@@ -412,13 +355,13 @@ pipeline {
       steps {
         script {
           openshift.withCluster() {
-            openshift.withProject(params.MBS_BACKEND_IMAGESTREAM_NAMESPACE) {
+            openshift.withProject(params.MBS_BACKEND_IMAGESTREAM_NAMESPACE ?: env.PIPELINE_ID) {
               def sourceRef = "${params.MBS_BACKEND_IMAGESTREAM_NAME}@${env.BACKEND_IMAGE_DIGEST}"
               def destRef = "${params.MBS_BACKEND_IMAGESTREAM_NAME}:${params.MBS_DEV_IMAGE_TAG}"
               echo "Tagging ${sourceRef} as ${destRef}..."
               openshift.tag(sourceRef, destRef)
             }
-            openshift.withProject(params.MBS_FRONTEND_IMAGESTREAM_NAMESPACE) {
+            openshift.withProject(params.MBS_FRONTEND_IMAGESTREAM_NAMESPACE ?: env.PIPELINE_ID) {
               def sourceRef = "${params.MBS_FRONTEND_IMAGESTREAM_NAME}@${env.FRONTEND_IMAGE_DIGEST}"
               def destRef = "${params.MBS_FRONTEND_IMAGESTREAM_NAME}:${params.MBS_DEV_IMAGE_TAG}"
               echo "Tagging ${sourceRef} as ${destRef}..."
@@ -442,13 +385,13 @@ pipeline {
             openshift.withProject(env.PIPELINE_ID) {
               if (env.BACKEND_IMAGE_TAG) {
                 echo "Removing tag ${env.BACKEND_IMAGE_TAG} from the ${params.MBS_BACKEND_IMAGESTREAM_NAME} ImageStream..."
-                openshift.withProject(params.MBS_BACKEND_IMAGESTREAM_NAMESPACE) {
+                openshift.withProject(params.MBS_BACKEND_IMAGESTREAM_NAMESPACE ?: env.PIPELINE_ID) {
                   openshift.tag("${params.MBS_BACKEND_IMAGESTREAM_NAME}:${env.BACKEND_IMAGE_TAG}", "-d")
                 }
               }
               if (env.FRONTEND_IMAGE_TAG) {
                 echo "Removing tag ${env.FRONTEND_IMAGE_TAG} from the ${params.MBS_FRONTEND_IMAGESTREAM_NAME} ImageStream..."
-                openshift.withProject(params.MBS_FRONTEND_IMAGESTREAM_NAMESPACE) {
+                openshift.withProject(params.BS_FRONTEND_IMAGESTREAM_NAMESPACE ?: env.PIPELINE_ID) {
                   openshift.tag("${params.MBS_FRONTEND_IMAGESTREAM_NAME}:${env.FRONTEND_IMAGE_TAG}", "-d")
                 }
               }
@@ -539,3 +482,4 @@ def sendBuildStatusEmail(String status) {
   }
   emailext to: recipient, subject: subject, body: body
 }
+{% include "snippets/functions.groovy" %}

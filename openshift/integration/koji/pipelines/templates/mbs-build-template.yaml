@@ -90,13 +90,6 @@ parameters:
 - name: MBS_FRONTEND_IMAGESTREAM_NAMESPACE
   displayName: Namespace of ImageStream for MBS frontend images
   required: false
-- name: MBS_INTEGRATION_TEST_BUILD_CONFIG_NAME
-  displayName: Name of BuildConfig for running integration tests
-  required: true
-  value: mbs-dev-integration-test
-- name: MBS_INTEGRATION_TEST_BUILD_CONFIG_NAMESPACE
-  displayName: Namespace of BuildConfig for running integration tests
-  required: false
 - name: FORCE_PUBLISH_IMAGE
   displayName: Whether to push the resulting image regardless of the Git branch
   value: "false"
@@ -153,10 +146,19 @@ parameters:
   displayName: The lifetime of the OpenShift project allocated by C3I-as-a-Service.
   required: true
   value: "120"
+- name: PIPELINE_AS_A_SERVICE_BUILD_NAMESPACE
+  displayName: The namespace where the Pipeline-as-a-Service project request BuildConfig has been defined
+  required: false
+  value: c3i
 - name: CLEANUP
   displayName: Cleanup objects after the pipeline is complete
   required: true
   value: "true"
+- name: ENVIRONMENT
+  displayName: environment name (dev/stage/prod)
+  required: true
+  value: dev
+{% include "snippets/c3i-library-parameters.yaml" %}
 labels:
   template: mbs-build
 objects:
@@ -223,10 +225,6 @@ objects:
   spec:
     runPolicy: "Parallel"
     completionDeadlineSeconds: 1800
-    source:
-      git:
-        uri: "${MBS_GIT_REPO}"
-        ref: "${MBS_GIT_REF}"
     strategy:
       type: JenkinsPipeline
       jenkinsPipelineStrategy:
@@ -263,10 +261,6 @@ objects:
           value: "${MBS_FRONTEND_IMAGESTREAM_NAMESPACE}"
         - name: MBS_MAIN_BRANCH
           value: "${MBS_MAIN_BRANCH}"
-        - name: MBS_INTEGRATION_TEST_BUILD_CONFIG_NAME
-          value: "${MBS_INTEGRATION_TEST_BUILD_CONFIG_NAME}"
-        - name: MBS_INTEGRATION_TEST_BUILD_CONFIG_NAMESPACE
-          value: "${MBS_INTEGRATION_TEST_BUILD_CONFIG_NAMESPACE}"
         - name: PAGURE_REPO_NAME
           value: "${PAGURE_REPO_NAME}"
         - name: PAGURE_REPO_IS_FORK
@@ -285,6 +279,8 @@ objects:
           value: "${EXTRA_RPMS}"
         - name: TESTCASES
           value: "${TESTCASES}"
+        - name: ENVIRONMENT
+          value: "${ENVIRONMENT}"
         - name: USE_C3IAAS
           value: "${USE_C3IAAS}"
         - name: C3IAAS_REQUEST_PROJECT_BUILD_CONFIG_NAMESPACE
@@ -293,6 +289,9 @@ objects:
           value: "${C3IAAS_REQUEST_PROJECT_BUILD_CONFIG_NAME}"
         - name: C3IAAS_LIFETIME
           value: "${C3IAAS_LIFETIME}"
+        - name: PIPELINE_AS_A_SERVICE_BUILD_NAMESPACE
+          value: "${PIPELINE_AS_A_SERVICE_BUILD_NAMESPACE}"
         - name: CLEANUP
           value: "${CLEANUP}"
-        jenkinsfilePath: openshift/integration/koji/pipelines/templates/mbs-build.Jenkinsfile
+        jenkinsfile: |
+          {% filter indent(width=10) %}{% include "mbs-build.Jenkinsfile" %}{% endfilter %}

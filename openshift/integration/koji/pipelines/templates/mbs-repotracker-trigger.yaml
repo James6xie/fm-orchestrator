@@ -15,10 +15,12 @@ parameters:
 - name: MBS_GIT_REPO
   displayName: MBS Git repo URL
   description: Default MBS Git repo URL in which to run dev tests against
-  value: "https://pagure.io/fm-orchestrator.git"
+  required: true
+  value: https://pagure.io/fm-orchestrator.git
 - name: MBS_GIT_REF
   displayName: MBS Git repo ref
   description: Default MBS Git repo ref in which to run dev tests against
+  required: true
   value: master
 - name: TRACKED_CONTAINER_REPO
   displayName: Container repo to be tracked
@@ -45,12 +47,10 @@ parameters:
 - name: MESSAGING_TOPIC
   displayName: Name of the topic that the trigger subscribes to
   value: "Consumer.rh-jenkins-ci-plugin.c3i-mbs-repotracker-trigger.VirtualTopic.eng.repotracker.container.tag.>"
-- name: TEST_JOB_NAME
-  displayName: Name of integration test job to trigger
+- name: ENVIRONMENT
+  displayName: environment name (dev/stage/prod)
   required: true
-- name: TEST_JOB_NAMESPACE
-  displayName: Namespace in which to trigger the integration test job
-  required: false
+  value: dev
 - name: USE_C3IAAS
   displayName: >-
     Use C3I-as-a-Service to dynamically allocate a temporary OpenShift project for building
@@ -69,6 +69,11 @@ parameters:
   displayName: The lifetime of the OpenShift project allocated by C3I-as-a-Service.
   required: true
   value: "120"
+- name: PIPELINE_AS_A_SERVICE_BUILD_NAMESPACE
+  displayName: The namespace where the Pipeline-as-a-Service project request BuildConfig has been defined
+  required: false
+  value: c3i
+{% include "snippets/c3i-library-parameters.yaml" %}
 objects:
 - kind: ServiceAccount
   apiVersion: v1
@@ -96,10 +101,6 @@ objects:
   spec:
     runPolicy: "Parallel"
     completionDeadlineSeconds: 1800
-    source:
-      git:
-        uri: "${MBS_GIT_REPO}"
-        ref: "${MBS_GIT_REF}"
     strategy:
       type: JenkinsPipeline
       jenkinsPipelineStrategy:
@@ -110,6 +111,10 @@ objects:
           value:  "${JENKINS_AGENT_IMAGE}"
         - name: JENKINS_AGENT_SERVICE_ACCOUNT
           value: "${NAME}-jenkins-slave"
+        - name: MBS_GIT_REPO
+          value: "${MBS_GIT_REPO}"
+        - name: MBS_GIT_REF
+          value: "${MBS_GIT_REF}"
         - name: TRACKED_CONTAINER_REPO
           value: "${TRACKED_CONTAINER_REPO}"
         - name: TRACKED_TAG
@@ -118,18 +123,18 @@ objects:
           value: "${MBS_BACKEND_REPO}"
         - name: CONTAINER_REGISTRY_CREDENTIALS
           value: "${CONTAINER_REGISTRY_CREDENTIALS}"
-        - name: TEST_JOB_NAME
-          value: "${TEST_JOB_NAME}"
-        - name: TEST_JOB_NAMESPACE
-          value: "${TEST_JOB_NAMESPACE}"
         - name: USE_C3IAAS
           value: "${USE_C3IAAS}"
+        - name: ENVIRONMENT
+          value: "${ENVIRONMENT}"
         - name: C3IAAS_REQUEST_PROJECT_BUILD_CONFIG_NAMESPACE
           value: "${C3IAAS_REQUEST_PROJECT_BUILD_CONFIG_NAMESPACE}"
         - name: C3IAAS_REQUEST_PROJECT_BUILD_CONFIG_NAME
           value: "${C3IAAS_REQUEST_PROJECT_BUILD_CONFIG_NAME}"
         - name: C3IAAS_LIFETIME
           value: "${C3IAAS_LIFETIME}"
+        - name: PIPELINE_AS_A_SERVICE_BUILD_NAMESPACE
+          value: "${PIPELINE_AS_A_SERVICE_BUILD_NAMESPACE}"
         - name: MESSAGING_PROVIDER
           value: "${MESSAGING_PROVIDER}"
         - name: MESSAGING_TOPIC
@@ -139,4 +144,5 @@ objects:
           value:
         - name: MESSAGE_HEADERS
           value:
-        jenkinsfilePath: openshift/integration/koji/pipelines/templates/mbs-repotracker-trigger.Jenkinsfile
+        jenkinsfile: |
+          {% filter indent(width=10) %}{% include "mbs-repotracker-trigger.Jenkinsfile" %}{% endfilter %}
