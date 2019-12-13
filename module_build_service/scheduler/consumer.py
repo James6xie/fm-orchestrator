@@ -147,6 +147,9 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
                 log.warning(str(e))
                 return
 
+        if event_info is None:
+            return
+
         # Primary work is done here.
         try:
             self.process_message(event_info)
