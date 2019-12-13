@@ -19,7 +19,7 @@ from module_build_service.scheduler.handlers.components import build_task_finali
 from module_build_service.scheduler.handlers.tags import tagged
 
 
-@celery_app.on_after_configure.connect
+@celery_app.on_after_finalize.connect
 def setup_periodic_tasks(sender, **kwargs):
     tasks = (
         (log_summary, "Log summary of module builds and component builds"),

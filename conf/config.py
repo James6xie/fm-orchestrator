@@ -81,6 +81,7 @@ class BaseConfiguration(object):
         "module_build_service.scheduler.handlers.repos",
         "module_build_service.scheduler.handlers.tags",
         "module_build_service.scheduler.handlers.greenwave",
+        "module_build_service.scheduler.producer",
     ]
 
 
