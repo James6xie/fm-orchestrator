@@ -154,7 +154,6 @@ def fail_lost_builds():
             if task_info["state"] in state_mapping:
                 build_task_finalize.delay(
                     msg_id="producer::fail_lost_builds fake msg",
-                    build_id=component_build.task_id,
                     task_id=component_build.task_id,
                     build_new_state=state_mapping[task_info["state"]],
                     build_name=component_build.package,
