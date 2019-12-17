@@ -228,9 +228,14 @@ class MMDResolver(object):
 
         - module(platform:el8.1.0) = 80100 - Modules can require specific platform stream.
         - module(platform:el8) = 80100 - Module can also require just platform:el8.
+
+        :return: A boolean that is True if a provides for the stream version was added to the input
+            solvable.
         """
+        base_stream_ver = False
+
         if mmd.get_module_name() not in conf.base_module_names:
-            return
+            return base_stream_ver
 
         # When depsolving, we will need to follow specific rules to choose the right base
         # module, like sorting the base modules sharing the same virtual streams based on
@@ -240,19 +245,22 @@ class MMDResolver(object):
         # to Provides.
         stream_version = ModuleBuild.get_stream_version(mmd.get_stream_name(), right_pad=False)
         if stream_version:
+            base_stream_ver = True
             self.solvable_provides(
                 solvable, mmd.get_module_name(), mmd.get_stream_name(), str(stream_version))
 
         xmd = mmd.get_xmd()
         # Return in case virtual_streams are not set for this mmd.
         if not xmd.get("mbs", {}).get("virtual_streams"):
-            return
+            return base_stream_ver
 
         version = stream_version or mmd.get_version()
         # For each virtual stream, add
         # "module($name:$stream) = $virtual_stream_based_version" provide.
         for stream in xmd["mbs"]["virtual_streams"]:
             self.solvable_provides(solvable, mmd.get_module_name(), stream, str(version))
+
+        return base_stream_ver
 
     def _get_base_module_stream_overrides(self, mmd):
         """
@@ -326,11 +334,14 @@ class MMDResolver(object):
             # no particular stream is used - for example when buildrequiring
             # "gtk: []"
             self.solvable_provides(solvable, n)
+
+            base_stream_ver = self._add_base_module_provides(solvable, mmd)
+
             # Add "Provides: module(name:stream) = version", so we can find buildrequired
             # modules when "gtk:[1]" is used and also choose the latest version.
-            self.solvable_provides(solvable, n, s, str(v))
-
-            self._add_base_module_provides(solvable, mmd)
+            # Skipped if this is a base module with a stream version defined.
+            if not base_stream_ver:
+                self.solvable_provides(solvable, n, s, str(v))
 
             base_module_stream_overrides = self._get_base_module_stream_overrides(mmd)
             # Fill in the "Requires" of this module, so we can track its dependencies
