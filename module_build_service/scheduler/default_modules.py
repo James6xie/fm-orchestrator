@@ -389,6 +389,13 @@ def _get_rpms_in_external_repo(repo_url, arches, cache_dir_name):
         log.exception(msg)
         raise RuntimeError(msg)
 
+    # dnf will not always raise an error on repo failures, so we check explicitly
+    for repo_name in base.repos:
+        if not base.repos[repo_name].metadata:
+            msg = "Failed to load metadata for repo %s" % repo_name
+            log.exception(msg)
+            raise RuntimeError(msg)
+
     base.fill_sack(load_system_repo=False)
 
     # Return all the available RPMs
