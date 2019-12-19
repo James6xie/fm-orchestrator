@@ -661,7 +661,12 @@ class Config(object):
             "desc": "The minrate configuration on a DNF repo. This configuration will cause DNF to "
                     "timeout loading a repo if the download speed is below minrate for the "
                     "duration of the timeout."
-        }
+        },
+        "dnf_timeout": {
+            "type": int,
+            "default": 30,
+            "desc": "The timeout configuration for dnf operations, in seconds."
+        },
     }
 
     def __init__(self, conf_section_obj):

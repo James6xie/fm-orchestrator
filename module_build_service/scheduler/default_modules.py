@@ -366,6 +366,7 @@ def _get_rpms_in_external_repo(repo_url, arches, cache_dir_name):
     dnf_conf.cachedir = cache_location
     # Don't skip repos that can't be synchronized
     dnf_conf.skip_if_unavailable = False
+    dnf_conf.timeout = conf.dnf_timeout
     # Get rid of everything to be sure it's a blank slate. This doesn't delete the cached repo data.
     base.reset(repos=True, goal=True, sack=True)
 
