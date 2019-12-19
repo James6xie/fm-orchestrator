@@ -1,6 +1,14 @@
 Change Log
 ==========
 
+v2.31.0
+-------
+* Use jinja templates to provide 'full-jobs'
+* Only allow cancelling module builds in the init, wait, and build states
+* Remove the koji.ClientSession backport
+* Gracefully handle builds without a koji tag
+* Allow koji tags to be created with a configurable permission
+
 v2.30.4
 -------
 * allow component reuse in some cases when a component is added
