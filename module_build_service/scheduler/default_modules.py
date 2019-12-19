@@ -347,68 +347,72 @@ def _get_rpms_in_external_repo(repo_url, arches, cache_dir_name):
         )
 
     base = dnf.Base()
-    dnf_conf = base.conf
-    # Expire the metadata right away so that when a repo is loaded, it will always check to see if
-    # the external repo has been updated
-    dnf_conf.metadata_expire = 0
-
-    cache_location = os.path.join(conf.cache_dir, "dnf", cache_dir_name)
     try:
-        # exist_ok=True can't be used in Python 2
-        os.makedirs(cache_location, mode=0o0770)
-    except OSError as e:
-        # Don't fail if the directories already exist
-        if e.errno != errno.EEXIST:
-            log.exception("Failed to create the cache directory %s", cache_location)
-            raise RuntimeError("The MBS cache is not writeable.")
+        dnf_conf = base.conf
+        # Expire the metadata right away so that when a repo is loaded, it will always check to
+        # see if the external repo has been updated
+        dnf_conf.metadata_expire = 0
 
-    # Tell DNF to use the cache directory
-    dnf_conf.cachedir = cache_location
-    # Don't skip repos that can't be synchronized
-    dnf_conf.skip_if_unavailable = False
-    dnf_conf.timeout = conf.dnf_timeout
-    # Get rid of everything to be sure it's a blank slate. This doesn't delete the cached repo data.
-    base.reset(repos=True, goal=True, sack=True)
+        cache_location = os.path.join(conf.cache_dir, "dnf", cache_dir_name)
+        try:
+            # exist_ok=True can't be used in Python 2
+            os.makedirs(cache_location, mode=0o0770)
+        except OSError as e:
+            # Don't fail if the directories already exist
+            if e.errno != errno.EEXIST:
+                log.exception("Failed to create the cache directory %s", cache_location)
+                raise RuntimeError("The MBS cache is not writeable.")
 
-    # Add a separate repo for each architecture
-    for arch in arches:
-        # Convert arch to canon_arch. This handles cases where Koji "i686" arch is mapped to
-        # "i386" when generating RPM repository.
-        canon_arch = koji.canonArch(arch)
-        repo_name = "repo_{}".format(canon_arch)
-        repo_arch_url = repo_url.replace("$arch", canon_arch)
-        base.repos.add_new_repo(
-            repo_name, dnf_conf, baseurl=[repo_arch_url], minrate=conf.dnf_minrate,
-        )
+        # Tell DNF to use the cache directory
+        dnf_conf.cachedir = cache_location
+        # Don't skip repos that can't be synchronized
+        dnf_conf.skip_if_unavailable = False
+        dnf_conf.timeout = conf.dnf_timeout
+        # Get rid of everything to be sure it's a blank slate. This doesn't delete the cached repo
+        # data.
+        base.reset(repos=True, goal=True, sack=True)
 
-    try:
-        # Load the repos in parallel
-        base.update_cache()
-    except dnf.exceptions.RepoError:
-        msg = "Failed to load the external repos"
-        log.exception(msg)
-        raise RuntimeError(msg)
+        # Add a separate repo for each architecture
+        for arch in arches:
+            # Convert arch to canon_arch. This handles cases where Koji "i686" arch is mapped to
+            # "i386" when generating RPM repository.
+            canon_arch = koji.canonArch(arch)
+            repo_name = "repo_{}".format(canon_arch)
+            repo_arch_url = repo_url.replace("$arch", canon_arch)
+            base.repos.add_new_repo(
+                repo_name, dnf_conf, baseurl=[repo_arch_url], minrate=conf.dnf_minrate,
+            )
 
-    # dnf will not always raise an error on repo failures, so we check explicitly
-    for repo_name in base.repos:
-        if not base.repos[repo_name].metadata:
-            msg = "Failed to load metadata for repo %s" % repo_name
+        try:
+            # Load the repos in parallel
+            base.update_cache()
+        except dnf.exceptions.RepoError:
+            msg = "Failed to load the external repos"
             log.exception(msg)
             raise RuntimeError(msg)
 
-    base.fill_sack(load_system_repo=False)
+        # dnf will not always raise an error on repo failures, so we check explicitly
+        for repo_name in base.repos:
+            if not base.repos[repo_name].metadata:
+                msg = "Failed to load metadata for repo %s" % repo_name
+                log.exception(msg)
+                raise RuntimeError(msg)
 
-    # Return all the available RPMs
-    nevras = set()
-    for rpm in base.sack.query().available():
-        rpm_dict = {
-            "arch": rpm.arch,
-            "epoch": rpm.epoch,
-            "name": rpm.name,
-            "release": rpm.release,
-            "version": rpm.version,
-        }
-        nevra = kobo.rpmlib.make_nvra(rpm_dict, force_epoch=True)
-        nevras.add(nevra)
+        base.fill_sack(load_system_repo=False)
+
+        # Return all the available RPMs
+        nevras = set()
+        for rpm in base.sack.query().available():
+            rpm_dict = {
+                "arch": rpm.arch,
+                "epoch": rpm.epoch,
+                "name": rpm.name,
+                "release": rpm.release,
+                "version": rpm.version,
+            }
+            nevra = kobo.rpmlib.make_nvra(rpm_dict, force_epoch=True)
+            nevras.add(nevra)
+    finally:
+        base.close()
 
     return nevras
