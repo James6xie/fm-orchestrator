@@ -4,7 +4,7 @@
 import utils
 
 
-def test_normal_build(test_env, repo, koji):
+def test_normal_build(test_env, scenario, repo, koji):
     """
     Run build with `rhpkg-stage module-build --optional rebuild_strategy=all`
 
@@ -22,13 +22,13 @@ def test_normal_build(test_env, repo, koji):
     build_id = build.run(
         "--optional",
         "rebuild_strategy=all",
-        reuse=test_env["testdata"]["normal_build"].get("build_id"),
+        reuse=scenario.get("build_id"),
     )
     build.watch()
 
     assert sorted(build.component_names()) == sorted(repo.components + ["module-build-macros"])
 
-    expected_buildorder = test_env["testdata"]["normal_build"]["buildorder"]
+    expected_buildorder = scenario["buildorder"]
     expected_buildorder = [set(batch) for batch in expected_buildorder]
     actual_buildorder = build.batches()
     assert actual_buildorder == expected_buildorder
@@ -41,7 +41,7 @@ def test_normal_build(test_env, repo, koji):
     modulemd = koji.get_modulemd(cg_build)
     actual_platforms = modulemd["data"]["dependencies"][0]["buildrequires"]["platform"]
     expected_platforms = repo.platform
-    platform_ga = test_env["testdata"]["normal_build"].get("platform_is_ga")
+    platform_ga = scenario.get("platform_is_ga")
     if platform_ga:
         expected_platforms = [f"{pf}.z" for pf in expected_platforms]
     assert expected_platforms == actual_platforms

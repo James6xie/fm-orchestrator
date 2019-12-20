@@ -29,11 +29,24 @@ def test_env():
 
 
 @pytest.fixture(scope="function")
-def repo(request, test_env):
-    """Clone the module repo to be used by the test
+def scenario(request, test_env):
+    """Configuration data for the scenario
 
-    Find out the name of the test (anything that follow "test_"), and get
-    the corresponding module repo from the test environment configuration.
+    Find out the name of the scenario (anything that follows "test_"),
+    and return the corresponding configuration.
+
+    This is a convenience fixture to serve as a shortcut to access
+    scenario configuration.
+    """
+    scenario_name = request.function.__name__.split("test_", 1)[1]
+    return test_env["testdata"][scenario_name]
+
+
+@pytest.fixture(scope="function")
+def repo(scenario, test_env):
+    """Clone the module repo to be used by the scenario
+
+    Get the module repo from the scenario configuration.
 
     Clone the repo in a temporary location and switch the current working
     directory into it.
@@ -45,20 +58,18 @@ def repo(request, test_env):
     :rtype: utils.Repo
     """
     with tempfile.TemporaryDirectory() as tempdir:
-        testname = request.function.__name__.split("test_", 1)[1]
-        repo_conf = test_env["testdata"][testname]
         packaging_util = Command(test_env["packaging_utility"]).bake(
             _out=sys.stdout, _err=sys.stderr, _tee=True
         )
         args = [
             "--branch",
-            repo_conf["branch"],
-            f"modules/{repo_conf['module']}",
+            scenario["branch"],
+            f"modules/{scenario['module']}",
             tempdir,
         ]
         packaging_util("clone", *args)
         with pushd(tempdir):
-            yield utils.Repo(repo_conf["module"])
+            yield utils.Repo(scenario["module"])
 
 
 @pytest.fixture(scope="session")

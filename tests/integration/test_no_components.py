@@ -4,7 +4,7 @@
 import utils
 
 
-def test_no_components(test_env, repo, koji):
+def test_no_components(test_env, scenario, repo, koji):
     """
     Submit the testmodule build with `fedpkg module-build`
 
@@ -15,7 +15,7 @@ def test_no_components(test_env, repo, koji):
     """
     build = utils.Build(test_env["packaging_utility"], test_env["mbs_api"])
     repo.bump()
-    build.run(reuse=test_env["testdata"]["no_components"].get("build_id"))
+    build.run(reuse=scenario.get("build_id"))
     build.watch()
 
     assert build.state_name == "ready"

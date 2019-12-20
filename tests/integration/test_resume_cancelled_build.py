@@ -5,7 +5,7 @@ import utils
 import time
 
 
-def test_resume_cancelled_build(test_env, repo, koji):
+def test_resume_cancelled_build(test_env, scenario, repo, koji):
     """
     Run the  build with "rebuild_strategy=all".
     Wait until the module-build-macros build is submitted to Koji.

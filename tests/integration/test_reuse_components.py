@@ -4,7 +4,7 @@
 import utils
 
 
-def test_reuse_components(test_env, repo, koji):
+def test_reuse_components(test_env, scenario, repo, koji):
     """
     Bump the commit of one of the components that MBS uses.
     Bump the commit of the same testmodule that was mentioned in the preconditions.
@@ -21,13 +21,13 @@ def test_reuse_components(test_env, repo, koji):
         "--watch",
         "--optional",
         "rebuild_strategy=all",
-        reuse=test_env["testdata"]["reuse_components"].get("baseline_build_id"),
+        reuse=scenario.get("baseline_build_id"),
     )
 
-    package = test_env["testdata"]["reuse_components"].get("package")
+    package = scenario.get("package")
     component = utils.Component(
         package,
-        test_env["testdata"]["reuse_components"].get("component_branch")
+        scenario.get("component_branch")
     )
     component.clone(test_env["packaging_utility"])
     component.bump()
@@ -38,7 +38,7 @@ def test_reuse_components(test_env, repo, koji):
         "--watch",
         "--optional",
         "rebuild_strategy=only-changed",
-        reuse=test_env["testdata"]["reuse_components"].get("build_id"),
+        reuse=scenario.get("build_id"),
     )
 
     comp_task_ids_base = baseline_build.component_task_ids()

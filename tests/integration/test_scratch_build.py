@@ -4,7 +4,7 @@
 import utils
 
 
-def test_scratch_build(test_env, repo, koji):
+def test_scratch_build(test_env, scenario, repo, koji):
     """
     Run a scratch build with "rebuild_strategy=all".
 
@@ -19,7 +19,7 @@ def test_scratch_build(test_env, repo, koji):
         "--scratch",
         "--optional",
         "rebuild_strategy=all",
-        reuse=test_env["testdata"]["scratch_build"].get("build_id"),
+        reuse=scenario.get("build_id"),
     )
     build.watch()
 
