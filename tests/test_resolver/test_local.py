@@ -3,6 +3,7 @@
 import pytest
 from datetime import datetime
 
+from module_build_service import conf
 import module_build_service.resolver as mbs_resolver
 from module_build_service.db_session import db_session
 from module_build_service.models import ModuleBuild
@@ -41,7 +42,7 @@ class TestLocalResolverModule:
         db_session.add(build)
         db_session.commit()
 
-        resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="local")
+        resolver = mbs_resolver.GenericResolver.create(db_session, conf, backend="local")
         result = resolver.get_buildrequired_modulemds(
             "testmodule", "master", platform_f8.mmd().get_nsvc())
         nsvcs = {m.get_nsvc() for m in result}

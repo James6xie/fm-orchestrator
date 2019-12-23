@@ -5,8 +5,8 @@ import shutil
 
 from mock import patch, Mock, call
 
+from module_build_service import conf
 from module_build_service.builder import utils
-from tests import conf
 
 
 class TestBuilderUtils:

@@ -126,7 +126,7 @@ def build_module_locally(
     if "SERVER_NAME" not in app.config or not app.config["SERVER_NAME"]:
         app.config["SERVER_NAME"] = "localhost"
 
-        if app.config["RESOLVER"] == "db":
+        if conf.resolver == "db":
             raise ValueError(
                 "Please set RESOLVER to 'mbs' in your configuration for local builds.")
 

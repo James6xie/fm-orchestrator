@@ -14,7 +14,6 @@ import koji
 import module_build_service
 from module_build_service import db
 from module_build_service.utils import get_rpm_release, import_mmd, mmd_to_str
-from module_build_service.config import init_config
 from module_build_service.models import (
     ModuleBuild, ModuleArch, ComponentBuild, VirtualStream,
     BUILD_STATES,
@@ -24,8 +23,6 @@ from module_build_service.db_session import db_session
 
 
 base_dir = os.path.dirname(__file__)
-app = module_build_service.app
-conf = init_config(app)
 
 
 def staged_data_filename(filename):

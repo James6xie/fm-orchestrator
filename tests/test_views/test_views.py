@@ -18,13 +18,19 @@ import pytest
 import re
 import sqlalchemy
 
-from tests import app, init_data, clean_database, staged_data_filename, make_module_in_db
-from tests import read_staged_data, time_assert
+from tests import (
+    init_data,
+    clean_database,
+    make_module_in_db,
+    read_staged_data,
+    staged_data_filename,
+    time_assert,
+)
 from tests.test_scm import base_dir as scm_base_dir
 from module_build_service.db_session import db_session
 from module_build_service.errors import UnprocessableEntity
 from module_build_service.models import ModuleBuild, BUILD_STATES, ComponentBuild
-from module_build_service import version
+from module_build_service import app, version
 import module_build_service.config as mbs_config
 import module_build_service.utils.submit
 from module_build_service.utils.general import (

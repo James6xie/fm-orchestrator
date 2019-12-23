@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
 import imp
+import logging
 import os
 import pkg_resources
 import re
@@ -10,6 +11,8 @@ import tempfile
 from six import string_types
 
 from module_build_service import logger
+# This avoids creating a circular import by importing log from module_build_service
+log = logging.getLogger('module_build_service')
 
 
 # TODO: It'd be nice to reuse this from models.ModuleBuild.rebuild_strategies but models.py
@@ -24,83 +27,124 @@ SUPPORTED_RESOLVERS = {
 }
 
 
-def init_config(app):
-    """ Configure MBS and the Flask app
+class BaseConfiguration(object):
+    DEBUG = False
+    SECRET_KEY = os.urandom(16)
+    SQLALCHEMY_DATABASE_URI = "sqlite:///{0}".format(os.path.join(
+        os.getcwd(), "module_build_service.db"))
+    SQLALCHEMY_TRACK_MODIFICATIONS = True
+    # Where we should run when running "manage.py run" directly.
+    HOST = "0.0.0.0"
+    PORT = 5000
+
+
+class TestConfiguration(BaseConfiguration):
+    LOG_LEVEL = "debug"
+    SQLALCHEMY_DATABASE_URI = os.environ.get(
+        "DATABASE_URI", "sqlite:///{0}".format(os.path.join(os.getcwd(), "mbstest.db")))
+    DEBUG = True
+    MESSAGING = "in_memory"
+    PDC_URL = "https://pdc.fedoraproject.org/rest_api/v1"
+
+    # Global network-related values, in seconds
+    NET_TIMEOUT = 3
+    NET_RETRY_INTERVAL = 1
+    # SCM network-related values, in seconds
+    SCM_NET_TIMEOUT = 0.1
+    SCM_NET_RETRY_INTERVAL = 0.1
+
+    KOJI_CONFIG = "./conf/koji.conf"
+    KOJI_PROFILE = "staging"
+    SERVER_NAME = "localhost"
+
+    KOJI_REPOSITORY_URL = "https://kojipkgs.stg.fedoraproject.org/repos"
+    SCMURLS = ["https://src.stg.fedoraproject.org/modules/"]
+
+    ALLOWED_GROUPS_TO_IMPORT_MODULE = {"mbs-import-module"}
+
+    # Greenwave configuration
+    GREENWAVE_URL = "https://greenwave.example.local/api/v1.0/"
+    GREENWAVE_DECISION_CONTEXT = "test_dec_context"
+    GREENWAVE_SUBJECT_TYPE = "some-module"
+
+    STREAM_SUFFIXES = {r"^el\d+\.\d+\.\d+\.z$": 0.1}
+
+    # Ensures task.delay executes locally instead of scheduling a task to a queue.
+    CELERY_TASK_ALWAYS_EAGER = True
+
+
+class ProdConfiguration(BaseConfiguration):
+    pass
+
+
+class LocalBuildConfiguration(BaseConfiguration):
+    CACHE_DIR = "~/modulebuild/cache"
+    LOG_LEVEL = "debug"
+    MESSAGING = "in_memory"
+
+    ALLOW_CUSTOM_SCMURLS = True
+    RESOLVER = "mbs"
+    RPMS_ALLOW_REPOSITORY = True
+    MODULES_ALLOW_REPOSITORY = True
+
+    # Celery tasks will be executed locally for local builds
+    CELERY_TASK_ALWAYS_EAGER = True
+
+
+class OfflineLocalBuildConfiguration(LocalBuildConfiguration):
+    RESOLVER = "local"
+
+
+class DevConfiguration(LocalBuildConfiguration):
+    DEBUG = True
+
+
+def init_config():
     """
-    config_module = None
-    config_file = "/etc/module-build-service/config.py"
-    config_section = "DevConfiguration"
+    Create the global MBS configuration.
 
-    # automagically detect production environment:
-    #   - existing and readable config_file presets ProdConfiguration
+    :return: a tuple with the first index being the configuration and second index as the
+        configuration class that was used to initialize the configuration. This can be useful
+        to configure Flask with.
+    :rtype: tuple(Config, object)
+    """
+    config_file = os.environ.get("MBS_CONFIG_FILE", "/etc/module-build-service/config.py")
+    config_section = os.environ.get("MBS_CONFIG_SECTION", "ProdConfiguration")
     try:
-        with open(config_file):
-            config_section = "ProdConfiguration"
+        config_module = imp.load_source("mbs_runtime_config", config_file)
+        log.info("Using the configuration file at %s", config_file)
     except Exception:
-        pass
-    #   - Flask app within mod_wsgi presets ProdConfiguration
-    flask_app_env = hasattr(app, "request") and hasattr(app.request, "environ")
-    if flask_app_env and any([var.startswith("mod_wsgi.") for var in app.request.environ]):
-        config_section = "ProdConfiguration"
+        log.warning("The configuration file at %s was not present", config_file)
+        # Default to this file as the configuration module
+        config_module = sys.modules[__name__]
 
-    # Load LocalBuildConfiguration section in case we are building modules
-    # locally.
-    if "build_module_locally" in sys.argv:
+    true_options = ("1", "on", "true", "y", "yes")
+    if any(["py.test" in arg or "pytest" in arg for arg in sys.argv]):
+        config_section = "TestConfiguration"
+        # Get the configuration from this module
+        config_module = sys.modules[__name__]
+    elif os.environ.get("MODULE_BUILD_SERVICE_DEVELOPER_ENV", "").lower() in true_options:
+        config_section = "DevConfiguration"
+        # Get the configuration from this module
+        config_module = sys.modules[__name__]
+    elif "build_module_locally" in sys.argv:
         if "--offline" in sys.argv:
             config_section = "OfflineLocalBuildConfiguration"
         else:
             config_section = "LocalBuildConfiguration"
 
-    # try getting config_file from os.environ
-    if "MBS_CONFIG_FILE" in os.environ:
-        config_file = os.environ["MBS_CONFIG_FILE"]
-    # try getting config_section from os.environ
-    if "MBS_CONFIG_SECTION" in os.environ:
-        config_section = os.environ["MBS_CONFIG_SECTION"]
-    # preferably get these values from Flask app
-    if flask_app_env:
-        # try getting config_file from Flask app
-        if "MBS_CONFIG_FILE" in app.request.environ:
-            config_file = app.request.environ["MBS_CONFIG_FILE"]
-        # try getting config_section from Flask app
-        if "MBS_CONFIG_SECTION" in app.request.environ:
-            config_section = app.request.environ["MBS_CONFIG_SECTION"]
-
-    true_options = ("1", "on", "true", "y", "yes")
-    # TestConfiguration shall only be used for running tests, otherwise...
-    if any(["py.test" in arg or "pytest" in arg for arg in sys.argv]):
-        config_section = "TestConfiguration"
-        from conf import config
-
-        config_module = config
-    # ...MODULE_BUILD_SERVICE_DEVELOPER_ENV has always the last word
-    # and overrides anything previously set before!
-    # Again, check Flask app (preferably) or fallback to os.environ.
-    # In any of the following cases, use configuration directly from MBS package
-    # -> /conf/config.py.
-    elif flask_app_env and "MODULE_BUILD_SERVICE_DEVELOPER_ENV" in app.request.environ:
-        if app.request.environ["MODULE_BUILD_SERVICE_DEVELOPER_ENV"].lower() in true_options:
-            config_section = "DevConfiguration"
-            from conf import config
-
-            config_module = config
-    elif os.environ.get("MODULE_BUILD_SERVICE_DEVELOPER_ENV", "").lower() in true_options:
-        config_section = "DevConfiguration"
-        from conf import config
-
-        config_module = config
-    # try loading configuration from file
-    if not config_module:
-        try:
-            config_module = imp.load_source("mbs_runtime_config", config_file)
-        except Exception:
-            raise SystemError("Configuration file {} was not found.".format(config_file))
-
-    # finally configure MBS and the Flask app
-    config_section_obj = getattr(config_module, config_section)
+    if hasattr(config_module, config_section):
+        log.info("Using the configuration section %s", config_section)
+        config_section_obj = getattr(config_module, config_section)
+    else:
+        log.error(
+            "The configuration class of %s is not present. Falling back to the default "
+            "ProdConfiguration class.",
+            config_section,
+        )
+        config_section_obj = ProdConfiguration
     conf = Config(config_section_obj)
-    app.config.from_object(config_section_obj)
-    return conf
+    return conf, config_section_obj
 
 
 class Path:

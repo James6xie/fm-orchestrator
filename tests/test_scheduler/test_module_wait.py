@@ -7,9 +7,9 @@ import module_build_service.scheduler.handlers.modules
 import os
 import koji
 import pytest
-from tests import conf, scheduler_init_data
+from tests import scheduler_init_data
 import module_build_service.resolver
-from module_build_service import build_logs, Modulemd
+from module_build_service import build_logs, conf, Modulemd
 from module_build_service.db_session import db_session
 from module_build_service.models import ComponentBuild, ModuleBuild
 

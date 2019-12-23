@@ -18,7 +18,7 @@ import module_build_service.scheduler.consumer
 import module_build_service.scheduler.handlers.repos
 import module_build_service.utils
 from module_build_service.errors import Forbidden
-from module_build_service import models, conf, build_logs, log
+from module_build_service import app, models, conf, build_logs, log
 from module_build_service.db_session import db_session
 from module_build_service.scheduler import events
 from module_build_service.scheduler.handlers.tags import tagged as tagged_handler
@@ -36,9 +36,7 @@ import itertools
 
 from module_build_service.builder import GenericBuilder
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
-from tests import (
-    app, clean_database, read_staged_data, staged_data_filename
-)
+from tests import clean_database, read_staged_data, staged_data_filename
 
 base_dir = dirname(dirname(__file__))
 

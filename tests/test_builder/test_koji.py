@@ -13,7 +13,7 @@ from collections import OrderedDict
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.repos
 import module_build_service.models
-from module_build_service import Modulemd
+from module_build_service import conf, Modulemd
 from module_build_service.db_session import db_session
 from module_build_service.builder import GenericBuilder
 from module_build_service.scheduler import events
@@ -22,7 +22,7 @@ from module_build_service.utils.general import mmd_to_str
 import pytest
 from mock import patch, MagicMock
 
-from tests import conf, init_data, clean_database, make_module_in_db
+from tests import init_data, clean_database, make_module_in_db
 
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
 

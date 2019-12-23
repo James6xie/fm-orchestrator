@@ -66,7 +66,6 @@ setup(
             "/etc/module-build-service/",
             [
                 "conf/cacert.pem",
-                "conf/config.py",
                 "conf/koji.conf",
                 "conf/mock.cfg",
                 "conf/yum.conf",

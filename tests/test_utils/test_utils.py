@@ -32,8 +32,7 @@ from module_build_service.db_session import db_session
 from module_build_service.builder import GenericBuilder
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
 from module_build_service.scheduler import events
-from module_build_service import Modulemd
-from tests import app
+from module_build_service import app, Modulemd
 
 BASE_DIR = path.abspath(path.dirname(__file__))
 

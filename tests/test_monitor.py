@@ -1,17 +1,16 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
 import os
+
 import pytest
 import requests
 import mock
-import module_build_service.config as mbs_config
-import module_build_service.monitor
-from module_build_service import models
-from module_build_service.db_session import db_session
-from conf.config import TestConfiguration
-
 from six.moves import reload_module
-from tests import app, init_data, make_module_in_db
+
+import module_build_service.monitor
+from module_build_service import app, conf, models
+from module_build_service.db_session import db_session
+from tests import init_data, make_module_in_db
 
 num_of_metrics = 18
 
@@ -51,7 +50,6 @@ def test_standalone_metrics_server():
 @mock.patch("module_build_service.monitor.builder_failed_counter.labels")
 @mock.patch("module_build_service.monitor.builder_success_counter.inc")
 def test_monitor_state_changing_success(succ_cnt, failed_cnt):
-    conf = mbs_config.Config(TestConfiguration)
     b = make_module_in_db(
         "pkg:0.1:1:c1",
         [
@@ -73,7 +71,6 @@ def test_monitor_state_changing_success(succ_cnt, failed_cnt):
 @mock.patch("module_build_service.monitor.builder_success_counter.inc")
 def test_monitor_state_changing_failure(succ_cnt, failed_cnt):
     failure_type = "user"
-    conf = mbs_config.Config(TestConfiguration)
     b = make_module_in_db(
         "pkg:0.1:1:c1",
         [

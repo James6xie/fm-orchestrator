@@ -4,11 +4,11 @@ import os
 
 from mock import patch, PropertyMock
 
-from tests import conf, clean_database, read_staged_data
+from tests import clean_database, read_staged_data
 from tests.test_views.test_views import FakeSCM
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.modules
-from module_build_service import build_logs
+from module_build_service import build_logs, conf
 from module_build_service.db_session import db_session
 from module_build_service.models import ModuleBuild
 from module_build_service.utils.general import mmd_to_str, load_mmd

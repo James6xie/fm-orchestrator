@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: MIT
 from mock import patch, PropertyMock, Mock, call
 
+from module_build_service import app, conf
 import module_build_service.resolver as mbs_resolver
 import module_build_service.utils
 from module_build_service.db_session import db_session
@@ -31,13 +32,13 @@ class TestMBSModule:
 
         mock_session.get.return_value = mock_res
 
-        resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="mbs")
+        resolver = mbs_resolver.GenericResolver.create(db_session, conf, backend="mbs")
         module_mmds = resolver.get_module_modulemds(
             "testmodule", "master", "20180205135154", "9c690d0e", virtual_streams=["f28"]
         )
         nsvcs = set(m.get_nsvc() for m in module_mmds)
         expected = {"testmodule:master:20180205135154:9c690d0e"}
-        mbs_url = tests.conf.mbs_url
+        mbs_url = conf.mbs_url
         expected_query = {
             "name": "testmodule",
             "stream": "master",
@@ -84,14 +85,14 @@ class TestMBSModule:
         }
 
         mock_session.get.return_value = mock_res
-        resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="mbs")
+        resolver = mbs_resolver.GenericResolver.create(db_session, conf, backend="mbs")
         ret = resolver.get_module_modulemds("testmodule", "master", version)
         nsvcs = set(m.get_nsvc() for m in ret)
         expected = {
             "testmodule:master:20180205135154:9c690d0e",
             "testmodule:master:20180205135154:c2c572ed",
         }
-        mbs_url = tests.conf.mbs_url
+        mbs_url = conf.mbs_url
         expected_query = {
             "name": "testmodule",
             "stream": "master",
@@ -144,7 +145,7 @@ class TestMBSModule:
 
         mock_session.get.return_value = mock_res
         expected = {"module-f28-build"}
-        resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="mbs")
+        resolver = mbs_resolver.GenericResolver.create(db_session, conf, backend="mbs")
         result = resolver.get_module_build_dependencies(
             "testmodule", "master", "20180205135154", "9c690d0e").keys()
 
@@ -173,7 +174,7 @@ class TestMBSModule:
             },
         ]
 
-        mbs_url = tests.conf.mbs_url
+        mbs_url = conf.mbs_url
         expected_calls = [
             call(mbs_url, params=expected_queries[0]),
             call(mbs_url, params=expected_queries[1]),
@@ -217,11 +218,11 @@ class TestMBSModule:
 
         expected = set()
 
-        resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="mbs")
+        resolver = mbs_resolver.GenericResolver.create(db_session, conf, backend="mbs")
         result = resolver.get_module_build_dependencies(
             "testmodule", "master", "20180205135154", "9c690d0e"
         ).keys()
-        mbs_url = tests.conf.mbs_url
+        mbs_url = conf.mbs_url
         expected_query = {
             "name": "testmodule",
             "stream": "master",
@@ -257,7 +258,7 @@ class TestMBSModule:
         }
 
         mock_session.get.return_value = mock_res
-        resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="mbs")
+        resolver = mbs_resolver.GenericResolver.create(db_session, conf, backend="mbs")
         result = resolver.resolve_profiles(
             formatted_testmodule_mmd, ("buildroot", "srpm-buildroot")
         )
@@ -299,7 +300,7 @@ class TestMBSModule:
             },
         }
 
-        mbs_url = tests.conf.mbs_url
+        mbs_url = conf.mbs_url
         expected_query = {
             "name": "platform",
             "stream": "f28",
@@ -329,7 +330,7 @@ class TestMBSModule:
         tests.clean_database()
         module_build_service.utils.load_local_builds(["platform"])
 
-        resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="mbs")
+        resolver = mbs_resolver.GenericResolver.create(db_session, conf, backend="mbs")
         result = resolver.resolve_profiles(
             formatted_testmodule_mmd, ("buildroot", "srpm-buildroot"))
         expected = {"buildroot": {"foo"}, "srpm-buildroot": {"bar"}}
@@ -337,7 +338,7 @@ class TestMBSModule:
 
     @patch("module_build_service.resolver.MBSResolver.requests_session")
     def test_get_empty_buildrequired_modulemds(self, request_session):
-        resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="mbs")
+        resolver = mbs_resolver.GenericResolver.create(db_session, conf, backend="mbs")
         request_session.get.return_value = Mock(ok=True)
         request_session.get.return_value.json.return_value = {"items": [], "meta": {"next": None}}
 
@@ -347,7 +348,7 @@ class TestMBSModule:
 
     @patch("module_build_service.resolver.MBSResolver.requests_session")
     def test_get_buildrequired_modulemds(self, mock_session):
-        resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="mbs")
+        resolver = mbs_resolver.GenericResolver.create(db_session, conf, backend="mbs")
         mock_session.get.return_value = Mock(ok=True)
         mock_session.get.return_value.json.return_value = {
             "items": [
@@ -393,7 +394,7 @@ class TestMBSModule:
         }
         mock_session.get.return_value = mock_res
 
-        resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="mbs")
+        resolver = mbs_resolver.GenericResolver.create(db_session, conf, backend="mbs")
         count = resolver.get_module_count(name="platform", stream="f28")
 
         assert count == 5
@@ -420,7 +421,7 @@ class TestMBSModule:
         }
         mock_session.get.return_value = mock_res
 
-        resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="mbs")
+        resolver = mbs_resolver.GenericResolver.create(db_session, conf, backend="mbs")
         mmd = resolver.get_latest_with_virtual_stream("platform", "virtualf28")
 
         assert mmd.get_module_name() == "platform"
@@ -448,10 +449,10 @@ class TestMBSModule:
         self, local_builds, conf_system
     ):
         tests.clean_database()
-        with tests.app.app_context():
+        with app.app_context():
             module_build_service.utils.load_local_builds(["testmodule"])
 
-            resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="mbs")
+            resolver = mbs_resolver.GenericResolver.create(db_session, conf, backend="mbs")
             result = resolver.get_buildrequired_modulemds(
                 "testmodule", "master", "platform:f28:1:00000000")
             assert 1 == len(result)
@@ -483,7 +484,7 @@ class TestMBSModule:
             "meta": {"next": None},
         }
 
-        resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="mbs")
+        resolver = mbs_resolver.GenericResolver.create(db_session, conf, backend="mbs")
 
         platform = db_session.query(
             module_build_service.models.ModuleBuild).filter_by(id=1).one()

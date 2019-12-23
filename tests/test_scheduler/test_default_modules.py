@@ -7,12 +7,13 @@ import dnf
 from mock import call, Mock, patch, PropertyMock
 import pytest
 
+from module_build_service import conf
 from module_build_service.db_session import db_session
 from module_build_service.errors import UnprocessableEntity
 from module_build_service.models import ModuleBuild
 from module_build_service.scheduler import default_modules
 from module_build_service.utils.general import load_mmd, mmd_to_str
-from tests import clean_database, conf, make_module_in_db, read_staged_data, import_mmd
+from tests import clean_database, make_module_in_db, read_staged_data, import_mmd
 
 
 @patch("module_build_service.scheduler.default_modules.handle_collisions_with_base_module_rpms")

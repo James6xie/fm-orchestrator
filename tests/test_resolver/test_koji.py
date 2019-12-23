@@ -4,6 +4,7 @@ import pytest
 from mock import patch, MagicMock
 from datetime import datetime
 
+from module_build_service import conf
 import module_build_service.resolver as mbs_resolver
 import tests
 from module_build_service.db_session import db_session
@@ -56,7 +57,7 @@ class TestLocalResolverModule:
         self._create_test_modules(koji_tag_with_modules=None)
         platform = db_session.query(ModuleBuild).filter_by(stream="f30.1.3").one()
 
-        resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="koji")
+        resolver = mbs_resolver.GenericResolver.create(db_session, conf, backend="koji")
         result = resolver.get_buildrequired_modulemds("testmodule", "master", platform.mmd())
 
         nsvcs = {m.get_nsvc() for m in result}
@@ -75,7 +76,7 @@ class TestLocalResolverModule:
 
         self._create_test_modules()
         platform = db_session.query(ModuleBuild).filter_by(stream="f30.1.3").one()
-        resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="koji")
+        resolver = mbs_resolver.GenericResolver.create(db_session, conf, backend="koji")
         result = resolver.get_buildrequired_modulemds("testmodule", "master", platform.mmd())
 
         assert result == []
@@ -102,7 +103,7 @@ class TestLocalResolverModule:
 
         self._create_test_modules()
         platform = db_session.query(ModuleBuild).filter_by(stream="f30.1.3").one()
-        resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="koji")
+        resolver = mbs_resolver.GenericResolver.create(db_session, conf, backend="koji")
         result = resolver.get_buildrequired_modulemds("testmodule", "master", platform.mmd())
 
         nsvcs = {m.get_nsvc() for m in result}
@@ -129,7 +130,7 @@ class TestLocalResolverModule:
 
         self._create_test_modules()
         platform = db_session.query(ModuleBuild).filter_by(stream="f30.1.3").one()
-        resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="koji")
+        resolver = mbs_resolver.GenericResolver.create(db_session, conf, backend="koji")
         expected_error = ("Module testmodule:2:820181219174508:9edba152 is tagged in the "
                           "foo-test Koji tag, but does not exist in MBS DB.")
         with pytest.raises(ValueError, match=expected_error):
@@ -164,7 +165,7 @@ class TestLocalResolverModule:
 
         self._create_test_modules()
         platform = db_session.query(ModuleBuild).filter_by(stream="f30.1.3").one()
-        resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="koji")
+        resolver = mbs_resolver.GenericResolver.create(db_session, conf, backend="koji")
         result = resolver.get_buildrequired_modulemds("testmodule", "master", platform.mmd())
 
         nsvcs = {m.get_nsvc() for m in result}
@@ -192,7 +193,7 @@ class TestLocalResolverModule:
 
         self._create_test_modules()
         platform = db_session.query(ModuleBuild).filter_by(stream="f30.1.3").one()
-        resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="koji")
+        resolver = mbs_resolver.GenericResolver.create(db_session, conf, backend="koji")
         result = resolver.get_buildrequired_modules("testmodule", "master", platform.mmd())
 
         nvrs = {m.nvr_string for m in result}
@@ -221,7 +222,7 @@ class TestLocalResolverModule:
                 "release": "20180109091357.7c29193d", "tag_name": "foo-test-parent"
             }]
 
-        resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="koji")
+        resolver = mbs_resolver.GenericResolver.create(db_session, conf, backend="koji")
         new_builds = resolver._filter_inherited(koji_session, builds, "foo-test", {"id": 123})
 
         nvrs = {"{name}-{version}-{release}".format(**b) for b in new_builds}
@@ -246,7 +247,7 @@ class TestLocalResolverModule:
             {"build_id": 127, "name": "testmodule", "version": "foo_test"},
         ]
 
-        resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="koji")
+        resolver = mbs_resolver.GenericResolver.create(db_session, conf, backend="koji")
         new_builds = resolver._filter_based_on_real_stream_name(koji_session, builds, "foo-test")
 
         build_ids = {b["build_id"] for b in new_builds}
@@ -262,13 +263,13 @@ class TestLocalResolverModule:
         ]
 
         expected_error = "Error during Koji multicall when filtering KojiResolver builds."
-        resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="koji")
+        resolver = mbs_resolver.GenericResolver.create(db_session, conf, backend="koji")
         with pytest.raises(RuntimeError, match=expected_error):
             resolver._filter_based_on_real_stream_name(koji_session, builds, "foo-test")
 
     def test_get_compatible_base_module_modulemds_fallback_to_dbresolver(self):
         tests.init_data(1, multiple_stream_versions=True)
-        resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="koji")
+        resolver = mbs_resolver.GenericResolver.create(db_session, conf, backend="koji")
         platform = db_session.query(ModuleBuild).filter_by(name="platform", stream="f29.1.0").one()
         platform_mmd = platform.mmd()
         result = resolver.get_compatible_base_module_modulemds(
@@ -279,7 +280,7 @@ class TestLocalResolverModule:
 
     def test_get_compatible_base_module_modulemds(self):
         tests.init_data(1, multiple_stream_versions=True)
-        resolver = mbs_resolver.GenericResolver.create(db_session, tests.conf, backend="koji")
+        resolver = mbs_resolver.GenericResolver.create(db_session, conf, backend="koji")
 
         platform = db_session.query(ModuleBuild).filter_by(name="platform", stream="f29.1.0").one()
         platform_mmd = platform.mmd()

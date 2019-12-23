@@ -43,10 +43,10 @@ except pkg_resources.DistributionNotFound:
     version = "unknown"
 api_version = 2
 
+conf, config_section = init_config()
 app = Flask(__name__)
 app.wsgi_app = ReverseProxy(app.wsgi_app)
-
-conf = init_config(app)
+app.config.from_object(config_section)
 
 celery_app = Celery("module-build-service")
 # Convert config names specific for Celery like this:
