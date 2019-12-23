@@ -123,7 +123,7 @@ class Config(object):
             "default": "module+",
             "desc": "Default dist-tag prefix for built modules.",
         },
-        "polling_interval": {"type": int, "default": 0, "desc": "Polling interval, in seconds."},
+        "polling_interval": {"type": int, "default": 600, "desc": "Polling interval, in seconds."},
         "cache_dir": {
             "type": Path,
             "default": os.path.join(tempfile.gettempdir(), "mbs"),
@@ -144,16 +144,24 @@ class Config(object):
             "default": "https://pdc.fedoraproject.org/rest_api/v1",
             "desc": "PDC URL, used for checking stream EOL.",
         },
-        "koji_config": {"type": str, "default": None, "desc": "Koji config file."},
-        "koji_profile": {"type": str, "default": None, "desc": "Koji config profile."},
-        "arches": {"type": list, "default": [], "desc": "Koji architectures."},
+        "koji_config": {
+            "type": str,
+            "default": "/etc/module-build-service/koji.conf",
+            "desc": "Koji config file."
+        },
+        "koji_profile": {"type": str, "default": "koji", "desc": "Koji config profile."},
+        "arches": {"type": list, "default": ["x86_64"], "desc": "Koji architectures."},
         "allow_arch_override": {
             "type": bool,
             "default": False,
             "desc": "Allow to support a custom architecture set",
         },
         "koji_build_priority": {"type": int, "default": 10, "desc": ""},
-        "koji_repository_url": {"type": str, "default": None, "desc": "Koji repository URL."},
+        "koji_repository_url": {
+            "type": str,
+            "default": "https://kojipkgs.fedoraproject.org/repos",
+            "desc": "Koji repository URL."
+        },
         "koji_build_macros_target": {
             "type": str,
             "default": "",
@@ -249,7 +257,7 @@ class Config(object):
         },
         "log_backend": {"type": str, "default": None, "desc": "Log backend"},
         "log_file": {"type": str, "default": "", "desc": "Path to log file"},
-        "log_level": {"type": str, "default": 0, "desc": "Log level"},
+        "log_level": {"type": str, "default": "info", "desc": "Log level"},
         "build_logs_dir": {
             "type": Path,
             "default": tempfile.gettempdir(),
@@ -270,31 +278,6 @@ class Config(object):
             "type": list,
             "default": ["org.fedoraproject.prod"],
             "desc": "The messaging system topic prefixes which we are interested in.",
-        },
-        "amq_recv_addresses": {
-            "type": list,
-            "default": [],
-            "desc": "Apache MQ broker url to receive messages.",
-        },
-        "amq_dest_address": {
-            "type": str,
-            "default": "",
-            "desc": "Apache MQ broker address to send messages",
-        },
-        "amq_cert_file": {
-            "type": str,
-            "default": "",
-            "desc": "Certificate for Apache MQ broker auth.",
-        },
-        "amq_private_key_file": {
-            "type": str,
-            "default": "",
-            "desc": "Private key for Apache MQ broker auth.",
-        },
-        "amq_trusted_cert_file": {
-            "type": str,
-            "default": "",
-            "desc": "Trusted certificate for ssl connection.",
         },
         "distgits": {
             "type": dict,
@@ -334,7 +317,11 @@ class Config(object):
             "default": "x86_64",
             "desc": "Fallback arch if auto-detection is off or unable to determine it.",
         },
-        "scmurls": {"type": list, "default": [], "desc": "Allowed SCM URLs for submitted module."},
+        "scmurls": {
+            "type": list,
+            "default": ["https://src.fedoraproject.org/modules/"],
+            "desc": "Allowed SCM URLs for submitted module.",
+        },
         "yaml_submit_allowed": {
             "type": bool,
             "default": False,
@@ -342,7 +329,7 @@ class Config(object):
         },
         "num_concurrent_builds": {
             "type": int,
-            "default": 0,
+            "default": 5,
             "desc": "Number of concurrent component builds.",
         },
         "net_timeout": {
@@ -689,6 +676,23 @@ class Config(object):
             "desc": "This defaults to 1 so that the worker doesn't fetch more messages than it can "
                     "handle at a time. This so that general tasks aren't starved when running "
                     "a long handler.",
+        },
+        "celery_broker_url": {
+            "type": str,
+            "default": "",
+            "desc": "The broker URL used by the Celery application instance.",
+        },
+        "celery_imports": {
+            "type": list,
+            "default": [
+                "module_build_service.scheduler.handlers.components",
+                "module_build_service.scheduler.handlers.modules",
+                "module_build_service.scheduler.handlers.repos",
+                "module_build_service.scheduler.handlers.tags",
+                "module_build_service.scheduler.handlers.greenwave",
+                "module_build_service.scheduler.producer",
+            ],
+            "desc": "The list Python paths for the Celery application to import.",
         },
     }
 
