@@ -10,13 +10,14 @@ import shutil
 import datetime
 
 from module_build_service import log, conf
+from module_build_service.common.retry import retry
 from module_build_service.errors import (
     Forbidden,
     ValidationError,
     UnprocessableEntity,
     ProgrammingError,
 )
-from module_build_service.utils.general import scm_url_schemes, retry
+from module_build_service.utils.general import scm_url_schemes
 
 
 class SCM(object):

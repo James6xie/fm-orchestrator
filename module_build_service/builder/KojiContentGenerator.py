@@ -22,17 +22,12 @@ import koji
 import pungi.arch
 
 from module_build_service import conf, log, build_logs, Modulemd
+from module_build_service.common.koji import get_session, koji_retrying_multicall_map
 from module_build_service.db_session import db_session
 from module_build_service.scm import SCM
 from module_build_service.utils import to_text_type, load_mmd, mmd_to_str
 
 logging.basicConfig(level=logging.DEBUG)
-
-
-def get_session(config, login=True):
-    from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
-
-    return KojiModuleBuilder.get_session(config, login=login)
 
 
 def strip_suffixes(s, suffixes):
@@ -52,17 +47,6 @@ def strip_suffixes(s, suffixes):
             s = s[: -len(suffix)]
             break
     return s
-
-
-def koji_retrying_multicall_map(*args, **kwargs):
-    """
-    Wrapper around KojiModuleBuilder.koji_retrying_multicall_map, because
-    we cannot import that method normally because of import loop.
-    """
-    from module_build_service.builder.KojiModuleBuilder import (
-        koji_retrying_multicall_map as multicall,)
-
-    return multicall(*args, **kwargs)
 
 
 class KojiContentGenerator(object):

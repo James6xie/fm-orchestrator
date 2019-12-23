@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: MIT
 from itertools import groupby
 
+from module_build_service.common.koji import get_session, koji_multicall_map
 from module_build_service.resolver.DBResolver import DBResolver
 from module_build_service import conf, models, log
 
@@ -76,9 +77,6 @@ class KojiResolver(DBResolver):
         :param str stream: The requested stream name.
         :return list: Filtered list of builds.
         """
-        # We need to import here because of circular dependencies.
-        from module_build_service.builder.KojiModuleBuilder import koji_multicall_map
-
         # Return early if there are no module builds.
         if not module_builds:
             return []
@@ -128,9 +126,7 @@ class KojiResolver(DBResolver):
         if not tag:
             return []
 
-        # Create KojiSession. We need to import here because of circular dependencies.
-        from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
-        koji_session = KojiModuleBuilder.get_session(conf, login=False)
+        koji_session = get_session(conf, login=False)
         event = koji_session.getLastEvent()
 
         # List all the modular builds in the modular Koji tag.

@@ -1,86 +1,84 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
+from collections import OrderedDict
 import os
 import shutil
 import tempfile
 
-import mock
 import koji
-
-import six.moves.xmlrpc_client as xmlrpclib
-from collections import OrderedDict
+import mock
+from mock import patch, MagicMock
+import pytest
 
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.repos
 import module_build_service.models
 from module_build_service import conf, Modulemd
 from module_build_service.db_session import db_session
+from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
 from module_build_service.builder import GenericBuilder
 from module_build_service.scheduler import events
 from module_build_service.utils.general import mmd_to_str
-
-import pytest
-from mock import patch, MagicMock
-
 from tests import init_data, clean_database, make_module_in_db
 
-from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
+
+@pytest.fixture(scope="function")
+def mock_get_session():
+    koji_session = MagicMock()
+    koji_session.getRepo.return_value = {"create_event": "fake event"}
+
+    FakeKojiModuleBuilder.tags = {
+        "module-foo": {
+            "name": "module-foo",
+            "id": 1,
+            "arches": "x86_64",
+            "locked": False,
+            "perm": "admin",
+        },
+        "module-foo-build": {
+            "name": "module-foo-build",
+            "id": 2,
+            "arches": "x86_64",
+            "locked": False,
+            "perm": "admin",
+        },
+    }
+
+    def _get_tag(name):
+        return FakeKojiModuleBuilder.tags.get(name, {})
+
+    koji_session.getTag = _get_tag
+
+    def _createTag(name):
+        FakeKojiModuleBuilder.tags[name] = {
+            "name": name,
+            "id": len(FakeKojiModuleBuilder.tags) + 1,
+            "arches": "x86_64",
+            "locked": False,
+            "perm": "admin",
+        }
+
+    koji_session.createTag = _createTag
+
+    def _getBuildTarget(name):
+        return {
+            "build_tag_name": "module-foo-build",
+            "dest_tag_name": "module-foo",
+        }
+
+    koji_session.getBuildTarget = _getBuildTarget
+
+    def _getAllPerms(*args, **kwargs):
+        return [{"id": 1, "name": "admin"}]
+
+    koji_session.getAllPerms = _getAllPerms
+
+    with patch("module_build_service.builder.KojiModuleBuilder.get_session") as mock_get_session:
+        mock_get_session.return_value = koji_session
+        yield
 
 
 class FakeKojiModuleBuilder(KojiModuleBuilder):
-    @module_build_service.utils.retry(wait_on=(xmlrpclib.ProtocolError, koji.GenericError))
-    def get_session(self, config, login=True):
-        koji_session = MagicMock()
-        koji_session.getRepo.return_value = {"create_event": "fake event"}
-
-        FakeKojiModuleBuilder.tags = {
-            "module-foo": {
-                "name": "module-foo",
-                "id": 1,
-                "arches": "x86_64",
-                "locked": False,
-                "perm": "admin",
-            },
-            "module-foo-build": {
-                "name": "module-foo-build",
-                "id": 2,
-                "arches": "x86_64",
-                "locked": False,
-                "perm": "admin",
-            },
-        }
-
-        def _get_tag(name):
-            return FakeKojiModuleBuilder.tags.get(name, {})
-
-        koji_session.getTag = _get_tag
-
-        def _createTag(name):
-            FakeKojiModuleBuilder.tags[name] = {
-                "name": name,
-                "id": len(FakeKojiModuleBuilder.tags) + 1,
-                "arches": "x86_64",
-                "locked": False,
-                "perm": "admin",
-            }
-
-        koji_session.createTag = _createTag
-
-        def _getBuildTarget(name):
-            return {
-                "build_tag_name": self.module_build_tag["name"],
-                "dest_tag_name": self.module_tag["name"],
-            }
-
-        koji_session.getBuildTarget = _getBuildTarget
-
-        def _getAllPerms(*args, **kwargs):
-            return [{"id": 1, "name": "admin"}]
-
-        koji_session.getAllPerms = _getAllPerms
-
-        return koji_session
-
     @classmethod
     def get_module_build_arches(cls, module):
         return ["x86_64"]
@@ -102,7 +100,7 @@ class TestKojiBuilder:
                 "server": "http://koji.example.com/",
             },
         )
-        self.mock_read_config = self.p_read_config.start()
+        self.p_read_config.start()
 
     def teardown_method(self, test_method):
         self.p_read_config.stop()
@@ -120,7 +118,7 @@ class TestKojiBuilder:
             "/module-base-runtime-0.25-9/latest/x86_64"
         )
 
-    def test_recover_orphaned_artifact_when_tagged(self):
+    def test_recover_orphaned_artifact_when_tagged(self, mock_get_session):
         """ Test recover_orphaned_artifact when the artifact is found and tagged in both tags
         """
         module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
@@ -171,7 +169,7 @@ class TestKojiBuilder:
         assert component_build.state_reason == "Found existing build"
         assert builder.koji_session.tagBuild.call_count == 0
 
-    def test_recover_orphaned_artifact_when_untagged(self):
+    def test_recover_orphaned_artifact_when_untagged(self, mock_get_session):
         """ Tests recover_orphaned_artifact when the build is found but untagged
         """
         module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
@@ -216,7 +214,7 @@ class TestKojiBuilder:
         assert component_build.state_reason == "Found existing build"
         builder.koji_session.tagBuild.assert_called_once_with(2, "foo-1.0-1.{0}".format(dist_tag))
 
-    def test_recover_orphaned_artifact_when_module_build_macros_untagged(self):
+    def test_recover_orphaned_artifact_when_module_build_macros_untagged(self, mock_get_session):
         """ Tests recover_orphaned_artifact when module-build-macros is found but untagged
         """
         module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
@@ -272,7 +270,7 @@ class TestKojiBuilder:
             [mock.call(2, "srpm-build", "module-build-macros"),
              mock.call(2, "build", "module-build-macros")])
 
-    def test_recover_orphaned_artifact_when_nothing_exists(self):
+    def test_recover_orphaned_artifact_when_nothing_exists(self, mock_get_session):
         """ Test recover_orphaned_artifact when the build is not found
         """
         module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
@@ -309,7 +307,7 @@ class TestKojiBuilder:
         assert builder.koji_session.tagBuild.call_count == 0
 
     @patch("koji.util")
-    def test_buildroot_ready(self, mocked_kojiutil):
+    def test_buildroot_ready(self, mocked_kojiutil, mock_get_session):
         module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
 
         attrs = {"checkForBuilds.return_value": None, "checkForBuilds.side_effect": IOError}
@@ -329,7 +327,7 @@ class TestKojiBuilder:
         assert mocked_kojiutil.checkForBuilds.call_count == 3
 
     @pytest.mark.parametrize("blocklist", [False, True])
-    def test_tagging_already_tagged_artifacts(self, blocklist):
+    def test_tagging_already_tagged_artifacts(self, blocklist, mock_get_session):
         """
         Tests that buildroot_add_artifacts and tag_artifacts do not try to
         tag already tagged artifacts
@@ -386,9 +384,8 @@ class TestKojiBuilder:
             builder.module_tag["id"], "new-1.0-1.module_e0095747"
         )
 
-    @patch.object(FakeKojiModuleBuilder, "get_session")
     @patch.object(FakeKojiModuleBuilder, "_get_tagged_nvrs")
-    def test_untagged_artifacts(self, mock_get_tagged_nvrs, mock_get_session):
+    def test_untagged_artifacts(self, mock_get_tagged_nvrs,):
         """
         Tests that only tagged artifacts will be untagged
         """
@@ -399,18 +396,20 @@ class TestKojiBuilder:
             {"name": "foobar", "id": 1},
             {"name": "foobar-build", "id": 2},
         ]
-        mock_get_session.return_value = mock_session
         mock_get_tagged_nvrs.side_effect = [["foo", "bar"], ["foo"]]
-        builder = FakeKojiModuleBuilder(
-            db_session=db_session,
-            owner=module_build.owner,
-            module=module_build,
-            config=conf,
-            tag_name="module-foo",
-            components=[],
-        )
+        path = "module_build_service.builder.KojiModuleBuilder.get_session"
+        with patch(path) as mock_get_session:
+            mock_get_session.return_value = mock_session
+            builder = FakeKojiModuleBuilder(
+                db_session=db_session,
+                owner=module_build.owner,
+                module=module_build,
+                config=conf,
+                tag_name="module-foo",
+                components=[],
+            )
+            builder.untag_artifacts(["foo", "bar"])
 
-        builder.untag_artifacts(["foo", "bar"])
         assert mock_session.untagBuild.call_count == 3
         expected_calls = [mock.call(1, "foo"), mock.call(2, "foo"), mock.call(1, "bar")]
         assert mock_session.untagBuild.mock_calls == expected_calls
@@ -534,7 +533,7 @@ class TestKojiBuilder:
     @pytest.mark.parametrize("custom_whitelist", [False, True])
     @pytest.mark.parametrize("repo_include_all", [False, True])
     def test_buildroot_connect(
-        self, custom_whitelist, blocklist, repo_include_all
+        self, custom_whitelist, blocklist, repo_include_all, mock_get_session
     ):
         module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
         db_session.refresh(module_build)
@@ -650,7 +649,7 @@ class TestKojiBuilder:
         assert session.editTag2.mock_calls == expected_calls
 
     @pytest.mark.parametrize("blocklist", [False, True])
-    def test_buildroot_connect_create_tag(self, blocklist):
+    def test_buildroot_connect_create_tag(self, blocklist, mock_get_session):
         module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
         db_session.refresh(module_build)
 
@@ -688,7 +687,7 @@ class TestKojiBuilder:
         assert session.packageListBlock.mock_calls == expected_calls
 
     @pytest.mark.parametrize("scratch", [False, True])
-    def test_buildroot_connect_create_target(self, scratch):
+    def test_buildroot_connect_create_target(self, scratch, mock_get_session):
         module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
 
         if scratch:
@@ -870,7 +869,7 @@ class TestKojiBuilder:
         "cg_enabled,cg_devel_enabled", [(False, False), (True, False), (True, True)]
     )
     @mock.patch("module_build_service.builder.KojiModuleBuilder.KojiContentGenerator")
-    def test_finalize(self, mock_koji_cg_cls, cg_enabled, cg_devel_enabled):
+    def test_finalize(self, mock_koji_cg_cls, cg_enabled, cg_devel_enabled, mock_get_session):
         module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
         db_session.refresh(module_build)
         module_build.state = 2
@@ -905,13 +904,6 @@ class TestKojiBuilder:
                 mock_koji_cg.koji_import.assert_called_once_with()
         else:
             mock_koji_cg.koji_import.assert_not_called()
-
-    @patch("koji.ClientSession")
-    def test_get_anonymous_session(self, ClientSession):
-        mbs_config = mock.Mock(koji_profile="koji", koji_config="conf/koji.conf")
-        session = KojiModuleBuilder.get_session(mbs_config, login=False)
-        assert ClientSession.return_value == session
-        assert ClientSession.return_value.krb_login.assert_not_called
 
     @patch.dict("sys.modules", krbV=MagicMock())
     @patch("koji.ClientSession")

@@ -555,7 +555,7 @@ class TestBuild(BaseTestBuild):
         assert module_build.module_builds_trace[4].state == models.BUILD_STATES["ready"]
         assert len(module_build.module_builds_trace) == 5
 
-    @patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
+    @patch("module_build_service.builder.KojiModuleBuilder.get_session")
     @patch("module_build_service.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_buildonly(

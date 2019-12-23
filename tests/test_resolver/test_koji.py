@@ -230,7 +230,7 @@ class TestLocalResolverModule:
             "testmodule-master-20170110091357.7c29193d",
             "testmodule-2-20180109091357.7c29193d"}
 
-    @patch("module_build_service.builder.KojiModuleBuilder.koji_multicall_map")
+    @patch("module_build_service.resolver.KojiResolver.koji_multicall_map")
     def test_filter_based_on_real_stream_name(self, koji_multicall_map):
         koji_session = MagicMock()
         koji_multicall_map.return_value = [

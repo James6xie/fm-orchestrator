@@ -11,7 +11,7 @@ import module_build_service.scheduler
 import module_build_service.scheduler.consumer
 from module_build_service import celery_app, conf, models, log
 from module_build_service.builder import GenericBuilder
-from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
+from module_build_service.common.koji import get_session
 from module_build_service.utils.greenwave import greenwave
 from module_build_service.db_session import db_session
 from module_build_service.scheduler.consumer import ON_MODULE_CHANGE_HANDLERS
@@ -100,7 +100,7 @@ def fail_lost_builds():
 
     if conf.system == "koji":
         # We don't do this on behalf of users
-        koji_session = KojiModuleBuilder.get_session(conf, login=False)
+        koji_session = get_session(conf, login=False)
         log.info("Querying tasks for statuses:")
         res = db_session.query(models.ComponentBuild).filter_by(
             state=koji.BUILD_STATES["BUILDING"]
@@ -219,7 +219,7 @@ def retrigger_new_repo_on_failure():
     if conf.system != "koji":
         return
 
-    koji_session = KojiModuleBuilder.get_session(conf)
+    koji_session = get_session(conf)
     module_builds = db_session.query(models.ModuleBuild).filter(
         models.ModuleBuild.state == models.BUILD_STATES["build"],
         models.ModuleBuild.new_repo_task_id.isnot(None),
@@ -251,7 +251,7 @@ def delete_old_koji_targets():
 
     now = datetime.utcnow()
 
-    koji_session = KojiModuleBuilder.get_session(conf)
+    koji_session = get_session(conf)
     for target in koji_session.getBuildTargets():
         module = db_session.query(models.ModuleBuild).filter(
             models.ModuleBuild.koji_tag == target["dest_tag_name"],
@@ -389,7 +389,7 @@ def sync_koji_build_tags():
     if conf.system != "koji":
         return
 
-    koji_session = KojiModuleBuilder.get_session(conf, login=False)
+    koji_session = get_session(conf, login=False)
 
     threshold = datetime.utcnow() - timedelta(minutes=10)
     module_builds = db_session.query(models.ModuleBuild).filter(

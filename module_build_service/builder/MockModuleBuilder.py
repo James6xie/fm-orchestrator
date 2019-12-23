@@ -11,10 +11,10 @@ import subprocess
 import threading
 
 from module_build_service import conf, log
+from module_build_service.common.koji import get_session
 import module_build_service.scm
 import module_build_service.utils
 import module_build_service.scheduler
-
 from module_build_service.builder import GenericBuilder
 from module_build_service.builder.utils import (
     create_local_repo_from_koji_tag,
@@ -579,7 +579,7 @@ class MockModuleBuilder(GenericBuilder):
             # Modules from local repository have already the RPMs filled in mmd.
             return mmd.get_rpm_artifacts()
         else:
-            koji_session = KojiModuleBuilder.get_session(conf, login=False)
+            koji_session = get_session(conf, login=False)
             rpms = koji_session.listTaggedRPMS(build.koji_tag, latest=True)[0]
             nvrs = set(kobo.rpmlib.make_nvr(rpm, force_epoch=True) for rpm in rpms)
             return list(nvrs)
@@ -663,7 +663,7 @@ class SCMBuilder(BaseBuilder):
         if not self.koji_session:
             # If Koji is not configured on the system, then just return 0.0 for components
             try:
-                self.koji_session = KojiModuleBuilder.get_session(self.config, login=False)
+                self.koji_session = get_session(self.config, login=False)
                 # If the component has not been built before, then None is returned. Instead,
                 # let's return 0.0 so the type is consistent
                 return self.koji_session.getAverageBuildDuration(component.package) or 0.0

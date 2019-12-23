@@ -3,6 +3,7 @@
 """ Handlers for module change events on the message bus. """
 
 from module_build_service import celery_app, conf, models, log, build_logs
+from module_build_service.common.retry import retry
 import module_build_service.resolver
 import module_build_service.utils
 from module_build_service.utils import (
@@ -257,7 +258,7 @@ def generate_module_build_koji_tag(build):
         return "-".join(["module", build.name, build.stream, build.version])
 
 
-@module_build_service.utils.retry(
+@retry(
     interval=10, timeout=120, wait_on=(ValueError, RuntimeError, ConnectionError)
 )
 def get_module_build_dependencies(build):
@@ -336,7 +337,7 @@ def wait(msg_id, module_build_id, module_build_state):
     # Wait for the db on the frontend to catch up to the message, otherwise the
     # xmd information won't be present when we need it.
     # See https://pagure.io/fm-orchestrator/issue/386
-    @module_build_service.utils.retry(interval=10, timeout=120, wait_on=RuntimeError)
+    @retry(interval=10, timeout=120, wait_on=RuntimeError)
     def _get_build_containing_xmd_for_mbs():
         build = models.ModuleBuild.get_by_id(db_session, module_build_id)
         if "mbs" in build.mmd().get_xmd():

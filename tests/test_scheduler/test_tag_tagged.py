@@ -43,7 +43,7 @@ class TestTagTagged:
         "module_build_service.builder.GenericBuilder.default_buildroot_groups",
         return_value={"build": [], "srpm-build": []},
     )
-    @patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
+    @patch("module_build_service.builder.KojiModuleBuilder.get_session")
     @patch("module_build_service.builder.GenericBuilder.create_from_module")
     def test_newrepo(self, create_builder, koji_get_session, dbg):
         """
@@ -132,7 +132,7 @@ class TestTagTagged:
         "module_build_service.builder.GenericBuilder.default_buildroot_groups",
         return_value={"build": [], "srpm-build": []},
     )
-    @patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
+    @patch("module_build_service.builder.KojiModuleBuilder.get_session")
     @patch("module_build_service.builder.GenericBuilder.create_from_module")
     def test_newrepo_still_building_components(
         self, create_builder, koji_get_session, dbg
@@ -184,7 +184,7 @@ class TestTagTagged:
         "module_build_service.builder.GenericBuilder.default_buildroot_groups",
         return_value={"build": [], "srpm-build": []},
     )
-    @patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
+    @patch("module_build_service.builder.KojiModuleBuilder.get_session")
     @patch("module_build_service.builder.GenericBuilder.create_from_module")
     def test_newrepo_failed_components(self, create_builder, koji_get_session, dbg):
         """
@@ -256,7 +256,7 @@ class TestTagTagged:
         "module_build_service.builder.GenericBuilder.default_buildroot_groups",
         return_value={"build": [], "srpm-build": []},
     )
-    @patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
+    @patch("module_build_service.builder.KojiModuleBuilder.get_session")
     @patch("module_build_service.builder.GenericBuilder.create_from_module")
     def test_newrepo_multiple_batches_tagged(
         self, create_builder, koji_get_session, dbg
@@ -358,7 +358,7 @@ class TestTagTagged:
         "module_build_service.builder.GenericBuilder.default_buildroot_groups",
         return_value={"build": [], "srpm-build": []},
     )
-    @patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
+    @patch("module_build_service.builder.KojiModuleBuilder.get_session")
     @patch("module_build_service.builder.GenericBuilder.create_from_module")
     def test_newrepo_build_time_only(self, create_builder, koji_get_session, dbg):
         """
@@ -450,7 +450,7 @@ class TestTagTagged:
         "module_build_service.builder.GenericBuilder.default_buildroot_groups",
         return_value={"build": [], "srpm-build": []},
     )
-    @patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
+    @patch("module_build_service.builder.KojiModuleBuilder.get_session")
     @patch("module_build_service.builder.GenericBuilder.create_from_module")
     def test_newrepo_not_duplicated(
         self, create_builder, koji_get_session, dbg, task_state, expect_new_repo

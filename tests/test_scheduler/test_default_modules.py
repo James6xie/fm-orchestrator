@@ -256,18 +256,18 @@ def test_get_default_modules_invalid_branch(
         mock_scm.return_value.checkout_ref.assert_called_once_with("f32")
 
 
-@patch("module_build_service.scheduler.default_modules.KojiModuleBuilder")
-def test_get_rawhide_version(mock_koji_builder):
+@patch("module_build_service.scheduler.default_modules.get_session")
+def test_get_rawhide_version(mock_get_session):
     """
     Test that _get_rawhide_version will return rawhide Fedora version.
     """
-    mock_koji_builder.get_session.return_value.getBuildTarget.return_value = {
+    mock_get_session.return_value.getBuildTarget.return_value = {
         "build_tag_name": "f32-build",
     }
     assert default_modules._get_rawhide_version() == "f32"
 
 
-@patch("module_build_service.scheduler.default_modules.KojiModuleBuilder.get_session")
+@patch("module_build_service.scheduler.default_modules.get_session")
 @patch("module_build_service.scheduler.default_modules._get_rpms_from_tags")
 def test_handle_collisions_with_base_module_rpms(mock_grft, mock_get_session):
     """

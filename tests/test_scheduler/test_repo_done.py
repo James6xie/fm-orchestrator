@@ -42,7 +42,7 @@ class TestRepoDone:
         "module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.buildroot_ready",
         return_value=True,
     )
-    @mock.patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
+    @mock.patch("module_build_service.builder.KojiModuleBuilder.get_session")
     @mock.patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.build")
     @mock.patch(
         "module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.buildroot_connect"
@@ -87,7 +87,7 @@ class TestRepoDone:
         "module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.buildroot_ready",
         return_value=True,
     )
-    @mock.patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
+    @mock.patch("module_build_service.builder.KojiModuleBuilder.get_session")
     @mock.patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.build")
     @mock.patch(
         "module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.buildroot_connect"
@@ -141,7 +141,7 @@ class TestRepoDone:
         "module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.buildroot_ready",
         return_value=True,
     )
-    @mock.patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
+    @mock.patch("module_build_service.builder.KojiModuleBuilder.get_session")
     @mock.patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.build")
     @mock.patch(
         "module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.buildroot_connect"
@@ -203,7 +203,7 @@ class TestRepoDone:
         "module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.buildroot_ready",
         return_value=True,
     )
-    @mock.patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.get_session")
+    @mock.patch("module_build_service.builder.KojiModuleBuilder.get_session")
     @mock.patch("module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.build")
     @mock.patch(
         "module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder.buildroot_connect"

@@ -13,8 +13,7 @@ import random
 import string
 import kobo.rpmlib
 import threading
-import six.moves.xmlrpc_client as xmlrpclib
-import munch
+
 import locale
 from itertools import chain
 from OpenSSL.SSL import SysCallError
@@ -24,112 +23,17 @@ from module_build_service import log, conf, models
 import module_build_service.scm
 import module_build_service.utils
 from module_build_service.builder.utils import execute_cmd
+from module_build_service.common.retry import retry
 from module_build_service.db_session import db_session
-from module_build_service.errors import ProgrammingError
-
 from module_build_service.builder import GenericBuilder
 from module_build_service.builder.KojiContentGenerator import KojiContentGenerator
+from module_build_service.common.koji import (
+    get_session, koji_multicall_map, koji_retrying_multicall_map,
+)
 from module_build_service.scheduler import events
 from module_build_service.utils import get_reusable_components, get_reusable_module, set_locale
 
 logging.basicConfig(level=logging.DEBUG)
-
-
-def koji_multicall_map(koji_session, koji_session_fnc, list_of_args=None, list_of_kwargs=None):
-    """
-    Calls the `koji_session_fnc` using Koji multicall feature N times based on the list of
-    arguments passed in `list_of_args` and `list_of_kwargs`.
-    Returns list of responses sorted the same way as input args/kwargs. In case of error,
-    the error message is logged and None is returned.
-
-    For example to get the package ids of "httpd" and "apr" packages:
-        ids = koji_multicall_map(session, session.getPackageID, ["httpd", "apr"])
-        # ids is now [280, 632]
-
-    :param KojiSessions koji_session: KojiSession to use for multicall.
-    :param object koji_session_fnc: Python object representing the KojiSession method to call.
-    :param list list_of_args: List of args which are passed to each call of koji_session_fnc.
-    :param list list_of_kwargs: List of kwargs which are passed to each call of koji_session_fnc.
-    """
-    if list_of_args is None and list_of_kwargs is None:
-        raise ProgrammingError("One of list_of_args or list_of_kwargs must be set.")
-
-    if (
-        type(list_of_args) not in [type(None), list]
-        or type(list_of_kwargs) not in [type(None), list]
-    ):
-        raise ProgrammingError("list_of_args and list_of_kwargs must be list or None.")
-
-    if list_of_kwargs is None:
-        list_of_kwargs = [{}] * len(list_of_args)
-    if list_of_args is None:
-        list_of_args = [[]] * len(list_of_kwargs)
-
-    if len(list_of_args) != len(list_of_kwargs):
-        raise ProgrammingError("Length of list_of_args and list_of_kwargs must be the same.")
-
-    koji_session.multicall = True
-    for args, kwargs in zip(list_of_args, list_of_kwargs):
-        if type(args) != list:
-            args = [args]
-        if type(kwargs) != dict:
-            raise ProgrammingError("Every item in list_of_kwargs must be a dict")
-        koji_session_fnc(*args, **kwargs)
-
-    try:
-        responses = koji_session.multiCall(strict=True)
-    except Exception:
-        log.exception(
-            "Exception raised for multicall of method %r with args %r, %r:",
-            koji_session_fnc, args, kwargs,
-        )
-        return None
-
-    if not responses:
-        log.error("Koji did not return response for multicall of %r", koji_session_fnc)
-        return None
-    if type(responses) != list:
-        log.error(
-            "Fault element was returned for multicall of method %r: %r", koji_session_fnc, responses
-        )
-        return None
-
-    results = []
-
-    # For the response specification, see
-    # https://web.archive.org/web/20060624230303/http://www.xmlrpc.com/discuss/msgReader$1208?mode=topic
-    # Relevant part of this:
-    # Multicall returns an array of responses. There will be one response for each call in
-    # the original array. The result will either be a one-item array containing the result value,
-    # or a struct of the form found inside the standard <fault> element.
-    for response, args, kwargs in zip(responses, list_of_args, list_of_kwargs):
-        if type(response) == list:
-            if not response:
-                log.error(
-                    "Empty list returned for multicall of method %r with args %r, %r",
-                    koji_session_fnc, args, kwargs
-                )
-                return None
-            results.append(response[0])
-        else:
-            log.error(
-                "Unexpected data returned for multicall of method %r with args %r, %r: %r",
-                koji_session_fnc, args, kwargs, response
-            )
-            return None
-
-    return results
-
-
-@module_build_service.utils.retry(wait_on=(xmlrpclib.ProtocolError, koji.GenericError))
-def koji_retrying_multicall_map(*args, **kwargs):
-    """
-    Retrying version of koji_multicall_map. This tries to retry the Koji call
-    in case of koji.GenericError or xmlrpclib.ProtocolError.
-
-    Please refer to koji_multicall_map for further specification of arguments.
-    """
-    return koji_multicall_map(*args, **kwargs)
 
 
 class KojiModuleBuilder(GenericBuilder):
@@ -159,7 +63,7 @@ class KojiModuleBuilder(GenericBuilder):
         log.debug("Using koji profile %r" % config.koji_profile)
         log.debug("Using koji_config: %s" % config.koji_config)
 
-        self.koji_session = self.get_session(config)
+        self.koji_session = get_session(config)
         self.arches = sorted(arch.name for arch in self.module.arches)
 
         # Allow KojiModuleBuilder to be initialized if no arches are set but the module is in
@@ -183,7 +87,7 @@ class KojiModuleBuilder(GenericBuilder):
     def getPerms(self):
         return dict([(p["name"], p["id"]) for p in self.koji_session.getAllPerms()])
 
-    @module_build_service.utils.retry(wait_on=(IOError, koji.GenericError))
+    @retry(wait_on=(IOError, koji.GenericError))
     def buildroot_ready(self, artifacts=None):
         """
         :param artifacts=None - list of nvrs
@@ -234,7 +138,7 @@ class KojiModuleBuilder(GenericBuilder):
         reusable_module = get_reusable_module(module_build)
         if not reusable_module:
             return filtered_rpms
-        koji_session = KojiModuleBuilder.get_session(conf, login=False)
+        koji_session = get_session(conf, login=False)
         # Get all the RPMs and builds of the reusable module in Koji
         rpms, builds = koji_session.listTaggedRPMS(reusable_module.koji_tag, latest=True)
         # Convert the list to a dict where each key is the build_id
@@ -468,59 +372,6 @@ class KojiModuleBuilder(GenericBuilder):
         log.debug("Wrote srpm into %s" % srpm_paths[0])
         return srpm_paths[0]
 
-    @staticmethod
-    @module_build_service.utils.retry(wait_on=(xmlrpclib.ProtocolError, koji.GenericError))
-    def get_session(config, login=True):
-        """Create and return a koji.ClientSession object
-
-        :param config: the config object returned from :meth:`init_config`.
-        :type config: :class:`Config`
-        :param bool login: whether to log into the session. To login if True
-            is passed, otherwise not to log into session.
-        :return: the Koji session object.
-        :rtype: :class:`koji.ClientSession`
-        """
-        koji_config = munch.Munch(
-            koji.read_config(profile_name=config.koji_profile, user_config=config.koji_config))
-        # Timeout after 10 minutes.  The default is 12 hours.
-        koji_config["timeout"] = 60 * 10
-
-        address = koji_config.server
-        log.info("Connecting to koji %r.", address)
-        koji_session = koji.ClientSession(address, opts=koji_config)
-
-        if not login:
-            return koji_session
-
-        authtype = koji_config.authtype
-        log.info("Authenticate session with %r.", authtype)
-        if authtype == "kerberos":
-            try:
-                import krbV
-                # We want to create a context per thread to avoid Kerberos cache corruption
-                ctx = krbV.Context()
-            except ImportError:
-                # If no krbV, we can assume GSSAPI auth is available
-                ctx = None
-            keytab = getattr(config, "krb_keytab", None)
-            principal = getattr(config, "krb_principal", None)
-            if not keytab and principal:
-                raise ValueError(
-                    "The Kerberos keytab and principal aren't set for Koji authentication")
-            log.debug("  keytab: %r, principal: %r" % (keytab, principal))
-            # We want to use the thread keyring for the ccache to ensure we have one cache per
-            # thread to avoid Kerberos cache corruption
-            ccache = "KEYRING:thread:mbs"
-            koji_session.krb_login(principal=principal, keytab=keytab, ctx=ctx, ccache=ccache)
-        elif authtype == "ssl":
-            koji_session.ssl_login(
-                os.path.expanduser(koji_config.cert), None, os.path.expanduser(koji_config.serverca)
-            )
-        else:
-            raise ValueError("Unrecognized koji authtype %r" % authtype)
-
-        return koji_session
-
     def buildroot_connect(self, groups):
         log.info("%r connecting buildroot." % self)
 
@@ -552,7 +403,7 @@ class KojiModuleBuilder(GenericBuilder):
             if "blocked_packages" in mbs_opts:
                 self._koji_block_packages(mbs_opts["blocked_packages"])
 
-        @module_build_service.utils.retry(wait_on=SysCallError, interval=5)
+        @retry(wait_on=SysCallError, interval=5)
         def add_groups():
             return self._koji_add_groups_to_tag(dest_tag=self.module_build_tag, groups=groups)
 
@@ -683,7 +534,7 @@ class KojiModuleBuilder(GenericBuilder):
 
         timeout = 60 * 60  # 60 minutes
 
-        @module_build_service.utils.retry(timeout=timeout, wait_on=koji.GenericError)
+        @retry(timeout=timeout, wait_on=koji.GenericError)
         def get_result():
             log.debug("Waiting for task_id=%s to finish" % task_id)
             task = self.koji_session.getTaskResult(task_id)
@@ -1169,7 +1020,7 @@ class KojiModuleBuilder(GenericBuilder):
         """
         # If the component has not been built before, then None is returned. Instead, let's
         # return 0.0 so the type is consistent
-        koji_session = KojiModuleBuilder.get_session(conf, login=False)
+        koji_session = get_session(conf, login=False)
         return koji_session.getAverageBuildDuration(component) or 0.0
 
     @classmethod
@@ -1184,8 +1035,7 @@ class KojiModuleBuilder(GenericBuilder):
         :rtype: dict
         :return: {component_name: weight_as_float, ...}
         """
-
-        koji_session = KojiModuleBuilder.get_session(conf)
+        koji_session = get_session(conf)
 
         # Get our own userID, so we can limit the builds to only modular builds
         user_info = koji_session.getLoggedInUser()
@@ -1280,7 +1130,7 @@ class KojiModuleBuilder(GenericBuilder):
             mmd.get_version(),
             mmd.get_context()
         )
-        koji_session = KojiModuleBuilder.get_session(conf, login=False)
+        koji_session = get_session(conf, login=False)
         rpms = koji_session.listTaggedRPMS(build.koji_tag, latest=True)[0]
         nvrs = set(kobo.rpmlib.make_nvr(rpm, force_epoch=True) for rpm in rpms)
         return list(nvrs)
@@ -1307,7 +1157,7 @@ class KojiModuleBuilder(GenericBuilder):
         :return: koji tag
         """
 
-        session = KojiModuleBuilder.get_session(conf, login=False)
+        session = get_session(conf, login=False)
         rpm_md = session.getRPM(rpm)
         if not rpm_md:
             return None
@@ -1333,7 +1183,7 @@ class KojiModuleBuilder(GenericBuilder):
         if not module.koji_tag:
             log.warning("No Koji tag associated with module %r", module)
             return []
-        koji_session = KojiModuleBuilder.get_session(conf, login=False)
+        koji_session = get_session(conf, login=False)
         tag = koji_session.getTag(module.koji_tag)
         if not tag:
             raise ValueError("Unknown Koji tag %r." % module.koji_tag)

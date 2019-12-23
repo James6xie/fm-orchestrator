@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
 from module_build_service import celery_app, conf, log
-from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
+from module_build_service.common.koji import get_session
 from module_build_service.db_session import db_session
 from module_build_service.models import ModuleBuild, BUILD_STATES
 from module_build_service.scheduler import events
@@ -17,7 +17,7 @@ def get_corresponding_module_build(nvr):
         ``nvr``, None will be returned.
     :rtype: :class:`ModuleBuild` or None
     """
-    koji_session = KojiModuleBuilder.get_session(conf, login=False)
+    koji_session = get_session(conf, login=False)
     build_info = koji_session.getBuild(nvr)
     if build_info is None:
         return None

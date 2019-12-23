@@ -11,13 +11,11 @@ import koji
 import six.moves.xmlrpc_client as xmlrpclib
 
 from module_build_service import conf, log, models, Modulemd, scm
-from module_build_service.builder.KojiModuleBuilder import (
-    koji_retrying_multicall_map, KojiModuleBuilder,
-)
+from module_build_service.common.koji import get_session, koji_retrying_multicall_map
+from module_build_service.common.retry import retry
 from module_build_service.db_session import db_session
 from module_build_service.errors import UnprocessableEntity
 from module_build_service.resolver.base import GenericResolver
-from module_build_service.utils import retry
 from module_build_service.utils.mse import (
     get_compatible_base_module_mmds, expand_single_mse_streams)
 
@@ -209,7 +207,7 @@ def _get_rawhide_version():
     :return: the rawhide version (e.g. "f32")
     :rtype: str
     """
-    koji_session = KojiModuleBuilder.get_session(conf, login=False)
+    koji_session = get_session(conf, login=False)
     build_target = koji_session.getBuildTarget("rawhide")
     if build_target:
         return build_target["build_tag_name"].partition("-build")[0]
@@ -252,7 +250,7 @@ def handle_collisions_with_base_module_rpms(mmd, arches):
         "Querying Koji for the latest RPMs from the buildrequired base modules from the tags: %s",
         ", ".join(bm_tags),
     )
-    koji_session = KojiModuleBuilder.get_session(conf, login=False)
+    koji_session = get_session(conf, login=False)
     bm_rpms = _get_rpms_from_tags(koji_session, list(bm_tags), arches)
     # The keys are base module RPM names and the values are sets of RPM NEVRAs with that name
     name_to_nevras = {}

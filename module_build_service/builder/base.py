@@ -12,9 +12,7 @@ from abc import ABCMeta, abstractmethod
 from requests.exceptions import ConnectionError
 
 from module_build_service import conf, log
-import module_build_service.resolver
-import module_build_service.scm
-import module_build_service.utils
+from module_build_service.common.retry import retry
 from module_build_service.models import BUILD_STATES
 from module_build_service.resolver import GenericResolver
 from module_build_service.utils import create_dogpile_key_generator_func
@@ -285,7 +283,7 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
             "default_buildroot_groups_" + str(module_build.id))
 
     @classmethod
-    @module_build_service.utils.retry(wait_on=(ConnectionError))
+    @retry(wait_on=(ConnectionError))
     @default_buildroot_groups_cache.cache_on_arguments()
     def default_buildroot_groups(cls, db_session, module):
         try:
