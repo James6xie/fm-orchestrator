@@ -1789,7 +1789,7 @@ class TestBuild(BaseTestBuild):
             return result
 
         with patch(
-            "module_build_service.utils.batches.at_concurrent_component_threshold"
+            "module_build_service.scheduler.batches.at_concurrent_component_threshold"
         ) as mock_acct:
             # Once we get to batch 2, then simulate the concurrent threshold being met
             def _at_concurrent_component_threshold(config):

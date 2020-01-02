@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
-import threading
 import concurrent.futures
+import threading
 
 from module_build_service import conf, log, models
 from module_build_service.db_session import db_session
 from module_build_service.scheduler import events
-from .reuse import get_reusable_components, reuse_component
+from module_build_service.utils.reuse import get_reusable_components, reuse_component
 
 
 def at_concurrent_component_threshold(config):

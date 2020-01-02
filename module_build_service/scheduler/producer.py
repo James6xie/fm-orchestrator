@@ -14,6 +14,10 @@ from module_build_service.builder import GenericBuilder
 from module_build_service.common.koji import get_session
 from module_build_service.utils.greenwave import greenwave
 from module_build_service.db_session import db_session
+from module_build_service.scheduler.batches import (
+    at_concurrent_component_threshold,
+    start_next_batch_build,
+)
 from module_build_service.scheduler.consumer import ON_MODULE_CHANGE_HANDLERS
 from module_build_service.scheduler.handlers.components import build_task_finalize
 from module_build_service.scheduler.handlers.tags import tagged
@@ -168,7 +172,7 @@ def fail_lost_builds():
 @celery_app.task
 def process_paused_module_builds():
     log.info("Looking for paused module builds in the build state")
-    if module_build_service.utils.at_concurrent_component_threshold(conf):
+    if at_concurrent_component_threshold(conf):
         log.debug(
             "Will not attempt to start paused module builds due to "
             "the concurrent build threshold being met"
@@ -199,11 +203,10 @@ def process_paused_module_builds():
 
             if has_missed_new_repo_message(module_build, builder.koji_session):
                 log.info("  Processing the paused module build %r", module_build)
-                module_build_service.utils.start_next_batch_build(
-                    conf, module_build, builder)
+                start_next_batch_build(conf, module_build, builder)
 
         # Check if we have met the threshold.
-        if module_build_service.utils.at_concurrent_component_threshold(conf):
+        if at_concurrent_component_threshold(conf):
             break
 
 

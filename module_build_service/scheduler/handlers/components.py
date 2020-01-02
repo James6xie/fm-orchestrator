@@ -11,7 +11,7 @@ from module_build_service.common.koji import get_session
 from module_build_service.utils.general import mmd_to_str
 from module_build_service.db_session import db_session
 from module_build_service.scheduler import events
-from module_build_service.utils.batches import continue_batch_build
+from module_build_service.scheduler.batches import continue_batch_build
 
 logging.basicConfig(level=logging.DEBUG)
 

@@ -35,7 +35,7 @@ class TestPoller:
         clean_database()
 
     @pytest.mark.parametrize("fresh", [True, False])
-    @patch("module_build_service.utils.batches.start_build_component")
+    @patch("module_build_service.scheduler.batches.start_build_component")
     def test_process_paused_module_builds(
         self, start_build_component, create_builder, dbg, fresh
     ):
@@ -81,7 +81,7 @@ class TestPoller:
         (koji.TASK_STATES["CLOSED"], True),
         (koji.TASK_STATES["OPEN"], False),
     ))
-    @patch("module_build_service.utils.batches.start_build_component")
+    @patch("module_build_service.scheduler.batches.start_build_component")
     def test_process_paused_module_builds_with_new_repo_task(
         self, start_build_component, create_builder, dbg, task_state,
         expect_start_build_component
