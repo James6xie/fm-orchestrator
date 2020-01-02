@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
-import concurrent.futures
 import threading
+import concurrent.futures
 
 from module_build_service import conf, log, models
 from module_build_service.db_session import db_session

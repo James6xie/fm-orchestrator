@@ -12,13 +12,13 @@ import module_build_service.scheduler.consumer
 from module_build_service import celery_app, conf, models, log
 from module_build_service.builder import GenericBuilder
 from module_build_service.common.koji import get_session
-from module_build_service.utils.greenwave import greenwave
 from module_build_service.db_session import db_session
 from module_build_service.scheduler.batches import (
     at_concurrent_component_threshold,
     start_next_batch_build,
 )
 from module_build_service.scheduler.consumer import ON_MODULE_CHANGE_HANDLERS
+from module_build_service.scheduler.greenwave import greenwave
 from module_build_service.scheduler.handlers.components import build_task_finalize
 from module_build_service.scheduler.handlers.tags import tagged
 

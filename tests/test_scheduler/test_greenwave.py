@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
 import json
+
 from mock import patch, Mock
 import pytest
-from module_build_service.utils.greenwave import greenwave
+
+from module_build_service.scheduler.greenwave import greenwave
 from tests import clean_database, make_module_in_db
 
 
@@ -12,7 +14,7 @@ class TestGreenwaveQuery():
     def setup_method(self, method):
         clean_database()
 
-    @patch("module_build_service.utils.greenwave.requests")
+    @patch("module_build_service.scheduler.greenwave.requests")
     def test_greenwave_query_decision(self, mock_requests):
         resp_status = 200
         resp_content = {
@@ -57,7 +59,7 @@ class TestGreenwaveQuery():
             "https://greenwave.example.local/api/v1.0/decision"
 
     @pytest.mark.parametrize("return_all", (False, True))
-    @patch("module_build_service.utils.greenwave.requests")
+    @patch("module_build_service.scheduler.greenwave.requests")
     def test_greenwave_query_policies(self, mock_requests, return_all):
         resp_status = 200
         resp_content = {
@@ -98,7 +100,7 @@ class TestGreenwaveQuery():
         assert mock_requests.get.call_args_list[0][1]["url"] == \
             "https://greenwave.example.local/api/v1.0/policies"
 
-    @patch("module_build_service.utils.greenwave.requests")
+    @patch("module_build_service.scheduler.greenwave.requests")
     def test_greenwave_get_product_versions(self, mock_requests):
         resp_status = 200
         resp_content = {
@@ -137,7 +139,7 @@ class TestGreenwaveQuery():
             "https://greenwave.example.local/api/v1.0/policies"
 
     @pytest.mark.parametrize("policies_satisfied", (True, False))
-    @patch("module_build_service.utils.greenwave.requests")
+    @patch("module_build_service.scheduler.greenwave.requests")
     def test_greenwave_check_gating(self, mock_requests, policies_satisfied):
         resp_status = 200
         policies_content = {

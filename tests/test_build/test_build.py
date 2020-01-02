@@ -452,7 +452,7 @@ class TestBuild(BaseTestBuild):
         FakeModuleBuilder.on_get_task_info_cb = on_get_task_info_cb
 
         self.p_check_gating = patch(
-            "module_build_service.utils.greenwave.Greenwave.check_gating",
+            "module_build_service.scheduler.greenwave.Greenwave.check_gating",
             return_value=True)
         self.mock_check_gating = self.p_check_gating.start()
 

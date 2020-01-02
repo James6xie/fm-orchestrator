@@ -556,7 +556,7 @@ class TestPoller:
             expected_tagged_calls, any_order=True)
 
     @pytest.mark.parametrize("greenwave_result", [True, False])
-    @patch("module_build_service.utils.greenwave.Greenwave.check_gating")
+    @patch("module_build_service.scheduler.greenwave.Greenwave.check_gating")
     def test_poll_greenwave(self, mock_gw, create_builder, dbg, greenwave_result):
 
         module_build1 = models.ModuleBuild.get_by_id(db_session, 1)

@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
-import requests
-import json
 from functools import reduce
+import json
+
+import requests
+
 from module_build_service import log, conf
 from module_build_service.errors import GreenwaveError
 
