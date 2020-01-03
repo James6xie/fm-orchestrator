@@ -97,7 +97,7 @@ def create_app(debug=False, verbose=False, quiet=False):
 
 
 def load_views():
-    from module_build_service import views
+    from module_build_service.web import views
 
     assert views
 
