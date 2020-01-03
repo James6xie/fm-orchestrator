@@ -8,7 +8,7 @@ import requests
 import module_build_service.scm
 from module_build_service import conf, log
 from module_build_service.common.utils import load_mmd_file
-from module_build_service.errors import ValidationError
+from module_build_service.common.errors import ValidationError
 
 
 def _is_eol_in_pdc(name, stream):

@@ -11,7 +11,7 @@ from sqlalchemy.orm import aliased
 import sqlalchemy
 
 from module_build_service import models, api_version, conf, db
-from module_build_service.errors import ValidationError, NotFound
+from module_build_service.common.errors import ValidationError, NotFound
 from module_build_service.scm import scm_url_schemes
 
 

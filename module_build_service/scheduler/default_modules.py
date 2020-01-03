@@ -17,7 +17,7 @@ from module_build_service.common.resolve import (
 )
 from module_build_service.common.retry import retry
 from module_build_service.scheduler.db_session import db_session
-from module_build_service.errors import UnprocessableEntity
+from module_build_service.common.errors import UnprocessableEntity
 from module_build_service.resolver.base import GenericResolver
 
 

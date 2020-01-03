@@ -9,7 +9,7 @@ from flask import g
 
 from dogpile.cache import make_region
 
-from module_build_service.errors import Unauthorized, Forbidden
+from module_build_service.common.errors import Unauthorized, Forbidden
 from module_build_service import app, log, conf
 
 try:

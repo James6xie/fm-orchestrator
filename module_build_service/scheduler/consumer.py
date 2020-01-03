@@ -23,7 +23,7 @@ import module_build_service.common.messaging
 import module_build_service.common.monitor as monitor
 from module_build_service import models, log, conf
 from module_build_service.scheduler.db_session import db_session
-from module_build_service.errors import IgnoreMessage
+from module_build_service.common.errors import IgnoreMessage
 from module_build_service.common.messaging import default_messaging_backend
 from module_build_service.scheduler import events
 from module_build_service.scheduler.handlers import components

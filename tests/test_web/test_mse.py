@@ -3,7 +3,7 @@
 import pytest
 
 from module_build_service.scheduler.db_session import db_session
-from module_build_service.errors import StreamAmbigous
+from module_build_service.common.errors import StreamAmbigous
 from module_build_service.web.mse import (
     expand_mse_streams, generate_expanded_mmds, get_mmds_required_by_module_recursively
 )

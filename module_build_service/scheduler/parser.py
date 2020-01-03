@@ -4,7 +4,7 @@
 import re
 
 from module_build_service import log
-from module_build_service.errors import IgnoreMessage
+from module_build_service.common.errors import IgnoreMessage
 from module_build_service.scheduler import events
 
 

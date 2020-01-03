@@ -11,7 +11,7 @@ import datetime
 
 from module_build_service import log, conf
 from module_build_service.common.retry import retry
-from module_build_service.errors import (
+from module_build_service.common.errors import (
     Forbidden,
     ValidationError,
     UnprocessableEntity,

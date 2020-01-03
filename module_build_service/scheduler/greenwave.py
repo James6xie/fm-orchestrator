@@ -6,7 +6,7 @@ import json
 import requests
 
 from module_build_service import log, conf
-from module_build_service.errors import GreenwaveError
+from module_build_service.common.errors import GreenwaveError
 
 
 class Greenwave(object):

@@ -7,7 +7,7 @@ import tempfile
 import pytest
 
 import module_build_service.scm
-from module_build_service.errors import ValidationError, UnprocessableEntity
+from module_build_service.common.errors import ValidationError, UnprocessableEntity
 
 base_dir = os.path.join(os.path.dirname(__file__), "scm_data")
 repo_url = "file://" + base_dir + "/testrepo"

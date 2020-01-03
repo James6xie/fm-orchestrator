@@ -13,7 +13,7 @@ import requests
 from module_build_service import conf, log, models, Modulemd
 from module_build_service.common.submit import fetch_mmd
 from module_build_service.common.utils import load_mmd, mmd_to_str, to_text_type
-from module_build_service.errors import Conflict, Forbidden, ValidationError
+from module_build_service.common.errors import Conflict, Forbidden, ValidationError
 from module_build_service.web.mse import generate_expanded_mmds
 from module_build_service.web.utils import deps_to_dict
 

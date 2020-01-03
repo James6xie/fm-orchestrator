@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
 from module_build_service import conf
-from module_build_service.errors import StreamAmbigous
+from module_build_service.common.errors import StreamAmbigous
 from module_build_service.resolver import GenericResolver
 
 

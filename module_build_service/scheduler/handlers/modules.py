@@ -15,7 +15,7 @@ from module_build_service.scheduler.submit import (
 )
 from module_build_service.scheduler.db_session import db_session
 from module_build_service.builder import GenericBuilder
-from module_build_service.errors import UnprocessableEntity, Forbidden, ValidationError
+from module_build_service.common.errors import UnprocessableEntity, Forbidden, ValidationError
 from module_build_service.scheduler.default_modules import (
     add_default_modules, handle_collisions_with_base_module_rpms)
 from module_build_service.scheduler.greenwave import greenwave

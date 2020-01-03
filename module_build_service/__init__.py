@@ -31,7 +31,7 @@ from gi.repository import Modulemd  # noqa
 
 from module_build_service.logger import init_logging, ModuleBuildLogs, level_flags, MBSLogger
 
-from module_build_service.errors import (
+from module_build_service.common.errors import (
     ValidationError, Unauthorized, UnprocessableEntity, Conflict, NotFound,
     Forbidden, json_error)
 from module_build_service.common.config import init_config

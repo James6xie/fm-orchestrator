@@ -19,7 +19,7 @@ from sqlalchemy.orm import validates, load_only
 from module_build_service import db, log, get_url_for, conf
 import module_build_service.common.messaging
 from module_build_service.common.utils import load_mmd
-from module_build_service.errors import UnprocessableEntity
+from module_build_service.common.errors import UnprocessableEntity
 from module_build_service.scheduler import events
 
 DEFAULT_MODULE_CONTEXT = "00000000"

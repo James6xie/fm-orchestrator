@@ -5,7 +5,7 @@ import pytest
 from module_build_service import models
 from module_build_service.common.utils import import_mmd, load_mmd
 from module_build_service.scheduler.db_session import db_session
-from module_build_service.errors import UnprocessableEntity
+from module_build_service.common.errors import UnprocessableEntity
 from tests import clean_database, read_staged_data
 
 

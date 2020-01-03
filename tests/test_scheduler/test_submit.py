@@ -9,7 +9,7 @@ from module_build_service.common.utils import load_mmd, load_mmd_file, mmd_to_st
 from module_build_service.scheduler.db_session import db_session
 import module_build_service.scm
 from module_build_service import app, models, conf
-from module_build_service.errors import UnprocessableEntity
+from module_build_service.common.errors import UnprocessableEntity
 import module_build_service.scheduler.handlers.components
 from module_build_service.scheduler.submit import (
     get_build_arches, format_mmd, record_component_builds, record_module_build_arches
@@ -271,7 +271,7 @@ class TestSubmit:
 
         mmd = original_mmd.copy("testmodule", "master")
 
-        from module_build_service.errors import ValidationError
+        from module_build_service.common.errors import ValidationError
         with pytest.raises(
                 ValidationError,
                 match=r"Component build .+ of module build .+ already exists in database"):

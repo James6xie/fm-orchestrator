@@ -102,7 +102,7 @@ Additionally, the imports should be ordered by standard library, third-party, th
     import requests
 
     import module_build_service.web
-    from module_build_service.errors import ValidationError
+    from module_build_service.common.errors import ValidationError
 
 
 Lastly, hanging indentation should be avoided when possible. For example:

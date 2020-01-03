@@ -9,7 +9,7 @@ import six.moves.xmlrpc_client as xmlrpclib
 
 from module_build_service import log
 from module_build_service.common.retry import retry
-from module_build_service.errors import ProgrammingError
+from module_build_service.common.errors import ProgrammingError
 
 
 def koji_multicall_map(koji_session, koji_session_fnc, list_of_args=None, list_of_kwargs=None):

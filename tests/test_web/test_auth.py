@@ -8,7 +8,7 @@ import mock
 from mock import patch, PropertyMock, Mock
 
 import module_build_service.web.auth
-import module_build_service.errors
+import module_build_service.common.errors
 import module_build_service.common.config as mbs_config
 from module_build_service import app
 
@@ -24,7 +24,7 @@ class TestAuthModule:
             request = mock.MagicMock()
             request.cookies.return_value = {}
 
-            with pytest.raises(module_build_service.errors.Unauthorized) as cm:
+            with pytest.raises(module_build_service.common.errors.Unauthorized) as cm:
                 with app.app_context():
                     module_build_service.web.auth.get_user(request)
                 assert str(cm.value) == "No 'authorization' header found."
@@ -56,7 +56,7 @@ class TestAuthModule:
             request.headers.__setitem__.side_effect = headers.__setitem__
             request.headers.__contains__.side_effect = headers.__contains__
 
-            with pytest.raises(module_build_service.errors.Unauthorized) as cm:
+            with pytest.raises(module_build_service.common.errors.Unauthorized) as cm:
                 with app.app_context():
                     module_build_service.web.auth.get_user(request)
                 assert str(cm.value) == "OIDC token invalid or expired."
@@ -88,7 +88,7 @@ class TestAuthModule:
             request.headers.__setitem__.side_effect = headers.__setitem__
             request.headers.__contains__.side_effect = headers.__contains__
 
-            with pytest.raises(module_build_service.errors.Unauthorized) as cm:
+            with pytest.raises(module_build_service.common.errors.Unauthorized) as cm:
                 with app.app_context():
                     module_build_service.web.auth.get_user(request)
                 assert str(cm.value) == "OpenIDC auth error: Cannot determine the user's groups"
@@ -148,7 +148,7 @@ class TestAuthModule:
     @patch("module_build_service.web.auth.client_secrets", None)
     def test_misconfiguring_oidc_client_secrets_should_be_failed(self):
         request = mock.MagicMock()
-        with pytest.raises(module_build_service.errors.Forbidden) as cm:
+        with pytest.raises(module_build_service.common.errors.Forbidden) as cm:
             with app.app_context():
                 module_build_service.web.auth.get_user(request)
             assert str(cm.value) == "OIDC_CLIENT_SECRETS must be set in server config."
@@ -180,7 +180,7 @@ class TestAuthModule:
             request.headers.__setitem__.side_effect = headers.__setitem__
             request.headers.__contains__.side_effect = headers.__contains__
 
-            with pytest.raises(module_build_service.errors.Unauthorized) as cm:
+            with pytest.raises(module_build_service.common.errors.Unauthorized) as cm:
                 with app.app_context():
                     module_build_service.web.auth.get_user(request)
                 assert str(cm.value) == (
@@ -212,7 +212,7 @@ class TestAuthModule:
             request.headers.__setitem__.side_effect = headers.__setitem__
             request.headers.__contains__.side_effect = headers.__contains__
 
-            with pytest.raises(module_build_service.errors.Forbidden) as cm:
+            with pytest.raises(module_build_service.common.errors.Forbidden) as cm:
                 with app.app_context():
                     module_build_service.web.auth.get_user(request)
                 assert str(cm.value) == "OIDC_REQUIRED_SCOPE must be set in server config."
@@ -222,7 +222,7 @@ class TestAuthModule:
         request = Mock()
         request.environ.get.return_value = remote_name
 
-        with pytest.raises(module_build_service.errors.Unauthorized):
+        with pytest.raises(module_build_service.common.errors.Unauthorized):
             module_build_service.web.auth.get_user_kerberos(request)
 
     @patch.object(module_build_service.web.auth.conf, "allowed_users", new=["someone", "somebody"])
