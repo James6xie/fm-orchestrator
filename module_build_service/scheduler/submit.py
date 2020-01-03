@@ -20,7 +20,7 @@ def get_build_arches(mmd, config):
     Returns the list of architectures for which the module `mmd` should be built.
 
     :param mmd: Module MetaData
-    :param config: config (module_build_service.config.Config instance)
+    :param config: config (module_build_service.common.config.Config instance)
     :return list of architectures
     """
     # Imported here to allow import of utils in GenericBuilder.

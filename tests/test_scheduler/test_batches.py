@@ -196,7 +196,7 @@ class TestBatches:
 
     @patch("module_build_service.scheduler.batches.start_build_component")
     @patch(
-        "module_build_service.config.Config.rebuild_strategy",
+        "module_build_service.common.config.Config.rebuild_strategy",
         new_callable=mock.PropertyMock,
         return_value="all",
     )
@@ -236,7 +236,7 @@ class TestBatches:
 
     @patch("module_build_service.scheduler.batches.start_build_component")
     @patch(
-        "module_build_service.config.Config.rebuild_strategy",
+        "module_build_service.common.config.Config.rebuild_strategy",
         new_callable=mock.PropertyMock,
         return_value="only-changed",
     )

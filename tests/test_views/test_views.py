@@ -33,7 +33,7 @@ from module_build_service.db_session import db_session
 from module_build_service.errors import UnprocessableEntity
 from module_build_service.models import ModuleBuild, BUILD_STATES, ComponentBuild
 from module_build_service import app, version
-import module_build_service.config as mbs_config
+import module_build_service.common.config as mbs_config
 import module_build_service.web.submit
 
 
@@ -496,7 +496,7 @@ class TestViews:
         mock_session.krb_login.assert_not_called()
 
     @patch(
-        "module_build_service.config.Config.system",
+        "module_build_service.common.config.Config.system",
         new_callable=PropertyMock,
         return_value="invalid_builder",
     )
@@ -1015,7 +1015,7 @@ class TestViews:
     @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     @patch(
-        "module_build_service.config.Config.rebuild_strategy_allow_override",
+        "module_build_service.common.config.Config.rebuild_strategy_allow_override",
         new_callable=PropertyMock,
         return_value=True,
     )
@@ -1040,12 +1040,12 @@ class TestViews:
     @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     @patch(
-        "module_build_service.config.Config.rebuild_strategies_allowed",
+        "module_build_service.common.config.Config.rebuild_strategies_allowed",
         new_callable=PropertyMock,
         return_value=["all"],
     )
     @patch(
-        "module_build_service.config.Config.rebuild_strategy_allow_override",
+        "module_build_service.common.config.Config.rebuild_strategy_allow_override",
         new_callable=PropertyMock,
         return_value=True,
     )
@@ -1300,7 +1300,7 @@ class TestViews:
     )
     def test_cancel_build_admin(self, mocked_get_user):
         with patch(
-            "module_build_service.config.Config.admin_groups",
+            "module_build_service.common.config.Config.admin_groups",
             new_callable=PropertyMock,
             return_value={"mbs-admin"},
         ):
@@ -1314,7 +1314,7 @@ class TestViews:
     @patch("module_build_service.web.auth.get_user", return_value=("sammy", {"packager"}))
     def test_cancel_build_no_admin(self, mocked_get_user):
         with patch(
-            "module_build_service.config.Config.admin_groups",
+            "module_build_service.common.config.Config.admin_groups",
             new_callable=PropertyMock,
             return_value={"mbs-admin"},
         ):
@@ -1431,7 +1431,9 @@ class TestViews:
     @patch("module_build_service.web.auth.get_user", return_value=anonymous_user)
     @patch("module_build_service.scm.SCM")
     @patch(
-        "module_build_service.config.Config.no_auth", new_callable=PropertyMock, return_value=True
+        "module_build_service.common.config.Config.no_auth",
+        new_callable=PropertyMock,
+        return_value=True,
     )
     def test_submit_build_no_auth_set_owner(self, mocked_conf, mocked_scm, mocked_get_user):
         FakeSCM(
@@ -1451,7 +1453,7 @@ class TestViews:
 
     @patch("module_build_service.web.auth.get_user", return_value=("svc_account", set()))
     @patch("module_build_service.scm.SCM")
-    @patch("module_build_service.config.Config.allowed_users", new_callable=PropertyMock)
+    @patch("module_build_service.common.config.Config.allowed_users", new_callable=PropertyMock)
     def test_submit_build_allowed_users(self, allowed_users, mocked_scm, mocked_get_user):
         FakeSCM(
             mocked_scm, "testmodule", "testmodule.yaml", "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
@@ -1467,7 +1469,7 @@ class TestViews:
 
     @patch("module_build_service.web.auth.get_user", return_value=anonymous_user)
     @patch("module_build_service.scm.SCM")
-    @patch("module_build_service.config.Config.no_auth", new_callable=PropertyMock)
+    @patch("module_build_service.common.config.Config.no_auth", new_callable=PropertyMock)
     def test_patch_set_different_owner(self, mocked_no_auth, mocked_scm, mocked_get_user):
         FakeSCM(
             mocked_scm, "testmodule", "testmodule.yaml", "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
@@ -1521,7 +1523,10 @@ class TestViews:
 
     @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
-    @patch("module_build_service.config.Config.allow_custom_scmurls", new_callable=PropertyMock)
+    @patch(
+        "module_build_service.common.config.Config.allow_custom_scmurls",
+        new_callable=PropertyMock,
+    )
     def test_submit_custom_scmurl(self, allow_custom_scmurls, mocked_scm, mocked_get_user):
         FakeSCM(
             mocked_scm, "testmodule", "testmodule.yaml", "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
@@ -1846,7 +1851,7 @@ class TestViews:
     @pytest.mark.parametrize("api_version", [1, 2])
     @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch.object(
-        module_build_service.config.Config,
+        module_build_service.common.config.Config,
         "allowed_groups_to_import_module",
         new_callable=PropertyMock,
         return_value=set(),
@@ -1897,7 +1902,7 @@ class TestViews:
     @pytest.mark.parametrize("api_version", [1, 2])
     @patch("module_build_service.web.auth.get_user", return_value=import_module_user)
     @patch.object(
-        module_build_service.config.Config,
+        module_build_service.common.config.Config,
         "allow_custom_scmurls",
         new_callable=PropertyMock,
         return_value=True,
@@ -1922,7 +1927,7 @@ class TestViews:
     @pytest.mark.parametrize("api_version", [1, 2])
     @patch("module_build_service.web.auth.get_user", return_value=import_module_user)
     @patch.object(
-        module_build_service.config.Config,
+        module_build_service.common.config.Config,
         "scmurls",
         new_callable=PropertyMock,
         return_value=["file://"],
@@ -1961,7 +1966,7 @@ class TestViews:
     @pytest.mark.parametrize("api_version", [1, 2])
     @patch("module_build_service.web.auth.get_user", return_value=import_module_user)
     @patch.object(
-        module_build_service.config.Config,
+        module_build_service.common.config.Config,
         "scmurls",
         new_callable=PropertyMock,
         return_value=["file://"],
@@ -2002,7 +2007,7 @@ class TestViews:
     @pytest.mark.parametrize("api_version", [1, 2])
     @patch("module_build_service.web.auth.get_user", return_value=import_module_user)
     @patch.object(
-        module_build_service.config.Config,
+        module_build_service.common.config.Config,
         "scmurls",
         new_callable=PropertyMock,
         return_value=["file://"],
@@ -2025,7 +2030,7 @@ class TestViews:
     @pytest.mark.parametrize("api_version", [1, 2])
     @patch("module_build_service.web.auth.get_user", return_value=import_module_user)
     @patch.object(
-        module_build_service.config.Config,
+        module_build_service.common.config.Config,
         "scmurls",
         new_callable=PropertyMock,
         return_value=["file://"],
@@ -2073,7 +2078,7 @@ class TestViews:
     @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     @patch(
-        "module_build_service.config.Config.modules_allow_scratch",
+        "module_build_service.common.config.Config.modules_allow_scratch",
         new_callable=PropertyMock,
         return_value=True,
     )
@@ -2135,7 +2140,7 @@ class TestViews:
     @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     @patch(
-        "module_build_service.config.Config.modules_allow_scratch",
+        "module_build_service.common.config.Config.modules_allow_scratch",
         new_callable=PropertyMock,
         return_value=False,
     )
@@ -2165,12 +2170,12 @@ class TestViews:
     @pytest.mark.parametrize("api_version", [1, 2])
     @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch(
-        "module_build_service.config.Config.modules_allow_scratch",
+        "module_build_service.common.config.Config.modules_allow_scratch",
         new_callable=PropertyMock,
         return_value=True,
     )
     @patch(
-        "module_build_service.config.Config.yaml_submit_allowed",
+        "module_build_service.common.config.Config.yaml_submit_allowed",
         new_callable=PropertyMock,
         return_value=True,
     )
@@ -2229,12 +2234,12 @@ class TestViews:
 
     @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch(
-        "module_build_service.config.Config.modules_allow_scratch",
+        "module_build_service.common.config.Config.modules_allow_scratch",
         new_callable=PropertyMock,
         return_value=True,
     )
     @patch(
-        "module_build_service.config.Config.yaml_submit_allowed",
+        "module_build_service.common.config.Config.yaml_submit_allowed",
         new_callable=PropertyMock,
         return_value=True,
     )
@@ -2263,12 +2268,12 @@ class TestViews:
     @pytest.mark.parametrize("api_version", [1, 2])
     @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch(
-        "module_build_service.config.Config.modules_allow_scratch",
+        "module_build_service.common.config.Config.modules_allow_scratch",
         new_callable=PropertyMock,
         return_value=True,
     )
     @patch(
-        "module_build_service.config.Config.yaml_submit_allowed",
+        "module_build_service.common.config.Config.yaml_submit_allowed",
         new_callable=PropertyMock,
         return_value=False,
     )
@@ -2301,7 +2306,9 @@ class TestViews:
     @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     @patch.object(
-        module_build_service.config.Config, "br_stream_override_regexes", new_callable=PropertyMock
+        module_build_service.common.config.Config,
+        "br_stream_override_regexes",
+        new_callable=PropertyMock,
     )
     def test_submit_build_dep_override_from_branch(
         self, mocked_regexes, mocked_scm, mocked_get_user, branch, platform_override
@@ -2348,7 +2355,9 @@ class TestViews:
     @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     @patch.object(
-        module_build_service.config.Config, "br_stream_override_regexes", new_callable=PropertyMock
+        module_build_service.common.config.Config,
+        "br_stream_override_regexes",
+        new_callable=PropertyMock,
     )
     def test_submit_build_dep_override_from_branch_br_override(
         self, mocked_regexes, mocked_scm, mocked_get_user
@@ -2422,7 +2431,7 @@ class TestViews:
     @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     @patch(
-        "module_build_service.config.Config.allowed_privileged_module_names",
+        "module_build_service.common.config.Config.allowed_privileged_module_names",
         new_callable=PropertyMock,
         return_value=["build"],
     )
@@ -2597,11 +2606,11 @@ class TestViews:
         new_callable=partial(Mock, wraps=datetime),
     )
     @patch(
-        "module_build_service.config.Config.product_pages_url",
+        "module_build_service.common.config.Config.product_pages_url",
         new_callable=PropertyMock,
     )
     @patch(
-        "module_build_service.config.Config.product_pages_module_streams",
+        "module_build_service.common.config.Config.product_pages_module_streams",
         new_callable=PropertyMock,
     )
     @patch("requests.get")
@@ -2738,7 +2747,7 @@ class TestViews:
     @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     @patch(
-        "module_build_service.config.Config.rebuild_strategy_allow_override",
+        "module_build_service.common.config.Config.rebuild_strategy_allow_override",
         new_callable=PropertyMock,
         return_value=True,
     )

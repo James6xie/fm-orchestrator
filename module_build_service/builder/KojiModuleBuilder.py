@@ -56,7 +56,7 @@ class KojiModuleBuilder(GenericBuilder):
         :param db_session: SQLAlchemy session object.
         :param owner: a string representing who kicked off the builds
         :param module: module_build_service.models.ModuleBuild instance.
-        :param config: module_build_service.config.Config instance
+        :param config: module_build_service.common.config.Config instance
         :param tag_name: name of tag for given module
         """
         self.db_session = db_session
@@ -757,7 +757,7 @@ class KojiModuleBuilder(GenericBuilder):
     @classmethod
     def repo_from_tag(cls, config, tag_name, arch):
         """
-        :param config: instance of module_build_service.config.Config
+        :param config: instance of module_build_service.common.config.Config
         :param tag_name: Tag for which the repository is returned
         :param arch: Architecture for which the repository is returned
 

@@ -74,7 +74,7 @@ class TestResolve:
         assert actual == expected
 
     @patch(
-        "module_build_service.config.Config.allow_only_compatible_base_modules",
+        "module_build_service.common.config.Config.allow_only_compatible_base_modules",
         new_callable=PropertyMock, return_value=False
     )
     def test__get_base_module_mmds_virtual_streams_only_major_versions(self, cfg):

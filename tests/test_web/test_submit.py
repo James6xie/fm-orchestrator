@@ -108,7 +108,7 @@ class TestUtilsComponentReuse:
 
     @mock.patch("module_build_service.web.submit.generate_expanded_mmds")
     @mock.patch(
-        "module_build_service.config.Config.scratch_build_only_branches",
+        "module_build_service.common.config.Config.scratch_build_only_branches",
         new_callable=mock.PropertyMock,
         return_value=["^private-.*"],
     )

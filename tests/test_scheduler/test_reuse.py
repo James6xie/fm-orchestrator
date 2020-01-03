@@ -296,7 +296,7 @@ class TestUtilsModuleReuse:
 
     @pytest.mark.parametrize("allow_ocbm", (True, False))
     @mock.patch(
-        "module_build_service.config.Config.allow_only_compatible_base_modules",
+        "module_build_service.common.config.Config.allow_only_compatible_base_modules",
         new_callable=mock.PropertyMock,
     )
     def test_get_reusable_module_use_latest_build(self, cfg, allow_ocbm):
@@ -365,12 +365,12 @@ class TestUtilsModuleReuse:
 
     @pytest.mark.parametrize("allow_ocbm", (True, False))
     @mock.patch(
-        "module_build_service.config.Config.allow_only_compatible_base_modules",
+        "module_build_service.common.config.Config.allow_only_compatible_base_modules",
         new_callable=mock.PropertyMock,
     )
     @mock.patch("koji.ClientSession")
     @mock.patch(
-        "module_build_service.config.Config.resolver",
+        "module_build_service.common.config.Config.resolver",
         new_callable=mock.PropertyMock, return_value="koji"
     )
     def test_get_reusable_module_koji_resolver(

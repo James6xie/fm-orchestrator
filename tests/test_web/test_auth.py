@@ -9,7 +9,7 @@ from mock import patch, PropertyMock, Mock
 
 import module_build_service.web.auth
 import module_build_service.errors
-import module_build_service.config as mbs_config
+import module_build_service.common.config as mbs_config
 from module_build_service import app
 
 

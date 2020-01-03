@@ -34,7 +34,7 @@ from module_build_service.logger import init_logging, ModuleBuildLogs, level_fla
 from module_build_service.errors import (
     ValidationError, Unauthorized, UnprocessableEntity, Conflict, NotFound,
     Forbidden, json_error)
-from module_build_service.config import init_config
+from module_build_service.common.config import init_config
 from module_build_service.proxy import ReverseProxy
 
 try:

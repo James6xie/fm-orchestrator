@@ -6,7 +6,7 @@
 import six
 from abc import ABCMeta, abstractmethod
 
-import module_build_service.config as cfg
+import module_build_service.common.config as cfg
 from module_build_service import conf
 
 

@@ -194,7 +194,7 @@ class TestMockModuleBuilderAddRepos:
 
     @mock.patch("module_build_service.conf.system", new="mock")
     @mock.patch(
-        "module_build_service.config.Config.base_module_repofiles",
+        "module_build_service.common.config.Config.base_module_repofiles",
         new_callable=mock.PropertyMock,
         return_value=["/etc/yum.repos.d/bar.repo", "/etc/yum.repos.d/bar-updates.repo"],
         create=True,
@@ -308,12 +308,14 @@ class TestOfflineLocalBuilds:
 
 
 @mock.patch(
-    "module_build_service.config.Config.mock_resultsdir",
+    "module_build_service.common.config.Config.mock_resultsdir",
     new_callable=mock.PropertyMock,
     return_value=staged_data_filename("local_builds")
 )
 @mock.patch(
-    "module_build_service.config.Config.system", new_callable=mock.PropertyMock, return_value="mock"
+    "module_build_service.common.config.Config.system",
+    new_callable=mock.PropertyMock,
+    return_value="mock",
 )
 class TestLocalBuilds:
     def setup_method(self):

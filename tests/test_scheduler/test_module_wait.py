@@ -194,7 +194,7 @@ class TestModuleWait:
     @patch("module_build_service.resolver.DBResolver")
     @patch("module_build_service.resolver.GenericResolver")
     @patch(
-        "module_build_service.config.Config.base_module_names",
+        "module_build_service.common.config.Config.base_module_names",
         new_callable=mock.PropertyMock,
         return_value=["base-runtime", "platform"],
     )

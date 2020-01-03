@@ -50,7 +50,7 @@ class TestSubmit:
         assert set(r) == set(conf.arches)
 
     @mock.patch(
-        "module_build_service.config.Config.allowed_privileged_module_names",
+        "module_build_service.common.config.Config.allowed_privileged_module_names",
         new_callable=mock.PropertyMock,
         return_value=["testmodule"],
     )

@@ -876,12 +876,12 @@ class TestKojiBuilder:
         db_session.commit()
 
         with patch(
-            "module_build_service.config.Config.koji_enable_content_generator",
+            "module_build_service.common.config.Config.koji_enable_content_generator",
             new_callable=mock.PropertyMock,
             return_value=cg_enabled,
         ):
             with patch(
-                "module_build_service.config.Config.koji_cg_devel_module",
+                "module_build_service.common.config.Config.koji_cg_devel_module",
                 new_callable=mock.PropertyMock,
                 return_value=cg_devel_enabled,
             ):

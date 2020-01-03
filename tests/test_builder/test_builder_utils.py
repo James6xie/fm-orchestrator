@@ -244,7 +244,7 @@ def test_validate_koji_tag_is_None():
 
 
 @patch(
-    "module_build_service.config.Config.allowed_privileged_module_names",
+    "module_build_service.common.config.Config.allowed_privileged_module_names",
     new_callable=PropertyMock,
     return_value=["testmodule"],
 )
@@ -300,7 +300,7 @@ def test_get_rpm_release_platform_stream_override():
 
 
 @patch(
-    "module_build_service.config.Config.allowed_privileged_module_names",
+    "module_build_service.common.config.Config.allowed_privileged_module_names",
     new_callable=PropertyMock,
     return_value=["build"],
 )

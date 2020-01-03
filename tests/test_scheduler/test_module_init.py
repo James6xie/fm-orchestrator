@@ -118,7 +118,7 @@ class TestModuleInit:
         assert build.state == 4, build.state
 
     @patch(
-        "module_build_service.config.Config.modules_allow_repository",
+        "module_build_service.common.config.Config.modules_allow_repository",
         new_callable=PropertyMock,
         return_value=True,
     )

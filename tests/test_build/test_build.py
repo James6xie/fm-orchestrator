@@ -397,7 +397,9 @@ class BaseTestBuild:
 
 @patch("module_build_service.scheduler.handlers.modules.handle_stream_collision_modules")
 @patch.object(
-    module_build_service.config.Config, "system", new_callable=PropertyMock, return_value="test"
+    module_build_service.common.config.Config, "system",
+    new_callable=PropertyMock,
+    return_value="test",
 )
 @patch(
     "module_build_service.builder.GenericBuilder.default_buildroot_groups",
@@ -459,7 +461,7 @@ class TestBuild(BaseTestBuild):
         self.mock_check_gating = self.p_check_gating.start()
 
         self.patch_config_broker = patch.object(
-            module_build_service.config.Config,
+            module_build_service.common.config.Config,
             "celery_broker_url",
             create=True,
             new_callable=PropertyMock,
@@ -668,7 +670,7 @@ class TestBuild(BaseTestBuild):
             assert module_build.state_reason == "Gating failed"
 
     @patch(
-        "module_build_service.config.Config.check_for_eol",
+        "module_build_service.common.config.Config.check_for_eol",
         new_callable=PropertyMock,
         return_value=True,
     )
@@ -710,7 +712,7 @@ class TestBuild(BaseTestBuild):
         yaml = read_staged_data("testmodule")
 
         with patch.object(
-            module_build_service.config.Config,
+            module_build_service.common.config.Config,
             "yaml_submit_allowed",
             new_callable=PropertyMock,
             return_value=False,
@@ -733,7 +735,7 @@ class TestBuild(BaseTestBuild):
             mocked_scm, "testmodule", "testmodule.yaml", "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
 
         with patch.object(
-            module_build_service.config.Config,
+            module_build_service.common.config.Config,
             "yaml_submit_allowed",
             new_callable=PropertyMock,
             return_value=True,
@@ -855,7 +857,7 @@ class TestBuild(BaseTestBuild):
     @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     @patch(
-        "module_build_service.config.Config.num_concurrent_builds",
+        "module_build_service.common.config.Config.num_concurrent_builds",
         new_callable=PropertyMock,
         return_value=1,
     )
@@ -914,7 +916,7 @@ class TestBuild(BaseTestBuild):
     @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     @patch(
-        "module_build_service.config.Config.num_concurrent_builds",
+        "module_build_service.common.config.Config.num_concurrent_builds",
         new_callable=PropertyMock,
         return_value=2,
     )
@@ -979,7 +981,7 @@ class TestBuild(BaseTestBuild):
     @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     @patch(
-        "module_build_service.config.Config.num_concurrent_builds",
+        "module_build_service.common.config.Config.num_concurrent_builds",
         new_callable=PropertyMock,
         return_value=1,
     )
@@ -1048,7 +1050,7 @@ class TestBuild(BaseTestBuild):
     @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     @patch(
-        "module_build_service.config.Config.num_concurrent_builds",
+        "module_build_service.common.config.Config.num_concurrent_builds",
         new_callable=PropertyMock,
         return_value=1,
     )
@@ -1629,7 +1631,7 @@ class TestBuild(BaseTestBuild):
     @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     @patch(
-        "module_build_service.config.Config.modules_allow_scratch",
+        "module_build_service.common.config.Config.modules_allow_scratch",
         new_callable=PropertyMock,
         return_value=True,
     )
@@ -1672,7 +1674,7 @@ class TestBuild(BaseTestBuild):
     @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     @patch(
-        "module_build_service.config.Config.modules_allow_scratch",
+        "module_build_service.common.config.Config.modules_allow_scratch",
         new_callable=PropertyMock,
         return_value=True,
     )
@@ -1716,7 +1718,7 @@ class TestBuild(BaseTestBuild):
     @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     @patch(
-        "module_build_service.config.Config.modules_allow_scratch",
+        "module_build_service.common.config.Config.modules_allow_scratch",
         new_callable=PropertyMock,
         return_value=True,
     )
@@ -1873,7 +1875,9 @@ class TestBuild(BaseTestBuild):
 
 
 @patch(
-    "module_build_service.config.Config.system", new_callable=PropertyMock, return_value="testlocal"
+    "module_build_service.common.config.Config.system",
+    new_callable=PropertyMock,
+    return_value="testlocal",
 )
 class TestLocalBuild(BaseTestBuild):
     def setup_method(self, test_method):
@@ -1896,7 +1900,7 @@ class TestLocalBuild(BaseTestBuild):
     @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     @patch(
-        "module_build_service.config.Config.mock_resultsdir",
+        "module_build_service.common.config.Config.mock_resultsdir",
         new_callable=PropertyMock,
         return_value=staged_data_filename('local_builds'),
     )

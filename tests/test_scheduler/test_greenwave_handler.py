@@ -5,7 +5,7 @@ import pytest
 from mock import call, patch, PropertyMock, Mock
 from sqlalchemy import func
 
-import module_build_service.config
+import module_build_service.common.config
 from module_build_service import conf
 from module_build_service.db_session import db_session
 from module_build_service.models import BUILD_STATES, ModuleBuild
@@ -75,7 +75,7 @@ class TestDecisionUpdateHandler:
 
     def setup_method(self, test_method):
         self.patch_config_broker = patch.object(
-            module_build_service.config.Config,
+            module_build_service.common.config.Config,
             "celery_broker_url",
             create=True,
             new_callable=PropertyMock,

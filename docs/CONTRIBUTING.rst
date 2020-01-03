@@ -185,8 +185,9 @@ Logging
 -------
 
 If you're running module_build_service from scm, then the DevConfiguration
-from ``conf/config.py`` which contains ``LOG_LEVEL=debug`` should get applied. See
-more about it in ``module_build_service/config.py``, ``app.config.from_object()``.
+from ``module_build_service/common/config.py`` which contains ``LOG_LEVEL=debug`` should get
+applied. See more about it in ``module_build_service/common/config.py``,
+``app.config.from_object()``.
 
 Environment
 -----------

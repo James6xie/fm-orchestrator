@@ -65,7 +65,7 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
     External Api for builders
 
     Example usage:
-        config = module_build_service.config.Config()
+        config = module_build_service.common.config.Config()
         builder = Builder(module="testmodule-1.2-3", backend="koji", config)
         builder.buildroot_connect()
         builder.build(artifact_name="bash",
@@ -110,7 +110,7 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
         :param owner: a string representing who kicked off the builds
         :param module: module_build_service.models.ModuleBuild instance.
         :param backend: a string representing backend e.g. 'koji'
-        :param config: instance of module_build_service.config.Config
+        :param config: instance of module_build_service.common.config.Config
 
         Any additional arguments are optional extras which can be passed along
         and are implementation-dependent.
@@ -137,7 +137,7 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
 
         :param db_session: SQLAlchemy database session.
         :param module: module_build_service.models.ModuleBuild instance.
-        :param config: module_build_service.config.Config instance.
+        :param config: module_build_service.common.config.Config instance.
         :kwarg buildroot_connect: a boolean that determines if the builder should run
         buildroot_connect on instantiation.
         """
@@ -160,7 +160,7 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
     def tag_to_repo(cls, backend, config, tag_name, arch):
         """
         :param backend: a string representing the backend e.g. 'koji'.
-        :param config: instance of module_build_service.config.Config
+        :param config: instance of module_build_service.common.config.Config
         :param tag_name: Tag for which the repository is returned
         :param arch: Architecture for which the repository is returned
 
@@ -291,7 +291,7 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
     @abstractmethod
     def repo_from_tag(self, config, tag_name, arch):
         """
-        :param config: instance of module_build_service.config.Config
+        :param config: instance of module_build_service.common.config.Config
         :param tag_name: Tag for which the repository is returned
         :param arch: Architecture for which the repository is returned
 

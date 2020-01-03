@@ -317,10 +317,12 @@ class TestMBSModule:
         assert result == expected
 
     @patch(
-        "module_build_service.config.Config.system", new_callable=PropertyMock, return_value="test"
+        "module_build_service.common.config.Config.system",
+        new_callable=PropertyMock,
+        return_value="test",
     )
     @patch(
-        "module_build_service.config.Config.mock_resultsdir",
+        "module_build_service.common.config.Config.mock_resultsdir",
         new_callable=PropertyMock,
         return_value=tests.staged_data_filename("local_builds")
     )
@@ -438,10 +440,12 @@ class TestMBSModule:
         )
 
     @patch(
-        "module_build_service.config.Config.system", new_callable=PropertyMock, return_value="test"
+        "module_build_service.common.config.Config.system",
+        new_callable=PropertyMock,
+        return_value="test",
     )
     @patch(
-        "module_build_service.config.Config.mock_resultsdir",
+        "module_build_service.common.config.Config.mock_resultsdir",
         new_callable=PropertyMock,
         return_value=tests.staged_data_filename("local_builds")
     )
