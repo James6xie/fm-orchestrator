@@ -703,7 +703,7 @@ class TestUtils:
         v = module_build_service.utils.submit.get_prefixed_version(mmd)
         assert v == 7000120180205135154
 
-    @patch("module_build_service.utils.mse.generate_expanded_mmds")
+    @patch("module_build_service.utils.submit.generate_expanded_mmds")
     def test_submit_build_new_mse_build(self, generate_expanded_mmds):
         """
         Tests that finished build can be resubmitted in case the resubmitted
@@ -729,7 +729,7 @@ class TestUtils:
         assert builds[0].siblings(db_session) == [builds[1].id]
         assert builds[1].siblings(db_session) == [builds[0].id]
 
-    @patch("module_build_service.utils.mse.generate_expanded_mmds")
+    @patch("module_build_service.utils.submit.generate_expanded_mmds")
     @patch(
         "module_build_service.config.Config.scratch_build_only_branches",
         new_callable=mock.PropertyMock,

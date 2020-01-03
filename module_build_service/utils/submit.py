@@ -20,6 +20,7 @@ from module_build_service import conf, log, models, Modulemd
 from module_build_service.common.utils import load_mmd, load_mmd_file, mmd_to_str, to_text_type
 from module_build_service.db_session import db_session
 from module_build_service.errors import ValidationError, UnprocessableEntity, Forbidden, Conflict
+from module_build_service.web.mse import generate_expanded_mmds
 from module_build_service.web.utils import deps_to_dict
 
 
@@ -955,8 +956,6 @@ def submit_module_build(db_session, username, mmd, params):
     :rtype: list with ModuleBuild
     :return: List with submitted module builds.
     """
-    from .mse import generate_expanded_mmds
-
     log.debug(
         "Submitted %s module build for %s:%s:%s",
         ("scratch" if params.get("scratch", False) else "normal"),

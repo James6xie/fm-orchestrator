@@ -1,17 +1,16 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
-from mock import patch, PropertyMock
 import pytest
 
-import module_build_service.utils
-from module_build_service.common.utils import load_mmd
-from module_build_service import Modulemd, models
 from module_build_service.db_session import db_session
 from module_build_service.errors import StreamAmbigous
-from tests import clean_database, make_module_in_db, init_data, read_staged_data
+from module_build_service.web.mse import (
+    expand_mse_streams, generate_expanded_mmds, get_mmds_required_by_module_recursively
+)
+from tests import clean_database, make_module_in_db
 
 
-class TestUtilsModuleStreamExpansion:
+class TestModuleStreamExpansion:
     def setup_method(self, test_method):
         clean_database(False)
 
@@ -25,9 +24,8 @@ class TestUtilsModuleStreamExpansion:
         method.
         """
         mmd = module_build.mmd()
-        module_build_service.utils.expand_mse_streams(db_session, mmd)
-        modules = module_build_service.utils.get_mmds_required_by_module_recursively(
-            db_session, mmd)
+        expand_mse_streams(db_session, mmd)
+        modules = get_mmds_required_by_module_recursively(db_session, mmd)
         nsvcs = [m.get_nsvc() for m in modules]
         return nsvcs
 
@@ -67,8 +65,7 @@ class TestUtilsModuleStreamExpansion:
                 },
             }],
         )
-        mmds = module_build_service.utils.generate_expanded_mmds(
-            db_session, module_build.mmd())
+        mmds = generate_expanded_mmds(db_session, module_build.mmd())
         contexts = {mmd.get_context() for mmd in mmds}
         assert {"e1e005fb", "ce132a1e"} == contexts
 
@@ -168,11 +165,10 @@ class TestUtilsModuleStreamExpansion:
         # and also that it does not raise an exception otherwise.
         if stream_ambigous:
             with pytest.raises(StreamAmbigous):
-                module_build_service.utils.generate_expanded_mmds(
+                generate_expanded_mmds(
                     db_session, module_build.mmd(), raise_if_stream_ambigous=True)
         else:
-            module_build_service.utils.generate_expanded_mmds(
-                db_session, module_build.mmd(), raise_if_stream_ambigous=True)
+            generate_expanded_mmds(db_session, module_build.mmd(), raise_if_stream_ambigous=True)
 
         # Check that if stream is ambigous and we define the stream, it does not raise
         # an exception.
@@ -181,14 +177,14 @@ class TestUtilsModuleStreamExpansion:
             for ns in list(expected_buildrequires)[0]:
                 name, stream = ns.split(":")
                 default_streams[name] = stream
-            module_build_service.utils.generate_expanded_mmds(
+            generate_expanded_mmds(
                 db_session,
                 module_build.mmd(),
                 raise_if_stream_ambigous=True,
                 default_streams=default_streams,
             )
 
-        mmds = module_build_service.utils.generate_expanded_mmds(db_session, module_build.mmd())
+        mmds = generate_expanded_mmds(db_session, module_build.mmd())
 
         buildrequires_per_mmd_xmd = set()
         buildrequires_per_mmd_buildrequires = set()
@@ -255,7 +251,7 @@ class TestUtilsModuleStreamExpansion:
     def test_generate_expanded_mmds_requires(self, module_deps, expected):
         self._generate_default_modules()
         module_build = make_module_in_db("app:1:0:c1", module_deps)
-        mmds = module_build_service.utils.generate_expanded_mmds(db_session, module_build.mmd())
+        mmds = generate_expanded_mmds(db_session, module_build.mmd())
 
         requires_per_mmd = set()
         for mmd in mmds:
@@ -467,98 +463,3 @@ class TestUtilsModuleStreamExpansion:
         self._generate_default_modules_modules_multiple_stream_versions()
         nsvcs = self._get_mmds_required_by_module_recursively(module_build, db_session)
         assert set(nsvcs) == set(expected)
-
-    def test__get_base_module_mmds(self):
-        """Ensure the correct results are returned without duplicates."""
-        init_data(data_size=1, multiple_stream_versions=True)
-        mmd = load_mmd(read_staged_data("testmodule_v2.yaml"))
-        deps = mmd.get_dependencies()[0]
-        new_deps = Modulemd.Dependencies()
-        for stream in deps.get_runtime_streams("platform"):
-            new_deps.add_runtime_stream("platform", stream)
-        new_deps.add_buildtime_stream("platform", "f29.1.0")
-        new_deps.add_buildtime_stream("platform", "f29.2.0")
-        mmd.remove_dependencies(deps)
-        mmd.add_dependencies(new_deps)
-
-        mmds = module_build_service.utils.mse.get_base_module_mmds(db_session, mmd)
-        expected = {"platform:f29.0.0", "platform:f29.1.0", "platform:f29.2.0"}
-        # Verify no duplicates were returned before doing set operations
-        assert len(mmds["ready"]) == len(expected)
-        # Verify the expected ones were returned
-        actual = set()
-        for mmd_ in mmds["ready"]:
-            actual.add("{}:{}".format(mmd_.get_module_name(), mmd_.get_stream_name()))
-        assert actual == expected
-
-    @pytest.mark.parametrize("virtual_streams", (None, ["f29"], ["lp29"]))
-    def test__get_base_module_mmds_virtual_streams(self, virtual_streams):
-        """Ensure the correct results are returned without duplicates."""
-        init_data(data_size=1, multiple_stream_versions=True)
-        mmd = load_mmd(read_staged_data("testmodule_v2"))
-        deps = mmd.get_dependencies()[0]
-        new_deps = Modulemd.Dependencies()
-        for stream in deps.get_runtime_streams("platform"):
-            new_deps.add_runtime_stream("platform", stream)
-        new_deps.add_buildtime_stream("platform", "f29.2.0")
-        mmd.remove_dependencies(deps)
-        mmd.add_dependencies(new_deps)
-
-        make_module_in_db("platform:lp29.1.1:12:c11", virtual_streams=virtual_streams)
-
-        mmds = module_build_service.utils.mse.get_base_module_mmds(db_session, mmd)
-        if virtual_streams == ["f29"]:
-            expected = {
-                "platform:f29.0.0",
-                "platform:f29.1.0",
-                "platform:f29.2.0",
-                "platform:lp29.1.1"
-            }
-        else:
-            expected = {"platform:f29.0.0", "platform:f29.1.0", "platform:f29.2.0"}
-        # Verify no duplicates were returned before doing set operations
-        assert len(mmds["ready"]) == len(expected)
-        # Verify the expected ones were returned
-        actual = set()
-        for mmd_ in mmds["ready"]:
-            actual.add("{}:{}".format(mmd_.get_module_name(), mmd_.get_stream_name()))
-        assert actual == expected
-
-    @patch(
-        "module_build_service.config.Config.allow_only_compatible_base_modules",
-        new_callable=PropertyMock, return_value=False
-    )
-    def test__get_base_module_mmds_virtual_streams_only_major_versions(self, cfg):
-        """Ensure the correct results are returned without duplicates."""
-        init_data(data_size=1, multiple_stream_versions=["foo28", "foo29", "foo30"])
-
-        # Mark platform:foo28 as garbage to test that it is still considered as compatible.
-        platform = db_session.query(models.ModuleBuild).filter_by(
-            name="platform", stream="foo28").first()
-        platform.state = "garbage"
-        db_session.add(platform)
-        db_session.commit()
-
-        mmd = load_mmd(read_staged_data("testmodule_v2"))
-        deps = mmd.get_dependencies()[0]
-        new_deps = Modulemd.Dependencies()
-        for stream in deps.get_runtime_streams("platform"):
-            new_deps.add_runtime_stream("platform", stream)
-        new_deps.add_buildtime_stream("platform", "foo29")
-        mmd.remove_dependencies(deps)
-        mmd.add_dependencies(new_deps)
-
-        mmds = module_build_service.utils.mse.get_base_module_mmds(db_session, mmd)
-        expected = {}
-        expected["ready"] = {"platform:foo29", "platform:foo30"}
-        expected["garbage"] = {"platform:foo28"}
-
-        # Verify no duplicates were returned before doing set operations
-        assert len(mmds) == len(expected)
-        for k in expected.keys():
-            assert len(mmds[k]) == len(expected[k])
-            # Verify the expected ones were returned
-            actual = set()
-            for mmd_ in mmds[k]:
-                actual.add("{}:{}".format(mmd_.get_module_name(), mmd_.get_stream_name()))
-            assert actual == expected[k]

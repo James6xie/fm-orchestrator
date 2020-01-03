@@ -12,12 +12,13 @@ import six.moves.xmlrpc_client as xmlrpclib
 
 from module_build_service import conf, log, models, Modulemd, scm
 from module_build_service.common.koji import get_session, koji_retrying_multicall_map
+from module_build_service.common.resolve import (
+    expand_single_mse_streams, get_compatible_base_module_mmds
+)
 from module_build_service.common.retry import retry
 from module_build_service.db_session import db_session
 from module_build_service.errors import UnprocessableEntity
 from module_build_service.resolver.base import GenericResolver
-from module_build_service.utils.mse import (
-    get_compatible_base_module_mmds, expand_single_mse_streams)
 
 
 def add_default_modules(mmd):
