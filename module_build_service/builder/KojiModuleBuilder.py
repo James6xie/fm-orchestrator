@@ -31,7 +31,7 @@ from module_build_service.common.koji import (
     get_session, koji_multicall_map, koji_retrying_multicall_map,
 )
 from module_build_service.scheduler import events
-from module_build_service.utils import get_reusable_components, get_reusable_module
+from module_build_service.scheduler.reuse import get_reusable_components, get_reusable_module
 
 logging.basicConfig(level=logging.DEBUG)
 

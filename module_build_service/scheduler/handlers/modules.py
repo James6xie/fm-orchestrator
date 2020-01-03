@@ -10,7 +10,6 @@ from module_build_service.common.retry import retry
 import module_build_service.resolver
 import module_build_service.utils
 from module_build_service.utils import (
-    attempt_to_reuse_all_components,
     record_component_builds,
     record_filtered_rpms,
     record_module_build_arches
@@ -23,6 +22,7 @@ from module_build_service.scheduler.default_modules import (
 from module_build_service.scheduler.greenwave import greenwave
 from module_build_service.utils.submit import format_mmd
 from module_build_service.scheduler import events
+from module_build_service.scheduler.reuse import attempt_to_reuse_all_components
 from module_build_service.scheduler.ursine import handle_stream_collision_modules
 
 from requests.exceptions import ConnectionError
