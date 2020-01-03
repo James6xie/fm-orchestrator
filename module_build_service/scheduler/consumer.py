@@ -20,8 +20,7 @@ import moksha.hub
 import sqlalchemy.exc
 
 import module_build_service.common.messaging
-import module_build_service.monitor as monitor
-
+import module_build_service.common.monitor as monitor
 from module_build_service import models, log, conf
 from module_build_service.scheduler.db_session import db_session
 from module_build_service.errors import IgnoreMessage

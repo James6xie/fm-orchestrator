@@ -7,7 +7,7 @@ import requests
 import mock
 from six.moves import reload_module
 
-import module_build_service.monitor
+import module_build_service.common.monitor
 from module_build_service import app, conf, models
 from module_build_service.scheduler.db_session import db_session
 from tests import init_data, make_module_in_db
@@ -37,7 +37,7 @@ def test_standalone_metrics_server_disabled_by_default():
 
 def test_standalone_metrics_server():
     os.environ["MONITOR_STANDALONE_METRICS_SERVER_ENABLE"] = "true"
-    reload_module(module_build_service.monitor)
+    reload_module(module_build_service.common.monitor)
 
     r = requests.get("http://127.0.0.1:10040/metrics")
     count = len([
@@ -47,8 +47,8 @@ def test_standalone_metrics_server():
     assert count == num_of_metrics
 
 
-@mock.patch("module_build_service.monitor.builder_failed_counter.labels")
-@mock.patch("module_build_service.monitor.builder_success_counter.inc")
+@mock.patch("module_build_service.common.monitor.builder_failed_counter.labels")
+@mock.patch("module_build_service.common.monitor.builder_success_counter.inc")
 def test_monitor_state_changing_success(succ_cnt, failed_cnt):
     b = make_module_in_db(
         "pkg:0.1:1:c1",
@@ -67,8 +67,8 @@ def test_monitor_state_changing_success(succ_cnt, failed_cnt):
     failed_cnt.assert_not_called()
 
 
-@mock.patch("module_build_service.monitor.builder_failed_counter.labels")
-@mock.patch("module_build_service.monitor.builder_success_counter.inc")
+@mock.patch("module_build_service.common.monitor.builder_failed_counter.labels")
+@mock.patch("module_build_service.common.monitor.builder_success_counter.inc")
 def test_monitor_state_changing_failure(succ_cnt, failed_cnt):
     failure_type = "user"
     b = make_module_in_db(

@@ -25,7 +25,7 @@ def publish(topic, msg, conf, service):
             "No messaging backend found for %r in %r" % (conf.messaging, _messaging_backends.keys())
         )
 
-    from module_build_service.monitor import (
+    from module_build_service.common.monitor import (
         messaging_tx_to_send_counter,
         messaging_tx_sent_ok_counter,
         messaging_tx_failed_counter,

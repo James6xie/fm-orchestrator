@@ -15,7 +15,7 @@ from module_build_service import app, conf, log, models, db, version, api_versio
 from module_build_service.common.utils import import_mmd
 from module_build_service.errors import ValidationError, Forbidden, NotFound, ProgrammingError
 from module_build_service.web.backports import jsonify
-from module_build_service.monitor import registry
+from module_build_service.common.monitor import registry
 from module_build_service.common.submit import fetch_mmd
 import module_build_service.web.auth
 from module_build_service.web.submit import (
