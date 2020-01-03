@@ -479,7 +479,7 @@ class TestBuild(BaseTestBuild):
                 pass
 
     @pytest.mark.parametrize("mmd_version", [1, 2])
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_normal(
         self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc, mmd_version
@@ -558,7 +558,7 @@ class TestBuild(BaseTestBuild):
         assert len(module_build.module_builds_trace) == 5
 
     @patch("module_build_service.builder.KojiModuleBuilder.get_session")
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_buildonly(
         self, mocked_scm, mocked_get_user, mocked_get_session, conf_system, dbg, hmsc
@@ -626,7 +626,7 @@ class TestBuild(BaseTestBuild):
             ]
 
     @pytest.mark.parametrize("gating_result", (True, False))
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_no_components(
         self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc, gating_result
@@ -673,7 +673,7 @@ class TestBuild(BaseTestBuild):
         return_value=True,
     )
     @patch("module_build_service.common.submit._is_eol_in_pdc", return_value=True)
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_eol_module(
         self, mocked_scm, mocked_get_user, is_eol, check, conf_system, dbg, hmsc
@@ -699,7 +699,7 @@ class TestBuild(BaseTestBuild):
         assert data["status"] == 400
         assert data["message"] == u"Module python3:master is marked as EOL in PDC."
 
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_from_yaml_not_allowed(
         self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc
@@ -724,7 +724,7 @@ class TestBuild(BaseTestBuild):
             assert data["status"] == 403
             assert data["message"] == "YAML submission is not enabled"
 
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_from_yaml_allowed(
         self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc
@@ -754,7 +754,7 @@ class TestBuild(BaseTestBuild):
         module_build = models.ModuleBuild.get_by_id(db_session, module_build_id)
         assert module_build.state == models.BUILD_STATES["ready"]
 
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_cancel(
         self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc
@@ -816,7 +816,7 @@ class TestBuild(BaseTestBuild):
             if build.task_id:
                 assert build.task_id in cancelled_tasks
 
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_instant_complete(
         self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc
@@ -852,7 +852,7 @@ class TestBuild(BaseTestBuild):
                 models.BUILD_STATES["ready"],
             ]
 
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     @patch(
         "module_build_service.config.Config.num_concurrent_builds",
@@ -911,7 +911,7 @@ class TestBuild(BaseTestBuild):
                 models.BUILD_STATES["ready"],
             ]
 
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     @patch(
         "module_build_service.config.Config.num_concurrent_builds",
@@ -976,7 +976,7 @@ class TestBuild(BaseTestBuild):
         num_builds = [k for k, g in itertools.groupby(TestBuild._global_var)]
         assert num_builds.count(1) == 2
 
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     @patch(
         "module_build_service.config.Config.num_concurrent_builds",
@@ -1045,7 +1045,7 @@ class TestBuild(BaseTestBuild):
             # there were failed components in batch 2.
             assert c.module_build.batch == 2
 
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     @patch(
         "module_build_service.config.Config.num_concurrent_builds",
@@ -1105,7 +1105,7 @@ class TestBuild(BaseTestBuild):
             assert c.module_build.batch == 2
 
     @pytest.mark.usefixtures("reuse_component_init_data")
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_reuse_all(
         self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc
@@ -1177,7 +1177,7 @@ class TestBuild(BaseTestBuild):
             assert build.reused_component_id == reused_component_ids[build.package]
 
     @pytest.mark.usefixtures("reuse_component_init_data")
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_reuse_all_without_build_macros(
         self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc
@@ -1255,7 +1255,7 @@ class TestBuild(BaseTestBuild):
             ]
             assert build.package != "module-build-macros"
 
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_resume(
         self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc
@@ -1390,7 +1390,7 @@ class TestBuild(BaseTestBuild):
                 models.BUILD_STATES["ready"],
             ]
 
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_resume_recover_orphaned_macros(
         self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc
@@ -1511,7 +1511,7 @@ class TestBuild(BaseTestBuild):
                 models.BUILD_STATES["ready"],
             ]
 
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_resume_failed_init(
         self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc
@@ -1584,7 +1584,7 @@ class TestBuild(BaseTestBuild):
                 models.BUILD_STATES["ready"],
             ]
 
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_resume_init_fail(
         self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc
@@ -1626,7 +1626,7 @@ class TestBuild(BaseTestBuild):
         }
         assert data == expected
 
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     @patch(
         "module_build_service.config.Config.modules_allow_scratch",
@@ -1669,7 +1669,7 @@ class TestBuild(BaseTestBuild):
         # make sure scratch build has expected context with unique suffix
         assert module_build.context == "9c690d0e_1"
 
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     @patch(
         "module_build_service.config.Config.modules_allow_scratch",
@@ -1713,7 +1713,7 @@ class TestBuild(BaseTestBuild):
         # make sure normal build has expected context without suffix
         assert module_build.context == "9c690d0e"
 
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     @patch(
         "module_build_service.config.Config.modules_allow_scratch",
@@ -1755,7 +1755,7 @@ class TestBuild(BaseTestBuild):
         # make sure second scratch build has expected context with unique suffix
         assert module_build.context == "9c690d0e_2"
 
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_repo_regen_not_started_batch(
         self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc
@@ -1831,7 +1831,7 @@ class TestBuild(BaseTestBuild):
         module = models.ModuleBuild.get_by_id(db_session, module_build_id)
         assert module.state == models.BUILD_STATES["build"]
 
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_br_metadata_only_module(
         self, mocked_scm, mocked_get_user, conf_system, dbg, hmsc
@@ -1893,7 +1893,7 @@ class TestLocalBuild(BaseTestBuild):
                 pass
 
     @patch("module_build_service.scheduler.handlers.modules.handle_stream_collision_modules")
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     @patch(
         "module_build_service.config.Config.mock_resultsdir",

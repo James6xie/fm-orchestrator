@@ -5,7 +5,6 @@ This is the implementation of the orchestrator's public RESTful API.
 """
 
 import json
-import module_build_service.auth
 from flask import request, url_for, Blueprint, Response
 from flask.views import MethodView
 from six import string_types
@@ -18,6 +17,7 @@ from module_build_service.errors import ValidationError, Forbidden, NotFound, Pr
 from module_build_service.backports import jsonify
 from module_build_service.monitor import registry
 from module_build_service.common.submit import fetch_mmd
+import module_build_service.web.auth
 from module_build_service.web.submit import (
     submit_module_build_from_scm, submit_module_build_from_yaml
 )
@@ -178,7 +178,7 @@ class ModuleBuildAPI(AbstractQueryableBuildAPI):
 
     @validate_api_version()
     def patch(self, api_version, id):
-        username, groups = module_build_service.auth.get_user(request)
+        username, groups = module_build_service.web.auth.get_user(request)
 
         try:
             r = json.loads(request.get_data().decode("utf-8"))
@@ -289,7 +289,7 @@ class ImportModuleAPI(MethodView):
             raise Forbidden("Import module API is disabled.")
 
         # auth checks
-        username, groups = module_build_service.auth.get_user(request)
+        username, groups = module_build_service.web.auth.get_user(request)
         ModuleBuildAPI.check_groups(
             username, groups, allowed_groups=conf.allowed_groups_to_import_module)
 
@@ -348,7 +348,7 @@ class BaseHandler(object):
     }
 
     def __init__(self, request, data=None):
-        self.username, self.groups = module_build_service.auth.get_user(request)
+        self.username, self.groups = module_build_service.web.auth.get_user(request)
         self.data = data or _dict_from_request(request)
 
         # canonicalize and validate scratch option

@@ -930,7 +930,7 @@ class TestViews:
         assert data["meta"]["total"] == 0
 
     @pytest.mark.parametrize("api_version", [1, 2])
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build(self, mocked_scm, mocked_get_user, api_version):
         FakeSCM(
@@ -984,7 +984,7 @@ class TestViews:
         assert module.buildrequires[0].context == "00000000"
         assert module.buildrequires[0].stream_version == 280000
 
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_no_base_module(self, mocked_scm, mocked_get_user):
         FakeSCM(
@@ -1012,7 +1012,7 @@ class TestViews:
             "error": "Unprocessable Entity",
         }
 
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     @patch(
         "module_build_service.config.Config.rebuild_strategy_allow_override",
@@ -1037,7 +1037,7 @@ class TestViews:
         data = json.loads(rv.data)
         assert data["rebuild_strategy"] == "only-changed"
 
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     @patch(
         "module_build_service.config.Config.rebuild_strategies_allowed",
@@ -1075,7 +1075,7 @@ class TestViews:
         }
         assert data == expected_error
 
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_dep_not_present(self, mocked_scm, mocked_get_user):
         FakeSCM(
@@ -1104,7 +1104,7 @@ class TestViews:
         }
         assert data == expected_error
 
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_rebuild_strategy_override_not_allowed(self, mocked_scm, mocked_get_user):
         FakeSCM(
@@ -1133,7 +1133,7 @@ class TestViews:
         }
         assert data == expected_error
 
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_componentless_build(self, mocked_scm, mocked_get_user):
         FakeSCM(
@@ -1182,7 +1182,7 @@ class TestViews:
             assert data["status"] == 401
             assert data["error"] == "Unauthorized"
 
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     def test_submit_build_scm_url_error(self, mocked_get_user):
         rv = self.client.post(
             "/module-build-service/1/module-builds/",
@@ -1193,7 +1193,7 @@ class TestViews:
         assert data["status"] == 403
         assert data["error"] == "Forbidden"
 
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     def test_submit_build_scm_url_without_hash(self, mocked_get_user):
         rv = self.client.post(
             "/module-build-service/1/module-builds/",
@@ -1210,7 +1210,7 @@ class TestViews:
         assert data["status"] == 400
         assert data["error"] == "Bad Request"
 
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_bad_modulemd(self, mocked_scm, mocked_get_user):
         FakeSCM(mocked_scm, "bad", "bad.yaml")
@@ -1231,7 +1231,7 @@ class TestViews:
         assert data["status"] == 422
         assert data["error"] == "Unprocessable Entity"
 
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_includedmodule_custom_repo_not_allowed(self, mocked_scm, mocked_get_user):
         FakeSCM(mocked_scm, "includedmodules", ["includedmodules.yaml", "testmodule.yaml"])
@@ -1248,7 +1248,7 @@ class TestViews:
         assert data["status"] == 403
         assert data["error"] == "Forbidden"
 
-    @patch("module_build_service.auth.get_user", return_value=other_user)
+    @patch("module_build_service.web.auth.get_user", return_value=other_user)
     def test_cancel_build(self, mocked_get_user):
         rv = self.client.patch(
             "/module-build-service/1/module-builds/7", data=json.dumps({"state": "failed"}))
@@ -1258,7 +1258,7 @@ class TestViews:
         assert data["state_reason"] == "Canceled by some_other_user."
 
     @pytest.mark.parametrize("module_state", (BUILD_STATES["failed"], BUILD_STATES["ready"]))
-    @patch("module_build_service.auth.get_user", return_value=other_user)
+    @patch("module_build_service.web.auth.get_user", return_value=other_user)
     def test_cancel_build_in_invalid_state(self, mocked_get_user, module_state):
         module = ModuleBuild.get_by_id(db_session, 7)
         module.state = module_state
@@ -1277,7 +1277,7 @@ class TestViews:
             "status": 400,
         }
 
-    @patch("module_build_service.auth.get_user", return_value=("sammy", set()))
+    @patch("module_build_service.web.auth.get_user", return_value=("sammy", set()))
     def test_cancel_build_unauthorized_no_groups(self, mocked_get_user):
         rv = self.client.patch(
             "/module-build-service/1/module-builds/7", data=json.dumps({"state": "failed"}))
@@ -1286,7 +1286,7 @@ class TestViews:
         assert data["status"] == 403
         assert data["error"] == "Forbidden"
 
-    @patch("module_build_service.auth.get_user", return_value=("sammy", {"packager"}))
+    @patch("module_build_service.web.auth.get_user", return_value=("sammy", {"packager"}))
     def test_cancel_build_unauthorized_not_owner(self, mocked_get_user):
         rv = self.client.patch(
             "/module-build-service/1/module-builds/7", data=json.dumps({"state": "failed"}))
@@ -1296,7 +1296,7 @@ class TestViews:
         assert data["error"] == "Forbidden"
 
     @patch(
-        "module_build_service.auth.get_user", return_value=("sammy", {"packager", "mbs-admin"})
+        "module_build_service.web.auth.get_user", return_value=("sammy", {"packager", "mbs-admin"})
     )
     def test_cancel_build_admin(self, mocked_get_user):
         with patch(
@@ -1311,7 +1311,7 @@ class TestViews:
             assert data["state"] == 4
             assert data["state_reason"] == "Canceled by sammy."
 
-    @patch("module_build_service.auth.get_user", return_value=("sammy", {"packager"}))
+    @patch("module_build_service.web.auth.get_user", return_value=("sammy", {"packager"}))
     def test_cancel_build_no_admin(self, mocked_get_user):
         with patch(
             "module_build_service.config.Config.admin_groups",
@@ -1325,7 +1325,7 @@ class TestViews:
             assert data["status"] == 403
             assert data["error"] == "Forbidden"
 
-    @patch("module_build_service.auth.get_user", return_value=other_user)
+    @patch("module_build_service.web.auth.get_user", return_value=other_user)
     def test_cancel_build_wrong_param(self, mocked_get_user):
         rv = self.client.patch(
             "/module-build-service/1/module-builds/7", data=json.dumps({"some_param": "value"}))
@@ -1335,7 +1335,7 @@ class TestViews:
         assert data["error"] == "Bad Request"
         assert data["message"] == "Invalid JSON submitted"
 
-    @patch("module_build_service.auth.get_user", return_value=other_user)
+    @patch("module_build_service.web.auth.get_user", return_value=other_user)
     def test_cancel_build_wrong_state(self, mocked_get_user):
         rv = self.client.patch(
             "/module-build-service/1/module-builds/7", data=json.dumps({"state": "some_state"}))
@@ -1347,7 +1347,7 @@ class TestViews:
             "status": 400,
         }
 
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     def test_submit_build_unsupported_scm_scheme(self, mocked_get_user):
         scmurl = "unsupported://example.com/modules/"
         "testmodule.git?#0000000000000000000000000000000000000000"
@@ -1363,7 +1363,7 @@ class TestViews:
         assert data["status"] in (400, 403)
         assert data["error"] in ("Bad Request", "Forbidden")
 
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_version_set_error(self, mocked_scm, mocked_get_user):
         FakeSCM(
@@ -1389,7 +1389,7 @@ class TestViews:
         )
         assert data["error"] == "Bad Request"
 
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_wrong_stream(self, mocked_scm, mocked_get_user):
         FakeSCM(
@@ -1415,7 +1415,7 @@ class TestViews:
         )
         assert data["error"] == "Bad Request"
 
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     def test_submit_build_set_owner(self, mocked_get_user):
         data = {
             "branch": "master",
@@ -1428,7 +1428,7 @@ class TestViews:
         assert result["status"] == 400
         assert "The request contains 'owner' parameter" in result["message"]
 
-    @patch("module_build_service.auth.get_user", return_value=anonymous_user)
+    @patch("module_build_service.web.auth.get_user", return_value=anonymous_user)
     @patch("module_build_service.scm.SCM")
     @patch(
         "module_build_service.config.Config.no_auth", new_callable=PropertyMock, return_value=True
@@ -1449,7 +1449,7 @@ class TestViews:
         build = ModuleBuild.get_by_id(db_session, result["id"])
         assert (build.owner == result["owner"] == "foo") is True
 
-    @patch("module_build_service.auth.get_user", return_value=("svc_account", set()))
+    @patch("module_build_service.web.auth.get_user", return_value=("svc_account", set()))
     @patch("module_build_service.scm.SCM")
     @patch("module_build_service.config.Config.allowed_users", new_callable=PropertyMock)
     def test_submit_build_allowed_users(self, allowed_users, mocked_scm, mocked_get_user):
@@ -1465,7 +1465,7 @@ class TestViews:
         rv = self.client.post("/module-build-service/1/module-builds/", data=json.dumps(data))
         assert rv.status_code == 201
 
-    @patch("module_build_service.auth.get_user", return_value=anonymous_user)
+    @patch("module_build_service.web.auth.get_user", return_value=anonymous_user)
     @patch("module_build_service.scm.SCM")
     @patch("module_build_service.config.Config.no_auth", new_callable=PropertyMock)
     def test_patch_set_different_owner(self, mocked_no_auth, mocked_scm, mocked_get_user):
@@ -1494,7 +1494,7 @@ class TestViews:
         assert r3.status_code == 400
         assert "The request contains 'owner' parameter" in json.loads(r3.data)["message"]
 
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_commit_hash_not_found(self, mocked_scm, mocked_get_user):
         FakeSCM(
@@ -1519,7 +1519,7 @@ class TestViews:
         assert data["status"] == 422
         assert data["error"] == "Unprocessable Entity"
 
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     @patch("module_build_service.config.Config.allow_custom_scmurls", new_callable=PropertyMock)
     def test_submit_custom_scmurl(self, allow_custom_scmurls, mocked_scm, mocked_get_user):
@@ -1546,7 +1546,7 @@ class TestViews:
     @pytest.mark.parametrize(
         "br_override_streams, req_override_streams", ((["f28"], None), (["f28"], ["f28"]))
     )
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_dep_override(
         self, mocked_scm, mocked_get_user, br_override_streams, req_override_streams
@@ -1587,7 +1587,7 @@ class TestViews:
         assert set(dep.get_buildtime_streams("platform")) == expected_br
         assert set(dep.get_runtime_streams("platform")) == expected_req
 
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_invalid_basemodule_stream(self, mocked_scm, mocked_get_user):
         # By default tests do not provide platform:f28.0.0, but just platform:f28.
@@ -1615,7 +1615,7 @@ class TestViews:
         }
         assert rv.status_code == 422
 
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_with_base_module_name(self, mocked_scm, mocked_get_user):
         FakeSCM(
@@ -1635,7 +1635,7 @@ class TestViews:
         }
         assert rv.status_code == 400
 
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_with_xmd(self, mocked_scm, mocked_get_user):
         FakeSCM(
@@ -1660,7 +1660,7 @@ class TestViews:
         assert rv.status_code == 400
 
     @pytest.mark.parametrize("dep_type", ("buildrequire", "require"))
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_override_unused(self, mocked_scm, mocked_get_user, dep_type):
         FakeSCM(
@@ -1701,7 +1701,7 @@ class TestViews:
             {"require_overrides": "platform:f28"},
         ),
     )
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_invalid_override(self, mocked_scm, mocked_get_user, optional_params):
         FakeSCM(
@@ -1844,7 +1844,7 @@ class TestViews:
         assert rv.headers["Access-Control-Allow-Origin"] == "*"
 
     @pytest.mark.parametrize("api_version", [1, 2])
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch.object(
         module_build_service.config.Config,
         "allowed_groups_to_import_module",
@@ -1860,7 +1860,7 @@ class TestViews:
         assert data["message"] == "Import module API is disabled."
 
     @pytest.mark.parametrize("api_version", [1, 2])
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     def test_import_build_user_not_allowed(self, mocked_get_user, api_version):
         post_url = "/module-build-service/{0}/import-module/".format(api_version)
         rv = self.client.post(post_url)
@@ -1873,7 +1873,7 @@ class TestViews:
         )
 
     @pytest.mark.parametrize("api_version", [1, 2])
-    @patch("module_build_service.auth.get_user", return_value=import_module_user)
+    @patch("module_build_service.web.auth.get_user", return_value=import_module_user)
     def test_import_build_scm_invalid_json(self, mocked_get_user, api_version):
         post_url = "/module-build-service/{0}/import-module/".format(api_version)
         rv = self.client.post(post_url, data="")
@@ -1883,7 +1883,7 @@ class TestViews:
         assert data["message"] == "Invalid JSON submitted"
 
     @pytest.mark.parametrize("api_version", [1, 2])
-    @patch("module_build_service.auth.get_user", return_value=import_module_user)
+    @patch("module_build_service.web.auth.get_user", return_value=import_module_user)
     def test_import_build_scm_url_not_allowed(self, mocked_get_user, api_version):
         post_url = "/module-build-service/{0}/import-module/".format(api_version)
         rv = self.client.post(
@@ -1895,7 +1895,7 @@ class TestViews:
         assert data["message"].endswith("/tests/scm_data/mariadb is not allowed")
 
     @pytest.mark.parametrize("api_version", [1, 2])
-    @patch("module_build_service.auth.get_user", return_value=import_module_user)
+    @patch("module_build_service.web.auth.get_user", return_value=import_module_user)
     @patch.object(
         module_build_service.config.Config,
         "allow_custom_scmurls",
@@ -1920,7 +1920,7 @@ class TestViews:
         )
 
     @pytest.mark.parametrize("api_version", [1, 2])
-    @patch("module_build_service.auth.get_user", return_value=import_module_user)
+    @patch("module_build_service.web.auth.get_user", return_value=import_module_user)
     @patch.object(
         module_build_service.config.Config,
         "scmurls",
@@ -1959,7 +1959,7 @@ class TestViews:
         assert data["module"]["rebuild_strategy"] == "all"
 
     @pytest.mark.parametrize("api_version", [1, 2])
-    @patch("module_build_service.auth.get_user", return_value=import_module_user)
+    @patch("module_build_service.web.auth.get_user", return_value=import_module_user)
     @patch.object(
         module_build_service.config.Config,
         "scmurls",
@@ -2000,7 +2000,7 @@ class TestViews:
         assert data["module"]["rebuild_strategy"] == "all"
 
     @pytest.mark.parametrize("api_version", [1, 2])
-    @patch("module_build_service.auth.get_user", return_value=import_module_user)
+    @patch("module_build_service.web.auth.get_user", return_value=import_module_user)
     @patch.object(
         module_build_service.config.Config,
         "scmurls",
@@ -2023,7 +2023,7 @@ class TestViews:
         assert data["message"] == expected_msg
 
     @pytest.mark.parametrize("api_version", [1, 2])
-    @patch("module_build_service.auth.get_user", return_value=import_module_user)
+    @patch("module_build_service.web.auth.get_user", return_value=import_module_user)
     @patch.object(
         module_build_service.config.Config,
         "scmurls",
@@ -2070,7 +2070,7 @@ class TestViews:
         assert br_moduleb == buildrequires.get("moduleb")
 
     @pytest.mark.parametrize("api_version", [1, 2])
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     @patch(
         "module_build_service.config.Config.modules_allow_scratch",
@@ -2132,7 +2132,7 @@ class TestViews:
         assert module.buildrequires[0].stream_version == 280000
 
     @pytest.mark.parametrize("api_version", [1, 2])
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     @patch(
         "module_build_service.config.Config.modules_allow_scratch",
@@ -2163,7 +2163,7 @@ class TestViews:
         assert rv.status_code == expected_error["status"]
 
     @pytest.mark.parametrize("api_version", [1, 2])
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch(
         "module_build_service.config.Config.modules_allow_scratch",
         new_callable=PropertyMock,
@@ -2227,7 +2227,7 @@ class TestViews:
         assert module.buildrequires[0].context == "00000000"
         assert module.buildrequires[0].stream_version == 280000
 
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch(
         "module_build_service.config.Config.modules_allow_scratch",
         new_callable=PropertyMock,
@@ -2261,7 +2261,7 @@ class TestViews:
         assert data == expected_error
 
     @pytest.mark.parametrize("api_version", [1, 2])
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch(
         "module_build_service.config.Config.modules_allow_scratch",
         new_callable=PropertyMock,
@@ -2298,7 +2298,7 @@ class TestViews:
         "branch, platform_override",
         (("10", None), ("10-rhel-8.0.0", "el8.0.0"), ("10-LP-product1.2", "product1.2")),
     )
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     @patch.object(
         module_build_service.config.Config, "br_stream_override_regexes", new_callable=PropertyMock
@@ -2345,7 +2345,7 @@ class TestViews:
         # The requires should not change
         assert dep.get_runtime_streams("platform") == ["f28"]
 
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     @patch.object(
         module_build_service.config.Config, "br_stream_override_regexes", new_callable=PropertyMock
@@ -2391,7 +2391,7 @@ class TestViews:
         # The requires should not change
         assert dep.get_runtime_streams("platform") == ["f28"]
 
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_br_xyz_version_no_virtual_streams(self, mocked_scm, mocked_get_user):
         """
@@ -2419,7 +2419,7 @@ class TestViews:
         rv = self.client.post(post_url, data=json.dumps({"branch": "master", "scmurl": scm_url}))
         assert rv.status_code == 201
 
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     @patch(
         "module_build_service.config.Config.allowed_privileged_module_names",
@@ -2453,7 +2453,7 @@ class TestViews:
         mmd = load_mmd(data["modulemd"])
         assert mmd.get_xmd()["mbs"]["disttag_marking"] == "product12"
 
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_request_platform_virtual_stream(self, mocked_scm, mocked_get_user):
         # Create a platform with el8.25.0 but with the virtual stream el8
@@ -2605,7 +2605,7 @@ class TestViews:
         new_callable=PropertyMock,
     )
     @patch("requests.get")
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_automatic_z_stream_detection(
         self, mocked_scm, mocked_get_user, mock_get, mock_pp_streams, mock_pp_url, mock_datetime,
@@ -2661,7 +2661,7 @@ class TestViews:
             mock_get.assert_not_called()
 
     @pytest.mark.parametrize("reuse_components_from", (7, "testmodule:4.3.43:7:00000000"))
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_reuse_components_from(
         self, mocked_scm, mocked_get_user, reuse_components_from,
@@ -2710,7 +2710,7 @@ class TestViews:
             )
         )
     )
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_reuse_components_from_errors(
         self, mocked_scm, mocked_get_user, reuse_components_from, expected_error,
@@ -2735,7 +2735,7 @@ class TestViews:
         assert rv.status_code == 400
         assert data["message"] == expected_error
 
-    @patch("module_build_service.auth.get_user", return_value=user)
+    @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     @patch(
         "module_build_service.config.Config.rebuild_strategy_allow_override",
