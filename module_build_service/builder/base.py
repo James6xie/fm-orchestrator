@@ -2,10 +2,6 @@
 # SPDX-License-Identifier: MIT
 """Generic component build functions."""
 
-# TODO: Query the MBS to find what modules satisfy the build dependencies and
-#       their tag names.
-# TODO: Ensure the RPM %dist tag is set according to the policy.
-
 import six
 import dogpile.cache
 from abc import ABCMeta, abstractmethod
