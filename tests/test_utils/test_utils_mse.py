@@ -4,6 +4,7 @@ from mock import patch, PropertyMock
 import pytest
 
 import module_build_service.utils
+from module_build_service.common.utils import load_mmd
 from module_build_service import Modulemd, models
 from module_build_service.db_session import db_session
 from module_build_service.errors import StreamAmbigous
@@ -470,7 +471,7 @@ class TestUtilsModuleStreamExpansion:
     def test__get_base_module_mmds(self):
         """Ensure the correct results are returned without duplicates."""
         init_data(data_size=1, multiple_stream_versions=True)
-        mmd = module_build_service.utils.load_mmd(read_staged_data("testmodule_v2.yaml"))
+        mmd = load_mmd(read_staged_data("testmodule_v2.yaml"))
         deps = mmd.get_dependencies()[0]
         new_deps = Modulemd.Dependencies()
         for stream in deps.get_runtime_streams("platform"):
@@ -494,7 +495,7 @@ class TestUtilsModuleStreamExpansion:
     def test__get_base_module_mmds_virtual_streams(self, virtual_streams):
         """Ensure the correct results are returned without duplicates."""
         init_data(data_size=1, multiple_stream_versions=True)
-        mmd = module_build_service.utils.load_mmd(read_staged_data("testmodule_v2"))
+        mmd = load_mmd(read_staged_data("testmodule_v2"))
         deps = mmd.get_dependencies()[0]
         new_deps = Modulemd.Dependencies()
         for stream in deps.get_runtime_streams("platform"):
@@ -538,7 +539,7 @@ class TestUtilsModuleStreamExpansion:
         db_session.add(platform)
         db_session.commit()
 
-        mmd = module_build_service.utils.load_mmd(read_staged_data("testmodule_v2"))
+        mmd = load_mmd(read_staged_data("testmodule_v2"))
         deps = mmd.get_dependencies()[0]
         new_deps = Modulemd.Dependencies()
         for stream in deps.get_runtime_streams("platform"):

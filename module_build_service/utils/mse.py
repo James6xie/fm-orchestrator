@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
 from module_build_service import log, models, Modulemd, conf
+from module_build_service.common.utils import mmd_to_str
 from module_build_service.errors import StreamAmbigous
 from module_build_service.errors import UnprocessableEntity
 from module_build_service.mmd_resolver import MMDResolver
-from module_build_service.utils.general import deps_to_dict, mmd_to_str
+from module_build_service.web.utils import deps_to_dict
 from module_build_service.resolver import GenericResolver
 
 

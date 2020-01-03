@@ -13,6 +13,8 @@ import hashlib
 import moksha.hub
 import fedmsg
 
+from module_build_service.builder.utils import get_rpm_release
+from module_build_service.common.utils import load_mmd, import_mmd
 import module_build_service.messaging
 import module_build_service.scheduler.consumer
 import module_build_service.scheduler.handlers.repos
@@ -35,6 +37,7 @@ import json
 import itertools
 
 from module_build_service.builder import GenericBuilder
+from module_build_service.builder.utils import validate_koji_tag
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
 from tests import clean_database, read_staged_data, staged_data_filename
 
@@ -180,7 +183,7 @@ class FakeModuleBuilder(GenericBuilder):
     on_buildroot_add_repos_cb = None
     on_get_task_info_cb = None
 
-    @module_build_service.utils.validate_koji_tag("tag_name")
+    @validate_koji_tag("tag_name")
     def __init__(self, db_session, owner, module, config, tag_name, components):
         self.db_session = db_session
         self.module_str = module
@@ -347,8 +350,7 @@ class FakeModuleBuilder(GenericBuilder):
 
     def recover_orphaned_artifact(self, component_build):
         if self.INSTANT_COMPLETE:
-            disttag = module_build_service.utils.get_rpm_release(
-                self.db_session, component_build.module_build)
+            disttag = get_rpm_release(self.db_session, component_build.module_build)
             # We don't know the version or release, so just use a random one here
             nvr = "{0}-1.0-1.{1}".format(component_build.package, disttag)
             component_build.state = koji.BUILD_STATES["COMPLETE"]
@@ -1838,10 +1840,8 @@ class TestBuild(BaseTestBuild):
         Test that when a build is submitted with a buildrequire without a Koji tag,
         MBS doesn't supply it as a dependency to the builder.
         """
-        metadata_mmd = module_build_service.utils.load_mmd(
-            read_staged_data("build_metadata_module")
-        )
-        module_build_service.utils.import_mmd(db_session, metadata_mmd)
+        metadata_mmd = load_mmd(read_staged_data("build_metadata_module"))
+        import_mmd(db_session, metadata_mmd)
 
         FakeSCM(
             mocked_scm,

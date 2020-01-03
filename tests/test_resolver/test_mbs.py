@@ -3,10 +3,10 @@
 from mock import patch, PropertyMock, Mock, call
 
 from module_build_service import app, conf
+from module_build_service.common.utils import load_mmd, mmd_to_str
 import module_build_service.resolver as mbs_resolver
 import module_build_service.utils
 from module_build_service.db_session import db_session
-from module_build_service.utils.general import mmd_to_str
 import module_build_service.models
 import tests
 
@@ -188,7 +188,7 @@ class TestMBSModule:
         self, mock_session, testmodule_mmd_9c690d0e
     ):
 
-        mmd = module_build_service.utils.load_mmd(testmodule_mmd_9c690d0e)
+        mmd = load_mmd(testmodule_mmd_9c690d0e)
         # Wipe out the dependencies
         for deps in mmd.get_dependencies():
             mmd.remove_dependencies(deps)

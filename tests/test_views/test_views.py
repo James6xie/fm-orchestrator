@@ -18,6 +18,8 @@ import pytest
 import re
 import sqlalchemy
 
+from module_build_service.builder.utils import get_rpm_release
+from module_build_service.common.utils import load_mmd, import_mmd, mmd_to_str
 from tests import (
     init_data,
     clean_database,
@@ -33,9 +35,6 @@ from module_build_service.models import ModuleBuild, BUILD_STATES, ComponentBuil
 from module_build_service import app, version
 import module_build_service.config as mbs_config
 import module_build_service.utils.submit
-from module_build_service.utils.general import (
-    import_mmd, mmd_to_str, load_mmd,
-    get_rpm_release)
 
 
 user = ("Homer J. Simpson", {"packager"})

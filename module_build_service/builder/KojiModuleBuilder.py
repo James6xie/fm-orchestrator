@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
+import contextlib
 import copy
+import hashlib
+import locale
 import logging
 import os
 import koji
@@ -14,15 +17,12 @@ import string
 import kobo.rpmlib
 import threading
 
-import locale
 from itertools import chain
 from OpenSSL.SSL import SysCallError
 import textwrap
 
 from module_build_service import log, conf, models
-import module_build_service.scm
-import module_build_service.utils
-from module_build_service.builder.utils import execute_cmd
+from module_build_service.builder.utils import execute_cmd, get_rpm_release, validate_koji_tag
 from module_build_service.common.retry import retry
 from module_build_service.db_session import db_session
 from module_build_service.builder import GenericBuilder
@@ -31,9 +31,16 @@ from module_build_service.common.koji import (
     get_session, koji_multicall_map, koji_retrying_multicall_map,
 )
 from module_build_service.scheduler import events
-from module_build_service.utils import get_reusable_components, get_reusable_module, set_locale
+from module_build_service.utils import get_reusable_components, get_reusable_module
 
 logging.basicConfig(level=logging.DEBUG)
+
+
+@contextlib.contextmanager
+def set_locale(*args, **kwargs):
+    saved = locale.setlocale(locale.LC_ALL)
+    yield locale.setlocale(*args, **kwargs)
+    locale.setlocale(locale.LC_ALL, saved)
 
 
 class KojiModuleBuilder(GenericBuilder):
@@ -43,7 +50,7 @@ class KojiModuleBuilder(GenericBuilder):
     _build_lock = threading.Lock()
     region = dogpile.cache.make_region().configure("dogpile.cache.memory")
 
-    @module_build_service.utils.validate_koji_tag("tag_name")
+    @validate_koji_tag("tag_name")
     def __init__(self, db_session, owner, module, config, tag_name, components):
         """
         :param db_session: SQLAlchemy session object.
@@ -372,6 +379,44 @@ class KojiModuleBuilder(GenericBuilder):
         log.debug("Wrote srpm into %s" % srpm_paths[0])
         return srpm_paths[0]
 
+    @staticmethod
+    def generate_koji_tag(
+        name, stream, version, context, max_length=256, scratch=False, scratch_id=0,
+    ):
+        """Generate a koji tag for a module
+
+        Generally, a module's koji tag is in format ``module-N-S-V-C``. However, if
+        it is longer than maximum length, old format ``module-hash`` is used.
+
+        :param str name: a module's name
+        :param str stream: a module's stream
+        :param str version: a module's version
+        :param str context: a module's context
+        :param int max_length: the maximum length the Koji tag can be before
+            falling back to the old format of "module-<hash>". Default is 256
+            characters, which is the maximum length of a tag Koji accepts.
+        :param bool scratch: a flag indicating if the generated tag will be for
+            a scratch module build
+        :param int scratch_id: for scratch module builds, a unique build identifier
+        :return: a Koji tag
+        :rtype: str
+        """
+        if scratch:
+            prefix = "scrmod-"
+            # use unique suffix so same commit can be resubmitted
+            suffix = "+" + str(scratch_id)
+        else:
+            prefix = "module-"
+            suffix = ""
+        nsvc_list = [name, stream, str(version), context]
+        nsvc_tag = prefix + "-".join(nsvc_list) + suffix
+        if len(nsvc_tag) + len("-build") > max_length:
+            # Fallback to the old format of 'module-<hash>' if the generated koji tag
+            # name is longer than max_length
+            nsvc_hash = hashlib.sha1(".".join(nsvc_list).encode("utf-8")).hexdigest()[:16]
+            return prefix + nsvc_hash + suffix
+        return nsvc_tag
+
     def buildroot_connect(self, groups):
         log.info("%r connecting buildroot." % self)
 
@@ -413,7 +458,7 @@ class KojiModuleBuilder(GenericBuilder):
         # checks the length with '-build' at the end, but we know we will never append '-build',
         # so we can safely have the name check be more characters
         target_length = 50 + len("-build")
-        target = module_build_service.utils.generate_koji_tag(
+        target = self.generate_koji_tag(
             self.module.name,
             self.module.stream,
             self.module.version,
@@ -576,7 +621,7 @@ class KojiModuleBuilder(GenericBuilder):
             # If the build cannot be found in the tags, it may be untagged as a result
             # of some earlier inconsistent situation. Let's find the task_info
             # based on the list of untagged builds
-            release = module_build_service.utils.get_rpm_release(self.db_session, self.module)
+            release = get_rpm_release(self.db_session, self.module)
             untagged = self.koji_session.untaggedBuilds(name=component_build.package)
             for untagged_build in untagged:
                 if untagged_build["release"].endswith(release):
@@ -721,7 +766,7 @@ class KojiModuleBuilder(GenericBuilder):
         """
         return "%s/%s/latest/%s" % (config.koji_repository_url, tag_name, arch)
 
-    @module_build_service.utils.validate_koji_tag("tag", post="")
+    @validate_koji_tag("tag", post="")
     def _get_tag(self, tag, strict=True):
         if isinstance(tag, dict):
             tag = tag["name"]
@@ -731,7 +776,7 @@ class KojiModuleBuilder(GenericBuilder):
                 raise SystemError("Unknown tag: %s" % tag)
         return taginfo
 
-    @module_build_service.utils.validate_koji_tag(["tag_name"], post="")
+    @validate_koji_tag(["tag_name"], post="")
     def _koji_add_many_tag_inheritance(self, tag_name, parent_tags):
         tag = self._get_tag(tag_name)
         # highest priority num is at the end
@@ -766,7 +811,7 @@ class KojiModuleBuilder(GenericBuilder):
         if inheritance_data:
             self.koji_session.setInheritanceData(tag["id"], inheritance_data)
 
-    @module_build_service.utils.validate_koji_tag("dest_tag")
+    @validate_koji_tag("dest_tag")
     def _koji_add_groups_to_tag(self, dest_tag, groups):
         """Add groups to a tag as well as packages listed by group
 
@@ -800,7 +845,7 @@ class KojiModuleBuilder(GenericBuilder):
             for pkg in packages:
                 self.koji_session.groupPackageListAdd(dest_tag, group, pkg)
 
-    @module_build_service.utils.validate_koji_tag("tag_name")
+    @validate_koji_tag("tag_name")
     def _koji_create_tag(self, tag_name, arches=None, perm=None):
         """Create a tag in Koji
 
@@ -922,7 +967,7 @@ class KojiModuleBuilder(GenericBuilder):
         args = [[build_tag_name, package] for package in packages]
         koji_multicall_map(self.koji_session, self.koji_session.packageListUnblock, args)
 
-    @module_build_service.utils.validate_koji_tag(["build_tag", "dest_tag"])
+    @validate_koji_tag(["build_tag", "dest_tag"])
     def _koji_add_target(self, name, build_tag, dest_tag):
         """Add build target if it doesn't exist or validate the existing one
 

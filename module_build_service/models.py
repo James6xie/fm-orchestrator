@@ -18,6 +18,7 @@ from sqlalchemy.orm import validates, load_only
 
 import module_build_service.messaging
 from module_build_service import db, log, get_url_for, conf
+from module_build_service.common.utils import load_mmd
 from module_build_service.errors import UnprocessableEntity
 from module_build_service.scheduler import events
 
@@ -451,8 +452,6 @@ class ModuleBuild(MBSBase):
         return db_session.query(ModuleBuild).filter_by(koji_tag=tag).first()
 
     def mmd(self):
-        from module_build_service.utils import load_mmd
-
         try:
             return load_mmd(self.modulemd)
         except UnprocessableEntity:
@@ -503,8 +502,6 @@ class ModuleBuild(MBSBase):
         :rtype: Contexts
         :return: Named tuple with build_context, runtime_context and context hashes.
         """
-        from module_build_service.utils.general import load_mmd
-
         try:
             mmd = load_mmd(mmd_str)
         except UnprocessableEntity:

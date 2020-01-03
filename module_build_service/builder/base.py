@@ -7,11 +7,10 @@ import dogpile.cache
 from abc import ABCMeta, abstractmethod
 from requests.exceptions import ConnectionError
 
-from module_build_service import conf, log
+from module_build_service import conf, log, models
 from module_build_service.common.retry import retry
 from module_build_service.models import BUILD_STATES
 from module_build_service.resolver import GenericResolver
-from module_build_service.utils import create_dogpile_key_generator_func
 
 
 """
@@ -28,6 +27,37 @@ Koji workflow
 8) (optional) wait for selected builds to be available in buildroot
 
 """
+
+
+def create_dogpile_key_generator_func(skip_first_n_args=0):
+    """
+    Creates dogpile key_generator function with additional features:
+
+    - when models.ModuleBuild is an argument of method cached by dogpile-cache,
+      the ModuleBuild.id is used as a key. Therefore it is possible to cache
+      data per particular module build, while normally, it would be per
+      ModuleBuild.__str__() output, which contains also batch and other data
+      which changes during the build of a module.
+    - it is able to skip first N arguments of a cached method. This is useful
+      when the db.session is part of cached method call, and the caching should
+      work no matter what session instance is passed to cached method argument.
+    """
+
+    def key_generator(namespace, fn):
+        fname = fn.__name__
+
+        def generate_key(*arg, **kwarg):
+            key_template = fname + "_"
+            for s in arg[skip_first_n_args:]:
+                if type(s) == models.ModuleBuild:
+                    key_template += str(s.id)
+                else:
+                    key_template += str(s) + "_"
+            return key_template
+
+        return generate_key
+
+    return key_generator
 
 
 class GenericBuilder(six.with_metaclass(ABCMeta)):

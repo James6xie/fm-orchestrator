@@ -9,13 +9,13 @@ from datetime import datetime
 from werkzeug.datastructures import FileStorage
 from mock import patch
 from sqlalchemy.orm.session import make_transient
-from module_build_service.utils.general import load_mmd_file, mmd_to_str
+
+from module_build_service.common.utils import import_mmd, load_mmd, load_mmd_file, mmd_to_str
 import module_build_service.utils
 import module_build_service.scm
 from module_build_service import models, conf
-from module_build_service.errors import ProgrammingError, ValidationError, UnprocessableEntity
+from module_build_service.errors import ValidationError, UnprocessableEntity
 from module_build_service.utils.reuse import get_reusable_module, get_reusable_component
-from module_build_service.utils.general import load_mmd
 from module_build_service.utils.submit import format_mmd
 from tests import (
     clean_database,
@@ -386,231 +386,6 @@ class TestUtils:
         r = module_build_service.utils.get_build_arches(mmd, conf)
         assert r == ["x86_64", "i686"]
 
-    @pytest.mark.parametrize("context", ["c1", None])
-    def test_import_mmd_contexts(self, context):
-        mmd = load_mmd(read_staged_data("formatted_testmodule"))
-        mmd.set_context(context)
-
-        xmd = mmd.get_xmd()
-        xmd["mbs"]["koji_tag"] = "foo"
-        mmd.set_xmd(xmd)
-
-        build, msgs = module_build_service.utils.import_mmd(db_session, mmd)
-
-        mmd_context = build.mmd().get_context()
-        if context:
-            assert mmd_context == context
-            assert build.context == context
-        else:
-            assert mmd_context == models.DEFAULT_MODULE_CONTEXT
-            assert build.context == models.DEFAULT_MODULE_CONTEXT
-
-    def test_import_mmd_multiple_dependencies(self):
-        mmd = load_mmd(read_staged_data("formatted_testmodule"))
-        mmd.add_dependencies(mmd.get_dependencies()[0].copy())
-
-        expected_error = "The imported module's dependencies list should contain just one element"
-        with pytest.raises(UnprocessableEntity) as e:
-            module_build_service.utils.import_mmd(db_session, mmd)
-            assert str(e.value) == expected_error
-
-    def test_import_mmd_no_xmd_buildrequires(self):
-        mmd = load_mmd(read_staged_data("formatted_testmodule"))
-        xmd = mmd.get_xmd()
-        del xmd["mbs"]["buildrequires"]
-        mmd.set_xmd(xmd)
-
-        expected_error = (
-            "The imported module buildrequires other modules, but the metadata in the "
-            'xmd["mbs"]["buildrequires"] dictionary is missing entries'
-        )
-        with pytest.raises(UnprocessableEntity) as e:
-            module_build_service.utils.import_mmd(db_session, mmd)
-            assert str(e.value) == expected_error
-
-    def test_import_mmd_minimal_xmd_from_local_repository(self):
-        mmd = load_mmd(read_staged_data("formatted_testmodule"))
-        xmd = mmd.get_xmd()
-        xmd["mbs"] = {}
-        xmd["mbs"]["koji_tag"] = "repofile:///etc/yum.repos.d/fedora-modular.repo"
-        xmd["mbs"]["mse"] = True
-        xmd["mbs"]["commit"] = "unknown"
-        mmd.set_xmd(xmd)
-
-        build, msgs = module_build_service.utils.import_mmd(db_session, mmd, False)
-        assert build.name == mmd.get_module_name()
-
-    @pytest.mark.parametrize(
-        "stream, disttag_marking, error_msg",
-        (
-            ("f28", None, None),
-            ("f28", "fedora28", None),
-            ("f-28", "f28", None),
-            ("f-28", None, "The stream cannot contain a dash unless disttag_marking is set"),
-            ("f28", "f-28", "The disttag_marking cannot contain a dash"),
-            ("f-28", "fedora-28", "The disttag_marking cannot contain a dash"),
-        ),
-    )
-    def test_import_mmd_base_module(self, stream, disttag_marking, error_msg):
-        clean_database(add_platform_module=False)
-        mmd = load_mmd(read_staged_data("platform"))
-        mmd = mmd.copy(mmd.get_module_name(), stream)
-
-        if disttag_marking:
-            xmd = mmd.get_xmd()
-            xmd["mbs"]["disttag_marking"] = disttag_marking
-            mmd.set_xmd(xmd)
-
-        if error_msg:
-            with pytest.raises(UnprocessableEntity, match=error_msg):
-                module_build_service.utils.import_mmd(db_session, mmd)
-        else:
-            module_build_service.utils.import_mmd(db_session, mmd)
-
-    def test_import_mmd_remove_dropped_virtual_streams(self):
-        mmd = load_mmd(read_staged_data("formatted_testmodule"))
-
-        # Add some virtual streams
-        xmd = mmd.get_xmd()
-        xmd["mbs"]["virtual_streams"] = ["f28", "f29", "f30"]
-        mmd.set_xmd(xmd)
-
-        # Import mmd into database to simulate the next step to reimport a module
-        module_build_service.utils.general.import_mmd(db_session, mmd)
-
-        # Now, remove some virtual streams from module metadata
-        xmd = mmd.get_xmd()
-        xmd["mbs"]["virtual_streams"] = ["f28", "f29"]  # Note that, f30 is removed
-        mmd.set_xmd(xmd)
-
-        # Test import modulemd again and the f30 should be removed from database.
-        module_build, _ = module_build_service.utils.general.import_mmd(db_session, mmd)
-
-        db_session.refresh(module_build)
-        assert ["f28", "f29"] == sorted(item.name for item in module_build.virtual_streams)
-        assert 0 == db_session.query(models.VirtualStream).filter_by(name="f30").count()
-
-    def test_import_mmd_dont_remove_dropped_virtual_streams_associated_with_other_modules(self):
-        mmd = load_mmd(read_staged_data("formatted_testmodule"))
-        # Add some virtual streams to this module metadata
-        xmd = mmd.get_xmd()
-        xmd["mbs"]["virtual_streams"] = ["f28", "f29", "f30"]
-        mmd.set_xmd(xmd)
-        module_build_service.utils.general.import_mmd(db_session, mmd)
-
-        # Import another module which has overlapping virtual streams
-        another_mmd = load_mmd(read_staged_data("formatted_testmodule-more-components"))
-        # Add some virtual streams to this module metadata
-        xmd = another_mmd.get_xmd()
-        xmd["mbs"]["virtual_streams"] = ["f29", "f30"]
-        another_mmd.set_xmd(xmd)
-        another_module_build, _ = module_build_service.utils.general.import_mmd(
-            db_session, another_mmd)
-
-        # Now, remove f30 from mmd
-        xmd = mmd.get_xmd()
-        xmd["mbs"]["virtual_streams"] = ["f28", "f29"]
-        mmd.set_xmd(xmd)
-
-        # Reimport formatted_testmodule again
-        module_build, _ = module_build_service.utils.general.import_mmd(db_session, mmd)
-
-        db_session.refresh(module_build)
-        assert ["f28", "f29"] == sorted(item.name for item in module_build.virtual_streams)
-
-        # The overlapped f30 should be still there.
-        db_session.refresh(another_module_build)
-        assert ["f29", "f30"] == sorted(item.name for item in another_module_build.virtual_streams)
-
-    def test_get_rpm_release_mse(self):
-        init_data(contexts=True)
-
-        build_one = models.ModuleBuild.get_by_id(db_session, 2)
-        release_one = module_build_service.utils.get_rpm_release(db_session, build_one)
-        assert release_one == "module+2+b8645bbb"
-
-        build_two = models.ModuleBuild.get_by_id(db_session, 3)
-        release_two = module_build_service.utils.get_rpm_release(db_session, build_two)
-        assert release_two == "module+2+17e35784"
-
-    def test_get_rpm_release_platform_stream(self):
-        scheduler_init_data(1)
-        build_one = models.ModuleBuild.get_by_id(db_session, 2)
-        release = module_build_service.utils.get_rpm_release(db_session, build_one)
-        assert release == "module+f28+2+814cfa39"
-
-    def test_get_rpm_release_platform_stream_override(self):
-        scheduler_init_data(1)
-
-        # Set the disttag_marking override on the platform
-        platform = (
-            db_session.query(models.ModuleBuild)
-            .filter_by(name="platform", stream="f28")
-            .first()
-        )
-        platform_mmd = platform.mmd()
-        platform_xmd = platform_mmd.get_xmd()
-        platform_xmd["mbs"]["disttag_marking"] = "fedora28"
-        platform_mmd.set_xmd(platform_xmd)
-        platform.modulemd = mmd_to_str(platform_mmd)
-        db_session.add(platform)
-        db_session.commit()
-
-        build_one = models.ModuleBuild.get_by_id(db_session, 2)
-        release = module_build_service.utils.get_rpm_release(db_session, build_one)
-        assert release == "module+fedora28+2+814cfa39"
-
-    @patch(
-        "module_build_service.config.Config.allowed_privileged_module_names",
-        new_callable=mock.PropertyMock,
-        return_value=["build"],
-    )
-    def test_get_rpm_release_metadata_br_stream_override(self, mock_admmn):
-        """
-        Test that when a module buildrequires a module in conf.allowed_privileged_module_names,
-        and that module has the xmd.mbs.disttag_marking field set, it should influence the disttag.
-        """
-        scheduler_init_data(1)
-        metadata_mmd = load_mmd(read_staged_data("build_metadata_module"))
-        module_build_service.utils.import_mmd(db_session, metadata_mmd)
-
-        build_one = models.ModuleBuild.get_by_id(db_session, 2)
-        mmd = build_one.mmd()
-        deps = mmd.get_dependencies()[0]
-        deps.add_buildtime_stream("build", "product1.2")
-        xmd = mmd.get_xmd()
-        xmd["mbs"]["buildrequires"]["build"] = {
-            "filtered_rpms": [],
-            "ref": "virtual",
-            "stream": "product1.2",
-            "version": "1",
-            "context": "00000000",
-        }
-        mmd.set_xmd(xmd)
-        build_one.modulemd = mmd_to_str(mmd)
-        db_session.add(build_one)
-        db_session.commit()
-
-        release = module_build_service.utils.get_rpm_release(db_session, build_one)
-        assert release == "module+product12+2+814cfa39"
-
-    def test_get_rpm_release_mse_scratch(self):
-        init_data(contexts=True, scratch=True)
-
-        build_one = models.ModuleBuild.get_by_id(db_session, 2)
-        release_one = module_build_service.utils.get_rpm_release(db_session, build_one)
-        assert release_one == "scrmod+2+b8645bbb"
-
-        build_two = models.ModuleBuild.get_by_id(db_session, 3)
-        release_two = module_build_service.utils.get_rpm_release(db_session, build_two)
-        assert release_two == "scrmod+2+17e35784"
-
-    def test_get_rpm_release_platform_stream_scratch(self):
-        scheduler_init_data(1, scratch=True)
-        build_one = models.ModuleBuild.get_by_id(db_session, 2)
-        release = module_build_service.utils.get_rpm_release(db_session, build_one)
-        assert release == "scrmod+f28+2+814cfa39"
-
     @patch("module_build_service.utils.submit.get_build_arches")
     def test_record_module_build_arches(self, get_build_arches):
         get_build_arches.return_value = ["x86_64", "i686"]
@@ -694,125 +469,6 @@ class TestUtils:
         new_module = models.ModuleBuild.get_by_id(db_session, 3)
         rv = get_reusable_component(new_module, "llvm", previous_module_build=old_module)
         assert rv.package == "llvm"
-
-    def test_validate_koji_tag_wrong_tag_arg_during_programming(self):
-        """ Test that we fail on a wrong param name (non-existing one) due to
-        programming error. """
-
-        @module_build_service.utils.validate_koji_tag("wrong_tag_arg")
-        def validate_koji_tag_programming_error(good_tag_arg, other_arg):
-            pass
-
-        with pytest.raises(ProgrammingError):
-            validate_koji_tag_programming_error("dummy", "other_val")
-
-    def test_validate_koji_tag_bad_tag_value(self):
-        """ Test that we fail on a bad tag value. """
-
-        @module_build_service.utils.validate_koji_tag("tag_arg")
-        def validate_koji_tag_bad_tag_value(tag_arg):
-            pass
-
-        with pytest.raises(ValidationError):
-            validate_koji_tag_bad_tag_value("forbiddentagprefix-foo")
-
-    def test_validate_koji_tag_bad_tag_value_in_list(self):
-        """ Test that we fail on a list containing bad tag value. """
-
-        @module_build_service.utils.validate_koji_tag("tag_arg")
-        def validate_koji_tag_bad_tag_value_in_list(tag_arg):
-            pass
-
-        with pytest.raises(ValidationError):
-            validate_koji_tag_bad_tag_value_in_list(["module-foo", "forbiddentagprefix-bar"])
-
-    def test_validate_koji_tag_good_tag_value(self):
-        """ Test that we pass on a good tag value. """
-
-        @module_build_service.utils.validate_koji_tag("tag_arg")
-        def validate_koji_tag_good_tag_value(tag_arg):
-            return True
-
-        assert validate_koji_tag_good_tag_value("module-foo") is True
-
-    def test_validate_koji_tag_good_tag_values_in_list(self):
-        """ Test that we pass on a list of good tag values. """
-
-        @module_build_service.utils.validate_koji_tag("tag_arg")
-        def validate_koji_tag_good_tag_values_in_list(tag_arg):
-            return True
-
-        assert validate_koji_tag_good_tag_values_in_list(["module-foo", "module-bar"]) is True
-
-    def test_validate_koji_tag_good_tag_value_in_dict(self):
-        """ Test that we pass on a dict arg with default key
-        and a good value. """
-
-        @module_build_service.utils.validate_koji_tag("tag_arg")
-        def validate_koji_tag_good_tag_value_in_dict(tag_arg):
-            return True
-
-        assert validate_koji_tag_good_tag_value_in_dict({"name": "module-foo"}) is True
-
-    def test_validate_koji_tag_good_tag_value_in_dict_nondefault_key(self):
-        """ Test that we pass on a dict arg with non-default key
-        and a good value. """
-
-        @module_build_service.utils.validate_koji_tag("tag_arg", dict_key="nondefault")
-        def validate_koji_tag_good_tag_value_in_dict_nondefault_key(tag_arg):
-            return True
-
-        assert (
-            validate_koji_tag_good_tag_value_in_dict_nondefault_key({"nondefault": "module-foo"})
-            is True
-        )
-
-    def test_validate_koji_tag_double_trouble_good(self):
-        """ Test that we pass on a list of tags that are good. """
-
-        expected = "foo"
-
-        @module_build_service.utils.validate_koji_tag(["tag_arg1", "tag_arg2"])
-        def validate_koji_tag_double_trouble(tag_arg1, tag_arg2):
-            return expected
-
-        actual = validate_koji_tag_double_trouble("module-1", "module-2")
-        assert actual == expected
-
-    def test_validate_koji_tag_double_trouble_bad(self):
-        """ Test that we fail on a list of tags that are bad. """
-
-        @module_build_service.utils.validate_koji_tag(["tag_arg1", "tag_arg2"])
-        def validate_koji_tag_double_trouble(tag_arg1, tag_arg2):
-            pass
-
-        with pytest.raises(ValidationError):
-            validate_koji_tag_double_trouble("module-1", "BADNEWS-2")
-
-    def test_validate_koji_tag_is_None(self):
-        """ Test that we fail on a tag which is None. """
-
-        @module_build_service.utils.validate_koji_tag("tag_arg")
-        def validate_koji_tag_is_None(tag_arg):
-            pass
-
-        with pytest.raises(ValidationError) as cm:
-            validate_koji_tag_is_None(None)
-            assert str(cm.value).endswith(" No value provided.") is True
-
-    @patch(
-        "module_build_service.config.Config.allowed_privileged_module_names",
-        new_callable=mock.PropertyMock,
-        return_value=["testmodule"],
-    )
-    def test_validate_koji_tag_previleged_module_name(self, conf_apmn):
-        @module_build_service.utils.validate_koji_tag("tag_arg")
-        def validate_koji_tag_priv_mod_name(self, tag_arg):
-            pass
-
-        builder = mock.MagicMock()
-        builder.module_str = 'testmodule'
-        validate_koji_tag_priv_mod_name(builder, "abc")
 
     @patch("module_build_service.scm.SCM")
     def test_record_component_builds_duplicate_components(self, mocked_scm):
@@ -1005,22 +661,6 @@ class TestUtils:
 
         assert build.time_modified == test_datetime
 
-    def test_generate_koji_tag_in_nsvc_format(self):
-        name, stream, version, context = ("testmodule", "master", "20170816080815", "37c6c57")
-
-        tag = module_build_service.utils.generate_koji_tag(name, stream, version, context)
-
-        assert tag == "module-testmodule-master-20170816080815-37c6c57"
-
-    def test_generate_koji_tag_in_hash_format(self):
-        name, version, context = ("testmodule", "20170816080815", "37c6c57")
-        stream = "this-is-a-stream-with-very-looooong-name" + "-blah" * 50
-        nsvc_list = [name, stream, version, context]
-
-        tag = module_build_service.utils.generate_koji_tag(*nsvc_list)
-        expected_tag = "module-1cf457d452e54dda"
-        assert tag == expected_tag
-
     @patch("module_build_service.utils.submit.requests")
     def test_pdc_eol_check(self, requests):
         """ Push mock pdc responses through the eol check function. """
@@ -1184,68 +824,6 @@ class TestLocalBuilds:
         assert local_modules[0].koji_tag.endswith("/module-platform-f28-3/results")
 
 
-class TestOfflineLocalBuilds:
-    def setup_method(self):
-        clean_database()
-
-    def teardown_method(self):
-        clean_database()
-
-    def test_import_fake_base_module(self):
-        module_build_service.utils.import_fake_base_module("platform:foo:1:000000")
-        module_build = models.ModuleBuild.get_build_from_nsvc(
-            db_session, "platform", "foo", 1, "000000")
-        assert module_build
-
-        mmd = module_build.mmd()
-        xmd = mmd.get_xmd()
-        assert xmd == {
-            "mbs": {
-                "buildrequires": {},
-                "commit": "ref_000000",
-                "koji_tag": "repofile://",
-                "mse": "true",
-                "requires": {},
-            }
-        }
-
-        assert set(mmd.get_profile_names()) == {"buildroot", "srpm-buildroot"}
-
-    @patch("module_build_service.utils.general.open", create=True, new_callable=mock.mock_open)
-    def test_import_builds_from_local_dnf_repos(self, patched_open):
-        with patch("dnf.Base") as dnf_base:
-            repo = mock.MagicMock()
-            repo.repofile = "/etc/yum.repos.d/foo.repo"
-            mmd = load_mmd(read_staged_data("formatted_testmodule"))
-            repo.get_metadata_content.return_value = mmd_to_str(mmd)
-            base = dnf_base.return_value
-            base.repos = {"reponame": repo}
-            patched_open.return_value.readlines.return_value = ("FOO=bar", "PLATFORM_ID=platform:x")
-
-            module_build_service.utils.import_builds_from_local_dnf_repos()
-
-            base.read_all_repos.assert_called_once()
-            repo.load.assert_called_once()
-            repo.get_metadata_content.assert_called_once_with("modules")
-
-            module_build = models.ModuleBuild.get_build_from_nsvc(
-                db_session, "testmodule", "master", 20180205135154, "9c690d0e")
-            assert module_build
-            assert module_build.koji_tag == "repofile:///etc/yum.repos.d/foo.repo"
-
-            module_build = models.ModuleBuild.get_build_from_nsvc(
-                db_session, "platform", "x", 1, "000000")
-            assert module_build
-
-    def test_import_builds_from_local_dnf_repos_platform_id(self):
-        with patch("dnf.Base"):
-            module_build_service.utils.import_builds_from_local_dnf_repos("platform:y")
-
-            module_build = models.ModuleBuild.get_build_from_nsvc(
-                db_session, "platform", "y", 1, "000000")
-            assert module_build
-
-
 @pytest.mark.usefixtures("reuse_component_init_data")
 class TestUtilsModuleReuse:
 
@@ -1310,7 +888,7 @@ class TestUtilsModuleReuse:
         xmd = mmd.get_xmd()
         xmd["mbs"]["virtual_streams"] = ["fedora"]
         mmd.set_xmd(xmd)
-        platform_f29 = module_build_service.utils.import_mmd(db_session, mmd)[0]
+        platform_f29 = import_mmd(db_session, mmd)[0]
 
         # Create another copy of `testmodule:master` which should be reused, because its
         # stream version will be higher than the previous one. Also set its buildrequires
@@ -1399,7 +977,7 @@ class TestUtilsModuleReuse:
         xmd = mmd.get_xmd()
         xmd["mbs"]["virtual_streams"] = ["fedora"]
         mmd.set_xmd(xmd)
-        platform_f27 = module_build_service.utils.import_mmd(db_session, mmd)[0]
+        platform_f27 = import_mmd(db_session, mmd)[0]
 
         # Change the reusable testmodule:master to buildrequire platform:f27.
         latest_module = db_session.query(models.ModuleBuild).filter_by(

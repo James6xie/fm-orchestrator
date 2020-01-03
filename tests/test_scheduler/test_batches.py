@@ -10,7 +10,7 @@ from module_build_service.builder import GenericBuilder
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
 from module_build_service.scheduler import events
 from module_build_service.scheduler.batches import start_build_component, start_next_batch_build
-from module_build_service.utils import validate_koji_tag
+from module_build_service.builder.utils import validate_koji_tag
 
 
 class DummyModuleBuilder(GenericBuilder):

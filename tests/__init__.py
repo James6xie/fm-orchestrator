@@ -8,12 +8,13 @@ from six import string_types
 import time
 import hashlib
 from traceback import extract_stack
-from module_build_service.utils import to_text_type, load_mmd
+from module_build_service.common.utils import load_mmd, import_mmd
 
 import koji
 import module_build_service
 from module_build_service import db
-from module_build_service.utils import get_rpm_release, import_mmd, mmd_to_str
+from module_build_service.builder.utils import get_rpm_release
+from module_build_service.common.utils import mmd_to_str, to_text_type
 from module_build_service.models import (
     ModuleBuild, ModuleArch, ComponentBuild, VirtualStream,
     BUILD_STATES,

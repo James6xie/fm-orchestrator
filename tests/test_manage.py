@@ -7,7 +7,7 @@ from module_build_service import app, models
 from module_build_service.db_session import db_session
 from module_build_service.manage import manager_wrapper, retire
 from module_build_service.models import BUILD_STATES, ModuleBuild
-from module_build_service.utils.general import deps_to_dict
+from module_build_service.web.utils import deps_to_dict
 from tests import clean_database, staged_data_filename
 
 

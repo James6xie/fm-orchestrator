@@ -14,11 +14,11 @@ import module_build_service.messaging
 import module_build_service.scheduler.handlers.repos
 import module_build_service.models
 from module_build_service import conf, Modulemd
+from module_build_service.common.utils import mmd_to_str
 from module_build_service.db_session import db_session
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
 from module_build_service.builder import GenericBuilder
 from module_build_service.scheduler import events
-from module_build_service.utils.general import mmd_to_str
 from tests import init_data, clean_database, make_module_in_db
 
 
@@ -1032,3 +1032,21 @@ class TestGetDistTagSRPM:
         # Conflicting ursine RPMs
         for nevr in ["pizza-0:4.0-1.fc32", "spaghetti-0:3.0-1.fc32"]:
             assert KojiModuleBuilder.format_conflicts_line(nevr) + "\n" in content
+
+
+def test_generate_koji_tag_in_nsvc_format():
+    name, stream, version, context = ("testmodule", "master", "20170816080815", "37c6c57")
+
+    tag = KojiModuleBuilder.generate_koji_tag(name, stream, version, context)
+
+    assert tag == "module-testmodule-master-20170816080815-37c6c57"
+
+
+def test_generate_koji_tag_in_hash_format():
+    name, version, context = ("testmodule", "20170816080815", "37c6c57")
+    stream = "this-is-a-stream-with-very-looooong-name" + "-blah" * 50
+    nsvc_list = [name, stream, version, context]
+
+    tag = KojiModuleBuilder.generate_koji_tag(*nsvc_list)
+    expected_tag = "module-1cf457d452e54dda"
+    assert tag == expected_tag

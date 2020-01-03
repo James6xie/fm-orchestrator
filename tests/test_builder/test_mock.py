@@ -1,19 +1,21 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
 import os
-import mock
-import koji
 import tempfile
 import shutil
 from textwrap import dedent
 
+import mock
 import kobo.rpmlib
+import koji
 
-from module_build_service import conf
+from module_build_service import conf, models
+from module_build_service.common.utils import load_mmd, mmd_to_str
 from module_build_service.db_session import db_session
 from module_build_service.models import ModuleBuild, ComponentBuild
-from module_build_service.builder.MockModuleBuilder import MockModuleBuilder
-from module_build_service.utils import import_fake_base_module, mmd_to_str, load_mmd
+from module_build_service.builder.MockModuleBuilder import (
+    import_fake_base_module, import_builds_from_local_dnf_repos, MockModuleBuilder,
+)
 from tests import clean_database, make_module_in_db, read_staged_data
 
 
@@ -232,3 +234,69 @@ class TestMockModuleBuilderAddRepos:
         assert "repofile 3" in builder.yum_conf
 
         assert set(builder.enabled_modules) == {"foo:1", "app:1"}
+
+
+class TestOfflineLocalBuilds:
+    def setup_method(self):
+        clean_database()
+
+    def teardown_method(self):
+        clean_database()
+
+    def test_import_fake_base_module(self):
+        import_fake_base_module("platform:foo:1:000000")
+        module_build = models.ModuleBuild.get_build_from_nsvc(
+            db_session, "platform", "foo", 1, "000000")
+        assert module_build
+
+        mmd = module_build.mmd()
+        xmd = mmd.get_xmd()
+        assert xmd == {
+            "mbs": {
+                "buildrequires": {},
+                "commit": "ref_000000",
+                "koji_tag": "repofile://",
+                "mse": "true",
+                "requires": {},
+            }
+        }
+
+        assert set(mmd.get_profile_names()) == {"buildroot", "srpm-buildroot"}
+
+    @mock.patch(
+        "module_build_service.builder.MockModuleBuilder.open",
+        create=True,
+        new_callable=mock.mock_open,
+    )
+    def test_import_builds_from_local_dnf_repos(self, patched_open):
+        with mock.patch("dnf.Base") as dnf_base:
+            repo = mock.MagicMock()
+            repo.repofile = "/etc/yum.repos.d/foo.repo"
+            mmd = load_mmd(read_staged_data("formatted_testmodule"))
+            repo.get_metadata_content.return_value = mmd_to_str(mmd)
+            base = dnf_base.return_value
+            base.repos = {"reponame": repo}
+            patched_open.return_value.readlines.return_value = ("FOO=bar", "PLATFORM_ID=platform:x")
+
+            import_builds_from_local_dnf_repos()
+
+            base.read_all_repos.assert_called_once()
+            repo.load.assert_called_once()
+            repo.get_metadata_content.assert_called_once_with("modules")
+
+            module_build = models.ModuleBuild.get_build_from_nsvc(
+                db_session, "testmodule", "master", 20180205135154, "9c690d0e")
+            assert module_build
+            assert module_build.koji_tag == "repofile:///etc/yum.repos.d/foo.repo"
+
+            module_build = models.ModuleBuild.get_build_from_nsvc(
+                db_session, "platform", "x", 1, "000000")
+            assert module_build
+
+    def test_import_builds_from_local_dnf_repos_platform_id(self):
+        with mock.patch("dnf.Base"):
+            import_builds_from_local_dnf_repos("platform:y")
+
+            module_build = models.ModuleBuild.get_build_from_nsvc(
+                db_session, "platform", "y", 1, "000000")
+            assert module_build

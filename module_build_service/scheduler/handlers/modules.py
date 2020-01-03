@@ -3,14 +3,15 @@
 """ Handlers for module change events on the message bus. """
 
 from module_build_service import celery_app, conf, models, log, build_logs
+from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
+from module_build_service.builder.utils import get_rpm_release
+from module_build_service.common.utils import mmd_to_str
 from module_build_service.common.retry import retry
 import module_build_service.resolver
 import module_build_service.utils
 from module_build_service.utils import (
     attempt_to_reuse_all_components,
     record_component_builds,
-    get_rpm_release,
-    generate_koji_tag,
     record_filtered_rpms,
     record_module_build_arches
 )
@@ -25,7 +26,6 @@ from module_build_service.scheduler import events
 from module_build_service.utils.ursine import handle_stream_collision_modules
 
 from requests.exceptions import ConnectionError
-from module_build_service.utils import mmd_to_str
 
 import koji
 import six.moves.xmlrpc_client as xmlrpclib
@@ -246,7 +246,7 @@ def generate_module_build_koji_tag(build):
     """
     log.info("Getting tag for %s:%s:%s", build.name, build.stream, build.version)
     if conf.system in ["koji", "test"]:
-        return generate_koji_tag(
+        return KojiModuleBuilder.generate_koji_tag(
             build.name,
             build.stream,
             build.version,

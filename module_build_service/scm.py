@@ -17,7 +17,44 @@ from module_build_service.errors import (
     UnprocessableEntity,
     ProgrammingError,
 )
-from module_build_service.utils.general import scm_url_schemes
+
+
+def scm_url_schemes(terse=False):
+    """
+    Definition of URL schemes supported by both frontend and scheduler.
+
+    NOTE: only git URLs in the following formats are supported atm:
+        git://
+        git+http://
+        git+https://
+        git+rsync://
+        http://
+        https://
+        file://
+
+    :param terse=False: Whether to return terse list of unique URL schemes
+                        even without the "://".
+    """
+
+    scm_types = {
+        "git": (
+            "git://",
+            "git+http://",
+            "git+https://",
+            "git+rsync://",
+            "http://",
+            "https://",
+            "file://",
+        )
+    }
+
+    if not terse:
+        return scm_types
+    else:
+        scheme_list = []
+        for scm_type, scm_schemes in scm_types.items():
+            scheme_list.extend([scheme[:-3] for scheme in scm_schemes])
+        return list(set(scheme_list))
 
 
 class SCM(object):

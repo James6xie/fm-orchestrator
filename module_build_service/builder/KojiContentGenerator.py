@@ -23,9 +23,9 @@ import pungi.arch
 
 from module_build_service import conf, log, build_logs, Modulemd
 from module_build_service.common.koji import get_session, koji_retrying_multicall_map
+from module_build_service.common.utils import load_mmd, mmd_to_str, to_text_type
 from module_build_service.db_session import db_session
 from module_build_service.scm import SCM
-from module_build_service.utils import to_text_type, load_mmd, mmd_to_str
 
 logging.basicConfig(level=logging.DEBUG)
 

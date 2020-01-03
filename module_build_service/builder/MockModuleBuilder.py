@@ -2,31 +2,32 @@
 # SPDX-License-Identifier: MIT
 import logging
 import os
-import koji
-import kobo.rpmlib
 import pipes
-import platform
 import re
 import subprocess
 import threading
 
-from module_build_service import conf, log
+import dnf
+import koji
+import kobo.rpmlib
+import platform
+
+from module_build_service import conf, log, Modulemd
 from module_build_service.common.koji import get_session
+from module_build_service.common.utils import import_mmd, mmd_to_str
 import module_build_service.scm
 import module_build_service.utils
-import module_build_service.scheduler
 from module_build_service.builder import GenericBuilder
 from module_build_service.builder.utils import (
     create_local_repo_from_koji_tag,
     execute_cmd,
     find_srpm,
     get_koji_config,
+    validate_koji_tag,
 )
-from module_build_service.utils.general import mmd_to_str
 from module_build_service.db_session import db_session
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
 from module_build_service.scheduler import events
-
 from module_build_service import models
 
 logging.basicConfig(level=logging.DEBUG)
@@ -44,6 +45,107 @@ def detect_arch():
         log.warning("Couldn't determine machine arch. Falling back to configured arch.")
 
     return conf.arch_fallback
+
+
+def import_fake_base_module(nsvc):
+    """
+    Creates and imports new fake base module to be used with offline local builds.
+
+    :param str nsvc: name:stream:version:context of a module.
+    """
+    name, stream, version, context = nsvc.split(":")
+    mmd = Modulemd.ModuleStreamV2.new(name, stream)
+    mmd.set_version(int(version))
+    mmd.set_context(context)
+    mmd.set_summary("fake base module")
+    mmd.set_description("fake base module")
+    mmd.add_module_license("GPL")
+
+    buildroot = Modulemd.Profile.new("buildroot")
+    for rpm in conf.default_buildroot_packages:
+        buildroot.add_rpm(rpm)
+    mmd.add_profile(buildroot)
+
+    srpm_buildroot = Modulemd.Profile.new("srpm-buildroot")
+    for rpm in conf.default_srpm_buildroot_packages:
+        srpm_buildroot.add_rpm(rpm)
+    mmd.add_profile(srpm_buildroot)
+
+    xmd = {"mbs": {}}
+    xmd_mbs = xmd["mbs"]
+    xmd_mbs["buildrequires"] = {}
+    xmd_mbs["requires"] = {}
+    xmd_mbs["commit"] = "ref_%s" % context
+    xmd_mbs["mse"] = "true"
+    # Use empty "repofile://" URI for base module. The base module will use the
+    # `conf.base_module_names` list as list of default repositories.
+    xmd_mbs["koji_tag"] = "repofile://"
+    mmd.set_xmd(xmd)
+
+    import_mmd(db_session, mmd, False)
+
+
+def get_local_releasever():
+    """
+    Returns the $releasever variable used in the system when expanding .repo files.
+    """
+    dnf_base = dnf.Base()
+    return dnf_base.conf.releasever
+
+
+def import_builds_from_local_dnf_repos(platform_id=None):
+    """
+    Imports the module builds from all available local repositories to MBS DB.
+
+    This is used when building modules locally without any access to MBS infra.
+    This method also generates and imports the base module according to /etc/os-release.
+
+    :param str platform_id: The `name:stream` of a fake platform module to generate in this
+        method. When not set, the /etc/os-release is parsed to get the PLATFORM_ID.
+    """
+    log.info("Loading available RPM repositories.")
+    dnf_base = dnf.Base()
+    dnf_base.read_all_repos()
+
+    log.info("Importing available modules to MBS local database.")
+    for repo in dnf_base.repos.values():
+        try:
+            repo.load()
+        except Exception as e:
+            log.warning(str(e))
+            continue
+        mmd_data = repo.get_metadata_content("modules")
+        mmd_index = Modulemd.ModuleIndex.new()
+        ret, _ = mmd_index.update_from_string(mmd_data, True)
+        if not ret:
+            log.warning("Loading the repo '%s' failed", repo.name)
+            continue
+
+        for module_name in mmd_index.get_module_names():
+            for mmd in mmd_index.get_module(module_name).get_all_streams():
+                xmd = mmd.get_xmd()
+                xmd["mbs"] = {}
+                xmd["mbs"]["koji_tag"] = "repofile://" + repo.repofile
+                xmd["mbs"]["mse"] = True
+                xmd["mbs"]["commit"] = "unknown"
+                mmd.set_xmd(xmd)
+
+                import_mmd(db_session, mmd, False)
+
+    if not platform_id:
+        # Parse the /etc/os-release to find out the local platform:stream.
+        with open("/etc/os-release", "r") as fd:
+            for l in fd.readlines():
+                if not l.startswith("PLATFORM_ID"):
+                    continue
+                platform_id = l.split("=")[1].strip("\"' \n")
+    if not platform_id:
+        raise ValueError("Cannot get PLATFORM_ID from /etc/os-release.")
+
+    # Create the fake platform:stream:1:000000 module to fulfill the
+    # dependencies for local offline build and also to define the
+    # srpm-buildroot and buildroot.
+    import_fake_base_module("%s:1:000000" % platform_id)
 
 
 class MockModuleBuilder(GenericBuilder):
@@ -75,7 +177,7 @@ class MockModuleBuilder(GenericBuilder):
     else:
         raise IOError("None of {} yum config files found.".format(conf.yum_config_file))
 
-    @module_build_service.utils.validate_koji_tag("tag_name")
+    @validate_koji_tag("tag_name")
     def __init__(self, db_session, owner, module, config, tag_name, components):
         self.db_session = db_session
         self.module_str = module.name
@@ -84,7 +186,7 @@ class MockModuleBuilder(GenericBuilder):
         self.config = config
         self.groups = []
         self.enabled_modules = []
-        self.releasever = module_build_service.utils.get_local_releasever()
+        self.releasever = get_local_releasever()
         self.yum_conf = MockModuleBuilder.yum_config_template
         self.koji_session = None
 

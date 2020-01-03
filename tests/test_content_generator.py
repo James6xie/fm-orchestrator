@@ -7,10 +7,9 @@ import json
 import os
 from os import path
 
-import module_build_service.messaging
 from module_build_service import models, conf, build_logs, Modulemd
+from module_build_service.common.utils import load_mmd, load_mmd_file, mmd_to_str
 from module_build_service.db_session import db_session
-from module_build_service.utils.general import mmd_to_str
 
 from mock import patch, Mock, call, mock_open
 import kobo.rpmlib
@@ -128,10 +127,10 @@ class TestBuild:
             # For devel, only check that the name has -devel suffix.
             assert ret["build"]["name"] == "nginx-devel"
             assert ret["build"]["extra"]["typeinfo"]["module"]["name"] == "nginx-devel"
-            new_mmd = module_build_service.utils.load_mmd(
+            new_mmd = load_mmd(
                 ret["build"]["extra"]["typeinfo"]["module"]["modulemd_str"])
             assert new_mmd.get_module_name().endswith("-devel")
-            new_mmd = module_build_service.utils.load_mmd_file("%s/modulemd.txt" % file_dir)
+            new_mmd = load_mmd_file("%s/modulemd.txt" % file_dir)
             assert new_mmd.get_module_name().endswith("-devel")
 
         # Ensure an anonymous Koji session works
@@ -951,7 +950,7 @@ class TestBuild:
     def test_finalize_mmd_devel(self):
         self.cg.devel = True
         mmd = self.cg.module.mmd()
-        new_mmd = module_build_service.utils.load_mmd(self.cg._finalize_mmd("x86_64"))
+        new_mmd = load_mmd(self.cg._finalize_mmd("x86_64"))
 
         # Check that -devel suffix is set.
         assert new_mmd.get_module_name().endswith("-devel")

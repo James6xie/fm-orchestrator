@@ -17,12 +17,84 @@ from gi.repository import GLib
 
 import module_build_service.scm
 from module_build_service import conf, log, models, Modulemd
+from module_build_service.common.utils import load_mmd, load_mmd_file, mmd_to_str, to_text_type
 from module_build_service.db_session import db_session
 from module_build_service.errors import ValidationError, UnprocessableEntity, Forbidden, Conflict
-from module_build_service.utils import (
-    to_text_type, deps_to_dict, mmd_to_str, load_mmd, load_mmd_file,
-    get_build_arches
-)
+from module_build_service.web.utils import deps_to_dict
+
+
+def get_build_arches(mmd, config):
+    """
+    Returns the list of architectures for which the module `mmd` should be built.
+
+    :param mmd: Module MetaData
+    :param config: config (module_build_service.config.Config instance)
+    :return list of architectures
+    """
+    # Imported here to allow import of utils in GenericBuilder.
+    from module_build_service.builder import GenericBuilder
+
+    nsvc = mmd.get_nsvc()
+
+    # At first, handle BASE_MODULE_ARCHES - this overrides any other option.
+    # Find out the base modules in buildrequires section of XMD and
+    # set the Koji tag arches according to it.
+    if "mbs" in mmd.get_xmd():
+        for req_name, req_data in mmd.get_xmd()["mbs"]["buildrequires"].items():
+            ns = ":".join([req_name, req_data["stream"]])
+            if ns in config.base_module_arches:
+                arches = config.base_module_arches[ns]
+                log.info("Setting build arches of %s to %r based on the BASE_MODULE_ARCHES." % (
+                    nsvc, arches))
+                return arches
+
+    # Check whether the module contains the `koji_tag_arches`. This is used only
+    # by special modules defining the layered products.
+    try:
+        arches = mmd.get_xmd()["mbs"]["koji_tag_arches"]
+        log.info("Setting build arches of %s to %r based on the koji_tag_arches." % (
+            nsvc, arches))
+        return arches
+    except KeyError:
+        pass
+
+    # Check the base/layered-product module this module buildrequires and try to get the
+    # list of arches from there.
+    try:
+        buildrequires = mmd.get_xmd()["mbs"]["buildrequires"]
+    except (ValueError, KeyError):
+        log.warning(
+            "Module {0} does not have buildrequires in its xmd".format(mmd.get_nsvc()))
+        buildrequires = None
+    if buildrequires:
+        # Looping through all the privileged modules that are allowed to set koji tag arches
+        # and the base modules to see what the koji tag arches should be. Doing it this way
+        # preserves the order in the configurations.
+        for module in conf.allowed_privileged_module_names + conf.base_module_names:
+            module_in_xmd = buildrequires.get(module)
+
+            if not module_in_xmd:
+                continue
+
+            module_obj = models.ModuleBuild.get_build_from_nsvc(
+                db_session,
+                module,
+                module_in_xmd["stream"],
+                module_in_xmd["version"],
+                module_in_xmd["context"],
+            )
+            if not module_obj:
+                continue
+            arches = GenericBuilder.get_module_build_arches(module_obj)
+            if arches:
+                log.info("Setting build arches of %s to %r based on the buildrequired "
+                         "module %r." % (nsvc, arches, module_obj))
+                return arches
+
+    # As a last resort, return just the preconfigured list of arches.
+    arches = config.arches
+    log.info("Setting build arches of %s to %r based on default ARCHES." % (nsvc, arches))
+    return arches
 
 
 def record_module_build_arches(mmd, build):
