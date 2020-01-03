@@ -14,9 +14,7 @@ import platform
 
 from module_build_service import conf, log, Modulemd
 from module_build_service.common.koji import get_session
-from module_build_service.common.utils import import_mmd, mmd_to_str
-import module_build_service.scm
-import module_build_service.utils
+from module_build_service.common.utils import import_mmd, load_mmd_file, mmd_to_str
 from module_build_service.builder import GenericBuilder
 from module_build_service.builder.utils import (
     create_local_repo_from_koji_tag,
@@ -83,6 +81,101 @@ def import_fake_base_module(nsvc):
     mmd.set_xmd(xmd)
 
     import_mmd(db_session, mmd, False)
+
+
+def load_local_builds(local_build_nsvs):
+    """
+    Loads previously finished local module builds from conf.mock_resultsdir
+    and imports them to database.
+
+    :param local_build_nsvs: List of NSV separated by ':' defining the modules
+        to load from the mock_resultsdir.
+    """
+    if not local_build_nsvs:
+        return
+
+    if type(local_build_nsvs) != list:
+        local_build_nsvs = [local_build_nsvs]
+
+    # Get the list of all available local module builds.
+    builds = []
+    try:
+        for d in os.listdir(conf.mock_resultsdir):
+            m = re.match("^module-(.*)-([^-]*)-([0-9]+)$", d)
+            if m:
+                builds.append((m.group(1), m.group(2), int(m.group(3)), d))
+    except OSError:
+        pass
+
+    # Sort with the biggest version first
+    try:
+        # py27
+        builds.sort(lambda a, b: -cmp(a[2], b[2]))  # noqa: F821
+    except TypeError:
+        # py3
+        builds.sort(key=lambda a: a[2], reverse=True)
+
+    for nsv in local_build_nsvs:
+        parts = nsv.split(":")
+        if len(parts) < 1 or len(parts) > 3:
+            raise RuntimeError(
+                'The local build "{0}" couldn\'t be be parsed into NAME[:STREAM[:VERSION]]'
+                .format(nsv)
+            )
+
+        name = parts[0]
+        stream = parts[1] if len(parts) > 1 else None
+        version = int(parts[2]) if len(parts) > 2 else None
+
+        found_build = None
+        for build in builds:
+            if name != build[0]:
+                continue
+            if stream is not None and stream != build[1]:
+                continue
+            if version is not None and version != build[2]:
+                continue
+
+            found_build = build
+            break
+
+        if not found_build:
+            raise RuntimeError(
+                'The local build "{0}" couldn\'t be found in "{1}"'.format(
+                    nsv, conf.mock_resultsdir)
+            )
+
+        # Load the modulemd metadata.
+        path = os.path.join(conf.mock_resultsdir, found_build[3], "results")
+        mmd = load_mmd_file(os.path.join(path, "modules.yaml"))
+
+        # Create ModuleBuild in database.
+        module = models.ModuleBuild.create(
+            db_session,
+            conf,
+            name=mmd.get_module_name(),
+            stream=mmd.get_stream_name(),
+            version=str(mmd.get_version()),
+            context=mmd.get_context(),
+            modulemd=mmd_to_str(mmd),
+            scmurl="",
+            username="mbs",
+            publish_msg=False,
+        )
+        module.koji_tag = path
+        module.state = models.BUILD_STATES["ready"]
+        db_session.commit()
+
+        if (
+            found_build[0] != module.name
+            or found_build[1] != module.stream
+            or str(found_build[2]) != module.version
+        ):
+            raise RuntimeError(
+                'Parsed metadata results for "{0}" don\'t match the directory name'.format(
+                    found_build[3])
+            )
+        log.info("Loaded local module build %r", module)
 
 
 def get_local_releasever():

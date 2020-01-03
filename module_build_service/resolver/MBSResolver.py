@@ -279,7 +279,7 @@ class MBSResolver(KojiResolver):
                  set to union of all components defined in all installation
                  profiles matching the key using the buildrequires.
 
-        If there are some modules loaded by utils.load_local_builds(...), these
+        If there are some modules loaded by load_local_builds(...), these
         local modules will be considered when returning the profiles.
 
         https://pagure.io/fm-orchestrator/issue/181
@@ -406,7 +406,7 @@ class MBSResolver(KojiResolver):
         Resolves the requires list of N:S or N:S:V:C to a dictionary with keys as
         the module name and the values as a dictionary with keys of ref,
         stream, version.
-        If there are some modules loaded by utils.load_local_builds(...), these
+        If there are some modules loaded by load_local_builds(...), these
         local modules will be considered when resolving the requires. A RuntimeError
         is raised on MBS lookup errors.
         :param requires: a list of N:S or N:S:V:C strings
@@ -425,7 +425,7 @@ class MBSResolver(KojiResolver):
                 raise ValueError(
                     "Only N:S or N:S:V:C is accepted by resolve_requires, got %s" % nsvc)
             # Try to find out module dependency in the local module builds
-            # added by utils.load_local_builds(...).
+            # added by load_local_builds(...).
             local_modules = models.ModuleBuild.local_modules(
                 self.db_session, module_name, module_stream)
             if local_modules:

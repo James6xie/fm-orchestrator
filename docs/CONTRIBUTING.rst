@@ -101,7 +101,7 @@ Additionally, the imports should be ordered by standard library, third-party, th
     import flask
     import requests
 
-    import module_build_service.utils
+    import module_build_service.web
     from module_build_service.errors import ValidationError
 
 

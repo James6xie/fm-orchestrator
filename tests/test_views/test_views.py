@@ -34,7 +34,7 @@ from module_build_service.errors import UnprocessableEntity
 from module_build_service.models import ModuleBuild, BUILD_STATES, ComponentBuild
 from module_build_service import app, version
 import module_build_service.config as mbs_config
-import module_build_service.utils.submit
+import module_build_service.web.submit
 
 
 user = ("Homer J. Simpson", {"packager"})
@@ -973,7 +973,7 @@ class TestViews:
         assert data["state_trace"][0]["state"] == 0
         assert data["tasks"] == {}
         assert data["siblings"] == []
-        module_build_service.utils.load_mmd(data["modulemd"])
+        load_mmd(data["modulemd"])
 
         # Make sure the buildrequires entry was created
         module = ModuleBuild.get_by_id(db_session, 8)
@@ -1581,7 +1581,7 @@ class TestViews:
         rv = self.client.post(post_url, data=json.dumps(json_input))
         data = json.loads(rv.data)
 
-        mmd = module_build_service.utils.load_mmd(data[0]["modulemd"])
+        mmd = load_mmd(data[0]["modulemd"])
         assert len(mmd.get_dependencies()) == 1
         dep = mmd.get_dependencies()[0]
         assert set(dep.get_buildtime_streams("platform")) == expected_br
@@ -2120,7 +2120,7 @@ class TestViews:
         assert data["state_trace"][0]["state"] == 0
         assert data["tasks"] == {}
         assert data["siblings"] == []
-        module_build_service.utils.load_mmd(data["modulemd"])
+        load_mmd(data["modulemd"])
 
         # Make sure the buildrequires entry was created
         module = ModuleBuild.get_by_id(db_session, 8)
@@ -2216,7 +2216,7 @@ class TestViews:
         assert data["state_trace"][0]["state"] == 0
         assert data["tasks"] == {}
         assert data["siblings"] == []
-        module_build_service.utils.load_mmd(data["modulemd"])
+        load_mmd(data["modulemd"])
 
         # Make sure the buildrequires entry was created
         module = ModuleBuild.get_by_id(db_session, 8)
@@ -2334,7 +2334,7 @@ class TestViews:
         data = json.loads(rv.data)
         assert rv.status_code == 201
 
-        mmd = module_build_service.utils.load_mmd(data[0]["modulemd"])
+        mmd = load_mmd(data[0]["modulemd"])
         assert len(mmd.get_dependencies()) == 1
         dep = mmd.get_dependencies()[0]
         if platform_override:
@@ -2382,7 +2382,7 @@ class TestViews:
         data = json.loads(rv.data)
         assert rv.status_code == 201
 
-        mmd = module_build_service.utils.load_mmd(data[0]["modulemd"])
+        mmd = load_mmd(data[0]["modulemd"])
         assert len(mmd.get_dependencies()) == 1
         dep = mmd.get_dependencies()[0]
         # The buildrequire_override value should take precedence over the stream override from
@@ -2450,7 +2450,7 @@ class TestViews:
             post_url, data=json.dumps({"branch": "product1.2", "scmurl": scm_url}))
         assert rv.status_code == 201
         data = json.loads(rv.data)[0]
-        mmd = module_build_service.utils.load_mmd(data["modulemd"])
+        mmd = load_mmd(data["modulemd"])
         assert mmd.get_xmd()["mbs"]["disttag_marking"] == "product12"
 
     @patch("module_build_service.auth.get_user", return_value=user)
@@ -2592,7 +2592,7 @@ class TestViews:
         ),
     )
     @patch.object(
-        module_build_service.utils.submit,
+        module_build_service.web.submit,
         "datetime",
         new_callable=partial(Mock, wraps=datetime),
     )

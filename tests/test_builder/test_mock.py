@@ -5,18 +5,23 @@ import tempfile
 import shutil
 from textwrap import dedent
 
-import mock
 import kobo.rpmlib
 import koji
+import mock
+import pytest
 
 from module_build_service import conf, models
 from module_build_service.common.utils import load_mmd, mmd_to_str
 from module_build_service.db_session import db_session
 from module_build_service.models import ModuleBuild, ComponentBuild
 from module_build_service.builder.MockModuleBuilder import (
-    import_fake_base_module, import_builds_from_local_dnf_repos, MockModuleBuilder,
+    import_fake_base_module,
+    import_builds_from_local_dnf_repos,
+    load_local_builds,
+    MockModuleBuilder,
 )
-from tests import clean_database, make_module_in_db, read_staged_data
+from module_build_service.scheduler import events
+from tests import clean_database, make_module_in_db, read_staged_data, staged_data_filename
 
 
 class TestMockModuleBuilder:
@@ -300,3 +305,73 @@ class TestOfflineLocalBuilds:
             module_build = models.ModuleBuild.get_build_from_nsvc(
                 db_session, "platform", "y", 1, "000000")
             assert module_build
+
+
+@mock.patch(
+    "module_build_service.config.Config.mock_resultsdir",
+    new_callable=mock.PropertyMock,
+    return_value=staged_data_filename("local_builds")
+)
+@mock.patch(
+    "module_build_service.config.Config.system", new_callable=mock.PropertyMock, return_value="mock"
+)
+class TestLocalBuilds:
+    def setup_method(self):
+        clean_database()
+        events.scheduler.reset()
+
+    def teardown_method(self):
+        clean_database()
+        events.scheduler.reset()
+
+    def test_load_local_builds_name(self, conf_system, conf_resultsdir):
+        load_local_builds("testmodule")
+        local_modules = models.ModuleBuild.local_modules(db_session)
+
+        assert len(local_modules) == 1
+        assert local_modules[0].koji_tag.endswith(
+            "/module-testmodule-master-20170816080816/results")
+
+    def test_load_local_builds_name_stream(self, conf_system, conf_resultsdir):
+        load_local_builds("testmodule:master")
+        local_modules = models.ModuleBuild.local_modules(db_session)
+
+        assert len(local_modules) == 1
+        assert local_modules[0].koji_tag.endswith(
+            "/module-testmodule-master-20170816080816/results")
+
+    def test_load_local_builds_name_stream_non_existing(
+        self, conf_system, conf_resultsdir
+    ):
+        with pytest.raises(RuntimeError):
+            load_local_builds("testmodule:x")
+            models.ModuleBuild.local_modules(db_session)
+
+    def test_load_local_builds_name_stream_version(self, conf_system, conf_resultsdir):
+        load_local_builds("testmodule:master:20170816080815")
+        local_modules = models.ModuleBuild.local_modules(db_session)
+
+        assert len(local_modules) == 1
+        assert local_modules[0].koji_tag.endswith(
+            "/module-testmodule-master-20170816080815/results")
+
+    def test_load_local_builds_name_stream_version_non_existing(
+        self, conf_system, conf_resultsdir
+    ):
+        with pytest.raises(RuntimeError):
+            load_local_builds("testmodule:master:123")
+            models.ModuleBuild.local_modules(db_session)
+
+    def test_load_local_builds_platform(self, conf_system, conf_resultsdir):
+        load_local_builds("platform")
+        local_modules = models.ModuleBuild.local_modules(db_session)
+
+        assert len(local_modules) == 1
+        assert local_modules[0].koji_tag.endswith("/module-platform-f28-3/results")
+
+    def test_load_local_builds_platform_f28(self, conf_system, conf_resultsdir):
+        load_local_builds("platform:f28")
+        local_modules = models.ModuleBuild.local_modules(db_session)
+
+        assert len(local_modules) == 1
+        assert local_modules[0].koji_tag.endswith("/module-platform-f28-3/results")

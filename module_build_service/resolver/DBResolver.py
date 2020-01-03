@@ -198,7 +198,7 @@ class DBResolver(GenericResolver):
         Returns a dictionary with keys set according the `keys` parameters and values
         set to the union of all components defined in all installation profiles matching
         the key in all buildrequires. If there are some modules loaded by
-        utils.load_local_builds(...), these local modules will be considered when returning
+        load_local_builds(...), these local modules will be considered when returning
         the profiles.
         :param mmd: Modulemd.ModuleStream instance representing the module
         :param keys: list of modulemd installation profiles to include in the result

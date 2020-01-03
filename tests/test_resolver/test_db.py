@@ -7,11 +7,12 @@ from mock import patch, PropertyMock
 import pytest
 
 import module_build_service.resolver as mbs_resolver
-from module_build_service import conf, models, utils, Modulemd
+from module_build_service import conf, models, Modulemd
 from module_build_service.common.utils import import_mmd, load_mmd, mmd_to_str
 from module_build_service.models import ModuleBuild
 from module_build_service.errors import UnprocessableEntity
 from module_build_service.db_session import db_session
+from module_build_service.builder.MockModuleBuilder import load_local_builds
 import tests
 
 
@@ -139,7 +140,7 @@ class TestDBModule:
         """
         Tests that it returns the requires of the buildrequires recursively
         """
-        utils.load_local_builds(["platform", "parent", "child", "testmodule"])
+        load_local_builds(["platform", "parent", "child", "testmodule"])
 
         build = models.ModuleBuild.local_modules(db_session, "child", "master")
         resolver = mbs_resolver.GenericResolver.create(db_session, conf, backend="db")
@@ -260,7 +261,7 @@ class TestDBModule:
         """
         Test that profiles get resolved recursively on local builds
         """
-        utils.load_local_builds(["platform"])
+        load_local_builds(["platform"])
         mmd = models.ModuleBuild.get_by_id(db_session, 2).mmd()
         resolver = mbs_resolver.GenericResolver.create(db_session, conf, backend="mbs")
         result = resolver.resolve_profiles(mmd, ("buildroot", "srpm-buildroot"))

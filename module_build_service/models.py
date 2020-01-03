@@ -708,7 +708,7 @@ class ModuleBuild(MBSBase):
     def local_modules(cls, db_session, name=None, stream=None):
         """
         Returns list of local module builds added by
-        utils.load_local_builds(...). When `name` or `stream` is set,
+        load_local_builds(...). When `name` or `stream` is set,
         it is used to further limit the result set.
 
         If conf.system is not set to "mock" or "test", returns empty

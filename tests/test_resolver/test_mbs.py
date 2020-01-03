@@ -3,9 +3,9 @@
 from mock import patch, PropertyMock, Mock, call
 
 from module_build_service import app, conf
+from module_build_service.builder.MockModuleBuilder import load_local_builds
 from module_build_service.common.utils import load_mmd, mmd_to_str
 import module_build_service.resolver as mbs_resolver
-import module_build_service.utils
 from module_build_service.db_session import db_session
 import module_build_service.models
 import tests
@@ -328,7 +328,7 @@ class TestMBSModule:
         self, local_builds, conf_system, formatted_testmodule_mmd
     ):
         tests.clean_database()
-        module_build_service.utils.load_local_builds(["platform"])
+        load_local_builds(["platform"])
 
         resolver = mbs_resolver.GenericResolver.create(db_session, conf, backend="mbs")
         result = resolver.resolve_profiles(
@@ -450,7 +450,7 @@ class TestMBSModule:
     ):
         tests.clean_database()
         with app.app_context():
-            module_build_service.utils.load_local_builds(["testmodule"])
+            load_local_builds(["testmodule"])
 
             resolver = mbs_resolver.GenericResolver.create(db_session, conf, backend="mbs")
             result = resolver.get_buildrequired_modulemds(

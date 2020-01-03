@@ -17,8 +17,9 @@ from module_build_service.common.utils import import_mmd
 from module_build_service.errors import ValidationError, Forbidden, NotFound, ProgrammingError
 from module_build_service.backports import jsonify
 from module_build_service.monitor import registry
-from module_build_service.utils.submit import (
-    fetch_mmd, submit_module_build_from_scm, submit_module_build_from_yaml
+from module_build_service.common.submit import fetch_mmd
+from module_build_service.web.submit import (
+    submit_module_build_from_scm, submit_module_build_from_yaml
 )
 from module_build_service.web.utils import (
     cors_header,

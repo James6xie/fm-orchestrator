@@ -18,7 +18,6 @@ from module_build_service.common.utils import load_mmd, import_mmd
 import module_build_service.messaging
 import module_build_service.scheduler.consumer
 import module_build_service.scheduler.handlers.repos
-import module_build_service.utils
 from module_build_service.errors import Forbidden
 from module_build_service import app, models, conf, build_logs, log
 from module_build_service.db_session import db_session
@@ -37,6 +36,7 @@ import json
 import itertools
 
 from module_build_service.builder import GenericBuilder
+from module_build_service.builder.MockModuleBuilder import load_local_builds
 from module_build_service.builder.utils import validate_koji_tag
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
 from tests import clean_database, read_staged_data, staged_data_filename
@@ -672,7 +672,7 @@ class TestBuild(BaseTestBuild):
         new_callable=PropertyMock,
         return_value=True,
     )
-    @patch("module_build_service.utils.submit._is_eol_in_pdc", return_value=True)
+    @patch("module_build_service.common.submit._is_eol_in_pdc", return_value=True)
     @patch("module_build_service.auth.get_user", return_value=user)
     @patch("module_build_service.scm.SCM")
     def test_submit_build_eol_module(
@@ -1906,7 +1906,7 @@ class TestLocalBuild(BaseTestBuild):
         """
         Tests local module build dependency.
         """
-        module_build_service.utils.load_local_builds(["platform"])
+        load_local_builds(["platform"])
         FakeSCM(
             mocked_scm,
             "testmodule",

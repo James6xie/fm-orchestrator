@@ -42,7 +42,7 @@ class TestModuleInit:
     @patch(
         "module_build_service.scheduler.handlers.modules.handle_collisions_with_base_module_rpms"
     )
-    @patch("module_build_service.utils.submit.get_build_arches", return_value=["x86_64"])
+    @patch("module_build_service.scheduler.submit.get_build_arches", return_value=["x86_64"])
     def init_basic(self, db_session, get_build_arches, hcwbmr, rscm, mocked_scm, built_rpms):
         FakeSCM(
             mocked_scm,
@@ -102,7 +102,7 @@ class TestModuleInit:
         assert len(mmd_to_str(old_mmd)) == len(mmd_to_str(new_mmd))
 
     @patch("module_build_service.scm.SCM")
-    @patch("module_build_service.utils.submit.get_build_arches", return_value=["x86_64"])
+    @patch("module_build_service.scheduler.submit.get_build_arches", return_value=["x86_64"])
     def test_init_scm_not_available(self, get_build_arches, mocked_scm):
         FakeSCM(
             mocked_scm, "testmodule", "testmodule.yaml", "620ec77321b2ea7b0d67d82992dda3e1d67055b4",
@@ -123,7 +123,7 @@ class TestModuleInit:
         return_value=True,
     )
     @patch("module_build_service.scm.SCM")
-    @patch("module_build_service.utils.submit.get_build_arches", return_value=["x86_64"])
+    @patch("module_build_service.scheduler.submit.get_build_arches", return_value=["x86_64"])
     def test_init_includedmodule(
         self, get_build_arches, mocked_scm, mocked_mod_allow_repo
     ):
@@ -159,7 +159,7 @@ class TestModuleInit:
 
     @patch("module_build_service.models.ModuleBuild.from_module_event")
     @patch("module_build_service.scm.SCM")
-    @patch("module_build_service.utils.submit.get_build_arches", return_value=["x86_64"])
+    @patch("module_build_service.scheduler.submit.get_build_arches", return_value=["x86_64"])
     def test_init_when_get_latest_raises(
             self, get_build_arches, mocked_scm, mocked_from_module_event):
         FakeSCM(
