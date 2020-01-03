@@ -5,7 +5,7 @@ from module_build_service import models, conf
 import mock
 import koji
 import pytest
-from module_build_service.db_session import db_session
+from module_build_service.scheduler.db_session import db_session
 from module_build_service.builder import GenericBuilder
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
 from module_build_service.scheduler import events

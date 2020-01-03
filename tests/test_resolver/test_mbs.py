@@ -6,7 +6,7 @@ from module_build_service import app, conf
 from module_build_service.builder.MockModuleBuilder import load_local_builds
 from module_build_service.common.utils import load_mmd, mmd_to_str
 import module_build_service.resolver as mbs_resolver
-from module_build_service.db_session import db_session
+from module_build_service.scheduler.db_session import db_session
 import module_build_service.models
 import tests
 

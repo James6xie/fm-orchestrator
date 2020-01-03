@@ -20,7 +20,7 @@ import module_build_service.scheduler.consumer
 import module_build_service.scheduler.handlers.repos
 from module_build_service.errors import Forbidden
 from module_build_service import app, models, conf, build_logs, log
-from module_build_service.db_session import db_session
+from module_build_service.scheduler.db_session import db_session
 from module_build_service.scheduler import events
 from module_build_service.scheduler.handlers.tags import tagged as tagged_handler
 from module_build_service.scheduler.handlers.components import (
@@ -1149,7 +1149,7 @@ class TestBuild(BaseTestBuild):
 
         FakeModuleBuilder.on_buildroot_add_artifacts_cb = on_buildroot_add_artifacts_cb
 
-        from module_build_service.db_session import db_session
+        from module_build_service.scheduler.db_session import db_session
 
         # Create a dedicated database session for scheduler to avoid hang
         self.run_scheduler(
@@ -1190,7 +1190,7 @@ class TestBuild(BaseTestBuild):
         """
         # Firstly, remove all existing module-build-macros component builds
 
-        from module_build_service.db_session import db_session
+        from module_build_service.scheduler.db_session import db_session
 
         macros_cb_query = db_session.query(models.ComponentBuild).filter_by(
             package="module-build-macros")

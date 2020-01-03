@@ -9,7 +9,7 @@ import pytest
 
 from module_build_service import conf
 from module_build_service.common.utils import import_mmd, load_mmd, mmd_to_str
-from module_build_service.db_session import db_session
+from module_build_service.scheduler.db_session import db_session
 from module_build_service.errors import UnprocessableEntity
 from module_build_service.models import ModuleBuild
 from module_build_service.scheduler import default_modules

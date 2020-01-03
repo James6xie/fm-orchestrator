@@ -10,7 +10,7 @@ import pytest
 from tests import scheduler_init_data
 import module_build_service.resolver
 from module_build_service import build_logs, conf, Modulemd
-from module_build_service.db_session import db_session
+from module_build_service.scheduler.db_session import db_session
 from module_build_service.models import ComponentBuild, ModuleBuild
 
 base_dir = os.path.dirname(os.path.dirname(__file__))

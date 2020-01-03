@@ -8,7 +8,7 @@ import pytest
 
 from module_build_service import conf, models
 from module_build_service.builder import utils
-from module_build_service.db_session import db_session
+from module_build_service.scheduler.db_session import db_session
 from module_build_service.errors import ProgrammingError, ValidationError
 from module_build_service.common.utils import load_mmd, import_mmd, mmd_to_str
 from tests import init_data, read_staged_data, scheduler_init_data

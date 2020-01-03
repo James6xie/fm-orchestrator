@@ -15,7 +15,7 @@ import module_build_service.scheduler.handlers.repos
 import module_build_service.models
 from module_build_service import conf, Modulemd
 from module_build_service.common.utils import mmd_to_str
-from module_build_service.db_session import db_session
+from module_build_service.scheduler.db_session import db_session
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
 from module_build_service.builder import GenericBuilder
 from module_build_service.scheduler import events

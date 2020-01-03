@@ -24,7 +24,7 @@ import textwrap
 from module_build_service import log, conf, models
 from module_build_service.builder.utils import execute_cmd, get_rpm_release, validate_koji_tag
 from module_build_service.common.retry import retry
-from module_build_service.db_session import db_session
+from module_build_service.scheduler.db_session import db_session
 from module_build_service.builder import GenericBuilder
 from module_build_service.builder.KojiContentGenerator import KojiContentGenerator
 from module_build_service.common.koji import (

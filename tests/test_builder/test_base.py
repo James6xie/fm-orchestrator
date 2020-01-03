@@ -8,7 +8,7 @@ import module_build_service.resolver
 
 from tests import init_data
 
-from module_build_service.db_session import db_session
+from module_build_service.scheduler.db_session import db_session
 from module_build_service.builder import GenericBuilder
 from mock import patch
 

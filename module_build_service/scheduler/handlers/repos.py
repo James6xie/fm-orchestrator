@@ -7,7 +7,7 @@ from datetime import datetime
 from module_build_service import celery_app, conf, models, log
 from module_build_service.builder import GenericBuilder
 from module_build_service.scheduler.batches import start_next_batch_build
-from module_build_service.db_session import db_session
+from module_build_service.scheduler.db_session import db_session
 from module_build_service.scheduler import events
 
 logging.basicConfig(level=logging.DEBUG)

@@ -16,7 +16,7 @@ from module_build_service.common.resolve import (
     expand_single_mse_streams, get_compatible_base_module_mmds
 )
 from module_build_service.common.retry import retry
-from module_build_service.db_session import db_session
+from module_build_service.scheduler.db_session import db_session
 from module_build_service.errors import UnprocessableEntity
 from module_build_service.resolver.base import GenericResolver
 

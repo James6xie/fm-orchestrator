@@ -5,7 +5,7 @@ import mock
 import module_build_service.messaging
 import module_build_service.scheduler.handlers.repos
 import module_build_service.models
-from module_build_service.db_session import db_session
+from module_build_service.scheduler.db_session import db_session
 from module_build_service.models import ComponentBuild
 from tests import scheduler_init_data
 

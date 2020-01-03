@@ -10,7 +10,7 @@ import module_build_service
 from module_build_service.builder.utils import get_rpm_release
 from module_build_service.common.utils import load_mmd, mmd_to_str
 from module_build_service.models import BUILD_STATES
-from module_build_service.db_session import db_session
+from module_build_service.scheduler.db_session import db_session
 from tests import clean_database, read_staged_data, module_build_from_modulemd
 
 BASE_DIR = os.path.dirname(__file__)

@@ -6,7 +6,7 @@ from sqlalchemy.orm.session import make_transient
 
 from module_build_service import models, Modulemd
 from module_build_service.common.utils import import_mmd, load_mmd, mmd_to_str
-from module_build_service.db_session import db_session
+from module_build_service.scheduler.db_session import db_session
 from module_build_service.scheduler.reuse import get_reusable_component, get_reusable_module
 from tests import clean_database, read_staged_data
 

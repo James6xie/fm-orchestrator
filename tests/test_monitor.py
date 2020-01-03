@@ -9,7 +9,7 @@ from six.moves import reload_module
 
 import module_build_service.monitor
 from module_build_service import app, conf, models
-from module_build_service.db_session import db_session
+from module_build_service.scheduler.db_session import db_session
 from tests import init_data, make_module_in_db
 
 num_of_metrics = 18

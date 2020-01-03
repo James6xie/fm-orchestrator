@@ -29,7 +29,7 @@ from tests import (
     time_assert,
 )
 from tests.test_scm import base_dir as scm_base_dir
-from module_build_service.db_session import db_session
+from module_build_service.scheduler.db_session import db_session
 from module_build_service.errors import UnprocessableEntity
 from module_build_service.models import ModuleBuild, BUILD_STATES, ComponentBuild
 from module_build_service import app, version

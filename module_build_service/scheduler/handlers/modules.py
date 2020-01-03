@@ -13,7 +13,7 @@ from module_build_service.scheduler.submit import (
     record_filtered_rpms,
     record_module_build_arches
 )
-from module_build_service.db_session import db_session
+from module_build_service.scheduler.db_session import db_session
 from module_build_service.builder import GenericBuilder
 from module_build_service.errors import UnprocessableEntity, Forbidden, ValidationError
 from module_build_service.scheduler.default_modules import (

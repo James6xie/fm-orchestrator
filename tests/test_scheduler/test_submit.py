@@ -6,7 +6,7 @@ import mock
 import pytest
 
 from module_build_service.common.utils import load_mmd, load_mmd_file, mmd_to_str
-from module_build_service.db_session import db_session
+from module_build_service.scheduler.db_session import db_session
 import module_build_service.scm
 from module_build_service import app, models, conf
 from module_build_service.errors import UnprocessableEntity

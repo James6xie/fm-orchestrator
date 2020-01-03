@@ -7,7 +7,7 @@ from module_build_service import models, conf
 from tests import clean_database, make_module_in_db
 import mock
 import koji
-from module_build_service.db_session import db_session
+from module_build_service.scheduler.db_session import db_session
 from module_build_service.scheduler import producer
 from datetime import datetime, timedelta
 

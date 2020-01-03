@@ -9,7 +9,7 @@ from module_build_service import celery_app, conf, models, log
 from module_build_service.builder import GenericBuilder
 from module_build_service.common.koji import get_session
 from module_build_service.common.utils import mmd_to_str
-from module_build_service.db_session import db_session
+from module_build_service.scheduler.db_session import db_session
 from module_build_service.scheduler import events
 from module_build_service.scheduler.batches import continue_batch_build
 

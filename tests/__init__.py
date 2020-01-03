@@ -20,7 +20,7 @@ from module_build_service.models import (
     BUILD_STATES,
 )
 from module_build_service import Modulemd
-from module_build_service.db_session import db_session
+from module_build_service.scheduler.db_session import db_session
 
 
 base_dir = os.path.dirname(__file__)

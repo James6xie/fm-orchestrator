@@ -10,7 +10,7 @@ import module_build_service.scheduler.handlers.repos
 import module_build_service.scheduler.handlers.tags
 import module_build_service.models
 
-from module_build_service.db_session import db_session
+from module_build_service.scheduler.db_session import db_session
 
 import koji
 

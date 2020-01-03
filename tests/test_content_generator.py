@@ -9,7 +9,7 @@ from os import path
 
 from module_build_service import models, conf, build_logs, Modulemd
 from module_build_service.common.utils import load_mmd, load_mmd_file, mmd_to_str
-from module_build_service.db_session import db_session
+from module_build_service.scheduler.db_session import db_session
 
 from mock import patch, Mock, call, mock_open
 import kobo.rpmlib

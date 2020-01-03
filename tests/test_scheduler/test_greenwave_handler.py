@@ -7,7 +7,7 @@ from sqlalchemy import func
 
 import module_build_service.common.config
 from module_build_service import conf
-from module_build_service.db_session import db_session
+from module_build_service.scheduler.db_session import db_session
 from module_build_service.models import BUILD_STATES, ModuleBuild
 from module_build_service.scheduler.consumer import MBSConsumer
 from module_build_service.scheduler.handlers.greenwave import get_corresponding_module_build
