@@ -23,7 +23,7 @@ from module_build_service.scheduler.default_modules import (
 from module_build_service.scheduler.greenwave import greenwave
 from module_build_service.utils.submit import format_mmd
 from module_build_service.scheduler import events
-from module_build_service.utils.ursine import handle_stream_collision_modules
+from module_build_service.scheduler.ursine import handle_stream_collision_modules
 
 from requests.exceptions import ConnectionError
 

@@ -3,7 +3,7 @@
 from mock import patch, Mock
 
 from module_build_service import conf
-from module_build_service.utils import ursine
+from module_build_service.scheduler import ursine
 from tests import make_module, make_module_in_db, clean_database
 
 
@@ -206,7 +206,7 @@ class TestRecordStreamCollisionModules:
         assert original_xmd == fake_mmd.get_xmd()
 
     @patch.object(conf, "base_module_names", new=["platform"])
-    @patch("module_build_service.utils.ursine.get_modulemds_from_ursine_content")
+    @patch("module_build_service.scheduler.ursine.get_modulemds_from_ursine_content")
     def test_mark_handled_even_if_no_modules_in_ursine_content(
         self, get_modulemds_from_ursine_content
     ):
@@ -233,7 +233,7 @@ class TestRecordStreamCollisionModules:
         assert expected_xmd == fake_mmd.get_xmd()
 
     @patch.object(conf, "base_module_names", new=["platform", "project-platform"])
-    @patch("module_build_service.utils.ursine.get_modulemds_from_ursine_content")
+    @patch("module_build_service.scheduler.ursine.get_modulemds_from_ursine_content")
     @patch("module_build_service.resolver.GenericResolver.create")
     @patch("koji.ClientSession")
     def test_add_collision_modules(
@@ -324,14 +324,14 @@ class TestRecordStreamCollisionModules:
 class TestFindStreamCollisionModules:
     """Test ursine.find_stream_collision_modules"""
 
-    @patch("module_build_service.utils.ursine.get_modulemds_from_ursine_content")
+    @patch("module_build_service.scheduler.ursine.get_modulemds_from_ursine_content")
     def test_no_modulemds_found_from_ursine_content(
         self, get_modulemds_from_ursine_content
     ):
         get_modulemds_from_ursine_content.return_value = []
         assert not ursine.find_stream_collision_modules({}, "koji_tag")
 
-    @patch("module_build_service.utils.ursine.get_modulemds_from_ursine_content")
+    @patch("module_build_service.scheduler.ursine.get_modulemds_from_ursine_content")
     def test_no_collisions_found(self, get_modulemds_from_ursine_content):
         xmd_mbs_buildrequires = {"modulea": {"stream": "master"}, "moduleb": {"stream": "10"}}
         get_modulemds_from_ursine_content.return_value = [
@@ -342,7 +342,7 @@ class TestFindStreamCollisionModules:
         assert [] == ursine.find_stream_collision_modules(
             xmd_mbs_buildrequires, "koji_tag")
 
-    @patch("module_build_service.utils.ursine.get_modulemds_from_ursine_content")
+    @patch("module_build_service.scheduler.ursine.get_modulemds_from_ursine_content")
     def test_collision_modules_are_found(self, get_modulemds_from_ursine_content):
         xmd_mbs_buildrequires = {"modulea": {"stream": "master"}, "moduleb": {"stream": "10"}}
         fake_modules = [
