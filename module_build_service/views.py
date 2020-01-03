@@ -14,7 +14,7 @@ from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 from module_build_service import app, conf, log, models, db, version, api_version as max_api_version
 from module_build_service.common.utils import import_mmd
 from module_build_service.errors import ValidationError, Forbidden, NotFound, ProgrammingError
-from module_build_service.backports import jsonify
+from module_build_service.web.backports import jsonify
 from module_build_service.monitor import registry
 from module_build_service.common.submit import fetch_mmd
 import module_build_service.web.auth
