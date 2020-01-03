@@ -17,7 +17,6 @@ from module_build_service.builder.MockModuleBuilder import (
 from module_build_service.common.utils import load_mmd_file, import_mmd
 from module_build_service.scheduler.db_session import db_session
 from module_build_service.errors import StreamAmbigous
-import module_build_service.messaging
 import module_build_service.scheduler.consumer
 import module_build_service.scheduler.local
 from module_build_service.web.submit import submit_module_build_from_yaml

@@ -15,7 +15,6 @@ import fedmsg
 
 from module_build_service.builder.utils import get_rpm_release
 from module_build_service.common.utils import load_mmd, import_mmd
-import module_build_service.messaging
 import module_build_service.scheduler.consumer
 import module_build_service.scheduler.handlers.repos
 from module_build_service.errors import Forbidden

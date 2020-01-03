@@ -45,8 +45,8 @@ setup(
         ],
         "moksha.consumer": "mbsconsumer = module_build_service.scheduler.consumer:MBSConsumer",
         "mbs.messaging_backends": [
-            "fedmsg = module_build_service.messaging:_fedmsg_backend",
-            "in_memory = module_build_service.messaging:_in_memory_backend",
+            "fedmsg = module_build_service.common.messaging:_fedmsg_backend",
+            "in_memory = module_build_service.common.messaging:_in_memory_backend",
             # 'custom = your_organization:_custom_backend',
         ],
         "mbs.builder_backends": [

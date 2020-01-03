@@ -6,7 +6,6 @@ import operator
 from datetime import timedelta, datetime
 from sqlalchemy.orm import lazyload, load_only
 
-import module_build_service.messaging
 import module_build_service.scheduler
 import module_build_service.scheduler.consumer
 from module_build_service import celery_app, conf, models, log

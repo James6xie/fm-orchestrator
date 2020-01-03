@@ -19,13 +19,13 @@ import fedmsg.consumers
 import moksha.hub
 import sqlalchemy.exc
 
-import module_build_service.messaging
+import module_build_service.common.messaging
 import module_build_service.monitor as monitor
 
 from module_build_service import models, log, conf
 from module_build_service.scheduler.db_session import db_session
 from module_build_service.errors import IgnoreMessage
-from module_build_service.messaging import default_messaging_backend
+from module_build_service.common.messaging import default_messaging_backend
 from module_build_service.scheduler import events
 from module_build_service.scheduler.handlers import components
 from module_build_service.scheduler.handlers import repos
@@ -107,8 +107,8 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
 
         # Furthermore, extend our initial messages with any that were queued up
         # in the test environment before our hub was initialized.
-        while module_build_service.messaging._initial_messages:
-            msg = module_build_service.messaging._initial_messages.pop(0)
+        while module_build_service.common.messaging._initial_messages:
+            msg = module_build_service.common.messaging._initial_messages.pop(0)
             self.incoming.put(msg)
 
         self.sanity_check()

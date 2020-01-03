@@ -113,7 +113,7 @@ class TestDecisionUpdateHandler:
             subject_identifier,
         )
 
-    @patch("module_build_service.messaging.publish")
+    @patch("module_build_service.common.messaging.publish")
     @patch("koji.ClientSession")
     def test_transform_from_done_to_ready(self, ClientSession, publish):
         clean_database()

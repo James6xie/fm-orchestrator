@@ -7,7 +7,6 @@ from mock import patch, PropertyMock
 from module_build_service.common.utils import load_mmd, mmd_to_str
 from tests import clean_database, read_staged_data
 from tests.test_views.test_views import FakeSCM
-import module_build_service.messaging
 import module_build_service.scheduler.handlers.modules
 from module_build_service import build_logs, conf
 from module_build_service.scheduler.db_session import db_session

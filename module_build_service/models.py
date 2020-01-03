@@ -16,8 +16,8 @@ from sqlalchemy import func, and_
 from sqlalchemy.orm import lazyload
 from sqlalchemy.orm import validates, load_only
 
-import module_build_service.messaging
 from module_build_service import db, log, get_url_for, conf
+import module_build_service.common.messaging
 from module_build_service.common.utils import load_mmd
 from module_build_service.errors import UnprocessableEntity
 from module_build_service.scheduler import events
@@ -642,7 +642,7 @@ class ModuleBuild(MBSBase):
         db_session.commit()
 
         if publish_msg:
-            module_build_service.messaging.publish(
+            module_build_service.common.messaging.publish(
                 service="mbs",
                 topic="module.state.change",
                 msg=module.json(db_session, show_tasks=False),  # Note the state is "init" here...
@@ -697,7 +697,7 @@ class ModuleBuild(MBSBase):
             INVERSE_BUILD_STATES[old_state], new_state_name, self)
 
         if old_state != self.state:
-            module_build_service.messaging.publish(
+            module_build_service.common.messaging.publish(
                 service="mbs",
                 topic="module.state.change",
                 msg=self.json(db_session, show_tasks=False),

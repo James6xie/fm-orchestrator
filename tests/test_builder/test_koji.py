@@ -10,7 +10,6 @@ import mock
 from mock import patch, MagicMock
 import pytest
 
-import module_build_service.messaging
 import module_build_service.scheduler.handlers.repos
 import module_build_service.models
 from module_build_service import conf, Modulemd

@@ -120,7 +120,7 @@ class TestCommandBuildModuleLocally:
 
         # The consumer is not required to run actually, so it does not make
         # sense to publish message after creating a module build.
-        self.publish_patcher = patch("module_build_service.messaging.publish")
+        self.publish_patcher = patch("module_build_service.common.messaging.publish")
         self.mock_publish = self.publish_patcher.start()
 
         # Don't allow conf.set_item call to modify conf actually inside command

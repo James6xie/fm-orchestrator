@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: MIT
 import mock
 from mock import patch
-import module_build_service.messaging
 import module_build_service.scheduler.handlers.modules
 import os
 import koji
