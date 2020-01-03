@@ -76,3 +76,26 @@ class TestConsumer:
         assert event_info["event"] == events.KOJI_REPO_CHANGE
         assert event_info["msg_id"] == msg["body"]["msg_id"]
         assert event_info["tag_name"] == msg["body"]["msg"]["tag"]
+
+    @patch.object(MBSConsumer, "process_message")
+    def test_ingore_koji_build_change_event_without_task_id(self, process_message):
+        """
+        Test koji_build_change event without task_id should be ignored.
+        """
+        hub = MagicMock(config={})
+        consumer = MBSConsumer(hub)
+        event = {
+            'build_new_state': 1,
+            'task_id': None,
+            'msg_id': u'f66a43be-e510-44fc-a318-e422cfda65d3',
+            'module_build_id': None,
+            'state_reason': None,
+            'build_name': 'foobar',
+            'build_version': '201912130626',
+            'event': 'koji_build_change',
+            'build_release': u'070752'
+        }
+        consumer.get_abstracted_event_info = MagicMock()
+        consumer.get_abstracted_event_info.return_value = event
+        consumer.consume({})
+        assert process_message.call_count == 0

@@ -130,6 +130,14 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
             # through crypto validation.
             super(MBSConsumer, self).validate(message)
 
+    def validate_event(self, event):
+        # task_id is required for koji_build_change event
+        if event["event"] == "koji_build_change" and event["task_id"] is None:
+            raise IgnoreMessage(
+                "Ignore koji_build_change event from message {}, which has a null task_id".format(
+                    event["msg_id"])
+            )
+
     def consume(self, message):
         monitor.messaging_rx_counter.inc()
 
@@ -143,8 +151,9 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
         else:
             try:
                 event_info = self.get_abstracted_event_info(message)
+                self.validate_event(event_info)
             except IgnoreMessage as e:
-                log.warning(str(e))
+                log.debug(str(e))
                 return
 
         if event_info is None:
