@@ -10,7 +10,7 @@ import tempfile
 
 from six import string_types
 
-from module_build_service import logger
+from module_build_service.common import logger
 # This avoids creating a circular import by importing log from module_build_service
 log = logging.getLogger('module_build_service')
 

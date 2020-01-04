@@ -8,7 +8,7 @@ import tempfile
 from module_build_service import log
 from module_build_service.common import models
 from module_build_service.scheduler.db_session import db_session
-from module_build_service.logger import ModuleBuildLogs
+from module_build_service.common.logger import ModuleBuildLogs
 from module_build_service.scheduler.consumer import MBSConsumer
 from tests import init_data
 

@@ -29,7 +29,7 @@ import gi  # noqa
 gi.require_version("Modulemd", "2.0")  # noqa
 from gi.repository import Modulemd  # noqa
 
-from module_build_service.logger import init_logging, ModuleBuildLogs, level_flags, MBSLogger
+from module_build_service.common.logger import init_logging, ModuleBuildLogs, level_flags, MBSLogger
 
 from module_build_service.common.errors import (
     ValidationError, Unauthorized, UnprocessableEntity, Conflict, NotFound,
