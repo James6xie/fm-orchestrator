@@ -710,7 +710,7 @@ class Config(object):
         },
         "celery_task_routes": {
             "type": list,
-            "default": ["module_build_service.route.route_task"],
+            "default": ["module_build_service.scheduler.route.route_task"],
             "desc": "A list of Celery routers. When deciding the final destination queue of a "
                     "Celery task the routers are consulted in order",
         },
