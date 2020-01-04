@@ -35,7 +35,7 @@ from module_build_service.common.errors import (
     ValidationError, Unauthorized, UnprocessableEntity, Conflict, NotFound,
     Forbidden, json_error)
 from module_build_service.common.config import init_config
-from module_build_service.proxy import ReverseProxy
+from module_build_service.web.proxy import ReverseProxy
 
 try:
     version = pkg_resources.get_distribution("module-build-service").version
