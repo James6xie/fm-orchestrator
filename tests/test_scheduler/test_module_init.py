@@ -36,7 +36,7 @@ class TestModuleInit:
         "module_build_service.builder.KojiModuleBuilder.KojiModuleBuilder."
         "get_built_rpms_in_module_build"
     )
-    @patch("module_build_service.scm.SCM")
+    @patch("module_build_service.common.scm.SCM")
     @patch("module_build_service.scheduler.handlers.modules.handle_stream_collision_modules")
     @patch(
         "module_build_service.scheduler.handlers.modules.handle_collisions_with_base_module_rpms"
@@ -100,7 +100,7 @@ class TestModuleInit:
         # Compare only lengths, because `mmd_to_str` can shuffle the fields randomly.
         assert len(mmd_to_str(old_mmd)) == len(mmd_to_str(new_mmd))
 
-    @patch("module_build_service.scm.SCM")
+    @patch("module_build_service.common.scm.SCM")
     @patch("module_build_service.scheduler.submit.get_build_arches", return_value=["x86_64"])
     def test_init_scm_not_available(self, get_build_arches, mocked_scm):
         FakeSCM(
@@ -121,7 +121,7 @@ class TestModuleInit:
         new_callable=PropertyMock,
         return_value=True,
     )
-    @patch("module_build_service.scm.SCM")
+    @patch("module_build_service.common.scm.SCM")
     @patch("module_build_service.scheduler.submit.get_build_arches", return_value=["x86_64"])
     def test_init_includedmodule(
         self, get_build_arches, mocked_scm, mocked_mod_allow_repo
@@ -157,7 +157,7 @@ class TestModuleInit:
         assert build.mmd().get_xmd()["mbs"]["rpms"] == xmd_rpms
 
     @patch("module_build_service.common.models.ModuleBuild.from_module_event")
-    @patch("module_build_service.scm.SCM")
+    @patch("module_build_service.common.scm.SCM")
     @patch("module_build_service.scheduler.submit.get_build_arches", return_value=["x86_64"])
     def test_init_when_get_latest_raises(
             self, get_build_arches, mocked_scm, mocked_from_module_event):

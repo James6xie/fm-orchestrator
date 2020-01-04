@@ -13,7 +13,7 @@ from module_build_service.common.submit import fetch_mmd
 from module_build_service.common.utils import to_text_type
 from module_build_service.scheduler.db_session import db_session
 from module_build_service.common.errors import ValidationError, UnprocessableEntity, Forbidden
-import module_build_service.scm
+import module_build_service.common.scm
 
 
 def get_build_arches(mmd, config):
@@ -170,7 +170,7 @@ def _scm_get_latest(pkg):
         repo = pkg.get_repository()
         ref = pkg.get_ref()
         log.debug("Getting the commit hash for the ref %s on the repo %s", ref, repo)
-        pkgref = module_build_service.scm.SCM(repo).get_latest(ref)
+        pkgref = module_build_service.common.scm.SCM(repo).get_latest(ref)
     except Exception as e:
         log.exception(e)
         return {
@@ -192,10 +192,6 @@ def format_mmd(mmd, scmurl, module=None, db_session=None):
         of a module is updated regularly in case this method takes lot of time.
     :param db_session: Database session to update the `module`.
     """
-    # Import it here, because SCM uses utils methods and fails to import
-    # them because of dep-chain.
-    from module_build_service.scm import SCM
-
     xmd = mmd.get_xmd()
     if "mbs" not in xmd:
         xmd["mbs"] = {}
@@ -206,9 +202,9 @@ def format_mmd(mmd, scmurl, module=None, db_session=None):
 
     # If module build was submitted via yaml file, there is no scmurl
     if scmurl:
-        scm = SCM(scmurl)
+        scm = module_build_service.common.scm.SCM(scmurl)
         # We want to make sure we have the full commit hash for consistency
-        if SCM.is_full_commit_hash(scm.scheme, scm.commit):
+        if module_build_service.common.scm.SCM.is_full_commit_hash(scm.scheme, scm.commit):
             full_scm_hash = scm.commit
         else:
             full_scm_hash = scm.get_full_commit_hash()

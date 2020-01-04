@@ -13,7 +13,7 @@ import sqlalchemy
 from module_build_service import api_version, conf, db
 from module_build_service.common import models
 from module_build_service.common.errors import ValidationError, NotFound
-from module_build_service.scm import scm_url_schemes
+from module_build_service.common.scm import scm_url_schemes
 
 
 def deps_to_dict(deps, deps_type):

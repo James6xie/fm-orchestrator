@@ -7,7 +7,6 @@ import pytest
 
 from module_build_service.common.utils import load_mmd, load_mmd_file, mmd_to_str
 from module_build_service.scheduler.db_session import db_session
-import module_build_service.scm
 from module_build_service import app, conf
 from module_build_service.common import models
 from module_build_service.common.errors import UnprocessableEntity
@@ -97,7 +96,7 @@ class TestSubmit:
             None,
         ],
     )
-    @mock.patch("module_build_service.scm.SCM")
+    @mock.patch("module_build_service.common.scm.SCM")
     def test_format_mmd(self, mocked_scm, scmurl):
         mocked_scm.return_value.commit = "620ec77321b2ea7b0d67d82992dda3e1d67055b4"
         # For all the RPMs in testmodule, get_latest is called
@@ -147,7 +146,7 @@ class TestSubmit:
         mmd_xmd = mmd.get_xmd()
         assert mmd_xmd == xmd
 
-    @mock.patch("module_build_service.scm.SCM")
+    @mock.patch("module_build_service.common.scm.SCM")
     def test_record_component_builds_duplicate_components(self, mocked_scm):
         # Mock for format_mmd to get components' latest ref
         mocked_scm.return_value.commit = "620ec77321b2ea7b0d67d82992dda3e1d67055b4"
@@ -190,7 +189,7 @@ class TestSubmit:
 
         assert str(e.value) == error_msg
 
-    @mock.patch("module_build_service.scm.SCM")
+    @mock.patch("module_build_service.common.scm.SCM")
     def test_record_component_builds_set_weight(self, mocked_scm):
         # Mock for format_mmd to get components' latest ref
         mocked_scm.return_value.commit = "620ec77321b2ea7b0d67d82992dda3e1d67055b4"
@@ -230,7 +229,7 @@ class TestSubmit:
         for c in module_build.component_builds:
             assert c.weight == 1.5
 
-    @mock.patch("module_build_service.scm.SCM")
+    @mock.patch("module_build_service.common.scm.SCM")
     def test_record_component_builds_component_exists_already(self, mocked_scm):
         mocked_scm.return_value.commit = "620ec77321b2ea7b0d67d82992dda3e1d67055b4"
         mocked_scm.return_value.get_latest.side_effect = [
@@ -279,7 +278,7 @@ class TestSubmit:
             format_mmd(mmd, module_build.scmurl)
             record_component_builds(mmd, module_build)
 
-    @mock.patch("module_build_service.scm.SCM")
+    @mock.patch("module_build_service.common.scm.SCM")
     def test_format_mmd_arches(self, mocked_scm):
         with app.app_context():
             clean_database()
@@ -317,7 +316,7 @@ class TestSubmit:
                 pkg = mmd2.get_rpm_component(pkg_name)
                 assert set(pkg.get_arches()) == set(test_archs)
 
-    @mock.patch("module_build_service.scm.SCM")
+    @mock.patch("module_build_service.common.scm.SCM")
     @mock.patch("module_build_service.scheduler.submit.ThreadPool")
     def test_format_mmd_update_time_modified(self, tp, mocked_scm):
         init_data()

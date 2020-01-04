@@ -5,7 +5,7 @@ import tempfile
 
 import requests
 
-import module_build_service.scm
+import module_build_service.common.scm
 from module_build_service import conf, log
 from module_build_service.common.utils import load_mmd_file
 from module_build_service.common.errors import ValidationError
@@ -38,9 +38,9 @@ def fetch_mmd(url, branch=None, allow_local_url=False, whitelist_url=False, mand
         log.debug("Verifying modulemd")
         td = tempfile.mkdtemp()
         if whitelist_url:
-            scm = module_build_service.scm.SCM(url, branch, [url], allow_local_url)
+            scm = module_build_service.common.scm.SCM(url, branch, [url], allow_local_url)
         else:
-            scm = module_build_service.scm.SCM(url, branch, conf.scmurls, allow_local_url)
+            scm = module_build_service.common.scm.SCM(url, branch, conf.scmurls, allow_local_url)
         scm.checkout(td)
         if not whitelist_url and mandatory_checks:
             scm.verify()
