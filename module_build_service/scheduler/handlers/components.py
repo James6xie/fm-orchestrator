@@ -5,8 +5,9 @@
 import logging
 import koji
 
-from module_build_service import celery_app, conf, models, log
+from module_build_service import celery_app, conf, log
 from module_build_service.builder import GenericBuilder
+from module_build_service.common import models
 from module_build_service.common.koji import get_session
 from module_build_service.common.utils import mmd_to_str
 from module_build_service.scheduler.db_session import db_session

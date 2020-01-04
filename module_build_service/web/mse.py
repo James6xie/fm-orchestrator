@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
-from module_build_service import log, models, Modulemd, conf
+from module_build_service import log, Modulemd, conf
+from module_build_service.common import models
 from module_build_service.common.resolve import expand_single_mse_streams, get_base_module_mmds
 from module_build_service.common.utils import mmd_to_str
 from module_build_service.common.errors import StreamAmbigous

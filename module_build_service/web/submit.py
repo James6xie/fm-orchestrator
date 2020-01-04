@@ -10,7 +10,8 @@ import time
 from gi.repository import GLib
 import requests
 
-from module_build_service import conf, log, models, Modulemd
+from module_build_service import conf, log, Modulemd
+from module_build_service.common import models
 from module_build_service.common.submit import fetch_mmd
 from module_build_service.common.utils import load_mmd, mmd_to_str, to_text_type
 from module_build_service.common.errors import Conflict, Forbidden, ValidationError

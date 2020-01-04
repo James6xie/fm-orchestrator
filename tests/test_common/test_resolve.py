@@ -3,9 +3,10 @@
 from mock import patch, PropertyMock
 import pytest
 
+from module_build_service.common import models
 from module_build_service.common.utils import load_mmd
 from module_build_service.common.resolve import get_base_module_mmds
-from module_build_service import Modulemd, models
+from module_build_service import Modulemd
 from module_build_service.scheduler.db_session import db_session
 from tests import clean_database, make_module_in_db, init_data, read_staged_data
 

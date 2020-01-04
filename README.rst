@@ -775,7 +775,7 @@ _`Module Build States`
 
 You can see the list of possible states with::
 
-    from module_build_service.models import BUILD_STATES
+    from module_build_service.common.models import BUILD_STATES
     print(BUILD_STATES)
 
 Here's a description of what each of them means:

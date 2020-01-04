@@ -11,7 +11,8 @@ from six import string_types
 from io import BytesIO
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
-from module_build_service import app, conf, log, models, db, version, api_version as max_api_version
+from module_build_service import app, conf, log, db, version, api_version as max_api_version
+from module_build_service.common import models
 from module_build_service.common.utils import import_mmd
 from module_build_service.common.errors import (
     ValidationError, Forbidden, NotFound, ProgrammingError

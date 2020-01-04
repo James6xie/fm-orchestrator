@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
+import sqlalchemy
 from sqlalchemy.orm import aliased
 
 from module_build_service import log, db
-from module_build_service.resolver.base import GenericResolver
-from module_build_service import models
+from module_build_service.common import models
 from module_build_service.common.errors import UnprocessableEntity
 from module_build_service.common.utils import load_mmd
-import sqlalchemy
+from module_build_service.resolver.base import GenericResolver
 
 
 class DBResolver(GenericResolver):

@@ -14,11 +14,12 @@ import moksha.hub
 import fedmsg
 
 from module_build_service.builder.utils import get_rpm_release
+from module_build_service.common import models
 from module_build_service.common.utils import load_mmd, import_mmd
 import module_build_service.scheduler.consumer
 import module_build_service.scheduler.handlers.repos
 from module_build_service.common.errors import Forbidden
-from module_build_service import app, models, conf, build_logs, log
+from module_build_service import app, conf, build_logs, log
 from module_build_service.scheduler.db_session import db_session
 from module_build_service.scheduler import events
 from module_build_service.scheduler.handlers.tags import tagged as tagged_handler

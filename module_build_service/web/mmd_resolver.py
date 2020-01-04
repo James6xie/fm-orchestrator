@@ -4,7 +4,7 @@ import collections
 import itertools
 import solv
 from module_build_service import log, conf
-from module_build_service.models import ModuleBuild
+from module_build_service.common.models import ModuleBuild
 
 
 class MMDResolver(object):

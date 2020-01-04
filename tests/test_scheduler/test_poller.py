@@ -1,15 +1,18 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
+from datetime import datetime, timedelta
 import re
-import pytest
-from mock import call, patch
-from module_build_service import models, conf
-from tests import clean_database, make_module_in_db
-import mock
+
 import koji
+import mock
+from mock import call, patch
+import pytest
+
+from module_build_service import conf
+from module_build_service.common import models
 from module_build_service.scheduler.db_session import db_session
 from module_build_service.scheduler import producer
-from datetime import datetime, timedelta
+from tests import clean_database, make_module_in_db
 
 
 @pytest.mark.usefixtures("reuse_component_init_data")

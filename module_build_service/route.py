@@ -3,7 +3,8 @@
 """ Define the router used to route Celery tasks to queues."""
 import inspect
 
-from module_build_service import conf, log, models
+from module_build_service import conf, log
+from module_build_service.common import models
 from module_build_service.scheduler.db_session import db_session
 from module_build_service.scheduler.handlers.greenwave import get_corresponding_module_build
 

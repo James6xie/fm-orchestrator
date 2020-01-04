@@ -54,7 +54,7 @@ class KojiContentGenerator(object):
 
     def __init__(self, module, config):
         """
-        :param module: module_build_service.models.ModuleBuild instance.
+        :param module: module_build_service.common.models.ModuleBuild instance.
         :param config: module_build_service.common.config.Config instance
         """
         self.owner = module.owner

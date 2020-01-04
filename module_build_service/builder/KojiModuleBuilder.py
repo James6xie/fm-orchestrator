@@ -21,8 +21,9 @@ from itertools import chain
 from OpenSSL.SSL import SysCallError
 import textwrap
 
-from module_build_service import log, conf, models
+from module_build_service import log, conf
 from module_build_service.builder.utils import execute_cmd, get_rpm_release, validate_koji_tag
+from module_build_service.common import models
 from module_build_service.common.retry import retry
 from module_build_service.scheduler.db_session import db_session
 from module_build_service.builder import GenericBuilder
@@ -55,7 +56,7 @@ class KojiModuleBuilder(GenericBuilder):
         """
         :param db_session: SQLAlchemy session object.
         :param owner: a string representing who kicked off the builds
-        :param module: module_build_service.models.ModuleBuild instance.
+        :param module: module_build_service.common.models.ModuleBuild instance.
         :param config: module_build_service.common.config.Config instance
         :param tag_name: name of tag for given module
         """

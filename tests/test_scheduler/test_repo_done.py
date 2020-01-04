@@ -3,15 +3,15 @@
 import mock
 
 import module_build_service.scheduler.handlers.repos
-import module_build_service.models
+import module_build_service.common.models
 from module_build_service.scheduler.db_session import db_session
-from module_build_service.models import ComponentBuild
+from module_build_service.common.models import ComponentBuild
 from tests import scheduler_init_data
 
 
 class TestRepoDone:
 
-    @mock.patch("module_build_service.models.ModuleBuild.get_by_tag")
+    @mock.patch("module_build_service.common.models.ModuleBuild.get_by_tag")
     def test_no_match(self, get_by_tag):
         """ Test that when a repo msg hits us and we have no match,
         that we do nothing gracefully.
@@ -102,7 +102,7 @@ class TestRepoDone:
 
         # Ensure the time_completed is None, so we can test it is set to
         # some date once the build is finalized.
-        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
+        module_build = module_build_service.common.models.ModuleBuild.get_by_id(db_session, 2)
         module_build.time_completed = None
         db_session.commit()
 
@@ -110,7 +110,7 @@ class TestRepoDone:
             # Check that the time_completed is set in the time when
             # finalizer is called.
             assert succeeded is True
-            module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
+            module_build = module_build_service.common.models.ModuleBuild.get_by_id(db_session, 2)
             assert module_build.time_completed is not None
 
         finalizer.side_effect = mocked_finalizer
@@ -167,7 +167,7 @@ class TestRepoDone:
             ),
         )
         component_build = db_session.query(
-            module_build_service.models.ComponentBuild
+            module_build_service.common.models.ComponentBuild
         ).filter_by(package="tangerine").one()
         assert component_build.state_reason == "Failed to submit artifact tangerine to Koji"
 
@@ -189,9 +189,9 @@ class TestRepoDone:
         mock_log_info.assert_called_with(
             "Ignoring repo regen, because not all components are tagged."
         )
-        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
+        module_build = module_build_service.common.models.ModuleBuild.get_by_id(db_session, 2)
         # Make sure the module build didn't transition since all the components weren't tagged
-        assert module_build.state == module_build_service.models.BUILD_STATES["build"]
+        assert module_build.state == module_build_service.common.models.BUILD_STATES["build"]
 
     @mock.patch(
         "module_build_service.builder.KojiModuleBuilder."
@@ -225,5 +225,5 @@ class TestRepoDone:
             msg_id="some_msg_id",
             tag_name="module-testmodule-master-20170109091357-7c29193d-build")
 
-        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
-        assert module_build.state == module_build_service.models.BUILD_STATES["failed"]
+        module_build = module_build_service.common.models.ModuleBuild.get_by_id(db_session, 2)
+        assert module_build.state == module_build_service.common.models.BUILD_STATES["failed"]

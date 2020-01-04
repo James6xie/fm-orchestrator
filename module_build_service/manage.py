@@ -10,10 +10,11 @@ import getpass
 import textwrap
 
 from werkzeug.datastructures import FileStorage
-from module_build_service import app, conf, create_app, db, models
+from module_build_service import app, conf, create_app, db
 from module_build_service.builder.MockModuleBuilder import (
     import_builds_from_local_dnf_repos, load_local_builds
 )
+from module_build_service.common import models
 from module_build_service.common.utils import load_mmd_file, import_mmd
 from module_build_service.scheduler.db_session import db_session
 from module_build_service.common.errors import StreamAmbigous

@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
-from mock import patch
-from module_build_service import models, conf
-import mock
 import koji
+from mock import patch
+import mock
 import pytest
+
+from module_build_service import conf
+from module_build_service.common import models
 from module_build_service.scheduler.db_session import db_session
 from module_build_service.builder import GenericBuilder
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder

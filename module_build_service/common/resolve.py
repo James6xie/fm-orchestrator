@@ -22,7 +22,7 @@ def expand_single_mse_streams(
         there are multiple streams for some dependency of module and the module name is not
         defined in `default_streams`, so it is not clear which stream should be used.
     """
-    from module_build_service import models
+    from module_build_service.common import models
 
     default_streams = default_streams or {}
     # Stream can be prefixed with '-' sign to define that this stream should
@@ -79,7 +79,7 @@ def get_compatible_base_module_mmds(resolver, base_mmd, ignore_ns=None):
             }
         The input `base_mmd` is always included in the result in "ready" state.
     """
-    from module_build_service import models
+    from module_build_service.common import models
 
     # Add the module to `seen` and `ret`.
     ret = {"ready": [], "garbage": []}
@@ -136,7 +136,7 @@ def get_base_module_mmds(db_session, mmd):
     :return: Dict with "ready" or "garbage" state name as a key and list of MMDs of base modules
         buildrequired by `mmd` as a value.
     """
-    from module_build_service import models
+    from module_build_service.common import models
 
     seen = set()
     ret = {"ready": [], "garbage": []}

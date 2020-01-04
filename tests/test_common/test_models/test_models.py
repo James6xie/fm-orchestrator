@@ -4,9 +4,9 @@ import pytest
 
 from mock import patch
 from module_build_service import conf
+from module_build_service.common.models import ComponentBuild, ComponentBuildTrace, ModuleBuild
 from module_build_service.common.utils import load_mmd, mmd_to_str
 from module_build_service.scheduler.db_session import db_session
-from module_build_service.models import ComponentBuild, ComponentBuildTrace, ModuleBuild
 from tests import init_data as init_data_contexts, clean_database, read_staged_data
 from tests import make_module_in_db, module_build_from_modulemd
 

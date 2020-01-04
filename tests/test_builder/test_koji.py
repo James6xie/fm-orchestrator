@@ -11,7 +11,7 @@ from mock import patch, MagicMock
 import pytest
 
 import module_build_service.scheduler.handlers.repos
-import module_build_service.models
+import module_build_service.common.models
 from module_build_service import conf, Modulemd
 from module_build_service.common.utils import mmd_to_str
 from module_build_service.scheduler.db_session import db_session
@@ -120,7 +120,7 @@ class TestKojiBuilder:
     def test_recover_orphaned_artifact_when_tagged(self, mock_get_session):
         """ Test recover_orphaned_artifact when the artifact is found and tagged in both tags
         """
-        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
+        module_build = module_build_service.common.models.ModuleBuild.get_by_id(db_session, 2)
 
         builder = FakeKojiModuleBuilder(
             db_session=db_session,
@@ -138,7 +138,7 @@ class TestKojiBuilder:
         build_tagged = [{"nvr": "foo-1.0-1.module+e0095747", "task_id": 12345, "build_id": 91}]
         dest_tagged = [{"nvr": "foo-1.0-1.module+e0095747", "task_id": 12345, "build_id": 91}]
         builder.koji_session.listTagged.side_effect = [build_tagged, dest_tagged]
-        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 4)
+        module_build = module_build_service.common.models.ModuleBuild.get_by_id(db_session, 4)
         component_build = module_build.component_builds[0]
         component_build.task_id = None
         component_build.state = None
@@ -171,7 +171,7 @@ class TestKojiBuilder:
     def test_recover_orphaned_artifact_when_untagged(self, mock_get_session):
         """ Tests recover_orphaned_artifact when the build is found but untagged
         """
-        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
+        module_build = module_build_service.common.models.ModuleBuild.get_by_id(db_session, 2)
 
         builder = FakeKojiModuleBuilder(
             db_session=db_session,
@@ -193,7 +193,7 @@ class TestKojiBuilder:
         builder.koji_session.untaggedBuilds.return_value = untagged
         build_info = {"nvr": "foo-1.0-1.{0}".format(dist_tag), "task_id": 12345, "build_id": 91}
         builder.koji_session.getBuild.return_value = build_info
-        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 4)
+        module_build = module_build_service.common.models.ModuleBuild.get_by_id(db_session, 4)
         component_build = module_build.component_builds[0]
         component_build.task_id = None
         component_build.nvr = None
@@ -216,7 +216,7 @@ class TestKojiBuilder:
     def test_recover_orphaned_artifact_when_module_build_macros_untagged(self, mock_get_session):
         """ Tests recover_orphaned_artifact when module-build-macros is found but untagged
         """
-        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
+        module_build = module_build_service.common.models.ModuleBuild.get_by_id(db_session, 2)
 
         builder = FakeKojiModuleBuilder(
             db_session=db_session,
@@ -243,7 +243,7 @@ class TestKojiBuilder:
                       "task_id": 12345,
                       "build_id": 91}
         builder.koji_session.getBuild.return_value = build_info
-        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 4)
+        module_build = module_build_service.common.models.ModuleBuild.get_by_id(db_session, 4)
         component_build = module_build.component_builds[1]
         component_build.task_id = None
         component_build.nvr = None
@@ -272,7 +272,7 @@ class TestKojiBuilder:
     def test_recover_orphaned_artifact_when_nothing_exists(self, mock_get_session):
         """ Test recover_orphaned_artifact when the build is not found
         """
-        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
+        module_build = module_build_service.common.models.ModuleBuild.get_by_id(db_session, 2)
 
         builder = FakeKojiModuleBuilder(
             db_session=db_session,
@@ -291,7 +291,7 @@ class TestKojiBuilder:
         builder.koji_session.listTagged.return_value = tagged
         untagged = [{"nvr": "foo-1.0-1.nope", "release": "nope"}]
         builder.koji_session.untaggedBuilds.return_value = untagged
-        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 4)
+        module_build = module_build_service.common.models.ModuleBuild.get_by_id(db_session, 4)
         component_build = module_build.component_builds[0]
         component_build.task_id = None
         component_build.nvr = None
@@ -307,7 +307,7 @@ class TestKojiBuilder:
 
     @patch("koji.util")
     def test_buildroot_ready(self, mocked_kojiutil, mock_get_session):
-        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
+        module_build = module_build_service.common.models.ModuleBuild.get_by_id(db_session, 2)
 
         attrs = {"checkForBuilds.return_value": None, "checkForBuilds.side_effect": IOError}
         mocked_kojiutil.configure_mock(**attrs)
@@ -331,7 +331,7 @@ class TestKojiBuilder:
         Tests that buildroot_add_artifacts and tag_artifacts do not try to
         tag already tagged artifacts
         """
-        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
+        module_build = module_build_service.common.models.ModuleBuild.get_by_id(db_session, 2)
 
         if blocklist:
             mmd = module_build.mmd()
@@ -388,7 +388,7 @@ class TestKojiBuilder:
         """
         Tests that only tagged artifacts will be untagged
         """
-        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
+        module_build = module_build_service.common.models.ModuleBuild.get_by_id(db_session, 2)
 
         mock_session = mock.Mock()
         mock_session.getTag.side_effect = [
@@ -534,7 +534,7 @@ class TestKojiBuilder:
     def test_buildroot_connect(
         self, custom_whitelist, blocklist, repo_include_all, mock_get_session
     ):
-        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
+        module_build = module_build_service.common.models.ModuleBuild.get_by_id(db_session, 2)
         db_session.refresh(module_build)
 
         if blocklist:
@@ -572,7 +572,7 @@ class TestKojiBuilder:
             module_build.modulemd = mmd_to_str(mmd)
             db_session.commit()
 
-        module_build.arches.append(module_build_service.models.ModuleArch(name="i686"))
+        module_build.arches.append(module_build_service.common.models.ModuleArch(name="i686"))
         db_session.commit()
 
         builder = FakeKojiModuleBuilder(
@@ -649,7 +649,7 @@ class TestKojiBuilder:
 
     @pytest.mark.parametrize("blocklist", [False, True])
     def test_buildroot_connect_create_tag(self, blocklist, mock_get_session):
-        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
+        module_build = module_build_service.common.models.ModuleBuild.get_by_id(db_session, 2)
         db_session.refresh(module_build)
 
         if blocklist:
@@ -687,7 +687,7 @@ class TestKojiBuilder:
 
     @pytest.mark.parametrize("scratch", [False, True])
     def test_buildroot_connect_create_target(self, scratch, mock_get_session):
-        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
+        module_build = module_build_service.common.models.ModuleBuild.get_by_id(db_session, 2)
 
         if scratch:
             module_build.scratch = scratch
@@ -759,7 +759,7 @@ class TestKojiBuilder:
             [],
         )
 
-        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
+        module_build = module_build_service.common.models.ModuleBuild.get_by_id(db_session, 2)
 
         # Module builds generated by init_data uses generic modulemd file and
         # the module's name/stream/version/context does not have to match it.
@@ -858,8 +858,8 @@ class TestKojiBuilder:
                 },
             ],
         )
-        current_module = module_build_service.models.ModuleBuild.get_by_id(db_session, 3)
-        with patch.object(module_build_service.models.ModuleBuild, 'log_message'):
+        current_module = module_build_service.common.models.ModuleBuild.get_by_id(db_session, 3)
+        with patch.object(module_build_service.common.models.ModuleBuild, 'log_message'):
             rv = KojiModuleBuilder._get_filtered_rpms_on_self_dep(current_module, br_filtered_rpms)
         assert set(rv) == set(expected)
         session.assert_not_called()
@@ -869,7 +869,7 @@ class TestKojiBuilder:
     )
     @mock.patch("module_build_service.builder.KojiModuleBuilder.KojiContentGenerator")
     def test_finalize(self, mock_koji_cg_cls, cg_enabled, cg_devel_enabled, mock_get_session):
-        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
+        module_build = module_build_service.common.models.ModuleBuild.get_by_id(db_session, 2)
         db_session.refresh(module_build)
         module_build.state = 2
         db_session.commit()
@@ -907,14 +907,14 @@ class TestKojiBuilder:
     @patch.dict("sys.modules", krbV=MagicMock())
     @patch("koji.ClientSession")
     def test_ensure_builder_use_a_logged_in_koji_session(self, ClientSession):
-        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
+        module_build = module_build_service.common.models.ModuleBuild.get_by_id(db_session, 2)
         builder = KojiModuleBuilder(db_session, "owner", module_build, conf, "module-tag", [])
         builder.koji_session.krb_login.assert_called_once()
 
     @patch.dict("sys.modules", krbV=MagicMock())
     @patch("koji.ClientSession")
     def test_get_module_build_arches(self, ClientSession):
-        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
+        module_build = module_build_service.common.models.ModuleBuild.get_by_id(db_session, 2)
         arches = "x86_64 i686 ppc64le aarch64 s390x"
         session = ClientSession.return_value
         session.getTag.return_value = {"arches": arches}
@@ -924,7 +924,7 @@ class TestKojiBuilder:
     @patch.dict("sys.modules", krbV=MagicMock())
     @patch("koji.ClientSession")
     def test_get_module_build_arches_with_archless_tag(self, ClientSession):
-        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
+        module_build = module_build_service.common.models.ModuleBuild.get_by_id(db_session, 2)
         session = ClientSession.return_value
         session.getTag.return_value = {"arches": ""}
         ret = KojiModuleBuilder.get_module_build_arches(module_build)
@@ -933,7 +933,7 @@ class TestKojiBuilder:
     @patch.dict("sys.modules", krbV=MagicMock())
     @patch("koji.ClientSession")
     def test_get_module_build_arches_without_tag(self, ClientSession):
-        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
+        module_build = module_build_service.common.models.ModuleBuild.get_by_id(db_session, 2)
         module_build.koji_tag = None
         session = ClientSession.return_value
         ret = KojiModuleBuilder.get_module_build_arches(module_build)
@@ -944,7 +944,7 @@ class TestKojiBuilder:
     @patch.dict("sys.modules", krbV=MagicMock())
     @patch("koji.ClientSession")
     def test_get_module_build_arches_with_unknown_tag(self, ClientSession):
-        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 2)
+        module_build = module_build_service.common.models.ModuleBuild.get_by_id(db_session, 2)
         session = ClientSession.return_value
         session.getTag.return_value = None
         with pytest.raises(ValueError, match="Unknown Koji tag .*"):
@@ -971,7 +971,7 @@ class TestGetDistTagSRPM:
             name="testmodule",
             stream="master",
             version="1",
-            context=module_build_service.models.DEFAULT_MODULE_CONTEXT,
+            context=module_build_service.common.models.DEFAULT_MODULE_CONTEXT,
         )
 
         self.xmd = {

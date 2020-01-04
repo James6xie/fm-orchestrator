@@ -6,7 +6,7 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
 
 from module_build_service import conf
-from module_build_service.models import session_before_commit_handlers
+from module_build_service.common.models import session_before_commit_handlers
 
 __all__ = ("db_session",)
 

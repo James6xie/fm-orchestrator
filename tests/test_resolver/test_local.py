@@ -7,7 +7,7 @@ from module_build_service import conf
 from module_build_service.common.utils import import_mmd, load_mmd, mmd_to_str
 import module_build_service.resolver as mbs_resolver
 from module_build_service.scheduler.db_session import db_session
-from module_build_service.models import ModuleBuild
+from module_build_service.common.models import ModuleBuild
 import tests
 
 

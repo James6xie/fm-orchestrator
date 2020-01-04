@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: MIT
 from module_build_service import celery_app, conf, log
 from module_build_service.common.koji import get_session
+from module_build_service.common.models import ModuleBuild, BUILD_STATES
 from module_build_service.scheduler.db_session import db_session
-from module_build_service.models import ModuleBuild, BUILD_STATES
 from module_build_service.scheduler import events
 
 

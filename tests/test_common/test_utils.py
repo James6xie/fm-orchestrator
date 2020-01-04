@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 import pytest
 
-from module_build_service import models
+from module_build_service.common import models
 from module_build_service.common.utils import import_mmd, load_mmd
 from module_build_service.scheduler.db_session import db_session
 from module_build_service.common.errors import UnprocessableEntity

@@ -2,9 +2,10 @@
 # SPDX-License-Identifier: MIT
 from itertools import groupby
 
+from module_build_service.common import models
 from module_build_service.common.koji import get_session, koji_multicall_map
 from module_build_service.resolver.DBResolver import DBResolver
-from module_build_service import conf, models, log
+from module_build_service import conf, log
 
 
 class KojiResolver(DBResolver):

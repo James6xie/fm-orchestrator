@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: MIT
 import kobo.rpmlib
 
-from module_build_service import log, models, conf
+from module_build_service import log, conf
+from module_build_service.common import models
 from module_build_service.scheduler.db_session import db_session
 from module_build_service.resolver import GenericResolver
 from module_build_service.scheduler import events

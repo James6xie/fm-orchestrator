@@ -13,6 +13,7 @@ import kobo.rpmlib
 import platform
 
 from module_build_service import conf, log, Modulemd
+from module_build_service.common import models
 from module_build_service.common.koji import get_session
 from module_build_service.common.utils import import_mmd, load_mmd_file, mmd_to_str
 from module_build_service.builder import GenericBuilder
@@ -26,7 +27,6 @@ from module_build_service.builder.utils import (
 from module_build_service.scheduler.db_session import db_session
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
 from module_build_service.scheduler import events
-from module_build_service import models
 
 logging.basicConfig(level=logging.DEBUG)
 

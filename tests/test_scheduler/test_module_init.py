@@ -6,11 +6,11 @@ from mock import patch, PropertyMock
 
 from module_build_service.common.utils import load_mmd, mmd_to_str
 from tests import clean_database, read_staged_data
-from tests.test_views.test_views import FakeSCM
+from tests.test_web.test_views import FakeSCM
 import module_build_service.scheduler.handlers.modules
 from module_build_service import build_logs, conf
 from module_build_service.scheduler.db_session import db_session
-from module_build_service.models import ModuleBuild
+from module_build_service.common.models import ModuleBuild
 
 
 class TestModuleInit:
@@ -156,7 +156,7 @@ class TestModuleInit:
         }
         assert build.mmd().get_xmd()["mbs"]["rpms"] == xmd_rpms
 
-    @patch("module_build_service.models.ModuleBuild.from_module_event")
+    @patch("module_build_service.common.models.ModuleBuild.from_module_event")
     @patch("module_build_service.scm.SCM")
     @patch("module_build_service.scheduler.submit.get_build_arches", return_value=["x86_64"])
     def test_init_when_get_latest_raises(

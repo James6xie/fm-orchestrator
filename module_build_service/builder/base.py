@@ -7,9 +7,10 @@ import dogpile.cache
 from abc import ABCMeta, abstractmethod
 from requests.exceptions import ConnectionError
 
-from module_build_service import conf, log, models
+from module_build_service import conf, log
+from module_build_service.common import models
+from module_build_service.common.models import BUILD_STATES
 from module_build_service.common.retry import retry
-from module_build_service.models import BUILD_STATES
 from module_build_service.resolver import GenericResolver
 
 
@@ -108,7 +109,7 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
         """
         :param db_session: SQLAlchemy session object.
         :param owner: a string representing who kicked off the builds
-        :param module: module_build_service.models.ModuleBuild instance.
+        :param module: module_build_service.common.models.ModuleBuild instance.
         :param backend: a string representing backend e.g. 'koji'
         :param config: instance of module_build_service.common.config.Config
 
@@ -136,7 +137,7 @@ class GenericBuilder(six.with_metaclass(ABCMeta)):
         and config and connects it to buildroot.
 
         :param db_session: SQLAlchemy database session.
-        :param module: module_build_service.models.ModuleBuild instance.
+        :param module: module_build_service.common.models.ModuleBuild instance.
         :param config: module_build_service.common.config.Config instance.
         :kwarg buildroot_connect: a boolean that determines if the builder should run
         buildroot_connect on instantiation.

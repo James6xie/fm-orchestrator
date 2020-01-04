@@ -2,9 +2,10 @@
 # SPDX-License-Identifier: MIT
 """ Handlers for module change events on the message bus. """
 
-from module_build_service import celery_app, conf, models, log, build_logs
+from module_build_service import celery_app, conf, log, build_logs
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
 from module_build_service.builder.utils import get_rpm_release
+from module_build_service.common import models
 from module_build_service.common.utils import mmd_to_str
 from module_build_service.common.retry import retry
 import module_build_service.resolver

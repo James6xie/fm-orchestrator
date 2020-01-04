@@ -10,10 +10,11 @@ import koji
 import mock
 import pytest
 
-from module_build_service import conf, models
+from module_build_service import conf
+from module_build_service.common import models
 from module_build_service.common.utils import load_mmd, mmd_to_str
 from module_build_service.scheduler.db_session import db_session
-from module_build_service.models import ModuleBuild, ComponentBuild
+from module_build_service.common.models import ModuleBuild, ComponentBuild
 from module_build_service.builder.MockModuleBuilder import (
     import_fake_base_module,
     import_builds_from_local_dnf_repos,

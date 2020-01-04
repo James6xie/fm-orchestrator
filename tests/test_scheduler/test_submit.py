@@ -8,7 +8,8 @@ import pytest
 from module_build_service.common.utils import load_mmd, load_mmd_file, mmd_to_str
 from module_build_service.scheduler.db_session import db_session
 import module_build_service.scm
-from module_build_service import app, models, conf
+from module_build_service import app, conf
+from module_build_service.common import models
 from module_build_service.common.errors import UnprocessableEntity
 import module_build_service.scheduler.handlers.components
 from module_build_service.scheduler.submit import (
@@ -157,7 +158,7 @@ class TestSubmit:
 
         mmd = load_mmd(read_staged_data("testmodule"))
         mmd = mmd.copy("testmodule-variant", "master")
-        module_build = module_build_service.models.ModuleBuild()
+        module_build = module_build_service.common.models.ModuleBuild()
         module_build.name = "testmodule-variant"
         module_build.stream = "master"
         module_build.version = 20170109091357
@@ -203,7 +204,7 @@ class TestSubmit:
         # Set the module name and stream
         mmd = mmd.copy("testmodule", "master")
 
-        module_build = module_build_service.models.ModuleBuild()
+        module_build = module_build_service.common.models.ModuleBuild()
         module_build.name = "testmodule"
         module_build.stream = "master"
         module_build.version = 20170109091357
@@ -249,7 +250,7 @@ class TestSubmit:
 
         # Set the module name and stream
         mmd = original_mmd.copy("testmodule", "master")
-        module_build = module_build_service.models.ModuleBuild()
+        module_build = module_build_service.common.models.ModuleBuild()
         module_build.name = "testmodule"
         module_build.stream = "master"
         module_build.version = 20170109091357

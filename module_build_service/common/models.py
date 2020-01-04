@@ -675,7 +675,9 @@ class ModuleBuild(MBSBase):
         self.state = state
         self.time_modified = now
 
-        from module_build_service.monitor import builder_success_counter, builder_failed_counter
+        from module_build_service.common.monitor import (
+            builder_success_counter, builder_failed_counter
+        )
 
         new_state_name = INVERSE_BUILD_STATES[self.state]
         if new_state_name in ["done", "failed"]:

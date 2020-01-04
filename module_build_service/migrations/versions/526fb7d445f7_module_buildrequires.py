@@ -15,7 +15,7 @@ import sqlalchemy as sa
 
 # Data migration imports
 from module_build_service import Modulemd, conf
-from module_build_service.models import ModuleBuild
+from module_build_service.common.models import ModuleBuild
 
 # Data migration tables
 mb = sa.Table(

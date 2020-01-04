@@ -93,7 +93,7 @@ def import_mmd(db_session, mmd, check_buildrequires=True):
              log messages collected during import (list)
     :rtype: tuple
     """
-    from module_build_service import models
+    from module_build_service.common import models
 
     xmd = mmd.get_xmd()
     # Set some defaults in xmd["mbs"] if they're not provided by the user

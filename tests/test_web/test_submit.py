@@ -9,7 +9,7 @@ import mock
 import pytest
 from werkzeug.datastructures import FileStorage
 
-from module_build_service import models
+from module_build_service.common import models
 from module_build_service.common.utils import mmd_to_str
 from module_build_service.scheduler.db_session import db_session
 from module_build_service.common.errors import ValidationError

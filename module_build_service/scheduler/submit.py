@@ -7,7 +7,8 @@ import os
 
 import kobo.rpmlib
 
-from module_build_service import conf, log, models, Modulemd
+from module_build_service import conf, log, Modulemd
+from module_build_service.common import models
 from module_build_service.common.submit import fetch_mmd
 from module_build_service.common.utils import to_text_type
 from module_build_service.scheduler.db_session import db_session

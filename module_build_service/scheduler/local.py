@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: MIT
 
 import logging
-from module_build_service import models
 
+from module_build_service.common import models
 from module_build_service.scheduler.db_session import db_session
 from module_build_service.scheduler.handlers.modules import init as modules_init_handler
 from module_build_service.scheduler.handlers.modules import wait as modules_wait_handler

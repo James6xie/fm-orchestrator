@@ -3,10 +3,11 @@
 import pytest
 from mock import patch
 
-from module_build_service import app, models
+from module_build_service import app
+from module_build_service.common import models
+from module_build_service.common.models import BUILD_STATES, ModuleBuild
 from module_build_service.scheduler.db_session import db_session
 from module_build_service.manage import manager_wrapper, retire
-from module_build_service.models import BUILD_STATES, ModuleBuild
 from module_build_service.web.utils import deps_to_dict
 from tests import clean_database, staged_data_filename
 

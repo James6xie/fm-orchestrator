@@ -8,8 +8,9 @@ from sqlalchemy.orm import lazyload, load_only
 
 import module_build_service.scheduler
 import module_build_service.scheduler.consumer
-from module_build_service import celery_app, conf, models, log
+from module_build_service import celery_app, conf, log
 from module_build_service.builder import GenericBuilder
+from module_build_service.common import models
 from module_build_service.common.koji import get_session
 from module_build_service.scheduler.db_session import db_session
 from module_build_service.scheduler.batches import (
@@ -85,7 +86,7 @@ def nudge_module_builds_in_state(state_name, older_than_minutes):
         db_session.commit()
 
         # Fake a message to kickstart the build anew in the consumer
-        state = module_build_service.models.BUILD_STATES[state_name]
+        state = module_build_service.common.models.BUILD_STATES[state_name]
         handler = ON_MODULE_CHANGE_HANDLERS[state]
         handler.delay("internal:mbs.module.state.change", build.id, state)
 
@@ -349,7 +350,7 @@ def cancel_stuck_module_builds():
 
     threshold = datetime.utcnow() - timedelta(days=conf.cleanup_stuck_builds_time)
     states = [
-        module_build_service.models.BUILD_STATES[state]
+        module_build_service.common.models.BUILD_STATES[state]
         for state in conf.cleanup_stuck_builds_states
     ]
 

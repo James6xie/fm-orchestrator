@@ -12,7 +12,8 @@ from multiprocessing.dummy import Pool as ThreadPool
 
 import requests
 
-from module_build_service import conf, log, models
+from module_build_service import conf, log
+from module_build_service.common import models
 from module_build_service.common.errors import ValidationError, ProgrammingError
 
 

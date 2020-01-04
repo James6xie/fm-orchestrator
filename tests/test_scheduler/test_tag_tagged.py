@@ -7,7 +7,7 @@ from mock import patch
 
 import module_build_service.scheduler.handlers.repos
 import module_build_service.scheduler.handlers.tags
-import module_build_service.models
+import module_build_service.common.models
 
 from module_build_service.scheduler.db_session import db_session
 
@@ -17,7 +17,7 @@ import koji
 @pytest.mark.usefixtures("reuse_component_init_data")
 class TestTagTagged:
 
-    @mock.patch("module_build_service.models.ModuleBuild.get_by_tag")
+    @mock.patch("module_build_service.common.models.ModuleBuild.get_by_tag")
     def test_no_matching_module(self, get_by_tag):
         """ Test that when a tag msg hits us and we have no match,
         that we do nothing gracefully.
@@ -62,7 +62,7 @@ class TestTagTagged:
         }
         create_builder.return_value = builder
 
-        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 3)
+        module_build = module_build_service.common.models.ModuleBuild.get_by_id(db_session, 3)
 
         # Set previous components as COMPLETE and tagged.
         module_build.batch = 1
@@ -153,9 +153,9 @@ class TestTagTagged:
         }
         create_builder.return_value = builder
 
-        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 3)
+        module_build = module_build_service.common.models.ModuleBuild.get_by_id(db_session, 3)
         module_build.batch = 2
-        component = db_session.query(module_build_service.models.ComponentBuild).filter_by(
+        component = db_session.query(module_build_service.common.models.ComponentBuild).filter_by(
             package="perl-Tangerine", module_id=module_build.id).one()
         component.state = koji.BUILD_STATES["BUILDING"]
         component.nvr = "perl-Tangerine-0.23-1.module+0+d027b723"
@@ -203,7 +203,7 @@ class TestTagTagged:
         }
         create_builder.return_value = builder
 
-        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 3)
+        module_build = module_build_service.common.models.ModuleBuild.get_by_id(db_session, 3)
 
         # Set previous components as COMPLETE and tagged.
         module_build.batch = 1
@@ -214,12 +214,12 @@ class TestTagTagged:
 
         module_build.batch = 2
 
-        component = db_session.query(module_build_service.models.ComponentBuild).filter_by(
+        component = db_session.query(module_build_service.common.models.ComponentBuild).filter_by(
             package="perl-Tangerine", module_id=module_build.id).one()
         component.state = koji.BUILD_STATES["FAILED"]
         component.nvr = "perl-Tangerine-0.23-1.module+0+d027b723"
 
-        component = db_session.query(module_build_service.models.ComponentBuild).filter_by(
+        component = db_session.query(module_build_service.common.models.ComponentBuild).filter_by(
             package="perl-List-Compare", module_id=module_build.id).one()
         component.state = koji.BUILD_STATES["COMPLETE"]
         component.nvr = "perl-List-Compare-0.53-5.module+0+d027b723"
@@ -279,10 +279,10 @@ class TestTagTagged:
         }
         create_builder.return_value = builder
 
-        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 3)
+        module_build = module_build_service.common.models.ModuleBuild.get_by_id(db_session, 3)
         module_build.batch = 2
 
-        mbm = module_build_service.models.ComponentBuild.from_component_name(
+        mbm = module_build_service.common.models.ComponentBuild.from_component_name(
             db_session, "module-build-macros", 3)
         mbm.tagged = False
 
@@ -377,7 +377,7 @@ class TestTagTagged:
         }
         create_builder.return_value = builder
 
-        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 3)
+        module_build = module_build_service.common.models.ModuleBuild.get_by_id(db_session, 3)
 
         # Set previous components as COMPLETE and tagged.
         module_build.batch = 1
@@ -389,7 +389,7 @@ class TestTagTagged:
             c.tagged_in_final = True
 
         module_build.batch = 2
-        component = db_session.query(module_build_service.models.ComponentBuild).filter_by(
+        component = db_session.query(module_build_service.common.models.ComponentBuild).filter_by(
             package="perl-Tangerine", module_id=module_build.id).one()
         component.state = koji.BUILD_STATES["COMPLETE"]
         component.build_time_only = True
@@ -397,7 +397,7 @@ class TestTagTagged:
         component.tagged_in_final = False
         component.nvr = "perl-Tangerine-0.23-1.module+0+d027b723"
 
-        component = db_session.query(module_build_service.models.ComponentBuild).filter_by(
+        component = db_session.query(module_build_service.common.models.ComponentBuild).filter_by(
             package="perl-List-Compare", module_id=module_build.id).one()
         component.state = koji.BUILD_STATES["COMPLETE"]
         component.nvr = "perl-List-Compare-0.53-5.module+0+d027b723"
@@ -471,7 +471,7 @@ class TestTagTagged:
         }
         create_builder.return_value = builder
 
-        module_build = module_build_service.models.ModuleBuild.get_by_id(db_session, 3)
+        module_build = module_build_service.common.models.ModuleBuild.get_by_id(db_session, 3)
         assert module_build
 
         # Set previous components as COMPLETE and tagged.

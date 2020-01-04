@@ -7,7 +7,7 @@ from module_build_service.builder.MockModuleBuilder import load_local_builds
 from module_build_service.common.utils import load_mmd, mmd_to_str
 import module_build_service.resolver as mbs_resolver
 from module_build_service.scheduler.db_session import db_session
-import module_build_service.models
+import module_build_service.common.models
 import tests
 
 
@@ -344,7 +344,8 @@ class TestMBSModule:
         request_session.get.return_value = Mock(ok=True)
         request_session.get.return_value.json.return_value = {"items": [], "meta": {"next": None}}
 
-        platform = db_session.query(module_build_service.models.ModuleBuild).filter_by(id=1).one()
+        platform = db_session.query(
+            module_build_service.common.models.ModuleBuild).filter_by(id=1).one()
         result = resolver.get_buildrequired_modulemds("nodejs", "10", platform.mmd())
         assert [] == result
 
@@ -376,7 +377,8 @@ class TestMBSModule:
             "meta": {"next": None},
         }
 
-        platform = db_session.query(module_build_service.models.ModuleBuild).filter_by(id=1).one()
+        platform = db_session.query(
+            module_build_service.common.models.ModuleBuild).filter_by(id=1).one()
         result = resolver.get_buildrequired_modulemds("nodejs", "10", platform.mmd())
 
         assert 1 == len(result)
@@ -491,7 +493,7 @@ class TestMBSModule:
         resolver = mbs_resolver.GenericResolver.create(db_session, conf, backend="mbs")
 
         platform = db_session.query(
-            module_build_service.models.ModuleBuild).filter_by(id=1).one()
+            module_build_service.common.models.ModuleBuild).filter_by(id=1).one()
         platform_mmd = platform.mmd()
         platform_xmd = platform_mmd.get_xmd()
         platform_xmd["mbs"]["koji_tag_with_modules"] = "module-f29-build"

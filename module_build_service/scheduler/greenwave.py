@@ -77,7 +77,7 @@ class Greenwave(object):
         """
         Query decision to greenwave
         :param build: build object
-        :type build: module_build_service.models.ModuleBuild
+        :type build: module_build_service.common.models.ModuleBuild
         :param prod_version: The product version string used for querying WaiverDB
         :type prod_version: str
         :return: response
@@ -133,7 +133,7 @@ class Greenwave(object):
         """
         Query decision to greenwave
         :param build: build object
-        :type build: module_build_service.models.ModuleBuild
+        :type build: module_build_service.common.models.ModuleBuild
         :return: True if at least one GW response contains policies_satisfied set to true
         :rtype: bool
         """
