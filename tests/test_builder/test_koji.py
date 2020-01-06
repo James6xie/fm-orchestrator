@@ -414,7 +414,6 @@ class TestKojiBuilder:
         expected_calls = [mock.call(1, "foo"), mock.call(2, "foo"), mock.call(1, "bar")]
         assert mock_session.untagBuild.mock_calls == expected_calls
 
-    @patch.dict("sys.modules", krbV=MagicMock())
     @patch("koji.ClientSession")
     def test_get_build_weights(self, ClientSession):
         session = ClientSession.return_value
@@ -431,7 +430,8 @@ class TestKojiBuilder:
             ],
         ]
 
-        weights = KojiModuleBuilder.get_build_weights(["httpd", "apr"])
+        with patch.dict("sys.modules", krbV=MagicMock()):
+            weights = KojiModuleBuilder.get_build_weights(["httpd", "apr"])
         assert weights == {"httpd": 2, "apr": 2}
 
         expected_calls = [mock.call(456), mock.call(789)]
@@ -440,7 +440,6 @@ class TestKojiBuilder:
         # getLoggedInUser requires to a logged-in session
         session.krb_login.assert_called_once()
 
-    @patch.dict("sys.modules", krbV=MagicMock())
     @patch("koji.ClientSession")
     def test_get_build_weights_no_task_id(self, ClientSession):
         session = ClientSession.return_value
@@ -455,14 +454,14 @@ class TestKojiBuilder:
         ]
         session.getAverageBuildDuration.return_value = None
 
-        weights = KojiModuleBuilder.get_build_weights(["httpd", "apr"])
+        with patch.dict("sys.modules", krbV=MagicMock()):
+            weights = KojiModuleBuilder.get_build_weights(["httpd", "apr"])
         assert weights == {"httpd": 2, "apr": 1.5}
 
         expected_calls = [mock.call(456)]
         assert session.getTaskDescendents.mock_calls == expected_calls
         session.krb_login.assert_called_once()
 
-    @patch.dict("sys.modules", krbV=MagicMock())
     @patch("koji.ClientSession")
     def test_get_build_weights_no_build(self, ClientSession):
         session = ClientSession.return_value
@@ -477,14 +476,14 @@ class TestKojiBuilder:
         ]
         session.getAverageBuildDuration.return_value = None
 
-        weights = KojiModuleBuilder.get_build_weights(["httpd", "apr"])
+        with patch.dict("sys.modules", krbV=MagicMock()):
+            weights = KojiModuleBuilder.get_build_weights(["httpd", "apr"])
         assert weights == {"httpd": 2, "apr": 1.5}
 
         expected_calls = [mock.call(456)]
         assert session.getTaskDescendents.mock_calls == expected_calls
         session.krb_login.assert_called_once()
 
-    @patch.dict("sys.modules", krbV=MagicMock())
     @patch("koji.ClientSession")
     def test_get_build_weights_listBuilds_failed(self, ClientSession):
         session = ClientSession.return_value
@@ -492,7 +491,8 @@ class TestKojiBuilder:
         session.multiCall.side_effect = [[[1], [2]], []]
         session.getAverageBuildDuration.return_value = None
 
-        weights = KojiModuleBuilder.get_build_weights(["httpd", "apr"])
+        with patch.dict("sys.modules", krbV=MagicMock()):
+            weights = KojiModuleBuilder.get_build_weights(["httpd", "apr"])
         assert weights == {"httpd": 1.5, "apr": 1.5}
 
         expected_calls = [
@@ -504,7 +504,6 @@ class TestKojiBuilder:
         assert session.listBuilds.mock_calls == expected_calls
         session.krb_login.assert_called_once()
 
-    @patch.dict("sys.modules", krbV=MagicMock())
     @patch("koji.ClientSession")
     def test_get_build_weights_getPackageID_failed(self, ClientSession):
         session = ClientSession.return_value
@@ -512,7 +511,8 @@ class TestKojiBuilder:
         session.multiCall.side_effect = [[], []]
         session.getAverageBuildDuration.return_value = None
 
-        weights = KojiModuleBuilder.get_build_weights(["httpd", "apr"])
+        with patch.dict("sys.modules", krbV=MagicMock()):
+            weights = KojiModuleBuilder.get_build_weights(["httpd", "apr"])
         assert weights == {"httpd": 1.5, "apr": 1.5}
 
         expected_calls = [mock.call("httpd"), mock.call("apr")]
@@ -520,12 +520,12 @@ class TestKojiBuilder:
 
         session.krb_login.assert_called_once()
 
-    @patch.dict("sys.modules", krbV=MagicMock())
     @patch("koji.ClientSession")
     def test_get_build_weights_getLoggedInUser_failed(self, ClientSession):
         session = ClientSession.return_value
         session.getAverageBuildDuration.return_value = None
-        weights = KojiModuleBuilder.get_build_weights(["httpd", "apr"])
+        with patch.dict("sys.modules", krbV=MagicMock()):
+            weights = KojiModuleBuilder.get_build_weights(["httpd", "apr"])
         assert weights == {"httpd": 1.5, "apr": 1.5}
         session.krb_login.assert_called_once()
 
@@ -905,51 +905,51 @@ class TestKojiBuilder:
         else:
             mock_koji_cg.koji_import.assert_not_called()
 
-    @patch.dict("sys.modules", krbV=MagicMock())
     @patch("koji.ClientSession")
     def test_ensure_builder_use_a_logged_in_koji_session(self, ClientSession):
         module_build = module_build_service.common.models.ModuleBuild.get_by_id(db_session, 2)
-        builder = KojiModuleBuilder(db_session, "owner", module_build, conf, "module-tag", [])
+        with patch.dict("sys.modules", krbV=MagicMock()):
+            builder = KojiModuleBuilder(db_session, "owner", module_build, conf, "module-tag", [])
         builder.koji_session.krb_login.assert_called_once()
 
-    @patch.dict("sys.modules", krbV=MagicMock())
     @patch("koji.ClientSession")
     def test_get_module_build_arches(self, ClientSession):
         module_build = module_build_service.common.models.ModuleBuild.get_by_id(db_session, 2)
         arches = "x86_64 i686 ppc64le aarch64 s390x"
         session = ClientSession.return_value
         session.getTag.return_value = {"arches": arches}
-        ret = KojiModuleBuilder.get_module_build_arches(module_build)
+        with patch.dict("sys.modules", krbV=MagicMock()):
+            ret = KojiModuleBuilder.get_module_build_arches(module_build)
         assert " ".join(ret) == arches
 
-    @patch.dict("sys.modules", krbV=MagicMock())
     @patch("koji.ClientSession")
     def test_get_module_build_arches_with_archless_tag(self, ClientSession):
         module_build = module_build_service.common.models.ModuleBuild.get_by_id(db_session, 2)
         session = ClientSession.return_value
         session.getTag.return_value = {"arches": ""}
-        ret = KojiModuleBuilder.get_module_build_arches(module_build)
+        with patch.dict("sys.modules", krbV=MagicMock()):
+            ret = KojiModuleBuilder.get_module_build_arches(module_build)
         assert ret == []
 
-    @patch.dict("sys.modules", krbV=MagicMock())
     @patch("koji.ClientSession")
     def test_get_module_build_arches_without_tag(self, ClientSession):
         module_build = module_build_service.common.models.ModuleBuild.get_by_id(db_session, 2)
         module_build.koji_tag = None
         session = ClientSession.return_value
-        ret = KojiModuleBuilder.get_module_build_arches(module_build)
+        with patch.dict("sys.modules", krbV=MagicMock()):
+            ret = KojiModuleBuilder.get_module_build_arches(module_build)
         assert ret == []
         session.getTag.assert_not_called()
         session.assert_not_called()
 
-    @patch.dict("sys.modules", krbV=MagicMock())
     @patch("koji.ClientSession")
     def test_get_module_build_arches_with_unknown_tag(self, ClientSession):
         module_build = module_build_service.common.models.ModuleBuild.get_by_id(db_session, 2)
         session = ClientSession.return_value
         session.getTag.return_value = None
         with pytest.raises(ValueError, match="Unknown Koji tag .*"):
-            KojiModuleBuilder.get_module_build_arches(module_build)
+            with patch.dict("sys.modules", krbV=MagicMock()):
+                KojiModuleBuilder.get_module_build_arches(module_build)
 
 
 class TestGetDistTagSRPM:

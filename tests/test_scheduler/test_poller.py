@@ -126,7 +126,6 @@ class TestPoller:
 
         assert len(start_build_component.mock_calls) == expected_build_calls
 
-    @patch.dict("sys.modules", krbV=mock.MagicMock())
     @patch("koji.ClientSession")
     def test_retrigger_new_repo_on_failure(self, ClientSession, create_builder, dbg):
         """
@@ -148,12 +147,12 @@ class TestPoller:
         module_build.new_repo_task_id = 123456
         db_session.commit()
 
-        producer.retrigger_new_repo_on_failure()
+        with patch.dict("sys.modules", krbV=mock.MagicMock()):
+            producer.retrigger_new_repo_on_failure()
 
         koji_session.newRepo.assert_called_once_with(
             "module-testmodule-master-20170219191323-c40c156c-build")
 
-    @patch.dict("sys.modules", krbV=mock.MagicMock())
     @patch("koji.ClientSession")
     def test_trigger_new_repo_when_succeeded(self, ClientSession, create_builder, dbg):
         """
@@ -176,7 +175,8 @@ class TestPoller:
         module_build.new_repo_task_id = 123456
         db_session.commit()
 
-        producer.retrigger_new_repo_on_failure()
+        with patch.dict("sys.modules", krbV=mock.MagicMock()):
+            producer.retrigger_new_repo_on_failure()
 
         module_build = models.ModuleBuild.get_by_id(db_session, 3)
 
@@ -208,7 +208,6 @@ class TestPoller:
         for component in components:
             assert component.state is None
 
-    @patch.dict("sys.modules", krbV=mock.MagicMock())
     @patch("koji.ClientSession")
     def test_old_build_targets_are_not_associated_with_any_module_builds(
         self, ClientSession, create_builder, dbg
@@ -220,11 +219,11 @@ class TestPoller:
             {"dest_tag_name": "module-yyy-2"},
         ]
 
-        producer.delete_old_koji_targets()
+        with patch.dict("sys.modules", krbV=mock.MagicMock()):
+            producer.delete_old_koji_targets()
 
         koji_session.deleteBuildTarget.assert_not_called()
 
-    @patch.dict("sys.modules", krbV=mock.MagicMock())
     @patch("koji.ClientSession")
     def test_dont_delete_base_module_build_target(
         self, ClientSession, create_builder, dbg
@@ -238,10 +237,11 @@ class TestPoller:
         # If module build's name is one of base module names, build target
         # should not be deleted.
         with patch.object(conf, "base_module_names", new=[module_build.name]):
-            producer.delete_old_koji_targets()
-            koji_session.deleteBuildTarget.assert_not_called()
+            with patch.dict("sys.modules", krbV=mock.MagicMock()):
+                producer.delete_old_koji_targets()
 
-    @patch.dict("sys.modules", krbV=mock.MagicMock())
+        koji_session.deleteBuildTarget.assert_not_called()
+
     @patch("koji.ClientSession")
     def test_dont_delete_build_target_for_unfinished_module_builds(
         self, ClientSession, create_builder, dbg
@@ -258,11 +258,11 @@ class TestPoller:
             module_build.state = state
             db_session.commit()
 
-            producer.delete_old_koji_targets()
+            with patch.dict("sys.modules", krbV=mock.MagicMock()):
+                producer.delete_old_koji_targets()
 
             koji_session.deleteBuildTarget.assert_not_called()
 
-    @patch.dict("sys.modules", krbV=mock.MagicMock())
     @patch("koji.ClientSession")
     def test_only_delete_build_target_with_allowed_koji_tag_prefix(
         self, ClientSession, create_builder, dbg
@@ -290,12 +290,12 @@ class TestPoller:
 
         with patch.object(conf, "koji_tag_prefixes", new=["module", "another-prefix"]):
             with patch.object(conf, "koji_target_delete_time", new=60):
-                producer.delete_old_koji_targets()
+                with patch.dict("sys.modules", krbV=mock.MagicMock()):
+                    producer.delete_old_koji_targets()
 
             koji_session.deleteBuildTarget.assert_called_once_with(1)
             koji_session.krb_login.assert_called_once()
 
-    @patch.dict("sys.modules", krbV=mock.MagicMock())
     @patch("koji.ClientSession")
     def test_cant_delete_build_target_if_not_reach_delete_time(
         self, ClientSession, create_builder, dbg
@@ -317,9 +317,10 @@ class TestPoller:
         ]
 
         with patch.object(conf, "koji_tag_prefixes", new=["module"]):
-            # Use default koji_target_delete_time in config. That time is long
-            # enough for test.
-            producer.delete_old_koji_targets()
+            with patch.dict("sys.modules", krbV=mock.MagicMock()):
+                # Use default koji_target_delete_time in config. That time is long
+                # enough for test.
+                producer.delete_old_koji_targets()
 
             koji_session.deleteBuildTarget.assert_not_called()
 
