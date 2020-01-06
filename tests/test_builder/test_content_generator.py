@@ -16,7 +16,7 @@ from mock import patch, Mock, call, mock_open
 import kobo.rpmlib
 
 from tests import init_data
-from tests.test_views.test_views import FakeSCM
+from tests.test_web.test_views import FakeSCM
 
 import koji
 
@@ -61,9 +61,10 @@ class TestBuild:
         # Necessary to restart the twisted reactor for the next test.
         import sys
 
-        del sys.modules["twisted.internet.reactor"]
-        del sys.modules["moksha.hub.reactor"]
-        del sys.modules["moksha.hub"]
+        for mod in ("twisted.internet.reactor", "moksha.hub.reactor", "moksha.hub"):
+            if mod in sys.modules:
+                del sys.modules[mod]
+
         import moksha.hub.reactor  # noqa
 
         try:
