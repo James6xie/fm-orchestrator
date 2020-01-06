@@ -1,44 +1,43 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
-import sched
-import koji
+from __future__ import absolute_import
+from datetime import datetime, timedelta
+import hashlib
+import itertools
+import json
 import os
-import re
 from os import path, mkdir
 from os.path import dirname
-from shutil import copyfile
-from datetime import datetime, timedelta
+import re
+import sched
 from random import randint
-import hashlib
-import moksha.hub
+from shutil import copyfile
+
 import fedmsg
-
-from module_build_service.builder.utils import get_rpm_release
-from module_build_service.common import models
-from module_build_service.common.utils import load_mmd, import_mmd
-import module_build_service.scheduler.consumer
-import module_build_service.scheduler.handlers.repos
-from module_build_service.common.errors import Forbidden
-from module_build_service import app, conf, build_logs, log
-from module_build_service.scheduler.db_session import db_session
-from module_build_service.scheduler import events
-from module_build_service.scheduler.handlers.tags import tagged as tagged_handler
-from module_build_service.scheduler.handlers.components import (
-    build_task_finalize as build_task_finalize_handler)
-from module_build_service.scheduler.handlers.repos import done as repos_done_handler
-
-from mock import patch, PropertyMock, Mock, MagicMock
-from werkzeug.datastructures import FileStorage
 import kobo
+import koji
+from mock import patch, PropertyMock, Mock, MagicMock
+import moksha.hub
 import pytest
+from werkzeug.datastructures import FileStorage
 
-import json
-import itertools
-
+from module_build_service import app, conf, build_logs, log
 from module_build_service.builder import GenericBuilder
-from module_build_service.builder.MockModuleBuilder import load_local_builds
-from module_build_service.builder.utils import validate_koji_tag
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
+from module_build_service.builder.MockModuleBuilder import load_local_builds
+from module_build_service.builder.utils import get_rpm_release, validate_koji_tag
+from module_build_service.common import models
+from module_build_service.common.errors import Forbidden
+from module_build_service.common.utils import load_mmd, import_mmd
+from module_build_service.scheduler import events
+from module_build_service.scheduler.db_session import db_session
+import module_build_service.scheduler.consumer
+from module_build_service.scheduler.handlers.components import (
+    build_task_finalize as build_task_finalize_handler
+)
+import module_build_service.scheduler.handlers.repos
+from module_build_service.scheduler.handlers.repos import done as repos_done_handler
+from module_build_service.scheduler.handlers.tags import tagged as tagged_handler
 from tests import clean_database, read_staged_data, staged_data_filename
 
 base_dir = dirname(dirname(__file__))

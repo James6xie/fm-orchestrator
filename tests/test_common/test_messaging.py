@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
+from __future__ import absolute_import
 
 from module_build_service.common import messaging
 from module_build_service.scheduler.parser import FedmsgMessageParser

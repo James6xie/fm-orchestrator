@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
+from __future__ import absolute_import
 from collections import OrderedDict
 import os
 import shutil
@@ -10,14 +11,14 @@ import mock
 from mock import patch, MagicMock
 import pytest
 
-import module_build_service.scheduler.handlers.repos
-import module_build_service.common.models
 from module_build_service import conf, Modulemd
-from module_build_service.common.utils import mmd_to_str
-from module_build_service.scheduler.db_session import db_session
-from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
 from module_build_service.builder import GenericBuilder
+from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
+import module_build_service.common.models
+from module_build_service.common.utils import mmd_to_str
 from module_build_service.scheduler import events
+from module_build_service.scheduler.db_session import db_session
+import module_build_service.scheduler.handlers.repos
 from tests import init_data, clean_database, make_module_in_db
 
 

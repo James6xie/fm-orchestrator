@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
-
+from __future__ import absolute_import
 import logging
 
 from module_build_service.common import models

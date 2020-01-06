@@ -2,10 +2,12 @@
 # SPDX-License-Identifier: MIT
 """Generic component build functions."""
 
-import six
-import dogpile.cache
+from __future__ import absolute_import
 from abc import ABCMeta, abstractmethod
+
+import dogpile.cache
 from requests.exceptions import ConnectionError
+import six
 
 from module_build_service import conf, log
 from module_build_service.common import models

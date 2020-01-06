@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
+from __future__ import absolute_import
 from datetime import datetime
 import json
 from multiprocessing.dummy import Pool as ThreadPool
@@ -9,11 +10,11 @@ import kobo.rpmlib
 
 from module_build_service import conf, log, Modulemd
 from module_build_service.common import models
+from module_build_service.common.errors import ValidationError, UnprocessableEntity, Forbidden
+import module_build_service.common.scm
 from module_build_service.common.submit import fetch_mmd
 from module_build_service.common.utils import to_text_type
 from module_build_service.scheduler.db_session import db_session
-from module_build_service.common.errors import ValidationError, UnprocessableEntity, Forbidden
-import module_build_service.common.scm
 
 
 def get_build_arches(mmd, config):

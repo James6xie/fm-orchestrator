@@ -1,17 +1,20 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
-import pytest
+from __future__ import absolute_import
 
 from mock import call, patch, PropertyMock, Mock
+import pytest
 from sqlalchemy import func
 
-import module_build_service.common.config
+
 from module_build_service import conf
-from module_build_service.scheduler.db_session import db_session
+import module_build_service.common.config
 from module_build_service.common.models import BUILD_STATES, ModuleBuild
 from module_build_service.scheduler.consumer import MBSConsumer
-from module_build_service.scheduler.handlers.greenwave import get_corresponding_module_build
-from module_build_service.scheduler.handlers.greenwave import decision_update
+from module_build_service.scheduler.db_session import db_session
+from module_build_service.scheduler.handlers.greenwave import (
+    decision_update, get_corresponding_module_build
+)
 from tests import clean_database, make_module_in_db
 
 

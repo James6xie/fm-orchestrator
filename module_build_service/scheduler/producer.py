@@ -1,23 +1,25 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
+from __future__ import absolute_import
+from datetime import timedelta, datetime
+import operator
 
 import koji
-import operator
-from datetime import timedelta, datetime
 from sqlalchemy.orm import lazyload, load_only
 
-import module_build_service.scheduler
-import module_build_service.scheduler.consumer
+
 from module_build_service import celery_app, conf, log
 from module_build_service.builder import GenericBuilder
 from module_build_service.common import models
 from module_build_service.common.koji import get_session
-from module_build_service.scheduler.db_session import db_session
+import module_build_service.scheduler
+import module_build_service.scheduler.consumer
+from module_build_service.scheduler.consumer import ON_MODULE_CHANGE_HANDLERS
 from module_build_service.scheduler.batches import (
     at_concurrent_component_threshold,
     start_next_batch_build,
 )
-from module_build_service.scheduler.consumer import ON_MODULE_CHANGE_HANDLERS
+from module_build_service.scheduler.db_session import db_session
 from module_build_service.scheduler.greenwave import greenwave
 from module_build_service.scheduler.handlers.components import build_task_finalize
 from module_build_service.scheduler.handlers.tags import tagged

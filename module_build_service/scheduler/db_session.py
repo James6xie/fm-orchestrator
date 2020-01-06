@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
+from __future__ import absolute_import
 
 import sqlalchemy.event
-from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
+from sqlalchemy.orm import scoped_session, sessionmaker
 
 from module_build_service import conf
 from module_build_service.common.models import session_before_commit_handlers

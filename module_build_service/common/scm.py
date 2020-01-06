@@ -2,21 +2,22 @@
 # SPDX-License-Identifier: MIT
 """SCM handler functions."""
 
+from __future__ import absolute_import
+import datetime
 import os
 import subprocess as sp
 import re
-import tempfile
 import shutil
-import datetime
+import tempfile
 
 from module_build_service import log, conf
-from module_build_service.common.retry import retry
 from module_build_service.common.errors import (
     Forbidden,
     ValidationError,
     UnprocessableEntity,
     ProgrammingError,
 )
+from module_build_service.common.retry import retry
 
 
 def scm_url_schemes(terse=False):

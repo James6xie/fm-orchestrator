@@ -2,12 +2,13 @@
 # SPDX-License-Identifier: MIT
 """Generic resolver functions."""
 
+from __future__ import absolute_import
 
-import six
 from abc import ABCMeta, abstractmethod
+import six
 
-import module_build_service.common.config as cfg
 from module_build_service import conf
+import module_build_service.common.config as cfg
 
 
 class GenericResolver(six.with_metaclass(ABCMeta)):

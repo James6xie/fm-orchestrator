@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
+from __future__ import absolute_import
+
 import mock
 
-import module_build_service.scheduler.handlers.repos
 import module_build_service.common.models
-from module_build_service.scheduler.db_session import db_session
 from module_build_service.common.models import ComponentBuild
+from module_build_service.scheduler.db_session import db_session
+import module_build_service.scheduler.handlers.repos
 from tests import scheduler_init_data
 
 

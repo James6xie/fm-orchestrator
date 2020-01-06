@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
+from __future__ import absolute_import
 from datetime import datetime, timedelta
 import re
 
@@ -10,8 +11,8 @@ import pytest
 
 from module_build_service import conf
 from module_build_service.common import models
-from module_build_service.scheduler.db_session import db_session
 from module_build_service.scheduler import producer
+from module_build_service.scheduler.db_session import db_session
 from tests import clean_database, make_module_in_db
 
 

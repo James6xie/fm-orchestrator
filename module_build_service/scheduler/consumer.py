@@ -5,6 +5,7 @@ This class reads and processes messages from the message bus it is configured
 to use.
 """
 
+from __future__ import absolute_import
 import itertools
 
 try:
@@ -19,19 +20,16 @@ import fedmsg.consumers
 import moksha.hub
 import sqlalchemy.exc
 
-import module_build_service.common.messaging
-import module_build_service.common.monitor as monitor
 from module_build_service import log, conf
 from module_build_service.common import models
 from module_build_service.common.errors import IgnoreMessage
+import module_build_service.common.messaging
 from module_build_service.common.messaging import default_messaging_backend
+import module_build_service.common.monitor as monitor
+
 from module_build_service.scheduler import events
 from module_build_service.scheduler.db_session import db_session
-from module_build_service.scheduler.handlers import components
-from module_build_service.scheduler.handlers import repos
-from module_build_service.scheduler.handlers import modules
-from module_build_service.scheduler.handlers import tags
-from module_build_service.scheduler.handlers import greenwave
+from module_build_service.scheduler.handlers import components, repos, modules, greenwave, tags
 
 
 def no_op_handler(*args, **kwargs):

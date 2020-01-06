@@ -1,13 +1,15 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
+from __future__ import absolute_import
+
 import kobo.rpmlib
 
 from module_build_service import log, conf
 from module_build_service.common import models
-from module_build_service.scheduler.db_session import db_session
+from module_build_service.common.resolve import get_base_module_mmds
 from module_build_service.resolver import GenericResolver
 from module_build_service.scheduler import events
-from module_build_service.common.resolve import get_base_module_mmds
+from module_build_service.scheduler.db_session import db_session
 
 
 def reuse_component(component, previous_component_build, change_state_now=False,

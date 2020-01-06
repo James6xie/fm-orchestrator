@@ -1,17 +1,16 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
-import mock
-import pytest
-
-from mock import patch
-
-import module_build_service.scheduler.handlers.repos
-import module_build_service.scheduler.handlers.tags
-import module_build_service.common.models
-
-from module_build_service.scheduler.db_session import db_session
+from __future__ import absolute_import
 
 import koji
+import mock
+from mock import patch
+import pytest
+
+import module_build_service.common.models
+from module_build_service.scheduler.db_session import db_session
+import module_build_service.scheduler.handlers.repos
+import module_build_service.scheduler.handlers.tags
 
 
 @pytest.mark.usefixtures("reuse_component_init_data")

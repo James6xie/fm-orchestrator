@@ -1,15 +1,16 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
+from __future__ import absolute_import
+import errno
 import hashlib
+import logging
 import inspect
+from multiprocessing.dummy import Pool as ThreadPool
 import os
 import shutil
 import subprocess
-import munch
-import errno
-import logging
-from multiprocessing.dummy import Pool as ThreadPool
 
+import munch
 import requests
 
 from module_build_service import conf, log

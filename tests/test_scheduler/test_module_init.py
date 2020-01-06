@@ -1,16 +1,17 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
+from __future__ import absolute_import
 import os
 
 from mock import patch, PropertyMock
 
+from module_build_service import build_logs, conf
+from module_build_service.common.models import ModuleBuild
 from module_build_service.common.utils import load_mmd, mmd_to_str
+from module_build_service.scheduler.db_session import db_session
+import module_build_service.scheduler.handlers.modules
 from tests import clean_database, read_staged_data
 from tests.test_web.test_views import FakeSCM
-import module_build_service.scheduler.handlers.modules
-from module_build_service import build_logs, conf
-from module_build_service.scheduler.db_session import db_session
-from module_build_service.common.models import ModuleBuild
 
 
 class TestModuleInit:

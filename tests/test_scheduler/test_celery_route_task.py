@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
+from __future__ import absolute_import
+
 import mock
 
 from module_build_service import celery_app, conf
 from module_build_service.scheduler.handlers import components, greenwave, modules, repos, tags
 from module_build_service.scheduler.producer import fail_lost_builds
-
 from tests import scheduler_init_data
 
 

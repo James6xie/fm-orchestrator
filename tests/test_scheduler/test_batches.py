@@ -1,18 +1,20 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
+from __future__ import absolute_import
+
 import koji
-from mock import patch
 import mock
+from mock import patch
 import pytest
 
 from module_build_service import conf
-from module_build_service.common import models
-from module_build_service.scheduler.db_session import db_session
 from module_build_service.builder import GenericBuilder
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
+from module_build_service.builder.utils import validate_koji_tag
+from module_build_service.common import models
 from module_build_service.scheduler import events
 from module_build_service.scheduler.batches import start_build_component, start_next_batch_build
-from module_build_service.builder.utils import validate_koji_tag
+from module_build_service.scheduler.db_session import db_session
 
 
 class DummyModuleBuilder(GenericBuilder):

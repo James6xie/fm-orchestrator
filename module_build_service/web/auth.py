@@ -1,16 +1,18 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
 """Auth system based on the client certificate and FAS account"""
+
+from __future__ import absolute_import
 import json
 import ssl
 
-import requests
-from flask import g
-
 from dogpile.cache import make_region
+from flask import g
+import requests
 
-from module_build_service.common.errors import Unauthorized, Forbidden
 from module_build_service import app, log, conf
+from module_build_service.common.errors import Unauthorized, Forbidden
+
 
 try:
     import ldap3

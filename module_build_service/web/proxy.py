@@ -7,6 +7,7 @@ WSGI Middleware!!
 
 Source: http://flask.pocoo.org/snippets/35/ by Peter Hansen
 """
+from __future__ import absolute_import
 
 
 class ReverseProxy(object):

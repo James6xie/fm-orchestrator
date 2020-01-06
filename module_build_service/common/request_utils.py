@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
+from __future__ import absolute_import
+
 import requests
 from requests.packages.urllib3.util.retry import Retry
 

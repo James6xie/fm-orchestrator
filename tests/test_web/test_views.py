@@ -1,23 +1,30 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
+from __future__ import absolute_import
 import json
 from datetime import datetime
 from functools import partial
-from sqlalchemy.orm import load_only
-
-from mock import patch, PropertyMock, Mock
-from shutil import copyfile
+import hashlib
 from os import path, mkdir
 from os.path import basename, dirname, splitext
-from requests.utils import quote
-import hashlib
-import koji
-import pytest
 import re
-import sqlalchemy
+from shutil import copyfile
 
+import koji
+from mock import patch, PropertyMock, Mock
+from requests.utils import quote
+import pytest
+import sqlalchemy
+from sqlalchemy.orm import load_only
+
+from module_build_service import app, version
 from module_build_service.builder.utils import get_rpm_release
+import module_build_service.common.config as mbs_config
+from module_build_service.common.errors import UnprocessableEntity
+from module_build_service.common.models import ModuleBuild, BUILD_STATES, ComponentBuild
 from module_build_service.common.utils import load_mmd, import_mmd, mmd_to_str
+from module_build_service.scheduler.db_session import db_session
+import module_build_service.web.submit
 from tests import (
     init_data,
     clean_database,
@@ -27,12 +34,6 @@ from tests import (
     time_assert,
 )
 from tests.test_common.test_scm import base_dir as scm_base_dir
-from module_build_service.scheduler.db_session import db_session
-from module_build_service.common.errors import UnprocessableEntity
-from module_build_service.common.models import ModuleBuild, BUILD_STATES, ComponentBuild
-from module_build_service import app, version
-import module_build_service.common.config as mbs_config
-import module_build_service.web.submit
 
 
 user = ("Homer J. Simpson", {"packager"})

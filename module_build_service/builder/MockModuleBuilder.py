@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
+from __future__ import absolute_import
 import logging
 import os
 import pipes
@@ -13,10 +14,8 @@ import kobo.rpmlib
 import platform
 
 from module_build_service import conf, log, Modulemd
-from module_build_service.common import models
-from module_build_service.common.koji import get_session
-from module_build_service.common.utils import import_mmd, load_mmd_file, mmd_to_str
 from module_build_service.builder import GenericBuilder
+from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
 from module_build_service.builder.utils import (
     create_local_repo_from_koji_tag,
     execute_cmd,
@@ -24,9 +23,11 @@ from module_build_service.builder.utils import (
     get_koji_config,
     validate_koji_tag,
 )
-from module_build_service.scheduler.db_session import db_session
-from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
+from module_build_service.common import models
+from module_build_service.common.koji import get_session
+from module_build_service.common.utils import import_mmd, load_mmd_file, mmd_to_str
 from module_build_service.scheduler import events
+from module_build_service.scheduler.db_session import db_session
 
 logging.basicConfig(level=logging.DEBUG)
 

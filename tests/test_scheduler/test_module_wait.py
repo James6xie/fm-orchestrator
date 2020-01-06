@@ -1,16 +1,19 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
+from __future__ import absolute_import
+import os
+
+import koji
 import mock
 from mock import patch
-import module_build_service.scheduler.handlers.modules
-import os
-import koji
 import pytest
-from tests import scheduler_init_data
-import module_build_service.resolver
+
 from module_build_service import build_logs, conf, Modulemd
-from module_build_service.scheduler.db_session import db_session
 from module_build_service.common.models import ComponentBuild, ModuleBuild
+import module_build_service.resolver
+from module_build_service.scheduler.db_session import db_session
+import module_build_service.scheduler.handlers.modules
+from tests import scheduler_init_data
 
 base_dir = os.path.dirname(os.path.dirname(__file__))
 

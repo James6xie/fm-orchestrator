@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
 """ Defines custom exceptions and error handling functions """
+
+from __future__ import absolute_import
+
 from flask import jsonify
 
 

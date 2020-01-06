@@ -1,24 +1,25 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
-from __future__ import print_function
-from flask_script import Manager, prompt_bool
+from __future__ import absolute_import, print_function
 from functools import wraps
-import flask_migrate
+import getpass
 import logging
 import os
-import getpass
 import textwrap
 
+import flask_migrate
+from flask_script import Manager, prompt_bool
 from werkzeug.datastructures import FileStorage
+
 from module_build_service import app, conf, create_app, db
 from module_build_service.builder.MockModuleBuilder import (
     import_builds_from_local_dnf_repos, load_local_builds
 )
 from module_build_service.common import models
-from module_build_service.common.utils import load_mmd_file, import_mmd
-from module_build_service.scheduler.db_session import db_session
 from module_build_service.common.errors import StreamAmbigous
+from module_build_service.common.utils import load_mmd_file, import_mmd
 import module_build_service.scheduler.consumer
+from module_build_service.scheduler.db_session import db_session
 import module_build_service.scheduler.local
 from module_build_service.web.submit import submit_module_build_from_yaml
 

@@ -1,16 +1,17 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
+from __future__ import absolute_import
 from os import path
 
-import pytest
-import requests
 import mock
 from mock import patch, PropertyMock, Mock
+import pytest
+import requests
 
-import module_build_service.web.auth
-import module_build_service.common.errors
-import module_build_service.common.config as mbs_config
 from module_build_service import app
+import module_build_service.common.config as mbs_config
+import module_build_service.common.errors
+import module_build_service.web.auth
 
 
 class TestAuthModule:

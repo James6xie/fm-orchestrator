@@ -1,15 +1,16 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
+from __future__ import absolute_import
 from datetime import datetime
 
 import mock
 import pytest
 
-from module_build_service.common.utils import load_mmd, load_mmd_file, mmd_to_str
-from module_build_service.scheduler.db_session import db_session
 from module_build_service import app, conf
 from module_build_service.common import models
 from module_build_service.common.errors import UnprocessableEntity
+from module_build_service.common.utils import load_mmd, load_mmd_file, mmd_to_str
+from module_build_service.scheduler.db_session import db_session
 import module_build_service.scheduler.handlers.components
 from module_build_service.scheduler.submit import (
     get_build_arches, format_mmd, record_component_builds, record_module_build_arches

@@ -1,14 +1,15 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
+from __future__ import absolute_import
+
 from module_build_service import log, Modulemd, conf
 from module_build_service.common import models
+from module_build_service.common.errors import StreamAmbigous, UnprocessableEntity
 from module_build_service.common.resolve import expand_single_mse_streams, get_base_module_mmds
 from module_build_service.common.utils import mmd_to_str
-from module_build_service.common.errors import StreamAmbigous
-from module_build_service.common.errors import UnprocessableEntity
+from module_build_service.resolver import GenericResolver
 from module_build_service.web.mmd_resolver import MMDResolver
 from module_build_service.web.utils import deps_to_dict
-from module_build_service.resolver import GenericResolver
 
 
 def expand_mse_streams(db_session, mmd, default_streams=None, raise_if_stream_ambigous=False):

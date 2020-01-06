@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
+from __future__ import absolute_import
 import os
 import shutil
 import tempfile
 
 import pytest
 
-import module_build_service.common.scm
 from module_build_service.common.errors import ValidationError, UnprocessableEntity
+import module_build_service.common.scm
 
 base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir, "scm_data"))
 repo_url = "file://" + base_dir + "/testrepo"

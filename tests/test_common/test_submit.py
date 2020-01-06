@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
+from __future__ import absolute_import
+
 import mock
 
 from module_build_service.common.submit import _is_eol_in_pdc

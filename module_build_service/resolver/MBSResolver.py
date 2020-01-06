@@ -2,15 +2,17 @@
 # SPDX-License-Identifier: MIT
 """MBS handler functions."""
 
+from __future__ import absolute_import
 import logging
+
 import kobo.rpmlib
 
 from module_build_service import conf
 from module_build_service.common import models
-from module_build_service.common.utils import load_mmd, import_mmd
 from module_build_service.common.errors import UnprocessableEntity
-from module_build_service.resolver.KojiResolver import KojiResolver
 from module_build_service.common.request_utils import requests_session
+from module_build_service.common.utils import load_mmd, import_mmd
+from module_build_service.resolver.KojiResolver import KojiResolver
 
 log = logging.getLogger()
 

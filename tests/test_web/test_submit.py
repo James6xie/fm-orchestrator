@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
+from __future__ import absolute_import
 import io
 from os import path
 from shutil import rmtree
@@ -10,9 +11,9 @@ import pytest
 from werkzeug.datastructures import FileStorage
 
 from module_build_service.common import models
+from module_build_service.common.errors import ValidationError
 from module_build_service.common.utils import mmd_to_str
 from module_build_service.scheduler.db_session import db_session
-from module_build_service.common.errors import ValidationError
 from module_build_service.web.submit import (
     get_prefixed_version, submit_module_build, submit_module_build_from_yaml
 )

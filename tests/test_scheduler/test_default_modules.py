@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
+from __future__ import absolute_import
 from collections import namedtuple
 import errno
 
@@ -8,11 +9,11 @@ from mock import call, Mock, patch, PropertyMock
 import pytest
 
 from module_build_service import conf
-from module_build_service.common.utils import import_mmd, load_mmd, mmd_to_str
-from module_build_service.scheduler.db_session import db_session
 from module_build_service.common.errors import UnprocessableEntity
 from module_build_service.common.models import ModuleBuild
+from module_build_service.common.utils import import_mmd, load_mmd, mmd_to_str
 from module_build_service.scheduler import default_modules
+from module_build_service.scheduler.db_session import db_session
 from tests import clean_database, make_module_in_db, read_staged_data
 
 

@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
+from __future__ import absolute_import
+
 import mock
 import pytest
 from sqlalchemy.orm.session import make_transient

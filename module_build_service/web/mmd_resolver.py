@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
+from __future__ import absolute_import
 import collections
 import itertools
+
 import solv
+
 from module_build_service import log, conf
 from module_build_service.common.models import ModuleBuild
 

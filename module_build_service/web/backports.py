@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
-from flask.json import dumps
+from __future__ import absolute_import
+
 from flask import request
+from flask.json import dumps
 
 import module_build_service
 

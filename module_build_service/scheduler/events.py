@@ -12,9 +12,10 @@ build is complete, Koji sends a message to topic buildsys.build.state.change,
 however Brew sends to topic brew.build.complete, etc.
 """
 
-import time
-import sched
+from __future__ import absolute_import
 from functools import wraps
+import sched
+import time
 
 from module_build_service import log
 

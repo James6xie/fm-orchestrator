@@ -4,23 +4,25 @@
 This is the implementation of the orchestrator's public RESTful API.
 """
 
+from __future__ import absolute_import
+from io import BytesIO
 import json
+
 from flask import request, url_for, Blueprint, Response
 from flask.views import MethodView
-from six import string_types
-from io import BytesIO
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+from six import string_types
 
 from module_build_service import app, conf, log, db, version, api_version as max_api_version
 from module_build_service.common import models
-from module_build_service.common.utils import import_mmd
 from module_build_service.common.errors import (
     ValidationError, Forbidden, NotFound, ProgrammingError
 )
-from module_build_service.web.backports import jsonify
 from module_build_service.common.monitor import registry
 from module_build_service.common.submit import fetch_mmd
+from module_build_service.common.utils import import_mmd
 import module_build_service.web.auth
+from module_build_service.web.backports import jsonify
 from module_build_service.web.submit import (
     submit_module_build_from_scm, submit_module_build_from_yaml
 )

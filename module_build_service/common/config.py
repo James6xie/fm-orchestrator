@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
+from __future__ import absolute_import
 import imp
 import logging
 import os
-import pkg_resources
 import re
 import sys
 import tempfile
 
+import pkg_resources
 from six import string_types
 
 from module_build_service.common import logger

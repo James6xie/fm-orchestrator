@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
+from __future__ import absolute_import
 import shutil
 import tempfile
 
@@ -7,8 +8,8 @@ import requests
 
 import module_build_service.common.scm
 from module_build_service import conf, log
-from module_build_service.common.utils import load_mmd_file
 from module_build_service.common.errors import ValidationError
+from module_build_service.common.utils import load_mmd_file
 
 
 def _is_eol_in_pdc(name, stream):

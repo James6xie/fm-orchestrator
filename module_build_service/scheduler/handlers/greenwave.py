@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
+from __future__ import absolute_import
+
 from module_build_service import celery_app, conf, log
 from module_build_service.common.koji import get_session
 from module_build_service.common.models import ModuleBuild, BUILD_STATES

@@ -2,11 +2,12 @@
 # SPDX-License-Identifier: MIT
 """Generic messaging functions."""
 
+from __future__ import absolute_import
+
 import pkg_resources
 
-from module_build_service.scheduler.parser import FedmsgMessageParser
-
 from module_build_service import conf, log
+from module_build_service.scheduler.parser import FedmsgMessageParser
 
 
 def publish(topic, msg, conf, service):

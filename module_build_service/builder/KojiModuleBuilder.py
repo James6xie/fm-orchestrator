@@ -1,37 +1,38 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
+from __future__ import absolute_import
 import contextlib
 import copy
+import datetime
+import glob
 import hashlib
+from itertools import chain
 import locale
 import logging
 import os
-import koji
-import tempfile
-import glob
-import datetime
-import time
-import dogpile.cache
 import random
 import string
-import kobo.rpmlib
-import threading
-
-from itertools import chain
-from OpenSSL.SSL import SysCallError
+import tempfile
 import textwrap
+import threading
+import time
+
+import dogpile.cache
+import koji
+import kobo.rpmlib
+from OpenSSL.SSL import SysCallError
 
 from module_build_service import log, conf
-from module_build_service.builder.utils import execute_cmd, get_rpm_release, validate_koji_tag
-from module_build_service.common import models
-from module_build_service.common.retry import retry
-from module_build_service.scheduler.db_session import db_session
 from module_build_service.builder import GenericBuilder
 from module_build_service.builder.KojiContentGenerator import KojiContentGenerator
+from module_build_service.builder.utils import execute_cmd, get_rpm_release, validate_koji_tag
+from module_build_service.common import models
 from module_build_service.common.koji import (
     get_session, koji_multicall_map, koji_retrying_multicall_map,
 )
+from module_build_service.common.retry import retry
 from module_build_service.scheduler import events
+from module_build_service.scheduler.db_session import db_session
 from module_build_service.scheduler.reuse import get_reusable_components, get_reusable_module
 
 logging.basicConfig(level=logging.DEBUG)

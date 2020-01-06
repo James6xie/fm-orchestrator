@@ -19,6 +19,7 @@ logging.warning("%s failed to build", task_id)
 
 """
 
+from __future__ import absolute_import
 import os
 import logging
 import inspect

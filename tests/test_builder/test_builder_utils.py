@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
-import tempfile
+from __future__ import absolute_import
 import shutil
+import tempfile
 
 from mock import call, MagicMock, Mock, patch, PropertyMock
 import pytest
@@ -9,9 +10,9 @@ import pytest
 from module_build_service import conf
 from module_build_service.builder import utils
 from module_build_service.common import models
-from module_build_service.scheduler.db_session import db_session
 from module_build_service.common.errors import ProgrammingError, ValidationError
 from module_build_service.common.utils import load_mmd, import_mmd, mmd_to_str
+from module_build_service.scheduler.db_session import db_session
 from tests import init_data, read_staged_data, scheduler_init_data
 
 

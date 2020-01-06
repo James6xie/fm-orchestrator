@@ -1,14 +1,15 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
+from __future__ import absolute_import
 import copy
 from datetime import datetime
 from functools import wraps
 import re
 
 from flask import request, url_for, Response
-from sqlalchemy.sql.sqltypes import Boolean as sqlalchemy_boolean
-from sqlalchemy.orm import aliased
 import sqlalchemy
+from sqlalchemy.orm import aliased
+from sqlalchemy.sql.sqltypes import Boolean as sqlalchemy_boolean
 
 from module_build_service import api_version, conf, db
 from module_build_service.common import models

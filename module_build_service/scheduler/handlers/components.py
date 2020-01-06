@@ -2,7 +2,9 @@
 # SPDX-License-Identifier: MIT
 """ Handlers for koji component build events on the message bus. """
 
+from __future__ import absolute_import
 import logging
+
 import koji
 
 from module_build_service import celery_app, conf, log
@@ -10,9 +12,9 @@ from module_build_service.builder import GenericBuilder
 from module_build_service.common import models
 from module_build_service.common.koji import get_session
 from module_build_service.common.utils import mmd_to_str
-from module_build_service.scheduler.db_session import db_session
 from module_build_service.scheduler import events
 from module_build_service.scheduler.batches import continue_batch_build
+from module_build_service.scheduler.db_session import db_session
 
 logging.basicConfig(level=logging.DEBUG)
 

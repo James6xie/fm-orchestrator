@@ -3,7 +3,7 @@
 
 # For an up-to-date version of this module, see:
 #   https://pagure.io/monitor-flask-sqlalchemy
-
+from __future__ import absolute_import
 import os
 import tempfile
 

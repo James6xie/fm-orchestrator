@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
 """ Define the router used to route Celery tasks to queues."""
+
+from __future__ import absolute_import
 import inspect
 
 from module_build_service import conf, log

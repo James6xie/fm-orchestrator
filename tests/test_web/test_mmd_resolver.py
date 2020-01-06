@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
+from __future__ import absolute_import
 import collections
+
 import pytest
 import solv
 
-from module_build_service.web.mmd_resolver import MMDResolver
 from module_build_service import Modulemd
+from module_build_service.web.mmd_resolver import MMDResolver
 
 
 class TestMMDResolver:

@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
+from __future__ import absolute_import
 import errno
 import os
-import tempfile
 import shutil
+import tempfile
 
 import dnf
 import kobo.rpmlib
@@ -12,14 +13,14 @@ import six.moves.xmlrpc_client as xmlrpclib
 
 from module_build_service import conf, log, Modulemd
 from module_build_service.common import models, scm
+from module_build_service.common.errors import UnprocessableEntity
 from module_build_service.common.koji import get_session, koji_retrying_multicall_map
 from module_build_service.common.resolve import (
     expand_single_mse_streams, get_compatible_base_module_mmds
 )
+from module_build_service.resolver.base import GenericResolver
 from module_build_service.common.retry import retry
 from module_build_service.scheduler.db_session import db_session
-from module_build_service.common.errors import UnprocessableEntity
-from module_build_service.resolver.base import GenericResolver
 
 
 def add_default_modules(mmd):

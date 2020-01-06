@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
+from __future__ import absolute_import
+
 from mock import patch, MagicMock
+
 from module_build_service.scheduler import events
 from module_build_service.scheduler.consumer import MBSConsumer
 

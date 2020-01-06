@@ -1,15 +1,17 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
-import pytest
-from mock import patch, MagicMock
+from __future__ import absolute_import
 from datetime import datetime
+
+from mock import patch, MagicMock
+import pytest
 
 from module_build_service import conf
 from module_build_service.common.models import ModuleBuild, BUILD_STATES
 from module_build_service.common.utils import import_mmd, load_mmd, mmd_to_str
 import module_build_service.resolver as mbs_resolver
-import tests
 from module_build_service.scheduler.db_session import db_session
+import tests
 
 
 @pytest.mark.usefixtures("reuse_component_init_data")

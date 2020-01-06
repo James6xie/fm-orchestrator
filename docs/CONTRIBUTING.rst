@@ -91,10 +91,13 @@ Also, the format of the docstrings should be in the
     :raises TypeError: if a or b are not integers
 
 
-Additionally, the imports should be ordered by standard library, third-party, then local. For example:
+Additionally, the imports should be ordered by standard library, third-party, then local.
+``from __future__ import absolute_import`` should always be included so that imports are consistent
+in Python 2 and Python 3. For example:
 
 ::
 
+    from __future__ import absolute_import
     import math
     import os
 

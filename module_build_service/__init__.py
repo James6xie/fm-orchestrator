@@ -18,23 +18,23 @@ for a number of tasks:
   infrastructure services can pick up the work.
 """
 
-import pkg_resources
-from celery import Celery
-from flask import Flask, has_app_context, url_for
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.pool import StaticPool
+from __future__ import absolute_import
 from logging import getLogger
 
+from celery import Celery
 import gi  # noqa
 gi.require_version("Modulemd", "2.0")  # noqa
 from gi.repository import Modulemd  # noqa
+from flask import Flask, has_app_context, url_for
+from flask_sqlalchemy import SQLAlchemy
+import pkg_resources
+from sqlalchemy.pool import StaticPool
 
-from module_build_service.common.logger import init_logging, ModuleBuildLogs, level_flags, MBSLogger
-
+from module_build_service.common.config import init_config
 from module_build_service.common.errors import (
     ValidationError, Unauthorized, UnprocessableEntity, Conflict, NotFound,
     Forbidden, json_error)
-from module_build_service.common.config import init_config
+from module_build_service.common.logger import init_logging, ModuleBuildLogs, level_flags, MBSLogger
 from module_build_service.web.proxy import ReverseProxy
 
 try:

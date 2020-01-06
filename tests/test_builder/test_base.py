@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
+from __future__ import absolute_import
+
 import mock
-
-import module_build_service.common.models
-import module_build_service.builder
-import module_build_service.resolver
-
-from tests import init_data
-
-from module_build_service.scheduler.db_session import db_session
-from module_build_service.builder import GenericBuilder
 from mock import patch
+
+import module_build_service.builder
+from module_build_service.builder import GenericBuilder
+import module_build_service.common.models
+import module_build_service.resolver
+from module_build_service.scheduler.db_session import db_session
+from tests import init_data
 
 
 class TestGenericBuilder:

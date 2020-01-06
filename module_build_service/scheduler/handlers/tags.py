@@ -2,13 +2,16 @@
 # SPDX-License-Identifier: MIT
 """ Handlers for repo change events on the message bus. """
 
+from __future__ import absolute_import
 import logging
+
 import koji
+
 from module_build_service import celery_app, conf, log
-from module_build_service.common import models
-from module_build_service.scheduler.db_session import db_session
 from module_build_service.builder import GenericBuilder
+from module_build_service.common import models
 from module_build_service.scheduler import events
+from module_build_service.scheduler.db_session import db_session
 
 logging.basicConfig(level=logging.DEBUG)
 

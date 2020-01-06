@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
-import threading
+from __future__ import absolute_import
 import concurrent.futures
+import threading
 
 from module_build_service import conf, log
 from module_build_service.common import models
-from module_build_service.scheduler.db_session import db_session
 from module_build_service.scheduler import events
+from module_build_service.scheduler.db_session import db_session
 from module_build_service.scheduler.reuse import get_reusable_components, reuse_component
 
 

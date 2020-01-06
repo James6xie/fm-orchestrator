@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
+from __future__ import absolute_import
 import calendar
 import distro
 import hashlib
+from io import open
+from itertools import chain
 import logging
 import json
 import os
@@ -12,20 +15,17 @@ import shutil
 import subprocess
 import tempfile
 import time
-from io import open
-from itertools import chain
 
 import kobo.rpmlib
-
-from six import text_type
 import koji
 import pungi.arch
+from six import text_type
 
 from module_build_service import conf, log, build_logs, Modulemd
 from module_build_service.common.koji import get_session, koji_retrying_multicall_map
+from module_build_service.common.scm import SCM
 from module_build_service.common.utils import load_mmd, mmd_to_str, to_text_type
 from module_build_service.scheduler.db_session import db_session
-from module_build_service.common.scm import SCM
 
 logging.basicConfig(level=logging.DEBUG)
 

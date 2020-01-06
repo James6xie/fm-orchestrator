@@ -2,10 +2,22 @@
 # SPDX-License-Identifier: MIT
 """ Handlers for module change events on the message bus. """
 
+from __future__ import absolute_import
+from datetime import datetime
+import logging
+import os
+import time
+
+import koji
+from requests.exceptions import ConnectionError
+import six.moves.xmlrpc_client as xmlrpclib
+
 from module_build_service import celery_app, conf, log, build_logs
+from module_build_service.builder import GenericBuilder
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
 from module_build_service.builder.utils import get_rpm_release
 from module_build_service.common import models
+from module_build_service.common.errors import UnprocessableEntity, Forbidden, ValidationError
 from module_build_service.common.utils import mmd_to_str
 from module_build_service.common.retry import retry
 import module_build_service.resolver
@@ -14,25 +26,14 @@ from module_build_service.scheduler.submit import (
     record_filtered_rpms,
     record_module_build_arches
 )
+from module_build_service.scheduler import events
 from module_build_service.scheduler.db_session import db_session
-from module_build_service.builder import GenericBuilder
-from module_build_service.common.errors import UnprocessableEntity, Forbidden, ValidationError
 from module_build_service.scheduler.default_modules import (
     add_default_modules, handle_collisions_with_base_module_rpms)
 from module_build_service.scheduler.greenwave import greenwave
-from module_build_service.scheduler import events
 from module_build_service.scheduler.reuse import attempt_to_reuse_all_components
 from module_build_service.scheduler.submit import format_mmd
 from module_build_service.scheduler.ursine import handle_stream_collision_modules
-
-from requests.exceptions import ConnectionError
-
-import koji
-import six.moves.xmlrpc_client as xmlrpclib
-import logging
-import os
-import time
-from datetime import datetime
 
 logging.basicConfig(level=logging.DEBUG)
 

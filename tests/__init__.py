@@ -1,25 +1,28 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
-import functools
-import os
+from __future__ import absolute_import
 from datetime import datetime, timedelta
-from mock import patch
-from six import string_types
-import time
+import functools
 import hashlib
+import os
+import time
 from traceback import extract_stack
-from module_build_service.common.utils import load_mmd, import_mmd
 
 import koji
+from mock import patch
+from six import string_types
+
 import module_build_service
-from module_build_service import db
+from module_build_service import db, Modulemd
 from module_build_service.builder.utils import get_rpm_release
-from module_build_service.common.utils import mmd_to_str, to_text_type
 from module_build_service.common.models import (
-    ModuleBuild, ModuleArch, ComponentBuild, VirtualStream,
     BUILD_STATES,
+    ComponentBuild,
+    ModuleArch,
+    ModuleBuild,
+    VirtualStream,
 )
-from module_build_service import Modulemd
+from module_build_service.common.utils import load_mmd, import_mmd, mmd_to_str, to_text_type
 from module_build_service.scheduler.db_session import db_session
 
 

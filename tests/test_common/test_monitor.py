@@ -1,15 +1,16 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
+from __future__ import absolute_import
 import os
 
+import mock
 import pytest
 import requests
-import mock
 from six.moves import reload_module
 
-import module_build_service.common.monitor
 from module_build_service import app, conf
 from module_build_service.common import models
+import module_build_service.common.monitor
 from module_build_service.scheduler.db_session import db_session
 from tests import init_data, make_module_in_db
 

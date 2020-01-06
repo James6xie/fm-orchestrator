@@ -1,26 +1,24 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
+from __future__ import absolute_import
 import io
-import pytest
 import json
-
 import os
 from os import path
 
+import kobo.rpmlib
+import koji
+from mock import patch, Mock, call, mock_open
+import pytest
+
 from module_build_service import conf, build_logs, Modulemd
+from module_build_service.builder.KojiContentGenerator import KojiContentGenerator
 from module_build_service.common import models
 from module_build_service.common.utils import load_mmd, load_mmd_file, mmd_to_str
 from module_build_service.scheduler.db_session import db_session
-
-from mock import patch, Mock, call, mock_open
-import kobo.rpmlib
-
 from tests import init_data
 from tests.test_web.test_views import FakeSCM
 
-import koji
-
-from module_build_service.builder.KojiContentGenerator import KojiContentGenerator
 
 GET_USER_RV = {
     "id": 3686,
