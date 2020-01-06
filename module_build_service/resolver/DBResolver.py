@@ -5,7 +5,7 @@ from __future__ import absolute_import
 import sqlalchemy
 from sqlalchemy.orm import aliased
 
-from module_build_service import log, db
+from module_build_service import log
 from module_build_service.common import models
 from module_build_service.common.errors import UnprocessableEntity
 from module_build_service.common.utils import load_mmd
@@ -60,7 +60,7 @@ class DBResolver(GenericResolver):
         # Cast the version as an integer so that we get proper ordering
         module = query.order_by(
             models.ModuleBuild.stream_version.desc(),
-            sqlalchemy.cast(models.ModuleBuild.version, db.BigInteger).desc(),
+            sqlalchemy.cast(models.ModuleBuild.version, sqlalchemy.BigInteger).desc(),
         ).first()
 
         if module:
@@ -173,7 +173,7 @@ class DBResolver(GenericResolver):
             module_br_alias.context == c,
         )
         query = query.order_by(
-            sqlalchemy.cast(models.ModuleBuild.version, db.BigInteger).desc())
+            sqlalchemy.cast(models.ModuleBuild.version, sqlalchemy.BigInteger).desc())
         all_builds = query.all()
 
         # The `all_builds` list contains builds sorted by "build.version". We need only
