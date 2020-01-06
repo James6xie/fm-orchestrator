@@ -38,15 +38,15 @@ def test_standalone_metrics_server_disabled_by_default():
 
 
 def test_standalone_metrics_server():
-    os.environ["MONITOR_STANDALONE_METRICS_SERVER_ENABLE"] = "true"
-    reload_module(module_build_service.common.monitor)
+    with mock.patch.dict(os.environ, {"MONITOR_STANDALONE_METRICS_SERVER_ENABLE": "true"}):
+        reload_module(module_build_service.common.monitor)
 
-    r = requests.get("http://127.0.0.1:10040/metrics")
-    count = len([
-        l for l in r.text.splitlines()
-        if (l.startswith("# TYPE") and "_created " not in l)
-    ])
-    assert count == num_of_metrics
+        r = requests.get("http://127.0.0.1:10040/metrics")
+        count = len([
+            l for l in r.text.splitlines()
+            if (l.startswith("# TYPE") and "_created " not in l)
+        ])
+        assert count == num_of_metrics
 
 
 @mock.patch("module_build_service.common.monitor.builder_failed_counter.labels")
