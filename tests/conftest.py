@@ -5,6 +5,7 @@ import os
 import pytest
 
 from datetime import datetime
+import mock
 
 import module_build_service
 from module_build_service.builder.utils import get_rpm_release
@@ -379,3 +380,19 @@ def reuse_shared_userspace_init_data():
 
     db_session.add(module_build)
     db_session.commit()
+
+
+@pytest.fixture(autouse=True)
+def cleanup_build_logs(request):
+    """
+    Clean up any build logs remaining after each test so that it doesn't affect tests run later.
+    """
+
+    def _cleanup_build_logs():
+        build_ids = list(module_build_service.build_logs.handlers.keys())
+        for build_id in build_ids:
+            mock_build = mock.Mock()
+            mock_build.id = build_id
+            module_build_service.build_logs.stop(mock_build)
+
+    request.addfinalizer(_cleanup_build_logs)
