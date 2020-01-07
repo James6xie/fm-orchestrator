@@ -41,8 +41,7 @@ class BaseConfiguration(object):
 
 class TestConfiguration(BaseConfiguration):
     LOG_LEVEL = "debug"
-    SQLALCHEMY_DATABASE_URI = os.environ.get(
-        "DATABASE_URI", "sqlite:///{0}".format(os.path.join(os.getcwd(), "mbstest.db")))
+    SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URI", "sqlite:///:memory:")
     DEBUG = True
     MESSAGING = "in_memory"
     PDC_URL = "https://pdc.fedoraproject.org/rest_api/v1"
