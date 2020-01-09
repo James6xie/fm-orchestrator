@@ -209,8 +209,7 @@ class TestBuild:
         koji_session.getUser.return_value = GET_USER_RV
         koji_session.getTag.return_value = {"id": 123}
 
-        with patch.dict("sys.modules", krbV=Mock()):
-            self.cg._tag_cg_build()
+        self.cg._tag_cg_build()
 
         koji_session.getTag.assert_called_once_with(self.cg.module.cg_build_koji_tag)
         koji_session.tagBuild.assert_called_once_with(123, "nginx-0-2.10e50d06")
@@ -225,8 +224,7 @@ class TestBuild:
         koji_session.getUser.return_value = GET_USER_RV
         koji_session.getTag.side_effect = [{}, {"id": 123}]
 
-        with patch.dict("sys.modules", krbV=Mock()):
-            self.cg._tag_cg_build()
+        self.cg._tag_cg_build()
 
         assert koji_session.getTag.mock_calls == [
             call(self.cg.module.cg_build_koji_tag),
@@ -245,8 +243,7 @@ class TestBuild:
         koji_session.getTag.side_effect = [{}, {"id": 123}]
 
         self.cg.module.cg_build_koji_tag = None
-        with patch.dict("sys.modules", krbV=Mock()):
-            self.cg._tag_cg_build()
+        self.cg._tag_cg_build()
 
         koji_session.tagBuild.assert_not_called()
         # tagBuild requires logging into a session in advance.
@@ -259,8 +256,7 @@ class TestBuild:
         koji_session.getUser.return_value = GET_USER_RV
         koji_session.getTag.side_effect = [{}, {}]
 
-        with patch.dict("sys.modules", krbV=Mock()):
-            self.cg._tag_cg_build()
+        self.cg._tag_cg_build()
 
         koji_session.tagBuild.assert_not_called()
         # tagBuild requires logging into a session in advance.
@@ -970,8 +966,7 @@ class TestBuild:
         """ Tests whether build is still tagged even if there's an exception in CGImport """
         cl_session.return_value.CGImport = Mock(
             side_effect=koji.GenericError("Build already exists asdv"))
-        with patch.dict("sys.modules", krbV=Mock()):
-            self.cg.koji_import()
+        self.cg.koji_import()
         tagger.assert_called()
 
     def test_fill_in_rpms_list_debuginfo_deps(self):
