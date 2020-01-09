@@ -496,17 +496,17 @@ class KojiModuleBuilder(GenericBuilder):
         if authtype == "kerberos":
             try:
                 import krbV
+                # We want to create a context per thread to avoid Kerberos cache corruption
+                ctx = krbV.Context()
             except ImportError:
-                raise RuntimeError(
-                    "python-krbV must be installed to authenticate with Koji using Kerberos")
+                # If no krbV, we can assume GSSAPI auth is available
+                ctx = None
             keytab = getattr(config, "krb_keytab", None)
             principal = getattr(config, "krb_principal", None)
             if not keytab and principal:
                 raise ValueError(
                     "The Kerberos keytab and principal aren't set for Koji authentication")
             log.debug("  keytab: %r, principal: %r" % (keytab, principal))
-            # We want to create a context per thread to avoid Kerberos cache corruption
-            ctx = krbV.Context()
             # We want to use the thread keyring for the ccache to ensure we have one cache per
             # thread to avoid Kerberos cache corruption
             ccache = "KEYRING:thread:mbs"
