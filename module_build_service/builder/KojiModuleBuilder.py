@@ -574,7 +574,7 @@ class KojiModuleBuilder(GenericBuilder):
         self.module_target = self._koji_add_target(target, self.module_build_tag, self.module_tag)
 
         self.__prep = True
-        log.info("%r buildroot sucessfully connected." % self)
+        log.info("%r buildroot successfully connected." % self)
 
     def buildroot_add_repos(self, dependencies):
         koji_tags = dependencies.keys()
