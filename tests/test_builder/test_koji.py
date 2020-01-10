@@ -1039,3 +1039,14 @@ def test_generate_koji_tag_in_hash_format():
     tag = KojiModuleBuilder.generate_koji_tag(*nsvc_list)
     expected_tag = "module-1cf457d452e54dda"
     assert tag == expected_tag
+
+
+def test_generate_koji_tag_for_scratch_build():
+    tag = KojiModuleBuilder.generate_koji_tag(
+        "testmodule", "master", "20170816080815", "37c6c57", scratch=True)
+    assert tag == "scrmod-testmodule-master-20170816080815-37c6c57+0"
+
+    tag = KojiModuleBuilder.generate_koji_tag(
+        "testmodule", "master", "20170816080815", "37c6c57",
+        scratch=True, scratch_id=1000)
+    assert tag == "scrmod-testmodule-master-20170816080815-37c6c57+1000"
