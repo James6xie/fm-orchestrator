@@ -93,7 +93,7 @@ def build_task_finalize(
         and conf.system in ["koji", "test"]
         and build_new_state == koji.BUILD_STATES["COMPLETE"]
     ):
-        koji_session = get_session(conf)
+        koji_session = get_session(conf, login=False)
         rpms = koji_session.listBuildRPMs(component_build.nvr)
         mmd = parent.mmd()
         for artifact in rpms:
