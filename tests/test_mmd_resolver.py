@@ -25,6 +25,7 @@
 
 import collections
 import pytest
+import solv
 
 from module_build_service.mmd_resolver import MMDResolver
 from module_build_service import Modulemd
@@ -400,3 +401,35 @@ class TestMMDResolver:
         }
 
         assert expanded == expected
+
+    @pytest.mark.parametrize(
+        "nsvc, requires, expected",
+        (
+            ("platform:f28:0:c0", {}, True),
+            ("platform:latest:5:c8", {}, False),
+            ("gtk:3:0:c8", {"platform": ["f28"]}, False)
+        ),
+    )
+    def test_base_module_stream_version(self, nsvc, requires, expected):
+        """
+        Tests that add_base_module_provides returns True for base modules with stream versions
+        """
+        mmd = self._make_mmd(nsvc, requires)
+        solvable = self.mmd_resolver.available_repo.add_solvable()
+        solvable.name = nsvc
+        solvable.evr = str(mmd.get_version())
+        solvable.arch = "x86_64"
+        assert self.mmd_resolver._add_base_module_provides(solvable, mmd) is expected
+
+    @pytest.mark.parametrize(
+        "nsvc, expected",
+        (
+            ("platform:f28:3:c0", {"module(platform)", "module(platform:f28) = 28.0"}),
+            ("platform:latest:5:c8", {"module(platform)", "module(platform:latest) = 5"}),
+        ),
+    )
+    def test_base_module_provides(self, nsvc, expected):
+        self.mmd_resolver.add_modules(self._make_mmd(nsvc, {}))
+        ns = nsvc.rsplit(":", 2)[0]
+        provides = self.mmd_resolver.solvables[ns][0].lookup_deparray(solv.SOLVABLE_PROVIDES)
+        assert {str(provide) for provide in provides} == expected
