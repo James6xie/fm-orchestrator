@@ -138,10 +138,10 @@ class TestDecisionUpdateHandler:
 
         # Assert this call below
         first_publish_call = call(
-            service="mbs",
-            topic="module.state.change",
-            msg=module_build.json(db_session, show_tasks=False),
-            conf=conf,
+            "module.state.change",
+            module_build.json(db_session, show_tasks=False),
+            conf,
+            "mbs",
         )
 
         ClientSession.return_value.getBuild.return_value = {
@@ -169,9 +169,9 @@ class TestDecisionUpdateHandler:
         publish.assert_has_calls([
             first_publish_call,
             call(
-                service="mbs",
-                topic="module.state.change",
-                msg=module_build.json(db_session, show_tasks=False),
-                conf=conf,
+                "module.state.change",
+                module_build.json(db_session, show_tasks=False),
+                conf,
+                "mbs"
             ),
         ])

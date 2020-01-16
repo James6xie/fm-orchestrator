@@ -7,6 +7,7 @@ This is the implementation of the orchestrator's public RESTful API.
 from __future__ import absolute_import
 from io import BytesIO
 import json
+import sqlalchemy.event
 
 from flask import request, url_for, Blueprint, Response
 from flask.views import MethodView
@@ -18,6 +19,7 @@ from module_build_service.common import models
 from module_build_service.common.errors import (
     ValidationError, Forbidden, NotFound, ProgrammingError
 )
+from module_build_service.common.models import send_message_after_module_build_state_change
 from module_build_service.common.monitor import registry
 from module_build_service.common.submit import fetch_mmd
 from module_build_service.common.utils import import_mmd
@@ -565,3 +567,8 @@ def register_api():
 
 
 register_api()
+
+
+# Ensure the event handler is called on db.session
+sqlalchemy.event.listen(
+    db.session, "after_commit", send_message_after_module_build_state_change)

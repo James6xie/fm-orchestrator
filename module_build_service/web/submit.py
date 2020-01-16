@@ -14,6 +14,7 @@ import requests
 from module_build_service import conf, log, Modulemd
 from module_build_service.common import models
 from module_build_service.common.errors import Conflict, Forbidden, ValidationError
+from module_build_service.common.messaging import notify_on_module_state_change
 from module_build_service.common.submit import fetch_mmd
 from module_build_service.common.utils import load_mmd, mmd_to_str, to_text_type
 from module_build_service.web.mse import generate_expanded_mmds
@@ -554,6 +555,7 @@ def submit_module_build(db_session, username, mmd, params):
                 transition_to = models.BUILD_STATES["wait"]
                 module.batch = 0
             module.transition(db_session, conf, transition_to, "Resubmitted by %s" % username)
+            db_session.commit()
             log.info("Resumed existing module build in previous state %s" % module.state)
         else:
             # make NSVC unique for every scratch build
@@ -601,10 +603,14 @@ def submit_module_build(db_session, username, mmd, params):
             module.build_context, module.runtime_context, module.context, \
                 module.build_context_no_bms = module.contexts_from_mmd(module.modulemd)
             module.context += context_suffix
+            db_session.commit()
+
+            notify_on_module_state_change(
+                # Note the state is "init" here...
+                module.json(db_session, show_tasks=False)
+            )
 
         all_modules_skipped = False
-        db_session.add(module)
-        db_session.commit()
         modules.append(module)
         log.info('The user "%s" submitted the build "%s"', username, nsvc)
 

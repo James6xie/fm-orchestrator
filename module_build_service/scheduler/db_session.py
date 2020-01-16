@@ -7,6 +7,7 @@ from sqlalchemy.pool import NullPool
 from sqlalchemy.orm import scoped_session, sessionmaker
 
 from module_build_service import conf
+from module_build_service.common.models import send_message_after_module_build_state_change
 from module_build_service.common.models import session_before_commit_handlers
 
 __all__ = ("db_session",)
@@ -16,8 +17,14 @@ def _setup_event_listeners(db_session):
     """
     Starts listening for events related to the database session.
     """
-    if not sqlalchemy.event.contains(db_session, "before_commit", session_before_commit_handlers):
-        sqlalchemy.event.listen(db_session, "before_commit", session_before_commit_handlers)
+    event_hooks = (
+        ("before_commit", session_before_commit_handlers),
+        ("after_commit", send_message_after_module_build_state_change),
+    )
+
+    for event, handler in event_hooks:
+        if not sqlalchemy.event.contains(db_session, event, handler):
+            sqlalchemy.event.listen(db_session, event, handler)
 
     # initialize DB event listeners from the monitor module
     from module_build_service.common.monitor import db_hook_event_listeners

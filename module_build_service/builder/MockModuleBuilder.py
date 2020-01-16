@@ -161,7 +161,6 @@ def load_local_builds(local_build_nsvs):
             modulemd=mmd_to_str(mmd),
             scmurl="",
             username="mbs",
-            publish_msg=False,
         )
         module.koji_tag = path
         module.state = models.BUILD_STATES["ready"]

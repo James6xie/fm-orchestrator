@@ -5,9 +5,18 @@
 from __future__ import absolute_import
 
 import pkg_resources
+import six.moves.queue
 
 from module_build_service import conf, log
 from module_build_service.scheduler.parser import FedmsgMessageParser
+
+# A queue containing message body that should be sent after
+# ModuleBuild.transition call every time.
+# The ModuleBuild.transition is responsible for generating the message body
+# and put it into this queue.
+# After changes to a module build made by the transition method are committed,
+# the messages will be sent.
+module_build_state_change_out_queue = six.moves.queue.Queue()
 
 
 def publish(topic, msg, conf, service):
@@ -114,3 +123,10 @@ if not _messaging_backends:
 # After loading registered messaging backends, the default messaging backend
 # can be determined by configured messaging backend.
 default_messaging_backend = _messaging_backends[conf.messaging]
+
+
+# Helper functions to send message on specific event occurring
+
+
+def notify_on_module_state_change(message_body):
+    publish("module.state.change", message_body, conf, "mbs")

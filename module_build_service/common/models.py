@@ -19,7 +19,8 @@ from sqlalchemy.orm import validates, load_only
 
 from module_build_service import db, log, get_url_for, conf
 from module_build_service.common.errors import UnprocessableEntity
-import module_build_service.common.messaging
+from module_build_service.common.messaging import module_build_state_change_out_queue
+from module_build_service.common.messaging import notify_on_module_state_change
 from module_build_service.common.utils import load_mmd
 from module_build_service.scheduler import events
 
@@ -610,7 +611,6 @@ class ModuleBuild(MBSBase):
         rebuild_strategy=None,
         scratch=False,
         srpms=None,
-        publish_msg=True,
         **kwargs
     ):
         now = datetime.utcnow()
@@ -641,15 +641,6 @@ class ModuleBuild(MBSBase):
 
         db_session.add(module)
         db_session.commit()
-
-        if publish_msg:
-            module_build_service.common.messaging.publish(
-                service="mbs",
-                topic="module.state.change",
-                msg=module.json(db_session, show_tasks=False),  # Note the state is "init" here...
-                conf=conf,
-            )
-
         return module
 
     def transition(self, db_session, conf, state, state_reason=None, failure_type="unspec"):
@@ -700,12 +691,10 @@ class ModuleBuild(MBSBase):
             INVERSE_BUILD_STATES[old_state], new_state_name, self)
 
         if old_state != self.state:
-            module_build_service.common.messaging.publish(
-                service="mbs",
-                topic="module.state.change",
-                msg=self.json(db_session, show_tasks=False),
-                conf=conf,
-            )
+            # Do not send a message now until the data changes are committed
+            # into database.
+            module_build_state_change_out_queue.put(
+                self.json(db_session, show_tasks=False))
 
     @classmethod
     def local_modules(cls, db_session, name=None, stream=None):
@@ -1319,3 +1308,15 @@ def new_and_update_module_handler(mapper, db_session, target):
     # Only modify time_modified if it wasn't explicitly set
     if not db.inspect(target).get_history("time_modified", True).has_changes():
         target.time_modified = datetime.utcnow()
+
+
+def send_message_after_module_build_state_change(db_session):
+    """Hook of SQLAlchemy ORM event after_commit to send messages"""
+    queue = module_build_state_change_out_queue
+    # Generally, the changes will be committed immediately after
+    # ModuleBuild.transition is called. In this case, queue should have only
+    # one message body to be sent. This while loop also ensures that messages
+    # are sent correctly if the commit happens after more than one call of
+    # ModuleBuild.transition.
+    while not queue.empty():
+        notify_on_module_state_change(queue.get())
