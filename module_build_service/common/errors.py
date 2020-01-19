@@ -4,8 +4,6 @@
 
 from __future__ import absolute_import
 
-from flask import jsonify
-
 
 class ValidationError(ValueError):
     pass
@@ -41,12 +39,6 @@ class StreamAmbigous(ValueError):
 
 class GreenwaveError(RuntimeError):
     pass
-
-
-def json_error(status, error, message):
-    response = jsonify({"status": status, "error": error, "message": message})
-    response.status_code = status
-    return response
 
 
 class IgnoreMessage(Exception):

@@ -7,9 +7,9 @@ import tempfile
 from mock import call, MagicMock, Mock, patch, PropertyMock
 import pytest
 
-from module_build_service import conf
 from module_build_service.builder import utils
 from module_build_service.common import models
+from module_build_service.common.config import conf
 from module_build_service.common.errors import ProgrammingError, ValidationError
 from module_build_service.common.utils import load_mmd, import_mmd, mmd_to_str
 from module_build_service.scheduler.db_session import db_session

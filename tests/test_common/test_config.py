@@ -3,7 +3,7 @@
 from __future__ import absolute_import
 import os.path
 
-from module_build_service import conf
+from module_build_service.common.config import conf
 
 
 class TestConfig:

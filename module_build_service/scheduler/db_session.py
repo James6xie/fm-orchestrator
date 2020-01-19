@@ -6,9 +6,10 @@ import sqlalchemy.event
 from sqlalchemy.pool import NullPool
 from sqlalchemy.orm import scoped_session, sessionmaker
 
-from module_build_service import conf
-from module_build_service.common.models import send_message_after_module_build_state_change
-from module_build_service.common.models import session_before_commit_handlers
+from module_build_service.common.config import conf
+from module_build_service.common.models import (
+    session_before_commit_handlers, send_message_after_module_build_state_change
+)
 
 __all__ = ("db_session",)
 

@@ -8,12 +8,12 @@ import koji
 from sqlalchemy.orm import lazyload, load_only
 
 
-from module_build_service import celery_app, conf, log
+from module_build_service.common import conf, log, models
 from module_build_service.builder import GenericBuilder
-from module_build_service.common import models
 from module_build_service.common.koji import get_session
 import module_build_service.scheduler
 import module_build_service.scheduler.consumer
+from module_build_service.scheduler import celery_app
 from module_build_service.scheduler.consumer import ON_MODULE_CHANGE_HANDLERS
 from module_build_service.scheduler.batches import (
     at_concurrent_component_threshold,

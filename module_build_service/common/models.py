@@ -19,7 +19,8 @@ from sqlalchemy.orm import validates, load_only
 from sqlalchemy.schema import Index
 
 
-from module_build_service import db, log, get_url_for, conf
+from module_build_service import db, get_url_for
+from module_build_service.common import conf, log
 from module_build_service.common.errors import UnprocessableEntity
 from module_build_service.common.messaging import module_build_state_change_out_queue
 from module_build_service.common.messaging import notify_on_module_state_change

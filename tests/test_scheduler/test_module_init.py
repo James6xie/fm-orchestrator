@@ -5,7 +5,7 @@ import os
 
 from mock import patch, PropertyMock
 
-from module_build_service import build_logs, conf
+from module_build_service.common import build_logs, conf
 from module_build_service.common.models import BUILD_STATES, ModuleBuild
 from module_build_service.common.utils import load_mmd, mmd_to_str
 from module_build_service.scheduler.db_session import db_session

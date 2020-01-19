@@ -6,8 +6,7 @@ import itertools
 
 import solv
 
-from module_build_service import log, conf
-from module_build_service.common.models import ModuleBuild
+from module_build_service.common import log, conf, models
 
 
 class MMDResolver(object):
@@ -144,7 +143,8 @@ class MMDResolver(object):
                         # In case x.y.z versioning is not used for this base module, do not
                         # use versions solv.Dep.
                         stream_version_str = str(
-                            ModuleBuild.get_stream_version(stream_for_version, right_pad=False))
+                            models.ModuleBuild.get_stream_version(
+                                stream_for_version, right_pad=False))
                         if len(stream_version_str) < 5:
                             req_pos = rel_or_dep(
                                 req_pos, solv.REL_OR, self.module_dep(name, stream))
@@ -173,7 +173,7 @@ class MMDResolver(object):
                             op = solv.REL_EQ
                             if not exact_versions:
                                 op |= solv.REL_GT
-                            version = ModuleBuild.get_stream_version(
+                            version = models.ModuleBuild.get_stream_version(
                                 stream_for_version, right_pad=False
                             )
                             req_pos = rel_or_dep(
@@ -223,7 +223,8 @@ class MMDResolver(object):
         # and so on. We therefore need to convert the stream and version of base module to
         # integer representation and add "module($name:$stream) = $stream_based_version"
         # to Provides.
-        stream_version = ModuleBuild.get_stream_version(mmd.get_stream_name(), right_pad=False)
+        stream_version = models.ModuleBuild.get_stream_version(
+            mmd.get_stream_name(), right_pad=False)
         if stream_version:
             base_stream_ver = True
             self.solvable_provides(

@@ -7,7 +7,7 @@ import koji
 import munch
 import six.moves.xmlrpc_client as xmlrpclib
 
-from module_build_service import log
+from module_build_service.common import log
 from module_build_service.common.retry import retry
 from module_build_service.common.errors import ProgrammingError
 

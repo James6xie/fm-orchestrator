@@ -7,7 +7,7 @@ import pytest
 from sqlalchemy import func
 
 
-from module_build_service import conf
+from module_build_service.common.config import conf
 import module_build_service.common.config
 from module_build_service.common.models import BUILD_STATES, ModuleBuild
 from module_build_service.scheduler.consumer import MBSConsumer

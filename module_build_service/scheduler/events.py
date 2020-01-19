@@ -17,7 +17,7 @@ from functools import wraps
 import sched
 import time
 
-from module_build_service import log
+from module_build_service.common import log
 
 
 KOJI_BUILD_CHANGE = "koji_build_change"

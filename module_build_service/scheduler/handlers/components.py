@@ -7,12 +7,11 @@ import logging
 
 import koji
 
-from module_build_service import celery_app, conf, log
 from module_build_service.builder import GenericBuilder
-from module_build_service.common import models
+from module_build_service.common import conf, log, models
 from module_build_service.common.koji import get_session
 from module_build_service.common.utils import mmd_to_str
-from module_build_service.scheduler import events
+from module_build_service.scheduler import celery_app, events
 from module_build_service.scheduler.batches import continue_batch_build
 from module_build_service.scheduler.db_session import db_session
 

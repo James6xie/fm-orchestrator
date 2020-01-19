@@ -2,11 +2,11 @@
 # SPDX-License-Identifier: MIT
 from __future__ import absolute_import
 
-from module_build_service import celery_app, conf, log
+from module_build_service.common import conf, log
 from module_build_service.common.koji import get_session
 from module_build_service.common.models import ModuleBuild, BUILD_STATES
 from module_build_service.scheduler.db_session import db_session
-from module_build_service.scheduler import events
+from module_build_service.scheduler import celery_app, events
 
 
 def get_corresponding_module_build(nvr):

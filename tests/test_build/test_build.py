@@ -21,12 +21,12 @@ import moksha.hub
 import pytest
 from werkzeug.datastructures import FileStorage
 
-from module_build_service import app, conf, build_logs, log
+from module_build_service import app
 from module_build_service.builder import GenericBuilder
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
 from module_build_service.builder.MockModuleBuilder import load_local_builds
 from module_build_service.builder.utils import get_rpm_release, validate_koji_tag
-from module_build_service.common import models
+from module_build_service.common import conf, log, build_logs, models
 from module_build_service.common.errors import Forbidden
 from module_build_service.common.utils import load_mmd, import_mmd
 from module_build_service.scheduler import events

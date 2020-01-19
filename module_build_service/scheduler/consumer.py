@@ -20,8 +20,7 @@ import fedmsg.consumers
 import moksha.hub
 import sqlalchemy.exc
 
-from module_build_service import log, conf
-from module_build_service.common import models
+from module_build_service.common import log, conf, models
 from module_build_service.common.errors import IgnoreMessage
 import module_build_service.common.messaging
 from module_build_service.common.messaging import default_messaging_backend

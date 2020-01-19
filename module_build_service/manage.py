@@ -11,17 +11,31 @@ import flask_migrate
 from flask_script import Manager, prompt_bool
 from werkzeug.datastructures import FileStorage
 
-from module_build_service import app, conf, create_app, db
+from module_build_service import app, db
 from module_build_service.builder.MockModuleBuilder import (
     import_builds_from_local_dnf_repos, load_local_builds
 )
-from module_build_service.common import models
+from module_build_service.common import conf, models
 from module_build_service.common.errors import StreamAmbigous
+from module_build_service.common.logger import level_flags
 from module_build_service.common.utils import load_mmd_file, import_mmd
 import module_build_service.scheduler.consumer
 from module_build_service.scheduler.db_session import db_session
 import module_build_service.scheduler.local
 from module_build_service.web.submit import submit_module_build_from_yaml
+
+
+def create_app(debug=False, verbose=False, quiet=False):
+    # logging (intended for flask-script, see manage.py)
+    log = logging.getLogger(__name__)
+    if debug:
+        log.setLevel(level_flags["debug"])
+    elif verbose:
+        log.setLevel(level_flags["verbose"])
+    elif quiet:
+        log.setLevel(level_flags["quiet"])
+
+    return app
 
 
 manager = Manager(create_app)

@@ -8,8 +8,9 @@ import os
 from gi.repository.GLib import Error as ModuleMDError
 from six import string_types, text_type
 
-from module_build_service import conf, log, Modulemd
+from module_build_service.common import conf, log
 from module_build_service.common.errors import UnprocessableEntity
+from module_build_service.common.modulemd import Modulemd
 
 
 def to_text_type(s):

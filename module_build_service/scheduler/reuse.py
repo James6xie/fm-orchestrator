@@ -4,8 +4,7 @@ from __future__ import absolute_import
 
 import kobo.rpmlib
 
-from module_build_service import log, conf
-from module_build_service.common import models
+from module_build_service.common import log, conf, models
 from module_build_service.common.resolve import get_base_module_mmds
 from module_build_service.resolver import GenericResolver
 from module_build_service.scheduler import events

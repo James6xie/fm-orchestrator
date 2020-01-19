@@ -11,7 +11,7 @@ import koji
 import mock
 import pytest
 
-from module_build_service import conf
+from module_build_service.common.config import conf
 from module_build_service.builder.MockModuleBuilder import (
     import_fake_base_module,
     import_builds_from_local_dnf_repos,
@@ -122,7 +122,7 @@ class TestMockModuleBuilder:
 
         return module
 
-    @mock.patch("module_build_service.conf.system", new="mock")
+    @mock.patch("module_build_service.common.conf.system", new="mock")
     def test_createrepo_filter_last_batch(self):
         module = self._create_module_with_filters(db_session, 3, koji.BUILD_STATES["COMPLETE"])
 
@@ -149,7 +149,7 @@ class TestMockModuleBuilder:
             rpm_names = [kobo.rpmlib.parse_nvr(rpm)["name"] for rpm in pkglist.split("\n")]
             assert "ed" not in rpm_names
 
-    @mock.patch("module_build_service.conf.system", new="mock")
+    @mock.patch("module_build_service.common.conf.system", new="mock")
     def test_createrepo_not_last_batch(self):
         module = self._create_module_with_filters(db_session, 2, koji.BUILD_STATES["COMPLETE"])
 
@@ -174,7 +174,7 @@ class TestMockModuleBuilder:
             rpm_names = [kobo.rpmlib.parse_nvr(rpm)["name"] for rpm in pkglist.split("\n")]
             assert "ed" in rpm_names
 
-    @mock.patch("module_build_service.conf.system", new="mock")
+    @mock.patch("module_build_service.common.conf.system", new="mock")
     def test_createrepo_empty_rmp_list(self):
         module = self._create_module_with_filters(db_session, 3, koji.BUILD_STATES["COMPLETE"])
 
@@ -194,7 +194,7 @@ class TestMockModuleBuilderAddRepos:
     def setup_method(self, test_method):
         clean_database(add_platform_module=False)
 
-    @mock.patch("module_build_service.conf.system", new="mock")
+    @mock.patch("module_build_service.common.conf.system", new="mock")
     @mock.patch(
         "module_build_service.common.config.Config.base_module_repofiles",
         new_callable=mock.PropertyMock,

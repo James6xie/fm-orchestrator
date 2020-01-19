@@ -4,7 +4,7 @@ from __future__ import absolute_import
 
 from mock import patch, Mock
 
-from module_build_service import conf
+from module_build_service.common.config import conf
 from module_build_service.scheduler import ursine
 from tests import make_module, make_module_in_db, clean_database
 

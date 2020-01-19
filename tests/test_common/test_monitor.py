@@ -8,8 +8,8 @@ import pytest
 import requests
 from six.moves import reload_module
 
-from module_build_service import app, conf
-from module_build_service.common import models
+from module_build_service import app
+from module_build_service.common import conf, models
 import module_build_service.common.monitor
 from module_build_service.scheduler.db_session import db_session
 from tests import clean_database, init_data, make_module_in_db

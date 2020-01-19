@@ -4,9 +4,10 @@ from __future__ import absolute_import
 
 from mock import patch, PropertyMock, Mock, call
 
-from module_build_service import app, conf
+from module_build_service import app
 from module_build_service.builder.MockModuleBuilder import load_local_builds
 import module_build_service.common.models
+from module_build_service.common import conf
 from module_build_service.common.utils import load_mmd, mmd_to_str
 import module_build_service.resolver as mbs_resolver
 from module_build_service.scheduler.db_session import db_session

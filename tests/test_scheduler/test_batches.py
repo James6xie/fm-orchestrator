@@ -7,7 +7,7 @@ import mock
 from mock import patch
 import pytest
 
-from module_build_service import conf
+from module_build_service.common.config import conf
 from module_build_service.builder import GenericBuilder
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
 from module_build_service.builder.utils import validate_koji_tag

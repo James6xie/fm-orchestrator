@@ -11,10 +11,11 @@ import mock
 from mock import patch, MagicMock
 import pytest
 
-from module_build_service import conf, Modulemd
 from module_build_service.builder import GenericBuilder
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
 import module_build_service.common.models
+from module_build_service.common.config import conf
+from module_build_service.common.modulemd import Modulemd
 from module_build_service.common.utils import mmd_to_str
 from module_build_service.scheduler import events
 from module_build_service.scheduler.db_session import db_session

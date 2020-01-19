@@ -7,7 +7,7 @@ import tempfile
 import requests
 
 import module_build_service.common.scm
-from module_build_service import conf, log
+from module_build_service.common import conf, log
 from module_build_service.common.errors import ValidationError
 from module_build_service.common.utils import load_mmd_file
 

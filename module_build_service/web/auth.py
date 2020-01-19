@@ -10,7 +10,8 @@ from dogpile.cache import make_region
 from flask import g
 import requests
 
-from module_build_service import app, log, conf
+from module_build_service import app
+from module_build_service.common import conf, log
 from module_build_service.common.errors import Unauthorized, Forbidden
 
 

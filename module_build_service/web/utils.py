@@ -11,8 +11,8 @@ import sqlalchemy
 from sqlalchemy.orm import aliased
 from sqlalchemy.sql.sqltypes import Boolean as sqlalchemy_boolean
 
-from module_build_service import api_version, conf, db
-from module_build_service.common import models
+from module_build_service import api_version, db
+from module_build_service.common import conf, models
 from module_build_service.common.errors import ValidationError, NotFound
 from module_build_service.common.scm import scm_url_schemes
 

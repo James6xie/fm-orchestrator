@@ -6,8 +6,8 @@ from datetime import datetime
 import mock
 import pytest
 
-from module_build_service import app, conf
-from module_build_service.common import models
+from module_build_service import app
+from module_build_service.common import conf, models
 from module_build_service.common.errors import UnprocessableEntity
 from module_build_service.common.utils import load_mmd, load_mmd_file, mmd_to_str
 from module_build_service.scheduler.db_session import db_session

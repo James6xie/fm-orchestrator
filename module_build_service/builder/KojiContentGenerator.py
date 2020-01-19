@@ -21,7 +21,8 @@ import koji
 import pungi.arch
 from six import text_type
 
-from module_build_service import conf, log, build_logs, Modulemd
+from module_build_service.common.modulemd import Modulemd
+from module_build_service.common import conf, log, build_logs
 from module_build_service.common.koji import get_session, koji_retrying_multicall_map
 from module_build_service.common.scm import SCM
 from module_build_service.common.utils import load_mmd, mmd_to_str, to_text_type

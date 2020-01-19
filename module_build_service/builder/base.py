@@ -9,8 +9,7 @@ import dogpile.cache
 from requests.exceptions import ConnectionError
 import six
 
-from module_build_service import conf, log
-from module_build_service.common import models
+from module_build_service.common import conf, log, models
 from module_build_service.common.models import BUILD_STATES
 from module_build_service.common.retry import retry
 from module_build_service.resolver import GenericResolver

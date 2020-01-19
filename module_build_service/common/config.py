@@ -989,3 +989,6 @@ class Config(object):
         if i < 1:
             raise ValueError("NUM_THREADS_FOR_BUILD_SUBMISSIONS must be >= 1")
         self._num_threads_for_build_submissions = i
+
+
+conf, config_section = init_config()

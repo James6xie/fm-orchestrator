@@ -4,7 +4,7 @@ from __future__ import absolute_import
 import functools
 import time
 
-from module_build_service import conf, log
+from module_build_service.common import conf, log
 
 
 def retry(timeout=conf.net_timeout, interval=conf.net_retry_interval, wait_on=Exception):

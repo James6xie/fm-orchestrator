@@ -3,7 +3,7 @@
 from __future__ import absolute_import
 import re
 
-from module_build_service import conf, log
+from module_build_service.common import conf, log
 from module_build_service.common.koji import get_session
 from module_build_service.resolver import GenericResolver
 from module_build_service.scheduler.db_session import db_session

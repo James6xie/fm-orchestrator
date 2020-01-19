@@ -10,7 +10,7 @@ import re
 import shutil
 import tempfile
 
-from module_build_service import log, conf
+from module_build_service.common import log, conf
 from module_build_service.common.errors import (
     Forbidden,
     ValidationError,

@@ -14,10 +14,11 @@ from flask.views import MethodView
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 from six import string_types
 
-from module_build_service import app, conf, log, db, version, api_version as max_api_version
-from module_build_service.common import models
+from module_build_service import app, db, version, api_version as max_api_version
+from module_build_service.common import conf, log, models
 from module_build_service.common.errors import (
-    ValidationError, Forbidden, NotFound, ProgrammingError
+    ValidationError, Forbidden, NotFound, ProgrammingError,
+    Unauthorized, UnprocessableEntity, Conflict
 )
 from module_build_service.common.models import send_message_after_module_build_state_change
 from module_build_service.common.monitor import registry
@@ -567,6 +568,55 @@ def register_api():
 
 
 register_api()
+
+
+def json_error(status, error, message):
+    response = jsonify({"status": status, "error": error, "message": message})
+    response.status_code = status
+    return response
+
+
+@app.errorhandler(ValidationError)
+def validationerror_error(e):
+    """Flask error handler for ValidationError exceptions"""
+    return json_error(400, "Bad Request", str(e))
+
+
+@app.errorhandler(Unauthorized)
+def unauthorized_error(e):
+    """Flask error handler for NotAuthorized exceptions"""
+    return json_error(401, "Unauthorized", str(e))
+
+
+@app.errorhandler(Forbidden)
+def forbidden_error(e):
+    """Flask error handler for Forbidden exceptions"""
+    return json_error(403, "Forbidden", str(e))
+
+
+@app.errorhandler(RuntimeError)
+def runtimeerror_error(e):
+    """Flask error handler for RuntimeError exceptions"""
+    log.exception("RuntimeError exception raised")
+    return json_error(500, "Internal Server Error", str(e))
+
+
+@app.errorhandler(UnprocessableEntity)
+def unprocessableentity_error(e):
+    """Flask error handler for UnprocessableEntity exceptions"""
+    return json_error(422, "Unprocessable Entity", str(e))
+
+
+@app.errorhandler(Conflict)
+def conflict_error(e):
+    """Flask error handler for Conflict exceptions"""
+    return json_error(409, "Conflict", str(e))
+
+
+@app.errorhandler(NotFound)
+def notfound_error(e):
+    """Flask error handler for Conflict exceptions"""
+    return json_error(404, "Not Found", str(e))
 
 
 # Ensure the event handler is called on db.session

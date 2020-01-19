@@ -5,7 +5,7 @@ from __future__ import absolute_import
 from mock import patch
 import pytest
 
-from module_build_service import conf
+from module_build_service.common.config import conf
 from module_build_service.common.models import ComponentBuild, ComponentBuildTrace, ModuleBuild
 from module_build_service.common.utils import load_mmd, mmd_to_str
 from module_build_service.scheduler.db_session import db_session

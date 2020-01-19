@@ -7,8 +7,8 @@ import logging
 
 import kobo.rpmlib
 
-from module_build_service import conf
 from module_build_service.common import models
+from module_build_service.common.config import conf
 from module_build_service.common.errors import UnprocessableEntity
 from module_build_service.common.request_utils import requests_session
 from module_build_service.common.utils import load_mmd, import_mmd

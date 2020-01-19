@@ -9,7 +9,7 @@ import mock
 from mock import call, patch
 import pytest
 
-from module_build_service import conf
+from module_build_service.common.config import conf
 from module_build_service.common import models
 from module_build_service.scheduler import producer
 from module_build_service.scheduler.db_session import db_session

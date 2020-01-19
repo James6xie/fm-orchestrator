@@ -3,8 +3,8 @@
 
 from mock import patch
 
-from module_build_service import conf
 from module_build_service.common import models
+from module_build_service.common.config import conf
 from module_build_service.scheduler.db_session import db_session
 from tests import clean_database, make_module_in_db
 

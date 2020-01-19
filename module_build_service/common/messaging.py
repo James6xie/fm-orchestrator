@@ -7,7 +7,7 @@ from __future__ import absolute_import
 import pkg_resources
 import six.moves.queue
 
-from module_build_service import conf, log
+from module_build_service.common import conf, log
 from module_build_service.scheduler.parser import FedmsgMessageParser
 
 # A queue containing message body that should be sent after

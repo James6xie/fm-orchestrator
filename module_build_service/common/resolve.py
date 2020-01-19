@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 from __future__ import absolute_import
 
-from module_build_service import conf
+from module_build_service.common.config import conf
 from module_build_service.common.errors import StreamAmbigous
 from module_build_service.resolver import GenericResolver
 

@@ -6,10 +6,9 @@ from __future__ import absolute_import
 from datetime import datetime
 import logging
 
-from module_build_service import celery_app, conf, log
 from module_build_service.builder import GenericBuilder
-from module_build_service.common import models
-from module_build_service.scheduler import events
+from module_build_service.common import conf, log, models
+from module_build_service.scheduler import celery_app, events
 from module_build_service.scheduler.batches import start_next_batch_build
 from module_build_service.scheduler.db_session import db_session
 

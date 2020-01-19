@@ -390,10 +390,10 @@ def cleanup_build_logs(request):
     """
 
     def _cleanup_build_logs():
-        build_ids = list(module_build_service.build_logs.handlers.keys())
+        build_ids = list(module_build_service.common.build_logs.handlers.keys())
         for build_id in build_ids:
             mock_build = mock.Mock()
             mock_build.id = build_id
-            module_build_service.build_logs.stop(mock_build)
+            module_build_service.common.build_logs.stop(mock_build)
 
     request.addfinalizer(_cleanup_build_logs)

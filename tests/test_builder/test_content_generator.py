@@ -11,9 +11,9 @@ import koji
 from mock import patch, Mock, call, mock_open
 import pytest
 
-from module_build_service import conf, build_logs, Modulemd
 from module_build_service.builder.KojiContentGenerator import KojiContentGenerator
-from module_build_service.common import models
+from module_build_service.common import conf, build_logs, models
+from module_build_service.common.modulemd import Modulemd
 from module_build_service.common.utils import load_mmd, load_mmd_file, mmd_to_str
 from module_build_service.scheduler.db_session import db_session
 from tests import init_data

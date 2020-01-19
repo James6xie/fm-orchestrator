@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: MIT
 from __future__ import absolute_import
 
-from module_build_service import log, Modulemd, conf
-from module_build_service.common import models
+from module_build_service.common import conf, log, models
 from module_build_service.common.errors import StreamAmbigous, UnprocessableEntity
+from module_build_service.common.modulemd import Modulemd
 from module_build_service.common.resolve import expand_single_mse_streams, get_base_module_mmds
 from module_build_service.common.utils import mmd_to_str
 from module_build_service.resolver import GenericResolver

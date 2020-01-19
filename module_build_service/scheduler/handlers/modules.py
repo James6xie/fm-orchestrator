@@ -11,11 +11,11 @@ import koji
 from requests.exceptions import ConnectionError
 import six.moves.xmlrpc_client as xmlrpclib
 
-from module_build_service import celery_app, conf, log, build_logs
 from module_build_service.builder import GenericBuilder
 from module_build_service.builder.KojiModuleBuilder import KojiModuleBuilder
 from module_build_service.builder.utils import get_rpm_release
 from module_build_service.common import models
+from module_build_service.common import build_logs, conf, log
 from module_build_service.common.errors import UnprocessableEntity, Forbidden, ValidationError
 from module_build_service.common.utils import mmd_to_str
 from module_build_service.common.retry import retry
@@ -25,7 +25,7 @@ from module_build_service.scheduler.submit import (
     record_filtered_rpms,
     record_module_build_arches
 )
-from module_build_service.scheduler import events
+from module_build_service.scheduler import celery_app, events
 from module_build_service.scheduler.db_session import db_session
 from module_build_service.scheduler.default_modules import (
     add_default_modules, handle_collisions_with_base_module_rpms)
