@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import functools
 import hashlib
 import os
+import re
 import time
 from traceback import extract_stack
 
@@ -489,10 +490,18 @@ def make_module(
     if arches:
         assert store_to_db
 
-    name, stream, version, context = nsvc.split(":")
+    nsvc_regex = re.compile(r"([^:]+):([^:]+):([^:]+)(?::(.+))?")
+
+    match = nsvc_regex.match(nsvc)
+    if not match:
+        raise ValueError('Argument nsvc is not in format N:S:V or N:S:V:C')
+
+    name, stream, version, context = match.groups()
+
     mmd = Modulemd.ModuleStreamV2.new(name, stream)
     mmd.set_version(int(version))
-    mmd.set_context(context)
+    if context:
+        mmd.set_context(context)
     mmd.set_summary("foo")
     # Test unicode in mmd.
     mmd.set_description(u"foo \u2019s")
