@@ -12,13 +12,8 @@ stage('Run integration tests') {
               c3i.buildAndWait(script: this, objs: "bc/pipeline-as-a-service",
                 '-e', "DEFAULT_IMAGE_TAG=${env.ENVIRONMENT}",
                 '-e', "PIPELINE_ID=${env.PIPELINE_ID}",
-                '-e', "WAIVERDB_IMAGE=",
+                '-e', "SERVICES_TO_DEPLOY='umb mbs-frontend mbs-backend krb5 ldap koji-hub'"
                 '-e', "C3IAAS_PROJECT=${env.C3IAAS_PROJECT ?: ''}",
-                '-e', "RESULTSDB_IMAGE=",
-                '-e', "RESULTSDB_UPDATER_IMAGE=",
-                '-e', "GREENWAVE_IMAGE=",
-                '-e', "DATAGREPPER_IMAGE=",
-                '-e', "DATANOMMER_IMAGE=",
                 '-e', "MBS_BACKEND_IMAGE=${env.BACKEND_IMAGE_REF}",
                 '-e', "MBS_FRONTEND_IMAGE=${env.FRONTEND_IMAGE_REF}",
                 '-e', "PAAS_DOMAIN=${env.PAAS_DOMAIN}"
