@@ -143,13 +143,13 @@ class TestViews:
         assert data["tasks"] == {
             "rpms": {
                 "module-build-macros": {
-                    "task_id": 12312321,
+                    "task_id": 2,
                     "state": 1,
                     "state_reason": None,
                     "nvr": "module-build-macros-01-1.module+2+b8661ee4",
                 },
                 "nginx": {
-                    "task_id": 12312345,
+                    "task_id": 1,
                     "state": 1,
                     "state_reason": None,
                     "nvr": "nginx-1.10.1-2.module+2+b8661ee4",
@@ -186,7 +186,7 @@ class TestViews:
         rv = self.client.get("/module-build-service/1/module-builds/2?verbose=true")
         data = json.loads(rv.data)
         assert data["base_module_buildrequires"] == []
-        assert data["component_builds"] == [1, 2]
+        assert sorted(data["component_builds"]) == [1, 2]
         assert data["context"] == "00000000"
         # There is no xmd information on this module, so these values should be None
         assert data["build_context"] is None
@@ -214,13 +214,13 @@ class TestViews:
         assert data["tasks"] == {
             "rpms": {
                 "module-build-macros": {
-                    "task_id": 12312321,
+                    "task_id": 2,
                     "state": 1,
                     "state_reason": None,
                     "nvr": "module-build-macros-01-1.module+2+b8661ee4",
                 },
                 "nginx": {
-                    "task_id": 12312345,
+                    "task_id": 1,
                     "state": 1,
                     "state_reason": None,
                     "nvr": "nginx-1.10.1-2.module+2+b8661ee4",
@@ -359,6 +359,8 @@ class TestViews:
             },
         ]
 
+        for module_build in items:
+            module_build["component_builds"].sort()
         assert items == expected
 
     def test_query_builds_with_context(self):
@@ -528,7 +530,7 @@ class TestViews:
         assert data["state"] == 1
         assert data["state_name"] == "COMPLETE"
         assert data["state_reason"] is None
-        assert data["task_id"] == 12312345
+        assert data["task_id"] == 1
 
     def test_query_component_build_short(self):
         rv = self.client.get("/module-build-service/1/component-builds/1?short=True")
@@ -541,7 +543,7 @@ class TestViews:
         assert data["state"] == 1
         assert data["state_name"] == "COMPLETE"
         assert data["state_reason"] is None
-        assert data["task_id"] == 12312345
+        assert data["task_id"] == 1
 
     def test_query_component_build_verbose(self):
         rv = self.client.get("/module-build-service/1/component-builds/3?verbose=true")
@@ -622,7 +624,7 @@ class TestViews:
         assert data["meta"]["total"] == 1
 
     def test_query_component_builds_filter_task_id(self):
-        rv = self.client.get("/module-build-service/1/component-builds/?task_id=12312346")
+        rv = self.client.get("/module-build-service/1/component-builds/?task_id=1")
         data = json.loads(rv.data)
         assert data["meta"]["total"] == 1
 

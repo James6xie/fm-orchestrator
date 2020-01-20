@@ -1909,11 +1909,11 @@ class TestLocalBuild(BaseTestBuild):
         """
         Tests local module build dependency.
         """
-        load_local_builds(["platform"])
+        load_local_builds(["platform:f30"])
         FakeSCM(
             mocked_scm,
             "testmodule",
-            "testmodule.yaml",
+            "testmodule-buildrequires-f30.yaml",
             "620ec77321b2ea7b0d67d82992dda3e1d67055b4",
         )
 

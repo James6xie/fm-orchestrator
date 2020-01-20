@@ -431,12 +431,15 @@ class TestPoller:
         # Make sure module_build_two stayed the same
         assert module_build_two.state == models.BUILD_STATES["failed"]
         # Make sure the builds were untagged
-        builder.untag_artifacts.assert_called_once_with([
-            "perl-Tangerine-0.23-1.module+0+d027b723",
-            "perl-List-Compare-0.53-5.module+0+d027b723",
-            "tangerine-0.22-3.module+0+d027b723",
+        builder.untag_artifacts.assert_called_once()
+        args, _ = builder.untag_artifacts.call_args
+        expected = [
             "module-build-macros-0.1-1.module+0+d027b723",
-        ])
+            "perl-List-Compare-0.53-5.module+0+d027b723",
+            "perl-Tangerine-0.23-1.module+0+d027b723",
+            "tangerine-0.22-3.module+0+d027b723",
+        ]
+        assert expected == sorted(args[0])
 
     def test_cleanup_stale_failed_builds_no_components(self, create_builder, dbg):
         """ Test that a module build without any components built gets to the garbage state when

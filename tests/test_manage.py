@@ -51,7 +51,12 @@ class TestMBSManage:
     def test_retire_build(self, prompt_bool, overrides, identifier, changed_count):
         prompt_bool.return_value = True
 
-        module_builds = db_session.query(ModuleBuild).filter_by(state=BUILD_STATES["ready"]).all()
+        module_builds = (
+            db_session.query(ModuleBuild)
+            .filter_by(state=BUILD_STATES["ready"])
+            .order_by(ModuleBuild.id.desc())
+            .all()
+        )
         # Verify our assumption of the amount of ModuleBuilds in database
         assert len(module_builds) == 3
 
@@ -68,7 +73,10 @@ class TestMBSManage:
 
         retire(identifier)
         retired_module_builds = (
-            db_session.query(ModuleBuild).filter_by(state=BUILD_STATES["garbage"]).all()
+            db_session.query(ModuleBuild)
+            .filter_by(state=BUILD_STATES["garbage"])
+            .order_by(ModuleBuild.id.desc())
+            .all()
         )
 
         assert len(retired_module_builds) == changed_count
@@ -96,7 +104,7 @@ class TestMBSManage:
         assert len(module_builds) == 3
 
         for x, build in enumerate(module_builds):
-            build.name = "spam"
+            build.name = "spam" + str(x) if x > 0 else "spam"
             build.stream = "eggs"
 
         db_session.commit()
@@ -106,7 +114,7 @@ class TestMBSManage:
             db_session.query(ModuleBuild).filter_by(state=BUILD_STATES["garbage"]).all()
         )
 
-        expected_changed_count = 3 if confirm_expected else 0
+        expected_changed_count = 1 if confirm_expected else 0
         assert len(retired_module_builds) == expected_changed_count
 
 

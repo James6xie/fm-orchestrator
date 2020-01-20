@@ -144,7 +144,7 @@ class TestDBModule:
         """
         Tests that it returns the requires of the buildrequires recursively
         """
-        load_local_builds(["platform", "parent", "child", "testmodule"])
+        load_local_builds(["platform:f30", "parent", "child", "testmodule"])
 
         build = models.ModuleBuild.local_modules(db_session, "child", "master")
         resolver = mbs_resolver.GenericResolver.create(db_session, conf, backend="db")
@@ -186,6 +186,7 @@ class TestDBModule:
         mmd = load_mmd(tests.read_staged_data("formatted_testmodule"))
         for i in range(3):
             build = tests.module_build_from_modulemd(mmd_to_str(mmd))
+            build.context = "f6e2ae" + str(i)
             build.build_context = "f6e2aeec7576196241b9afa0b6b22acf2b6873d" + str(i)
             build.runtime_context = "bbc84c7b817ab3dd54916c0bcd6c6bdf512f7f9c" + str(i)
             build.state = models.BUILD_STATES["ready"]
@@ -267,7 +268,15 @@ class TestDBModule:
         """
         Test that profiles get resolved recursively on local builds
         """
-        load_local_builds(["platform"])
+        # This test requires a platform module loaded from local rather than
+        # the one added to database.
+        platform = db_session.query(models.ModuleBuild).filter(
+            models.ModuleBuild.name == "platform"
+        ).one()
+        db_session.delete(platform)
+        db_session.commit()
+
+        load_local_builds(["platform:f28"])
         mmd = models.ModuleBuild.get_by_id(db_session, 2).mmd()
         resolver = mbs_resolver.GenericResolver.create(db_session, conf, backend="mbs")
         result = resolver.resolve_profiles(mmd, ("buildroot", "srpm-buildroot"))

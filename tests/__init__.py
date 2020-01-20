@@ -4,8 +4,10 @@ from __future__ import absolute_import
 from datetime import datetime, timedelta
 import functools
 import hashlib
+import itertools
 import os
 import re
+import six
 import time
 from traceback import extract_stack
 
@@ -165,6 +167,7 @@ def _populate_data(data_size=10, contexts=False, scratch=False):
     # like "Object '<ModuleBuild at 0x7f4ccc805c50>' is already attached to
     # session '275' (this is '276')" when add new module build object to passed
     # session.
+    task_id_counter = itertools.count(1)
     arch = db_session.query(module_build_service.common.models.ModuleArch).get(1)
     num_contexts = 2 if contexts else 1
     for index in range(data_size):
@@ -214,7 +217,7 @@ def _populate_data(data_size=10, contexts=False, scratch=False):
                     scmurl="git://pkgs.domain.local/rpms/nginx?"
                            "#ga95886c8a443b36a9ce31abda1f9bed22f2f8c3",
                     format="rpms",
-                    task_id=12312345 + index,
+                    task_id=six.next(task_id_counter),
                     state=koji.BUILD_STATES["COMPLETE"],
                     nvr="nginx-1.10.1-2.{0}".format(build_one_component_release),
                     batch=1,
@@ -226,7 +229,7 @@ def _populate_data(data_size=10, contexts=False, scratch=False):
                     scmurl="/tmp/module_build_service-build-macrosWZUPeK/SRPMS/"
                            "module-build-macros-0.1-1.module_nginx_1_2.src.rpm",
                     format="rpms",
-                    task_id=12312321 + index,
+                    task_id=six.next(task_id_counter),
                     state=koji.BUILD_STATES["COMPLETE"],
                     nvr="module-build-macros-01-1.{0}".format(build_one_component_release),
                     batch=2,

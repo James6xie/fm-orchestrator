@@ -16,6 +16,8 @@ import sqlalchemy
 from sqlalchemy import func, and_
 from sqlalchemy.orm import lazyload
 from sqlalchemy.orm import validates, load_only
+from sqlalchemy.schema import Index
+
 
 from module_build_service import db, log, get_url_for, conf
 from module_build_service.common.errors import UnprocessableEntity
@@ -121,17 +123,17 @@ module_builds_to_arches = db.Table(
 class ModuleBuild(MBSBase):
     __tablename__ = "module_builds"
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String, nullable=False)
+    name = db.Column(db.String, nullable=False, index=True)
     stream = db.Column(db.String, nullable=False)
     version = db.Column(db.String, nullable=False)
     build_context = db.Column(db.String)
     build_context_no_bms = db.Column(db.String)
     runtime_context = db.Column(db.String)
     context = db.Column(db.String, nullable=False, server_default=DEFAULT_MODULE_CONTEXT)
-    state = db.Column(db.Integer, nullable=False)
+    state = db.Column(db.Integer, nullable=False, index=True)
     state_reason = db.Column(db.String)
     modulemd = db.Column(db.String, nullable=False)
-    koji_tag = db.Column(db.String)  # This gets set after 'wait'
+    koji_tag = db.Column(db.String, index=True)  # This gets set after 'wait'
     # Koji tag to which tag the Content Generator Koji build.
     cg_build_koji_tag = db.Column(db.String)  # This gets set after wait
     scmurl = db.Column(db.String)
@@ -170,6 +172,13 @@ class ModuleBuild(MBSBase):
         primaryjoin=module_builds_to_module_buildrequires.c.module_id == id,
         secondaryjoin=module_builds_to_module_buildrequires.c.module_buildrequire_id == id,
         backref="buildrequire_for",
+    )
+
+    __table_args__ = (
+        Index(
+            "idx_module_builds_name_stream_version_context",
+            "name", "stream", "version", "context", unique=True
+        ),
     )
 
     rebuild_strategies = {
@@ -1079,7 +1088,7 @@ class ComponentBuild(MBSBase):
     # iteration this *component* is currently in.  This relates to the owning
     # module's batch.  This one defaults to None, which means that this
     # component is not currently part of a batch.
-    batch = db.Column(db.Integer, default=0)
+    batch = db.Column(db.Integer, default=0, index=True)
 
     module_id = db.Column(db.Integer, db.ForeignKey("module_builds.id"), nullable=False)
     module_build = db.relationship("ModuleBuild", backref="component_builds", lazy=False)
@@ -1089,6 +1098,11 @@ class ComponentBuild(MBSBase):
     # Weight defines the complexity of the component build as calculated by the builder's
     # get_build_weights function
     weight = db.Column(db.Float, default=0)
+
+    __table_args__ = (
+        Index("idx_component_builds_build_id_task_id", "module_id", "task_id", unique=True),
+        Index("idx_component_builds_build_id_nvr", "module_id", "nvr", unique=True),
+    )
 
     @classmethod
     def from_component_event(cls, db_session, task_id, module_id=None):

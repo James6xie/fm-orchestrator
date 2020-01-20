@@ -12,7 +12,7 @@ from module_build_service import app, conf
 from module_build_service.common import models
 import module_build_service.common.monitor
 from module_build_service.scheduler.db_session import db_session
-from tests import init_data, make_module_in_db
+from tests import clean_database, init_data, make_module_in_db
 
 num_of_metrics = 18
 
@@ -52,6 +52,7 @@ def test_standalone_metrics_server():
 @mock.patch("module_build_service.common.monitor.builder_failed_counter.labels")
 @mock.patch("module_build_service.common.monitor.builder_success_counter.inc")
 def test_monitor_state_changing_success(succ_cnt, failed_cnt):
+    clean_database(add_platform_module=False, add_default_arches=False)
     b = make_module_in_db(
         "pkg:0.1:1:c1",
         [
@@ -72,6 +73,7 @@ def test_monitor_state_changing_success(succ_cnt, failed_cnt):
 @mock.patch("module_build_service.common.monitor.builder_failed_counter.labels")
 @mock.patch("module_build_service.common.monitor.builder_success_counter.inc")
 def test_monitor_state_changing_failure(succ_cnt, failed_cnt):
+    clean_database(add_platform_module=False, add_default_arches=False)
     failure_type = "user"
     b = make_module_in_db(
         "pkg:0.1:1:c1",

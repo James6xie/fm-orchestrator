@@ -71,6 +71,7 @@ class TestModels:
         mmd = load_mmd(read_staged_data("formatted_testmodule"))
         for i in range(3):
             build = module_build_from_modulemd(mmd_to_str(mmd))
+            build.context = "f6e2aec" + str(i)
             build.build_context = "f6e2aeec7576196241b9afa0b6b22acf2b6873d" + str(i)
             build.runtime_context = "bbc84c7b817ab3dd54916c0bcd6c6bdf512f7f9c" + str(i)
             db_session.add(build)
@@ -80,7 +81,7 @@ class TestModels:
         sibling_ids = build_one.siblings(db_session)
         db_session.commit()
 
-        assert sibling_ids == [3, 4]
+        assert sorted(sibling_ids) == [3, 4]
 
     @pytest.mark.parametrize(
         "stream,right_pad,expected",
@@ -127,7 +128,7 @@ class TestModelsGetStreamsContexts:
             for build in builds
         ]
         db_session.commit()
-        assert builds == ["nginx:1:3:d5a6c0fa", "nginx:1:3:795e97c1"]
+        assert sorted(builds) == ["nginx:1:3:795e97c1", "nginx:1:3:d5a6c0fa"]
 
     def test_get_last_builds_in_stream_version_lte(self):
         init_data_contexts(1, multiple_stream_versions=True)

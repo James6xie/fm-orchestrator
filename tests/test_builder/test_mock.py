@@ -367,15 +367,15 @@ class TestLocalBuilds:
             models.ModuleBuild.local_modules(db_session)
 
     def test_load_local_builds_platform(self, conf_system, conf_resultsdir):
-        load_local_builds("platform")
+        load_local_builds("platform:f30")
         local_modules = models.ModuleBuild.local_modules(db_session)
 
         assert len(local_modules) == 1
-        assert local_modules[0].koji_tag.endswith("/module-platform-f28-3/results")
+        assert local_modules[0].koji_tag.endswith("/module-platform-f30-3/results")
 
     def test_load_local_builds_platform_f28(self, conf_system, conf_resultsdir):
-        load_local_builds("platform:f28")
+        load_local_builds("platform:f30")
         local_modules = models.ModuleBuild.local_modules(db_session)
 
         assert len(local_modules) == 1
-        assert local_modules[0].koji_tag.endswith("/module-platform-f28-3/results")
+        assert local_modules[0].koji_tag.endswith("/module-platform-f30-3/results")

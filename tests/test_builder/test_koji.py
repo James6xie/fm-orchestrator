@@ -140,6 +140,7 @@ class TestKojiBuilder:
         dest_tagged = [{"nvr": "foo-1.0-1.module+e0095747", "task_id": 12345, "build_id": 91}]
         builder.koji_session.listTagged.side_effect = [build_tagged, dest_tagged]
         module_build = module_build_service.common.models.ModuleBuild.get_by_id(db_session, 4)
+        module_build.component_builds.sort(key=lambda item: item.id)
         component_build = module_build.component_builds[0]
         component_build.task_id = None
         component_build.state = None
@@ -195,6 +196,7 @@ class TestKojiBuilder:
         build_info = {"nvr": "foo-1.0-1.{0}".format(dist_tag), "task_id": 12345, "build_id": 91}
         builder.koji_session.getBuild.return_value = build_info
         module_build = module_build_service.common.models.ModuleBuild.get_by_id(db_session, 4)
+        module_build.component_builds.sort(key=lambda item: item.id)
         component_build = module_build.component_builds[0]
         component_build.task_id = None
         component_build.nvr = None
@@ -245,6 +247,7 @@ class TestKojiBuilder:
                       "build_id": 91}
         builder.koji_session.getBuild.return_value = build_info
         module_build = module_build_service.common.models.ModuleBuild.get_by_id(db_session, 4)
+        module_build.component_builds.sort(key=lambda item: item.id)
         component_build = module_build.component_builds[1]
         component_build.task_id = None
         component_build.nvr = None

@@ -331,8 +331,8 @@ class TestMBSModule:
     def test_resolve_profiles_local_module(
         self, local_builds, conf_system, formatted_testmodule_mmd
     ):
-        tests.clean_database()
-        load_local_builds(["platform"])
+        tests.clean_database(add_platform_module=False)
+        load_local_builds(["platform:f28"])
 
         resolver = mbs_resolver.GenericResolver.create(db_session, conf, backend="mbs")
         result = resolver.resolve_profiles(
