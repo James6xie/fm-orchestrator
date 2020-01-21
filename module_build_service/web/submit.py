@@ -374,6 +374,70 @@ def _process_support_streams(db_session, mmd, params):
 
     buildrequire_overrides = params.get("buildrequire_overrides", {})
 
+    def is_released_as_per_schedule(pp_release):
+        """
+        Check if the specified scheduled task date has been reached. Returns True if it has.
+        """
+        if not conf.product_pages_schedule_task_name:
+            log.debug(config_msg, "product_pages_schedule_task_name")
+            return False
+
+        schedule_url = "{}/api/v7/releases/{}/schedule-tasks/?fields=name,date_finish".format(
+            conf.product_pages_url.rstrip("/"), pp_release)
+
+        try:
+            pp_rv = requests.get(schedule_url, timeout=15)
+            pp_json = pp_rv.json()
+            # Catch requests failures and JSON parsing errors
+        except (requests.exceptions.RequestException, ValueError):
+            log.exception(
+                "The query to the Product Pages at %s failed. Assuming it is not available.",
+                schedule_url,
+            )
+            return False
+
+        name = conf.product_pages_schedule_task_name.lower().strip()
+        for task in pp_json:
+            if task['name'].lower().strip() == name:
+                task_date = task['date_finish']
+                if datetime.strptime(task_date, "%Y-%m-%d").date() >= datetime.utcnow().date():
+                    log.debug(
+                        "The task date %s hasn't been reached yet. Not adding a stream suffix.",
+                        task_date
+                    )
+                    return False
+                return True
+        # Schedule task not available; rely on GA date
+        return False
+
+    def is_released(pp_release, url):
+        """
+        Check if the stream has been released. Return True if it has.
+        """
+        try:
+            pp_rv = requests.get(url, timeout=15)
+            pp_json = pp_rv.json()
+        # Catch requests failures and JSON parsing errors
+        except (requests.exceptions.RequestException, ValueError):
+            log.exception(
+                "The query to the Product Pages at %s failed. Assuming it is not yet released.",
+                url,
+            )
+            return False
+
+        ga_date = pp_json.get("ga_date")
+        if not ga_date:
+            log.debug("A release date for the release %s could not be determined", pp_release)
+            return False
+
+        if datetime.strptime(ga_date, "%Y-%m-%d").date() >= datetime.utcnow().date():
+            log.debug(
+                "The release %s hasn't been released yet. Not adding a stream suffix.",
+                ga_date
+            )
+            return False
+        return True
+
     def new_streams_func(db_session, name, streams):
         if name not in conf.base_module_names:
             log.debug("The module %s is not a base module. Skipping the release date check.", name)
@@ -435,35 +499,20 @@ def _process_support_streams(db_session, mmd, params):
             url = "{}/api/v7/releases/{}/?fields=ga_date".format(
                 conf.product_pages_url.rstrip("/"), pp_release)
 
-            try:
-                pp_rv = requests.get(url, timeout=15)
-                pp_json = pp_rv.json()
-            # Catch requests failures and JSON parsing errors
-            except (requests.exceptions.RequestException, ValueError):
-                log.exception(
-                    "The query to the Product Pages at %s failed. Assuming it is not yet released.",
-                    url,
+            if is_released_as_per_schedule(pp_release):
+                new_stream = stream + stream_suffix
+                log.info(
+                    'Replacing the buildrequire "%s:%s" with "%s:%s", since the date is met',
+                    name, stream, name, new_stream
                 )
-                continue
-
-            ga_date = pp_json.get("ga_date")
-            if not ga_date:
-                log.debug("A release date for the release %s could not be determined", pp_release)
-                continue
-
-            if datetime.strptime(ga_date, "%Y-%m-%d").date() >= datetime.utcnow().date():
-                log.debug(
-                    "The release %s hasn't been released yet. Not adding a stream suffix.",
-                    ga_date
+                new_streams[i] = new_stream
+            elif is_released(pp_release, url):
+                new_stream = stream + stream_suffix
+                log.info(
+                    'Replacing the buildrequire "%s:%s" with "%s:%s", since the stream is released',
+                    name, stream, name, new_stream
                 )
-                continue
-
-            new_stream = stream + stream_suffix
-            log.info(
-                'Replacing the buildrequire "%s:%s" with "%s:%s", since the stream is released',
-                name, stream, name, new_stream
-            )
-            new_streams[i] = new_stream
+                new_streams[i] = new_stream
 
         return new_streams
 
