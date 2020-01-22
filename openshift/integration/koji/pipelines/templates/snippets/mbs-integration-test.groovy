@@ -31,27 +31,7 @@ stage('Run integration tests') {
     stage('Run tests') {
       steps {
         script {
-          def testcases
-          if (params.TESTCASES) {
-            if (params.TESTCASES == 'skip') {
-              testcases = []
-              echo 'Skipping integration tests'
-            } else {
-              testcases = params.TESTCASES.split()
-              echo "Using specified list of testcases: ${testcases}"
-            }
-          } else {
-            testcases = findFiles(glob: 'openshift/integration/koji/pipelines/tests/*.groovy').collect {
-              it.name.minus('.groovy')
-            }
-            echo "Using all available testcases: ${testcases}"
-          }
-          testcases.each { testcase ->
-            env.CURRENT_TESTCASE = testcase
-            echo "Running testcase ${testcase}..."
-            def test = load "openshift/integration/koji/pipelines/tests/${testcase}.groovy"
-            test.runTests()
-          }
+          sh "openshift/integration/koji/pipelines/tests/runtests ${env.PIPELINE_ID}"
         }
       }
       post {
@@ -64,7 +44,7 @@ stage('Run integration tests') {
           }
         }
         failure {
-          echo "Testcase ${env.CURRENT_TESTCASE} FAILED"
+          echo "Testcases FAILED"
         }
       }
     }
