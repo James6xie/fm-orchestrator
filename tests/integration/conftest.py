@@ -28,6 +28,16 @@ def test_env():
     return env
 
 
+@pytest.fixture(scope="session")
+def pkg_util(test_env):
+    """Fixture to interact with the packaging utility
+
+    :return: Packaging utility configured for the tests
+    :rtype: object of utils.PackagingUtility
+    """
+    return utils.PackagingUtility(test_env["packaging_utility"], test_env["mbs_api"])
+
+
 @pytest.fixture(scope="function")
 def scenario(request, test_env):
     """Configuration data for the scenario
