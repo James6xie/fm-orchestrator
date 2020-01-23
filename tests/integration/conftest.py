@@ -84,6 +84,11 @@ def repo(scenario, test_env):
 
 @pytest.fixture(scope="session")
 def koji(test_env):
-    """Koji session for the instance MBS is configured to work with
-    """
+    """Koji session for the instance MBS is configured to work with."""
     return utils.Koji(**test_env["koji"])
+
+
+@pytest.fixture(scope="session")
+def mbs(test_env):
+    """MBS instance session."""
+    return utils.MBS(test_env["mbs_api"])

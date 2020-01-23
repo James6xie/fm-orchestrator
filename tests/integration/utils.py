@@ -53,6 +53,27 @@ class Koji:
         r.raise_for_status()
         return yaml.safe_load(r.content)
 
+    def get_build_log(self, component, log_name):
+        """Log file related to a build.
+
+        :param dict component: Item produced with build.components()
+        :param str log_name: Filename of log e.g 'build.log'
+        :return Content of a log file
+        :rtype str
+        """
+        nvr = component['nvr']
+        build_logs = self._session.getBuildLogs(nvr)
+
+        for log in build_logs:
+            if log['name'] == log_name:
+                log_path = log['path']
+                break
+
+        url = self._topurl + '/' + log_path
+        r = requests.get(url)
+        r.raise_for_status()
+        return r.text
+
 
 class Repo:
     """Wrapper class to work with module git repositories
@@ -389,3 +410,30 @@ class Component:
         with pushd(self._clone_dir.name):
             git("commit", *args)
             git("push")
+
+
+class MBS:
+    """Wrapper class to work with MBS requests.
+
+    :attribute string _mbs_api: URL of the MBS API (including trailing '/')
+    """
+
+    def __init__(self, mbs_api):
+        self._mbs_api = mbs_api
+
+    def get_builds(self, module, stream, order_desc_by=None):
+        """Get list of Builds objects via mbs api.
+
+        :attribute string module: Module name
+        :attribute string stream: Stream name
+        :attribute string order_desc_by: Optional sorting parameter e.g. "version"
+        :return: list of Build objects
+        :rtype: list
+        """
+        url = f"{self._mbs_api}module-builds/"
+        payload = {'name': module, "stream": stream}
+        if order_desc_by:
+            payload.update({"order_desc_by": order_desc_by})
+        r = requests.get(url, params=payload)
+        r.raise_for_status()
+        return [Build(self._mbs_api, build["id"]) for build in r.json()["items"]]
