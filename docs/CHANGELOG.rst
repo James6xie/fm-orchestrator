@@ -1,6 +1,13 @@
 Change Log
 ==========
 
+v2.32.0
+-------
+* Fix the provides of base modules when they have a stream version
+* Use gssapi if correct python-requests-kerberos is available
+* Actually fail if dnf can't read the repo
+* Make dnf timeout configurable
+
 v2.31.0
 -------
 * Use jinja templates to provide 'full-jobs'
