@@ -11,6 +11,7 @@ import yaml
 import requests
 import tempfile
 import sh
+import os
 
 our_sh = sh(_out=sys.stdout, _err=sys.stderr, _tee=True)
 from our_sh import Command, git, pushd  # noqa
@@ -73,6 +74,27 @@ class Koji:
         r = requests.get(url)
         r.raise_for_status()
         return r.text
+
+    def get_macro_specfile(self, build):
+        """
+        Download macro src.rpm and extract spec file .
+
+        :param build: build object
+        :return: content of module-build-macros.spec
+        :rtype: str
+        """
+        parent_id = build.component_task_ids()['module-build-macros']
+        child_id = next(child['id'] for child in
+                        self._session.getTaskChildren(parent_id)
+                        if child['method'] == 'buildArch')
+        nvr = next(component['nvr'] for component in build.components()
+                   if component['package'] == 'module-build-macros')
+        file_name = nvr + ".src.rpm"
+        src_rpm = self._session.downloadTaskOutput(child_id, file_name)
+        with tempfile.NamedTemporaryFile() as temp_file:
+            temp_file.write(src_rpm)
+            return os.popen(f"rpm2cpio {temp_file.name} | "
+                            f"cpio -ci --to-stdout '*.spec'").read()
 
 
 class Repo:
