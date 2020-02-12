@@ -6,7 +6,6 @@ from __future__ import absolute_import
 from datetime import datetime
 import logging
 import os
-import time
 
 import koji
 from requests.exceptions import ConnectionError
@@ -152,13 +151,7 @@ def init(msg_id, module_build_id, module_build_state):
     :param int module_build_id: the module build id.
     :param int module_build_state: the module build state.
     """
-    # Sleep for a few seconds to make sure the module in the database is committed
-    # TODO: Remove this once messaging is implemented in SQLAlchemy hooks
-    for i in range(3):
-        build = models.ModuleBuild.get_by_id(db_session, module_build_id)
-        if build:
-            break
-        time.sleep(1)
+    build = models.ModuleBuild.get_by_id(db_session, module_build_id)
 
     # for MockModuleBuilder, set build logs dir to mock results dir
     # before build_logs start
@@ -334,19 +327,7 @@ def wait(msg_id, module_build_id, module_build_state):
     :param int module_build_id: the module build id.
     :param int module_build_state: the module build state.
     """
-
-    # Wait for the db on the frontend to catch up to the message, otherwise the
-    # xmd information won't be present when we need it.
-    # See https://pagure.io/fm-orchestrator/issue/386
-    @retry(interval=10, timeout=120, wait_on=RuntimeError)
-    def _get_build_containing_xmd_for_mbs():
-        build = models.ModuleBuild.get_by_id(db_session, module_build_id)
-        if "mbs" in build.mmd().get_xmd():
-            return build
-        db_session.expire(build)
-        raise RuntimeError("{!r} doesn't contain xmd information for MBS.".format(build))
-
-    build = _get_build_containing_xmd_for_mbs()
+    build = models.ModuleBuild.get_by_id(db_session, module_build_id)
 
     log.info("Found build=%r from message" % build)
     log.debug("%r", build.modulemd)
