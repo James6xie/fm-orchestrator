@@ -100,3 +100,14 @@ def clone_and_start_build(repo, pkg_util):
             pkg_util.cancel(build)
         except sh.ErrorReturnCode:
             pass  # we don't need to bother with clean-up errors
+
+
+@pytest.fixture(scope="function")
+def require_koji_resolver(repo, scenario, test_env, mbs):
+    """Check that koji resolver is present."""
+    stream = repo.modulemd['data']['dependencies'][0]['buildrequires']['platform']
+    platform_build = mbs.get_module_builds(name="platform", stream=stream)[0]
+    resolver = platform_build.get_modulemd()['data']['xmd']['mbs']\
+        .get('koji_tag_with_modules')
+    if not resolver:
+        pytest.skip('koji resolver is not configured.')
