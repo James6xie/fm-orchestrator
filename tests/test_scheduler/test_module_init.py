@@ -6,7 +6,7 @@ import os
 from mock import patch, PropertyMock
 
 from module_build_service import build_logs, conf
-from module_build_service.common.models import ModuleBuild
+from module_build_service.common.models import BUILD_STATES, ModuleBuild
 from module_build_service.common.utils import load_mmd, mmd_to_str
 from module_build_service.scheduler.db_session import db_session
 import module_build_service.scheduler.handlers.modules
@@ -180,3 +180,13 @@ class TestModuleInit:
         # Make sure the module entered the failed state
         assert build.state == 4, build.state
         assert "Failed to get the latest commit for" in build.state_reason
+
+    def test_do_not_handle_a_duplicate_late_init_message(self):
+        build = db_session.query(ModuleBuild).filter(
+            ModuleBuild.name == "testmodule").one()
+        build.state = BUILD_STATES["wait"]
+        db_session.commit()
+
+        with patch.object(module_build_service.scheduler.handlers.modules, "log") as log:
+            self.fn("msg-id-123", build.id, BUILD_STATES["init"])
+            assert 2 == log.warning.call_count

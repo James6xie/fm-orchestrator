@@ -153,6 +153,16 @@ def init(msg_id, module_build_id, module_build_state):
     """
     build = models.ModuleBuild.get_by_id(db_session, module_build_id)
 
+    state_init = models.BUILD_STATES["init"]
+    if module_build_state == state_init and build.state != state_init:
+        log.warning(
+            "Module build %r has moved to %s state already.",
+            build, models.INVERSE_BUILD_STATES[build.state])
+        log.warning(
+            "Ignore this message %s. Is there something wrong with the frontend"
+            " that sends duplicate messages?", msg_id)
+        return
+
     # for MockModuleBuilder, set build logs dir to mock results dir
     # before build_logs start
     if conf.system == "mock":
