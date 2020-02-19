@@ -169,8 +169,8 @@ class PackagingUtility:
         self._packaging_utility = Command(packaging_utility).bake(
             # review: is redirect necessary?
             # In case of failure, I can't find the stderr in the resulting exception object..
-            #_out=sys.stdout,
-            #_err=sys.stderr,
+            # _out=sys.stdout,
+            # _err=sys.stderr,
             _tee=True
         )
         self._mbs_api = mbs_api
