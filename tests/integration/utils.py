@@ -167,15 +167,13 @@ class PackagingUtility:
 
     def __init__(self, packaging_utility, mbs_api):
         self._packaging_utility = Command(packaging_utility).bake(
-            # review: is redirect necessary?
-            # In case of failure, I can't find the stderr in the resulting exception object..
-            # _out=sys.stdout,
-            # _err=sys.stderr,
+            _out=sys.stdout,
+            _err=sys.stderr,
             _tee=True
         )
         self._mbs_api = mbs_api
 
-    def run(self, *args, reuse=None):
+    def run(self, *args, reuse=None, **kwargs):
         """Run one or more module builds
 
         :param args: Options and arguments for the build command
@@ -195,7 +193,7 @@ class PackagingUtility:
             else:
                 build_ids = [reuse]
         else:
-            stdout = self._packaging_utility("module-build", *args).stdout.decode("utf-8")
+            stdout = self._packaging_utility("module-build", *args, **kwargs).stdout.decode("utf-8")
             build_ids = re.findall(self._mbs_api + r"module-builds/(\d+)", stdout)
         return [Build(self._mbs_api, int(build_id)) for build_id in build_ids]
 
