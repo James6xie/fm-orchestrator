@@ -37,6 +37,6 @@ def test_buildrequire_invalid_module(pkg_util, scenario, repo, koji):
             for build in builds:
                 print("Canceling module-build {}...".format(build.id))
                 pkg_util.cancel(build)
-        except:
+        except ErrorReturnCode:
             pass
     assert expected_error in excinfo.value.stderr.decode("utf-8")
