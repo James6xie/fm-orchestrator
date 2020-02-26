@@ -9,6 +9,7 @@ import pytest
 from module_build_service import app
 from module_build_service.common import conf, models
 from module_build_service.common.errors import UnprocessableEntity
+from module_build_service.common.modulemd import Modulemd
 from module_build_service.common.utils import load_mmd, load_mmd_file, mmd_to_str
 from module_build_service.scheduler.db_session import db_session
 import module_build_service.scheduler.handlers.components
@@ -75,6 +76,26 @@ class TestSubmit:
 
         r = get_build_arches(mmd, conf)
         assert r == ["x86_64", "i686"]
+
+    @mock.patch.object(conf, "base_module_arches", new={"platform:xx": ["x86_64", "i686"]})
+    def test_get_build_arches_set_in_mmd(self):
+        mmd = load_mmd(read_staged_data("formatted_testmodule"))
+        xmd = mmd.get_xmd()
+        mbs_options = xmd.get("mbs", {})
+        mbs_options["buildrequires"] = {"platform": {"stream": "xx"}}
+        xmd["mbs"] = mbs_options
+        mmd.set_xmd(xmd)
+        try:
+            opts = Modulemd.Buildopts()
+            opts.add_arch("x86_64")
+            mmd.set_buildopts(opts)
+            expected_result = ["x86_64"]
+        except AttributeError:
+            # libmodulemd version < 2.8.3
+            expected_result = ["x86_64", "i686"]
+
+        r = get_build_arches(mmd, conf)
+        assert r == expected_result
 
     @mock.patch("module_build_service.scheduler.submit.get_build_arches")
     def test_record_module_build_arches(self, get_build_arches):

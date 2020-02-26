@@ -23,12 +23,18 @@ def get_build_arches(mmd, config):
 
     :param mmd: Module MetaData
     :param config: config (module_build_service.common.config.Config instance)
-    :return list of architectures
+    :return: list of architectures
     """
     # Imported here to allow import of utils in GenericBuilder.
     from module_build_service.builder import GenericBuilder
 
     nsvc = mmd.get_nsvc()
+
+    def _conditional_log(msg, arches, new_arches):
+        # Checks if the arch list returned by _check_buildopts_arches is the same one passed to it
+        # If it is, it outputs the message
+        if arches is new_arches:
+            log.info(msg)
 
     # At first, handle BASE_MODULE_ARCHES - this overrides any other option.
     # Find out the base modules in buildrequires section of XMD and
@@ -38,17 +44,21 @@ def get_build_arches(mmd, config):
             ns = ":".join([req_name, req_data["stream"]])
             if ns in config.base_module_arches:
                 arches = config.base_module_arches[ns]
-                log.info("Setting build arches of %s to %r based on the BASE_MODULE_ARCHES." % (
-                    nsvc, arches))
-                return arches
+                new_arches = _check_buildopts_arches(mmd, arches)
+                msg = "Setting build arches of %s to %r based on the BASE_MODULE_ARCHES." % (
+                    nsvc, new_arches)
+                _conditional_log(msg, arches, new_arches)
+                return new_arches
 
     # Check whether the module contains the `koji_tag_arches`. This is used only
     # by special modules defining the layered products.
     try:
         arches = mmd.get_xmd()["mbs"]["koji_tag_arches"]
-        log.info("Setting build arches of %s to %r based on the koji_tag_arches." % (
-            nsvc, arches))
-        return arches
+        new_arches = _check_buildopts_arches(mmd, arches)
+        msg = "Setting build arches of %s to %r based on the koji_tag_arches." % (
+            nsvc, new_arches)
+        _conditional_log(msg, arches, new_arches)
+        return new_arches
     except KeyError:
         pass
 
@@ -81,13 +91,45 @@ def get_build_arches(mmd, config):
                 continue
             arches = GenericBuilder.get_module_build_arches(module_obj)
             if arches:
-                log.info("Setting build arches of %s to %r based on the buildrequired "
-                         "module %r." % (nsvc, arches, module_obj))
-                return arches
+                new_arches = _check_buildopts_arches(mmd, arches)
+                msg = "Setting build arches of %s to %r based on the buildrequired module %r." % (
+                    nsvc, new_arches, module_obj)
+                _conditional_log(msg, arches, new_arches)
+                return new_arches
 
     # As a last resort, return just the preconfigured list of arches.
     arches = config.arches
-    log.info("Setting build arches of %s to %r based on default ARCHES." % (nsvc, arches))
+    new_arches = _check_buildopts_arches(mmd, arches)
+    msg = "Setting build arches of %s to %r based on default ARCHES." % (nsvc, new_arches)
+    _conditional_log(msg, arches, new_arches)
+    return new_arches
+
+
+def _check_buildopts_arches(mmd, arches):
+    """
+    Returns buildopts arches if valid, or otherwise the arches provided.
+
+    :param mmd: Module MetaData
+    :param arches: list of architectures
+    :return: list of architectures
+    """
+    buildopts = mmd.get_buildopts()
+    if not buildopts:
+        return arches
+    try:
+        buildopts_arches = buildopts.get_arches()
+    except AttributeError:
+        # libmodulemd version < 2.8.3
+        return arches
+    # Must be a subset of the input module arches
+    unsupported_arches = set(buildopts_arches) - set(arches)
+    if unsupported_arches:
+        raise ValidationError("The following buildopts arches are not supported with these "
+                              "buildrequires: %r" % unsupported_arches)
+    if buildopts_arches:
+        log.info("Setting build arches of %s to %r based on the buildopts arches." % (
+            mmd.get_nsvc(), buildopts_arches))
+        return buildopts_arches
     return arches
 
 
