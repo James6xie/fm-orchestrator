@@ -75,6 +75,7 @@ db_container_name="${db_container_name}-$now"
 test_container_name="${test_container_name}-$now"
 
 container_opts=(--rm -v "${volume_mount}" --name "$test_container_name")
+container_opts+=(-e PATH=/src:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin)
 
 if [ -z "$no_tty" ]; then
     container_opts+=(-i -t)
