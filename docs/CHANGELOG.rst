@@ -1,6 +1,12 @@
 Change Log
 ==========
 
+v3.0.0
+------
+* Rearchitect MBS to support multiple backends using Celery
+* Send module build state changes only after they are available via the REST API
+* Set ``mock.yum.module_hotfixes = 1`` on created Koji build tags by default
+
 v2.32.0
 -------
 * Fix the provides of base modules when they have a stream version

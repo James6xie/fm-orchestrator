@@ -24,7 +24,7 @@ tests_require, _ = read_requirements(path.join(setup_py_path, "test-requirements
 setup(
     name="module-build-service",
     description="The Module Build Service for Modularity",
-    version="2.32.0",
+    version="3.0.0",
     classifiers=["Programming Language :: Python", "Topic :: Software Development :: Build Tools"],
     keywords="module build service fedora modularity koji mock rpm",
     author="The Factory 2.0 Team",
