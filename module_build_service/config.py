@@ -182,6 +182,9 @@ class Config(object):
                 # https://pagure.io/fedora-infrastructure/issue/7620.
                 # Disables systemd-nspawn for chroot.
                 "mock.new_chroot": 0,
+                # Works around fail-safe mechanism added in DNF 4.2.7
+                # https://pagure.io/fedora-infrastructure/issue/8410
+                "mock.yum.module_hotfixes": 1,
             },
             "desc": "Extra options set for newly created Koji tags.",
         },

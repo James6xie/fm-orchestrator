@@ -639,6 +639,7 @@ class TestKojiBuilder:
                     "mock.package_manager": "dnf",
                     "repo_include_all": repo_include_all,
                     "mock.new_chroot": 0,
+                    'mock.yum.module_hotfixes': 1,
                 },
             ),
             mock.call(
@@ -648,6 +649,7 @@ class TestKojiBuilder:
                     "mock.package_manager": "dnf",
                     "repo_include_all": repo_include_all,
                     "mock.new_chroot": 0,
+                    'mock.yum.module_hotfixes': 1,
                 },
             ),
         ]
