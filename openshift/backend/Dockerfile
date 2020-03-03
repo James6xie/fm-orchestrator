@@ -20,7 +20,7 @@ RUN rpmdev-setuptree && \
     rpmbuild --define "_sourcedir $PWD/dist" -ba *.spec && \
     mv $HOME/rpmbuild/RPMS /srv
 RUN flake8 && \
-    bandit -r -ll -s B102,B303,B411,B602 module_build_service && \
+    bandit -r -ll -s B102,B104,B303,B411,B602 module_build_service && \
     tox -v -e py3
 
 

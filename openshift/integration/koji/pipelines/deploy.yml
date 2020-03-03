@@ -1,0 +1,15 @@
+- name: Deplomyent playbook
+  hosts: localhost
+  vars_files:
+    - c3i-role-vars.yml
+  tasks:
+    - git:
+        repo: "{{ c3i_lib_url }}"
+        dest: c3i-library
+        version: "{{ c3i_lib_branch }}"
+    - file:
+        src: c3i-library/roles
+        dest: roles
+        state: link
+    - include_role:
+        name: c3i

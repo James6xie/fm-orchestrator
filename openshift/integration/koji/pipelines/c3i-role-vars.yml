@@ -1,0 +1,39 @@
+---
+c3i_component: mbs
+c3i_build_and_test_snippet: snippets/mbs-build-and-test.groovy
+c3i_integration_test_snippet: snippets/mbs-integration-test.groovy
+
+c3i_images_for_promotion:
+  - mbs-frontend
+  - mbs-backend
+
+c3i_git_repo: https://pagure.io/fm-orchestrator.git
+
+c3i_jenkins_agent_buildconfig_contextdir: openshift/integration/koji/containers/jenkins-slave
+c3i_jenkins_agent_buildconfig_dockerfile: Dockerfile
+
+c3i_pagure_api_key_secret: pagure-api-key
+
+c3i_build_custom_parameters:
+  - name: PIPELINE_AS_A_SERVICE_BUILD_NAMESPACE
+    value: c3i
+  - name: MBS_BACKEND_IMAGESTREAM_NAME
+    value: mbs-backend
+  - name: MBS_FRONTEND_IMAGESTREAM_NAME
+    value: mbs-frontend
+  - name: MBS_SPEC_FILE
+    value: https://src.fedoraproject.org/rpms/module-build-service/raw/master/f/module-build-service.spec
+  - name: EXTRA_REPOS
+    value: https://copr.fedorainfracloud.org/coprs/mikeb/mbs-messaging-umb/repo/fedora-31/mikeb-mbs-messaging-umb-fedora-31.repo
+  - name: EXTRA_RPMS
+    value: mbs-messaging-umb
+
+c3i_quay_namespace: factory2
+c3i_integration_test_custom_parameters:
+  - name: MBS_BACKEND_REPO
+    value: "{{ c3i_quay_address }}/{{ c3i_quay_namespace }}/mbs-backend"
+
+c3i_lib_branch: master
+c3i_lib_url: https://pagure.io/c3i-library.git
+c3i_tracked_container_repo: "{{ c3i_quay_address }}/{{ c3i_quay_namespace }}/mbs-frontend"
+c3i_definition_dir: openshift/integration/koji/pipelines

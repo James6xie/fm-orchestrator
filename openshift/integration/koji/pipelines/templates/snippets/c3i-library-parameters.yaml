@@ -1,8 +1,0 @@
-- name: C3I_LIB_URL
-  displayName: C3I library git url
-  required: true
-  value: "https://pagure.io/c3i-library.git"
-- name: C3I_LIB_BRANCH
-  displayName: C3I library branch
-  required: true
-  value: "master"
