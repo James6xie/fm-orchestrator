@@ -128,6 +128,8 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
             super(MBSConsumer, self).validate(message)
 
     def validate_event(self, event):
+        if event is None:
+            raise IgnoreMessage("Ignoring the message since it is null")
         # task_id is required for koji_build_change event
         if event["event"] == "koji_build_change" and event["task_id"] is None:
             raise IgnoreMessage(

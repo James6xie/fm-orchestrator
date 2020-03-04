@@ -3,7 +3,9 @@
 from __future__ import absolute_import
 
 from mock import patch, MagicMock
+import pytest
 
+from module_build_service.common.errors import IgnoreMessage
 from module_build_service.scheduler import events
 from module_build_service.scheduler.consumer import MBSConsumer
 
@@ -102,3 +104,9 @@ class TestConsumer:
         consumer.get_abstracted_event_info.return_value = event
         consumer.consume({})
         assert process_message.call_count == 0
+
+    def test_validate_event_none_msg(self):
+        hub = MagicMock(config={})
+        consumer = MBSConsumer(hub)
+        with pytest.raises(IgnoreMessage):
+            consumer.validate_event(None)
