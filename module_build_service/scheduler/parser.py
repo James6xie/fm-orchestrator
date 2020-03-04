@@ -3,7 +3,6 @@
 from __future__ import absolute_import
 import re
 
-from module_build_service.common import log
 from module_build_service.common.errors import IgnoreMessage
 from module_build_service.scheduler import events
 
@@ -34,6 +33,7 @@ class FedmsgMessageParser(MessageParser):
         :return: a mapping representing the corresponding event.
             If the topic isn't recognized, None is returned.
         :rtype: dict or None
+        :raises IgnoreMessage: if the message should be ignored
         """
 
         if "body" in msg:
@@ -59,22 +59,20 @@ class FedmsgMessageParser(MessageParser):
 
             # If there isn't a msg dict in msg then this message can be skipped
             if not msg_inner_msg:
-                log.debug(
-                    "Skipping message without any content with the " 'topic "{0}"'.format(topic))
-                return None
+                raise IgnoreMessage(
+                    "Ignoring message without any content with the " 'topic "{0}"'.format(topic))
 
             # Ignore all messages from the secondary koji instances.
             if category == "buildsys":
                 instance = msg_inner_msg.get("instance", "primary")
                 if instance != "primary":
-                    log.debug("Ignoring message from %r koji hub." % instance)
-                    return
+                    raise IgnoreMessage("Ignoring message from %r koji hub." % instance)
 
                 if object == "build" and subobject == "state" and event == "change":
                     task_id = msg_inner_msg.get("task_id")
                     if task_id is None:
                         raise IgnoreMessage(
-                            "Ignore message {}, with has a null task_id.".format(msg_id))
+                            "Ignoring message {}, with has a null task_id.".format(msg_id))
                     return {
                         "msg_id": msg_id,
                         "event": events.KOJI_BUILD_CHANGE,

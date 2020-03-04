@@ -131,10 +131,11 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
         if event is None:
             raise IgnoreMessage("Ignoring the message since it is null")
         # task_id is required for koji_build_change event
-        if event["event"] == "koji_build_change" and event["task_id"] is None:
+        if event["event"] == events.KOJI_BUILD_CHANGE and event["task_id"] is None:
             raise IgnoreMessage(
-                "Ignore koji_build_change event from message {}, which has a null task_id".format(
-                    event["msg_id"])
+                "Ignoring {} event from message {}, which has a null task_id".format(
+                    events.KOJI_BUILD_CHANGE, event["msg_id"]
+                )
             )
 
     def consume(self, message):
