@@ -2786,7 +2786,6 @@ class TestLogMessageViews:
         self.client = app.test_client()
         init_data(2)
         self.module_id = 2
-        self.component_id = 1
         self.module_build = ModuleBuild.get_by_id(db_session, self.module_id)
         self.module_build.log_message(db_session, "Build-1 msg")
         self.module_build.log_message(db_session, "Build-2 msg")
@@ -2806,7 +2805,7 @@ class TestLogMessageViews:
 
     def test_view_log_messages_for_component_builds(self):
         url = "/module-build-service/1/component-builds/{component_id}/messages".format(
-            component_id=self.component_id)
+            component_id=self.component_build.id)
         res = self.client.get(url)
 
         json_res = str(res.data)
