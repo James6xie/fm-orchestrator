@@ -182,10 +182,7 @@ class MBSConsumer(fedmsg.consumers.FedmsgConsumer):
     def get_abstracted_event_info(message):
         parser = default_messaging_backend.get("parser")
         if parser:
-            try:
-                return parser.parse(message)
-            except IgnoreMessage:
-                pass
+            return parser.parse(message)
         else:
             raise ValueError("{0} backend does not define a message parser".format(conf.messaging))
 
