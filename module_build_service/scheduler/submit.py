@@ -182,7 +182,7 @@ def _scm_get_latest(pkg):
     return {"pkg_name": pkg.get_name(), "pkg_ref": pkgref, "error": None}
 
 
-def format_mmd(mmd, scmurl, module=None, db_session=None):
+def format_mmd(mmd, scmurl, module=None, db_session=None, srpm_overrides=None):
     """
     Prepares the modulemd for the MBS. This does things such as replacing the
     branches of components with commit hashes and adding metadata in the xmd
@@ -192,7 +192,11 @@ def format_mmd(mmd, scmurl, module=None, db_session=None):
     :param module: When specified together with `session`, the time_modified
         of a module is updated regularly in case this method takes lot of time.
     :param db_session: Database session to update the `module`.
+    :param dict srpm_overrides: Mapping of package names to SRPM links for all
+        component packages which have custom SRPM overrides specified.
     """
+    srpm_overrides = srpm_overrides or {}
+
     xmd = mmd.get_xmd()
     if "mbs" not in xmd:
         xmd["mbs"] = {}
@@ -263,12 +267,18 @@ def format_mmd(mmd, scmurl, module=None, db_session=None):
         pool = ThreadPool(20)
         try:
             # Filter out the packages which we have already resolved in possible
-            # previous runs of this method (can be caused by module build resubmition).
-            pkgs_to_resolve = [
-                mmd.get_rpm_component(name)
-                for name in mmd.get_rpm_component_names()
-                if name not in xmd["mbs"]["rpms"]
-            ]
+            # previous runs of this method (can be caused by module build resubmition)
+            # or which have custom SRPMs and shouldn't be resolved.
+            pkgs_to_resolve = []
+            for name in mmd.get_rpm_component_names():
+                if name not in xmd["mbs"]["rpms"]:
+                    if name in srpm_overrides:
+                        # If this package has a custom SRPM, store an empty
+                        # ref entry so no further verification takes place.
+                        xmd["mbs"]["rpms"][name] = {"ref": None}
+                    else:
+                        pkgs_to_resolve.append(mmd.get_rpm_component(name))
+
             async_result = pool.map_async(_scm_get_latest, pkgs_to_resolve)
 
             # For modules with lot of components, the _scm_get_latest can take a lot of time.
@@ -436,7 +446,7 @@ def record_component_builds(
             # It is OK to whitelist all URLs here, because the validity
             # of every URL have been already checked in format_mmd(...).
             included_mmd = fetch_mmd(full_url, whitelist_url=True)[0]
-            format_mmd(included_mmd, module.scmurl, module, db_session)
+            format_mmd(included_mmd, module.scmurl, module, db_session, srpm_overrides)
             batch = record_component_builds(
                 included_mmd, module, batch, previous_buildorder, main_mmd)
             continue

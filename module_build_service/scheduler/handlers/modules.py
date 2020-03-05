@@ -31,7 +31,7 @@ from module_build_service.scheduler.default_modules import (
     add_default_modules, handle_collisions_with_base_module_rpms)
 from module_build_service.scheduler.greenwave import greenwave
 from module_build_service.scheduler.reuse import attempt_to_reuse_all_components
-from module_build_service.scheduler.submit import format_mmd
+from module_build_service.scheduler.submit import format_mmd, get_module_srpm_overrides
 from module_build_service.scheduler.ursine import handle_stream_collision_modules
 
 logging.basicConfig(level=logging.DEBUG)
@@ -183,9 +183,11 @@ def init(msg_id, module_build_id, module_build_state):
         arches = [arch.name for arch in build.arches]
         defaults_added = add_default_modules(mmd)
 
+        # Get map of packages that have SRPM overrides
+        srpm_overrides = get_module_srpm_overrides(build)
         # Format the modulemd by putting in defaults and replacing streams that
         # are branches with commit hashes
-        format_mmd(mmd, build.scmurl, build, db_session)
+        format_mmd(mmd, build.scmurl, build, db_session, srpm_overrides)
         record_component_builds(mmd, build)
 
         # The ursine.handle_stream_collision_modules is Koji specific.

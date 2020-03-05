@@ -97,8 +97,15 @@ class TestSubmit:
             None,
         ],
     )
+    @pytest.mark.parametrize(
+        "srpm_overrides",
+        [
+            {"perl-List-Compare": "/path/to/perl-List-Compare.src.rpm"},
+            None,
+        ],
+    )
     @mock.patch("module_build_service.common.scm.SCM")
-    def test_format_mmd(self, mocked_scm, scmurl):
+    def test_format_mmd(self, mocked_scm, srpm_overrides, scmurl):
         mocked_scm.return_value.commit = "620ec77321b2ea7b0d67d82992dda3e1d67055b4"
         # For all the RPMs in testmodule, get_latest is called
         hashes_returned = {
@@ -108,24 +115,33 @@ class TestSubmit:
         }
 
         def mocked_get_latest(ref="master"):
-            return hashes_returned[ref]
+            if ref in hashes_returned:
+                return hashes_returned[ref]
+            raise RuntimeError("ref %s not found." % ref)
 
         mocked_scm.return_value.get_latest = mocked_get_latest
         mmd = load_mmd(read_staged_data("testmodule"))
         # Modify the component branches so we can identify them later on
         mmd.get_rpm_component("perl-Tangerine").set_ref("f28")
         mmd.get_rpm_component("tangerine").set_ref("f27")
-        format_mmd(mmd, scmurl)
+        if srpm_overrides:
+            # Set a bogus ref that will raise an exception if not properly ignored.
+            mmd.get_rpm_component("perl-List-Compare").set_ref("bogus")
+        format_mmd(mmd, scmurl, srpm_overrides=srpm_overrides)
 
         # Make sure that original refs are not changed.
         mmd_pkg_refs = [
             mmd.get_rpm_component(pkg_name).get_ref()
             for pkg_name in mmd.get_rpm_component_names()
         ]
-        assert set(mmd_pkg_refs) == set(hashes_returned.keys())
+        if srpm_overrides:
+            assert set(mmd_pkg_refs) == {'f27', 'f28', 'bogus'}
+        else:
+            assert set(mmd_pkg_refs) == {'f27', 'f28', 'master'}
         deps = mmd.get_dependencies()[0]
         assert deps.get_buildtime_modules() == ["platform"]
         assert deps.get_buildtime_streams("platform") == ["f28"]
+        match_anything = type('eq_any', (), {"__eq__": lambda left, right: True})()
         xmd = {
             "mbs": {
                 "commit": "",
@@ -140,6 +156,8 @@ class TestSubmit:
         if scmurl:
             xmd["mbs"]["commit"] = "620ec77321b2ea7b0d67d82992dda3e1d67055b4"
             xmd["mbs"]["scmurl"] = scmurl
+        if srpm_overrides:
+            xmd["mbs"]["rpms"]["perl-List-Compare"]["ref"] = match_anything
         mmd_xmd = mmd.get_xmd()
         assert mmd_xmd == xmd
 
