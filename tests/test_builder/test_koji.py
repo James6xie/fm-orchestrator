@@ -107,16 +107,19 @@ class TestKojiBuilder:
         self.p_read_config.stop()
         events.scheduler.reset()
 
-    def test_tag_to_repo(self):
+    @patch("koji.ClientSession")
+    def test_tag_to_repo(self, ClientSession):
         """ Test that when a repo msg hits us and we have no match,
         that we do nothing gracefully.
         """
+        session = ClientSession.return_value
+        session.getRepo.return_value = {"id": 1234}
         repo = GenericBuilder.tag_to_repo(
             "koji", self.config, "module-base-runtime-0.25-9", "x86_64"
         )
         assert repo == (
             "https://kojipkgs.stg.fedoraproject.org/repos"
-            "/module-base-runtime-0.25-9/latest/x86_64"
+            "/module-base-runtime-0.25-9/1234/x86_64"
         )
 
     def test_recover_orphaned_artifact_when_tagged(self, mock_get_session):
@@ -908,6 +911,14 @@ class TestKojiBuilder:
         module_build = module_build_service.common.models.ModuleBuild.get_by_id(db_session, 2)
         builder = KojiModuleBuilder(db_session, "owner", module_build, conf, "module-tag", [])
         builder.koji_session.krb_login.assert_called_once()
+
+    @patch("koji.ClientSession")
+    def test_repo_from_tag(self, ClientSession):
+        repo = "https://kojipkgs.stg.fedoraproject.org/repos/tagname/1234/arch"
+        session = ClientSession.return_value
+        session.getRepo.return_value = {"id": 1234}
+        ret = GenericBuilder.backends['koji'].repo_from_tag(self.config, 'tagname', 'arch')
+        assert ret == repo
 
     @patch("koji.ClientSession")
     def test_get_module_build_arches(self, ClientSession):

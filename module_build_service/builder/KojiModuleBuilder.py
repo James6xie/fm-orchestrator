@@ -765,7 +765,9 @@ class KojiModuleBuilder(GenericBuilder):
         Returns URL of repository containing the built artifacts for
         the tag with particular name and architecture.
         """
-        return "%s/%s/latest/%s" % (config.koji_repository_url, tag_name, arch)
+        koji_session = get_session(conf, login=False)
+        repo_info = koji_session.getRepo(tag_name)
+        return "%s/%s/%s/%s" % (config.koji_repository_url, tag_name, str(repo_info['id']), arch)
 
     @validate_koji_tag("tag", post="")
     def _get_tag(self, tag, strict=True):
