@@ -2497,12 +2497,13 @@ class TestViews:
         assert dep.get_runtime_streams("platform") == ["el8"]
 
     @pytest.mark.parametrize(
-        "pp_url, pp_streams, get_rv, br_stream, br_override, expected_stream, utcnow",
+        "pp_url, pp_streams, pp_sched, get_rv, br_stream, br_override, expected_stream, utcnow",
         (
             # Test a stream of a major release
             (
                 "https://pp.domain.local/pp/",
                 {r"el.+": (".z", "rhel-{x}-{y}.{z}", "rhel-{x}-{y}")},
+                None,
                 {"ga_date": "2019-05-07"},
                 "el8.0.0",
                 {},
@@ -2513,6 +2514,7 @@ class TestViews:
             (
                 "https://pp.domain.local/pp/",
                 {r"el.+": (".z", "rhel-{x}-{y}.{z}", "rhel-{x}-{y}")},
+                None,
                 {"ga_date": "2099-10-30"},
                 "el8.0.0",
                 {},
@@ -2523,6 +2525,7 @@ class TestViews:
             (
                 "https://pp.domain.local/pp/",
                 {r"el.+": (".z", "rhel-{x}-{y}.{z}", "rhel-{x}-{y}")},
+                None,
                 {"ga_date": "2019-09-16"},
                 "el8.0.0",
                 {},
@@ -2533,6 +2536,7 @@ class TestViews:
             (
                 "",
                 {r"el.+": (".z", "rhel-{x}-{y}.{z}", "rhel-{x}-{y}")},
+                None,
                 {"ga_date": "2019-05-07"},
                 "el8.0.0",
                 {},
@@ -2543,6 +2547,7 @@ class TestViews:
             (
                 "https://pp.domain.local/pp/",
                 {r"el.+": (".z", "rhel-{x}-{y}.{z}", "rhel-{x}-{y}")},
+                None,
                 {"detail": "Not found."},
                 "el8.0.0",
                 {},
@@ -2553,6 +2558,7 @@ class TestViews:
             (
                 "https://pp.domain.local/pp/",
                 {r"el.+": (".z", "rhel-{x}-{y}.{z}", "rhel-{x}-{y}")},
+                None,
                 {"ga_date": "2019-05-07"},
                 "el8.2.1",
                 {},
@@ -2563,6 +2569,7 @@ class TestViews:
             (
                 "https://pp.domain.local/pp/",
                 {r"el.+": (".z", "rhel-{x}-{y}.{z}", "rhel-{x}-{y}")},
+                None,
                 {"ga_date": "2019-05-07"},
                 "el8.0.0",
                 {"platform": ["el8.0.0"]},
@@ -2573,6 +2580,7 @@ class TestViews:
             (
                 "https://pp.domain.local/pp/",
                 {},
+                None,
                 {"ga_date": "2019-05-07"},
                 "el8.0.0",
                 {},
@@ -2583,6 +2591,7 @@ class TestViews:
             (
                 "https://pp.domain.local/pp/",
                 {r"js.+": (".z", "js-{x}-{y}", "js-{x}-{y}")},
+                None,
                 {"ga_date": "2019-05-07"},
                 "el8.0.0",
                 {},
@@ -2593,7 +2602,19 @@ class TestViews:
             (
                 "https://pp.domain.local/pp/",
                 {r"el.+": (".z", "rhel-{x}-{y}", None)},
+                None,
                 {"ga_date": "2019-05-07"},
+                "el8.0.0",
+                {},
+                "el8.0.0.z",
+                datetime(2019, 9, 16, 12, 00, 00, 0),
+            ),
+            # Test when there is a schedule date set for early release
+            (
+                "https://pp.domain.local/pp/",
+                {r"el.+": (".z", "rhel-{x}-{y}", None)},
+                "test_sched",
+                [{"name": "test_sched", "date_finish": "2019-09-02"}],
                 "el8.0.0",
                 {},
                 "el8.0.0.z",
@@ -2614,16 +2635,22 @@ class TestViews:
         "module_build_service.common.config.Config.product_pages_module_streams",
         new_callable=PropertyMock,
     )
+    @patch(
+        "module_build_service.common.config.Config.product_pages_schedule_task_name",
+        new_callable=PropertyMock,
+    )
     @patch("requests.get")
     @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.common.scm.SCM")
     def test_submit_build_automatic_z_stream_detection(
-        self, mocked_scm, mocked_get_user, mock_get, mock_pp_streams, mock_pp_url, mock_datetime,
-        pp_url, pp_streams, get_rv, br_stream, br_override, expected_stream, utcnow,
+        self, mocked_scm, mocked_get_user, mock_get, mock_pp_sched, mock_pp_streams, mock_pp_url,
+            mock_datetime, pp_url, pp_streams, pp_sched, get_rv, br_stream, br_override,
+            expected_stream, utcnow,
     ):
         # Configure the Product Pages URL
         mock_pp_url.return_value = pp_url
         mock_pp_streams.return_value = pp_streams
+        mock_pp_sched.return_value = pp_sched
         # Mock the Product Pages query
         mock_get.return_value.json.return_value = get_rv
         # Mock the date
@@ -2660,12 +2687,17 @@ class TestViews:
         # The runtime stream suffix should remain unchanged
         assert dep.get_runtime_streams("platform") == ["el8.0.0"]
 
-        if pp_url and not br_override and pp_streams.get(r"el.+"):
+        if (pp_url or pp_sched) and not br_override and pp_streams.get(r"el.+"):
             if br_stream == "el8.0.0":
                 pp_release = "rhel-8-0"
             else:
                 pp_release = "rhel-8-2.1"
-            expected_url = "{}api/v7/releases/{}/?fields=ga_date".format(pp_url, pp_release)
+            if pp_url:
+                expected_url = "{}api/v7/releases/{}/?fields=ga_date".format(pp_url, pp_release)
+            if pp_sched:
+                expected_url = \
+                    "{}api/v7/releases/{}/schedule-tasks/?fields=name,date_finish".format(
+                        pp_url, pp_release)
             mock_get.assert_called_once_with(expected_url, timeout=15)
         else:
             mock_get.assert_not_called()
