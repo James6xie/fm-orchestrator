@@ -6,6 +6,8 @@ v3.0.0
 * Rearchitect MBS to support multiple backends using Celery
 * Send module build state changes only after they are available via the REST API
 * Set ``mock.yum.module_hotfixes = 1`` on created Koji build tags by default
+* Use Z stream base module streams per the schedule in product pages as well as the
+  existing behavior of past the GA date
 
 v2.32.0
 -------
