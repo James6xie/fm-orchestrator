@@ -665,6 +665,12 @@ class Config(object):
                     "string that represent the Product Pages release for major releases "
                     "(e.g. 8.0.0). After the first match, the rest will be ignored."
         },
+        "product_pages_schedule_task_name": {
+            "type": str,
+            "default": "",
+            "desc": "A schedule task name. This is used to check Product schedules for cases where "
+                    "the stream should be used before release."
+        },
         "num_threads_for_build_submissions": {
             "type": int,
             "default": 5,
