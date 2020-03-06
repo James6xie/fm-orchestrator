@@ -68,6 +68,11 @@ node('factory2'){
                 stage('Pull quay.io/factory2/mbs-test-fedora') {
                     onmyduffynode 'docker pull quay.io/factory2/mbs-test-fedora'
                 }
+            },
+            postgres: {
+                stage('Pull docker.io/postgres:9.5.17') {
+                    onmyduffynode 'docker pull docker.io/postgres:9.5.17'
+                }
             }
         }
 
