@@ -53,6 +53,8 @@ RUN yum -y install \
 # We currently require newer versions of these Python packages for the tests.
 # more-itertools is required by pytest, but versions 6.0.0 and up aren't Python 2 compatible
 RUN pip install --upgrade flask-sqlalchemy "pytest<5.0" flake8 tox pip "more-itertools<6.0.0" pytest-cov
+# Install zipp as a workaround for https://github.com/pypa/virtualenv/issues/1630
+RUN pip install zipp
 VOLUME /src
 WORKDIR /src
 ENTRYPOINT ["docker/test.sh"]
