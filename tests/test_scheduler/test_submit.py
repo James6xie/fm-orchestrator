@@ -87,6 +87,10 @@ class TestSubmit:
         arches = {arch.name for arch in build.arches}
         assert arches == set(get_build_arches.return_value)
 
+        # Ensure the function is idempotent
+        record_module_build_arches(build.mmd(), build)
+        assert len(build.arches) == len(get_build_arches.return_value)
+
     @pytest.mark.parametrize(
         "scmurl",
         [

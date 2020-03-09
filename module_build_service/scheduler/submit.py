@@ -104,7 +104,8 @@ def record_module_build_arches(mmd, build):
         arch_obj = db_session.query(models.ModuleArch).filter_by(name=arch).first()
         if not arch_obj:
             arch_obj = models.ModuleArch(name=arch)
-        build.arches.append(arch_obj)
+        if arch_obj not in build.arches:
+            build.arches.append(arch_obj)
 
     db_session.commit()
 
