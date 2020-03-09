@@ -346,6 +346,7 @@ class BaseHandler(object):
         "buildrequire_overrides",
         "modulemd",
         "module_name",
+        "module_stream",
         "owner",
         "rebuild_strategy",
         "reuse_components_from",
@@ -481,6 +482,17 @@ class SCMHandler(BaseHandler):
             log.error("Missing branch")
             raise ValidationError("Missing branch")
 
+        if "module_name" in self.data:
+            log.error("Module name override is only allowed when a YAML file is submitted")
+            raise ValidationError(
+                "Module name override is only allowed when a YAML file is submitted"
+            )
+        if "module_stream" in self.data:
+            log.error("Stream name override is only allowed when a YAML file is submitted")
+            raise ValidationError(
+                "Stream name override is only allowed when a YAML file is submitted"
+            )
+
         if not skip_optional_params:
             self.validate_optional_params()
 
@@ -507,12 +519,13 @@ class YAMLFileHandler(BaseHandler):
     def post(self):
         if "modulemd" in self.data:
             handle = BytesIO(self.data["modulemd"].encode("utf-8"))
-            if self.data.get("module_name"):
-                handle.filename = self.data["module_name"]
         else:
             handle = request.files["yaml"]
+        if self.data.get("module_name"):
+            handle.filename = self.data["module_name"]
+        stream_name = self.data.get("module_stream", None)
         return submit_module_build_from_yaml(
-            db.session, self.username, handle, self.data)
+            db.session, self.username, handle, self.data, stream=stream_name)
 
 
 def _dict_from_request(request):

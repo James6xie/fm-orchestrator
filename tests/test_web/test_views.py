@@ -2078,6 +2078,60 @@ class TestViews:
     @pytest.mark.parametrize("api_version", [1, 2])
     @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.common.scm.SCM")
+    def test_submit_build_module_name_override_not_allowed(
+        self, mocked_scm, mocked_get_user, api_version
+    ):
+        FakeSCM(
+            mocked_scm, "testmodule", "testmodule.yaml", "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
+
+        post_url = "/module-build-service/{0}/module-builds/".format(api_version)
+        rv = self.client.post(
+            post_url,
+            data=json.dumps({
+                "branch": "master",
+                "scmurl": "https://src.stg.fedoraproject.org/modules/"
+                "testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49",
+                "module_name": "altname",
+            }),
+        )
+        # module name is allowed only when a modulemd file is submitted
+        assert rv.status_code == 400
+        result = json.loads(rv.data)
+        assert result["error"] == "Bad Request"
+        assert result["message"] == (
+            "Module name override is only allowed when a YAML file is submitted"
+        )
+
+    @pytest.mark.parametrize("api_version", [1, 2])
+    @patch("module_build_service.web.auth.get_user", return_value=user)
+    @patch("module_build_service.common.scm.SCM")
+    def test_submit_build_stream_name_override_not_allowed(
+        self, mocked_scm, mocked_get_user, api_version
+    ):
+        FakeSCM(
+            mocked_scm, "testmodule", "testmodule.yaml", "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
+
+        post_url = "/module-build-service/{0}/module-builds/".format(api_version)
+        rv = self.client.post(
+            post_url,
+            data=json.dumps({
+                "branch": "master",
+                "scmurl": "https://src.stg.fedoraproject.org/modules/"
+                "testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49",
+                "module_stream": "altstream",
+            }),
+        )
+        # stream name override is allowed only when a modulemd file is submitted
+        assert rv.status_code == 400
+        result = json.loads(rv.data)
+        assert result["error"] == "Bad Request"
+        assert result["message"] == (
+            "Stream name override is only allowed when a YAML file is submitted"
+        )
+
+    @pytest.mark.parametrize("api_version", [1, 2])
+    @patch("module_build_service.web.auth.get_user", return_value=user)
+    @patch("module_build_service.common.scm.SCM")
     @patch(
         "module_build_service.common.config.Config.modules_allow_scratch",
         new_callable=PropertyMock,
@@ -2169,6 +2223,45 @@ class TestViews:
         assert rv.status_code == expected_error["status"]
 
     @pytest.mark.parametrize("api_version", [1, 2])
+    @pytest.mark.parametrize("mod_stream", [None, "alternate"])
+    @patch("module_build_service.web.auth.get_user", return_value=user)
+    @patch(
+        "module_build_service.common.config.Config.yaml_submit_allowed",
+        new_callable=PropertyMock,
+        return_value=True,
+    )
+    def test_submit_build_with_mmd(
+        self, mocked_allow_yaml, mocked_get_user, mod_stream, api_version
+    ):
+        modulemd = read_staged_data("testmodule")
+
+        post_data = {
+            "branch": "master",
+            "modulemd": modulemd,
+            "module_name": str(splitext(basename(staged_data_filename("testmodule")))[0]),
+        }
+        if mod_stream:
+            post_data["module_stream"] = mod_stream
+            expected_stream = mod_stream
+        else:
+            expected_stream = "master"
+        post_url = "/module-build-service/{0}/module-builds/".format(api_version)
+        rv = self.client.post(post_url, data=json.dumps(post_data))
+        data = json.loads(rv.data)
+
+        if api_version >= 2:
+            assert isinstance(data, list)
+            assert len(data) == 1
+            data = data[0]
+
+        assert data["name"] == "testmodule"
+        assert data["scratch"] is False
+        assert data["stream"] == expected_stream
+        # Assertions for other "testmodule" attributes are done in
+        # test_submit_scratch_build_with_mmd()
+
+    @pytest.mark.parametrize("api_version", [1, 2])
+    @pytest.mark.parametrize("mod_stream", [None, "alternate"])
     @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch(
         "module_build_service.common.config.Config.modules_allow_scratch",
@@ -2181,7 +2274,7 @@ class TestViews:
         return_value=True,
     )
     def test_submit_scratch_build_with_mmd(
-        self, mocked_allow_yaml, mocked_allow_scratch, mocked_get_user, api_version
+        self, mocked_allow_yaml, mocked_allow_scratch, mocked_get_user, mod_stream, api_version
     ):
         modulemd = read_staged_data("testmodule")
 
@@ -2191,6 +2284,11 @@ class TestViews:
             "modulemd": modulemd,
             "module_name": str(splitext(basename(staged_data_filename("testmodule")))[0]),
         }
+        if mod_stream:
+            post_data["module_stream"] = mod_stream
+            expected_stream = mod_stream
+        else:
+            expected_stream = "master"
         post_url = "/module-build-service/{0}/module-builds/".format(api_version)
         rv = self.client.post(post_url, data=json.dumps(post_data))
         data = json.loads(rv.data)
@@ -2212,7 +2310,7 @@ class TestViews:
         assert data["time_submitted"] is not None
         assert data["time_modified"] is not None
         assert data["time_completed"] is None
-        assert data["stream"] == "master"
+        assert data["stream"] == expected_stream
         assert data["owner"] == "Homer J. Simpson"
         assert data["id"] == 8
         assert data["rebuild_strategy"] == "changed-and-after"
