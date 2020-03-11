@@ -1269,7 +1269,7 @@ class TestViews:
             "/module-build-service/1/module-builds/7", data=json.dumps({"state": "failed"}))
 
         assert rv.status_code == 400
-        assert rv.json == {
+        assert json.loads(rv.data) == {
             "error": "Bad Request",
             "message": (
                 "To cancel a module build, it must be in one of the following states: "
@@ -1342,7 +1342,7 @@ class TestViews:
             "/module-build-service/1/module-builds/7", data=json.dumps({"state": "some_state"}))
 
         assert rv.status_code == 400
-        assert rv.json == {
+        assert json.loads(rv.data) == {
             "error": "Bad Request",
             "message": "An invalid state was submitted. Valid states values are: failed, 4",
             "status": 400,
@@ -2775,7 +2775,7 @@ class TestViews:
         payload = {"branch": "master", "scmurl": scm_url}
         if br_override:
             payload["buildrequire_overrides"] = br_override
-        rv = self.client.post(post_url, json=payload)
+        rv = self.client.post(post_url, data=json.dumps(payload))
         data = json.loads(rv.data)
 
         mmd = load_mmd(data[0]["modulemd"])
