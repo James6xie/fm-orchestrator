@@ -19,7 +19,6 @@ RUN yum -y install \
     git \
     kobo \
     kobo-rpmlib \
-    libmodulemd1 \
     python-backports-ssl_match_hostname \
     python-dnf \
     python-dogpile-cache \
