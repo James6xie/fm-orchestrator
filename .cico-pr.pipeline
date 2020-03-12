@@ -80,17 +80,17 @@ node('factory2'){
             timeout(30) {
                 parallel py2_sqlite: {
                     stage('Test with Python 2 & SQLite') {
-                        onmyduffynode '~/fm-orchestrator/contrib/run-unittests.sh --no-tty'
+                        onmyduffynode '~/fm-orchestrator/run-unittests.sh --no-tty'
                     }
                 },
                 py3_sqlite: {
                     stage('Test with Python 3 & SQLite') {
-                        onmyduffynode '~/fm-orchestrator/contrib/run-unittests.sh --py3 --no-tty'
+                        onmyduffynode '~/fm-orchestrator/run-unittests.sh --py3 --no-tty'
                     }
                 },
                 py3_postgres: {
                     stage('Test with Python 3 & Postgresql') {
-                        onmyduffynode '~/fm-orchestrator/contrib/run-unittests.sh --py3 --with-pgsql --no-tty'
+                        onmyduffynode '~/fm-orchestrator/run-unittests.sh --py3 --with-pgsql --no-tty'
                     }
                 }
             }
