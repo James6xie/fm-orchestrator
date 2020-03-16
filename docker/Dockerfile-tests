@@ -5,7 +5,6 @@ RUN yum -y update
 RUN yum -y install epel-release yum-utils
 # Required for the latest python-pungi
 RUN yum-config-manager --add-repo https://kojipkgs.fedoraproject.org/repos-dist/epel7Server-infra/latest/x86_64/
-# Remove libmodulemd1 after the following ticket is resolved https://pagure.io/fedora-infrastructure/issue/8206
 RUN yum -y install \
     --nogpgcheck \
     --setopt=deltarpm=0 \
