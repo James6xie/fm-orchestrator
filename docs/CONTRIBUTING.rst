@@ -20,7 +20,7 @@ section "Updating test images in Quay" to learn how to manage these images.
 
 .. _factory2: https://quay.io/organization/factory2
 
-To run the tests, just simply run: ``contrib/run-unittests.sh``
+To run the tests, just simply run: ``run-unittests.sh``
 
 By default, this script runs tests inside container ``mbs-test-centos``
 with Python 2 and SQLite database.
@@ -34,13 +34,13 @@ There are options to change the tests enviornment:
 * ``--podman``: use Podman instead of Docker
 * ``--no-pull``: don't update Docker images
 
-For example, ``contrib/run-unittests.sh --py3 --with-pgsql``.
+For example, ``run-unittests.sh --py3 --with-pgsql``.
 
 You can specify the subset of tests to run inside the container as well. Tests
 specified from the command-line are passed to ``py.test`` directly. Please note that,
 the path of each test must be a relative path. For example::
 
-    contrib/run-unittests.sh \
+    run-unittests.sh \
         tests/test_utils/ \
         tests/test_mmd_resolver.py \
         tests/test_builder/test_koji.py::TestKojiBuilder::test_tag_to_repo
