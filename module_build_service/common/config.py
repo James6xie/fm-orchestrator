@@ -109,7 +109,7 @@ def init_config():
     :rtype: tuple(Config, object)
     """
     config_file = os.environ.get("MBS_CONFIG_FILE", "/etc/module-build-service/config.py")
-    config_section = os.environ.get("MBS_CONFIG_SECTION", "ProdConfiguration")
+
     try:
         config_module = imp.load_source("mbs_runtime_config", config_file)
         log.info("Using the configuration file at %s", config_file)
@@ -132,7 +132,10 @@ def init_config():
             config_section = "OfflineLocalBuildConfiguration"
         else:
             config_section = "LocalBuildConfiguration"
+    else:
+        config_section = "ProdConfiguration"
 
+    config_section = os.environ.get("MBS_CONFIG_SECTION", config_section)
     if hasattr(config_module, config_section):
         log.info("Using the configuration section %s", config_section)
         config_section_obj = getattr(config_module, config_section)
