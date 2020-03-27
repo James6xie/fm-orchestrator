@@ -400,7 +400,7 @@ class Build:
                 return True
         return False
 
-    def get_metadata(self) -> dict:
+    def get_modulemd(self):
         """
         Get module's metadata (from MBS API)
 

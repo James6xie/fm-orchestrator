@@ -44,7 +44,7 @@ def test_reuse_tagged_module(pkg_util, scenario, repo, koji, mbs):
     platform_builds = [b for b in platform_builds if b.module_build_data['state'] == 5]  # 'ready'
     assert len(platform_builds) == 1, f"Platform {platform_stream}: no build in state ready."
 
-    metadata = platform_builds[0].get_metadata()
+    metadata = platform_builds[0].get_modulemd()
     koji_tag_with_modules = metadata['data']['xmd']['mbs'].get('koji_tag_with_modules')
     assert koji_tag_with_modules, \
         f"Platform {platform_stream}: missing 'koji_tag_with_modules', Koji resolver disabled."
