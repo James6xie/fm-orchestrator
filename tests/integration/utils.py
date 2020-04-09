@@ -75,6 +75,15 @@ class Koji:
         r.raise_for_status()
         return r.text
 
+    def get_tag(self, tag_info):
+        """Get tag detail
+
+        :param str tag_info: either tag name or tag integer id
+        :return Tag detail
+        :rtype dict
+        """
+        return self._session.getTag(tag_info)
+
     def get_macro_specfile(self, build):
         """
         Download macro src.rpm and extract spec file .
@@ -391,6 +400,18 @@ class Build:
                 return True
         return False
 
+    def get_modulemd(self):
+        """
+        Get module's metadata (from MBS API)
+
+        :return: module's metadata
+        :rtype: dict
+        """
+        try:
+            return yaml.safe_load(self.module_build_data['modulemd'])
+        except (AttributeError, KeyError):
+            return {}
+
 
 class Component:
     """Wrapper class to work with git repositories of components
@@ -461,3 +482,31 @@ class MBS:
         r = requests.get(url, params=payload)
         r.raise_for_status()
         return [Build(self._mbs_api, build["id"]) for build in r.json()["items"]]
+
+    def get_module_builds(self, **kwargs):
+        """
+        Query MBS API on module-builds endpoint
+
+        :attribute **kwargs: options for the HTTP GET
+        :return: list of Build objects
+        :rtype: list
+        """
+        url = f"{self._mbs_api}module-builds/"
+        r = requests.get(url, params=kwargs)
+
+        r.raise_for_status()
+        return [Build(self._mbs_api, build["id"]) for build in r.json()["items"]]
+
+    def get_module_build(self, build_id, **kwargs):
+        """
+        Query MBS API on module-builds endpoint for a specific build
+
+        :attribute build_id (int): build ID
+        :return: module build object
+        :rtype: Build
+        """
+        url = f"{self._mbs_api}module-builds/{build_id}"
+        r = requests.get(url, params=kwargs)
+
+        r.raise_for_status()
+        return Build(self._mbs_api, r.json()["id"])
