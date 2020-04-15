@@ -33,7 +33,7 @@ def pkg_util(test_env):
     """Fixture to interact with the packaging utility
 
     :return: Packaging utility configured for the tests
-    :rtype: object of utils.PackagingUtility
+    :rtype: utils.PackagingUtility
     """
     return utils.PackagingUtility(test_env["packaging_utility"], test_env["mbs_api"])
 
@@ -99,10 +99,7 @@ def clone_and_start_build(repo, pkg_util):
     builds = pkg_util.run("--optional", "rebuild_strategy=all")
     yield repo, builds
     for build in builds:
-        try:
-            pkg_util.cancel(build)
-        except sh.ErrorReturnCode:
-            pass  # we don't need to bother with clean-up errors
+        pkg_util.cancel(build, ignore_errors=True)
 
 
 @pytest.fixture(scope="function")

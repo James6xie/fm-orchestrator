@@ -20,6 +20,13 @@ our_sh = sh(_out=sys.stdout, _err=sys.stderr, _tee=True)
 from our_sh import Command, git, pushd  # noqa
 
 
+def get_kerberos_auth():
+    """Get the 'default' Kerberos auth header field"""
+    # (!) User executing this request must be allowed to do so on the target MBS instance.
+    # MBS server does not support mutual auth, so make it optional (inspired by mbs-cli).
+    return requests_kerberos.HTTPKerberosAuth(mutual_authentication=requests_kerberos.OPTIONAL)
+
+
 class Koji:
     """Wrapper class to work with Koji
 
@@ -113,14 +120,12 @@ class Repo:
 
     :attribute string module_name: name of the module stored in this repo
     :attribute string branch: name of the branch, the repo is checked-out
-    :attribute string giturl: GIT URL of the repo/branch
     :attribute dict _modulemd: Modulemd file as read from the repo
     """
 
     def __init__(self, module_name, branch):
         self.module_name = module_name
         self.branch = branch
-
         self._modulemd = None
         self._version = None
 
@@ -243,18 +248,23 @@ class PackagingUtility:
 
         return stdout
 
-    def cancel(self, build):
+    def cancel(self, build, ignore_errors=False):
         """Cancel the module build
 
         :param Build build: the Build object of the module build to be cancelled.
+        :param bool ignore_errors: ignore when command fails (ErrorReturnCode exception)
         :return: Standard output of the "module-build-cancel <build id=""> command
         :rtype: str
         """
-        stdout = self._packaging_utility("module-build-cancel", build.id).stdout.decode(
-            "utf-8")
-        return stdout
+        cmd = "module-build-cancel"
+        try:
+            return self._packaging_utility(cmd, build.id).stdout.decode("utf-8")
+        except sh.ErrorReturnCode:
+            if not ignore_errors:
+                raise
 
     def giturl(self):
+        """Get target URL of the current repository/branch"""
         return self._packaging_utility("giturl").stdout.decode("utf-8").strip()
 
     def clone(self, *args):
@@ -519,9 +529,10 @@ class MBS:
         :param str stream: Stream name
         :param str order_desc_by: Optional sorting parameter e.g. "version"
         :return: list of Build objects
-        :rtype: list
+        :rtype: list[Build]
         """
         url = f"{self._mbs_api}module-builds/"
+
         payload = {'name': module, "stream": stream}
         if order_desc_by:
             payload.update({"order_desc_by": order_desc_by})
@@ -530,40 +541,25 @@ class MBS:
         return [Build(self._mbs_api, build["id"]) for build in r.json()["items"]]
 
     def import_module(self, scmurl):
-        """Import module from SCM URL (modulemd).
+        """Import module from SCM URL.
 
         :param str scmurl:
         :return: requests response
         :rtype: requests response object
         """
         url = f"{self._mbs_api}import-module/"
-        headers = {"Content-Type": "application/json"}
+
         data = json.dumps({'scmurl': scmurl})
-
-        # (!) User executing this request must be allowed to do so on the target MBS instance.
-        # MBS server does not support mutual auth, so make it optional (inspired by mbs-cli).
-        auth = requests_kerberos.HTTPKerberosAuth(mutual_authentication=requests_kerberos.OPTIONAL)
-
-        response = requests.post(
-            url,
-            auth=auth,
-            headers=headers,
-            verify=False,
-            data=data
-        )
-        try:
-            response.raise_for_status()
-            return response
-        except requests.exceptions.HTTPError:
-            # response message contains useful information, which requests module omits
-            pytest.fail(response.text)
+        r = requests.post(url, auth=get_kerberos_auth(), verify=False, data=data)
+        r.raise_for_status()
+        return r
 
     def get_module_builds(self, **kwargs):
         """Query MBS API on module-builds endpoint
 
-        :attribute **kwargs: options for the HTTP GET
-        :return: list of Build objects
-        :rtype: list
+        :return: matched build entries
+        :rtype: list[Build]
+        :Keyword Arguments: passed directly to the request as HTTP params.
         """
         url = f"{self._mbs_api}module-builds/"
         r = requests.get(url, params=kwargs)
@@ -574,9 +570,10 @@ class MBS:
     def get_module_build(self, build_data, **kwargs):
         """Query MBS API on module-builds endpoint for a specific build
 
-        :attribute build_data (int|Build): build ID
+        :param int|Build build_data: build ID
         :return: module build object
         :rtype: Build
+        :Keyword Arguments: passed directly to the request as HTTP params.
         """
         build_id = self._get_build_id(build_data)
         url = f"{self._mbs_api}module-builds/{build_id}"
@@ -584,6 +581,29 @@ class MBS:
 
         r.raise_for_status()
         return Build(self._mbs_api, r.json()["id"])
+
+    def submit_module_build(self, data):
+        """Submit a module build with arbitrary payload.
+
+        :param dict data: payload of the POST request
+            1) SCMURL submission: data = {scmurl, branch}
+            2) YAML submission: data = {modulemd: <str(modulemd as dict)>}
+        :return: submitted build(s)
+        :rtype: list[Build]
+        """
+        url = f"{self._mbs_api}module-builds/"
+
+        r = requests.post(url, verify=False, auth=get_kerberos_auth(), data=json.dumps(data))
+        r.raise_for_status()
+        return [Build(self._mbs_api, build["id"]) for build in r.json()]
+
+    def cancel_module_build(self, build_id):
+        """PATCH the state field of a module build to cancel it"""
+        url = f"{self._mbs_api}module-builds/{build_id}"
+
+        data = json.dumps({"state": "failed"})
+        response = requests.patch(url, auth=get_kerberos_auth(), verify=False, data=data)
+        response.raise_for_status()
 
     def wait_for_module_build(self, build_data, predicate_func, timeout=60, interval=5):
         """Wait for module build. Wait until the specified function returns True.
