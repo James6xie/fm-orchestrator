@@ -558,6 +558,8 @@ class TestBuild(BaseTestBuild):
         assert module_build.module_builds_trace[4].state == models.BUILD_STATES["ready"]
         assert len(module_build.module_builds_trace) == 5
 
+    # temporarily disabled
+    @pytest.mark.skip(reason="see https://pagure.io/fm-orchestrator/issue/1617")
     @patch("module_build_service.builder.KojiModuleBuilder.get_session")
     @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.common.scm.SCM")
