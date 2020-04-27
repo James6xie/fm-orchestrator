@@ -1,6 +1,15 @@
 Change Log
 ==========
 
+v3.1.0
+------
+* New ``module_stream`` optional parameter for scratch module builds
+* Use Koji repo IDs instead of symlinks when accessing build artificats
+* Add the ability to limit arches for a build via the ``buildopts.arches`` field in modulemd
+* Skip git ref checks for rpm components with srpm overrides
+* Make ``record_module_build_arches`` idempotent to avoid multiple calls
+* Honor the ``MBS_CONFIG_SECTION`` environment variable when performing a local build
+
 v3.0.0
 ------
 * Rearchitect MBS to support multiple backends using Celery
