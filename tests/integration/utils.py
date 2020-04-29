@@ -1,17 +1,20 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
 
+import os
 import re
 import sys
 import time
 
 from kobo import rpmlib
+import json
 import koji
-import yaml
+import pytest
 import requests
-import tempfile
+import requests_kerberos
 import sh
-import os
+import tempfile
+import yaml
 
 our_sh = sh(_out=sys.stdout, _err=sys.stderr, _tee=True)
 from our_sh import Command, git, pushd  # noqa
@@ -85,10 +88,9 @@ class Koji:
         return self._session.getTag(tag_info)
 
     def get_macro_specfile(self, build):
-        """
-        Download macro src.rpm and extract spec file .
+        """Download macro src.rpm and extract spec file .
 
-        :param build: build object
+        :param Build build: build object
         :return: content of module-build-macros.spec
         :rtype: str
         """
@@ -142,8 +144,7 @@ class Repo:
 
     @property
     def platform(self):
-        """
-        List of platforms in the modulemd file, obtaining values differs on version
+        """List of platforms in the modulemd file, obtaining values differs on version
 
         :return: List of platforms in the modulemd file
         :rtype: list of strings
@@ -334,8 +335,7 @@ class Build:
         return {comp["package"]: comp["task_id"] for comp in self.components()}
 
     def batches(self):
-        """
-        Components of the module build separated in sets according to batches
+        """Components of the module build separated in sets according to batches
 
         :return: list of components according to batches
         :rtype: list of sets
@@ -401,8 +401,7 @@ class Build:
         return False
 
     def get_modulemd(self):
-        """
-        Get module's metadata (from MBS API)
+        """Get module's metadata (from MBS API)
 
         :return: module's metadata
         :rtype: dict
@@ -469,9 +468,9 @@ class MBS:
     def get_builds(self, module, stream, order_desc_by=None):
         """Get list of Builds objects via mbs api.
 
-        :attribute string module: Module name
-        :attribute string stream: Stream name
-        :attribute string order_desc_by: Optional sorting parameter e.g. "version"
+        :param str module: Module name
+        :param str stream: Stream name
+        :param str order_desc_by: Optional sorting parameter e.g. "version"
         :return: list of Build objects
         :rtype: list
         """
@@ -482,6 +481,35 @@ class MBS:
         r = requests.get(url, params=payload)
         r.raise_for_status()
         return [Build(self._mbs_api, build["id"]) for build in r.json()["items"]]
+
+    def import_module(self, scmurl):
+        """Import module from SCM URL (modulemd).
+
+        :param str scmurl:
+        :return: requests response
+        :rtype: requests response object
+        """
+        url = f"{self._mbs_api}import-module/"
+        headers = {"Content-Type": "application/json"}
+        data = json.dumps({'scmurl': scmurl})
+
+        # (!) User executing this request must be allowed to do so on the target MBS instance.
+        # MBS server does not support mutual auth, so make it optional (inspired by mbs-cli).
+        auth = requests_kerberos.HTTPKerberosAuth(mutual_authentication=requests_kerberos.OPTIONAL)
+
+        response = requests.post(
+            url,
+            auth=auth,
+            headers=headers,
+            verify=False,
+            data=data
+        )
+        try:
+            response.raise_for_status()
+            return response
+        except requests.exceptions.HTTPError:
+            # response message contains useful information, which requests module omits
+            pytest.fail(response.text)
 
     def get_module_builds(self, **kwargs):
         """
