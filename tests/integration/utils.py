@@ -112,11 +112,15 @@ class Repo:
     """Wrapper class to work with module git repositories
 
     :attribute string module_name: name of the module stored in this repo
+    :attribute string branch: name of the branch, the repo is checked-out
+    :attribute string giturl: GIT URL of the repo/branch
     :attribute dict _modulemd: Modulemd file as read from the repo
     """
 
-    def __init__(self, module_name):
+    def __init__(self, module_name, branch):
         self.module_name = module_name
+        self.branch = branch
+
         self._modulemd = None
         self._version = None
 
@@ -223,13 +227,19 @@ class PackagingUtility:
     def cancel(self, build):
         """Cancel the module build
 
-        :param list build: the Build object of the module build to be cancelled.
+        :param Build build: the Build object of the module build to be cancelled.
         :return: Standard output of the "module-build-cancel <build id=""> command
         :rtype: str
         """
         stdout = self._packaging_utility("module-build-cancel", build.id).stdout.decode(
             "utf-8")
         return stdout
+
+    def giturl(self):
+        return self._packaging_utility("giturl").stdout.decode("utf-8").strip()
+
+    def clone(self, *args):
+        return self._packaging_utility("clone", *args).stdout.decode("utf-8").strip()
 
 
 class Build:
@@ -521,8 +531,7 @@ class MBS:
             pytest.fail(response.text)
 
     def get_module_builds(self, **kwargs):
-        """
-        Query MBS API on module-builds endpoint
+        """Query MBS API on module-builds endpoint
 
         :attribute **kwargs: options for the HTTP GET
         :return: list of Build objects
@@ -535,8 +544,7 @@ class MBS:
         return [Build(self._mbs_api, build["id"]) for build in r.json()["items"]]
 
     def get_module_build(self, build_id, **kwargs):
-        """
-        Query MBS API on module-builds endpoint for a specific build
+        """Query MBS API on module-builds endpoint for a specific build
 
         :attribute build_id (int): build ID
         :return: module build object
@@ -551,7 +559,7 @@ class MBS:
     def wait_for_module_build(self, build_data, predicate_func, timeout=60, interval=5):
         """Wait for module build. Wait until the specified function returns True.
 
-        :param int|str build_data: build definition (either id or Build object)
+        :param int|Build build_data: build definition (either id or Build object)
         :param predicate_func: function(Build) -> bool
         :param int timeout: timeout in seconds
         :param int interval: scan interval in seconds

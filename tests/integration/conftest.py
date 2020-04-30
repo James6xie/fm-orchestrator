@@ -56,30 +56,21 @@ def scenario(request, test_env):
 def repo(scenario, test_env):
     """Clone the module repo to be used by the scenario
 
-    Get the module repo from the scenario configuration.
+    1) Get the module repo from the scenario configuration.
+    2) Clone the repo in a temporary location and switch the current working directory into it.
 
-    Clone the repo in a temporary location and switch the current working
-    directory into it.
-
-    :param pytest.FixtureRequest request: request object giving access
-        to the requesting test context
+    :param pytest.fixture scenario: test scenario fixture
     :param pytest.fixture test_env: test environment fixture
     :return: repository object the tests can work with
     :rtype: utils.Repo
     """
+    module = scenario["module"]
+    branch = scenario["branch"]
     with tempfile.TemporaryDirectory() as tempdir:
-        packaging_util = Command(test_env["packaging_utility"]).bake(
-            _out=sys.stdout, _err=sys.stderr, _tee=True
-        )
-        args = [
-            "--branch",
-            scenario["branch"],
-            f"modules/{scenario['module']}",
-            tempdir,
-        ]
-        packaging_util("clone", *args)
+        pkg_util = utils.PackagingUtility(test_env["packaging_utility"], None)  # no need for MBS
+        pkg_util.clone("--branch", branch, f"modules/{module}", tempdir)
         with pushd(tempdir):
-            yield utils.Repo(scenario["module"])
+            yield utils.Repo(module, branch)
 
 
 @pytest.fixture(scope="session")
