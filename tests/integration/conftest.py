@@ -92,3 +92,20 @@ def koji(test_env):
 def mbs(test_env):
     """MBS instance session."""
     return utils.MBS(test_env["mbs_api"])
+
+
+@pytest.fixture(scope="function")
+def clone_and_start_build(repo, pkg_util):
+    """Shortcut for tests that need a running build/s. Auto clean-up.
+
+    :return: repo and list of submitted builds
+    :rtype utils.Repo, list:
+    """
+    repo.bump()
+    builds = pkg_util.run("--optional", "rebuild_strategy=all")
+    yield repo, builds
+    for build in builds:
+        try:
+            pkg_util.cancel(build)
+        except sh.ErrorReturnCode:
+            pass  # we don't need to bother with clean-up errors

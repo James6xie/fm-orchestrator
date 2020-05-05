@@ -295,6 +295,15 @@ class Build:
         """Name of the state of this module build"""
         return self.data["state_name"]
 
+    def get(self, key):
+        """Get a value from build data dict
+
+        :param str key: key
+        :rtype: str
+        :return: value or None
+        """
+        return self.module_build_data.get(key)
+
     def components(self, state=None, batch=None, package=None):
         """Components of this module build, optionally filtered based on properties
 
@@ -538,3 +547,41 @@ class MBS:
 
         r.raise_for_status()
         return Build(self._mbs_api, r.json()["id"])
+
+    def wait_for_module_build(self, build_data, predicate_func, timeout=60, interval=5):
+        """Wait for module build. Wait until the specified function returns True.
+
+        :param int|str build_data: build definition (either id or Build object)
+        :param predicate_func: function(Build) -> bool
+        :param int timeout: timeout in seconds
+        :param int interval: scan interval in seconds
+        """
+        start = time.time()
+
+        if type(build_data) is not int:
+            build_id = build_data.id
+        else:
+            build_id = build_data
+
+        while (time.time() - start) < timeout:
+            build = self.get_module_build(build_id)
+            if predicate_func(build):
+                return
+            time.sleep(interval)
+        raise TimeoutError("Wait for build timed out after {}s".format(timeout))
+
+    def wait_for_module_build_to_succeed(self, build_data, timeout=60, interval=5):
+        """Wait for module build to be 'ready'.
+
+        :param int|str build_data: build definition (either id or Build object)
+        :param int timeout: timeout in seconds
+        :param int interval: scan interval in seconds
+        """
+        def predicate(build):
+            if build.get("state") == 5:
+                return True
+            elif build.get("state") == 4:
+                pytest.fail("Module build failed!")
+            else:
+                return False
+        return self.wait_for_module_build(build_data, predicate, timeout, interval)
