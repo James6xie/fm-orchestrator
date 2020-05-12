@@ -124,7 +124,7 @@ Options:
   ``scratch`` is ``True`` or if the MBS setting ``YAML_SUBMIT_ALLOWED`` is ``True``.
 - ``module_name`` - a string to use as the module name if a scratch build is requested and the
   YAML modulemd is submitted using the ``modulemd`` parameter.
-  - ``module_stream`` - a string to use as the stream name if a scratch build is requested and the
+- ``module_stream`` - a string to use as the stream name if a scratch build is requested and the
   YAML modulemd is submitted using the ``modulemd`` parameter.
 - ``rebuild_strategy`` - a string of the desired rebuild strategy (affects what components get
   rebuilt). For the available options, please look at the "Rebuild Strategies" section below.
