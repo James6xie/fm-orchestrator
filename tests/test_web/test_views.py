@@ -17,7 +17,7 @@ import pytest
 import sqlalchemy
 from sqlalchemy.orm import load_only
 
-from module_build_service import app, version
+from module_build_service import version
 from module_build_service.builder.utils import get_rpm_release
 import module_build_service.common.config as mbs_config
 from module_build_service.common.errors import UnprocessableEntity
@@ -122,10 +122,10 @@ class FakeSCM(object):
         return commit_hash + sha1_hash[len(commit_hash):]
 
 
+@pytest.mark.usefixtures("provide_test_client")
+@pytest.mark.usefixtures("provide_test_data")
+@pytest.mark.parametrize('provide_test_data', [{"data_size": 2}], indirect=True)
 class TestViews:
-    def setup_method(self, test_method):
-        self.client = app.test_client()
-        init_data(2)
 
     def test_query_build(self):
         rv = self.client.get("/module-build-service/1/module-builds/2")
@@ -361,66 +361,6 @@ class TestViews:
 
         for module_build in items:
             module_build["component_builds"].sort()
-        assert items == expected
-
-    def test_query_builds_with_context(self):
-        clean_database()
-        init_data(2, contexts=True)
-        rv = self.client.get("/module-build-service/1/module-builds/?context=3a4057d2")
-        items = json.loads(rv.data)["items"]
-
-        checking_build_id = 3
-        # Get component build ids dynamically rather than hardcode inside expected output.
-        component_build_ids = db_session.query(ComponentBuild).filter(
-            ComponentBuild.module_id == checking_build_id
-        ).order_by(ComponentBuild.id).options(load_only("id")).all()
-
-        expected = [
-            {
-                "component_builds": [cb.id for cb in component_build_ids],
-                "context": "3a4057d2",
-                "id": checking_build_id,
-                "koji_tag": "module-nginx-1.2",
-                "name": "nginx",
-                "owner": "Moe Szyslak",
-                "rebuild_strategy": "changed-and-after",
-                "scmurl": (
-                    "git://pkgs.domain.local/modules/nginx"
-                    "?#ba95886c7a443b36a9ce31abda1f9bef22f2f8c9"
-                ),
-                "scratch": False,
-                "siblings": [2],
-                "srpms": [],
-                "state": 5,
-                "state_name": "ready",
-                "state_reason": None,
-                "stream": "0",
-                "tasks": {
-                    "rpms": {
-                        "module-build-macros": {
-                            "nvr": "module-build-macros-01-1.module+4+0557c87d",
-                            "state": 1,
-                            "state_reason": None,
-                            "task_id": 47383993,
-                        },
-                        "postgresql": {
-                            "nvr": "postgresql-9.5.3-4.module+4+0557c87d",
-                            "state": 1,
-                            "state_reason": None,
-                            "task_id": 2433433,
-                        },
-                    }
-                },
-                "time_completed": "2016-09-03T11:25:32Z",
-                "time_modified": "2016-09-03T11:25:32Z",
-                "time_submitted": "2016-09-03T11:23:20Z",
-                "version": "2",
-                "buildrequires": {},
-            }
-        ]
-
-        # To avoid different order of component builds impact the subsequent assertion.
-        items[0]['component_builds'] = sorted(items[0]['component_builds'])
         assert items == expected
 
     def test_query_builds_with_id_error(self):
@@ -726,60 +666,6 @@ class TestViews:
             "An invalid Zulu ISO 8601 timestamp was " 'provided for the "modified_after" parameter'
         assert data["status"] == 400
 
-    @pytest.mark.parametrize(
-        "stream_version_lte",
-        ("280000", "280000.0", "290000", "293000", "invalid"),
-    )
-    def test_query_builds_filter_stream_version_lte(self, stream_version_lte):
-        init_data(data_size=1, multiple_stream_versions=True)
-        url = (
-            "/module-build-service/1/module-builds/?name=platform&verbose=true"
-            "&stream_version_lte={}".format(stream_version_lte)
-        )
-        rv = self.client.get(url)
-        data = json.loads(rv.data)
-        total = data.get("meta", {}).get("total")
-        if stream_version_lte == "invalid":
-            assert data == {
-                "error": "Bad Request",
-                "message": (
-                    "An invalid value of stream_version_lte was provided. It must be an "
-                    "integer or float greater than or equal to 10000."
-                ),
-                "status": 400,
-            }
-        elif stream_version_lte in ("280000", "280000.0"):
-            assert total == 2
-        elif stream_version_lte == "290000":
-            assert total == 1
-        elif stream_version_lte == "293000":
-            assert total == 3
-
-    @pytest.mark.parametrize("virtual_streams", ([], ("f28",), ("f29",), ("f28", "f29")))
-    def test_query_builds_filter_virtual_streams(self, virtual_streams):
-        # Populate some platform modules with virtual streams
-        init_data(data_size=1, multiple_stream_versions=True)
-        url = "/module-build-service/1/module-builds/?name=platform&verbose=true"
-        for virtual_stream in virtual_streams:
-            url += "&virtual_stream={}".format(virtual_stream)
-        rv = self.client.get(url)
-        data = json.loads(rv.data)
-        total = data["meta"]["total"]
-        if virtual_streams == ("f28",):
-            assert total == 1
-            for module in data["items"]:
-                assert module["virtual_streams"] == ["f28"]
-        elif virtual_streams == ("f29",):
-            assert total == 3
-            for module in data["items"]:
-                assert module["virtual_streams"] == ["f29"]
-        elif virtual_streams == ("f28", "f29"):
-            assert total == 4
-            for module in data["items"]:
-                assert len(set(module["virtual_streams"]) - {"f28", "f29"}) == 0
-        elif len(virtual_streams) == 0:
-            assert total == 5
-
     def test_query_builds_order_by(self):
         build = ModuleBuild.get_by_id(db_session, 2)
         build.name = "candy"
@@ -789,29 +675,6 @@ class TestViews:
         assert items[0]["name"] == "candy"
         assert items[1]["name"] == "nginx"
 
-    def test_query_builds_order_by_multiple(self):
-        init_data(data_size=1, multiple_stream_versions=True)
-        platform_f28 = ModuleBuild.get_by_id(db_session, 1)
-        platform_f28.version = "150"
-        db_session.commit()
-        # Simply assert the order of all module builds
-        page_size = db_session.query(ModuleBuild).count()
-        rv = self.client.get(
-            "/module-build-service/1/module-builds/?order_desc_by=stream_version"
-            "&order_desc_by=version&per_page={}".format(page_size)
-        )
-        items = json.loads(rv.data)["items"]
-        actual_ids = [item["id"] for item in items]
-
-        expected_ids = [
-            build.id for build in db_session.query(ModuleBuild).order_by(
-                ModuleBuild.stream_version.desc(),
-                sqlalchemy.cast(ModuleBuild.version, sqlalchemy.BigInteger).desc()
-            ).all()
-        ]
-
-        assert actual_ids == expected_ids
-
     def test_query_builds_order_desc_by(self):
         rv = self.client.get(
             "/module-build-service/1/module-builds/?per_page=10&order_desc_by=id")
@@ -819,18 +682,6 @@ class TestViews:
         # Check that the id is items[0]["id"], items[0]["id"] - 1, ...
         for idx, item in enumerate(items):
             assert item["id"] == items[0]["id"] - idx
-
-    def test_query_builds_order_desc_by_context(self):
-        clean_database()
-        init_data(2, contexts=True)
-
-        rv = self.client.get(
-            "/module-build-service/1/module-builds/?per_page=10&name=nginx&order_desc_by=context")
-        sorted_items = json.loads(rv.data)["items"]
-        sorted_contexts = [m["context"] for m in sorted_items]
-
-        expected_contexts = ["d5a6c0fa", "795e97c1", "3a4057d2", "10e50d06"]
-        assert sorted_contexts == expected_contexts
 
     def test_query_builds_order_by_order_desc_by(self):
         """
@@ -1548,78 +1399,6 @@ class TestViews:
         allow_custom_scmurls.return_value = True
         res2 = submit("git://some.custom.url.org/modules/testmodule.git?#68931c9")
         assert res2.status_code == 201
-
-    @pytest.mark.parametrize(
-        "br_override_streams, req_override_streams", ((["f28"], None), (["f28"], ["f28"]))
-    )
-    @patch("module_build_service.web.auth.get_user", return_value=user)
-    @patch("module_build_service.common.scm.SCM")
-    def test_submit_build_dep_override(
-        self, mocked_scm, mocked_get_user, br_override_streams, req_override_streams
-    ):
-        init_data(data_size=1, multiple_stream_versions=True)
-        FakeSCM(
-            mocked_scm,
-            "testmodule",
-            "testmodule_platform_f290000.yaml",
-            "620ec77321b2ea7b0d67d82992dda3e1d67055b4",
-        )
-
-        post_url = "/module-build-service/2/module-builds/"
-        scm_url = (
-            "https://src.stg.fedoraproject.org/modules/testmodule.git?#68931c90de214d9d13fe"
-            "efbd35246a81b6cb8d49"
-        )
-        json_input = {"branch": "master", "scmurl": scm_url}
-
-        if br_override_streams:
-            json_input["buildrequire_overrides"] = {"platform": br_override_streams}
-            expected_br = set(br_override_streams)
-        else:
-            expected_br = {"f29.0.0"}
-
-        if req_override_streams:
-            json_input["require_overrides"] = {"platform": req_override_streams}
-            expected_req = set(req_override_streams)
-        else:
-            expected_req = {"f29.0.0"}
-
-        rv = self.client.post(post_url, data=json.dumps(json_input))
-        data = json.loads(rv.data)
-
-        mmd = load_mmd(data[0]["modulemd"])
-        assert len(mmd.get_dependencies()) == 1
-        dep = mmd.get_dependencies()[0]
-        assert set(dep.get_buildtime_streams("platform")) == expected_br
-        assert set(dep.get_runtime_streams("platform")) == expected_req
-
-    @patch("module_build_service.web.auth.get_user", return_value=user)
-    @patch("module_build_service.common.scm.SCM")
-    def test_submit_build_invalid_basemodule_stream(self, mocked_scm, mocked_get_user):
-        # By default tests do not provide platform:f28.0.0, but just platform:f28.
-        # Therefore we want to enable multiple_stream_versions.
-        init_data(2, multiple_stream_versions=True)
-        FakeSCM(
-            mocked_scm, "testmodule", "testmodule.yaml", "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
-
-        data = {
-            "branch": "master",
-            "scmurl": "https://src.stg.fedoraproject.org/modules/"
-            "testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49",
-            "buildrequire_overrides": {"platform": ["28.0.0"]},
-            "require_overrides": {"platform": ["f28.0.0"]},
-        }
-        rv = self.client.post("/module-build-service/1/module-builds/", data=json.dumps(data))
-        result = json.loads(rv.data)
-        assert result == {
-            "error": "Unprocessable Entity",
-            "status": 422,
-            "message": (
-                "None of the base module (platform) streams in the buildrequires "
-                "section could be found"
-            ),
-        }
-        assert rv.status_code == 422
 
     @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.common.scm.SCM")
@@ -2398,135 +2177,6 @@ class TestViews:
         # but it should still succeed since yaml is always allowed for scratch builds
         assert rv.status_code == 201
 
-    @pytest.mark.parametrize(
-        "branch, platform_override",
-        (("10", None), ("10-rhel-8.0.0", "el8.0.0"), ("10-LP-product1.2", "product1.2")),
-    )
-    @patch("module_build_service.web.auth.get_user", return_value=user)
-    @patch("module_build_service.common.scm.SCM")
-    @patch.object(
-        module_build_service.common.config.Config,
-        "br_stream_override_regexes",
-        new_callable=PropertyMock,
-    )
-    def test_submit_build_dep_override_from_branch(
-        self, mocked_regexes, mocked_scm, mocked_get_user, branch, platform_override
-    ):
-        """
-        Test that MBS will parse the SCM branch to determine the platform stream to buildrequire.
-        """
-        mocked_regexes.return_value = [r"(?:rh)(el)(?:\-)(\d+\.\d+\.\d+)$", r"(?:\-LP\-)(.+)$"]
-        init_data(data_size=1, multiple_stream_versions=True)
-        # Create a platform for whatever the override is so the build submission succeeds
-        if platform_override:
-            platform_mmd = load_mmd(read_staged_data("platform"))
-            platform_mmd = platform_mmd.copy(platform_mmd.get_module_name(), platform_override)
-            if platform_override == "el8.0.0":
-                xmd = platform_mmd.get_xmd()
-                xmd["mbs"]["virtual_streams"] = ["el8"]
-                platform_mmd.set_xmd(xmd)
-            import_mmd(db_session, platform_mmd)
-
-        FakeSCM(
-            mocked_scm, "testmodule", "testmodule.yaml", "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
-
-        post_url = "/module-build-service/2/module-builds/"
-        scm_url = (
-            "https://src.stg.fedoraproject.org/modules/testmodule.git?#"
-            "68931c90de214d9d13feefbd35246a81b6cb8d49"
-        )
-
-        rv = self.client.post(post_url, data=json.dumps({"branch": branch, "scmurl": scm_url}))
-        data = json.loads(rv.data)
-        assert rv.status_code == 201
-
-        mmd = load_mmd(data[0]["modulemd"])
-        assert len(mmd.get_dependencies()) == 1
-        dep = mmd.get_dependencies()[0]
-        if platform_override:
-            expected_br = {platform_override}
-        else:
-            expected_br = {"f28"}
-        assert set(dep.get_buildtime_streams("platform")) == expected_br
-        # The requires should not change
-        assert dep.get_runtime_streams("platform") == ["f28"]
-
-    @patch("module_build_service.web.auth.get_user", return_value=user)
-    @patch("module_build_service.common.scm.SCM")
-    @patch.object(
-        module_build_service.common.config.Config,
-        "br_stream_override_regexes",
-        new_callable=PropertyMock,
-    )
-    def test_submit_build_dep_override_from_branch_br_override(
-        self, mocked_regexes, mocked_scm, mocked_get_user
-    ):
-        """
-        Test that when the branch includes a stream override for the platform module, that the
-        provided "buildrequire_override" for the platform module takes precedence.
-        """
-        mocked_regexes.return_value = [r"(?:\-LP\-)(.+)$"]
-        init_data(data_size=1, multiple_stream_versions=True)
-        # Create a platform for the override so the build submission succeeds
-        platform_mmd = load_mmd(read_staged_data('platform'))
-        platform_mmd = platform_mmd.copy(platform_mmd.get_module_name(), "product1.3")
-        import_mmd(db_session, platform_mmd)
-
-        FakeSCM(
-            mocked_scm, "testmodule", "testmodule.yaml", "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
-
-        post_url = "/module-build-service/2/module-builds/"
-        scm_url = (
-            "https://src.stg.fedoraproject.org/modules/testmodule.git?#"
-            "68931c90de214d9d13feefbd35246a81b6cb8d49"
-        )
-        json_input = {
-            "branch": "10-LP-product1.2",
-            "scmurl": scm_url,
-            "buildrequire_overrides": {"platform": ["product1.3"]},
-        }
-
-        rv = self.client.post(post_url, data=json.dumps(json_input))
-        data = json.loads(rv.data)
-        assert rv.status_code == 201
-
-        mmd = load_mmd(data[0]["modulemd"])
-        assert len(mmd.get_dependencies()) == 1
-        dep = mmd.get_dependencies()[0]
-        # The buildrequire_override value should take precedence over the stream override from
-        # parsing the branch
-        assert dep.get_buildtime_streams("platform") == ["product1.3"]
-        # The requires should not change
-        assert dep.get_runtime_streams("platform") == ["f28"]
-
-    @patch("module_build_service.web.auth.get_user", return_value=user)
-    @patch("module_build_service.common.scm.SCM")
-    def test_submit_build_br_xyz_version_no_virtual_streams(self, mocked_scm, mocked_get_user):
-        """
-        Test that when a build is submitted with a buildrequire on a base module with x.y.z
-        versioning and no virtual streams, that the dependency resolution succeeds.
-        """
-        init_data(data_size=1, multiple_stream_versions=True)
-        platform_mmd = load_mmd(read_staged_data("platform"))
-        platform_mmd = platform_mmd.copy(platform_mmd.get_module_name(), "el8.0.0")
-        import_mmd(db_session, platform_mmd)
-
-        FakeSCM(
-            mocked_scm,
-            "testmodule",
-            "testmodule_el800.yaml",
-            "620ec77321b2ea7b0d67d82992dda3e1d67055b4",
-        )
-
-        post_url = "/module-build-service/2/module-builds/"
-        scm_url = (
-            "https://src.stg.fedoraproject.org/modules/testmodule.git?#"
-            "68931c90de214d9d13feefbd35246a81b6cb8d49"
-        )
-
-        rv = self.client.post(post_url, data=json.dumps({"branch": "master", "scmurl": scm_url}))
-        assert rv.status_code == 201
-
     @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.common.scm.SCM")
     @patch(
@@ -2910,10 +2560,362 @@ class TestViews:
         )
 
 
+@pytest.mark.usefixtures("provide_test_client")
+@pytest.mark.usefixtures("provide_test_data")
+@pytest.mark.parametrize("provide_test_data", [{"data_size": 2, "contexts": True}], indirect=True)
+class TestViewsWithContexts:
+
+    def test_query_builds_with_context(self):
+        rv = self.client.get("/module-build-service/1/module-builds/?context=3a4057d2")
+        items = json.loads(rv.data)["items"]
+
+        checking_build_id = 3
+        # Get component build ids dynamically rather than hardcode inside expected output.
+        component_build_ids = db_session.query(ComponentBuild).filter(
+            ComponentBuild.module_id == checking_build_id
+        ).order_by(ComponentBuild.id).options(load_only("id")).all()
+
+        expected = [
+            {
+                "component_builds": [cb.id for cb in component_build_ids],
+                "context": "3a4057d2",
+                "id": checking_build_id,
+                "koji_tag": "module-nginx-1.2",
+                "name": "nginx",
+                "owner": "Moe Szyslak",
+                "rebuild_strategy": "changed-and-after",
+                "scmurl": (
+                    "git://pkgs.domain.local/modules/nginx"
+                    "?#ba95886c7a443b36a9ce31abda1f9bef22f2f8c9"
+                ),
+                "scratch": False,
+                "siblings": [2],
+                "srpms": [],
+                "state": 5,
+                "state_name": "ready",
+                "state_reason": None,
+                "stream": "0",
+                "tasks": {
+                    "rpms": {
+                        "module-build-macros": {
+                            "nvr": "module-build-macros-01-1.module+4+0557c87d",
+                            "state": 1,
+                            "state_reason": None,
+                            "task_id": 47383993,
+                        },
+                        "postgresql": {
+                            "nvr": "postgresql-9.5.3-4.module+4+0557c87d",
+                            "state": 1,
+                            "state_reason": None,
+                            "task_id": 2433433,
+                        },
+                    }
+                },
+                "time_completed": "2016-09-03T11:25:32Z",
+                "time_modified": "2016-09-03T11:25:32Z",
+                "time_submitted": "2016-09-03T11:23:20Z",
+                "version": "2",
+                "buildrequires": {},
+            }
+        ]
+
+        # To avoid different order of component builds impact the subsequent assertion.
+        items[0]['component_builds'] = sorted(items[0]['component_builds'])
+        assert items == expected
+
+    def test_query_builds_order_desc_by_context(self):
+        rv = self.client.get(
+            "/module-build-service/1/module-builds/?per_page=10&name=nginx&order_desc_by=context")
+        sorted_items = json.loads(rv.data)["items"]
+        sorted_contexts = [m["context"] for m in sorted_items]
+
+        expected_contexts = ["d5a6c0fa", "795e97c1", "3a4057d2", "10e50d06"]
+        assert sorted_contexts == expected_contexts
+
+
+@pytest.mark.usefixtures("provide_test_client")
+@pytest.mark.usefixtures("provide_test_data")
+@pytest.mark.parametrize('provide_test_data',
+                         [{"data_size": 1, "multiple_stream_versions": True}], indirect=True)
+class TestViewsWithMultipleStreamVersions:
+
+    @pytest.mark.parametrize(
+        "stream_version_lte",
+        ("280000", "280000.0", "290000", "293000", "invalid"),
+    )
+    def test_query_builds_filter_stream_version_lte(self, stream_version_lte,):
+        url = (
+            "/module-build-service/1/module-builds/?name=platform&verbose=true"
+            "&stream_version_lte={}".format(stream_version_lte)
+        )
+        rv = self.client.get(url)
+        data = json.loads(rv.data)
+        total = data.get("meta", {}).get("total")
+        if stream_version_lte == "invalid":
+            assert data == {
+                "error": "Bad Request",
+                "message": (
+                    "An invalid value of stream_version_lte was provided. It must be an "
+                    "integer or float greater than or equal to 10000."
+                ),
+                "status": 400,
+            }
+        elif stream_version_lte in ("280000", "280000.0"):
+            assert total == 2
+        elif stream_version_lte == "290000":
+            assert total == 1
+        elif stream_version_lte == "293000":
+            assert total == 3
+
+    @pytest.mark.parametrize("virtual_streams", ([], ("f28",), ("f29",), ("f28", "f29")))
+    def test_query_builds_filter_virtual_streams(self, virtual_streams):
+        url = "/module-build-service/1/module-builds/?name=platform&verbose=true"
+        for virtual_stream in virtual_streams:
+            url += "&virtual_stream={}".format(virtual_stream)
+        rv = self.client.get(url)
+        data = json.loads(rv.data)
+        total = data["meta"]["total"]
+        if virtual_streams == ("f28",):
+            assert total == 1
+            for module in data["items"]:
+                assert module["virtual_streams"] == ["f28"]
+        elif virtual_streams == ("f29",):
+            assert total == 3
+            for module in data["items"]:
+                assert module["virtual_streams"] == ["f29"]
+        elif virtual_streams == ("f28", "f29"):
+            assert total == 4
+            for module in data["items"]:
+                assert len(set(module["virtual_streams"]) - {"f28", "f29"}) == 0
+        elif len(virtual_streams) == 0:
+            assert total == 5
+
+    def test_query_builds_order_by_multiple(self):
+        platform_f28 = ModuleBuild.get_by_id(db_session, 1)
+        platform_f28.version = "150"
+        db_session.commit()
+        # Simply assert the order of all module builds
+        page_size = db_session.query(ModuleBuild).count()
+        rv = self.client.get(
+            "/module-build-service/1/module-builds/?order_desc_by=stream_version"
+            "&order_desc_by=version&per_page={}".format(page_size)
+        )
+        items = json.loads(rv.data)["items"]
+        actual_ids = [item["id"] for item in items]
+
+        expected_ids = [
+            build.id for build in db_session.query(ModuleBuild).order_by(
+                ModuleBuild.stream_version.desc(),
+                sqlalchemy.cast(ModuleBuild.version, sqlalchemy.BigInteger).desc()
+            ).all()
+        ]
+        assert actual_ids == expected_ids
+
+    @pytest.mark.parametrize(
+        "br_override_streams, req_override_streams", ((["f28"], None), (["f28"], ["f28"]))
+    )
+    @patch("module_build_service.web.auth.get_user", return_value=user)
+    @patch("module_build_service.common.scm.SCM")
+    def test_submit_build_dep_override(
+            self, mocked_scm, mocked_get_user, br_override_streams, req_override_streams
+    ):
+        FakeSCM(
+            mocked_scm,
+            "testmodule",
+            "testmodule_platform_f290000.yaml",
+            "620ec77321b2ea7b0d67d82992dda3e1d67055b4",
+        )
+
+        post_url = "/module-build-service/2/module-builds/"
+        scm_url = (
+            "https://src.stg.fedoraproject.org/modules/testmodule.git?#68931c90de214d9d13fe"
+            "efbd35246a81b6cb8d49"
+        )
+        json_input = {"branch": "master", "scmurl": scm_url}
+
+        if br_override_streams:
+            json_input["buildrequire_overrides"] = {"platform": br_override_streams}
+            expected_br = set(br_override_streams)
+        else:
+            expected_br = {"f29.0.0"}
+
+        if req_override_streams:
+            json_input["require_overrides"] = {"platform": req_override_streams}
+            expected_req = set(req_override_streams)
+        else:
+            expected_req = {"f29.0.0"}
+
+        rv = self.client.post(post_url, data=json.dumps(json_input))
+        data = json.loads(rv.data)
+
+        mmd = load_mmd(data[0]["modulemd"])
+        assert len(mmd.get_dependencies()) == 1
+        dep = mmd.get_dependencies()[0]
+        assert set(dep.get_buildtime_streams("platform")) == expected_br
+        assert set(dep.get_runtime_streams("platform")) == expected_req
+
+    @patch("module_build_service.web.auth.get_user", return_value=user)
+    @patch("module_build_service.common.scm.SCM")
+    def test_submit_build_invalid_basemodule_stream(self, mocked_scm, mocked_get_user):
+        # By default tests do not provide platform:f28.0.0, but just platform:f28.
+        # Therefore we want to enable multiple_stream_versions.
+        FakeSCM(
+            mocked_scm, "testmodule", "testmodule.yaml",
+            "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
+
+        data = {
+            "branch": "master",
+            "scmurl": "https://src.stg.fedoraproject.org/modules/"
+                      "testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49",
+            "buildrequire_overrides": {"platform": ["28.0.0"]},
+            "require_overrides": {"platform": ["f28.0.0"]},
+        }
+        rv = self.client.post("/module-build-service/1/module-builds/", data=json.dumps(data))
+        result = json.loads(rv.data)
+        assert result == {
+            "error": "Unprocessable Entity",
+            "status": 422,
+            "message": (
+                "None of the base module (platform) streams in the buildrequires "
+                "section could be found"
+            ),
+        }
+        assert rv.status_code == 422
+
+    @pytest.mark.parametrize(
+        "branch, platform_override",
+        (("10", None), ("10-rhel-8.0.0", "el8.0.0"), ("10-LP-product1.2", "product1.2")),
+    )
+    @patch("module_build_service.web.auth.get_user", return_value=user)
+    @patch("module_build_service.common.scm.SCM")
+    @patch.object(
+        module_build_service.common.config.Config,
+        "br_stream_override_regexes",
+        new_callable=PropertyMock,
+    )
+    def test_submit_build_dep_override_from_branch(
+            self, mocked_regexes, mocked_scm, mocked_get_user, branch, platform_override
+    ):
+        """
+        Test that MBS will parse the SCM branch to determine the platform stream to buildrequire.
+        """
+        mocked_regexes.return_value = [r"(?:rh)(el)(?:\-)(\d+\.\d+\.\d+)$", r"(?:\-LP\-)(.+)$"]
+        # Create a platform for whatever the override is so the build submission succeeds
+        if platform_override:
+            platform_mmd = load_mmd(read_staged_data("platform"))
+            platform_mmd = platform_mmd.copy(platform_mmd.get_module_name(), platform_override)
+            if platform_override == "el8.0.0":
+                xmd = platform_mmd.get_xmd()
+                xmd["mbs"]["virtual_streams"] = ["el8"]
+                platform_mmd.set_xmd(xmd)
+            import_mmd(db_session, platform_mmd)
+
+        FakeSCM(
+            mocked_scm, "testmodule", "testmodule.yaml",
+            "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
+
+        post_url = "/module-build-service/2/module-builds/"
+        scm_url = (
+            "https://src.stg.fedoraproject.org/modules/testmodule.git?#"
+            "68931c90de214d9d13feefbd35246a81b6cb8d49"
+        )
+
+        rv = self.client.post(post_url, data=json.dumps({"branch": branch, "scmurl": scm_url}))
+        data = json.loads(rv.data)
+        assert rv.status_code == 201
+
+        mmd = load_mmd(data[0]["modulemd"])
+        assert len(mmd.get_dependencies()) == 1
+        dep = mmd.get_dependencies()[0]
+        if platform_override:
+            expected_br = {platform_override}
+        else:
+            expected_br = {"f28"}
+        assert set(dep.get_buildtime_streams("platform")) == expected_br
+        # The requires should not change
+        assert dep.get_runtime_streams("platform") == ["f28"]
+
+    @patch("module_build_service.web.auth.get_user", return_value=user)
+    @patch("module_build_service.common.scm.SCM")
+    @patch.object(
+        module_build_service.common.config.Config,
+        "br_stream_override_regexes",
+        new_callable=PropertyMock,
+    )
+    def test_submit_build_dep_override_from_branch_br_override(
+            self, mocked_regexes, mocked_scm, mocked_get_user
+    ):
+        """
+        Test that when the branch includes a stream override for the platform module, that the
+        provided "buildrequire_override" for the platform module takes precedence.
+        """
+        mocked_regexes.return_value = [r"(?:\-LP\-)(.+)$"]
+        # Create a platform for the override so the build submission succeeds
+        platform_mmd = load_mmd(read_staged_data('platform'))
+        platform_mmd = platform_mmd.copy(platform_mmd.get_module_name(), "product1.3")
+        import_mmd(db_session, platform_mmd)
+
+        FakeSCM(
+            mocked_scm, "testmodule", "testmodule.yaml",
+            "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
+
+        post_url = "/module-build-service/2/module-builds/"
+        scm_url = (
+            "https://src.stg.fedoraproject.org/modules/testmodule.git?#"
+            "68931c90de214d9d13feefbd35246a81b6cb8d49"
+        )
+        json_input = {
+            "branch": "10-LP-product1.2",
+            "scmurl": scm_url,
+            "buildrequire_overrides": {"platform": ["product1.3"]},
+        }
+
+        rv = self.client.post(post_url, data=json.dumps(json_input))
+        data = json.loads(rv.data)
+        assert rv.status_code == 201
+
+        mmd = load_mmd(data[0]["modulemd"])
+        assert len(mmd.get_dependencies()) == 1
+        dep = mmd.get_dependencies()[0]
+        # The buildrequire_override value should take precedence over the stream override from
+        # parsing the branch
+        assert dep.get_buildtime_streams("platform") == ["product1.3"]
+        # The requires should not change
+        assert dep.get_runtime_streams("platform") == ["f28"]
+
+    @patch("module_build_service.web.auth.get_user", return_value=user)
+    @patch("module_build_service.common.scm.SCM")
+    def test_submit_build_br_xyz_version_no_virtual_streams(self, mocked_scm, mocked_get_user):
+        """
+        Test that when a build is submitted with a buildrequire on a base module with x.y.z
+        versioning and no virtual streams, that the dependency resolution succeeds.
+        """
+        platform_mmd = load_mmd(read_staged_data("platform"))
+        platform_mmd = platform_mmd.copy(platform_mmd.get_module_name(), "el8.0.0")
+        import_mmd(db_session, platform_mmd)
+
+        FakeSCM(
+            mocked_scm,
+            "testmodule",
+            "testmodule_el800.yaml",
+            "620ec77321b2ea7b0d67d82992dda3e1d67055b4",
+        )
+
+        post_url = "/module-build-service/2/module-builds/"
+        scm_url = (
+            "https://src.stg.fedoraproject.org/modules/testmodule.git?#"
+            "68931c90de214d9d13feefbd35246a81b6cb8d49"
+        )
+
+        rv = self.client.post(post_url, data=json.dumps({"branch": "master", "scmurl": scm_url}))
+        assert rv.status_code == 201
+
+
+@pytest.mark.usefixtures("provide_test_client")
 class TestLogMessageViews:
 
     def setup_method(self, test_method):
-        self.client = app.test_client()
+        clean_database()
         init_data(2)
         self.module_id = 2
         self.module_build = ModuleBuild.get_by_id(db_session, self.module_id)

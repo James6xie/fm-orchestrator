@@ -10,15 +10,11 @@ from module_build_service.common.modulemd import Modulemd
 from module_build_service.common.utils import load_mmd
 from module_build_service.common.resolve import get_base_module_mmds
 from module_build_service.scheduler.db_session import db_session
-from tests import clean_database, make_module_in_db, init_data, read_staged_data
+from tests import make_module_in_db, init_data, read_staged_data
 
 
+@pytest.mark.usefixtures("require_platform_and_default_arch")
 class TestResolve:
-    def setup_method(self, test_method):
-        clean_database(False)
-
-    def teardown_method(self, test_method):
-        clean_database()
 
     def test__get_base_module_mmds(self):
         """Ensure the correct results are returned without duplicates."""

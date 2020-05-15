@@ -23,16 +23,15 @@ from module_build_service.common.models import ModuleBuild, ComponentBuild
 from module_build_service.common.utils import load_mmd, mmd_to_str
 from module_build_service.scheduler import events
 from module_build_service.scheduler.db_session import db_session
-from tests import clean_database, make_module_in_db, read_staged_data, staged_data_filename
+from tests import make_module_in_db, read_staged_data, staged_data_filename
 
 
+@pytest.mark.usefixtures("require_empty_database")
 class TestMockModuleBuilder:
     def setup_method(self, test_method):
-        clean_database()
         self.resultdir = tempfile.mkdtemp()
 
     def teardown_method(self, test_method):
-        clean_database()
         shutil.rmtree(self.resultdir)
 
     def _create_module_with_filters(self, db_session, batch, state):
@@ -190,9 +189,8 @@ class TestMockModuleBuilder:
             assert not pkglist
 
 
+@pytest.mark.usefixtures("require_empty_database")
 class TestMockModuleBuilderAddRepos:
-    def setup_method(self, test_method):
-        clean_database(add_platform_module=False)
 
     @mock.patch("module_build_service.common.conf.system", new="mock")
     @mock.patch(
@@ -243,12 +241,8 @@ class TestMockModuleBuilderAddRepos:
         assert set(builder.enabled_modules) == {"foo:1", "app:1"}
 
 
+@pytest.mark.usefixtures("require_empty_database")
 class TestOfflineLocalBuilds:
-    def setup_method(self):
-        clean_database()
-
-    def teardown_method(self):
-        clean_database()
 
     def test_import_fake_base_module(self):
         import_fake_base_module("platform:foo:1:000000")
@@ -319,13 +313,13 @@ class TestOfflineLocalBuilds:
     new_callable=mock.PropertyMock,
     return_value="mock",
 )
+@pytest.mark.usefixtures("require_empty_database")
 class TestLocalBuilds:
+
     def setup_method(self):
-        clean_database()
         events.scheduler.reset()
 
     def teardown_method(self):
-        clean_database()
         events.scheduler.reset()
 
     def test_load_local_builds_name(self, conf_system, conf_resultsdir):

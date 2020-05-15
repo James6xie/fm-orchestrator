@@ -29,47 +29,53 @@ GET_USER_RV = {
 }
 
 
+# setup/teardown converted to a fixture -> reuse existing fixture hierarchy
+@pytest.fixture()
+def test_content_generator_fixture(request, require_platform_and_default_arch):
+    init_data(1, contexts=True)
+    module = models.ModuleBuild.get_by_id(db_session, 2)
+    module.cg_build_koji_tag = "f27-module-candidate"
+    cg = KojiContentGenerator(module, conf)
+
+    p_read_config = patch(
+        "koji.read_config",
+        return_value={
+            "authtype": "kerberos",
+            "timeout": 60,
+            "server": "http://koji.example.com/",
+        },
+    )
+    mock_read_config = p_read_config.start()
+
+    # Ensure that there is no build log from other tests
+    try:
+        file_path = build_logs.path(db_session, cg.module)
+        os.remove(file_path)
+    except OSError:
+        pass
+    request.cls.cg = cg
+    request.cls.mock_read_config = mock_read_config
+    yield
+    p_read_config.stop()
+
+    # Necessary to restart the twisted reactor for the next test.
+    import sys
+
+    for mod in ("twisted.internet.reactor", "moksha.hub.reactor", "moksha.hub"):
+        if mod in sys.modules:
+            del sys.modules[mod]
+
+    import moksha.hub.reactor  # noqa
+
+    try:
+        file_path = build_logs.path(db_session, cg.module)
+        os.remove(file_path)
+    except OSError:
+        pass
+
+
+@pytest.mark.usefixtures("test_content_generator_fixture")
 class TestBuild:
-    def setup_method(self, test_method):
-        init_data(1, contexts=True)
-        module = models.ModuleBuild.get_by_id(db_session, 2)
-        module.cg_build_koji_tag = "f27-module-candidate"
-        self.cg = KojiContentGenerator(module, conf)
-
-        self.p_read_config = patch(
-            "koji.read_config",
-            return_value={
-                "authtype": "kerberos",
-                "timeout": 60,
-                "server": "http://koji.example.com/",
-            },
-        )
-        self.mock_read_config = self.p_read_config.start()
-
-        # Ensure that there is no build log from other tests
-        try:
-            file_path = build_logs.path(db_session, self.cg.module)
-            os.remove(file_path)
-        except OSError:
-            pass
-
-    def teardown_method(self, test_method):
-        self.p_read_config.stop()
-
-        # Necessary to restart the twisted reactor for the next test.
-        import sys
-
-        for mod in ("twisted.internet.reactor", "moksha.hub.reactor", "moksha.hub"):
-            if mod in sys.modules:
-                del sys.modules[mod]
-
-        import moksha.hub.reactor  # noqa
-
-        try:
-            file_path = build_logs.path(db_session, self.cg.module)
-            os.remove(file_path)
-        except OSError:
-            pass
 
     @patch("koji.ClientSession")
     @patch("subprocess.Popen")

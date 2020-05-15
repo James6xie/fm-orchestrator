@@ -7,13 +7,11 @@ from mock import patch, Mock
 import pytest
 
 from module_build_service.scheduler.greenwave import greenwave
-from tests import clean_database, make_module_in_db
+from tests import make_module_in_db
 
 
-class TestGreenwaveQuery():
-
-    def setup_method(self, method):
-        clean_database()
+@pytest.mark.usefixtures("require_empty_database")
+class TestGreenwaveQuery:
 
     @patch("module_build_service.scheduler.greenwave.requests")
     def test_greenwave_query_decision(self, mock_requests):

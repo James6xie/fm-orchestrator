@@ -13,7 +13,7 @@ from module_build_service.common.config import conf
 from module_build_service.common import models
 from module_build_service.scheduler import producer
 from module_build_service.scheduler.db_session import db_session
-from tests import clean_database, make_module_in_db
+from tests import make_module_in_db
 
 
 @pytest.mark.usefixtures("reuse_component_init_data")
@@ -36,7 +36,6 @@ class TestPoller:
 
     def teardown_method(self, test_method):
         self.p_read_config.stop()
-        clean_database()
 
     @pytest.mark.parametrize("fresh", [True, False])
     @patch("module_build_service.scheduler.batches.start_build_component")

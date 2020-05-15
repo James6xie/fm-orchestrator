@@ -8,7 +8,7 @@ from module_build_service.common import models
 from module_build_service.common.errors import UnprocessableEntity
 from module_build_service.common.utils import import_mmd, load_mmd
 from module_build_service.scheduler.db_session import db_session
-from tests import clean_database, read_staged_data
+from tests import read_staged_data
 
 
 @pytest.mark.parametrize("context", ["c1", None])
@@ -80,8 +80,7 @@ def test_import_mmd_minimal_xmd_from_local_repository():
         ("f-28", "fedora-28", "The disttag_marking cannot contain a dash"),
     ),
 )
-def test_import_mmd_base_module(stream, disttag_marking, error_msg):
-    clean_database(add_platform_module=False)
+def test_import_mmd_base_module(stream, disttag_marking, error_msg, require_empty_database):
     mmd = load_mmd(read_staged_data("platform"))
     mmd = mmd.copy(mmd.get_module_name(), stream)
 

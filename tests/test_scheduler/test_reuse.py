@@ -11,7 +11,7 @@ from module_build_service.common.modulemd import Modulemd
 from module_build_service.common.utils import import_mmd, load_mmd, mmd_to_str
 from module_build_service.scheduler.db_session import db_session
 from module_build_service.scheduler.reuse import get_reusable_component, get_reusable_module
-from tests import clean_database, read_staged_data
+from tests import read_staged_data
 
 
 @pytest.mark.usefixtures("reuse_component_init_data")
@@ -239,14 +239,10 @@ class TestUtilsComponentReuse:
 
 
 class TestReuseSharedUserSpace:
-    def setup_method(self, test_method):
-        clean_database()
 
-    def teardown_method(self, test_method):
-        clean_database()
-
-    @pytest.mark.usefixtures("reuse_shared_userspace_init_data")
-    def test_get_reusable_component_shared_userspace_ordering(self):
+    def test_get_reusable_component_shared_userspace_ordering(self,
+                                                              require_platform_and_default_arch,
+                                                              reuse_shared_userspace_init_data):
         """
         For modules with lot of components per batch, there is big chance that
         the database will return them in different order than what we have for

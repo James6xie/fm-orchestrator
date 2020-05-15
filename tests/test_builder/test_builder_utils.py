@@ -13,7 +13,7 @@ from module_build_service.common.config import conf
 from module_build_service.common.errors import ProgrammingError, ValidationError
 from module_build_service.common.utils import load_mmd, import_mmd, mmd_to_str
 from module_build_service.scheduler.db_session import db_session
-from tests import init_data, read_staged_data, scheduler_init_data
+from tests import read_staged_data, scheduler_init_data
 
 
 @patch("requests.get")
@@ -260,9 +260,8 @@ def test_validate_koji_tag_previleged_module_name(conf_apmn):
     validate_koji_tag_priv_mod_name(builder, "abc")
 
 
-def test_get_rpm_release_mse():
-    init_data(contexts=True)
-
+@pytest.mark.parametrize("provide_test_data", [{"contexts": True}], indirect=True)
+def test_get_rpm_release_mse(provide_test_data):
     build_one = models.ModuleBuild.get_by_id(db_session, 2)
     release_one = utils.get_rpm_release(db_session, build_one)
     assert release_one == "module+2+b8645bbb"
@@ -336,9 +335,9 @@ def test_get_rpm_release_metadata_br_stream_override(mock_admmn):
     assert release == "module+product12+2+814cfa39"
 
 
-def test_get_rpm_release_mse_scratch():
-    init_data(contexts=True, scratch=True)
-
+@pytest.mark.parametrize("provide_test_data",
+                         [{"contexts": True, "scratch": True}], indirect=True)
+def test_get_rpm_release_mse_scratch(provide_test_data):
     build_one = models.ModuleBuild.get_by_id(db_session, 2)
     release_one = utils.get_rpm_release(db_session, build_one)
     assert release_one == "scrmod+2+b8645bbb"

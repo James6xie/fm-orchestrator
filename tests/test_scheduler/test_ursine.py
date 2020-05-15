@@ -6,7 +6,7 @@ from mock import patch, Mock
 
 from module_build_service.common.config import conf
 from module_build_service.scheduler import ursine
-from tests import make_module, make_module_in_db, clean_database
+from tests import make_module, make_module_in_db
 
 
 class TestFindModuleKojiTags:
@@ -107,14 +107,9 @@ class TestFindUrsineRootTags:
 class TestGetModulemdsFromUrsineContent:
     """Test ursine.get_modulemds_from_ursine_content"""
 
-    def setup_method(self):
-        clean_database(False)
-
-    def teardown_method(self, test_method):
-        clean_database()
-
     @patch("koji.ClientSession")
-    def test_return_empty_if_no_ursine_build_tag_is_found(self, ClientSession):
+    def test_return_empty_if_no_ursine_build_tag_is_found(self, ClientSession,
+                                                          require_empty_database):
         koji_session = ClientSession.return_value
 
         # No module koji_tag in ursine content yet. This will result in empty

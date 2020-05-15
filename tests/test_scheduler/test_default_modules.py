@@ -14,16 +14,15 @@ from module_build_service.common.models import ModuleBuild
 from module_build_service.common.utils import import_mmd, load_mmd, mmd_to_str
 from module_build_service.scheduler import default_modules
 from module_build_service.scheduler.db_session import db_session
-from tests import clean_database, make_module_in_db, read_staged_data
+from tests import make_module_in_db, read_staged_data
 
 
 @patch("module_build_service.scheduler.default_modules.handle_collisions_with_base_module_rpms")
 @patch("module_build_service.scheduler.default_modules._get_default_modules")
-def test_add_default_modules(mock_get_dm, mock_hc):
+def test_add_default_modules(mock_get_dm, mock_hc, require_platform_and_default_arch):
     """
     Test that default modules present in the database are added, and the others are ignored.
     """
-    clean_database()
     mmd = load_mmd(read_staged_data("formatted_testmodule.yaml"))
     xmd_brs = mmd.get_xmd()["mbs"]["buildrequires"]
     assert set(xmd_brs.keys()) == {"platform"}
@@ -67,11 +66,10 @@ def test_add_default_modules(mock_get_dm, mock_hc):
 
 
 @patch("module_build_service.scheduler.default_modules._get_default_modules")
-def test_add_default_modules_not_linked(mock_get_dm):
+def test_add_default_modules_not_linked(mock_get_dm, require_platform_and_default_arch):
     """
     Test that no default modules are added when they aren't linked from the base module.
     """
-    clean_database()
     mmd = load_mmd(read_staged_data("formatted_testmodule.yaml"))
     assert set(mmd.get_xmd()["mbs"]["buildrequires"].keys()) == {"platform"}
     default_modules.add_default_modules(mmd)
@@ -79,13 +77,12 @@ def test_add_default_modules_not_linked(mock_get_dm):
     mock_get_dm.assert_not_called()
 
 
-def test_add_default_modules_platform_not_available():
+def test_add_default_modules_platform_not_available(require_empty_database):
     """
     Test that an exception is raised when the platform module that is buildrequired is missing.
 
     This error should never occur in practice.
     """
-    clean_database(False, False)
     mmd = load_mmd(read_staged_data("formatted_testmodule.yaml"))
 
     expected_error = "Failed to retrieve the module platform:f28:3:00000000 from the database"
@@ -94,12 +91,10 @@ def test_add_default_modules_platform_not_available():
 
 
 @patch("module_build_service.scheduler.default_modules._get_default_modules")
-def test_add_default_modules_compatible_platforms(mock_get_dm):
+def test_add_default_modules_compatible_platforms(mock_get_dm, require_empty_database):
     """
     Test that default modules built against compatible base module streams are added.
     """
-    clean_database(add_platform_module=False)
-
     # Create compatible base modules.
     mmd = load_mmd(read_staged_data("platform"))
     for stream in ["f27", "f28"]:
@@ -150,11 +145,10 @@ def test_add_default_modules_compatible_platforms(mock_get_dm):
 
 
 @patch("module_build_service.scheduler.default_modules._get_default_modules")
-def test_add_default_modules_request_failed(mock_get_dm):
+def test_add_default_modules_request_failed(mock_get_dm, require_platform_and_default_arch):
     """
     Test that an exception is raised when the call to _get_default_modules failed.
     """
-    clean_database()
     make_module_in_db("python:3:12345:1")
     make_module_in_db("nodejs:11:2345:2")
     mmd = load_mmd(read_staged_data("formatted_testmodule.yaml"))

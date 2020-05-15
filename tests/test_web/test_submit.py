@@ -18,7 +18,6 @@ from module_build_service.web.submit import (
     get_prefixed_version, submit_module_build, submit_module_build_from_yaml
 )
 from tests import (
-    clean_database,
     scheduler_init_data,
     make_module_in_db,
     make_module,
@@ -26,8 +25,6 @@ from tests import (
 
 
 class TestSubmit:
-    def setup_method(self, test_method):
-        clean_database()
 
     def test_get_prefixed_version_f28(self):
         scheduler_init_data(1)

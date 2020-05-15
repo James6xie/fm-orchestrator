@@ -19,7 +19,6 @@ from module_build_service.scheduler.db_session import db_session
 import tests
 
 
-@pytest.mark.usefixtures("reuse_component_init_data")
 class TestDBModule:
 
     def test_get_buildrequired_modulemds(self):
@@ -57,8 +56,10 @@ class TestDBModule:
         assert nsvcs == {"testmodule:master:20170109091357:123"}
 
     @pytest.mark.parametrize("stream_versions", [False, True])
-    def test_get_compatible_base_module_modulemds_stream_versions(self, stream_versions):
-        tests.init_data(1, multiple_stream_versions=True)
+    @pytest.mark.parametrize("provide_test_data",
+                             [{"multiple_stream_versions": True}], indirect=True)
+    def test_get_compatible_base_module_modulemds_stream_versions(self, stream_versions,
+                                                                  provide_test_data):
         resolver = mbs_resolver.GenericResolver.create(db_session, conf, backend="db")
         platform = db_session.query(ModuleBuild).filter_by(name="platform", stream="f29.1.0").one()
         platform_mmd = platform.mmd()
@@ -76,7 +77,7 @@ class TestDBModule:
             }
 
     @pytest.mark.parametrize("empty_buildrequires", [False, True])
-    def test_get_module_build_dependencies(self, empty_buildrequires):
+    def test_get_module_build_dependencies(self, empty_buildrequires, reuse_component_init_data):
         """
         Tests that the buildrequires of testmodule are returned
         """
@@ -98,7 +99,7 @@ class TestDBModule:
             "testmodule", "master", "20170109091357", "78e4a6fd").keys()
         assert set(result) == expected
 
-    def test_get_module_build_dependencies_recursive(self):
+    def test_get_module_build_dependencies_recursive(self, reuse_component_init_data):
         """
         Tests that the buildrequires are returned when it is two layers deep
         """
@@ -141,7 +142,8 @@ class TestDBModule:
         new_callable=PropertyMock,
         return_value=tests.staged_data_filename("local_builds"),
     )
-    def test_get_module_build_dependencies_recursive_requires(self, resultdir, conf_system):
+    def test_get_module_build_dependencies_recursive_requires(self, resultdir, conf_system,
+                                                              reuse_component_init_data):
         """
         Tests that it returns the requires of the buildrequires recursively
         """
@@ -173,7 +175,7 @@ class TestDBModule:
             }
         }
 
-    def test_resolve_requires_exception(self):
+    def test_resolve_requires_exception(self, reuse_component_init_data):
         build = models.ModuleBuild.get_by_id(db_session, 2)
         resolver = mbs_resolver.GenericResolver.create(db_session, conf, backend="db")
         with pytest.raises(UnprocessableEntity):
@@ -181,8 +183,7 @@ class TestDBModule:
                 [":".join(["abcdefghi", build.stream, build.version, build.context])]
             )
 
-    def test_resolve_requires_siblings(self):
-        tests.clean_database()
+    def test_resolve_requires_siblings(self, require_platform_and_default_arch):
         resolver = mbs_resolver.GenericResolver.create(db_session, conf, backend="db")
         mmd = load_mmd(tests.read_staged_data("formatted_testmodule"))
         for i in range(3):
@@ -284,8 +285,9 @@ class TestDBModule:
         expected = {"buildroot": {"foo"}, "srpm-buildroot": {"bar"}}
         assert result == expected
 
-    def test_get_latest_with_virtual_stream(self):
-        tests.init_data(1, multiple_stream_versions=True)
+    @pytest.mark.parametrize("provide_test_data",
+                             [{"multiple_stream_versions": True}], indirect=True)
+    def test_get_latest_with_virtual_stream(self, provide_test_data):
         resolver = mbs_resolver.GenericResolver.create(db_session, conf, backend="db")
         mmd = resolver.get_latest_with_virtual_stream("platform", "f29")
         assert mmd

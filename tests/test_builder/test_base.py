@@ -3,6 +3,7 @@
 from __future__ import absolute_import
 
 import mock
+import pytest
 from mock import patch
 
 import module_build_service.builder
@@ -10,12 +11,10 @@ from module_build_service.builder import GenericBuilder
 import module_build_service.common.models
 import module_build_service.resolver
 from module_build_service.scheduler.db_session import db_session
-from tests import init_data
 
 
+@pytest.mark.usefixtures("provide_test_data")
 class TestGenericBuilder:
-    def setup_method(self, test_method):
-        init_data(1)
 
     @patch("module_build_service.resolver.DBResolver")
     @patch("module_build_service.builder.base.GenericResolver")
