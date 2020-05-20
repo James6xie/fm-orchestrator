@@ -49,7 +49,10 @@ def scenario(request, test_env):
     scenario configuration.
     """
     scenario_name = request.function.__name__.split("test_", 1)[1]
-    return test_env["testdata"][scenario_name]
+    scenario = test_env["testdata"].get(scenario_name)
+    if not scenario:
+        pytest.skip("No test scenario in 'test.env' for: {}".format(request.function.__name__))
+    return scenario
 
 
 @pytest.fixture(scope="function")

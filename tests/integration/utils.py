@@ -125,6 +125,11 @@ class Repo:
         self._version = None
 
     @property
+    def modulemd_path(self):
+        """Modulemd file absolute path"""
+        return os.path.join(os.path.abspath(os.curdir), self.module_name + ".yaml")
+
+    @property
     def modulemd(self):
         """Modulemd file as read from the repo
 
@@ -159,6 +164,20 @@ class Repo:
             return [self._modulemd["data"]["dependencies"]["buildrequires"].get("platform")]
         elif self._version == 2:
             return self._modulemd["data"]["dependencies"][0]["buildrequires"].get("platform")
+
+    def write_to_modulemd(self, content_yaml):
+        """Write new content (replace) to the modulemd file
+
+        :param dict content_yaml: module metadata dictionary
+        """
+        with open(self.modulemd_path, 'w') as md_file:
+            yaml.dump(content_yaml, md_file, sort_keys=False)
+
+    def add_all_commit_and_push(self, message="Bump"):
+        """Add all current changes and commit with a custom message"""
+        git("add", "--all")
+        git("commit", "--allow-empty", "-m", message)
+        git("push")
 
     def bump(self):
         """Create a "bump" commit"""
