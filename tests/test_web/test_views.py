@@ -123,9 +123,9 @@ class FakeSCM(object):
 
 
 @pytest.mark.usefixtures("provide_test_client")
-@pytest.mark.usefixtures("provide_test_data")
-@pytest.mark.parametrize('provide_test_data', [{"data_size": 2}], indirect=True)
-class TestViews:
+@pytest.mark.usefixtures("provide_test_data_cls")
+@pytest.mark.parametrize('provide_test_data_cls', [{"data_size": 2}], indirect=True)
+class TestQueryModuleBuild:
 
     def test_query_build(self):
         rv = self.client.get("/module-build-service/1/module-builds/2")
@@ -232,21 +232,6 @@ class TestViews:
         assert data["time_submitted"] == u"2016-09-03T11:23:20Z"
         assert data["version"] == "2"
         assert data["virtual_streams"] == []
-
-    @pytest.mark.usefixtures("reuse_component_init_data")
-    def test_query_build_with_br_verbose_mode(self):
-        rv = self.client.get("/module-build-service/1/module-builds/2?verbose=true")
-        data = json.loads(rv.data)
-        assert data["base_module_buildrequires"] == [{
-            "context": "00000000",
-            "id": 1,
-            "name": "platform",
-            "state": 5,
-            "state_name": "ready",
-            "stream": "f28",
-            "stream_version": 280000,
-            "version": "3",
-        }]
 
     def test_pagination_metadata(self):
         rv = self.client.get("/module-build-service/1/module-builds/?per_page=2&page=2")
@@ -394,8 +379,47 @@ class TestViews:
                 for key, part in zip(nsvc_keys, nsvc_parts):
                     assert item[key] == part
 
-    @pytest.mark.usefixtures("reuse_component_init_data")
+    @patch(
+        "module_build_service.common.config.Config.system",
+        new_callable=PropertyMock,
+        return_value="invalid_builder",
+    )
+    def test_query_builds_with_binary_rpm_not_koji(self, mock_builder):
+        rpm = quote("module-build-macros-0.1-1.testmodule_master_20170303190726.src.rpm")
+        rv = self.client.get("/module-build-service/1/module-builds/?rpm=%s" % rpm)
+        results = json.loads(rv.data)
+        expected_error = {
+            "error": "Bad Request",
+            "message": "Configured builder does not allow to search by rpm binary name!",
+            "status": 400,
+        }
+        assert rv.status_code == 400
+        assert results == expected_error
+
+    def test_query_builds_get_short_json_from_empty_list_of_builds(self):
+        rv = self.client.get("/module-build-service/1/module-builds/?name=pkgname&short=true")
+        data = json.loads(rv.data)
+        assert [] == data["items"]
+        assert 0 == data["meta"]["total"]
+
+    # From here down, the class fixture gets overridden
+    @pytest.mark.usefixtures("reuse_component_init_data")  # cleans the database
+    def test_query_build_with_br_verbose_mode(self):
+        rv = self.client.get("/module-build-service/1/module-builds/3?verbose=true")
+        data = json.loads(rv.data)
+        assert data["base_module_buildrequires"] == [{
+            "context": "00000000",
+            "id": 1,
+            "name": "platform",
+            "state": 5,
+            "state_name": "ready",
+            "stream": "f28",
+            "stream_version": 280000,
+            "version": "3",
+        }]
+
     @patch("koji.ClientSession")
+    @pytest.mark.usefixtures("reuse_component_init_data")  # cleans the database
     def test_query_builds_with_binary_rpm(self, ClientSession):
         """
         Test for querying MBS with the binary rpm filename. MBS should return all the modules,
@@ -436,28 +460,72 @@ class TestViews:
 
         mock_session.krb_login.assert_not_called()
 
-    @patch(
-        "module_build_service.common.config.Config.system",
-        new_callable=PropertyMock,
-        return_value="invalid_builder",
+    @pytest.mark.parametrize(
+        "provide_test_data", [{"data_size": 1, "contexts": True}], indirect=True
     )
-    def test_query_builds_with_binary_rpm_not_koji(self, mock_builder):
-        rpm = quote("module-build-macros-0.1-1.testmodule_master_20170303190726.src.rpm")
-        rv = self.client.get("/module-build-service/1/module-builds/?rpm=%s" % rpm)
-        results = json.loads(rv.data)
-        expected_error = {
-            "error": "Bad Request",
-            "message": "Configured builder does not allow to search by rpm binary name!",
-            "status": 400,
-        }
-        assert rv.status_code == 400
-        assert results == expected_error
+    @pytest.mark.usefixtures("provide_test_data")  # cleans the database
+    def test_query_builds_with_context(self):
+        rv = self.client.get("/module-build-service/1/module-builds/?context=3a4057d2")
+        items = json.loads(rv.data)["items"]
 
-    def test_query_builds_get_short_json_from_empty_list_of_builds(self):
-        rv = self.client.get("/module-build-service/1/module-builds/?name=pkgname&short=true")
-        data = json.loads(rv.data)
-        assert [] == data["items"]
-        assert 0 == data["meta"]["total"]
+        checking_build_id = 3
+        # Get component build ids dynamically rather than hardcode inside expected output.
+        component_build_ids = db_session.query(ComponentBuild).filter(
+            ComponentBuild.module_id == checking_build_id
+        ).order_by(ComponentBuild.id).options(load_only("id")).all()
+
+        expected = [
+            {
+                "component_builds": [cb.id for cb in component_build_ids],
+                "context": "3a4057d2",
+                "id": checking_build_id,
+                "koji_tag": "module-nginx-1.2",
+                "name": "nginx",
+                "owner": "Moe Szyslak",
+                "rebuild_strategy": "changed-and-after",
+                "scmurl": (
+                    "git://pkgs.domain.local/modules/nginx"
+                    "?#ba95886c7a443b36a9ce31abda1f9bef22f2f8c9"
+                ),
+                "scratch": False,
+                "siblings": [2],
+                "srpms": [],
+                "state": 5,
+                "state_name": "ready",
+                "state_reason": None,
+                "stream": "0",
+                "tasks": {
+                    "rpms": {
+                        "module-build-macros": {
+                            "nvr": "module-build-macros-01-1.module+4+0557c87d",
+                            "state": 1,
+                            "state_reason": None,
+                            "task_id": 47383993,
+                        },
+                        "postgresql": {
+                            "nvr": "postgresql-9.5.3-4.module+4+0557c87d",
+                            "state": 1,
+                            "state_reason": None,
+                            "task_id": 2433433,
+                        },
+                    }
+                },
+                "time_completed": "2016-09-03T11:25:32Z",
+                "time_modified": "2016-09-03T11:25:32Z",
+                "time_submitted": "2016-09-03T11:23:20Z",
+                "version": "2",
+                "buildrequires": {},
+            }
+        ]
+
+        # To avoid different order of component builds impact the subsequent assertion.
+        items[0]['component_builds'] = sorted(items[0]['component_builds'])
+        assert items == expected
+
+
+@pytest.mark.usefixtures("provide_test_client")
+@pytest.mark.usefixtures("provide_test_data_cls")
+class TestQueryComponentBuild:
 
     def test_query_component_build(self):
         rv = self.client.get("/module-build-service/1/component-builds/1")
@@ -538,6 +606,12 @@ class TestViews:
             if item["id"] == component_build.id
         ]
         assert component_builds[0]["state_trace"][0]["state_name"] is None
+
+
+@pytest.mark.usefixtures("provide_test_client")
+@pytest.mark.usefixtures("provide_test_data_cls")
+@pytest.mark.parametrize("provide_test_data_cls", [{"data_size": 2}], indirect=True)
+class TestQueryFilters:
 
     def test_query_component_builds_filter_format(self):
         rv = self.client.get("/module-build-service/1/component-builds/?format=rpms")
@@ -708,7 +782,42 @@ class TestViews:
         }
         assert error == expected
 
-    @pytest.mark.usefixtures("reuse_component_init_data")
+    def test_query_builds_order_by_multiple(self):
+        platform_f28 = ModuleBuild.get_by_id(db_session, 1)
+        platform_f28.version = "150"
+        db_session.commit()
+        # Simply assert the order of all module builds
+        page_size = db_session.query(ModuleBuild).count()
+        rv = self.client.get(
+            "/module-build-service/1/module-builds/?order_desc_by=stream_version"
+            "&order_desc_by=version&per_page={}".format(page_size)
+        )
+        items = json.loads(rv.data)["items"]
+        actual_ids = [item["id"] for item in items]
+
+        expected_ids = [
+            build.id for build in db_session.query(ModuleBuild).order_by(
+                ModuleBuild.stream_version.desc(),
+                sqlalchemy.cast(ModuleBuild.version, sqlalchemy.BigInteger).desc()
+            ).all()
+        ]
+        assert actual_ids == expected_ids
+
+    # From here down, the class fixture gets overridden
+    @pytest.mark.parametrize(
+        "provide_test_data", [{"data_size": 2, "contexts": True}], indirect=True
+    )
+    @pytest.mark.usefixtures("provide_test_data")  # cleans the database
+    def test_query_builds_order_desc_by_context(self):
+        rv = self.client.get(
+            "/module-build-service/1/module-builds/?per_page=10&name=nginx&order_desc_by=context")
+        sorted_items = json.loads(rv.data)["items"]
+        sorted_contexts = [m["context"] for m in sorted_items]
+
+        expected_contexts = ["d5a6c0fa", "795e97c1", "3a4057d2", "10e50d06"]
+        assert sorted_contexts == expected_contexts
+
+    @pytest.mark.usefixtures("reuse_component_init_data")  # cleans the database
     def test_query_base_module_br_filters(self):
         mmd = load_mmd(read_staged_data("platform"))
         mmd = mmd.copy(mmd.get_module_name(), "f30.1.3")
@@ -781,12 +890,77 @@ class TestViews:
         data = json.loads(rv.data)
         assert data["meta"]["total"] == 0
 
+    @pytest.mark.parametrize(
+        "stream_version_lte",
+        ("280000", "280000.0", "290000", "293000", "invalid"),
+    )
+    @pytest.mark.parametrize(
+        'provide_test_data', [{"data_size": 1, "multiple_stream_versions": True}], indirect=True
+    )
+    @pytest.mark.usefixtures("provide_test_data")  # cleans the database
+    def test_query_builds_filter_stream_version_lte(self, stream_version_lte, ):
+        url = (
+            "/module-build-service/1/module-builds/?name=platform&verbose=true"
+            "&stream_version_lte={}".format(stream_version_lte)
+        )
+        rv = self.client.get(url)
+        data = json.loads(rv.data)
+        total = data.get("meta", {}).get("total")
+        if stream_version_lte == "invalid":
+            assert data == {
+                "error": "Bad Request",
+                "message": (
+                    "An invalid value of stream_version_lte was provided. It must be an "
+                    "integer or float greater than or equal to 10000."
+                ),
+                "status": 400,
+            }
+        elif stream_version_lte in ("280000", "280000.0"):
+            assert total == 2
+        elif stream_version_lte == "290000":
+            assert total == 1
+        elif stream_version_lte == "293000":
+            assert total == 3
+
+    @pytest.mark.parametrize("virtual_streams", ([], ("f28",), ("f29",), ("f28", "f29")))
+    @pytest.mark.parametrize(
+        'provide_test_data', [{"data_size": 1, "multiple_stream_versions": True}], indirect=True
+    )
+    @pytest.mark.usefixtures("provide_test_data")  # cleans the database
+    def test_query_builds_filter_virtual_streams(self, virtual_streams):
+        url = "/module-build-service/1/module-builds/?name=platform&verbose=true"
+        for virtual_stream in virtual_streams:
+            url += "&virtual_stream={}".format(virtual_stream)
+        rv = self.client.get(url)
+        data = json.loads(rv.data)
+        total = data["meta"]["total"]
+        if virtual_streams == ("f28",):
+            assert total == 1
+            for module in data["items"]:
+                assert module["virtual_streams"] == ["f28"]
+        elif virtual_streams == ("f29",):
+            assert total == 3
+            for module in data["items"]:
+                assert module["virtual_streams"] == ["f29"]
+        elif virtual_streams == ("f28", "f29"):
+            assert total == 4
+            for module in data["items"]:
+                assert len(set(module["virtual_streams"]) - {"f28", "f29"}) == 0
+        elif len(virtual_streams) == 0:
+            assert total == 5
+
+
+@pytest.mark.usefixtures("provide_test_client")
+@pytest.mark.usefixtures("require_platform_and_default_arch")
+class TestSubmitBuild:
+
     @pytest.mark.parametrize("api_version", [1, 2])
     @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.common.scm.SCM")
     def test_submit_build(self, mocked_scm, mocked_get_user, api_version):
         FakeSCM(
-            mocked_scm, "testmodule", "testmodule.yaml", "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
+            mocked_scm, "testmodule", "testmodule.yaml",
+            "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
 
         post_url = "/module-build-service/{0}/module-builds/".format(api_version)
         rv = self.client.post(
@@ -794,10 +968,11 @@ class TestViews:
             data=json.dumps({
                 "branch": "master",
                 "scmurl": "https://src.stg.fedoraproject.org/modules/"
-                "testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49",
+                          "testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49",
             }),
         )
         data = json.loads(rv.data)
+        build_id = 2  # (platform required)
 
         if api_version >= 2:
             assert isinstance(data, list)
@@ -817,10 +992,11 @@ class TestViews:
         assert data["time_completed"] is None
         assert data["stream"] == "master"
         assert data["owner"] == "Homer J. Simpson"
-        assert data["id"] == 8
+        assert data["id"] == build_id
         assert data["rebuild_strategy"] == "changed-and-after"
         assert data["state_name"] == "init"
-        assert data["state_url"] == "/module-build-service/{0}/module-builds/8".format(api_version)
+        assert data["state_url"] == "/module-build-service/{0}/module-builds/{1}" \
+            .format(api_version, build_id)
         assert len(data["state_trace"]) == 1
         assert data["state_trace"][0]["state"] == 0
         assert data["tasks"] == {}
@@ -828,7 +1004,7 @@ class TestViews:
         load_mmd(data["modulemd"])
 
         # Make sure the buildrequires entry was created
-        module = ModuleBuild.get_by_id(db_session, 8)
+        module = ModuleBuild.get_by_id(db_session, build_id)
         assert len(module.buildrequires) == 1
         assert module.buildrequires[0].name == "platform"
         assert module.buildrequires[0].stream == "f28"
@@ -851,7 +1027,7 @@ class TestViews:
             data=json.dumps({
                 "branch": "master",
                 "scmurl": "https://src.stg.fedoraproject.org/modules/"
-                "testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49",
+                          "testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49",
             }),
         )
         data = json.loads(rv.data)
@@ -873,7 +1049,8 @@ class TestViews:
     )
     def test_submit_build_rebuild_strategy(self, mocked_rmao, mocked_scm, mocked_get_user):
         FakeSCM(
-            mocked_scm, "testmodule", "testmodule.yaml", "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
+            mocked_scm, "testmodule", "testmodule.yaml",
+            "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
 
         rv = self.client.post(
             "/module-build-service/1/module-builds/",
@@ -902,10 +1079,11 @@ class TestViews:
         return_value=True,
     )
     def test_submit_build_rebuild_strategy_not_allowed(
-        self, mock_rsao, mock_rsa, mocked_scm, mocked_get_user
+            self, mock_rsao, mock_rsa, mocked_scm, mocked_get_user
     ):
         FakeSCM(
-            mocked_scm, "testmodule", "testmodule.yaml", "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
+            mocked_scm, "testmodule", "testmodule.yaml",
+            "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
 
         rv = self.client.post(
             "/module-build-service/1/module-builds/",
@@ -960,7 +1138,8 @@ class TestViews:
     @patch("module_build_service.common.scm.SCM")
     def test_submit_build_rebuild_strategy_override_not_allowed(self, mocked_scm, mocked_get_user):
         FakeSCM(
-            mocked_scm, "testmodule", "testmodule.yaml", "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
+            mocked_scm, "testmodule", "testmodule.yaml",
+            "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
 
         rv = self.client.post(
             "/module-build-service/1/module-builds/",
@@ -989,17 +1168,19 @@ class TestViews:
     @patch("module_build_service.common.scm.SCM")
     def test_submit_componentless_build(self, mocked_scm, mocked_get_user):
         FakeSCM(
-            mocked_scm, "fakemodule", "fakemodule.yaml", "3da541559918a808c2402bba5012f6c60b27661c")
+            mocked_scm, "fakemodule", "fakemodule.yaml",
+            "3da541559918a808c2402bba5012f6c60b27661c")
 
         rv = self.client.post(
             "/module-build-service/1/module-builds/",
             data=json.dumps({
                 "branch": "master",
                 "scmurl": "https://src.stg.fedoraproject.org/modules/"
-                "testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49",
+                          "testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49",
             }),
         )
         data = json.loads(rv.data)
+        build_id = 2  # (platform required)
 
         assert data["component_builds"] == []
         assert data["name"] == "fakemodule"
@@ -1013,20 +1194,21 @@ class TestViews:
         assert data["time_completed"] is None
         assert data["stream"] == "master"
         assert data["owner"] == "Homer J. Simpson"
-        assert data["id"] == 8
+        assert data["id"] == build_id
         assert data["state_name"] == "init"
         assert data["rebuild_strategy"] == "changed-and-after"
 
     def test_submit_build_auth_error(self):
         base_dir = path.abspath(path.dirname(__file__))
         client_secrets = path.join(base_dir, "client_secrets.json")
-        with patch.dict("module_build_service.app.config", {"OIDC_CLIENT_SECRETS": client_secrets}):
+        with patch.dict("module_build_service.app.config",
+                        {"OIDC_CLIENT_SECRETS": client_secrets}):
             rv = self.client.post(
                 "/module-build-service/1/module-builds/",
                 data=json.dumps({
                     "branch": "master",
                     "scmurl": "https://src.stg.fedoraproject.org/modules/"
-                    "testmodule.git?#48931b90de214d9d13feefbd35246a81b6cb8d49",
+                              "testmodule.git?#48931b90de214d9d13feefbd35246a81b6cb8d49",
                 }),
             )
             data = json.loads(rv.data)
@@ -1072,7 +1254,7 @@ class TestViews:
             data=json.dumps({
                 "branch": "master",
                 "scmurl": "https://src.stg.fedoraproject.org/modules/"
-                "testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49",
+                          "testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49",
             }),
         )
         data = json.loads(rv.data)
@@ -1085,119 +1267,21 @@ class TestViews:
 
     @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.common.scm.SCM")
-    def test_submit_build_includedmodule_custom_repo_not_allowed(self, mocked_scm, mocked_get_user):
+    def test_submit_build_includedmodule_custom_repo_not_allowed(self, mocked_scm,
+                                                                 mocked_get_user):
         FakeSCM(mocked_scm, "includedmodules", ["includedmodules.yaml", "testmodule.yaml"])
         rv = self.client.post(
             "/module-build-service/1/module-builds/",
             data=json.dumps({
                 "branch": "master",
                 "scmurl": "https://src.stg.fedoraproject.org/modules/"
-                "testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49",
+                          "testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49",
             }),
         )
         data = json.loads(rv.data)
 
         assert data["status"] == 403
         assert data["error"] == "Forbidden"
-
-    @patch("module_build_service.web.auth.get_user", return_value=other_user)
-    def test_cancel_build(self, mocked_get_user):
-        rv = self.client.patch(
-            "/module-build-service/1/module-builds/7", data=json.dumps({"state": "failed"}))
-        data = json.loads(rv.data)
-
-        assert data["state"] == 4
-        assert data["state_reason"] == "Canceled by some_other_user."
-
-    @pytest.mark.parametrize("module_state", (BUILD_STATES["failed"], BUILD_STATES["ready"]))
-    @patch("module_build_service.web.auth.get_user", return_value=other_user)
-    def test_cancel_build_in_invalid_state(self, mocked_get_user, module_state):
-        module = ModuleBuild.get_by_id(db_session, 7)
-        module.state = module_state
-        db_session.commit()
-
-        rv = self.client.patch(
-            "/module-build-service/1/module-builds/7", data=json.dumps({"state": "failed"}))
-
-        assert rv.status_code == 400
-        assert json.loads(rv.data) == {
-            "error": "Bad Request",
-            "message": (
-                "To cancel a module build, it must be in one of the following states: "
-                "build, init, wait"
-            ),
-            "status": 400,
-        }
-
-    @patch("module_build_service.web.auth.get_user", return_value=("sammy", set()))
-    def test_cancel_build_unauthorized_no_groups(self, mocked_get_user):
-        rv = self.client.patch(
-            "/module-build-service/1/module-builds/7", data=json.dumps({"state": "failed"}))
-        data = json.loads(rv.data)
-
-        assert data["status"] == 403
-        assert data["error"] == "Forbidden"
-
-    @patch("module_build_service.web.auth.get_user", return_value=("sammy", {"packager"}))
-    def test_cancel_build_unauthorized_not_owner(self, mocked_get_user):
-        rv = self.client.patch(
-            "/module-build-service/1/module-builds/7", data=json.dumps({"state": "failed"}))
-        data = json.loads(rv.data)
-
-        assert data["status"] == 403
-        assert data["error"] == "Forbidden"
-
-    @patch(
-        "module_build_service.web.auth.get_user", return_value=("sammy", {"packager", "mbs-admin"})
-    )
-    def test_cancel_build_admin(self, mocked_get_user):
-        with patch(
-            "module_build_service.common.config.Config.admin_groups",
-            new_callable=PropertyMock,
-            return_value={"mbs-admin"},
-        ):
-            rv = self.client.patch(
-                "/module-build-service/1/module-builds/7", data=json.dumps({"state": "failed"}))
-            data = json.loads(rv.data)
-
-            assert data["state"] == 4
-            assert data["state_reason"] == "Canceled by sammy."
-
-    @patch("module_build_service.web.auth.get_user", return_value=("sammy", {"packager"}))
-    def test_cancel_build_no_admin(self, mocked_get_user):
-        with patch(
-            "module_build_service.common.config.Config.admin_groups",
-            new_callable=PropertyMock,
-            return_value={"mbs-admin"},
-        ):
-            rv = self.client.patch(
-                "/module-build-service/1/module-builds/7", data=json.dumps({"state": "failed"}))
-            data = json.loads(rv.data)
-
-            assert data["status"] == 403
-            assert data["error"] == "Forbidden"
-
-    @patch("module_build_service.web.auth.get_user", return_value=other_user)
-    def test_cancel_build_wrong_param(self, mocked_get_user):
-        rv = self.client.patch(
-            "/module-build-service/1/module-builds/7", data=json.dumps({"some_param": "value"}))
-        data = json.loads(rv.data)
-
-        assert data["status"] == 400
-        assert data["error"] == "Bad Request"
-        assert data["message"] == "Invalid JSON submitted"
-
-    @patch("module_build_service.web.auth.get_user", return_value=other_user)
-    def test_cancel_build_wrong_state(self, mocked_get_user):
-        rv = self.client.patch(
-            "/module-build-service/1/module-builds/7", data=json.dumps({"state": "some_state"}))
-
-        assert rv.status_code == 400
-        assert json.loads(rv.data) == {
-            "error": "Bad Request",
-            "message": "An invalid state was submitted. Valid states values are: failed, 4",
-            "status": 400,
-        }
 
     @patch("module_build_service.web.auth.get_user", return_value=user)
     def test_submit_build_unsupported_scm_scheme(self, mocked_get_user):
@@ -1230,7 +1314,7 @@ class TestViews:
             data=json.dumps({
                 "branch": "master",
                 "scmurl": "https://src.stg.fedoraproject.org/modules/"
-                "testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49",
+                          "testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49",
             }),
         )
         data = json.loads(rv.data)
@@ -1256,7 +1340,7 @@ class TestViews:
             data=json.dumps({
                 "branch": "master",
                 "scmurl": "https://src.stg.fedoraproject.org/modules/"
-                "testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49",
+                          "testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49",
             }),
         )
         data = json.loads(rv.data)
@@ -1272,7 +1356,7 @@ class TestViews:
         data = {
             "branch": "master",
             "scmurl": "https://src.stg.fedoraproject.org/modules/"
-            "testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49",
+                      "testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49",
             "owner": "foo",
         }
         rv = self.client.post("/module-build-service/1/module-builds/", data=json.dumps(data))
@@ -1289,12 +1373,13 @@ class TestViews:
     )
     def test_submit_build_no_auth_set_owner(self, mocked_conf, mocked_scm, mocked_get_user):
         FakeSCM(
-            mocked_scm, "testmodule", "testmodule.yaml", "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
+            mocked_scm, "testmodule", "testmodule.yaml",
+            "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
 
         data = {
             "branch": "master",
             "scmurl": "https://src.stg.fedoraproject.org/modules/"
-            "testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49",
+                      "testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49",
             "owner": "foo",
         }
         rv = self.client.post("/module-build-service/1/module-builds/", data=json.dumps(data))
@@ -1308,45 +1393,17 @@ class TestViews:
     @patch("module_build_service.common.config.Config.allowed_users", new_callable=PropertyMock)
     def test_submit_build_allowed_users(self, allowed_users, mocked_scm, mocked_get_user):
         FakeSCM(
-            mocked_scm, "testmodule", "testmodule.yaml", "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
+            mocked_scm, "testmodule", "testmodule.yaml",
+            "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
 
         allowed_users.return_value = {"svc_account"}
         data = {
             "branch": "master",
             "scmurl": "https://src.stg.fedoraproject.org/modules/"
-            "testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49",
+                      "testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49",
         }
         rv = self.client.post("/module-build-service/1/module-builds/", data=json.dumps(data))
         assert rv.status_code == 201
-
-    @patch("module_build_service.web.auth.get_user", return_value=anonymous_user)
-    @patch("module_build_service.common.scm.SCM")
-    @patch("module_build_service.common.config.Config.no_auth", new_callable=PropertyMock)
-    def test_patch_set_different_owner(self, mocked_no_auth, mocked_scm, mocked_get_user):
-        FakeSCM(
-            mocked_scm, "testmodule", "testmodule.yaml", "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
-
-        mocked_no_auth.return_value = True
-        data = {
-            "branch": "master",
-            "scmurl": "https://src.stg.fedoraproject.org/modules/"
-            "testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49",
-            "owner": "foo",
-        }
-        rv = self.client.post("/module-build-service/1/module-builds/", data=json.dumps(data))
-        r1 = json.loads(rv.data)
-
-        url = "/module-build-service/1/module-builds/" + str(r1["id"])
-        r2 = self.client.patch(url, data=json.dumps({"state": "failed"}))
-        assert r2.status_code == 403
-
-        r3 = self.client.patch(url, data=json.dumps({"state": "failed", "owner": "foo"}))
-        assert r3.status_code == 200
-
-        mocked_no_auth.return_value = False
-        r3 = self.client.patch(url, data=json.dumps({"state": "failed", "owner": "foo"}))
-        assert r3.status_code == 400
-        assert "The request contains 'owner' parameter" in json.loads(r3.data)["message"]
 
     @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.common.scm.SCM")
@@ -1364,7 +1421,7 @@ class TestViews:
             data=json.dumps({
                 "branch": "master",
                 "scmurl": "https://src.stg.fedoraproject.org/modules/"
-                "testmodule.git?#7035bd33614972ac66559ac1fdd019ff6027ad22",
+                          "testmodule.git?#7035bd33614972ac66559ac1fdd019ff6027ad22",
             }),
         )
         data = json.loads(rv.data)
@@ -1381,7 +1438,8 @@ class TestViews:
     )
     def test_submit_custom_scmurl(self, allow_custom_scmurls, mocked_scm, mocked_get_user):
         FakeSCM(
-            mocked_scm, "testmodule", "testmodule.yaml", "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
+            mocked_scm, "testmodule", "testmodule.yaml",
+            "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
 
         def submit(scmurl):
             return self.client.post(
@@ -1409,7 +1467,7 @@ class TestViews:
         data = {
             "branch": "master",
             "scmurl": "https://src.stg.fedoraproject.org/modules/"
-            "platform.git?#68931c90de214d9d13feefbd35246a81b6cb8d49",
+                      "platform.git?#68931c90de214d9d13feefbd35246a81b6cb8d49",
         }
         rv = self.client.post("/module-build-service/1/module-builds/", data=json.dumps(data))
         result = json.loads(rv.data)
@@ -1433,7 +1491,7 @@ class TestViews:
         data = {
             "branch": "master",
             "scmurl": "https://src.stg.fedoraproject.org/modules/"
-            "testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49",
+                      "testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49",
         }
         rv = self.client.post("/module-build-service/1/module-builds/", data=json.dumps(data))
         result = json.loads(rv.data)
@@ -1517,351 +1575,15 @@ class TestViews:
             msg = msg.format("require_overrides")
         assert data == {"error": "Bad Request", "message": msg, "status": 400}
 
-    def test_about(self):
-        with patch.object(mbs_config.Config, "auth_method", new_callable=PropertyMock) as auth:
-            auth.return_value = "kerberos"
-            rv = self.client.get("/module-build-service/1/about/")
-        data = json.loads(rv.data)
-        assert rv.status_code == 200
-        assert data == {"auth_method": "kerberos", "api_version": 2, "version": version}
-
-    def test_rebuild_strategy_api(self):
-        rv = self.client.get("/module-build-service/1/rebuild-strategies/")
-        data = json.loads(rv.data)
-        assert rv.status_code == 200
-        expected = {
-            "items": [
-                {
-                    "allowed": False,
-                    "default": False,
-                    "description": "All components will be rebuilt",
-                    "name": "all",
-                },
-                {
-                    "allowed": True,
-                    "default": True,
-                    "description": (
-                        "All components that have changed and those in subsequent "
-                        "batches will be rebuilt"
-                    ),
-                    "name": "changed-and-after",
-                },
-                {
-                    "allowed": False,
-                    "default": False,
-                    "description": "All changed components will be rebuilt",
-                    "name": "only-changed",
-                },
-            ]
-        }
-        assert data == expected
-
-    def test_rebuild_strategy_api_only_changed_default(self):
-        with patch.object(mbs_config.Config, "rebuild_strategy", new_callable=PropertyMock) as r_s:
-            r_s.return_value = "only-changed"
-            rv = self.client.get("/module-build-service/1/rebuild-strategies/")
-        data = json.loads(rv.data)
-        assert rv.status_code == 200
-        expected = {
-            "items": [
-                {
-                    "allowed": False,
-                    "default": False,
-                    "description": "All components will be rebuilt",
-                    "name": "all",
-                },
-                {
-                    "allowed": False,
-                    "default": False,
-                    "description": (
-                        "All components that have changed and those in subsequent "
-                        "batches will be rebuilt"
-                    ),
-                    "name": "changed-and-after",
-                },
-                {
-                    "allowed": True,
-                    "default": True,
-                    "description": "All changed components will be rebuilt",
-                    "name": "only-changed",
-                },
-            ]
-        }
-        assert data == expected
-
-    def test_rebuild_strategy_api_override_allowed(self):
-        with patch.object(
-            mbs_config.Config, "rebuild_strategy_allow_override", new_callable=PropertyMock
-        ) as rsao:
-            rsao.return_value = True
-            rv = self.client.get("/module-build-service/1/rebuild-strategies/")
-        data = json.loads(rv.data)
-        assert rv.status_code == 200
-        expected = {
-            "items": [
-                {
-                    "allowed": True,
-                    "default": False,
-                    "description": "All components will be rebuilt",
-                    "name": "all",
-                },
-                {
-                    "allowed": True,
-                    "default": True,
-                    "description": (
-                        "All components that have changed and those in subsequent "
-                        "batches will be rebuilt"
-                    ),
-                    "name": "changed-and-after",
-                },
-                {
-                    "allowed": True,
-                    "default": False,
-                    "description": "All changed components will be rebuilt",
-                    "name": "only-changed",
-                },
-            ]
-        }
-        assert data == expected
-
-    def test_cors_header_decorator(self):
-        rv = self.client.get("/module-build-service/1/module-builds/")
-        assert rv.headers["Access-Control-Allow-Origin"] == "*"
-
-    @pytest.mark.parametrize("api_version", [1, 2])
-    @patch("module_build_service.web.auth.get_user", return_value=user)
-    @patch.object(
-        module_build_service.common.config.Config,
-        "allowed_groups_to_import_module",
-        new_callable=PropertyMock,
-        return_value=set(),
-    )
-    def test_import_build_disabled(self, mocked_groups, mocked_get_user, api_version):
-        post_url = "/module-build-service/{0}/import-module/".format(api_version)
-        rv = self.client.post(post_url)
-        data = json.loads(rv.data)
-
-        assert data["error"] == "Forbidden"
-        assert data["message"] == "Import module API is disabled."
-
-    @pytest.mark.parametrize("api_version", [1, 2])
-    @patch("module_build_service.web.auth.get_user", return_value=user)
-    def test_import_build_user_not_allowed(self, mocked_get_user, api_version):
-        post_url = "/module-build-service/{0}/import-module/".format(api_version)
-        rv = self.client.post(post_url)
-        data = json.loads(rv.data)
-
-        assert data["error"] == "Forbidden"
-        assert data["message"] == (
-            "Homer J. Simpson is not in any of {0}, only {1}"
-            .format({"mbs-import-module"}, {"packager"})
-        )
-
-    @pytest.mark.parametrize("api_version", [1, 2])
-    @patch("module_build_service.web.auth.get_user", return_value=import_module_user)
-    def test_import_build_scm_invalid_json(self, mocked_get_user, api_version):
-        post_url = "/module-build-service/{0}/import-module/".format(api_version)
-        rv = self.client.post(post_url, data="")
-        data = json.loads(rv.data)
-
-        assert data["error"] == "Bad Request"
-        assert data["message"] == "Invalid JSON submitted"
-
-    @pytest.mark.parametrize("api_version", [1, 2])
-    @patch("module_build_service.web.auth.get_user", return_value=import_module_user)
-    def test_import_build_scm_url_not_allowed(self, mocked_get_user, api_version):
-        post_url = "/module-build-service/{0}/import-module/".format(api_version)
-        rv = self.client.post(
-            post_url, data=json.dumps({"scmurl": "file://" + scm_base_dir + "/mariadb"}))
-        data = json.loads(rv.data)
-
-        assert data["error"] == "Forbidden"
-        assert data["message"].startswith("The submitted scmurl ")
-        assert data["message"].endswith("/tests/scm_data/mariadb is not allowed")
-
-    @pytest.mark.parametrize("api_version", [1, 2])
-    @patch("module_build_service.web.auth.get_user", return_value=import_module_user)
-    @patch.object(
-        module_build_service.common.config.Config,
-        "allow_custom_scmurls",
-        new_callable=PropertyMock,
-        return_value=True,
-    )
-    def test_import_build_scm_url_not_in_list(self, mocked_scmurls, mocked_get_user, api_version):
-        post_url = "/module-build-service/{0}/import-module/".format(api_version)
-        rv = self.client.post(
-            post_url,
-            data=json.dumps({
-                "scmurl": "file://{}/mariadb?#b17bea85de2d03558f24d506578abcfcf467e5bc".format(
-                    scm_base_dir)
-            }),
-        )
-        data = json.loads(rv.data)
-
-        assert data["error"] == "Forbidden"
-        assert data["message"].endswith(
-            "/tests/scm_data/mariadb?#b17bea85de2d03558f24d506578abcfcf467e5bc "
-            "is not in the list of allowed SCMs"
-        )
-
-    @pytest.mark.parametrize("api_version", [1, 2])
-    @patch("module_build_service.web.auth.get_user", return_value=import_module_user)
-    @patch.object(
-        module_build_service.common.config.Config,
-        "scmurls",
-        new_callable=PropertyMock,
-        return_value=["file://"],
-    )
-    def test_import_build_scm(self, mocked_scmurls, mocked_get_user, api_version):
-        post_url = "/module-build-service/{0}/import-module/".format(api_version)
-        rv = self.client.post(
-            post_url,
-            data=json.dumps({
-                "scmurl": "file://{}/mariadb?#e9742ed681f82e3ef5281fc652b4e68a3826cea6".format(
-                    scm_base_dir)
-            }),
-        )
-        data = json.loads(rv.data)
-
-        assert "Module mariadb:10.2:20180724000000:00000000 imported" in data["messages"]
-        assert data["module"]["name"] == "mariadb"
-        assert data["module"]["stream"] == "10.2"
-        assert data["module"]["version"] == "20180724000000"
-        assert data["module"]["context"] == "00000000"
-        assert data["module"]["owner"] == "mbs_import"
-        assert data["module"]["state"] == 5
-        assert data["module"]["state_reason"] is None
-        assert data["module"]["state_name"] == "ready"
-        assert data["module"]["scmurl"] is None
-        assert data["module"]["component_builds"] == []
-        assert time_assert(
-            data["module"]["time_submitted"],
-            data["module"]["time_modified"],
-            data["module"]["time_completed"]
-        )
-        assert data["module"]["koji_tag"] == "mariadb-10.2-20180724000000-00000000"
-        assert data["module"]["siblings"] == []
-        assert data["module"]["rebuild_strategy"] == "all"
-
-    @pytest.mark.parametrize("api_version", [1, 2])
-    @patch("module_build_service.web.auth.get_user", return_value=import_module_user)
-    @patch.object(
-        module_build_service.common.config.Config,
-        "scmurls",
-        new_callable=PropertyMock,
-        return_value=["file://"],
-    )
-    def test_import_build_scm_another_commit_hash(
-        self, mocked_scmurls, mocked_get_user, api_version
-    ):
-        post_url = "/module-build-service/{0}/import-module/".format(api_version)
-        rv = self.client.post(
-            post_url,
-            data=json.dumps({
-                "scmurl": "file://{}/mariadb?#8b43f38cdafdd773e7d0308e758105bf9f0f67a8".format(
-                    scm_base_dir)
-            }),
-        )
-        data = json.loads(rv.data)
-
-        assert "Module mariadb:10.2:20180724065109:00000000 imported" in data["messages"]
-        assert data["module"]["name"] == "mariadb"
-        assert data["module"]["stream"] == "10.2"
-        assert data["module"]["version"] == "20180724065109"
-        assert data["module"]["context"] == "00000000"
-        assert data["module"]["owner"] == "mbs_import"
-        assert data["module"]["state"] == 5
-        assert data["module"]["state_reason"] is None
-        assert data["module"]["state_name"] == "ready"
-        assert data["module"]["scmurl"] is None
-        assert data["module"]["component_builds"] == []
-        assert time_assert(
-            data["module"]["time_submitted"],
-            data["module"]["time_modified"],
-            data["module"]["time_completed"]
-        )
-        assert data["module"]["koji_tag"] == "mariadb-10.2-20180724065109-00000000"
-        assert data["module"]["siblings"] == []
-        assert data["module"]["rebuild_strategy"] == "all"
-
-    @pytest.mark.parametrize("api_version", [1, 2])
-    @patch("module_build_service.web.auth.get_user", return_value=import_module_user)
-    @patch.object(
-        module_build_service.common.config.Config,
-        "scmurls",
-        new_callable=PropertyMock,
-        return_value=["file://"],
-    )
-    def test_import_build_scm_incomplete_nsvc(self, mocked_scmurls, mocked_get_user, api_version):
-        post_url = "/module-build-service/{0}/import-module/".format(api_version)
-        rv = self.client.post(
-            post_url,
-            data=json.dumps({
-                "scmurl": "file://{}/mariadb?#b17bea85de2d03558f24d506578abcfcf467e5bc".format(
-                    scm_base_dir)
-            }),
-        )
-        data = json.loads(rv.data)
-
-        assert data["error"] == "Unprocessable Entity"
-        expected_msg = "Both the name and stream must be set for the modulemd being imported."
-        assert data["message"] == expected_msg
-
-    @pytest.mark.parametrize("api_version", [1, 2])
-    @patch("module_build_service.web.auth.get_user", return_value=import_module_user)
-    @patch.object(
-        module_build_service.common.config.Config,
-        "scmurls",
-        new_callable=PropertyMock,
-        return_value=["file://"],
-    )
-    def test_import_build_scm_yaml_is_bad(self, mocked_scmurls, mocked_get_user, api_version):
-        post_url = "/module-build-service/{0}/import-module/".format(api_version)
-        rv = self.client.post(
-            post_url,
-            data=json.dumps({
-                "scmurl": "file://{}/mariadb?#f7c5c7218c9a197d7fd245eeb4eee3d7abffd75d".format(
-                    scm_base_dir)
-            }),
-        )
-        data = json.loads(rv.data)
-
-        assert data["error"] == "Unprocessable Entity"
-        assert re.match(
-            r"The modulemd .* is invalid\. Please verify the syntax is correct", data["message"]
-        )
-
-    def test_buildrequires_is_included_in_json_output(self):
-        # Inject xmd/mbs/buildrequires into an existing module build for
-        # assertion later.
-        br_modulea = dict(stream="6", version="1", context="1234")
-        br_moduleb = dict(stream="10", version="1", context="5678")
-        build = db_session.query(ModuleBuild).first()
-        mmd = build.mmd()
-        xmd = mmd.get_xmd()
-        mbs = xmd.setdefault("mbs", {})
-        buildrequires = mbs.setdefault("buildrequires", {})
-        buildrequires["modulea"] = br_modulea
-        buildrequires["moduleb"] = br_moduleb
-        mmd.set_xmd(xmd)
-        build.modulemd = mmd_to_str(mmd)
-        db_session.commit()
-
-        rv = self.client.get("/module-build-service/1/module-builds/{}".format(build.id))
-        data = json.loads(rv.data)
-        buildrequires = data.get("buildrequires", {})
-
-        assert br_modulea == buildrequires.get("modulea")
-        assert br_moduleb == buildrequires.get("moduleb")
-
     @pytest.mark.parametrize("api_version", [1, 2])
     @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.common.scm.SCM")
     def test_submit_build_module_name_override_not_allowed(
-        self, mocked_scm, mocked_get_user, api_version
+            self, mocked_scm, mocked_get_user, api_version
     ):
         FakeSCM(
-            mocked_scm, "testmodule", "testmodule.yaml", "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
+            mocked_scm, "testmodule", "testmodule.yaml",
+            "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
 
         post_url = "/module-build-service/{0}/module-builds/".format(api_version)
         rv = self.client.post(
@@ -1869,7 +1591,7 @@ class TestViews:
             data=json.dumps({
                 "branch": "master",
                 "scmurl": "https://src.stg.fedoraproject.org/modules/"
-                "testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49",
+                          "testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49",
                 "module_name": "altname",
             }),
         )
@@ -1885,10 +1607,11 @@ class TestViews:
     @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.common.scm.SCM")
     def test_submit_build_stream_name_override_not_allowed(
-        self, mocked_scm, mocked_get_user, api_version
+            self, mocked_scm, mocked_get_user, api_version
     ):
         FakeSCM(
-            mocked_scm, "testmodule", "testmodule.yaml", "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
+            mocked_scm, "testmodule", "testmodule.yaml",
+            "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
 
         post_url = "/module-build-service/{0}/module-builds/".format(api_version)
         rv = self.client.post(
@@ -1896,7 +1619,7 @@ class TestViews:
             data=json.dumps({
                 "branch": "master",
                 "scmurl": "https://src.stg.fedoraproject.org/modules/"
-                "testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49",
+                          "testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49",
                 "module_stream": "altstream",
             }),
         )
@@ -1917,16 +1640,17 @@ class TestViews:
         return_value=True,
     )
     def test_submit_scratch_build(
-        self, mocked_allow_scratch, mocked_scm, mocked_get_user, api_version
+            self, mocked_allow_scratch, mocked_scm, mocked_get_user, api_version
     ):
         FakeSCM(
-            mocked_scm, "testmodule", "testmodule.yaml", "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
+            mocked_scm, "testmodule", "testmodule.yaml",
+            "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
 
         post_url = "/module-build-service/{0}/module-builds/".format(api_version)
         post_data = {
             "branch": "master",
             "scmurl": "https://src.stg.fedoraproject.org/modules/"
-            "testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49",
+                      "testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49",
             "scratch": True,
         }
         rv = self.client.post(post_url, data=json.dumps(post_data))
@@ -1951,10 +1675,10 @@ class TestViews:
         assert data["time_completed"] is None
         assert data["stream"] == "master"
         assert data["owner"] == "Homer J. Simpson"
-        assert data["id"] == 8
+        assert data["id"] == 2
         assert data["rebuild_strategy"] == "changed-and-after"
         assert data["state_name"] == "init"
-        assert data["state_url"] == "/module-build-service/{0}/module-builds/8".format(api_version)
+        assert data["state_url"] == "/module-build-service/{0}/module-builds/2".format(api_version)
         assert len(data["state_trace"]) == 1
         assert data["state_trace"][0]["state"] == 0
         assert data["tasks"] == {}
@@ -1962,7 +1686,7 @@ class TestViews:
         load_mmd(data["modulemd"])
 
         # Make sure the buildrequires entry was created
-        module = ModuleBuild.get_by_id(db_session, 8)
+        module = ModuleBuild.get_by_id(db_session, 2)
         assert len(module.buildrequires) == 1
         assert module.buildrequires[0].name == "platform"
         assert module.buildrequires[0].stream == "f28"
@@ -1979,16 +1703,17 @@ class TestViews:
         return_value=False,
     )
     def test_submit_scratch_build_not_allowed(
-        self, mocked_allow_scratch, mocked_scm, mocked_get_user, api_version
+            self, mocked_allow_scratch, mocked_scm, mocked_get_user, api_version
     ):
         FakeSCM(
-            mocked_scm, "testmodule", "testmodule.yaml", "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
+            mocked_scm, "testmodule", "testmodule.yaml",
+            "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
 
         post_url = "/module-build-service/{0}/module-builds/".format(api_version)
         post_data = {
             "branch": "master",
             "scmurl": "https://src.stg.fedoraproject.org/modules/"
-            "testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49",
+                      "testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49",
             "scratch": True,
         }
         rv = self.client.post(post_url, data=json.dumps(post_data))
@@ -2010,7 +1735,7 @@ class TestViews:
         return_value=True,
     )
     def test_submit_build_with_mmd(
-        self, mocked_allow_yaml, mocked_get_user, mod_stream, api_version
+            self, mocked_allow_yaml, mocked_get_user, mod_stream, api_version
     ):
         modulemd = read_staged_data("testmodule")
 
@@ -2053,7 +1778,7 @@ class TestViews:
         return_value=True,
     )
     def test_submit_scratch_build_with_mmd(
-        self, mocked_allow_yaml, mocked_allow_scratch, mocked_get_user, mod_stream, api_version
+            self, mocked_allow_yaml, mocked_allow_scratch, mocked_get_user, mod_stream, api_version
     ):
         modulemd = read_staged_data("testmodule")
 
@@ -2091,10 +1816,10 @@ class TestViews:
         assert data["time_completed"] is None
         assert data["stream"] == expected_stream
         assert data["owner"] == "Homer J. Simpson"
-        assert data["id"] == 8
+        assert data["id"] == 2
         assert data["rebuild_strategy"] == "changed-and-after"
         assert data["state_name"] == "init"
-        assert data["state_url"] == "/module-build-service/{0}/module-builds/8".format(api_version)
+        assert data["state_url"] == "/module-build-service/{0}/module-builds/2".format(api_version)
         assert len(data["state_trace"]) == 1
         assert data["state_trace"][0]["state"] == 0
         assert data["tasks"] == {}
@@ -2102,7 +1827,7 @@ class TestViews:
         load_mmd(data["modulemd"])
 
         # Make sure the buildrequires entry was created
-        module = ModuleBuild.get_by_id(db_session, 8)
+        module = ModuleBuild.get_by_id(db_session, 2)
         assert len(module.buildrequires) == 1
         assert module.buildrequires[0].name == "platform"
         assert module.buildrequires[0].stream == "f28"
@@ -2122,7 +1847,7 @@ class TestViews:
         return_value=True,
     )
     def test_submit_scratch_build_with_mmd_no_module_name(
-        self, mocked_allow_yaml, mocked_allow_scratch, mocked_get_user
+            self, mocked_allow_yaml, mocked_allow_scratch, mocked_get_user
     ):
         post_data = {
             "branch": "master",
@@ -2156,7 +1881,7 @@ class TestViews:
         return_value=False,
     )
     def test_submit_scratch_build_with_mmd_yaml_not_allowed(
-        self, mocked_allow_yaml, mocked_allow_scratch, mocked_get_user, api_version
+            self, mocked_allow_yaml, mocked_allow_scratch, mocked_get_user, api_version
     ):
         post_data = {
             "branch": "master",
@@ -2185,7 +1910,7 @@ class TestViews:
         return_value=["build"],
     )
     def test_submit_build_with_disttag_marking_in_xmd(
-        self, mocked_admmn, mocked_scm, mocked_get_user
+            self, mocked_admmn, mocked_scm, mocked_get_user
     ):
         """
         Test that white-listed modules may set the disttag_marking in xmd.mbs.
@@ -2346,7 +2071,8 @@ class TestViews:
                 "el8.0.0",
                 datetime(2019, 9, 16, 12, 00, 00, 0),
             ),
-            # Test when there is no configured special Product Pages template for major releases
+            # Test when there is no configured special Product Pages template
+            # for major releases
             (
                 "https://pp.domain.local/pp/",
                 {r"el.+": (".z", "rhel-{x}-{y}", None)},
@@ -2391,7 +2117,8 @@ class TestViews:
     @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.common.scm.SCM")
     def test_submit_build_automatic_z_stream_detection(
-        self, mocked_scm, mocked_get_user, mock_get, mock_pp_sched, mock_pp_streams, mock_pp_url,
+            self, mocked_scm, mocked_get_user, mock_get, mock_pp_sched, mock_pp_streams,
+            mock_pp_url,
             mock_datetime, pp_url, pp_streams, pp_sched, get_rv, br_stream, br_override,
             expected_stream, utcnow,
     ):
@@ -2450,21 +2177,22 @@ class TestViews:
         else:
             mock_get.assert_not_called()
 
-    @pytest.mark.parametrize("reuse_components_from", (7, "testmodule:4.3.43:7:00000000"))
+    @pytest.mark.parametrize("reuse_components_from", (4, "testmodule:4.3.43:6:00000000"))
     @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.common.scm.SCM")
     def test_submit_build_reuse_components_from(
-        self, mocked_scm, mocked_get_user, reuse_components_from,
+            self, mocked_scm, mocked_get_user, reuse_components_from, provide_test_data
     ):
         """Test a build submission using the reuse_components_from parameter."""
-        module_to_reuse = ModuleBuild.get_by_id(db_session, 7)
+        module_to_reuse = ModuleBuild.get_by_id(db_session, 4)
         module_to_reuse.state = BUILD_STATES["ready"]
         for c in module_to_reuse.component_builds:
             c.state = koji.BUILD_STATES["COMPLETE"]
         db_session.commit()
 
         FakeSCM(
-            mocked_scm, "testmodule", "testmodule.yaml", "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
+            mocked_scm, "testmodule", "testmodule.yaml",
+            "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
         rv = self.client.post(
             "/module-build-service/1/module-builds/",
             data=json.dumps({
@@ -2477,39 +2205,39 @@ class TestViews:
             }),
         )
         data = json.loads(rv.data)
-        assert data["reused_module_id"] == 7
+        assert data["reused_module_id"] == 4
 
     @pytest.mark.parametrize(
         "reuse_components_from, expected_error",
         (
             (
                 "testmodule:4.3.43:7",
-                'The parameter "reuse_components_from" contains an invalid module identifier',
+                'The parameter "reuse_components_from" contains an invalid module identifier'
             ),
             (
                 {},
-                'The parameter "reuse_components_from" contains an invalid module identifier',
+                'The parameter "reuse_components_from" contains an invalid module identifier'
             ),
             (
                 912312312,
-                'The module in the parameter "reuse_components_from" could not be found',
-            ),
+                'The module in the parameter "reuse_components_from" could not be found'),
             (
-                7,
-                'The module in the parameter "reuse_components_from" must be in the ready state',
+                4,
+                'The module in the parameter "reuse_components_from" must be in the ready state'
             )
         )
     )
     @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.common.scm.SCM")
-    def test_submit_build_reuse_components_from_errors(
-        self, mocked_scm, mocked_get_user, reuse_components_from, expected_error,
-    ):
+    def test_submit_build_reuse_components_from_errors(self, mocked_scm, mocked_get_user,
+                                                       reuse_components_from, expected_error,
+                                                       provide_test_data):
         """
         Test a build submission using an invalid value for the reuse_components_from parameter.
         """
         FakeSCM(
-            mocked_scm, "testmodule", "testmodule.yaml", "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
+            mocked_scm, "testmodule", "testmodule.yaml",
+            "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
         rv = self.client.post(
             "/module-build-service/1/module-builds/",
             data=json.dumps({
@@ -2533,13 +2261,14 @@ class TestViews:
         return_value=True,
     )
     def test_submit_build_reuse_components_rebuild_strategy_all(
-        self, mock_rsao, mocked_scm, mocked_get_user,
+            self, mock_rsao, mocked_scm, mocked_get_user,
     ):
         """
         Test a build submission using reuse_components_from and the rebuild_strategy of all.
         """
         FakeSCM(
-            mocked_scm, "testmodule", "testmodule.yaml", "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
+            mocked_scm, "testmodule", "testmodule.yaml",
+            "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
         rv = self.client.post(
             "/module-build-service/1/module-builds/",
             data=json.dumps({
@@ -2558,158 +2287,6 @@ class TestViews:
             'You cannot specify the parameter "reuse_components_from" when the "rebuild_strategy" '
             'parameter is set to "all"'
         )
-
-
-@pytest.mark.usefixtures("provide_test_client")
-@pytest.mark.usefixtures("provide_test_data")
-@pytest.mark.parametrize("provide_test_data", [{"data_size": 2, "contexts": True}], indirect=True)
-class TestViewsWithContexts:
-
-    def test_query_builds_with_context(self):
-        rv = self.client.get("/module-build-service/1/module-builds/?context=3a4057d2")
-        items = json.loads(rv.data)["items"]
-
-        checking_build_id = 3
-        # Get component build ids dynamically rather than hardcode inside expected output.
-        component_build_ids = db_session.query(ComponentBuild).filter(
-            ComponentBuild.module_id == checking_build_id
-        ).order_by(ComponentBuild.id).options(load_only("id")).all()
-
-        expected = [
-            {
-                "component_builds": [cb.id for cb in component_build_ids],
-                "context": "3a4057d2",
-                "id": checking_build_id,
-                "koji_tag": "module-nginx-1.2",
-                "name": "nginx",
-                "owner": "Moe Szyslak",
-                "rebuild_strategy": "changed-and-after",
-                "scmurl": (
-                    "git://pkgs.domain.local/modules/nginx"
-                    "?#ba95886c7a443b36a9ce31abda1f9bef22f2f8c9"
-                ),
-                "scratch": False,
-                "siblings": [2],
-                "srpms": [],
-                "state": 5,
-                "state_name": "ready",
-                "state_reason": None,
-                "stream": "0",
-                "tasks": {
-                    "rpms": {
-                        "module-build-macros": {
-                            "nvr": "module-build-macros-01-1.module+4+0557c87d",
-                            "state": 1,
-                            "state_reason": None,
-                            "task_id": 47383993,
-                        },
-                        "postgresql": {
-                            "nvr": "postgresql-9.5.3-4.module+4+0557c87d",
-                            "state": 1,
-                            "state_reason": None,
-                            "task_id": 2433433,
-                        },
-                    }
-                },
-                "time_completed": "2016-09-03T11:25:32Z",
-                "time_modified": "2016-09-03T11:25:32Z",
-                "time_submitted": "2016-09-03T11:23:20Z",
-                "version": "2",
-                "buildrequires": {},
-            }
-        ]
-
-        # To avoid different order of component builds impact the subsequent assertion.
-        items[0]['component_builds'] = sorted(items[0]['component_builds'])
-        assert items == expected
-
-    def test_query_builds_order_desc_by_context(self):
-        rv = self.client.get(
-            "/module-build-service/1/module-builds/?per_page=10&name=nginx&order_desc_by=context")
-        sorted_items = json.loads(rv.data)["items"]
-        sorted_contexts = [m["context"] for m in sorted_items]
-
-        expected_contexts = ["d5a6c0fa", "795e97c1", "3a4057d2", "10e50d06"]
-        assert sorted_contexts == expected_contexts
-
-
-@pytest.mark.usefixtures("provide_test_client")
-@pytest.mark.usefixtures("provide_test_data")
-@pytest.mark.parametrize('provide_test_data',
-                         [{"data_size": 1, "multiple_stream_versions": True}], indirect=True)
-class TestViewsWithMultipleStreamVersions:
-
-    @pytest.mark.parametrize(
-        "stream_version_lte",
-        ("280000", "280000.0", "290000", "293000", "invalid"),
-    )
-    def test_query_builds_filter_stream_version_lte(self, stream_version_lte,):
-        url = (
-            "/module-build-service/1/module-builds/?name=platform&verbose=true"
-            "&stream_version_lte={}".format(stream_version_lte)
-        )
-        rv = self.client.get(url)
-        data = json.loads(rv.data)
-        total = data.get("meta", {}).get("total")
-        if stream_version_lte == "invalid":
-            assert data == {
-                "error": "Bad Request",
-                "message": (
-                    "An invalid value of stream_version_lte was provided. It must be an "
-                    "integer or float greater than or equal to 10000."
-                ),
-                "status": 400,
-            }
-        elif stream_version_lte in ("280000", "280000.0"):
-            assert total == 2
-        elif stream_version_lte == "290000":
-            assert total == 1
-        elif stream_version_lte == "293000":
-            assert total == 3
-
-    @pytest.mark.parametrize("virtual_streams", ([], ("f28",), ("f29",), ("f28", "f29")))
-    def test_query_builds_filter_virtual_streams(self, virtual_streams):
-        url = "/module-build-service/1/module-builds/?name=platform&verbose=true"
-        for virtual_stream in virtual_streams:
-            url += "&virtual_stream={}".format(virtual_stream)
-        rv = self.client.get(url)
-        data = json.loads(rv.data)
-        total = data["meta"]["total"]
-        if virtual_streams == ("f28",):
-            assert total == 1
-            for module in data["items"]:
-                assert module["virtual_streams"] == ["f28"]
-        elif virtual_streams == ("f29",):
-            assert total == 3
-            for module in data["items"]:
-                assert module["virtual_streams"] == ["f29"]
-        elif virtual_streams == ("f28", "f29"):
-            assert total == 4
-            for module in data["items"]:
-                assert len(set(module["virtual_streams"]) - {"f28", "f29"}) == 0
-        elif len(virtual_streams) == 0:
-            assert total == 5
-
-    def test_query_builds_order_by_multiple(self):
-        platform_f28 = ModuleBuild.get_by_id(db_session, 1)
-        platform_f28.version = "150"
-        db_session.commit()
-        # Simply assert the order of all module builds
-        page_size = db_session.query(ModuleBuild).count()
-        rv = self.client.get(
-            "/module-build-service/1/module-builds/?order_desc_by=stream_version"
-            "&order_desc_by=version&per_page={}".format(page_size)
-        )
-        items = json.loads(rv.data)["items"]
-        actual_ids = [item["id"] for item in items]
-
-        expected_ids = [
-            build.id for build in db_session.query(ModuleBuild).order_by(
-                ModuleBuild.stream_version.desc(),
-                sqlalchemy.cast(ModuleBuild.version, sqlalchemy.BigInteger).desc()
-            ).all()
-        ]
-        assert actual_ids == expected_ids
 
     @pytest.mark.parametrize(
         "br_override_streams, req_override_streams", ((["f28"], None), (["f28"], ["f28"]))
@@ -2912,7 +2489,489 @@ class TestViewsWithMultipleStreamVersions:
 
 
 @pytest.mark.usefixtures("provide_test_client")
-class TestLogMessageViews:
+@pytest.mark.usefixtures("provide_test_data")
+# only the 3rd build (with platform, id=4) in provide_test_data is eligible, it is in 'wait' state
+class TestCancelBuild:
+
+    @patch("module_build_service.web.auth.get_user", return_value=other_user)
+    def test_cancel_build(self, mocked_get_user):
+        rv = self.client.patch(
+            "/module-build-service/1/module-builds/4", data=json.dumps({"state": "failed"}))
+        data = json.loads(rv.data)
+
+        assert data["state"] == 4
+        assert data["state_reason"] == "Canceled by some_other_user."
+
+    @pytest.mark.parametrize("module_state", (BUILD_STATES["failed"], BUILD_STATES["ready"]))
+    @patch("module_build_service.web.auth.get_user", return_value=other_user)
+    def test_cancel_build_in_invalid_state(self, mocked_get_user, module_state):
+        module = ModuleBuild.get_by_id(db_session, 4)
+        module.state = module_state
+        db_session.commit()
+
+        rv = self.client.patch(
+            "/module-build-service/1/module-builds/4", data=json.dumps({"state": "failed"}))
+
+        assert rv.status_code == 400
+        assert json.loads(rv.data) == {
+            "error": "Bad Request",
+            "message": (
+                "To cancel a module build, it must be in one of the following states: "
+                "build, init, wait"
+            ),
+            "status": 400,
+        }
+
+    @patch("module_build_service.web.auth.get_user", return_value=("sammy", set()))
+    def test_cancel_build_unauthorized_no_groups(self, mocked_get_user):
+        rv = self.client.patch(
+            "/module-build-service/1/module-builds/4", data=json.dumps({"state": "failed"}))
+        data = json.loads(rv.data)
+
+        assert data["status"] == 403
+        assert data["error"] == "Forbidden"
+
+    @patch("module_build_service.web.auth.get_user", return_value=("sammy", {"packager"}))
+    def test_cancel_build_unauthorized_not_owner(self, mocked_get_user):
+        rv = self.client.patch(
+            "/module-build-service/1/module-builds/4", data=json.dumps({"state": "failed"}))
+        data = json.loads(rv.data)
+
+        assert data["status"] == 403
+        assert data["error"] == "Forbidden"
+
+    @patch(
+        "module_build_service.web.auth.get_user", return_value=("sammy", {"packager", "mbs-admin"})
+    )
+    def test_cancel_build_admin(self, mocked_get_user):
+        with patch(
+                "module_build_service.common.config.Config.admin_groups",
+                new_callable=PropertyMock,
+                return_value={"mbs-admin"},
+        ):
+            rv = self.client.patch(
+                "/module-build-service/1/module-builds/4", data=json.dumps({"state": "failed"}))
+            data = json.loads(rv.data)
+
+            assert data["state"] == 4
+            assert data["state_reason"] == "Canceled by sammy."
+
+    @patch("module_build_service.web.auth.get_user", return_value=("sammy", {"packager"}))
+    def test_cancel_build_no_admin(self, mocked_get_user):
+        with patch(
+                "module_build_service.common.config.Config.admin_groups",
+                new_callable=PropertyMock,
+                return_value={"mbs-admin"},
+        ):
+            rv = self.client.patch(
+                "/module-build-service/1/module-builds/4", data=json.dumps({"state": "failed"}))
+            data = json.loads(rv.data)
+
+            assert data["status"] == 403
+            assert data["error"] == "Forbidden"
+
+    @patch("module_build_service.web.auth.get_user", return_value=other_user)
+    def test_cancel_build_wrong_param(self, mocked_get_user):
+        rv = self.client.patch(
+            "/module-build-service/1/module-builds/4", data=json.dumps({"some_param": "value"}))
+        data = json.loads(rv.data)
+
+        assert data["status"] == 400
+        assert data["error"] == "Bad Request"
+        assert data["message"] == "Invalid JSON submitted"
+
+    @patch("module_build_service.web.auth.get_user", return_value=other_user)
+    def test_cancel_build_wrong_state(self, mocked_get_user):
+        rv = self.client.patch(
+            "/module-build-service/1/module-builds/4", data=json.dumps({"state": "some_state"}))
+
+        assert rv.status_code == 400
+        assert json.loads(rv.data) == {
+            "error": "Bad Request",
+            "message": "An invalid state was submitted. Valid states values are: failed, 4",
+            "status": 400,
+        }
+
+
+@pytest.mark.usefixtures("provide_test_client")
+class TestImportBuild:
+
+    @pytest.mark.parametrize("api_version", [1, 2])
+    @patch("module_build_service.web.auth.get_user", return_value=user)
+    @patch.object(
+        module_build_service.common.config.Config,
+        "allowed_groups_to_import_module",
+        new_callable=PropertyMock,
+        return_value=set(),
+    )
+    def test_import_build_disabled(self, mocked_groups, mocked_get_user, api_version):
+        post_url = "/module-build-service/{0}/import-module/".format(api_version)
+        rv = self.client.post(post_url)
+        data = json.loads(rv.data)
+
+        assert data["error"] == "Forbidden"
+        assert data["message"] == "Import module API is disabled."
+
+    @pytest.mark.parametrize("api_version", [1, 2])
+    @patch("module_build_service.web.auth.get_user", return_value=user)
+    def test_import_build_user_not_allowed(self, mocked_get_user, api_version):
+        post_url = "/module-build-service/{0}/import-module/".format(api_version)
+        rv = self.client.post(post_url)
+        data = json.loads(rv.data)
+
+        assert data["error"] == "Forbidden"
+        assert data["message"] == (
+            "Homer J. Simpson is not in any of {0}, only {1}".format(
+                {"mbs-import-module"}, {"packager"})
+        )
+
+    @pytest.mark.parametrize("api_version", [1, 2])
+    @patch("module_build_service.web.auth.get_user", return_value=import_module_user)
+    def test_import_build_scm_invalid_json(self, mocked_get_user, api_version):
+        post_url = "/module-build-service/{0}/import-module/".format(api_version)
+        rv = self.client.post(post_url, data="")
+        data = json.loads(rv.data)
+
+        assert data["error"] == "Bad Request"
+        assert data["message"] == "Invalid JSON submitted"
+
+    @pytest.mark.parametrize("api_version", [1, 2])
+    @patch("module_build_service.web.auth.get_user", return_value=import_module_user)
+    def test_import_build_scm_url_not_allowed(self, mocked_get_user, api_version):
+        post_url = "/module-build-service/{0}/import-module/".format(api_version)
+        rv = self.client.post(
+            post_url, data=json.dumps({"scmurl": "file://" + scm_base_dir + "/mariadb"}))
+        data = json.loads(rv.data)
+
+        assert data["error"] == "Forbidden"
+        assert data["message"].startswith("The submitted scmurl ")
+        assert data["message"].endswith("/tests/scm_data/mariadb is not allowed")
+
+    @pytest.mark.parametrize("api_version", [1, 2])
+    @patch("module_build_service.web.auth.get_user", return_value=import_module_user)
+    @patch.object(
+        module_build_service.common.config.Config,
+        "allow_custom_scmurls",
+        new_callable=PropertyMock,
+        return_value=True,
+    )
+    def test_import_build_scm_url_not_in_list(self, mocked_scmurls, mocked_get_user, api_version):
+        post_url = "/module-build-service/{0}/import-module/".format(api_version)
+        rv = self.client.post(
+            post_url,
+            data=json.dumps({
+                "scmurl": "file://{}/mariadb?#b17bea85de2d03558f24d506578abcfcf467e5bc".format(
+                    scm_base_dir)
+            }),
+        )
+        data = json.loads(rv.data)
+
+        assert data["error"] == "Forbidden"
+        assert data["message"].endswith(
+            "/tests/scm_data/mariadb?#b17bea85de2d03558f24d506578abcfcf467e5bc "
+            "is not in the list of allowed SCMs"
+        )
+
+    @pytest.mark.parametrize("api_version", [1, 2])
+    @patch("module_build_service.web.auth.get_user", return_value=import_module_user)
+    @patch.object(
+        module_build_service.common.config.Config,
+        "scmurls",
+        new_callable=PropertyMock,
+        return_value=["file://"],
+    )
+    def test_import_build_scm(self, mocked_scmurls, mocked_get_user, api_version):
+        post_url = "/module-build-service/{0}/import-module/".format(api_version)
+        rv = self.client.post(
+            post_url,
+            data=json.dumps({
+                "scmurl": "file://{}/mariadb?#e9742ed681f82e3ef5281fc652b4e68a3826cea6".format(
+                    scm_base_dir)
+            }),
+        )
+        data = json.loads(rv.data)
+
+        assert "Module mariadb:10.2:20180724000000:00000000 imported" in data["messages"]
+        assert data["module"]["name"] == "mariadb"
+        assert data["module"]["stream"] == "10.2"
+        assert data["module"]["version"] == "20180724000000"
+        assert data["module"]["context"] == "00000000"
+        assert data["module"]["owner"] == "mbs_import"
+        assert data["module"]["state"] == 5
+        assert data["module"]["state_reason"] is None
+        assert data["module"]["state_name"] == "ready"
+        assert data["module"]["scmurl"] is None
+        assert data["module"]["component_builds"] == []
+        assert time_assert(
+            data["module"]["time_submitted"],
+            data["module"]["time_modified"],
+            data["module"]["time_completed"]
+        )
+        assert data["module"]["koji_tag"] == "mariadb-10.2-20180724000000-00000000"
+        assert data["module"]["siblings"] == []
+        assert data["module"]["rebuild_strategy"] == "all"
+
+    @pytest.mark.parametrize("api_version", [1, 2])
+    @patch("module_build_service.web.auth.get_user", return_value=import_module_user)
+    @patch.object(
+        module_build_service.common.config.Config,
+        "scmurls",
+        new_callable=PropertyMock,
+        return_value=["file://"],
+    )
+    def test_import_build_scm_another_commit_hash(
+            self, mocked_scmurls, mocked_get_user, api_version
+    ):
+        post_url = "/module-build-service/{0}/import-module/".format(api_version)
+        rv = self.client.post(
+            post_url,
+            data=json.dumps({
+                "scmurl": "file://{}/mariadb?#8b43f38cdafdd773e7d0308e758105bf9f0f67a8".format(
+                    scm_base_dir)
+            }),
+        )
+        data = json.loads(rv.data)
+
+        assert "Module mariadb:10.2:20180724065109:00000000 imported" in data["messages"]
+        assert data["module"]["name"] == "mariadb"
+        assert data["module"]["stream"] == "10.2"
+        assert data["module"]["version"] == "20180724065109"
+        assert data["module"]["context"] == "00000000"
+        assert data["module"]["owner"] == "mbs_import"
+        assert data["module"]["state"] == 5
+        assert data["module"]["state_reason"] is None
+        assert data["module"]["state_name"] == "ready"
+        assert data["module"]["scmurl"] is None
+        assert data["module"]["component_builds"] == []
+        assert time_assert(
+            data["module"]["time_submitted"],
+            data["module"]["time_modified"],
+            data["module"]["time_completed"]
+        )
+        assert data["module"]["koji_tag"] == "mariadb-10.2-20180724065109-00000000"
+        assert data["module"]["siblings"] == []
+        assert data["module"]["rebuild_strategy"] == "all"
+
+    @pytest.mark.parametrize("api_version", [1, 2])
+    @patch("module_build_service.web.auth.get_user", return_value=import_module_user)
+    @patch.object(
+        module_build_service.common.config.Config,
+        "scmurls",
+        new_callable=PropertyMock,
+        return_value=["file://"],
+    )
+    def test_import_build_scm_incomplete_nsvc(self, mocked_scmurls, mocked_get_user, api_version):
+        post_url = "/module-build-service/{0}/import-module/".format(api_version)
+        rv = self.client.post(
+            post_url,
+            data=json.dumps({
+                "scmurl": "file://{}/mariadb?#b17bea85de2d03558f24d506578abcfcf467e5bc".format(
+                    scm_base_dir)
+            }),
+        )
+        data = json.loads(rv.data)
+
+        assert data["error"] == "Unprocessable Entity"
+        expected_msg = "Both the name and stream must be set for the modulemd being imported."
+        assert data["message"] == expected_msg
+
+    @pytest.mark.parametrize("api_version", [1, 2])
+    @patch("module_build_service.web.auth.get_user", return_value=import_module_user)
+    @patch.object(
+        module_build_service.common.config.Config,
+        "scmurls",
+        new_callable=PropertyMock,
+        return_value=["file://"],
+    )
+    def test_import_build_scm_yaml_is_bad(self, mocked_scmurls, mocked_get_user, api_version):
+        post_url = "/module-build-service/{0}/import-module/".format(api_version)
+        rv = self.client.post(
+            post_url,
+            data=json.dumps({
+                "scmurl": "file://{}/mariadb?#f7c5c7218c9a197d7fd245eeb4eee3d7abffd75d".format(
+                    scm_base_dir)
+            }),
+        )
+        data = json.loads(rv.data)
+
+        assert data["error"] == "Unprocessable Entity"
+        assert re.match(
+            r"The modulemd .* is invalid\. Please verify the syntax is correct", data["message"]
+        )
+
+
+@pytest.mark.usefixtures("provide_test_client")
+class TestViewsMisc:
+
+    def test_about(self):
+        with patch.object(mbs_config.Config, "auth_method", new_callable=PropertyMock) as auth:
+            auth.return_value = "kerberos"
+            rv = self.client.get("/module-build-service/1/about/")
+        data = json.loads(rv.data)
+        assert rv.status_code == 200
+        assert data == {"auth_method": "kerberos", "api_version": 2, "version": version}
+
+    def test_rebuild_strategy_api(self):
+        rv = self.client.get("/module-build-service/1/rebuild-strategies/")
+        data = json.loads(rv.data)
+        assert rv.status_code == 200
+        expected = {
+            "items": [
+                {
+                    "allowed": False,
+                    "default": False,
+                    "description": "All components will be rebuilt",
+                    "name": "all",
+                },
+                {
+                    "allowed": True,
+                    "default": True,
+                    "description": (
+                        "All components that have changed and those in subsequent "
+                        "batches will be rebuilt"
+                    ),
+                    "name": "changed-and-after",
+                },
+                {
+                    "allowed": False,
+                    "default": False,
+                    "description": "All changed components will be rebuilt",
+                    "name": "only-changed",
+                },
+            ]
+        }
+        assert data == expected
+
+    def test_rebuild_strategy_api_only_changed_default(self):
+        with patch.object(mbs_config.Config, "rebuild_strategy", new_callable=PropertyMock) as r_s:
+            r_s.return_value = "only-changed"
+            rv = self.client.get("/module-build-service/1/rebuild-strategies/")
+        data = json.loads(rv.data)
+        assert rv.status_code == 200
+        expected = {
+            "items": [
+                {
+                    "allowed": False,
+                    "default": False,
+                    "description": "All components will be rebuilt",
+                    "name": "all",
+                },
+                {
+                    "allowed": False,
+                    "default": False,
+                    "description": (
+                        "All components that have changed and those in subsequent "
+                        "batches will be rebuilt"
+                    ),
+                    "name": "changed-and-after",
+                },
+                {
+                    "allowed": True,
+                    "default": True,
+                    "description": "All changed components will be rebuilt",
+                    "name": "only-changed",
+                },
+            ]
+        }
+        assert data == expected
+
+    def test_rebuild_strategy_api_override_allowed(self):
+        with patch.object(
+            mbs_config.Config, "rebuild_strategy_allow_override", new_callable=PropertyMock
+        ) as rsao:
+            rsao.return_value = True
+            rv = self.client.get("/module-build-service/1/rebuild-strategies/")
+        data = json.loads(rv.data)
+        assert rv.status_code == 200
+        expected = {
+            "items": [
+                {
+                    "allowed": True,
+                    "default": False,
+                    "description": "All components will be rebuilt",
+                    "name": "all",
+                },
+                {
+                    "allowed": True,
+                    "default": True,
+                    "description": (
+                        "All components that have changed and those in subsequent "
+                        "batches will be rebuilt"
+                    ),
+                    "name": "changed-and-after",
+                },
+                {
+                    "allowed": True,
+                    "default": False,
+                    "description": "All changed components will be rebuilt",
+                    "name": "only-changed",
+                },
+            ]
+        }
+        assert data == expected
+
+    def test_cors_header_decorator(self):
+        rv = self.client.get("/module-build-service/1/module-builds/")
+        assert rv.headers["Access-Control-Allow-Origin"] == "*"
+
+    @patch("module_build_service.web.auth.get_user", return_value=anonymous_user)
+    @patch("module_build_service.common.scm.SCM")
+    @patch("module_build_service.common.config.Config.no_auth", new_callable=PropertyMock)
+    @pytest.mark.usefixtures("require_platform_and_default_arch")
+    def test_patch_set_different_owner(self, mocked_no_auth, mocked_scm, mocked_get_user):
+        FakeSCM(
+            mocked_scm, "testmodule", "testmodule.yaml",
+            "620ec77321b2ea7b0d67d82992dda3e1d67055b4")
+
+        mocked_no_auth.return_value = True
+        data = {
+            "branch": "master",
+            "scmurl": "https://src.stg.fedoraproject.org/modules/"
+                      "testmodule.git?#68931c90de214d9d13feefbd35246a81b6cb8d49",
+            "owner": "foo",
+        }
+        rv = self.client.post("/module-build-service/1/module-builds/", data=json.dumps(data))
+        r1 = json.loads(rv.data)
+
+        url = "/module-build-service/1/module-builds/" + str(r1["id"])
+        r2 = self.client.patch(url, data=json.dumps({"state": "failed"}))
+        assert r2.status_code == 403
+
+        r3 = self.client.patch(url, data=json.dumps({"state": "failed", "owner": "foo"}))
+        assert r3.status_code == 200
+
+        mocked_no_auth.return_value = False
+        r3 = self.client.patch(url, data=json.dumps({"state": "failed", "owner": "foo"}))
+        assert r3.status_code == 400
+        assert "The request contains 'owner' parameter" in json.loads(r3.data)["message"]
+
+    @pytest.mark.usefixtures("require_platform_and_default_arch")
+    def test_buildrequires_is_included_in_json_output(self):
+        # Inject xmd/mbs/buildrequires into an existing module build for
+        # assertion later.
+        br_modulea = dict(stream="6", version="1", context="1234")
+        br_moduleb = dict(stream="10", version="1", context="5678")
+        build = db_session.query(ModuleBuild).first()
+        mmd = build.mmd()
+        xmd = mmd.get_xmd()
+        mbs = xmd.setdefault("mbs", {})
+        buildrequires = mbs.setdefault("buildrequires", {})
+        buildrequires["modulea"] = br_modulea
+        buildrequires["moduleb"] = br_moduleb
+        mmd.set_xmd(xmd)
+        build.modulemd = mmd_to_str(mmd)
+        db_session.commit()
+
+        rv = self.client.get("/module-build-service/1/module-builds/{}".format(build.id))
+        data = json.loads(rv.data)
+        buildrequires = data.get("buildrequires", {})
+
+        assert br_modulea == buildrequires.get("modulea")
+        assert br_moduleb == buildrequires.get("moduleb")
+
+
+@pytest.mark.usefixtures("provide_test_client")
+class TestViewsLogMessage:
 
     def setup_method(self, test_method):
         clean_database()
@@ -2949,7 +3008,7 @@ class TestLogMessageViews:
 
 @pytest.mark.usefixtures("provide_test_client")
 @pytest.mark.usefixtures("provide_test_data")
-class TestFinalModulemdViews:
+class TestViewsFinalModulemd:
 
     @patch("module_build_service.builder.KojiContentGenerator.KojiContentGenerator.get_final_mmds")
     def test_view_final_modulemd(self, mocked_cg):

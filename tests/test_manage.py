@@ -14,7 +14,7 @@ from module_build_service.web.utils import deps_to_dict
 from tests import clean_database, staged_data_filename
 
 
-@pytest.mark.usefixtures("model_tests_init_data")
+@pytest.mark.usefixtures("provide_test_data")
 class TestMBSManage:
 
     @pytest.mark.parametrize(
@@ -42,9 +42,9 @@ class TestMBSManage:
             ({"stream": "pickme"}, "spam:pickme", 1),
             ({"version": "pickme"}, "spam:eggs:pickme", 1),
             ({"context": "pickme"}, "spam:eggs:ham:pickme", 1),
-            ({}, "spam:eggs", 3),
-            ({"version": "pickme"}, "spam:eggs", 3),
-            ({"context": "pickme"}, "spam:eggs:ham", 3),
+            ({}, "spam:eggs", 2),
+            ({"version": "pickme"}, "spam:eggs", 2),
+            ({"context": "pickme"}, "spam:eggs:ham", 2),
         ),
     )
     @patch("module_build_service.manage.prompt_bool")
@@ -57,8 +57,8 @@ class TestMBSManage:
             .order_by(ModuleBuild.id.desc())
             .all()
         )
-        # Verify our assumption of the amount of ModuleBuilds in database
-        assert len(module_builds) == 3
+        # Verify our assumption of the amount of 'ready' ModuleBuilds in database
+        assert len(module_builds) == 2
 
         for x, build in enumerate(module_builds):
             build.name = "spam"
@@ -101,7 +101,7 @@ class TestMBSManage:
 
         module_builds = db_session.query(ModuleBuild).filter_by(state=BUILD_STATES["ready"]).all()
         # Verify our assumption of the amount of ModuleBuilds in database
-        assert len(module_builds) == 3
+        assert len(module_builds) == 2
 
         for x, build in enumerate(module_builds):
             build.name = "spam" + str(x) if x > 0 else "spam"

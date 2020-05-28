@@ -18,7 +18,6 @@ from tests import (
     init_data,
     truncate_tables,
     read_staged_data,
-    module_build_from_modulemd
 )
 
 BASE_DIR = os.path.dirname(__file__)
@@ -55,15 +54,15 @@ def platform_mmd():
     return PLATFORM_MODULEMD
 
 
-@pytest.fixture()
-def require_empty_database():
+@pytest.fixture(scope="class")
+def require_empty_database_cls():
     """Provides cleared database"""
     truncate_tables()
 
 
-@pytest.fixture()
-def require_platform_and_default_arch(require_empty_database):
-    """Provides clean database with platform module and a default arch"""
+@pytest.fixture(scope="class")
+def require_platform_and_default_arch_cls(require_empty_database_cls):
+    """Provides clean database with platform module and default arch"""
     arch_obj = module_build_service.common.models.ModuleArch(name="x86_64")
     db_session.add(arch_obj)
     db_session.commit()
@@ -72,8 +71,28 @@ def require_platform_and_default_arch(require_empty_database):
     import_mmd(db_session, mmd)
 
 
-@pytest.fixture()
-def provide_test_data(request, require_platform_and_default_arch):
+@pytest.fixture(scope="function")
+def require_empty_database():
+    """Provides cleared database"""
+    truncate_tables()
+
+
+@pytest.fixture(scope="function")
+def require_default_arch(require_empty_database):
+    """Provides empty database with x86_64 arch"""
+    arch_obj = module_build_service.common.models.ModuleArch(name="x86_64")
+    db_session.add(arch_obj)
+    db_session.commit()
+
+
+@pytest.fixture(scope="function")
+def require_platform_and_default_arch(require_default_arch):
+    """Provides clean database with platform module and a default arch"""
+    mmd = load_mmd(read_staged_data("platform"))
+    import_mmd(db_session, mmd)
+
+
+def provide_test_data_impl(request):
     """Provides clean database with fresh test data based on supplied params:
 
     e.g.: @pytest.mark.parametrize("provide_test_data",
@@ -99,39 +118,17 @@ def provide_test_data(request, require_platform_and_default_arch):
               scratch=scratch)
 
 
+@pytest.fixture(scope="function")
+def provide_test_data(request, require_platform_and_default_arch):
+    provide_test_data_impl(request)
+
+
 @pytest.fixture(scope="class")
-def provide_test_client(request):
-    """Inject REST client into the test class -> self.client"""
-    request.cls.client = module_build_service.app.test_client()
+def provide_test_data_cls(request, require_platform_and_default_arch_cls):
+    provide_test_data_impl(request)
 
 
-@pytest.fixture()
-def model_tests_init_data(require_platform_and_default_arch):
-    """Initialize data for model tests
-
-    This is refactored from tests/test_models/__init__.py, which was able to be
-    called directly inside setup_method generally.
-
-    The reason to convert it to this fixture is to use fixture ``db_session``
-    rather than create a new one. That would also benefit the whole test suite
-    to reduce the number of SQLAlchemy session objects.
-    """
-
-    model_test_data_dir = os.path.join(
-        os.path.dirname(__file__), "test_common", "test_models", "data"
-    )
-
-    for filename in os.listdir(model_test_data_dir):
-        with open(os.path.join(model_test_data_dir, filename), "r") as f:
-            yaml = f.read()
-        build = module_build_from_modulemd(yaml)
-        db_session.add(build)
-
-    db_session.commit()
-
-
-@pytest.fixture()
-def reuse_component_init_data(require_platform_and_default_arch):
+def reuse_component_init_impl():
     mmd = load_mmd(read_staged_data("formatted_testmodule"))
 
     build_one = module_build_service.common.models.ModuleBuild(
@@ -316,6 +313,16 @@ def reuse_component_init_data(require_platform_and_default_arch):
 
 
 @pytest.fixture()
+def reuse_component_init_data(require_platform_and_default_arch):
+    reuse_component_init_impl()
+
+
+@pytest.fixture(scope="class")
+def reuse_component_init_data_cls(require_platform_and_default_arch_cls):
+    reuse_component_init_impl()
+
+
+@pytest.fixture()
 def reuse_shared_userspace_init_data():
     # Create shared-userspace-570, state is COMPLETE, all components
     # are properly built.
@@ -450,6 +457,12 @@ def cleanup_build_logs(request):
             module_build_service.common.build_logs.stop(mock_build)
 
     request.addfinalizer(_cleanup_build_logs)
+
+
+@pytest.fixture(scope="class")
+def provide_test_client(request):
+    """Inject REST client into the test class -> self.client"""
+    request.cls.client = module_build_service.app.test_client()
 
 
 @pytest.fixture(autouse=True, scope="session")
