@@ -20,7 +20,7 @@ from module_build_service.common.utils import mmd_to_str
 from module_build_service.scheduler import events
 from module_build_service.scheduler.db_session import db_session
 import module_build_service.scheduler.handlers.repos
-from tests import init_data, make_module_in_db
+from tests import make_module_in_db
 
 
 @pytest.fixture(scope="function")
@@ -87,9 +87,7 @@ class FakeKojiModuleBuilder(KojiModuleBuilder):
 
 # setup/teardown converted to a fixture -> reuse existing fixture hierarchy
 @pytest.fixture()
-def koji_builder_fixture(request, require_platform_and_default_arch):
-    init_data(data_size=1)
-
+def koji_builder_fixture(request, provide_test_data):
     events.scheduler.reset()
     config = mock.Mock()
     config.koji_profile = conf.koji_profile

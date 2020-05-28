@@ -16,7 +16,6 @@ from module_build_service.common import conf, build_logs, models
 from module_build_service.common.modulemd import Modulemd
 from module_build_service.common.utils import load_mmd, load_mmd_file, mmd_to_str
 from module_build_service.scheduler.db_session import db_session
-from tests import init_data
 from tests.test_web.test_views import FakeSCM
 
 
@@ -31,8 +30,7 @@ GET_USER_RV = {
 
 # setup/teardown converted to a fixture -> reuse existing fixture hierarchy
 @pytest.fixture()
-def test_content_generator_fixture(request, require_platform_and_default_arch):
-    init_data(1, contexts=True)
+def test_content_generator_fixture(request):
     module = models.ModuleBuild.get_by_id(db_session, 2)
     module.cg_build_koji_tag = "f27-module-candidate"
     cg = KojiContentGenerator(module, conf)
@@ -75,6 +73,8 @@ def test_content_generator_fixture(request, require_platform_and_default_arch):
 
 
 @pytest.mark.usefixtures("test_content_generator_fixture")
+@pytest.mark.usefixtures("provide_test_data_cls")
+@pytest.mark.parametrize("provide_test_data_cls", [{"contexts": True}], indirect=True)
 class TestBuild:
 
     @patch("koji.ClientSession")
@@ -965,16 +965,6 @@ class TestBuild:
                     requires.append("%s:%s" % (name, stream))
             assert "%s:%s" % (mmd.get_module_name(), mmd.get_stream_name()) in requires
 
-    @patch("koji.ClientSession")
-    @patch("module_build_service.builder.KojiContentGenerator.KojiContentGenerator._tag_cg_build")
-    @patch("module_build_service.builder.KojiContentGenerator.KojiContentGenerator._load_koji_tag")
-    def test_koji_cg_koji_import(self, tag_loader, tagger, cl_session):
-        """ Tests whether build is still tagged even if there's an exception in CGImport """
-        cl_session.return_value.CGImport = Mock(
-            side_effect=koji.GenericError("Build already exists asdv"))
-        self.cg.koji_import()
-        tagger.assert_called()
-
     def test_fill_in_rpms_list_debuginfo_deps(self):
         """
         Tests that -debuginfo RPM required by other -debuginfo RPM is included in a RPM list.
@@ -1171,3 +1161,16 @@ class TestBuild:
         self.cg.get_final_mmds()
         tag_loader.assert_called()
         finalize_mmd.assert_called()
+
+    # (!) class fixture data will be overridden by function scope fixture
+    @patch("koji.ClientSession")
+    @patch("module_build_service.builder.KojiContentGenerator.KojiContentGenerator._tag_cg_build")
+    @patch("module_build_service.builder.KojiContentGenerator.KojiContentGenerator._load_koji_tag")
+    @pytest.mark.usefixtures("provide_test_data")
+    @pytest.mark.parametrize("provide_test_data", [{"contexts": True}], indirect=True)
+    def test_koji_cg_koji_import(self, tag_loader, tagger, cl_session):
+        """ Tests whether build is still tagged even if there's an exception in CGImport """
+        cl_session.return_value.CGImport = Mock(
+            side_effect=koji.GenericError("Build already exists asdv"))
+        self.cg.koji_import()
+        tagger.assert_called()

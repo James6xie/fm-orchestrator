@@ -241,7 +241,7 @@ class TestMockModuleBuilderAddRepos:
         assert set(builder.enabled_modules) == {"foo:1", "app:1"}
 
 
-@pytest.mark.usefixtures("require_empty_database")
+@pytest.mark.usefixtures("require_empty_database_cls")
 class TestOfflineLocalBuilds:
 
     def test_import_fake_base_module(self):
