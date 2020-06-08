@@ -1897,6 +1897,7 @@ class TestLocalBuild(BaseTestBuild):
             except Exception:
                 pass
 
+    @patch("module_build_service.scheduler.greenwave.Greenwave.query_policies")
     @patch("module_build_service.scheduler.handlers.modules.handle_stream_collision_modules")
     @patch("module_build_service.web.auth.get_user", return_value=user)
     @patch("module_build_service.common.scm.SCM")
@@ -1906,7 +1907,7 @@ class TestLocalBuild(BaseTestBuild):
         return_value=staged_data_filename('local_builds'),
     )
     def test_submit_build_local_dependency(
-        self, resultsdir, mocked_scm, mocked_get_user, conf_system, hmsc
+        self, resultsdir, mocked_scm, mocked_get_user, conf_system, hmsc, mocked_greenwave
     ):
         """
         Tests local module build dependency.
