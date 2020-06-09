@@ -18,6 +18,7 @@ from six import string_types
 import module_build_service
 from module_build_service import db
 from module_build_service.builder.utils import get_rpm_release
+from module_build_service.common import conf
 from module_build_service.common.models import (
     BUILD_STATES,
     ComponentBuild,
@@ -155,6 +156,39 @@ def clean_database(add_platform_module=True, add_default_arches=True):
         import_mmd(db.session, mmd)
 
 
+def _get_rpm_release_no_db(module_build, is_scratch, siblings=None):
+    """Get dist tag without querying the database.
+
+    ~4x faster then the original: module_build_service.builder.utils.get_rpm_release().
+    Any sibling builds need to be specified. Build object id field required.
+    (!) ignores base module marking (not required by any test so far)
+    """
+    dist_str = ".".join([
+        module_build.name,
+        module_build.stream,
+        str(module_build.version),
+        str(module_build.context or "00000000"),
+    ]).encode("utf-8")
+    dist_hash = hashlib.sha1(dist_str).hexdigest()[:8]
+
+    mse_build_ids = siblings or []
+    mse_build_ids.append(module_build.id or 0)
+    mse_build_ids.sort()
+    index = mse_build_ids[0]
+
+    prefix = "scrmod+" if is_scratch else conf.default_dist_tag_prefix
+    br_module_marking = ""
+    return "{prefix}{base_module_marking}{index}+{dist_hash}".format(
+        prefix=prefix, base_module_marking=br_module_marking, index=index, dist_hash=dist_hash)
+
+
+def _update_module_build_sequence(id):
+    """Set the current module_build_ids sequence to the provided integer"""
+    if db_session.bind.dialect.name == "postgresql":
+        sql = "alter sequence module_builds_id_seq restart with {};".format(id)
+        db_session.execute(sql)
+
+
 def init_data(data_size=10, contexts=False, multiple_stream_versions=None, scratch=False):
     """
     Creates data_size * 3 modules in database in different states and
@@ -198,9 +232,14 @@ def _populate_data(data_size=10, contexts=False, scratch=False):
     task_id_counter = itertools.count(1)
     arch = db_session.query(module_build_service.common.models.ModuleArch).get(1)
     num_contexts = 2 if contexts else 1
+
+    # manually increment id -> so we don't have to 'db_session.commit()' each build
+    last_id = ModuleBuild.get_module_count(db_session)
     for index in range(data_size):
         for context in range(num_contexts):
+            last_id = last_id + 1
             build_one = ModuleBuild(
+                id=last_id,
                 name="nginx",
                 stream="1",
                 version=2 + index,
@@ -233,11 +272,13 @@ def _populate_data(data_size=10, contexts=False, scratch=False):
                 build_one.runtime_context = unique_hash
                 combined_hashes = "{0}:{1}".format(unique_hash, unique_hash)
                 build_one.context = hashlib.sha1(combined_hashes.encode("utf-8")).hexdigest()[:8]
-
             db_session.add(build_one)
-            db_session.commit()
 
-            build_one_component_release = get_rpm_release(db_session, build_one)
+            siblings = []
+            if context > 0:  # specify sibling builds, so that they don't need to be searched for
+                siblings.extend([last_id - x - 1 for x in range(context)])
+            build_one_component_release = _get_rpm_release_no_db(build_one,
+                                                                 scratch, siblings=siblings)
 
             db_session.add_all([
                 ComponentBuild(
@@ -265,9 +306,10 @@ def _populate_data(data_size=10, contexts=False, scratch=False):
                     tagged=True,
                     tagged_in_final=True)
             ])
-            db_session.commit()
 
+        last_id = last_id + 1
         build_two = ModuleBuild(
+            id=last_id,
             name="postgressql",
             stream="1",
             version=2 + index,
@@ -285,11 +327,9 @@ def _populate_data(data_size=10, contexts=False, scratch=False):
             rebuild_strategy="changed-and-after",
         )
         build_two.arches.append(arch)
-
         db_session.add(build_two)
-        db_session.commit()
 
-        build_two_component_release = get_rpm_release(db_session, build_two)
+        build_two_component_release = _get_rpm_release_no_db(build_two, scratch)
 
         db_session.add_all([
             ComponentBuild(
@@ -315,9 +355,10 @@ def _populate_data(data_size=10, contexts=False, scratch=False):
                 batch=1,
                 module_id=3 + index * 3)
         ])
-        db_session.commit()
 
+        last_id = last_id + 1
         build_three = ModuleBuild(
+            id=last_id,
             name="testmodule",
             stream="4.3.43",
             version=6 + index,
@@ -335,9 +376,8 @@ def _populate_data(data_size=10, contexts=False, scratch=False):
             rebuild_strategy="changed-and-after",
         )
         db_session.add(build_three)
-        db_session.commit()
 
-        build_three_component_release = get_rpm_release(db_session, build_three)
+        build_three_component_release = _get_rpm_release_no_db(build_three, scratch)
 
         db_session.add_all([
             ComponentBuild(
@@ -363,7 +403,12 @@ def _populate_data(data_size=10, contexts=False, scratch=False):
                 tagged=True,
                 build_time_only=True)
         ])
-        db_session.commit()
+
+    # POSTGRE's build-id sequence doesn't get updated if we force insert our own id field
+    _update_module_build_sequence(last_id + 1)
+
+    # ...and finally commit everything at once
+    db_session.commit()
 
 
 def scheduler_init_data(tangerine_state=None, scratch=False):
