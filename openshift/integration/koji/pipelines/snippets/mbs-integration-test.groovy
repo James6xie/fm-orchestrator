@@ -29,7 +29,7 @@ stage('Run integration tests') {
           }
           openshift.withCluster() {
             openshift.withProject(params.PIPELINE_AS_A_SERVICE_BUILD_NAMESPACE) {
-              def services = 'umb mbs-frontend mbs-backend krb5 ldap koji-hub'
+              def services = 'umb mbs-frontend mbs-backend krb5 ldap koji-hub dist-git'
               if (env.REUSE_PROJECT == "true") {
                 c3i.buildAndWait(script: this, objs: "bc/pipeline-as-a-service",
                   '-e', "DEFAULT_IMAGE_TAG=${env.ENVIRONMENT}",

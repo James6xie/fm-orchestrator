@@ -82,8 +82,8 @@ def runTests() {
         echo "${target.build_tag_name} does not have perm set to admin"
         return false
       }
-      if (taginfo.extra.get("mock.package_manager", "") != "dnf") {
-        echo "${target.build_tag_name} is not configured to use dnf"
+      if (taginfo.extra.get("mock.package_manager", "") != "yum") {
+        echo "${target.build_tag_name} is not configured to use yum"
         return false
       }
       if (!taginfo.extra.get("repo_include_all", false)) {

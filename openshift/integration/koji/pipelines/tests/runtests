@@ -11,8 +11,10 @@ if [ "$TESTCASES" == "skip" ]; then
     exit 0
 fi
 
+DOMAIN=${2:-"cloud.paas.psi.redhat.com"}
+CONTROLLER=http://${PIPELINE_ID}.${DOMAIN}
+
 export TEST_DIR=$(realpath $(dirname $0))
-CONTROLLER=http://${PIPELINE_ID}.cloud.paas.psi.redhat.com
 echo "Provisioning pipeline services..."
 curl -X POST -F data=@${TEST_DIR}/mbs-cgimport-vars.yaml $CONTROLLER/scripts/provision
 CERT_DIR=$(mktemp -d)
@@ -26,10 +28,6 @@ export MBS_USER="mbs-user-${PIPELINE_ID}"
 export MBS_USER_PASSWORD=$(curl -s ${CONTROLLER}/krb5/principal/${MBS_USER})
 kinit -V $MBS_USER <<<$MBS_USER_PASSWORD
 
-CLIENT_CERTS="${CERT_DIR}/client.pem"
-curl -s ${CONTROLLER}/ca/${MBS_USER}/cert > ${CLIENT_CERTS}
-curl -s ${CONTROLLER}/ca/${MBS_USER}/key >> ${CLIENT_CERTS}
-
 KOJI_HUB_HOST="$(curl -s ${CONTROLLER}/vars/KOJI_HUB_HOST)"
 export KOJI_CONFIG=$(mktemp)
 cat > $KOJI_CONFIG <<EOF
@@ -37,8 +35,7 @@ cat > $KOJI_CONFIG <<EOF
 server = https://${KOJI_HUB_HOST}/kojihub
 weburl = https://${KOJI_HUB_HOST}/koji
 serverca = $CACERT
-authtype = ssl
-cert = ${CLIENT_CERTS}
+authtype = kerberos
 EOF
 
 for TEST_FILE in $(ls ${TEST_DIR}); do

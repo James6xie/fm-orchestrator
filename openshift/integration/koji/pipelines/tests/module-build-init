@@ -79,8 +79,8 @@ while true; do
        echo "${TEST_TARGET_BUILD_TAG} does not have perm set to admin"
        continue
     fi
-    if ! grep -q "  mock.package_manager : 'dnf'" ${TEST_TARGET_TAG_INFO_FILE}; then
-       echo "${TEST_TARGET_BUILD_TAG} is not configured to use dnf"
+    if ! grep -q "  mock.package_manager : 'yum'" ${TEST_TARGET_TAG_INFO_FILE}; then
+       echo "${TEST_TARGET_BUILD_TAG} is not configured to use yum"
        continue
     fi
     if ! grep -q "  repo_include_all : True" ${TEST_TARGET_TAG_INFO_FILE}; then
