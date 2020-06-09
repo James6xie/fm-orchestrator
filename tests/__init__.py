@@ -98,6 +98,32 @@ def patch_zeromq_time_sleep():
 patch_zeromq_time_sleep()
 
 
+def truncate_tables():
+    """Much cheaper operation (up to 2/3 faster) than clean_database (DROP/CREATE)"""
+    db_session.remove()
+    db_session.configure(bind=db.session.get_bind())
+
+    meta = db.metadata
+    for table in reversed(meta.sorted_tables):
+        db_session.execute(table.delete())
+
+    if db_session.bind.dialect.name == "postgresql":
+        # POSTGRES ONLY (!)
+        # Tests reference test data by IDs, assuming they always start from 1.
+        # In psql, sequences are created for models' IDs - they need to be reset.
+        sequences = ["component_builds_id_seq",
+                     "component_builds_trace_id_seq",
+                     "log_messages_id_seq",
+                     "module_arches_id_seq",
+                     "module_builds_id_seq",
+                     "module_builds_trace_id_seq",
+                     "virtual_streams_id_seq"]
+        sql_cmds = ["alter sequence {} restart with 1;".format(s) for s in sequences]
+        db_session.execute("".join(sql_cmds))
+
+    db_session.commit()
+
+
 def clean_database(add_platform_module=True, add_default_arches=True):
     """Initialize the test database
 
@@ -139,8 +165,9 @@ def init_data(data_size=10, contexts=False, multiple_stream_versions=None, scrat
     :param list/bool multiple_stream_versions: If true, multiple base modules with
         difference stream versions are generated. If set to list, the list defines
         the generated base module streams.
+
+    (!) This method is not responsible for cleaning the database, use appropriate fixture.
     """
-    clean_database()
 
     if multiple_stream_versions:
         if multiple_stream_versions is True:

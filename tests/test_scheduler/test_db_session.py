@@ -6,17 +6,15 @@ from mock import patch
 from module_build_service.common import models
 from module_build_service.common.config import conf
 from module_build_service.scheduler.db_session import db_session
-from tests import clean_database, make_module_in_db
+from tests import make_module_in_db
 
 
 @patch('module_build_service.common.messaging.publish')
-def test_send_messages_after_several_state_transitions(mock_publish):
+def test_send_messages_after_several_state_transitions(mock_publish, require_empty_database):
     """
     Ensure all module build state change messages are sent after multiple
     ModuleBuild.transitions are committed at once
     """
-    clean_database()
-
     build = make_module_in_db("testmodule:1:2:c3")
 
     build.transition(db_session, conf, models.BUILD_STATES["wait"])

@@ -11,9 +11,15 @@ import pytest
 import module_build_service
 from module_build_service.builder.utils import get_rpm_release
 from module_build_service.common.models import BUILD_STATES
-from module_build_service.common.utils import load_mmd, mmd_to_str
+from module_build_service.common.utils import load_mmd, mmd_to_str, import_mmd
 from module_build_service.scheduler.db_session import db_session
-from tests import clean_database, read_staged_data, module_build_from_modulemd
+from tests import (
+    clean_database,
+    init_data,
+    truncate_tables,
+    read_staged_data,
+    module_build_from_modulemd
+)
 
 BASE_DIR = os.path.dirname(__file__)
 STAGED_DATA_DIR = os.path.join(BASE_DIR, "staged_data")
@@ -50,7 +56,57 @@ def platform_mmd():
 
 
 @pytest.fixture()
-def model_tests_init_data():
+def require_empty_database():
+    """Provides cleared database"""
+    truncate_tables()
+
+
+@pytest.fixture()
+def require_platform_and_default_arch(require_empty_database):
+    """Provides clean database with platform module and a default arch"""
+    arch_obj = module_build_service.common.models.ModuleArch(name="x86_64")
+    db_session.add(arch_obj)
+    db_session.commit()
+
+    mmd = load_mmd(read_staged_data("platform"))
+    import_mmd(db_session, mmd)
+
+
+@pytest.fixture()
+def provide_test_data(request, require_platform_and_default_arch):
+    """Provides clean database with fresh test data based on supplied params:
+
+    e.g.: @pytest.mark.parametrize("provide_test_data",
+            [{"data_size": 1, "contexts": True, "multiple_stream_versions": True}], indirect=True)
+
+    This is a fixture version of tests.init_data function.
+    """
+    size = 1
+    contexts = False
+    scratch = False
+    multiple_stream_versions = False
+    if hasattr(request, "param") and type(request.param) is dict:
+        if "data_size" in request.param:
+            size = request.param.get("data_size")
+        if "contexts" in request.param:
+            contexts = True
+        if "multiple_stream_versions" in request.param:
+            multiple_stream_versions = True
+        if "scratch" in request.param:
+            scratch = True
+    init_data(data_size=size, contexts=contexts,
+              multiple_stream_versions=multiple_stream_versions,
+              scratch=scratch)
+
+
+@pytest.fixture(scope="class")
+def provide_test_client(request):
+    """Inject REST client into the test class -> self.client"""
+    request.cls.client = module_build_service.app.test_client()
+
+
+@pytest.fixture()
+def model_tests_init_data(require_platform_and_default_arch):
     """Initialize data for model tests
 
     This is refactored from tests/test_models/__init__.py, which was able to be
@@ -60,7 +116,6 @@ def model_tests_init_data():
     rather than create a new one. That would also benefit the whole test suite
     to reduce the number of SQLAlchemy session objects.
     """
-    clean_database()
 
     model_test_data_dir = os.path.join(
         os.path.dirname(__file__), "test_common", "test_models", "data"
@@ -76,9 +131,7 @@ def model_tests_init_data():
 
 
 @pytest.fixture()
-def reuse_component_init_data():
-    clean_database()
-
+def reuse_component_init_data(require_platform_and_default_arch):
     mmd = load_mmd(read_staged_data("formatted_testmodule"))
 
     build_one = module_build_service.common.models.ModuleBuild(
@@ -397,3 +450,9 @@ def cleanup_build_logs(request):
             module_build_service.common.build_logs.stop(mock_build)
 
     request.addfinalizer(_cleanup_build_logs)
+
+
+@pytest.fixture(autouse=True, scope="session")
+def create_database(request):
+    """Drop and recreate all tables"""
+    clean_database(add_platform_module=False, add_default_arches=False)

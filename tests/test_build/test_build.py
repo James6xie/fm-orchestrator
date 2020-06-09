@@ -38,7 +38,7 @@ from module_build_service.scheduler.handlers.components import (
 import module_build_service.scheduler.handlers.repos
 from module_build_service.scheduler.handlers.repos import done as repos_done_handler
 from module_build_service.scheduler.handlers.tags import tagged as tagged_handler
-from tests import clean_database, read_staged_data, staged_data_filename
+from tests import read_staged_data, staged_data_filename
 
 base_dir = dirname(dirname(__file__))
 
@@ -440,6 +440,7 @@ class BaseTestBuild:
         },
     },
 )
+@pytest.mark.usefixtures("require_platform_and_default_arch")
 class TestBuild(BaseTestBuild):
     # Global variable used for tests if needed
     _global_var = None
@@ -447,7 +448,6 @@ class TestBuild(BaseTestBuild):
     def setup_method(self, test_method):
         GenericBuilder.register_backend_class(FakeModuleBuilder)
         self.client = app.test_client()
-        clean_database()
 
         def on_get_task_info_cb(cls, task_id):
             return {"state": koji.TASK_STATES["CLOSED"]}
@@ -1880,13 +1880,13 @@ class TestBuild(BaseTestBuild):
     new_callable=PropertyMock,
     return_value="testlocal",
 )
+@pytest.mark.usefixtures("require_empty_database")
 class TestLocalBuild(BaseTestBuild):
     def setup_method(self, test_method):
         FakeModuleBuilder.on_build_cb = None
         FakeModuleBuilder.backend = "testlocal"
         GenericBuilder.register_backend_class(FakeModuleBuilder)
         self.client = app.test_client()
-        clean_database()
 
     def teardown_method(self, test_method):
         FakeModuleBuilder.reset()

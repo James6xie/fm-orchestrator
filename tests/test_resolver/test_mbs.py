@@ -330,9 +330,8 @@ class TestMBSModule:
         return_value=tests.staged_data_filename("local_builds")
     )
     def test_resolve_profiles_local_module(
-        self, local_builds, conf_system, formatted_testmodule_mmd
+        self, local_builds, conf_system, formatted_testmodule_mmd, require_empty_database
     ):
-        tests.clean_database(add_platform_module=False)
         load_local_builds(["platform:f28"])
 
         resolver = mbs_resolver.GenericResolver.create(db_session, conf, backend="mbs")
@@ -455,9 +454,8 @@ class TestMBSModule:
         return_value=tests.staged_data_filename("local_builds")
     )
     def test_get_buildrequired_modulemds_local_builds(
-        self, local_builds, conf_system
+        self, local_builds, conf_system, require_empty_database
     ):
-        tests.clean_database()
         with app.app_context():
             load_local_builds(["testmodule"])
 

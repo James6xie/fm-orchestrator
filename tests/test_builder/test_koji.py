@@ -20,7 +20,7 @@ from module_build_service.common.utils import mmd_to_str
 from module_build_service.scheduler import events
 from module_build_service.scheduler.db_session import db_session
 import module_build_service.scheduler.handlers.repos
-from tests import init_data, clean_database, make_module_in_db
+from tests import init_data, make_module_in_db
 
 
 @pytest.fixture(scope="function")
@@ -85,27 +85,32 @@ class FakeKojiModuleBuilder(KojiModuleBuilder):
         return ["x86_64"]
 
 
+# setup/teardown converted to a fixture -> reuse existing fixture hierarchy
+@pytest.fixture()
+def koji_builder_fixture(request, require_platform_and_default_arch):
+    init_data(data_size=1)
+
+    events.scheduler.reset()
+    config = mock.Mock()
+    config.koji_profile = conf.koji_profile
+    config.koji_repository_url = conf.koji_repository_url
+    p_read_config = patch(
+        "koji.read_config",
+        return_value={
+            "authtype": "kerberos",
+            "timeout": 60,
+            "server": "http://koji.example.com/",
+        },
+    )
+    p_read_config.start()
+    request.cls.config = config
+    yield
+    p_read_config.stop()
+    events.scheduler.reset()
+
+
+@pytest.mark.usefixtures("koji_builder_fixture")
 class TestKojiBuilder:
-    def setup_method(self, test_method):
-        init_data(1)
-        events.scheduler.reset()
-        self.config = mock.Mock()
-        self.config.koji_profile = conf.koji_profile
-        self.config.koji_repository_url = conf.koji_repository_url
-
-        self.p_read_config = patch(
-            "koji.read_config",
-            return_value={
-                "authtype": "kerberos",
-                "timeout": 60,
-                "server": "http://koji.example.com/",
-            },
-        )
-        self.p_read_config.start()
-
-    def teardown_method(self, test_method):
-        self.p_read_config.stop()
-        events.scheduler.reset()
 
     @patch("koji.ClientSession")
     def test_tag_to_repo(self, ClientSession):
@@ -777,95 +782,6 @@ class TestKojiBuilder:
         assert set(ret) == {"bar-2:1.30-4.el8+1308+551bfa71", "tar-2:1.30-4.el8+1308+551bfa71"}
         session.assert_not_called()
 
-    @pytest.mark.usefixtures("reuse_component_init_data")
-    @pytest.mark.parametrize(
-        "br_filtered_rpms,expected",
-        (
-            (
-                ["perl-Tangerine-0.23-1.module+0+d027b723", "not-in-tag-5.0-1.module+0+d027b723"],
-                ["not-in-tag-5.0-1.module+0+d027b723"],
-            ),
-            (
-                [
-                    "perl-Tangerine-0.23-1.module+0+d027b723",
-                    "perl-List-Compare-0.53-5.module+0+d027b723",
-                ],
-                [],
-            ),
-            (
-                [
-                    "perl-Tangerine-0.23-1.module+0+d027b723",
-                    "perl-List-Compare-0.53-5.module+0+d027b723",
-                    "perl-Tangerine-0.23-1.module+0+d027b723",
-                ],
-                [],
-            ),
-            (
-                [
-                    "perl-Tangerine-0.23-1.module+0+diff_module",
-                    "not-in-tag-5.0-1.module+0+d027b723",
-                ],
-                [
-                    "perl-Tangerine-0.23-1.module+0+diff_module",
-                    "not-in-tag-5.0-1.module+0+d027b723",
-                ],
-            ),
-            ([], []),
-        ),
-    )
-    @patch("koji.ClientSession")
-    def test_get_filtered_rpms_on_self_dep(
-        self, ClientSession, br_filtered_rpms, expected
-    ):
-        session = ClientSession.return_value
-        session.listTaggedRPMS.return_value = (
-            [
-                {
-                    "build_id": 12345,
-                    "epoch": None,
-                    "name": "perl-Tangerine",
-                    "release": "1.module+0+d027b723",
-                    "version": "0.23",
-                },
-                {
-                    "build_id": 23456,
-                    "epoch": None,
-                    "name": "perl-List-Compare",
-                    "release": "5.module+0+d027b723",
-                    "version": "0.53",
-                },
-                {
-                    "build_id": 34567,
-                    "epoch": None,
-                    "name": "tangerine",
-                    "release": "3.module+0+d027b723",
-                    "version": "0.22",
-                },
-            ],
-            [
-                {
-                    "build_id": 12345,
-                    "name": "perl-Tangerine",
-                    "nvr": "perl-Tangerine-0.23-1.module+0+d027b723",
-                },
-                {
-                    "build_id": 23456,
-                    "name": "perl-List-Compare",
-                    "nvr": "perl-List-Compare-0.53-5.module+0+d027b723",
-                },
-                {
-                    "build_id": 34567,
-                    "name": "tangerine",
-                    "nvr": "tangerine-0.22-3.module+0+d027b723",
-                },
-            ],
-        )
-        current_module = module_build_service.common.models.ModuleBuild.get_by_id(db_session, 3)
-        with patch.object(module_build_service.common.models.ModuleBuild, 'log_message'):
-            rv = KojiModuleBuilder._get_filtered_rpms_on_self_dep(current_module, br_filtered_rpms)
-        assert set(rv) == set(expected)
-        session.assert_not_called()
-
     @pytest.mark.parametrize(
         "cg_enabled,cg_devel_enabled", [(False, False), (True, False), (True, True)]
     )
@@ -956,12 +872,99 @@ class TestKojiBuilder:
             KojiModuleBuilder.get_module_build_arches(module_build)
 
 
+@pytest.mark.parametrize(
+    "br_filtered_rpms,expected",
+    (
+        (
+            ["perl-Tangerine-0.23-1.module+0+d027b723", "not-in-tag-5.0-1.module+0+d027b723"],
+            ["not-in-tag-5.0-1.module+0+d027b723"],
+        ),
+        (
+            [
+                "perl-Tangerine-0.23-1.module+0+d027b723",
+                "perl-List-Compare-0.53-5.module+0+d027b723",
+            ],
+            [],
+        ),
+        (
+            [
+                "perl-Tangerine-0.23-1.module+0+d027b723",
+                "perl-List-Compare-0.53-5.module+0+d027b723",
+                "perl-Tangerine-0.23-1.module+0+d027b723",
+            ],
+            [],
+        ),
+        (
+            [
+                "perl-Tangerine-0.23-1.module+0+diff_module",
+                "not-in-tag-5.0-1.module+0+d027b723",
+            ],
+            [
+                "perl-Tangerine-0.23-1.module+0+diff_module",
+                "not-in-tag-5.0-1.module+0+d027b723",
+            ],
+        ),
+        ([], []),
+    ),
+)
+@patch("koji.ClientSession")
+@pytest.mark.usefixtures("reuse_component_init_data")
+def test_get_filtered_rpms_on_self_dep(ClientSession, br_filtered_rpms, expected):
+    session = ClientSession.return_value
+    session.listTaggedRPMS.return_value = (
+        [
+            {
+                "build_id": 12345,
+                "epoch": None,
+                "name": "perl-Tangerine",
+                "release": "1.module+0+d027b723",
+                "version": "0.23",
+            },
+            {
+                "build_id": 23456,
+                "epoch": None,
+                "name": "perl-List-Compare",
+                "release": "5.module+0+d027b723",
+                "version": "0.53",
+            },
+            {
+                "build_id": 34567,
+                "epoch": None,
+                "name": "tangerine",
+                "release": "3.module+0+d027b723",
+                "version": "0.22",
+            },
+        ],
+        [
+            {
+                "build_id": 12345,
+                "name": "perl-Tangerine",
+                "nvr": "perl-Tangerine-0.23-1.module+0+d027b723",
+            },
+            {
+                "build_id": 23456,
+                "name": "perl-List-Compare",
+                "nvr": "perl-List-Compare-0.53-5.module+0+d027b723",
+            },
+            {
+                "build_id": 34567,
+                "name": "tangerine",
+                "nvr": "tangerine-0.22-3.module+0+d027b723",
+            },
+        ],
+    )
+    current_module = module_build_service.common.models.ModuleBuild.get_by_id(db_session, 3)
+    with patch.object(module_build_service.common.models.ModuleBuild, 'log_message'):
+        rv = KojiModuleBuilder._get_filtered_rpms_on_self_dep(current_module, br_filtered_rpms)
+    assert set(rv) == set(expected)
+    session.assert_not_called()
+
+
+@pytest.mark.usefixtures("require_empty_database")
 class TestGetDistTagSRPM:
     """Test KojiModuleBuilder.get_disttag_srpm"""
 
     def setup_method(self):
-        clean_database()
-
         self.tmp_srpm_build_dir = tempfile.mkdtemp(prefix="test-koji-builder-")
         self.spec_file = os.path.join(self.tmp_srpm_build_dir, "module-build-macros.spec")
         self.srpms_dir = os.path.join(self.tmp_srpm_build_dir, "SRPMS")
@@ -998,7 +1001,6 @@ class TestGetDistTagSRPM:
 
     def teardown_method(self):
         shutil.rmtree(self.tmp_srpm_build_dir)
-        clean_database()
 
     @patch("tempfile.mkdtemp")
     @patch("module_build_service.builder.KojiModuleBuilder.execute_cmd")

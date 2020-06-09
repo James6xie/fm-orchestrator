@@ -3,6 +3,7 @@
 from __future__ import absolute_import
 import os
 from os import path
+import pytest
 import shutil
 import tempfile
 
@@ -10,36 +11,38 @@ from module_build_service.common import log, models
 from module_build_service.common.logger import ModuleBuildLogs
 from module_build_service.scheduler.consumer import MBSConsumer
 from module_build_service.scheduler.db_session import db_session
-from tests import init_data
 
 
+@pytest.fixture()
+def test_logger_fixture(request, provide_test_data):
+    log.debug(request.function.__module__)
+    try:
+        # py2
+        test_id = ".".join([
+            path.splitext(path.basename(__file__))[0],
+            request.function.im_class.__name__,
+            request.function.im_func.__name__,
+        ])
+    except AttributeError:
+        # py3
+        test_id = ".".join([
+            path.splitext(path.basename(__file__))[0],
+            request.function.__self__.__class__.__name__,
+            request.function.__self__.__class__.__name__,
+        ])
+
+    base = tempfile.mkdtemp(prefix="mbs-", suffix="-%s" % test_id)
+    name_format = "build-{id}.log"
+    print("Storing build logs in %r" % base)
+    request.cls.build_log = ModuleBuildLogs(base, name_format)
+    request.cls.base = base
+    yield
+    MBSConsumer.current_module_build_id = None
+    shutil.rmtree(base)
+
+
+@pytest.mark.usefixtures("test_logger_fixture")
 class TestLogger:
-    def setup_method(self, test_method):
-        init_data(1)
-        log.debug(test_method.__module__)
-        try:
-            # py2
-            test_id = ".".join([
-                path.splitext(path.basename(__file__))[0],
-                test_method.im_class.__name__,
-                test_method.im_func.__name__,
-            ])
-        except AttributeError:
-            # py3
-            test_id = ".".join([
-                path.splitext(path.basename(__file__))[0],
-                test_method.__self__.__class__.__name__,
-                test_method.__self__.__class__.__name__,
-            ])
-
-        self.base = tempfile.mkdtemp(prefix="mbs-", suffix="-%s" % test_id)
-        self.name_format = "build-{id}.log"
-        print("Storing build logs in %r" % self.base)
-        self.build_log = ModuleBuildLogs(self.base, self.name_format)
-
-    def teardown_method(self, test_method):
-        MBSConsumer.current_module_build_id = None
-        shutil.rmtree(self.base)
 
     def test_module_build_logs(self):
         """

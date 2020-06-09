@@ -17,23 +17,17 @@ from module_build_service.scheduler.submit import (
     get_build_arches, format_mmd, record_component_builds, record_module_build_arches
 )
 from tests import (
-    clean_database,
-    init_data,
     read_staged_data,
     staged_data_filename,
     scheduler_init_data,
 )
 
 
+@pytest.mark.usefixtures("require_empty_database")
 class TestSubmit:
-    def setup_method(self, test_method):
-        clean_database()
-
-    def teardown_method(self, test_method):
-        clean_database()
 
     @mock.patch("koji.ClientSession")
-    def test_get_build_arches(self, ClientSession):
+    def test_get_build_arches(self, ClientSession, require_platform_and_default_arch):
         session = ClientSession.return_value
         session.getTag.return_value = {"arches": "ppc64le"}
         mmd = load_mmd(read_staged_data("formatted_testmodule"))
@@ -321,7 +315,6 @@ class TestSubmit:
     @mock.patch("module_build_service.common.scm.SCM")
     def test_format_mmd_arches(self, mocked_scm):
         with app.app_context():
-            clean_database()
             mocked_scm.return_value.commit = "620ec77321b2ea7b0d67d82992dda3e1d67055b4"
             mocked_scm.return_value.get_latest.side_effect = [
                 "4ceea43add2366d8b8c5a622a2fb563b625b9abf",
@@ -358,8 +351,7 @@ class TestSubmit:
 
     @mock.patch("module_build_service.common.scm.SCM")
     @mock.patch("module_build_service.scheduler.submit.ThreadPool")
-    def test_format_mmd_update_time_modified(self, tp, mocked_scm):
-        init_data()
+    def test_format_mmd_update_time_modified(self, tp, mocked_scm, provide_test_data):
         build = models.ModuleBuild.get_by_id(db_session, 2)
 
         async_result = mock.MagicMock()

@@ -100,7 +100,6 @@ class TestBatches:
         events.scheduler.reset()
 
     def teardown_method(self, test_method):
-        # clean_database()
         DummyModuleBuilder.TAGGED_COMPONENTS = []
         GenericBuilder.register_backend_class(KojiModuleBuilder)
         events.scheduler.reset()

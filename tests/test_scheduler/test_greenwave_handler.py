@@ -15,14 +15,12 @@ from module_build_service.scheduler.db_session import db_session
 from module_build_service.scheduler.handlers.greenwave import (
     decision_update, get_corresponding_module_build
 )
-from tests import clean_database, make_module_in_db
+from tests import make_module_in_db
 
 
+@pytest.mark.usefixtures("require_empty_database")
 class TestGetCorrespondingModuleBuild:
     """Test get_corresponding_module_build"""
-
-    def setup_method(self, method):
-        clean_database()
 
     @patch("koji.ClientSession")
     def test_module_build_nvr_does_not_exist_in_koji(self, ClientSession):
@@ -48,7 +46,8 @@ class TestGetCorrespondingModuleBuild:
         assert get_corresponding_module_build("n-v-r") is None
 
     @patch("koji.ClientSession")
-    def test_corresponding_module_build_id_does_not_exist_in_db(self, ClientSession):
+    def test_corresponding_module_build_id_does_not_exist_in_db(self, ClientSession,
+                                                                require_platform_and_default_arch):
         fake_module_build_id, = db_session.query(func.max(ModuleBuild.id)).first()
 
         ClientSession.return_value.getBuild.return_value = {
@@ -58,7 +57,7 @@ class TestGetCorrespondingModuleBuild:
         assert get_corresponding_module_build("n-v-r") is None
 
     @patch("koji.ClientSession")
-    def test_find_the_module_build(self, ClientSession):
+    def test_find_the_module_build(self, ClientSession, require_platform_and_default_arch):
         expected_module_build = (
             db_session.query(ModuleBuild).filter(ModuleBuild.name == "platform").first()
         )
@@ -118,9 +117,7 @@ class TestDecisionUpdateHandler:
 
     @patch("module_build_service.common.messaging.publish")
     @patch("koji.ClientSession")
-    def test_transform_from_done_to_ready(self, ClientSession, publish):
-        clean_database()
-
+    def test_transform_from_done_to_ready(self, ClientSession, publish, require_empty_database):
         # This build should be queried and transformed to ready state
         module_build = make_module_in_db(
             "pkg:0.1:1:c1",

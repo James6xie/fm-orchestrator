@@ -9,15 +9,11 @@ from module_build_service.scheduler.db_session import db_session
 from module_build_service.web.mse import (
     expand_mse_streams, generate_expanded_mmds, get_mmds_required_by_module_recursively
 )
-from tests import clean_database, make_module_in_db
+from tests import make_module_in_db
 
 
+@pytest.mark.usefixtures("require_empty_database")
 class TestModuleStreamExpansion:
-    def setup_method(self, test_method):
-        clean_database(False)
-
-    def teardown_method(self, test_method):
-        clean_database()
 
     def _get_mmds_required_by_module_recursively(self, module_build, db_session):
         """

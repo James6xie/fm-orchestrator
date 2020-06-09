@@ -10,7 +10,6 @@ from module_build_service.common.models import ComponentBuild, ComponentBuildTra
 from module_build_service.common.utils import load_mmd, mmd_to_str
 from module_build_service.scheduler.db_session import db_session
 from tests import (
-    clean_database,
     init_data as init_data_contexts,
     make_module_in_db,
     module_build_from_modulemd,
@@ -18,7 +17,6 @@ from tests import (
 )
 
 
-@pytest.mark.usefixtures("model_tests_init_data")
 class TestModels:
 
     def test_app_sqlalchemy_events(self):
@@ -63,11 +61,10 @@ class TestModels:
         assert build.context == "3ee22b28"
         assert build.build_context_no_bms == "089df24993c037e10174f3fa7342ab4dc191a4d4"
 
-    def test_siblings_property(self):
+    def test_siblings_property(self, require_empty_database):
         """ Tests that the siblings property returns the ID of all modules with
         the same name:stream:version
         """
-        clean_database()
         mmd = load_mmd(read_staged_data("formatted_testmodule"))
         for i in range(3):
             build = module_build_from_modulemd(mmd_to_str(mmd))
@@ -77,11 +74,11 @@ class TestModels:
             db_session.add(build)
         db_session.commit()
 
-        build_one = ModuleBuild.get_by_id(db_session, 2)
+        build_one = ModuleBuild.get_by_id(db_session, 1)
         sibling_ids = build_one.siblings(db_session)
         db_session.commit()
 
-        assert sorted(sibling_ids) == [3, 4]
+        assert sorted(sibling_ids) == [2, 3]
 
     @pytest.mark.parametrize(
         "stream,right_pad,expected",
@@ -101,6 +98,7 @@ class TestModels:
         assert expected == ModuleBuild.get_stream_version(stream, right_pad)
 
 
+@pytest.mark.usefixtures("require_platform_and_default_arch")
 class TestModelsGetStreamsContexts:
     def test_get_last_build_in_all_streams(self):
         init_data_contexts(contexts=True)
@@ -145,7 +143,6 @@ class TestModelsGetStreamsContexts:
         Tests that get_last_builds_in_stream_version_lte works in case the
         name:stream_ver modules have different versions.
         """
-        clean_database(False)
 
         make_module_in_db(
             "platform:f29.1.0:10:old_version", virtual_streams=["f29"])
@@ -175,18 +172,7 @@ class TestModelsGetStreamsContexts:
             "platform:f29.2.0:1:c11",
         }
 
-    def test_get_module_count(self):
-        clean_database(False)
-        make_module_in_db("platform:f29.1.0:10:c11")
-        make_module_in_db("platform:f29.1.0:10:c12")
-
-        count = ModuleBuild.get_module_count(db_session, name="platform")
-        db_session.commit()
-        assert count == 2
-
     def test_add_virtual_streams_filter(self):
-        clean_database(False)
-
         make_module_in_db(
             "platform:f29.1.0:10:c1", virtual_streams=["f29"])
         make_module_in_db(
@@ -201,3 +187,12 @@ class TestModelsGetStreamsContexts:
         count = query.count()
         db_session.commit()
         assert count == 3
+
+
+def test_get_module_count(require_empty_database):
+    make_module_in_db("platform:f29.1.0:10:c11")
+    make_module_in_db("platform:f29.1.0:10:c12")
+
+    count = ModuleBuild.get_module_count(db_session, name="platform")
+    db_session.commit()
+    assert count == 2
