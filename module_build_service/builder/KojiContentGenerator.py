@@ -843,6 +843,17 @@ class KojiContentGenerator(object):
         self.rpms = self._koji_rpms_in_tag(self.module.koji_tag)
         self.rpms_dict = {kobo.rpmlib.make_nvra(rpm, force_epoch=True): rpm for rpm in self.rpms}
 
+    def get_final_mmds(self):
+        # Returns dict of finalized mmds. Used to generate final modulemd files for scratch builds.
+        session = get_session(self.config)
+        self._load_koji_tag(session)
+
+        finalmmds = {}
+        for arch in self.arches:
+            finalmmds[arch] = self._finalize_mmd(arch)
+
+        return finalmmds
+
     def koji_import(self, devel=False):
         """This method imports given module into the configured koji instance as
         a content generator based build

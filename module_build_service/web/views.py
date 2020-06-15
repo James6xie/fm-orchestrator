@@ -81,6 +81,10 @@ api_routes = {
         "url": "/module-build-service/<int:api_version>/component-builds/<int:id>/messages",
         "options": {"methods": ["GET"], "defaults": {"model": models.ComponentBuild}},
     },
+    "final_modulemd": {
+        "url": "/module-build-service/<int:api_version>/final-modulemd/<int:id>",
+        "options": {"methods": ["GET"]},
+    },
 }
 
 
@@ -340,6 +344,27 @@ class LogMessageAPI(MethodView):
         return jsonify(json_data), 200
 
 
+class FinalModulemdAPI(MethodView):
+
+    @validate_api_version()
+    def get(self, api_version, id):
+
+        module = models.ModuleBuild.get_by_id(db.session, id)
+        if not module:
+            raise ValidationError("The module could not be found")
+
+        if conf.system == "koji":
+            # We are importing KojiContentGenerator here so we can generate the final modulemds.
+            # If we imported this regularly we would have gotten a circular import error.
+            from module_build_service.builder.KojiContentGenerator import KojiContentGenerator  # noqa
+            cg = KojiContentGenerator(module, conf)
+            finalmmds = cg.get_final_mmds()
+        else:
+            raise ValidationError("Configured builder not able to generate final modulemds!")
+
+        return jsonify(finalmmds), 200
+
+
 class BaseHandler(object):
     valid_params = {
         "branch",
@@ -559,6 +584,7 @@ def register_api():
     rebuild_strategies_view = RebuildStrategies.as_view("rebuild_strategies")
     import_module = ImportModuleAPI.as_view("import_module")
     log_message = LogMessageAPI.as_view("log_messages")
+    final_modulemd = FinalModulemdAPI.as_view("final_modulemd")
     for key, val in api_routes.items():
         if key.startswith("component_build"):
             app.add_url_rule(val["url"], endpoint=key, view_func=component_view, **val["options"])
@@ -574,6 +600,8 @@ def register_api():
             app.add_url_rule(val["url"], endpoint=key, view_func=import_module, **val["options"])
         elif key.startswith("log_message"):
             app.add_url_rule(val["url"], endpoint=key, view_func=log_message, **val["options"])
+        elif key.startswith("final_modulemd"):
+            app.add_url_rule(val["url"], endpoint=key, view_func=final_modulemd, **val["options"])
         else:
             raise NotImplementedError("Unhandled api key.")
 

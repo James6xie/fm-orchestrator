@@ -2945,3 +2945,18 @@ class TestLogMessageViews:
         assert "Build-1" not in json_res
         assert "Build-2" not in json_res
         assert "Component-1" in json_res
+
+
+@pytest.mark.usefixtures("provide_test_client")
+@pytest.mark.usefixtures("provide_test_data")
+class TestFinalModulemdViews:
+
+    @patch("module_build_service.builder.KojiContentGenerator.KojiContentGenerator.get_final_mmds")
+    def test_view_final_modulemd(self, mocked_cg):
+        mocked_cg.return_value = {'x86_64': 'finalized mmd'}
+        url = "/module-build-service/1/final-modulemd/2"
+        res = self.client.get(url)
+        json_res = str(res.data)
+
+        assert "x86_64" in json_res
+        assert "finalized mmd" in json_res
