@@ -8,7 +8,7 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 
 from module_build_service.common.config import conf
 from module_build_service.common.models import (
-    session_before_commit_handlers, send_message_after_module_build_state_change
+    session_before_flush_handlers, send_message_after_module_build_state_change
 )
 
 __all__ = ("db_session",)
@@ -19,7 +19,7 @@ def _setup_event_listeners(db_session):
     Starts listening for events related to the database session.
     """
     event_hooks = (
-        ("before_commit", session_before_commit_handlers),
+        ("before_flush", session_before_flush_handlers),
         ("after_commit", send_message_after_module_build_state_change),
     )
 

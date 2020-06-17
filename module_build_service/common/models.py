@@ -1302,7 +1302,7 @@ class LogMessage(MBSBase):
         )
 
 
-def session_before_commit_handlers(session):
+def session_before_flush_handlers(session, flush_context, instances):
     # new and updated items
     for item in set(session.new) | set(session.dirty):
         # handlers for component builds
