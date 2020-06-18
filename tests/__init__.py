@@ -18,7 +18,6 @@ from six import string_types
 import module_build_service
 from module_build_service import db
 from module_build_service.builder.utils import get_rpm_release
-from module_build_service.common import conf
 from module_build_service.common.models import (
     BUILD_STATES,
     ComponentBuild,
@@ -27,7 +26,7 @@ from module_build_service.common.models import (
     VirtualStream,
 )
 from module_build_service.common.modulemd import Modulemd
-from module_build_service.common.utils import load_mmd, import_mmd, mmd_to_str, to_text_type
+from module_build_service.common.utils import load_mmd, import_mmd, mmd_to_str, to_text_type, conf
 from module_build_service.scheduler.db_session import db_session
 
 
@@ -156,12 +155,12 @@ def clean_database(add_platform_module=True, add_default_arches=True):
         import_mmd(db.session, mmd)
 
 
-def _get_rpm_release_no_db(module_build, is_scratch, siblings=None):
+def _get_rpm_release_no_db(module_build, is_scratch=False, siblings=None, base_module_marking=None):
     """Get dist tag without querying the database.
 
     ~4x faster then the original: module_build_service.builder.utils.get_rpm_release().
-    Any sibling builds need to be specified. Build object id field required.
-    (!) ignores base module marking (not required by any test so far)
+    (!) Any sibling builds need to be specified manually.
+    (!) Base module marking needs to be specified manually.
     """
     dist_str = ".".join([
         module_build.name,
@@ -175,11 +174,11 @@ def _get_rpm_release_no_db(module_build, is_scratch, siblings=None):
     mse_build_ids.append(module_build.id or 0)
     mse_build_ids.sort()
     index = mse_build_ids[0]
+    bm_marking = base_module_marking + "+" if base_module_marking else ""
 
     prefix = "scrmod+" if is_scratch else conf.default_dist_tag_prefix
-    br_module_marking = ""
     return "{prefix}{base_module_marking}{index}+{dist_hash}".format(
-        prefix=prefix, base_module_marking=br_module_marking, index=index, dist_hash=dist_hash)
+        prefix=prefix, base_module_marking=bm_marking, index=index, dist_hash=dist_hash)
 
 
 def _update_module_build_sequence(id):
@@ -233,13 +232,9 @@ def _populate_data(data_size=10, contexts=False, scratch=False):
     arch = db_session.query(module_build_service.common.models.ModuleArch).get(1)
     num_contexts = 2 if contexts else 1
 
-    # manually increment id -> so we don't have to 'db_session.commit()' each build
-    last_id = ModuleBuild.get_module_count(db_session)
     for index in range(data_size):
         for context in range(num_contexts):
-            last_id = last_id + 1
             build_one = ModuleBuild(
-                id=last_id,
                 name="nginx",
                 stream="1",
                 version=2 + index,
@@ -273,10 +268,11 @@ def _populate_data(data_size=10, contexts=False, scratch=False):
                 combined_hashes = "{0}:{1}".format(unique_hash, unique_hash)
                 build_one.context = hashlib.sha1(combined_hashes.encode("utf-8")).hexdigest()[:8]
             db_session.add(build_one)
+            db_session.flush()
 
             siblings = []
             if context > 0:  # specify sibling builds, so that they don't need to be searched for
-                siblings.extend([last_id - x - 1 for x in range(context)])
+                siblings.extend([build_one.id - x - 1 for x in range(context)])
             build_one_component_release = _get_rpm_release_no_db(build_one,
                                                                  scratch, siblings=siblings)
 
@@ -307,9 +303,7 @@ def _populate_data(data_size=10, contexts=False, scratch=False):
                     tagged_in_final=True)
             ])
 
-        last_id = last_id + 1
         build_two = ModuleBuild(
-            id=last_id,
             name="postgressql",
             stream="1",
             version=2 + index,
@@ -328,6 +322,7 @@ def _populate_data(data_size=10, contexts=False, scratch=False):
         )
         build_two.arches.append(arch)
         db_session.add(build_two)
+        db_session.flush()
 
         build_two_component_release = _get_rpm_release_no_db(build_two, scratch)
 
@@ -356,9 +351,7 @@ def _populate_data(data_size=10, contexts=False, scratch=False):
                 module_id=3 + index * 3)
         ])
 
-        last_id = last_id + 1
         build_three = ModuleBuild(
-            id=last_id,
             name="testmodule",
             stream="4.3.43",
             version=6 + index,
@@ -376,6 +369,7 @@ def _populate_data(data_size=10, contexts=False, scratch=False):
             rebuild_strategy="changed-and-after",
         )
         db_session.add(build_three)
+        db_session.flush()
 
         build_three_component_release = _get_rpm_release_no_db(build_three, scratch)
 
@@ -403,10 +397,6 @@ def _populate_data(data_size=10, contexts=False, scratch=False):
                 tagged=True,
                 build_time_only=True)
         ])
-
-    # POSTGRE's build-id sequence doesn't get updated if we force insert our own id field
-    _update_module_build_sequence(last_id + 1)
-
     # ...and finally commit everything at once
     db_session.commit()
 
@@ -511,6 +501,187 @@ def scheduler_init_data(tangerine_state=None, scratch=False):
             build_time_only=True,
         ),
     ])
+    db_session.commit()
+
+
+def reuse_component_init_data():
+    mmd = load_mmd(read_staged_data("formatted_testmodule"))
+
+    build_one = module_build_service.common.models.ModuleBuild(
+        name="testmodule",
+        stream="master",
+        version='20170109091357',
+        state=BUILD_STATES["ready"],
+        runtime_context="ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0",
+        build_context="ac4de1c346dcf09ce77d38cd4e75094ec1c08eb1",
+        context="78e4a6fd",
+        koji_tag="module-testmodule-master-20170109091357-78e4a6fd",
+        scmurl="https://src.stg.fedoraproject.org/modules/testmodule.git?#ff1ea79",
+        batch=3,
+        owner="Tom Brady",
+        time_submitted=datetime(2017, 2, 15, 16, 8, 18),
+        time_modified=datetime(2017, 2, 15, 16, 19, 35),
+        time_completed=datetime(2017, 2, 15, 16, 19, 35),
+        rebuild_strategy="changed-and-after",
+    )
+
+    build_one_component_release = _get_rpm_release_no_db(build_one)
+
+    mmd.set_version(int(build_one.version))
+    xmd = mmd.get_xmd()
+    xmd["mbs"]["scmurl"] = build_one.scmurl
+    xmd["mbs"]["commit"] = "ff1ea79fc952143efeed1851aa0aa006559239ba"
+    mmd.set_xmd(xmd)
+    build_one.modulemd = mmd_to_str(mmd)
+    contexts = module_build_service.common.models.ModuleBuild.contexts_from_mmd(build_one.modulemd)
+    build_one.build_context = contexts.build_context
+    build_one.build_context_no_bms = contexts.build_context_no_bms
+
+    db_session.add(build_one)
+    db_session.flush()
+
+    platform_br = module_build_service.common.models.ModuleBuild.get_by_id(db_session, 1)
+    build_one.buildrequires.append(platform_br)
+
+    arch = db_session.query(module_build_service.common.models.ModuleArch).get(1)
+    build_one.arches.append(arch)
+
+    db_session.add_all([
+        module_build_service.common.models.ComponentBuild(
+            module_id=build_one.id,
+            package="perl-Tangerine",
+            scmurl="https://src.fedoraproject.org/rpms/perl-Tangerine"
+                   "?#4ceea43add2366d8b8c5a622a2fb563b625b9abf",
+            format="rpms",
+            task_id=90276227,
+            state=koji.BUILD_STATES["COMPLETE"],
+            nvr="perl-Tangerine-0.23-1.{0}".format(build_one_component_release),
+            batch=2,
+            ref="4ceea43add2366d8b8c5a622a2fb563b625b9abf",
+            tagged=True,
+            tagged_in_final=True,
+        ),
+        module_build_service.common.models.ComponentBuild(
+            module_id=build_one.id,
+            package="perl-List-Compare",
+            scmurl="https://src.fedoraproject.org/rpms/perl-List-Compare"
+                   "?#76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb",
+            format="rpms",
+            task_id=90276228,
+            state=koji.BUILD_STATES["COMPLETE"],
+            nvr="perl-List-Compare-0.53-5.{0}".format(build_one_component_release),
+            batch=2,
+            ref="76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb",
+            tagged=True,
+            tagged_in_final=True,
+        ),
+        module_build_service.common.models.ComponentBuild(
+            module_id=build_one.id,
+            package="tangerine",
+            scmurl="https://src.fedoraproject.org/rpms/tangerine"
+                   "?#fbed359411a1baa08d4a88e0d12d426fbf8f602c",
+            format="rpms",
+            task_id=90276315,
+            state=koji.BUILD_STATES["COMPLETE"],
+            nvr="tangerine-0.22-3.{0}".format(build_one_component_release),
+            batch=3,
+            ref="fbed359411a1baa08d4a88e0d12d426fbf8f602c",
+            tagged=True,
+            tagged_in_final=True,
+        ),
+        module_build_service.common.models.ComponentBuild(
+            module_id=build_one.id,
+            package="module-build-macros",
+            scmurl="/tmp/module_build_service-build-macrosqr4AWH/SRPMS/module-build-"
+                   "macros-0.1-1.module_testmodule_master_20170109091357.src.rpm",
+            format="rpms",
+            task_id=90276181,
+            state=koji.BUILD_STATES["COMPLETE"],
+            nvr="module-build-macros-0.1-1.{0}".format(build_one_component_release),
+            batch=1,
+            tagged=True,
+            build_time_only=True,
+        ),
+    ])
+
+    build_two = module_build_service.common.models.ModuleBuild(
+        name="testmodule",
+        stream="master",
+        version='20170219191323',
+        state=BUILD_STATES["build"],
+        runtime_context="ac4de1c346dcf09ce77d38cd4e75094ec1c08eb0",
+        build_context="ac4de1c346dcf09ce77d38cd4e75094ec1c08eb1",
+        context="c40c156c",
+        koji_tag="module-testmodule-master-20170219191323-c40c156c",
+        scmurl="https://src.stg.fedoraproject.org/modules/testmodule.git?#55f4a0a",
+        batch=1,
+        owner="Tom Brady",
+        time_submitted=datetime(2017, 2, 19, 16, 8, 18),
+        time_modified=datetime(2017, 2, 19, 16, 8, 18),
+        rebuild_strategy="changed-and-after",
+    )
+
+    build_two_component_release = _get_rpm_release_no_db(build_two)
+
+    mmd.set_version(int(build_one.version))
+    xmd = mmd.get_xmd()
+    xmd["mbs"]["scmurl"] = build_one.scmurl
+    xmd["mbs"]["commit"] = "55f4a0a2e6cc255c88712a905157ab39315b8fd8"
+    mmd.set_xmd(xmd)
+    build_two.modulemd = mmd_to_str(mmd)
+    contexts = module_build_service.common.models.ModuleBuild.contexts_from_mmd(build_two.modulemd)
+    build_two.build_context = contexts.build_context
+    build_two.build_context_no_bms = contexts.build_context_no_bms
+
+    db_session.add(build_two)
+    db_session.flush()
+
+    build_two.arches.append(arch)
+    build_two.buildrequires.append(platform_br)
+
+    db_session.add_all([
+        module_build_service.common.models.ComponentBuild(
+            module_id=build_two.id,
+            package="perl-Tangerine",
+            scmurl="https://src.fedoraproject.org/rpms/perl-Tangerine"
+                   "?#4ceea43add2366d8b8c5a622a2fb563b625b9abf",
+            format="rpms",
+            batch=2,
+            ref="4ceea43add2366d8b8c5a622a2fb563b625b9abf",
+        ),
+        module_build_service.common.models.ComponentBuild(
+            module_id=build_two.id,
+            package="perl-List-Compare",
+            scmurl="https://src.fedoraproject.org/rpms/perl-List-Compare"
+                   "?#76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb",
+            format="rpms",
+            batch=2,
+            ref="76f9d8c8e87eed0aab91034b01d3d5ff6bd5b4cb",
+        ),
+        module_build_service.common.models.ComponentBuild(
+            module_id=build_two.id,
+            package="tangerine",
+            scmurl="https://src.fedoraproject.org/rpms/tangerine"
+                   "?#fbed359411a1baa08d4a88e0d12d426fbf8f602c",
+            format="rpms",
+            batch=3,
+            ref="fbed359411a1baa08d4a88e0d12d426fbf8f602c",
+        ),
+        module_build_service.common.models.ComponentBuild(
+            module_id=build_two.id,
+            package="module-build-macros",
+            scmurl="/tmp/module_build_service-build-macrosqr4AWH/SRPMS/module-build-"
+                   "macros-0.1-1.module_testmodule_master_20170219191323.src.rpm",
+            format="rpms",
+            task_id=90276186,
+            state=koji.BUILD_STATES["COMPLETE"],
+            nvr="module-build-macros-0.1-1.{0}".format(build_two_component_release),
+            batch=1,
+            tagged=True,
+            build_time_only=True,
+        ),
+    ])
+    # Commit everything in one go.
     db_session.commit()
 
 
