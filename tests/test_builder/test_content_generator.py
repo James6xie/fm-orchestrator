@@ -1161,3 +1161,13 @@ class TestBuild:
         mmd = self.cg._fill_in_rpms_list(mmd, "x86_64")
 
         assert set(mmd.get_rpm_artifacts()) == set()
+
+    @patch("koji.ClientSession")
+    @patch("module_build_service.builder.KojiContentGenerator.KojiContentGenerator._load_koji_tag")
+    @patch("module_build_service.builder.KojiContentGenerator.KojiContentGenerator._finalize_mmd")
+    def test_get_final_mmds(self, finalize_mmd, tag_loader, ClientSession):
+        finalize_mmd.return_value = {"x86_64": "finalized mmd"}
+        self.cg.arches = ["x86_64"]
+        self.cg.get_final_mmds()
+        tag_loader.assert_called()
+        finalize_mmd.assert_called()
