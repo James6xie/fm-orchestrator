@@ -845,7 +845,7 @@ class KojiContentGenerator(object):
 
     def get_final_mmds(self):
         # Returns dict of finalized mmds. Used to generate final modulemd files for scratch builds.
-        session = get_session(self.config)
+        session = get_session(self.config, login=False)
         self._load_koji_tag(session)
 
         finalmmds = {}
