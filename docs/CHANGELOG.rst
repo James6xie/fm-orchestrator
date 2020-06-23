@@ -1,6 +1,10 @@
 Change Log
 ==========
 
+v3.2.0
+------
+* Add API call to get final modulemd files of builds
+
 v3.1.0
 ------
 * New ``module_stream`` optional parameter for scratch module builds
