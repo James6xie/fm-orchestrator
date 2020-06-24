@@ -1,6 +1,10 @@
 Change Log
 ==========
 
+v3.2.1
+------
+* Fix a bug with final modulemd call
+
 v3.2.0
 ------
 * Add API call to get final modulemd files of builds
