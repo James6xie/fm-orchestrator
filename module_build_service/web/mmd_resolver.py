@@ -556,6 +556,7 @@ class MMDResolver(object):
 
         # We will check all the alternatives and keep just the "first" one.
         for transactions in alternatives.values():
+            min_trans_length = min(len(t) for t in transactions.values())
             for ns, trans in transactions.items():
                 # Each transaction in trans lists all the possible working
                 # combination of solvables. Our goal here is to find out the
@@ -585,7 +586,10 @@ class MMDResolver(object):
                         index = self.solvables[name_stream].index(s)
                         idx.append(index)
                     sorted_trans.append([i, idx])
-                sorted_trans.sort(key=lambda i: sum(i[1]))
+                # Sort the list of indexes of solvables only based on the shared common length
+                # so that only the shared solvables for each transaction are considered for which
+                # is newest
+                sorted_trans.sort(key=lambda x: sum(x[1][:min_trans_length]))
                 if sorted_trans:
                     transactions[ns] = [trans[sorted_trans[0][0]]]
 

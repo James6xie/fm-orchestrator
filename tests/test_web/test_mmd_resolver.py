@@ -142,6 +142,93 @@ class TestMMDResolver:
 
         assert expanded == expected
 
+    def test_solve_reproduce_rhelbld_1665(self):
+        modules = (
+            ("python27:2.7:8010020190903182548:51c94b97", [
+                {
+                    "buildrequires": {"platform": ["el8.1.0"]},
+                    "requires": {"platform": ["el8"]},
+                },
+            ]),
+            ("python27:2.7:8030020200617145106:851f4228", [
+                {
+                    "buildrequires": {"platform": ["el8.3.0"]},
+                    "requires": {"platform": ["el8"]},
+                },
+            ]),
+            ("python36:3.6:8030020200515150628:24f1489c", [
+                {
+                    "buildrequires": {"platform": ["el8.3.0"]},
+                    "requires": {"platform": ["el8"]},
+                },
+            ]),
+            ("python36:3.6:8010020190724083915:a920e634", [
+                {
+                    "buildrequires": {"platform": ["el8.1.0"]},
+                    "requires": {"platform": ["el8"]},
+                },
+            ]),
+            ("platform:el8.1.0:2:00000000", []),
+            ("flatpak-runtime:el8:8030020200604154928:73699f59", [
+                {
+                    "buildrequires": {
+                        "platform": ["el8.3.0"],
+                        "python27": ["2.7"],
+                        "python36": ["3.6"],
+                    },
+                    "requires": {
+                        "platform": ["el8"],
+                        "python27": ["2.7"],
+                        "python36": ["3.6"],
+                    },
+                },
+            ]),
+            ("flatpak-runtime:el8:8010020190926143916:cdc1202b", [
+                {
+                    "buildrequires": {"platform": ["el8.1.0"]},
+                    "requires": {"platform": ["el8"]},
+                },
+            ]),
+            ("platform:el8.3.0:2:00000000", []),
+        )
+        for nsvc, deps in modules:
+            if nsvc.startswith("platform"):
+                xmd = {"mbs": {"buildrequires": {}, "virtual_streams": ["el8"]}}
+            else:
+                platform_stream = deps[0]["buildrequires"]["platform"][0]
+                xmd = {"mbs": {"buildrequires": {"platform": platform_stream}}}
+
+            mmd = make_module(nsvc, dependencies=deps, xmd=xmd)
+            self.mmd_resolver.add_modules(mmd)
+
+        dependencies = [{
+            "buildrequires": {
+                "platform": ["el8.3.0"],
+                "flatpak-runtime": ["el8"],
+            },
+            "requires": {
+                "platform": ["el8"],
+                "flatpak-runtime": ["el8"],
+            }
+        }]
+        inkscape = make_module("inkscape:1:0", dependencies=dependencies)
+        expanded = self.mmd_resolver.solve(inkscape)
+
+        expected = set(
+            [
+                frozenset(
+                    [
+                        "flatpak-runtime:el8:8030020200604154928:73699f59:x86_64",
+                        "inkscape:1:0:0:src",
+                        "platform:el8.3.0:2:00000000:x86_64",
+                        "python27:2.7:8010020190903182548:51c94b97:x86_64",
+                        "python36:3.6:8010020190724083915:a920e634:x86_64",
+                    ],
+                ),
+            ],
+        )
+        assert expanded == expected
+
     @pytest.mark.parametrize(
         "dependencies, expected",
         (
