@@ -115,8 +115,25 @@ def _get_mmds_from_requires(
                 added_mmds[ns] = []
 
             if base_module_mmds:
+                base_module_streams = {}
                 for base_module_mmd in base_module_mmds:
-                    mmds[ns] += resolver.get_buildrequired_modulemds(name, stream, base_module_mmd)
+                    # Group base module streams by major version
+                    base_stream = base_module_mmd.get_stream_name()
+                    base_stream_version = int(models.ModuleBuild.get_stream_version(base_stream))
+                    x = base_stream_version // 10000
+                    # tuple (base_stream_version, mmd) used for sorting
+                    base_module_streams.setdefault(x, []).append(
+                        (base_stream_version, base_module_mmd))
+                for x in sorted(base_module_streams, reverse=True):
+                    # Get latest builds that buildrequires the most recent
+                    # base module stream, for each base module major version.
+                    for base_stream_version, base_module_mmd in sorted(
+                            base_module_streams[x], reverse=True):
+                        builds = resolver.get_buildrequired_modulemds(
+                            name, stream, base_module_mmd)
+                        if builds != []:
+                            mmds[ns] += builds
+                            break
             else:
                 mmds[ns] = resolver.get_module_modulemds(name, stream, strict=True)
             added_mmds[ns] += mmds[ns]

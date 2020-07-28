@@ -452,7 +452,7 @@ class TestModuleStreamExpansion:
                     "requires": {},
                     "buildrequires": {"platform": ["f29.1.0"], "gtk": ["1"]},
                 }],
-                ["platform:f29.0.0:0:c11", "gtk:1:0:c2", "gtk:1:2:c2", "platform:f29.1.0:0:c11"],
+                ["platform:f29.0.0:0:c11", "gtk:1:2:c2", "platform:f29.1.0:0:c11"],
             )
         ],
     )
