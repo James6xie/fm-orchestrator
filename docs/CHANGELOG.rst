@@ -1,6 +1,10 @@
 Change Log
 ==========
 
+v3.3.0
+------
+* Get latest build of latest stream when determining requirements
+
 v3.2.1
 ------
 * Fix a bug with final modulemd call
