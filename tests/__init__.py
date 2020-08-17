@@ -9,6 +9,7 @@ import os
 import re
 import six
 import time
+import yaml
 from traceback import extract_stack
 
 import koji
@@ -53,6 +54,13 @@ def read_staged_data(yaml_name):
         raise ValueError("Staged data {}.yaml does not exist.".format(yaml_name))
     with open(filename, "r") as mmd:
         return to_text_type(mmd.read())
+
+
+def read_staged_data_as_yaml(yaml_name):
+    filename = staged_data_filename(
+        yaml_name if '.' in yaml_name else "{}.yaml".format(yaml_name))
+    with open(filename, "r") as f:
+        return yaml.safe_load(f)
 
 
 def patch_config():
