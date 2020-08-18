@@ -4,10 +4,11 @@ from __future__ import absolute_import
 
 import pytest
 
-from module_build_service.common.errors import StreamAmbigous
+from module_build_service.common.errors import StreamAmbigous, ValidationError
 from module_build_service.scheduler.db_session import db_session
 from module_build_service.web.mse import (
-    expand_mse_streams, generate_expanded_mmds, get_mmds_required_by_module_recursively
+    expand_mse_streams, generate_expanded_mmds, get_mmds_required_by_module_recursively,
+    generate_mmds_from_static_contexts
 )
 from tests import make_module_in_db
 
@@ -461,3 +462,242 @@ class TestModuleStreamExpansion:
         self._generate_default_modules_modules_multiple_stream_versions()
         nsvcs = self._get_mmds_required_by_module_recursively(module_build, db_session)
         assert set(nsvcs) == set(expected)
+
+    def test_generate_expanded_mmds_static_context(self):
+        """
+        Tests if generate_expanded_mmds will not change the context of a module if provided
+        with a static one.
+        """
+        module_deps = [{
+            "requires": {"gtk": ["1"], "foo": ["1"]},
+            "buildrequires": {"platform": ["f28"], "gtk": ["1"], "foo": ["1"]},
+        }]
+        self._generate_default_modules()
+        module_build = make_module_in_db("app:1:0:static", module_deps)
+
+        mmds = generate_expanded_mmds(db_session, module_build.mmd(), static_context=True)
+
+        assert type(mmds) is list
+        assert len(mmds) == 1
+
+        current_context = mmds[0].get_context()
+
+        assert current_context == "static"
+
+    def test_generate_mmds_from_static_context(self):
+        self._generate_default_modules()
+        module_build = make_module_in_db(
+            "app:1:0:c1",
+            dependencies=[{
+                "requires": {"gtk": ["1", "2"]},
+                "buildrequires": {
+                    "platform": ["f28"],
+                    "gtk": ["1", "2"]
+                }}],
+            xmd={
+                "mbs": {},
+                "mbs_options": {
+                    "contexts": {
+                        "context1": {
+                            "requires": {
+                                "gtk": "1"
+                            },
+                            "buildrequires": {
+                                "platform": "f28",
+                                "gtk": "1",
+                            }
+                        },
+                        "context2": {
+                            "requires": {
+                                "gtk": "2"
+                            },
+                            "buildrequires": {
+                                "platform": "f28",
+                                "gtk": "2",
+                            },
+                        }
+                    }
+                }
+            }
+        )
+
+        mmds = generate_mmds_from_static_contexts(module_build.mmd())
+
+        expected_contexts = ["context1", "context2"]
+        expected_deps = {
+            "context1": {
+                "buildrequires": {
+                    "platform": ["f28"],
+                    "gtk": ["1"],
+                },
+                "requires": {
+                    "gtk": ["1"],
+                },
+            },
+            "context2": {
+                "buildrequires": {
+                    "platform": ["f28"],
+                    "gtk": ["2"],
+                },
+                "requires": {
+                    "gtk": ["2"],
+                },
+            },
+        }
+
+        assert type(mmds) is list
+        assert len(mmds) == 2
+
+        for mmd in mmds:
+            current_context = mmd.get_context()
+            current_xmd = mmd.get_xmd()
+
+            assert current_context in expected_contexts
+            assert "contexts" not in current_xmd
+
+            deps = mmd.get_dependencies()
+
+            assert len(deps) == 1
+
+            buildrequires = deps[0].get_buildtime_modules()
+
+            for module in buildrequires:
+                current_stream = deps[0].get_buildtime_streams(module)
+                assert len(current_stream) == 1
+                assert expected_deps[current_context]["buildrequires"][module] == current_stream
+
+            requires = deps[0].get_runtime_modules()
+
+            for module in requires:
+                current_stream = deps[0].get_runtime_streams(module)
+                assert len(current_stream) == 1
+                assert expected_deps[current_context]["requires"][module] == current_stream
+
+    def test_generate_expanded_mmds_static_context_empty_xmd(self):
+        module_build = make_module_in_db(
+            "app:1:0:c1",
+            xmd={})
+        mmd = module_build.mmd()
+        mmd.set_xmd({})
+        with pytest.raises(ValidationError):
+            generate_mmds_from_static_contexts(mmd)
+
+    def test_generate_expanded_mmds_static_context_no_contexts(self):
+        module_build = make_module_in_db(
+            "app:1:0:c1",
+            xmd={"mbs": {}, "mbs_options": {}})
+
+        with pytest.raises(ValidationError):
+            generate_mmds_from_static_contexts(module_build.mmd())
+
+    def test_generate_expanded_mmds_static_context_missing_buildrequires(self):
+        xmd = {
+            "mbs": {},
+            "mbs_options": {
+                "contexts": {"context1": {"requires": {"gtk": ["1"]}}}
+            }
+        }
+
+        module_build = make_module_in_db(
+            "app:1:0:c1",
+            xmd=xmd)
+
+        with pytest.raises(ValidationError):
+            generate_mmds_from_static_contexts(module_build.mmd())
+
+    def test_generate_expanded_mmds_static_context_missing_requires(self):
+        xmd = {
+            "mbs": {},
+            "mbs_options": {
+                "contexts": {"context1": {"buildrequires": {"platform": ["f28"]}}}
+            }
+        }
+
+        module_build = make_module_in_db(
+            "app:1:0:c1",
+            xmd=xmd)
+
+        with pytest.raises(ValidationError):
+            generate_mmds_from_static_contexts(module_build.mmd())
+
+    def test_generate_expanded_mmds_static_context_wrong_type(self):
+        xmd = {"mbs": {}, "mbs_options": {"contexts": []}}
+        module_build = make_module_in_db(
+            "app:1:0:c1",
+            xmd=xmd)
+
+        with pytest.raises(ValidationError):
+            generate_mmds_from_static_contexts(module_build.mmd())
+
+    def test_generate_expanded_mmds_static_context_missing_stream(self):
+        xmd = {
+            "mbs": {},
+            "mbs_options": {
+                "contexts": {
+                    "context1": {
+                        "buildrequires": {"platform": "f28"},
+                        "requires": {"gtk": None},
+                    }
+                }
+            }
+        }
+
+        module_build = make_module_in_db(
+            "app:1:0:c1", xmd=xmd)
+
+        with pytest.raises(ValidationError) as ex:
+            generate_mmds_from_static_contexts(module_build.mmd())
+            err_msg = ex.value.args[0]
+            assert "gtk" in err_msg
+            assert "requires" in err_msg
+            assert "context1" in err_msg
+
+    def test_generate_expanded_mmds_static_context_stream_invalid_type(self):
+        xmd = {
+            "mbs": {},
+            "mbs_options": {
+                "contexts": {
+                    "context1": {
+                        "buildrequires": {"platform": "f28"},
+                        "requires": {"gtk": {"dict": "1"}},
+                    }
+                }
+            }
+        }
+
+        module_build = make_module_in_db(
+            "app:1:0:c1",
+            xmd=xmd)
+
+        with pytest.raises(ValidationError) as ex:
+            generate_mmds_from_static_contexts(module_build.mmd())
+            err_msg = ex.value.args[0]
+            assert "gtk" in err_msg
+            assert "requires" in err_msg
+            assert "context1" in err_msg
+            assert "dict" in err_msg
+            assert "str" in err_msg
+
+    def test_generate_expanded_mmds_static_context_used_mse(self):
+        xmd = {
+            "mbs": {},
+            "mbs_options": {
+                "contexts": {
+                    "context1": {
+                        "buildrequires": {"platform": "f28"},
+                        "requires": {"gtk": "-f28"},
+                    }
+                }
+            }
+        }
+        module_build = make_module_in_db(
+            "app:1:0:c1",
+            xmd=xmd)
+
+        with pytest.raises(ValidationError) as ex:
+            generate_mmds_from_static_contexts(module_build.mmd())
+            err_msg = ex.value.args[0]
+            assert "gtk" in err_msg
+            assert "requires" in err_msg
+            assert "context1" in err_msg
+            assert "-f28" in err_msg

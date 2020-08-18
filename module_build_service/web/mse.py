@@ -3,7 +3,7 @@
 from __future__ import absolute_import
 
 from module_build_service.common import conf, log, models
-from module_build_service.common.errors import StreamAmbigous, UnprocessableEntity
+from module_build_service.common.errors import StreamAmbigous, UnprocessableEntity, ValidationError
 from module_build_service.common.modulemd import Modulemd
 from module_build_service.common.resolve import expand_single_mse_streams, get_base_module_mmds
 from module_build_service.common.utils import mmd_to_str
@@ -229,7 +229,8 @@ def get_mmds_required_by_module_recursively(
     return res
 
 
-def generate_expanded_mmds(db_session, mmd, raise_if_stream_ambigous=False, default_streams=None):
+def generate_expanded_mmds(db_session, mmd, raise_if_stream_ambigous=False, default_streams=None,
+                           static_context=False):
     """
     Returns list with MMDs with buildrequires and requires set according
     to module stream expansion rules. These module metadata can be directly
@@ -243,6 +244,9 @@ def generate_expanded_mmds(db_session, mmd, raise_if_stream_ambigous=False, defa
     :param dict default_streams: Dict in {module_name: module_stream, ...} format defining
         the default stream to choose for module in case when there are multiple streams to
         choose from.
+    :param bool static_context: When True will use a predefined context from the mmd yaml file
+        and will not generate a new one. Also it will set `static_context` property in the `mbs`
+        property to True.
     """
     if not default_streams:
         default_streams = {}
@@ -251,6 +255,10 @@ def generate_expanded_mmds(db_session, mmd, raise_if_stream_ambigous=False, defa
     # which would change the module.
     current_mmd = mmd.copy()
 
+    # if a static context is set the generated context will be overridden by the one
+    # defined in the mmd of the module.
+    if static_context:
+        context = current_mmd.get_context()
     # MMDResolver expects the input MMD to have no context.
     current_mmd.set_context(None)
 
@@ -376,14 +384,130 @@ def generate_expanded_mmds(db_session, mmd, raise_if_stream_ambigous=False, defa
             xmd["mbs"] = {}
         resolver = GenericResolver.create(db_session, conf)
         xmd["mbs"]["buildrequires"] = resolver.resolve_requires(br_list)
+
         xmd["mbs"]["mse"] = True
+        # if static context is used the mse is expanded beforehand. This means that the
+        # mmd set as a parameter to this function has only one context per stream.
+        # we set a `static_context` property to True to mark module streams with static contexts.
+        if static_context:
+            xmd["mbs"]["static_context"] = True
 
         mmd_copy.set_xmd(xmd)
 
-        # Now we have all the info to actually compute context of this module.
-        context = models.ModuleBuild.contexts_from_mmd(mmd_to_str(mmd_copy)).context
+        # we only compute the context if static context is False
+        if not static_context:
+            # Now we have all the info to actually compute context of this module.
+            context = models.ModuleBuild.contexts_from_mmd(mmd_to_str(mmd_copy)).context
+
         mmd_copy.set_context(context)
 
         mmds.append(mmd_copy)
 
     return mmds
+
+
+def generate_mmds_from_static_contexts(mmd):
+    """
+    This function preexpands the MSE when static contexts which are defined by the `contexts`
+    property under `mbs_options` in the `xmd` property of the initial modulemd file.
+
+    :param Modulemd.ModuleStream mmd: Modulemd metadata with the `contexts` property.
+    :return list mmds: list of distinct mmds identified by context.
+    """
+
+    xmd = mmd.get_xmd()
+    if not xmd:
+        raise ValidationError("The 'xmd' property of the modulemd yaml file is empty!")
+
+    if not xmd["mbs_options"].get("contexts"):
+        raise ValidationError(("The 'xmd' property of the modulemd yaml file does not contain the"
+                               " 'contexts' key."))
+
+    contexts = xmd["mbs_options"].get("contexts")
+    if not type(contexts) is dict:
+        raise ValidationError("The value of the 'contexts' property needs to be a dict.")
+
+    # remove the information about the `contexts` property from the `mbs_options` as we do not
+    # needed anymore
+    xmd["mbs_options"].pop("contexts")
+
+    # we check if the `mbs_options` dict is empty after we remove the `contexts` key.
+    # if yes we remove `the mbs_options`.
+    if not xmd["mbs_options"]:
+        xmd.pop("mbs_options")
+
+    mmd.set_xmd(xmd)
+
+    mmds = []
+    for context, dependencies in contexts.items():
+        # we copy the mmd so we a get a fresh module for each context.
+        mmd_copy = mmd.copy()
+        mmd_copy.set_context(context)
+
+        if "buildrequires" not in dependencies:
+            raise ValidationError(("The  context '{context}' is missing the"
+                                   " 'buildrequires' key!").format(context=context))
+
+        if "requires" not in dependencies:
+            raise ValidationError("The context '{context}' is missing the 'requires' key!".format(
+                context=context))
+
+        # remove the old deps from the mmd
+        old_module_deps = mmd_copy.get_dependencies()
+        for deps in old_module_deps:
+            mmd_copy.remove_dependencies(deps)
+
+        module_deps = Modulemd.Dependencies.new()
+
+        # populate the new requires and buildrequires according to the `contexts` property
+        for module, stream in dependencies["buildrequires"].items():
+            _validate_stream_name_for_static_context(module, stream, context, "buildrequires")
+            module_deps.add_buildtime_stream(module, stream)
+
+        for module, stream in dependencies["requires"].items():
+            _validate_stream_name_for_static_context(module, stream, context, "requires")
+            module_deps.add_runtime_stream(module, stream)
+
+        mmd_copy.add_dependencies(module_deps)
+
+        mmds.append(mmd_copy)
+
+    return mmds
+
+
+def _validate_stream_name_for_static_context(module, stream, context, dep_type):
+    """
+    Validates the the streams of static contexts.
+
+    :param str module: name of the module
+    :param str stream: name of the stream
+    :param str context: name of the context
+    :param str dep_type: type of the dependencies the module stream belongs to i. e. requires,
+        buildrequires.
+    :return None
+    """
+
+    if not stream:
+        raise ValidationError(("The '{module}' module in '{dep_type}' of the '{context}' static "
+                               "context has no stream defined.").format(module=module,
+                                                                        dep_type=dep_type,
+                                                                        context=context))
+
+    stream_type = type(stream)
+    if stream_type is not str:
+        raise ValidationError(("The module '{module}' in '{dep_type}' of the '{context}' "
+                               "static context is of type '{stream_type}' should be "
+                               "'str' type.").format(stream=stream,
+                                                     module=module,
+                                                     dep_type=dep_type,
+                                                     context=context,
+                                                     stream_type=stream_type))
+
+    if stream.startswith("-"):
+        raise ValidationError(("The '{stream}' stream of module '{module}' in '{dep_type}' of the"
+                               "'{context}' static contexts is using stream expansion. Usage of "
+                               "stream expansion with static context is forbidden."
+                               ).format(stream=stream,
+                                        module=module,
+                                        dep_type=dep_type,
+                                        context=context))

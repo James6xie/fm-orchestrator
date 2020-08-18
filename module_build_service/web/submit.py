@@ -17,7 +17,7 @@ from module_build_service.common.messaging import notify_on_module_state_change
 from module_build_service.common.modulemd import Modulemd
 from module_build_service.common.submit import fetch_mmd
 from module_build_service.common.utils import load_mmd, mmd_to_str, to_text_type
-from module_build_service.web.mse import generate_expanded_mmds
+from module_build_service.web.mse import generate_expanded_mmds, generate_mmds_from_static_contexts
 from module_build_service.web.utils import deps_to_dict
 
 
@@ -537,7 +537,6 @@ def submit_module_build(db_session, username, mmd, params):
         mmd.get_stream_name(),
         mmd.get_version(),
     )
-    validate_mmd(mmd)
 
     raise_if_stream_ambigous = False
     default_streams = {}
@@ -548,11 +547,22 @@ def submit_module_build(db_session, username, mmd, params):
     # Get the default_streams if set.
     if "default_streams" in params:
         default_streams = params["default_streams"]
-    _apply_dep_overrides(mmd, params)
-    _modify_buildtime_streams(db_session, mmd, resolve_base_module_virtual_streams)
-    _process_support_streams(db_session, mmd, params)
 
-    mmds = generate_expanded_mmds(db_session, mmd, raise_if_stream_ambigous, default_streams)
+    xmd = mmd.get_xmd()
+    # we check if static contexts are enabled by the `contexts` property defined by the user i
+    # as an build option.
+    static_context = "mbs_options" in xmd and "contexts" in xmd["mbs_options"]
+    input_mmds = generate_mmds_from_static_contexts(mmd) if static_context else [mmd]
+
+    mmds = []
+    for mmd in input_mmds:
+        validate_mmd(mmd)
+        _apply_dep_overrides(mmd, params)
+        _modify_buildtime_streams(db_session, mmd, resolve_base_module_virtual_streams)
+        _process_support_streams(db_session, mmd, params)
+        mmds += generate_expanded_mmds(db_session, mmd, raise_if_stream_ambigous,
+                                       default_streams, static_context=static_context)
+
     if not mmds:
         raise ValidationError(
             "No dependency combination was satisfied. Please verify the "
@@ -651,6 +661,11 @@ def submit_module_build(db_session, username, mmd, params):
             )
             module.build_context, module.runtime_context, module.context, \
                 module.build_context_no_bms = module.contexts_from_mmd(module.modulemd)
+
+            xmd = mmd.get_xmd()
+            if xmd["mbs"].get("static_context"):
+                module.context = mmd.get_context()
+
             module.context += context_suffix
             db_session.commit()
 

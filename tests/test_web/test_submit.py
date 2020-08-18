@@ -12,7 +12,7 @@ from werkzeug.datastructures import FileStorage
 
 from module_build_service.common import models
 from module_build_service.common.errors import ValidationError
-from module_build_service.common.utils import mmd_to_str
+from module_build_service.common.utils import mmd_to_str, load_mmd
 from module_build_service.scheduler.db_session import db_session
 from module_build_service.web.submit import (
     get_prefixed_version, submit_module_build, submit_module_build_from_yaml
@@ -25,7 +25,6 @@ from tests import (
 
 
 class TestSubmit:
-
     def test_get_prefixed_version_f28(self):
         scheduler_init_data(1)
         build_one = models.ModuleBuild.get_by_id(db_session, 2)
@@ -41,6 +40,110 @@ class TestSubmit:
         mmd.set_xmd(xmd)
         v = get_prefixed_version(mmd)
         assert v == 7000120180205135154
+
+    def test_submit_build_static_context(self):
+        """
+        Test that we can now build modules with static contexts. The contexts are defined in
+        the `xmd` property by the `contexts` property of the initial modulemd yaml file. The
+        `contexts` is not pressent in the resulting module build. The generated contexts of a
+        module is overridden by the static context defined by the user and the `mse` property
+        is set to False.
+        """
+
+        yaml_str = """
+document: modulemd
+version: 2
+data:
+    name: app
+    stream: test
+    summary: "A test module"
+    description: >
+        "A test module stream"
+    license:
+        module: [ MIT ]
+    dependencies:
+        - buildrequires:
+            platform: []
+            gtk: []
+          requires:
+            platform: []
+            gtk: []
+    xmd:
+        mbs_options:
+            contexts:
+                context1:
+                    buildrequires:
+                        platform: f28
+                    requires:
+                        platform: f28
+                        gtk: 1
+                context2:
+                    buildrequires:
+                        platform: f28
+                    requires:
+                        platform: f28
+                        gtk: 2
+        """
+        mmd = load_mmd(yaml_str)
+
+        builds = submit_module_build(db_session, "app", mmd, {})
+
+        expected_context = ["context1", "context2"]
+
+        assert len(builds) == 2
+
+        for build in builds:
+            assert build.context in expected_context
+            mmd = build.mmd()
+            xmd = mmd.get_xmd()
+            assert "mbs_options" not in xmd
+            assert xmd["mbs"]["static_context"]
+
+    def test_submit_build_static_context_preserve_mbs_options(self):
+        """
+        This tests that the `mbs_options` will be preserved after static context build if there
+        are more options configured then `contexts` option..
+        """
+
+        yaml_str = """
+document: modulemd
+version: 2
+data:
+    name: app
+    stream: test1
+    summary: "A test module"
+    description: >
+        "A test module stream"
+    license:
+        module: [ MIT ]
+    dependencies:
+        - buildrequires:
+            platform: []
+            gtk: []
+          requires:
+            platform: []
+            gtk: []
+    xmd:
+        mbs_options:
+            contexts:
+                context1:
+                    buildrequires:
+                        platform: f28
+                    requires:
+                        platform: f28
+                        gtk: 1
+            another_option: "test"
+        """
+        mmd = load_mmd(yaml_str)
+
+        builds = submit_module_build(db_session, "app", mmd, {})
+
+        assert len(builds) == 1
+        mmd = builds[0].mmd()
+        xmd = mmd.get_xmd()
+        assert "mbs_options" in xmd
+        assert "another_option" in xmd["mbs_options"]
+        assert "test" == xmd["mbs_options"]["another_option"]
 
 
 @pytest.mark.usefixtures("reuse_component_init_data")
