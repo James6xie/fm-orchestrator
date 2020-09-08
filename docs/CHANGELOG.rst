@@ -1,6 +1,10 @@
 Change Log
 ==========
 
+v3.4.0
+------
+* Implement static contexts in stream expansion
+
 v3.3.0
 ------
 * Get latest build of latest stream when determining requirements
