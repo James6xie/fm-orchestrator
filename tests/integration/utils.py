@@ -510,6 +510,10 @@ class MBS:
     :attribute string _mbs_api: URL of the MBS API (including trailing '/')
     """
 
+    # Stage MBS sometimes takes very long to finish a build.
+    # Let's make this default value absurdly high to prevent timeouts.
+    BUILD_WAIT_TIMEOUT_SEC = 5 * 60 * 60
+
     def __init__(self, mbs_api):
         self._mbs_api = mbs_api
 
@@ -605,7 +609,8 @@ class MBS:
         response = requests.patch(url, auth=get_kerberos_auth(), verify=False, data=data)
         response.raise_for_status()
 
-    def wait_for_module_build(self, build_data, predicate_func, timeout=60, interval=5):
+    def wait_for_module_build(self, build_data, predicate_func,
+                              timeout=BUILD_WAIT_TIMEOUT_SEC, interval=5):
         """Wait for module build. Wait until the specified function returns True.
 
         :param int|Build build_data: build definition (either id or Build object)
@@ -623,7 +628,8 @@ class MBS:
             time.sleep(interval)
         raise TimeoutError("Wait for build timed out after {}s".format(timeout))
 
-    def wait_for_module_build_to_succeed(self, build_data, timeout=60, interval=5):
+    def wait_for_module_build_to_succeed(self, build_data,
+                                         timeout=BUILD_WAIT_TIMEOUT_SEC, interval=30):
         """Wait for module build to be 'ready'.
 
         :param int|str build_data: build definition (either id or Build object)

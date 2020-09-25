@@ -10,7 +10,10 @@ def test_scratch_final_mmd(scenario, repo, mbs, pkg_util):
     * That there's a mmd for each arch.
     * Content of the final mmd is roughly as expected.
     """
-    build = pkg_util.run("--scratch", "--watch", reuse=scenario.get("build_id"))[0]
+    builds = pkg_util.run("--scratch", reuse=scenario.get("build_id"))
+    assert len(builds) == 1
+    build = builds[0]
+    mbs.wait_for_module_build_to_succeed(build)
 
     original_mmd = repo.modulemd
     expected_arches = set(build.module_build_data["arches"])

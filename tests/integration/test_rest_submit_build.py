@@ -4,7 +4,7 @@ from requests import HTTPError
 def assert_build_in_build_state(mbs, build):
     """Assert build state was reached and then cancel the build using REST."""
     try:
-        mbs.wait_for_module_build(build, lambda bld: bld.get("state") == 2, timeout=10)
+        mbs.wait_for_module_build(build, lambda bld: bld.get("state") == 2)
     finally:
         mbs.cancel_module_build(build.id)
 

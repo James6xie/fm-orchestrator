@@ -1,7 +1,7 @@
 import copy
 
 
-def extracted_test_function(repo, pkg_util, scenario):
+def extracted_test_function(repo, pkg_util, mbs, scenario):
     """Test if previous components are reused properly, after components are added/removed.
 
     Prerequisites:
@@ -41,8 +41,9 @@ def extracted_test_function(repo, pkg_util, scenario):
 
     try:
         # Make an initial build (to be later reused)
-        builds = pkg_util.run("--watch", "--optional", "rebuild_strategy=all")
+        builds = pkg_util.run("--optional", "rebuild_strategy=all")
         assert len(builds) == 1, "Initial build failed!"
+        mbs.wait_for_module_build_to_succeed(builds[0])
 
         # Prepare 2nd build metadata & push
         tmp_metadata["data"]["components"]["rpms"] = {}
@@ -52,8 +53,9 @@ def extracted_test_function(repo, pkg_util, scenario):
         repo.add_all_commit_and_push(f'2nd build: "{second_build_rpms}"')
 
         # Make a new build
-        builds = pkg_util.run("--watch", "--optional", f"rebuild_strategy={rebuild_strategy}")
+        builds = pkg_util.run("--optional", f"rebuild_strategy={rebuild_strategy}")
         assert len(builds) == 1, "Second (re)build failed!"
+        mbs.wait_for_module_build_to_succeed(builds[0])
 
         build = builds[0]
         # we don"t care about module-build-macros
@@ -80,17 +82,17 @@ def extracted_test_function(repo, pkg_util, scenario):
 # Module branch provides data - i.e. RPM components - and test.env provides
 # scenario to be executed, i.e. which RPMs go to the 1st and 2nd build
 # as well as expected result - see test.env example.
-def test_reuse_components_if_added_1(repo, pkg_util, scenario):
-    extracted_test_function(repo, pkg_util, scenario)
+def test_reuse_components_if_added_1(repo, pkg_util, mbs, scenario):
+    extracted_test_function(repo, pkg_util, mbs, scenario)
 
 
-def test_reuse_components_if_added_2(repo, pkg_util, scenario):
-    extracted_test_function(repo, pkg_util, scenario)
+def test_reuse_components_if_added_2(repo, pkg_util, mbs, scenario):
+    extracted_test_function(repo, pkg_util, mbs, scenario)
 
 
-def test_reuse_components_if_removed_1(repo, pkg_util, scenario):
-    extracted_test_function(repo, pkg_util, scenario)
+def test_reuse_components_if_removed_1(repo, pkg_util, mbs, scenario):
+    extracted_test_function(repo, pkg_util, mbs, scenario)
 
 
-def test_reuse_components_if_removed_2(repo, pkg_util, scenario):
-    extracted_test_function(repo, pkg_util, scenario)
+def test_reuse_components_if_removed_2(repo, pkg_util, mbs, scenario):
+    extracted_test_function(repo, pkg_util, mbs, scenario)

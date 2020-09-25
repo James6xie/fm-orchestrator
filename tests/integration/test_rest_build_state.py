@@ -16,7 +16,7 @@ def test_rest_module_build(clone_and_start_build, mbs, koji, pkg_util):
     giturl = pkg_util.giturl()
 
     # wait until 'build' state
-    mbs.wait_for_module_build(build_id, lambda bld: bld.get("state") == 2, timeout=200)
+    mbs.wait_for_module_build(build_id, lambda bld: bld.get("state") == 2)
 
     build = mbs.get_module_build(build_id)
     assert build.get("id") == build_id

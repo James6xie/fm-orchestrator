@@ -24,7 +24,7 @@ def test_buildonly(clone_and_start_build, mbs):
 
     # Wait until our build is ready
     build_id = builds[0].id
-    mbs.wait_for_module_build_to_succeed(build_id, timeout=(60 * 60), interval=30)
+    mbs.wait_for_module_build_to_succeed(build_id)
 
     # assert filter field in final modulemd
     modulemd = mbs.get_module_build(build_id).get_modulemd()
