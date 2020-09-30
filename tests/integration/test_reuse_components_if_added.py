@@ -15,9 +15,15 @@ def extracted_test_function(repo, pkg_util, mbs, scenario):
 
     :param utils.Repo repo: repo fixture
     :param utils.PackagingUtility pkg_util: pkg_util fixture
+    :param utils.MBS mbs: mbs fixture (MBS client)
     :param dict scenario: see example.test.env
     """
     test_rpms = repo.components
+    for scenario_item in ["first_build", "second_build", "expected_reused", "expected_rebuilt"]:
+        hint = """Test branch does not have enough rpms ({}) in modulemd to satisfy
+        test scenario ({})'. Make sure, that previous test reverted its changes
+        successfully.""".format(len(scenario[scenario_item]), scenario_item)
+        assert len(test_rpms) >= len(scenario[scenario_item]), hint
 
     # Prepare test data from test.env scenario
     first_build_rpms = {test_rpms[i] for i in scenario["first_build"]}
