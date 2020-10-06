@@ -13,7 +13,7 @@ def test_scratch_final_mmd(scenario, repo, mbs, pkg_util):
     builds = pkg_util.run("--scratch", reuse=scenario.get("build_id"))
     assert len(builds) == 1
     build = builds[0]
-    mbs.wait_for_module_build_to_succeed(build)
+    mbs.wait_for_module_build_to_succeed(build, is_scratch=True)
 
     original_mmd = repo.modulemd
     expected_arches = set(build.module_build_data["arches"])

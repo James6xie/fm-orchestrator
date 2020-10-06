@@ -628,15 +628,18 @@ class MBS:
             time.sleep(interval)
         raise TimeoutError("Wait for build timed out after {}s".format(timeout))
 
-    def wait_for_module_build_to_succeed(self, build_data,
+    def wait_for_module_build_to_succeed(self, build_data, is_scratch=False,
                                          timeout=BUILD_WAIT_TIMEOUT_SEC, interval=30):
         """Wait for module build to be 'ready'.
 
         :param int|str build_data: build definition (either id or Build object)
+        :param bool is_scratch: don't wait for 'ready' state in case of a scratch build
         :param int timeout: timeout in seconds
         :param int interval: scan interval in seconds
         """
         def predicate(build):
+            if is_scratch and build.get("state") == 3:
+                return True
             if build.get("state") == 5:
                 return True
             elif build.get("state") == 4:
