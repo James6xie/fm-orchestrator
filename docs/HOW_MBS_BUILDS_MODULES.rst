@@ -79,6 +79,11 @@ Such expanded modulemd files are then added to database as the next step in
 The ``submit_module_build(...)`` then moves the module builds to "init" state and sends a message on
 the configured message bus.
 
+There is a build option for MBS which enables us to override stream expansion and define contexts
+directly. For more information see |docs/STATIC_CONTEXTS.rst|_.
+
+.. |docs/STATIC_CONTEXTS.rst| replace:: ``docs/STATIC_CONTEXTS.rst``
+.. _docs/STATIC_CONTEXTS.rst: STATIC_CONTEXTS.rst
 
 Backend handles module moved to the "init" state
 ------------------------------------------------
