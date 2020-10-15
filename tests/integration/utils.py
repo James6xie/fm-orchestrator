@@ -6,6 +6,7 @@ import re
 import sys
 import time
 
+from functools import wraps
 from kobo import rpmlib
 import json
 import koji
@@ -18,6 +19,41 @@ import yaml
 
 our_sh = sh(_out=sys.stdout, _err=sys.stderr, _tee=True)
 from our_sh import Command, git, pushd  # noqa
+
+
+def retry(exception_to_check, tries=4, delay=3, backoff=2):
+    """Retry calling the decorated function using an exponential backoff.
+
+    from: http://wiki.python.org/moin/PythonDecoratorLibrary#Retry
+
+    :param exception_to_check: the exception to check. may be a tuple of
+        exceptions to check
+    :type exception_to_check: Exception or tuple
+    :param tries: number of times to try (not retry) before giving up
+    :type tries: int
+    :param delay: initial delay between retries in seconds
+    :type delay: int
+    :param backoff: backoff multiplier e.g. value of 2 will double the delay
+        each retry
+    :type backoff: int
+    """
+    def deco_retry(f):
+
+        @wraps(f)
+        def f_retry(*args, **kwargs):
+            mtries, mdelay = tries, delay
+            while mtries > 1:
+                try:
+                    return f(*args, **kwargs)
+                except exception_to_check:
+                    time.sleep(mdelay)
+                    mtries -= 1
+                    mdelay *= backoff
+            return f(*args, **kwargs)
+
+        return f_retry  # true decorator
+
+    return deco_retry
 
 
 def get_kerberos_auth():
@@ -517,6 +553,24 @@ class MBS:
     def __init__(self, mbs_api):
         self._mbs_api = mbs_api
 
+    @retry(requests.HTTPError)
+    def post(self, url, **kwargs):
+        r = requests.post(url, **kwargs)
+        r.raise_for_status()
+        return r
+
+    @retry(requests.HTTPError)
+    def get(self, url, **kwargs):
+        r = requests.get(url, **kwargs)
+        r.raise_for_status()
+        return r
+
+    @retry(requests.HTTPError)
+    def patch(self, url, **kwargs):
+        r = requests.patch(url, **kwargs)
+        r.raise_for_status()
+        return r
+
     @staticmethod
     def _get_build_id(build_data):
         if type(build_data) is Build:
@@ -540,8 +594,7 @@ class MBS:
         payload = {'name': module, "stream": stream}
         if order_desc_by:
             payload.update({"order_desc_by": order_desc_by})
-        r = requests.get(url, params=payload)
-        r.raise_for_status()
+        r = self.get(url, params=payload)
         return [Build(self._mbs_api, build["id"]) for build in r.json()["items"]]
 
     def import_module(self, scmurl):
@@ -552,11 +605,9 @@ class MBS:
         :rtype: requests response object
         """
         url = f"{self._mbs_api}import-module/"
-
         data = json.dumps({'scmurl': scmurl})
-        r = requests.post(url, auth=get_kerberos_auth(), verify=False, data=data)
-        r.raise_for_status()
-        return r
+
+        return self.post(url, auth=get_kerberos_auth(), verify=False, data=data)
 
     def get_module_builds(self, **kwargs):
         """Query MBS API on module-builds endpoint
@@ -566,9 +617,8 @@ class MBS:
         :Keyword Arguments: passed directly to the request as HTTP params.
         """
         url = f"{self._mbs_api}module-builds/"
-        r = requests.get(url, params=kwargs)
+        r = self.get(url, params=kwargs)
 
-        r.raise_for_status()
         return [Build(self._mbs_api, build["id"]) for build in r.json()["items"]]
 
     def get_module_build(self, build_data, **kwargs):
@@ -581,9 +631,8 @@ class MBS:
         """
         build_id = self._get_build_id(build_data)
         url = f"{self._mbs_api}module-builds/{build_id}"
-        r = requests.get(url, params=kwargs)
+        r = self.get(url, params=kwargs)
 
-        r.raise_for_status()
         return Build(self._mbs_api, r.json()["id"])
 
     def submit_module_build(self, data):
@@ -596,9 +645,9 @@ class MBS:
         :rtype: list[Build]
         """
         url = f"{self._mbs_api}module-builds/"
+        r = self.post(url, verify=False,
+                      auth=get_kerberos_auth(), data=json.dumps(data))
 
-        r = requests.post(url, verify=False, auth=get_kerberos_auth(), data=json.dumps(data))
-        r.raise_for_status()
         return [Build(self._mbs_api, build["id"]) for build in r.json()]
 
     def cancel_module_build(self, build_id):
@@ -606,8 +655,7 @@ class MBS:
         url = f"{self._mbs_api}module-builds/{build_id}"
 
         data = json.dumps({"state": "failed"})
-        response = requests.patch(url, auth=get_kerberos_auth(), verify=False, data=data)
-        response.raise_for_status()
+        self.patch(url, auth=get_kerberos_auth(), verify=False, data=data)
 
     def wait_for_module_build(self, build_data, predicate_func,
                               timeout=BUILD_WAIT_TIMEOUT_SEC, interval=5):
@@ -658,8 +706,7 @@ class MBS:
         build_id = self._get_build_id(build_data)
 
         url = f"{self._mbs_api}final-modulemd/{build_id}"
-        r = requests.get(url)
-        r.raise_for_status()
+        r = self.get(url)
 
         mmds = {}
         for arch, mmd in r.json().items():
