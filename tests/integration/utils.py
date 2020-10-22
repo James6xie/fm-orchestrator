@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: MIT
 
+import datetime
 import os
 import re
 import sys
@@ -548,7 +549,7 @@ class MBS:
 
     # Stage MBS sometimes takes very long to finish a build.
     # Let's make this default value absurdly high to prevent timeouts.
-    BUILD_WAIT_TIMEOUT_SEC = 5 * 60 * 60
+    BUILD_WAIT_TIMEOUT_SEC = 10 * 60 * 60
 
     def __init__(self, mbs_api):
         self._mbs_api = mbs_api
@@ -674,7 +675,8 @@ class MBS:
             if predicate_func(build):
                 return
             time.sleep(interval)
-        raise TimeoutError("Wait for build timed out after {}s".format(timeout))
+        timeout_str = str(datetime.timedelta(seconds=timeout))
+        raise TimeoutError("Wait for build timed out after {}".format(timeout_str))
 
     def wait_for_module_build_to_succeed(self, build_data, is_scratch=False,
                                          timeout=BUILD_WAIT_TIMEOUT_SEC, interval=30):
