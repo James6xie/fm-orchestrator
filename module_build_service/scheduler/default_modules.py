@@ -275,7 +275,10 @@ def handle_collisions_with_base_module_rpms(mmd, arches):
     for rpm in non_bm_rpms:
         rpm_name = kobo.rpmlib.parse_nvra(rpm)["name"]
         if rpm_name in name_to_nevras:
-            conflicts = conflicts | name_to_nevras[rpm_name]
+            # Do not add conflicts for identical NEVRAs
+            nevras = {n for n in name_to_nevras[rpm_name] if n not in non_bm_rpms}
+            if nevras:
+                conflicts = conflicts | nevras
 
     # Add the conflicting NEVRAs to `ursine_rpms` so the Conflicts are later generated for them
     # in the KojiModuleBuilder.
