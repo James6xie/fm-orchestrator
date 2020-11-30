@@ -76,13 +76,13 @@ def repo(scenario, test_env):
             yield utils.Repo(module, branch)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def koji(test_env):
     """Koji session for the instance MBS is configured to work with."""
     return utils.Koji(**test_env["koji"])
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def mbs(test_env):
     """MBS instance session."""
     return utils.MBS(test_env["mbs_api"])
