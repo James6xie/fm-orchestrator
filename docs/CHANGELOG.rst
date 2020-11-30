@@ -1,6 +1,10 @@
 Change Log
 ==========
 
+v3.4.1
+------
+* Do not add conflicts in dependencies when builds are identical
+
 v3.4.0
 ------
 * Implement static contexts in stream expansion
