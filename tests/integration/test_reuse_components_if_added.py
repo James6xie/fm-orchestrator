@@ -26,10 +26,10 @@ def extracted_test_function(repo, pkg_util, mbs, scenario):
         assert len(test_rpms) >= len(scenario[scenario_item]), hint
 
     # Prepare test data from test.env scenario
-    first_build_rpms = {test_rpms[i] for i in scenario["first_build"]}
-    second_build_rpms = {test_rpms[i] for i in scenario["second_build"]}
-    expected_reused = {test_rpms[i] for i in scenario["expected_reused"]}
-    expected_rebuilt = {test_rpms[i] for i in scenario["expected_rebuilt"]}
+    first_build_rpms = [test_rpms[i] for i in scenario["first_build"]]
+    second_build_rpms = [test_rpms[i] for i in scenario["second_build"]]
+    expected_reused = [test_rpms[i] for i in scenario["expected_reused"]]
+    expected_rebuilt = [test_rpms[i] for i in scenario["expected_rebuilt"]]
     rebuild_strategy = scenario["rebuild_strategy"]
 
     # Save initial state
@@ -76,8 +76,8 @@ def extracted_test_function(repo, pkg_util, mbs, scenario):
             c["package"] for c in build_components if c["state_reason"] != reused_msg
         }
 
-        assert actually_reused == expected_reused
-        assert actually_rebuilt == expected_rebuilt
+        assert actually_reused == {*expected_reused}
+        assert actually_rebuilt == {*expected_rebuilt}
 
     finally:  # Revert the change
         repo.write_to_modulemd(original_metadata)
