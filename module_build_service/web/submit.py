@@ -387,6 +387,8 @@ def _process_support_streams(db_session, mmd, params):
 
         try:
             pp_rv = requests.get(schedule_url, timeout=15)
+            # raise exception if we receive 404
+            pp_rv.raise_for_status()
             pp_json = pp_rv.json()
             # Catch requests failures and JSON parsing errors
         except (requests.exceptions.RequestException, ValueError):
